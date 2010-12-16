@@ -1,0 +1,47 @@
+## 0.6 Release
+* finish using cr3 instead of kpgd throughout, or come up with a way to 
+  reliably find the kpgd value
+  - need to make sure this works with both live VMs and memory files
+* extract linux sysmap information from memory so that we no longer need
+  to provide the sysmap in the config file
+
+
+## 0.7 Release
+* autodetect os type
+* automatically determine offset information
+* remove need for config file altogether
+
+
+## 0.8 Release
+* additional example applications
+* unit tests
+* cache entries automatically clear themselves when they are stale
+* provide API function to allow users to clear cache
+
+
+## 0.9 Release
+* performance improvements
+* code cleanup throughout
+* documentation improvements
+
+
+## 1.0 Release
+* bug fixes only, no new features
+
+
+## Beyond (or earlier if someone wants to contribute)
+* integrate into Xen distribution
+* create higher level abstractions
+  -- iterators (process lists, module lists, other lists)
+  -- windows handle table walking
+  -- windows VADs
+  -- linux proc data
+  -- windows registry data
+  -- API for people to write modules (similar to Volatility)?
+* consider adding data gathering from xenbus, xenoprofile, etc
+* support for active / event-driven monitoring
+  -- patch for Xen to tag memory pages for notification on read/write/exec
+  -- patch for libxc to set these notifications via mfn
+  -- set notifications via PA/VA in XenAccess
+* get additional symbols from MS symbol server
+* support for KVM and/or other virtualization platforms

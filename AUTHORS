@@ -1,0 +1,67 @@
+Authors of XenAccess
+
+The following is a list of the various authors that have contributed to the
+XenAccess project.  By contributing code to this project, authors have agreed
+to release their work under the GNU GPL.  Thanks for everyone who has 
+contributed!
+
+Bryan D. Payne (bryan@thepaynes.cc)
+  entire files:
+    README
+    examples/map-addr.c
+    examples/map-symbol.c
+    examples/module-list.c
+    examples/process-data.c
+    examples/process-list.c
+    xenaccess/linux_core.c
+    xenaccess/linux_domain_info.c
+    xenaccess/linux_memory.c
+    xenaccess/linux_symbols.c
+    xenaccess/linux_system_map.c
+    xenaccess/windows_core.c
+    xenaccess/windows_memory.c
+    xenaccess/windows_symbols.c
+    xenaccess/xa_cache.c
+    xenaccess/xa_core.c
+    xenaccess/xa_domain_info.c
+    xenaccess/xa_memory.c
+    xenaccess/xa_pretty_print.c
+    xenaccess/xa_private.h
+    xenaccess/xa_symbols.c
+    xenaccess/xa_util.c
+    xenaccess/xenaccess.h
+    xenaccess/config/config_parser.h
+    xenaccess/config/grammar.y
+    xenaccess/config/lexicon.l
+  modifications
+    n/a
+
+Hajime Inoue (hinoue@ccsl.carleton.ca)
+  entire files:
+  modifications:
+    README
+    xenaccess/linux_memory.c
+    xenaccess/windows_memory.c
+    xenaccess/xa_core.c
+    xenaccess/xa_util.c
+    xenaccess/xa_private.h
+    xenaccess/xenaccess.h
+    xenaccess/config/config_parser.h
+    xenaccess/config/grammar.y
+    xenaccess/config/lexicon.l
+
+Tomas Kouba (tomas@jikos.cz)
+  entire files:
+  modifications:
+    README
+    configure.ac
+    xenaccess/xa_memory.c
+    xenaccess/linux_memory.c
+    xenaccess/xa_private.h
+    xenaccess/xa_cache.c
+    xenaccess/xa_pretty_print.c
+
+Stephan Creutz (stephan.creutz@inf.tu-dresden.de)
+  entire files:
+  modifications
+    xenaccess/linux_system_map.c

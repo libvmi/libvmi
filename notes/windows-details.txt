@@ -1,0 +1,36 @@
+## Useful information
+* Windows user/kernel split is at 2GB/2GB, so the kernel offset is 0x80000000
+* PFN database at 0x80c00000
+* PTE base at 0xc0000000
+* each process has only one page directory
+* page size is 0x1000 bytes (4k)
+* PAE enabled (?)
+* kernel image loaded at physical address 0x004de000
+* ntoskrnl.exe is the first module on PsLoadedModuleList
+* PsInitialSystemProcess symbol from ntoskrnl can be start of enumerating
+  the processes.  Take the value of this symbol (which is a RVA) and add
+  it to the PA for the kernel image to get the PA for the symbol
+     e.g., 0x4de000 (PA)  + 0x90ef4 (RVA)  = 0x56eef4 (PA)
+
+* one method for getting the ntoskrnl base address is to do the following:
+  (1) find the base address of the IDT (which can be obtained with a SIDT
+      call or by looking in the IDTR register.
+      --> So actually the IDT base address etc is contained within AMDV’s
+          VMCB or VT’s VMCS (i.e., for HVM domains it's in the VT hardware)
+  (2) walk backwards in memory until you find the MZ that signifies the start
+      of the PE image
+  (3) that's it, you are done!
+
+* Lots of kernel symbols listed around phys addr 0x0066a8f0
+  -- starts at 00665c10
+
+## Info from my version of windows xp sp2
+* ntoskrnl.exe pysical base address is 0x004d7000.
+  -- available using windgb in a local kernel session
+  -- shows 0x804d7000 so there must be a linear map for at least some of
+     kernel memory as in linux... 0x804d7000 - 0x80000000 = 0x004d7000
+* PsLoaded ModuleList = 0x8055a620 on nopae
+* PsLoaded ModuleList = 0x805533a0 on pae
+* Running kernel version is 2600.xpsp_sp2_gdr.070227-2254
+
+

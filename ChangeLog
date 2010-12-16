@@ -1,0 +1,19 @@
+New to version 0.4
+* support for Windows domains (tested with WinXP SP2)
+* Xen version 3.0.3 is no longer supported
+* new API calls for v2p translation and reading memory values
+* support for pae memory addressing
+* new example code (map-addr, map-symbol)
+* expanded use of config file
+* offsets must be included in config file
+* improved debug output
+* improved cache performance
+* various bug fixes
+
+New to version 0.3
+* support for HVM domains
+* addition of configuration file for System map location
+* integration of the GNU build system
+* removed libvirt dependency
+* new example for mapping a kernel symbol's page
+* various bug fixes

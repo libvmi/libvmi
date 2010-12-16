@@ -1,0 +1,29 @@
+Offsets for various OS kernels
+------------------------------
+
+Windows XP SP2 (version 5.1.2600.3093 xpsp_sp2_gdr.070227-2254)
+    win_tasks   = 0x88;
+    win_pdbase  = 0x18;
+    win_pid     = 0x84;
+    win_peb     = 0x1b0;
+    win_iba     = 0x8;
+    win_ph      = 0x18;
+
+PV Linux 2.6.16.13 (created via 'make world' from xen 3.0.4-1)
+    linux_tasks = 0x60;
+    linux_mm    = 0x78;
+    linux_pid   = 0x9c;
+    linux_name  = 0x1b0;
+    linux_pgd   = 0x24;
+    linux_addr  = 0x80;
+
+PV Linux 2.6.18 (created via 'make world' from xen 3.1.0)
+    linux_tasks = 0x82;
+    linux_mm    = 0x9a;
+    linux_pid   = 0xc0;
+    linux_name  = 0x19c;
+    linux_pgd   = 0x24;
+    linux_addr  = 0xa0;
+
+
+(see http://code.google.com/p/xenaccess/wiki/ConfigurationEntries for more)

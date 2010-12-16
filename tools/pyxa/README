@@ -1,0 +1,32 @@
+pyxa -- A Python adapter for XenAccess by Brendan Dolan-Gavitt
+
+If you'd rather perform introspection using python, instead of C, then this
+adapter will help get you going.  Follow the steps below to use it.
+
+1) Build and install XenAccess
+    ./autogen.sh
+    ./configure
+    make
+    make install
+    ldconfig
+
+2) Build and install pyxa
+    python setup.py build
+    python setup.py install
+
+3) Start having fun with Python
+    import pyxa
+    xai = pyxa.pyxa_instance(2)  # 2 is the domain id
+    xai.read(paddr, length)
+    xai.get_cr3()
+    xai.is_pae()
+    xai.is_pse()
+
+
+Once you have pyxa installed, you can write your own programs using Python or
+you can use Volatility to perform your memory analysis.  To use Volatility,
+you need to apply the included patch (pyxa_volatility.patch) to Volatility.
+More information on Volatility and a link to download the tool, are available
+on the following web page:
+
+https://www.volatilesystems.com/default/volatility

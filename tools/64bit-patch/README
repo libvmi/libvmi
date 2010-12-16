@@ -1,0 +1,24 @@
+This is a patch designed to provide 64-bit support to XenAccess.  It was 
+developed by Wang Hui on an AMD Opteron based machine.  It should patch
+cleanly against subversion version svn-r130.  Note that it has not been
+updated to patch cleanly against the current version.
+
+This patch is provided to help people who may be interested in playing with
+64-bit support in XenAccess.  Given the limited development resources of the
+XenAccess team, we will be unable to provide 64-bit support in the mainline
+source tree without an outside developer's commitment to maintain the code
+over the long term.
+
+To use this patch:
+
+1) Using subversion, checkout svn-r130 (or use the current code and update
+   the patch to work cleanly against the newer code base).
+
+2) Apply the patch using 'cd libxa/ && patch -p1 < xenaccess.x86_64.patch'.
+
+3) Before typing 'make', create a symlink to the virtual machine's arch
+   for example 'cd libxa/xenaccess/arch/ && ln -s x86_64 machine'.
+
+This patch is being provided "as is".  If you have any problems with it, 
+we're happy to receive updates / fixes, but we are unable to provide any
+support or assistance in getting this to work.

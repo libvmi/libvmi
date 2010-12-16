@@ -1,0 +1,69 @@
+XenAccess v0.5 README
+by Bryan D. Payne
+=====================
+
+This file contains very basic instructions to get you up and running.  If you
+want more details about installation, or programming with XenAccess, then see
+the documentation included in the doc/ subdirectory of XenAccess, or view the
+documentation online at http://doc.xenaccess.org.
+
+Changes From Previous Versions
+------------------------------
+* #define ENABLE_XEN
+* --disable-xen
+* new init functions 
+
+Dependencies
+------------
+The following libraries are used in building this code:
+
+libxc (from Xen, the Xen Control library)
+libxenstore (from Xen, access to the xenstore)
+yacc OR bison (for reading the configuration file)
+lex OR flex (for reading the configuration file)
+
+Note: If you are installing a packaged version of Xen, you will likely
+  need to install something like 'xen-devel' to obtain the files needed
+  from libxc and libxenstore in the dependencies listed above.
+
+Building
+--------
+XenAccess uses the standard GNU build system.  To compile this library, simply
+follow the steps below:
+
+./autogen.sh
+./configure
+make
+
+Note that if you only want to use XenAccess to read dd-style memory files,
+then you can pass the "--disable-xen" option to configure.  This will build
+XenAccess without any Xen support, allowing you to use the library on systems
+without Xen installed.
+
+The example code will work without installing XenAccess.  However, you may
+choose to install the library into the prefix specified to 'configure' by:
+
+make install
+
+The default installation prefix is /usr/local.
+
+
+Want to Help?
+-------------
+One of the motivations for starting this project was to create a place where
+everyone interested in using introspection could come together and share
+ideas.  Introspection has many potential uses and it doesn't make sense for
+everyone to keep rewriting code to do this.  Instead, let's use XenAccess as
+a common base and spend our time exploring all of the interesting things that
+introspection can be used for.  
+
+If you'd like to add features to the code, please drop me a line on the
+mailing list.  I'm always happy to take new ideas, code patches, and even
+add developers to the group, depending on how you would like to get invovled.
+
+
+Questions?
+----------
+The Google Group is the best place to get your questions answered:
+
+    http://groups.google.com/group/xenaccess

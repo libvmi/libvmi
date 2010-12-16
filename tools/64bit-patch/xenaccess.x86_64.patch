@@ -1,0 +1,2345 @@
+diff -upNr old/examples/Makefile.am new/examples/Makefile.am
+--- old/examples/Makefile.am	2008-10-26 01:23:42.000000000 +0800
++++ new/examples/Makefile.am	2008-11-12 19:44:13.000000000 +0800
+@@ -3,7 +3,9 @@
+ SUBDIRS = 
+ 
+ INCLUDES = -I$(top_srcdir)
+-AM_LDFLAGS = -L$(top_srcdir)/xenaccess/.libs/
++## comment out following line on x86_32
++AM_LDFLAGS = -L$(top_srcdir)/xenaccess/
++#AM_LDFLAGS = -L$(top_srcdir)/xenaccess/.libs/
+ LDADD = -lxenaccess -lxenctrl -lxenstore -lm
+ 
+ bin_PROGRAMS = module-list process-data process-list map-symbol map-addr process-list-file dump-memory
+diff -upNr old/examples/process-data.c new/examples/process-data.c
+--- old/examples/process-data.c	2008-10-26 01:23:42.000000000 +0800
++++ new/examples/process-data.c	2008-11-12 20:25:28.000000000 +0800
+@@ -34,17 +34,17 @@
+ 
+ void linux_printaddr (xa_linux_taskaddr_t taskaddr)
+ {
+-    printf("start_code = 0x%.8lx\n", taskaddr.start_code);
+-    printf("end_code = 0x%.8lx\n", taskaddr.end_code);
+-    printf("start_data = 0x%.8lx\n", taskaddr.start_data);
+-    printf("end_data = 0x%.8lx\n", taskaddr.end_data);
+-    printf("start_brk = 0x%.8lx\n", taskaddr.start_brk);
+-    printf("brk = 0x%.8lx\n", taskaddr.brk);
+-    printf("start_stack = 0x%.8lx\n", taskaddr.start_stack);
+-    printf("arg_stack = 0x%.8lx\n", taskaddr.arg_stack);
+-    printf("arg_end = 0x%.8lx\n", taskaddr.arg_end);
+-    printf("env_start = 0x%.8lx\n", taskaddr.env_start);
+-    printf("env_end = 0x%.8lx\n", taskaddr.env_end);
++    printf("start_code  = 0x%llx\n", taskaddr.start_code);
++    printf("end_code    = 0x%llx\n", taskaddr.end_code);
++    printf("start_data  = 0x%llx\n", taskaddr.start_data);
++    printf("end_data    = 0x%llx\n", taskaddr.end_data);
++    printf("start_brk   = 0x%llx\n", taskaddr.start_brk);
++    printf("brk         = 0x%llx\n", taskaddr.brk);
++    printf("start_stack = 0x%llx\n", taskaddr.start_stack);
++    printf("arg_start   = 0x%llx\n", taskaddr.arg_stack);
++    printf("arg_end     = 0x%llx\n", taskaddr.arg_end);
++    printf("env_start   = 0x%llx\n", taskaddr.env_start);
++    printf("env_end     = 0x%llx\n", taskaddr.env_end);
+ }
+ 
+ void windows_printaddr (xa_windows_peb_t peb)
+@@ -59,7 +59,12 @@ int main (int argc, char **argv)
+     xa_linux_taskaddr_t taskaddr;
+     xa_windows_peb_t peb;
+     unsigned char *memory = NULL;
+-    uint32_t offset = 0;
++    xa_addr_t offset = 0;
++
++    if (argc!=3) {
++        printf("Print xen dom-U's process data(the first code page). \nUsage: \n\tprocess-data domid pid\n");
++        exit(0);
++    }
+ 
+     /* this is the domain ID that we are looking at */
+     uint32_t dom = atoi(argv[1]);
+diff -upNr old/examples/process-list.c new/examples/process-list.c
+--- old/examples/process-list.c	2008-10-26 01:23:42.000000000 +0800
++++ new/examples/process-list.c	2008-11-12 20:19:14.000000000 +0800
+@@ -32,15 +32,30 @@
+ #include <xenaccess/xenaccess.h>
+ #include <xenaccess/xa_private.h>
+ 
++/*  modify it by your setting
++ * 660      for  pv, xen 3.2.1, linux 2.6.18 
++ * 108*4    for pv, xen 3.0.4, linux 2.6.16
++ * 0x174    for Windows XP SP2
++ * 0x14c    for Windows Vista
++*/
++#define TASK_NAME_OFFSET 660
++
+ int main (int argc, char **argv)
+ {
+     xa_instance_t xai;
+     unsigned char *memory = NULL;
+-    uint32_t offset, next_process, list_head;
++    xa_addr_t offset, next_process, list_head;
++
+     char *name = NULL;
++    char buf[128];
+     int pid = 0;
+     int tasks_offset, pid_offset, name_offset;
+ 
++    if (argc!=2) {
++        printf("Print xen dom-U's process list. \nUsage: \n\tprocess-list domid\n");
++        exit(0);
++    }
++
+     /* this is the domain ID that we are looking at */
+     uint32_t dom = atoi(argv[1]);
+ 
+@@ -53,14 +68,12 @@ int main (int argc, char **argv)
+     /* init the offset values */
+     if (XA_OS_LINUX == xai.os_type){
+         tasks_offset = xai.os.linux_instance.tasks_offset;
+-        name_offset = 108*4; /* pv, xen 3.0.4, linux 2.6.16 */
+-//        name_offset = ??; /* pv, xen 3.1.0, centos 2.6.18-53.el5xen */
++        name_offset = TASK_NAME_OFFSET; 
+         pid_offset = xai.os.linux_instance.pid_offset;
+     }
+     else if (XA_OS_WINDOWS == xai.os_type){
+         tasks_offset = xai.os.windows_instance.tasks_offset;
+-        name_offset = 0x174; /* Windows XP SP2 */
+-//        name_offset = 0x14c; /* Windows Vista */
++        name_offset = TASK_NAME_OFFSET;
+         pid_offset = xai.os.windows_instance.pid_offset;
+     }
+ 
+@@ -70,8 +83,8 @@ int main (int argc, char **argv)
+         if (NULL == memory){
+             perror("failed to get process list head");
+             goto error_exit;
+-        }    
+-        memcpy(&next_process, memory + offset + tasks_offset, 4);
++        }
++        memcpy(&next_process, memory + offset + tasks_offset, sizeof(xa_addr_t));
+     }
+     else if (XA_OS_WINDOWS == xai.os_type){
+         xa_read_long_sym(&xai, "PsInitialSystemProcess", &list_head);
+@@ -87,17 +100,18 @@ int main (int argc, char **argv)
+     }
+     list_head = next_process;
+     munmap(memory, xai.page_size);
++    printf("Don't print process name which pid<100 .\n");
+ 
+     /* walk the task list */
+     while (1){
+-
+         /* follow the next pointer */
+         memory = xa_access_kernel_va(&xai, next_process, &offset, PROT_READ);
+         if (NULL == memory){
+             perror("failed to map memory for process list pointer");
+             goto error_exit;
+         }
+-        memcpy(&next_process, memory + offset, 4);
++        /* memory+offset is the 'tasks' member.  list->next */
++        memcpy(&next_process, memory + offset, sizeof(xa_addr_t));
+ 
+         /* if we are back at the list head, we are done */
+         if (list_head == next_process){
+@@ -114,14 +128,20 @@ int main (int argc, char **argv)
+            code cleaner, if not more fragile.  In a real app, you'd
+            want to do this a little more robust :-)  See
+            include/linux/sched.h for mode details */
+-        name = (char *) (memory + offset + name_offset - tasks_offset);
+-        memcpy(&pid, memory + offset + pid_offset - tasks_offset, 4);
++        name = (unsigned char *) (memory + offset - tasks_offset + name_offset);
++        memcpy(&pid, memory + offset - tasks_offset + pid_offset, sizeof(int));
+ 
+         /* trivial sanity check on data */
+         if (pid < 0){
+             continue;
+         }
+-        printf("[%5d] %s\n", pid, name);
++
++        printf("[%5d] ", pid);
++        if(pid<100) /* XXX FIXME: avoid 'Segmentation fault' */
++            printf("\n");
++        else
++            printf("%s\n", name);
++
+         munmap(memory, xai.page_size);
+     }
+ 
+diff -upNr old/xenaccess/Makefile.am new/xenaccess/Makefile.am
+--- old/xenaccess/Makefile.am	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/Makefile.am	2008-11-12 19:44:13.000000000 +0800
+@@ -1,12 +1,12 @@
+ SUBDIRS = config
+ 
+ h_sources = xenaccess.h xa_private.h
+-c_sources = linux_core.c linux_domain_info.c linux_symbols.c xa_core.c xa_memory.c linux_memory.c xa_cache.c xa_domain_info.c xa_file.c xa_pretty_print.c xa_util.c windows_memory.c windows_symbols.c windows_core.c windows_process.c xa_symbols.c xa_error.c
++c_sources = linux_core.c linux_domain_info.c linux_symbols.c xa_core.c xa_memory.c linux_memory.c xa_cache.c xa_domain_info.c xa_file.c xa_pretty_print.c xa_util.c windows_memory.c windows_symbols.c windows_core.c windows_process.c xa_symbols.c xa_error.c arch/machine/memory.c
+ 
+ library_includedir=$(includedir)/$(LIBRARY_NAME)
+ library_include_HEADERS = $(h_sources)
+ 
+-INCLUDES = -I$(top_srcdir)
++INCLUDES = -I$(top_srcdir) 
+ 
+ lib_LTLIBRARIES= libxenaccess.la
+ libxenaccess_la_SOURCES= $(h_sources) $(c_sources)
+diff -upNr old/xenaccess/arch/i386/memory.c new/xenaccess/arch/i386/memory.c
+--- old/xenaccess/arch/i386/memory.c	1970-01-01 08:00:00.000000000 +0800
++++ new/xenaccess/arch/i386/memory.c	2008-11-12 19:44:13.000000000 +0800
+@@ -0,0 +1,361 @@
++/*
++ * The libxa library provides access to resources in domU machines.
++ * 
++ * Copyright (C) 2005 - 2008  Bryan D. Payne (bryan@thepaynes.cc)
++ * 
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ * 
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ * 
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
++ * 02110-1301, USA.
++ *
++ * --------------------
++ * This file contains functions for sharing the memory of a domU
++ * machine.  The functions basically only differ in how the memory
++ * is referenced (pfn, mfn, virtual address, physical address, etc).
++ *
++ * File: xa_memory.c
++ *
++ * Author(s): Bryan D. Payne (bryan@thepaynes.cc)
++ */
++
++#include <stdlib.h>
++#include <sys/mman.h>
++#include "xenaccess.h"
++#include "xa_private.h"
++#include "types.h"
++
++/* hack to get this to compile on xen 3.0.4 */
++#ifndef XENMEM_maximum_gpfn
++#define XENMEM_maximum_gpfn 0
++#endif
++
++/* bit flag testing */
++int entry_present (unsigned long entry){
++    return xa_get_bit(entry, 0);
++}
++
++int page_size_flag (unsigned long entry){
++    return xa_get_bit(entry, 7);
++}
++
++/* page directory pointer table */
++uint32_t get_pdptb (uint32_t pdpr){
++    return pdpr & 0xFFFFFFE0;
++}
++
++uint32_t pdpi_index (uint32_t pdpi){
++    return (pdpi >> 30) * sizeof(uint64_t);
++}
++
++uint64_t get_pdpi (
++        xa_instance_t *instance, uint32_t vaddr, uint32_t cr3, int k)
++{
++    uint64_t value;
++    uint32_t pdpi_entry = get_pdptb(cr3) + pdpi_index(vaddr);
++    xa_dbprint("--PTLookup: pdpi_entry = 0x%.8x\n", pdpi_entry);
++    if (k){
++        xa_read_long_long_mach(instance, pdpi_entry, &value);
++    }
++    else{
++        xa_read_long_long_virt(instance, pdpi_entry, 0, &value);
++    }
++    return value;
++}
++
++/* page directory */
++uint32_t pgd_index (xa_instance_t *instance, uint32_t address){
++    if (!instance->pae){
++        return (((address) >> 22) & 0x3FF) * sizeof(uint32_t);
++    }
++    else{
++        return (((address) >> 21) & 0x1FF) * sizeof(uint64_t);
++    }
++}
++
++uint32_t pdba_base_nopae (uint32_t pdpe){
++    return pdpe & 0xFFFFF000;
++}
++
++uint64_t pdba_base_pae (uint64_t pdpe){
++    return pdpe & 0xFFFFFF000ULL;
++}
++
++uint32_t get_pgd_nopae (
++        xa_instance_t *instance, uint32_t vaddr, uint32_t pdpe, int k)
++{
++    uint32_t value;
++    uint32_t pgd_entry = pdba_base_nopae(pdpe) + pgd_index(instance, vaddr);
++    xa_dbprint("--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
++    if (k){
++        xa_read_long_mach(instance, pgd_entry, &value);
++    }
++    else{
++        xa_read_long_virt(instance, pgd_entry, 0, &value);
++    }
++    return value;
++}
++
++uint64_t get_pgd_pae (
++        xa_instance_t *instance, uint32_t vaddr, uint64_t pdpe, int k)
++{
++    uint64_t value;
++    uint32_t pgd_entry = pdba_base_pae(pdpe) + pgd_index(instance, vaddr);
++    xa_dbprint("--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
++    xa_read_long_long_mach(instance, pgd_entry, &value);
++    return value;
++}
++
++/* page table */
++uint32_t pte_index (xa_instance_t *instance, uint32_t address){
++    if (!instance->pae){
++        return (((address) >> 12) & 0x3FF) * sizeof(uint32_t);
++    }
++    else{
++        return (((address) >> 12) & 0x1FF) * sizeof(uint64_t); 
++    }
++}
++        
++uint32_t ptba_base_nopae (uint32_t pde){
++    return pde & 0xFFFFF000;
++}
++
++uint64_t ptba_base_pae (uint64_t pde){
++    return pde & 0xFFFFFF000ULL;
++}
++
++uint32_t get_pte_nopae (xa_instance_t *instance, uint32_t vaddr, uint32_t pgd){
++    uint32_t value;
++    uint32_t pte_entry = ptba_base_nopae(pgd) + pte_index(instance, vaddr);
++    xa_dbprint("--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
++    xa_read_long_mach(instance, pte_entry, &value);
++    return value;
++}
++
++uint64_t get_pte_pae (xa_instance_t *instance, uint32_t vaddr, uint64_t pgd){
++    uint64_t value;
++    uint32_t pte_entry = ptba_base_pae(pgd) + pte_index(instance, vaddr);
++    xa_dbprint("--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
++    xa_read_long_long_mach(instance, pte_entry, &value);
++    return value;
++}
++
++/* page */
++uint32_t pte_pfn_nopae (uint32_t pte){
++    return pte & 0xFFFFF000;
++}
++
++uint64_t pte_pfn_pae (uint64_t pte){
++    return pte & 0xFFFFFF000ULL;
++}
++
++uint32_t get_paddr_nopae (uint32_t vaddr, uint32_t pte){
++    return pte_pfn_nopae(pte) | (vaddr & 0xFFF);
++}
++
++uint64_t get_paddr_pae (uint32_t vaddr, uint64_t pte){
++    return pte_pfn_pae(pte) | (vaddr & 0xFFF);
++}
++
++uint32_t get_large_paddr (
++        xa_instance_t *instance, uint32_t vaddr, uint32_t pgd_entry)
++{
++    if (!instance->pae){
++        return (pgd_entry & 0xFFC00000) | (vaddr & 0x3FFFFF);
++    }
++    else{
++        return (pgd_entry & 0xFFE00000) | (vaddr & 0x1FFFFF);
++    }
++}
++
++/* "buffalo" routines
++ * see "Using Every Part of the Buffalo in Windows Memory Analysis" by
++ * Jesse D. Kornblum for details. 
++ * for now, just test the bits and print out details */
++int get_transition_bit(uint32_t entry)
++{
++    return xa_get_bit(entry, 11);
++}
++
++int get_prototype_bit(uint32_t entry)
++{
++    return xa_get_bit(entry, 10);
++}
++
++void buffalo_nopae (xa_instance_t *instance, uint32_t entry, int pde)
++{
++    /* similar techniques are surely doable in linux, but for now
++     * this is only testing for windows domains */
++    if (!instance->os_type == XA_OS_WINDOWS){
++        return;
++    }
++
++    if (!get_transition_bit(entry) && !get_prototype_bit(entry)){
++        uint32_t pfnum = (entry >> 1) & 0xF;
++        uint32_t pfframe = entry & 0xFFFFF000;
++
++        /* pagefile */
++        if (pfnum != 0 && pfframe != 0){
++            xa_dbprint("--Buffalo: page file = %d, frame = 0x%.8x\n",
++                pfnum, pfframe);
++        }
++        /* demand zero */
++        else if (pfnum == 0 && pfframe == 0){
++            xa_dbprint("--Buffalo: demand zero page\n");
++        }
++    }
++
++    else if (get_transition_bit(entry) && !get_prototype_bit(entry)){
++        /* transition */
++        xa_dbprint("--Buffalo: page in transition\n");
++    }
++
++    else if (!pde && get_prototype_bit(entry)){
++        /* prototype */
++        xa_dbprint("--Buffalo: prototype entry\n");
++    }
++
++    else if (entry == 0){
++        /* zero */
++        xa_dbprint("--Buffalo: entry is zero\n");
++    }
++
++    else{
++        /* zero */
++        xa_dbprint("--Buffalo: unknown\n");
++    }
++}
++
++/* translation */
++uint32_t v2p_nopae(xa_instance_t *instance, uint32_t cr3, uint32_t vaddr, int k)
++{
++    uint32_t paddr = 0;
++    uint32_t pgd, pte;
++        
++    xa_dbprint("--PTLookup: lookup vaddr = 0x%.8x\n", vaddr);
++    xa_dbprint("--PTLookup: cr3 = 0x%.8x\n", cr3);
++    pgd = get_pgd_nopae(instance, vaddr, cr3, k);
++    xa_dbprint("--PTLookup: pgd = 0x%.8x\n", pgd);
++        
++    if (entry_present(pgd)){
++        if (page_size_flag(pgd)){
++            paddr = get_large_paddr(instance, vaddr, pgd);
++            xa_dbprint("--PTLookup: 4MB page\n", pgd);
++        }
++        else{
++            pte = get_pte_nopae(instance, vaddr, pgd);
++            xa_dbprint("--PTLookup: pte = 0x%.8x\n", pte);
++            if (entry_present(pte)){
++                paddr = get_paddr_nopae(vaddr, pte);
++            }
++            else{
++                buffalo_nopae(instance, pte, 1);
++            }
++        }
++    }
++    else{
++        buffalo_nopae(instance, pgd, 0);
++    }
++    xa_dbprint("--PTLookup: paddr = 0x%.8x\n", paddr);
++    return paddr;
++}
++
++uint32_t v2p_pae (xa_instance_t *instance, uint32_t cr3, uint32_t vaddr, int k)
++{
++    uint32_t paddr = 0;
++    uint64_t pdpe, pgd, pte;
++        
++    xa_dbprint("--PTLookup: lookup vaddr = 0x%.8x\n", vaddr);
++    xa_dbprint("--PTLookup: cr3 = 0x%.8x\n", cr3);
++    pdpe = get_pdpi(instance, vaddr, cr3, k);
++    xa_dbprint("--PTLookup: pdpe = 0x%.16x\n", pdpe);
++    if (!entry_present(pdpe)){
++        return paddr;
++    }
++    pgd = get_pgd_pae(instance, vaddr, pdpe, k);
++    xa_dbprint("--PTLookup: pgd = 0x%.16x\n", pgd);
++
++    if (entry_present(pgd)){
++        if (page_size_flag(pgd)){
++            paddr = get_large_paddr(instance, vaddr, pgd);
++            xa_dbprint("--PTLookup: 2MB page\n");
++        }
++        else{
++            pte = get_pte_pae(instance, vaddr, pgd);
++            xa_dbprint("--PTLookup: pte = 0x%.16x\n", pte);
++            if (entry_present(pte)){
++                paddr = get_paddr_pae(vaddr, pte);
++            }
++        }
++    }
++    xa_dbprint("--PTLookup: paddr = 0x%.8x\n", paddr);
++    return paddr;
++}
++
++/* convert address to machine address via page tables */
++uint32_t xa_pagetable_lookup (
++            xa_instance_t *instance,
++            uint32_t cr3,
++            uint32_t vaddr,
++            int kernel)
++{
++    if (instance->pae){
++        return v2p_pae(instance, cr3, vaddr, kernel);
++    }
++    else{
++        return v2p_nopae(instance, cr3, vaddr, kernel);
++    }
++}
++
++uint32_t xa_current_cr3 (xa_instance_t *instance, uint32_t *cr3)
++{
++    int ret = XA_SUCCESS;
++    vcpu_guest_context_t ctxt;
++
++    if (XA_MODE_XEN == instance->mode){
++        if ((ret = xc_vcpu_getcontext(
++                instance->m.xen.xc_handle,
++                instance->m.xen.domain_id,
++                0, /*TODO vcpu, assuming only 1 for now */
++                &ctxt)) != 0){
++            printf("ERROR: failed to get context information.\n");
++            ret = XA_FAILURE;
++            goto error_exit;
++        }
++        *cr3 = ctxt.ctrlreg[3] & 0xFFFFF000;
++    }
++    else if (XA_MODE_FILE == instance->mode){
++        *cr3 = instance->kpgd - instance->page_offset;
++    }
++
++error_exit:
++    return ret;
++}
++
++/* expose virtual to physical mapping via api call */
++uint32_t xa_translate_kv2p(xa_instance_t *instance, uint32_t virt_address)
++{
++    uint32_t cr3 = 0;
++    xa_current_cr3(instance, &cr3);
++    return xa_pagetable_lookup(instance, cr3, virt_address, 1);
++}
++
++/*TODO this is deprecated */
++/*
++void *xa_access_kernel_symbol (
++        xa_instance_t *instance, char *symbol, uint32_t *offset)
++{
++    return xa_access_kernel_sym(instance, symbol, offset, PROT_READ);
++}
++*/
++
++/*END*/
+diff -upNr old/xenaccess/arch/i386/types.h new/xenaccess/arch/i386/types.h
+--- old/xenaccess/arch/i386/types.h	1970-01-01 08:00:00.000000000 +0800
++++ new/xenaccess/arch/i386/types.h	2008-11-12 20:11:51.000000000 +0800
+@@ -0,0 +1,17 @@
++#ifndef __ARCH_i386_H__
++#define __ARCH_i386_H__
++
++typedef uint32_t xa_addr_t;
++typedef uint64_t xa_long_long;
++typedef uint32_t xa_long;
++
++/* copy from kernel source tree's  include/asm-i386/page.h  */
++#define __PAGE_OFFSET           0xc0000000
++#define PAGE_OFFSET             ((unsigned long)__PAGE_OFFSET)
++#define __pa(x)                 ((unsigned long)(x)-PAGE_OFFSET)
++#define CR3_MASK 0xFFFFF000
++
++#define ROOT_PAGETABLE_KERNSYM "swapper_pg_dir"
++
++#endif /* __ARCH_i386_H__ */
++
+diff -upNr old/xenaccess/arch/x86_64/memory.c new/xenaccess/arch/x86_64/memory.c
+--- old/xenaccess/arch/x86_64/memory.c	1970-01-01 08:00:00.000000000 +0800
++++ new/xenaccess/arch/x86_64/memory.c	2008-11-12 19:44:13.000000000 +0800
+@@ -0,0 +1,247 @@
++/*
++ * The libxa library provides access to resources in domU machines.
++ * 
++ * Copyright (C) 2005 - 2008  Bryan D. Payne (bryan@thepaynes.cc)
++ * 
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ * 
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ * 
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
++ * 02110-1301, USA.
++ *
++ * --------------------
++ * This file contains functions for sharing the memory of a domU
++ * machine.  The functions basically only differ in how the memory
++ * is referenced (pfn, mfn, virtual address, physical address, etc).
++ *
++ * File: x86_64/memory.c
++ *
++ * Reference: (24593.pdf)
++ *     AMD64 Architecture Programmer's Manual Volume 2:System Programming .
++ *
++ * NOTE: 
++ *    NOW only support 64-Bit Mode: PDPE.PS=0 && PDE.PS=0, i.e. PageSize=4kbyte .
++ *    for x86_64 , CR4.PAE is always equal to 1, and CR4.PSE is N/A . (P118, 24593.pdf).
++ *
++ *  PAE     PDPE.PS     PDE.PS      PageSize
++ *   1         0          0            4k
++ *   1         0          1            2M
++ *   1         1          N/A          1G
++ *
++ * Author(s): Bryan D. Payne (bryan@thepaynes.cc)
++ *            Wang Hui       (wanghui@ncic.ac.cn)
++ */
++
++#include <stdlib.h>
++#include <sys/mman.h>
++#include "xenaccess.h"
++#include "xa_private.h"
++#include "types.h"
++
++/* bit flag testing */
++int entry_present (unsigned long entry){
++    return xa_get_bit(entry, 0);
++}
++
++int page_size_flag (unsigned long entry){
++    return xa_get_bit(entry, 7);
++}
++
++xa_addr_t xa_current_cr3 (xa_instance_t *instance, xa_addr_t *cr3)
++{
++    int ret = XA_SUCCESS;
++    vcpu_guest_context_t ctxt;
++
++    if (XA_MODE_XEN == instance->mode){
++        if ((ret = xc_vcpu_getcontext(
++                instance->m.xen.xc_handle,
++                instance->m.xen.domain_id,
++                0, /*TODO vcpu, assuming only 1 for now */
++                &ctxt)) != 0){
++            printf("ERROR: failed to get context information.\n");
++            ret = XA_FAILURE;
++            goto error_exit;
++        }
++        *cr3 = ctxt.ctrlreg[3] & 0xFFFFFFFFFFFFF000ULL;
++    }
++    else if (XA_MODE_FILE == instance->mode){
++        *cr3 = instance->kpgd - instance->page_offset;
++    }
++
++error_exit:
++    //xa_dbprint("[x86_64/memory.c]xa_current_cr3: cr3=%llx\n", *cr3);
++    return ret;
++}
++
++xa_addr_t get_pml4tb (xa_addr_t pml4r)
++{
++    return pml4r & 0xFFFFFFFFFFFFF000;
++}
++
++xa_addr_t pml4i_index (xa_addr_t pml4i)
++{
++    return ( (pml4i >> 39) & 0x1ff ) * sizeof(xa_addr_t);
++}
++
++xa_long_long get_pml4i (xa_instance_t *instance, xa_addr_t vaddr, xa_addr_t cr3, int kernel)
++{
++    xa_long_long value;
++    xa_addr_t pml4i_entry = get_pml4tb(cr3) + pml4i_index(vaddr);
++    xa_dbprint("--PTLookup(get_pml4i,k=%d): cr3=%llx,vaddr=%llx,pml4i_entry = 0x%llx\n", 
++            kernel,cr3,vaddr,pml4i_entry);
++    if (kernel)
++        xa_read_long_long_mach(instance, pml4i_entry, &value);
++    else
++        xa_read_long_long_virt(instance, pml4i_entry, 0, &value);
++    return value;
++}
++
++/* page directory pointer table */
++xa_addr_t get_pdptb (xa_addr_t pdpr)
++{
++    return pdpr & 0xFFFFFFFFFF000;
++}
++
++xa_addr_t pdpi_index (xa_addr_t pdpi)
++{
++    return ( (pdpi >> 30) & 0x1ff ) * sizeof(xa_addr_t);
++}
++
++xa_addr_t pdba_base_pae (xa_addr_t pdpe)
++{
++    return pdpe & 0xFFFFFFFFFF000ULL;
++}
++
++/* page directory */
++xa_long_long pgd_index (
++        xa_instance_t *instance, xa_addr_t address)
++{
++    return (((address) >> 21) & 0x1FF) * sizeof(uint64_t);
++}
++
++xa_addr_t ptba_base_pae (xa_addr_t pde)
++{
++    return pde & 0xFFFFFFFFFF000ULL;
++}
++
++xa_long_long get_pgd_pae (
++        xa_instance_t *instance, xa_addr_t vaddr, xa_addr_t pdpe, int kernel)
++{
++    xa_long_long value;
++
++    xa_addr_t pgd_entry = pdba_base_pae(pdpe) + pgd_index(instance, vaddr);
++    xa_dbprint("--PTLookup(get_pgd_pae,k=%d): pgd_entry = 0x%llx\n", kernel, pgd_entry);
++    xa_read_long_long_mach(instance, pgd_entry, &value);
++
++    return value;
++}
++
++/* page table */
++xa_addr_t pte_index (xa_instance_t *instance, xa_addr_t address)
++{
++    return (((address) >> 12) & 0x1FF) * sizeof(uint64_t); 
++}
++
++xa_long_long get_pte_pae (
++        xa_instance_t *instance, xa_addr_t vaddr, xa_addr_t pgd)
++{
++    xa_long_long value;
++    xa_addr_t pte_entry = ptba_base_pae(pgd) + pte_index(instance, vaddr);
++    xa_dbprint("--PTLookup(get_pte_pae): pte_entry = 0x%llx\n", pte_entry);
++    xa_read_long_long_mach(instance, pte_entry, &value);
++    return value;
++}
++
++xa_addr_t pte_pfn_pae (xa_addr_t pte)
++{
++    return pte & 0xFFFFFFFFFF000ULL;
++}
++
++xa_long_long get_pdpi (
++        xa_instance_t *instance, xa_addr_t vaddr, xa_addr_t pml4e, int k)
++{
++    xa_long_long value;
++    xa_addr_t pdpi_entry = get_pdptb(pml4e) + pdpi_index(vaddr);
++    xa_dbprint("--PTLookup(get_pdpi,k=%d): pml4e=%llx,vaddr=%llx,pdpi_entry = 0x%llx\n", 
++            k, pml4e,vaddr,pdpi_entry);
++
++    xa_read_long_long_mach(instance, pdpi_entry, &value);
++    return value;
++}
++
++xa_addr_t get_paddr_pae (xa_addr_t vaddr, xa_addr_t pte){
++    return pte_pfn_pae(pte) | (vaddr & 0xFFF);
++}
++
++xa_addr_t v2p_pae (xa_instance_t *instance, xa_addr_t cr3, xa_addr_t vaddr, int k)
++{
++    xa_addr_t paddr = 0;
++    xa_addr_t pml4e, pdpe, pgd, pte;
++
++    xa_dbprint("--PTLookup(v2p_pae,k=%d): lookup vaddr = 0x%llx,cr3 = 0x%llx\n", 
++            k, vaddr,cr3);
++
++    pml4e = get_pml4i(instance, vaddr, cr3, k);
++    xa_dbprint("--PTLookup(v2p_pae,k=%d): pml4e = 0x%llx\n", k, pml4e);
++    if (!entry_present(pml4e)){
++        return paddr;
++    }
++
++    pdpe = get_pdpi(instance, vaddr, pml4e, k);
++    xa_dbprint("--PTLookup(v2p_pae,k=%d): pdpe = 0x%.16x\n", k, pdpe);
++    if (!entry_present(pdpe)){
++        return paddr;
++    }
++    if (page_size_flag(pdpe)){
++            xa_dbprint("--PTLookup(v2p_pae,k=%d): 1GB page, NOT support yet by libxa!\n",k);
++            return paddr;
++    }
++
++    pgd = get_pgd_pae(instance, vaddr, pdpe, k);
++    xa_dbprint("--PTLookup(v2p_pae,k=%d): pgd = 0x%llx\n", k, pgd);
++    if (entry_present(pgd)){
++        if (page_size_flag(pgd)){
++            xa_dbprint("--PTLookup(v2p_pae,k=%d): 2MB page, NOT support yet by libxa!\n",k);
++            return paddr;
++        }
++        else{
++            pte = get_pte_pae(instance, vaddr, pgd);
++            xa_dbprint("--PTLookup(v2p_pae,k=%d): pte = 0x%.16x\n", k, pte);
++            if (entry_present(pte)){
++                paddr = get_paddr_pae(vaddr, pte);
++            }
++        }
++    }
++    xa_dbprint("--PTLookup(v2p_pae): paddr = 0x%llx\n", paddr);
++
++    return paddr;
++}
++
++/* convert address to machine address via page tables */
++xa_addr_t xa_pagetable_lookup (
++            xa_instance_t *instance,
++            xa_addr_t cr3,
++            xa_addr_t vaddr,
++            int kernel)
++{
++    return v2p_pae(instance, cr3, vaddr, kernel);
++}
++
++/* expose virtual to physical mapping via api call */
++xa_addr_t xa_translate_kv2p(xa_instance_t *instance, xa_addr_t virt_address)
++{
++    xa_addr_t cr3 = 0;
++    xa_current_cr3(instance, &cr3);
++    return xa_pagetable_lookup(instance, cr3, virt_address, 1);
++}
++
++/*END*/
+diff -upNr old/xenaccess/arch/x86_64/types.h new/xenaccess/arch/x86_64/types.h
+--- old/xenaccess/arch/x86_64/types.h	1970-01-01 08:00:00.000000000 +0800
++++ new/xenaccess/arch/x86_64/types.h	2008-11-12 20:12:28.000000000 +0800
+@@ -0,0 +1,46 @@
++/*
++ * Copyright (C) 2005 - 2008  Bryan D. Payne (bryan@thepaynes.cc)
++ * 
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version 2
++ * of the License, or (at your option) any later version.
++ * 
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ * 
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
++ * 02110-1301, USA.
++ *
++ * --------------------
++ * This file provides a simple example for view the application data
++ * inside the userspace-level memory of a process.
++ *
++ * File: x86_64/types.h
++ *
++ * Author(s): Wang Hui (wanghui@ncic.ac.cn)
++ */
++#ifndef __ARCH_X86_64__
++#define __ARCH_X86_64__
++
++typedef uint64_t xa_addr_t;
++typedef uint64_t xa_long_long;
++typedef uint64_t xa_long;
++
++/* copy from linux kernel source tree's  include/asm-x86_64/page.h  */
++#define __START_KERNEL_map      0xffffffff80000000
++#define __PAGE_OFFSET           0xffff810000000000
++#define PAGE_OFFSET             ((unsigned long)__PAGE_OFFSET)
++#define __pa(x) (((unsigned long)(x)>=__START_KERNEL_map)?(unsigned long)(x) - (unsigned \
++ long)__START_KERNEL_map:(unsigned long)(x) - PAGE_OFFSET)
++
++
++#define CR3_MASK 0xFFFFFFFFFFFFF000ULL
++
++#define ROOT_PAGETABLE_KERNSYM "init_level4_pgt"
++
++#endif /* __ARCH_X86_64__ */
+diff -upNr old/xenaccess/linux_core.c new/xenaccess/linux_core.c
+--- old/xenaccess/linux_core.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/linux_core.c	2008-11-12 19:44:13.000000000 +0800
+@@ -33,18 +33,18 @@ int linux_init (xa_instance_t *instance)
+ {
+     int ret = XA_SUCCESS;
+     unsigned char *memory = NULL;
+-    uint32_t local_offset = 0;
++    xa_addr_t local_offset = 0;
+ 
+     if (linux_system_map_symbol_to_address(
+-             instance, "swapper_pg_dir", &instance->kpgd) == XA_FAILURE){
+-        printf("ERROR: failed to lookup 'swapper_pg_dir' address\n");
++             instance, ROOT_PAGETABLE_KERNSYM, &instance->kpgd) == XA_FAILURE){
++        printf("ERROR: failed to lookup " ROOT_PAGETABLE_KERNSYM " address\n");
+         ret = xa_report_error(instance, 0, XA_EMINOR);
+         if (XA_FAILURE == ret) goto error_exit;
+     }
+-    xa_dbprint("--got vaddr for swapper_pg_dir (0x%.8x).\n", instance->kpgd);
++    xa_dbprint("--got vaddr for " ROOT_PAGETABLE_KERNSYM " (0x%llx).\n", instance->kpgd);
+ 
+     if (!instance->hvm){
+-        instance->kpgd -= instance->page_offset;
++        instance->kpgd =__pa(instance->kpgd);
+         if (xa_read_long_phys(
+                 instance, instance->kpgd, &(instance->kpgd)) == XA_FAILURE){
+             printf("ERROR: failed to get physical addr for kpgd\n");
+@@ -52,7 +52,8 @@ int linux_init (xa_instance_t *instance)
+             if (XA_FAILURE == ret) goto error_exit;
+         }
+     }
+-    xa_dbprint("**set instance->kpgd (0x%.8x).\n", instance->kpgd);
++    xa_dbprint("**set instance->kpgd (0x%llx).\n", instance->kpgd);
++
+ //    printf("kpgd search --> 0x%.8x\n", xa_find_kernel_pd(instance));
+ 
+     memory = xa_access_kernel_sym(instance, "init_task", &local_offset, PROT_READ);
+@@ -69,9 +70,10 @@ int linux_init (xa_instance_t *instance)
+         }
+     }
+     instance->init_task =
+-        *((uint32_t*)(memory + local_offset +
++        *((xa_addr_t*)(memory + local_offset +
+         instance->os.linux_instance.tasks_offset));
+-    xa_dbprint("**set instance->init_task (0x%.8x).\n", instance->init_task);
++    xa_dbprint("**set instance->init_task (0x%llx).\n", instance->init_task);
++
+     munmap(memory, instance->page_size);
+ 
+ error_exit:
+diff -upNr old/xenaccess/linux_domain_info.c new/xenaccess/linux_domain_info.c
+--- old/xenaccess/linux_domain_info.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/linux_domain_info.c	2008-11-12 19:44:13.000000000 +0800
+@@ -37,7 +37,7 @@
+ #include <xs.h>
+ #include <xa_private.h>
+ 
+-char *linux_predict_sysmap_name (int id)
++char *linux_predict_sysmap_name (uint32_t id)
+ {
+     char *kernel = NULL;
+     char *sysmap = NULL;
+diff -upNr old/xenaccess/linux_memory.c new/xenaccess/linux_memory.c
+--- old/xenaccess/linux_memory.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/linux_memory.c	2008-11-12 19:44:13.000000000 +0800
+@@ -36,11 +36,11 @@
+ 
+ 
+ /* finds the task struct for a given pid */
+-unsigned char *linux_get_taskstruct (
+-        xa_instance_t *instance, int pid, uint32_t *offset)
++static unsigned char *linux_get_taskstruct (
++        xa_instance_t *instance, int pid, xa_addr_t *offset)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t list_head = 0, next_process = 0;
++    xa_addr_t list_head = 0, next_process = 0;
+     int task_pid = 0;
+     int pid_offset = instance->os.linux_instance.pid_offset;
+     int tasks_offset = instance->os.linux_instance.tasks_offset;
+@@ -55,7 +55,7 @@ unsigned char *linux_get_taskstruct (
+             printf("ERROR: failed to get task list next pointer");
+             goto error_exit;
+         }
+-        memcpy(&next_process, memory + *offset, 4);
++        memcpy(&next_process, memory + *offset, sizeof(xa_addr_t));
+ 
+         /* if we are back at the list head, we are done */
+         if (list_head == next_process){
+@@ -64,9 +64,9 @@ unsigned char *linux_get_taskstruct (
+ 
+         memcpy(&task_pid,
+                memory + *offset + pid_offset - tasks_offset,
+-               4
++               sizeof(int) /* FIXME: pid must be a int type. */
+         );
+-        
++
+         /* if pid matches, then we found what we want */
+         if (task_pid == pid){
+             return memory;
+@@ -79,51 +79,81 @@ error_exit:
+     return NULL;
+ }
+ 
+-/*TODO make sure that this returns a mach address */
+-/* finds the address of the page global directory for a given pid */
+-uint32_t linux_pid_to_pgd (xa_instance_t *instance, int pid)
++/* return mm_struct 's kernel space address */
++static xa_addr_t linux_get_taskmm (xa_instance_t *instance, int pid)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t pgd = 0, ptr = 0, offset = 0;
++    xa_addr_t ptr = 0, offset = 0;
+     int mm_offset = instance->os.linux_instance.mm_offset;
+     int tasks_offset = instance->os.linux_instance.tasks_offset;
+-    int pgd_offset = instance->os.linux_instance.pgd_offset;
+ 
+     /* first we need a pointer to this pid's task_struct */
+     memory = linux_get_taskstruct(instance, pid, &offset);
+     if (NULL == memory){
+-        printf("ERROR: could not find task struct for pid = %d\n", pid);
++        printf("ERROR(linux_get_taskmm): could not find task struct for pid = %d\n", pid);
+         goto error_exit;
+     }
+ 
+-    /* now follow the pointer to the memory descriptor and
+-       grab the pgd value */
+-    memcpy(&ptr, memory + offset + mm_offset - tasks_offset, 4);
++    memcpy(&ptr, memory + offset + mm_offset - tasks_offset, sizeof(xa_addr_t));
+     munmap(memory, instance->page_size);
++
++error_exit:
++    return ptr;
++}
++
++/*TODO make sure that this returns a mach address */
++/* finds the address of the page global directory for a given pid */
++xa_addr_t linux_pid_to_pgd (xa_instance_t *instance, int pid)
++{
++    unsigned char *memory = NULL;
++    xa_addr_t pgd = 0, ptr = 0;
++    int pgd_offset = instance->os.linux_instance.pgd_offset;
++
++    ptr = linux_get_taskmm(instance,pid);
++    if (NULL == ptr){
++        printf("ERROR(linux_pid_to_pgd): could not find task mm for pid = %d\n", pid);
++        goto error_exit;
++    }
++#if 0 /* test only */
++    xa_read_long_virt(instance, ptr + 240, 0, &pgd);
++    printf("[linux_memory.c]test start_code:%llx\n",pgd);
++    xa_read_long_virt(instance, ptr + 248, 0, &pgd);
++    printf("[linux_memory.c]test end_code:%llx\n",pgd);
++#endif
++    /*   sched.h: pgd_t* pgd;  get pgd   */
+     xa_read_long_virt(instance, ptr + pgd_offset, 0, &pgd);
++#if 0  /*  test only:  sched.h: pgd_t* pgd;  get *pgd for the process(pid)   */
++    xa_read_long_virt(instance, pgd, 0, &pgd);
++#endif
+ 
+ error_exit:
++    //printf("[linux_memory.c]linux_pid_to_pgd pid:%d, pgd=%llx at %llx\n",pid, pgd,ptr);
+     return pgd;
+ }
+ 
+ void *linux_access_kernel_symbol (
+-        xa_instance_t *instance, char *symbol, uint32_t *offset, int prot)
++        xa_instance_t *instance, char *symbol, xa_addr_t *offset, int prot)
+ {
+-    uint32_t virt_address;
+-    uint32_t address;
++    xa_addr_t virt_address;
++    xa_addr_t address;
+ 
++#if 1
++#else
+     /* check the LRU cache */
+     if (xa_check_cache_sym(instance, symbol, 0, &address)){
+         return xa_access_ma(instance, address, offset, PROT_READ);
+     }
++#endif    
+ 
+     /* get the virtual address of the symbol */
+     if (linux_system_map_symbol_to_address(
+             instance, symbol, &virt_address) == XA_FAILURE){
+         return NULL;
+     }
+-
++#if 1
++#else
+     xa_update_cache(instance, symbol, virt_address, 0, 0);
++#endif
+     return xa_access_kernel_va(instance, virt_address, offset, prot);
+ }
+ 
+@@ -131,22 +161,18 @@ void *linux_access_kernel_symbol (
+ int xa_linux_get_taskaddr (
+         xa_instance_t *instance, int pid, xa_linux_taskaddr_t *taskaddr)
+ {
+-    unsigned char *memory;
+-    uint32_t ptr = 0, offset = 0;
++    unsigned char *memory = NULL;
++    xa_addr_t ptr = 0, offset = 0;
+     int mm_offset = instance->os.linux_instance.mm_offset;
+     int tasks_offset = instance->os.linux_instance.tasks_offset;
+     int addr_offset = instance->os.linux_instance.addr_offset;
+ 
+-    /* find the right task struct */
+-    memory = linux_get_taskstruct(instance, pid, &offset);
+-    if (NULL == memory){
+-        printf("ERROR: could not find task struct for pid = %d\n", pid);
++    ptr = linux_get_taskmm(instance,pid);
++    if (NULL == ptr){
++        printf("ERROR(xa_linux_get_taskaddr): could not find task mm for pid = %d\n", pid);
+         goto error_exit;
+     }
+ 
+-    /* copy the information out of the memory descriptor */
+-    memcpy(&ptr, memory + offset + mm_offset - tasks_offset, 4);
+-    munmap(memory, instance->page_size);
+     memory = xa_access_kernel_va(instance, ptr, &offset, PROT_READ);
+     if (NULL == memory){
+         printf("ERROR: failed to follow mm pointer (0x%x)\n", ptr);
+diff -upNr old/xenaccess/linux_symbols.c new/xenaccess/linux_symbols.c
+--- old/xenaccess/linux_symbols.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/linux_symbols.c	2008-11-12 19:44:13.000000000 +0800
+@@ -36,8 +36,9 @@
+ #include <string.h>
+ #include "xa_private.h"
+ 
++
+ int linux_system_map_symbol_to_address (
+-        xa_instance_t *instance, char *symbol, uint32_t *address)
++        xa_instance_t *instance, char *symbol, xa_addr_t *address)
+ {
+     FILE *f = NULL;
+     char *row = NULL;
+@@ -63,9 +64,10 @@ int linux_system_map_symbol_to_address (
+         ret = XA_FAILURE;
+         goto error_exit;
+     }
+-
+-    *address = (uint32_t) strtoul(row, NULL, 16);
+-
++    if(strlen(row)==16)
++        *address = (uint64_t) strtoull(row, NULL, 16);
++    else if(strlen(row)==8)
++        *address = (uint32_t) strtoul(row, NULL, 16);
+ error_exit:
+     if (row) free(row);
+     if (f) fclose(f);
+diff -upNr old/xenaccess/windows_core.c new/xenaccess/windows_core.c
+--- old/xenaccess/windows_core.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/windows_core.c	2008-11-12 19:44:13.000000000 +0800
+@@ -33,7 +33,7 @@
+  * through the memory space for the System process.  The page directory
+  * location is then pulled from this eprocess struct.
+  */
+-int get_kpgd_method2 (xa_instance_t *instance, uint32_t *sysproc)
++int get_kpgd_method2 (xa_instance_t *instance, xa_long *sysproc)
+ {
+     int ret = XA_SUCCESS;
+ 
+@@ -68,7 +68,7 @@ error_exit:
+  * process, and the extract the page directory location from this
+  * eprocess struct.
+  */
+-int get_kpgd_method1 (xa_instance_t *instance, uint32_t *sysproc)
++int get_kpgd_method1 (xa_instance_t *instance, xa_long *sysproc)
+ {
+     int ret = XA_SUCCESS;
+ 
+@@ -102,7 +102,7 @@ error_exit:
+ int windows_init (xa_instance_t *instance)
+ {
+     int ret = XA_SUCCESS;
+-    uint32_t sysproc = 0;
++    xa_long sysproc = 0;
+ 
+     /* get base address for kernel image in memory */
+     instance->os.windows_instance.ntoskrnl = get_ntoskrnl_base(instance);
+diff -upNr old/xenaccess/windows_memory.c new/xenaccess/windows_memory.c
+--- old/xenaccess/windows_memory.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/windows_memory.c	2008-11-12 19:44:13.000000000 +0800
+@@ -33,11 +33,11 @@
+ #include "xa_private.h"
+ 
+ /* brute force to find most likely location */
+-int bf_test_ntoskrnl_base (xa_instance_t *instance, uint32_t base)
++int bf_test_ntoskrnl_base (xa_instance_t *instance, xa_addr_t base)
+ {
+-    uint32_t header = 0;
++    xa_long header = 0;
+     int offset = 0;
+-    uint32_t testval;
++    xa_long testval;
+     int count = 0;
+ 
+     for (offset = 0; offset < 0xd0000; offset += 4){
+@@ -56,9 +56,9 @@ int bf_test_ntoskrnl_base (xa_instance_t
+ 
+ /* test a candidate location */
+ int test_ntoskrnl_base (
+-        xa_instance_t *instance, uint32_t base, uint32_t sysproc)
++        xa_instance_t *instance, uint32_t base, xa_addr_t sysproc)
+ {
+-    uint32_t header = 0;
++    xa_long header = 0;
+ 
+     sysproc += base;
+     xa_read_long_phys(instance, sysproc, &sysproc);
+@@ -99,7 +99,7 @@ uint32_t bf_get_ntoskrnl_base (xa_instan
+ 
+     /* start the downward search looking for MZ header */
+     while (1){
+-        uint32_t header;
++        xa_long header;
+         xa_read_long_phys(instance, paddr, &header);
+         if ((header & 0xffff) == 0x5a4d){
+             int count = 0;
+@@ -122,7 +122,7 @@ uint32_t bf_get_ntoskrnl_base (xa_instan
+ uint32_t get_ntoskrnl_base (xa_instance_t *instance)
+ {
+     uint32_t paddr = 0x0 + instance->page_size;
+-    uint32_t sysproc_rva;
++    xa_addr_t sysproc_rva;
+ 
+     /* find RVA for PsInitialSystemProcess to use for testing */
+     if (windows_symbol_to_address(
+@@ -132,7 +132,7 @@ uint32_t get_ntoskrnl_base (xa_instance_
+ 
+     /* start the downward search looking for MZ header */
+     while (1){
+-        uint32_t header;
++        xa_long header;
+         xa_read_long_phys(instance, paddr, &header);
+         if ((header & 0xffff) == 0x5a4d){
+             if (test_ntoskrnl_base(instance, paddr, sysproc_rva) == XA_SUCCESS){
+@@ -151,12 +151,12 @@ uint32_t get_ntoskrnl_base (xa_instance_
+ }
+ 
+ void *windows_access_kernel_symbol (
+-        xa_instance_t *instance, char *symbol, uint32_t *offset, int prot)
++        xa_instance_t *instance, char *symbol, xa_addr_t *offset, int prot)
+ {
+-    uint32_t virt_address;
+-    uint32_t phys_address;
+-    uint32_t address;
+-    uint32_t rva;
++    xa_addr_t virt_address;
++    xa_addr_t phys_address;
++    xa_addr_t address;
++    xa_addr_t rva;
+ 
+     /* check the LRU cache */
+     if (xa_check_cache_sym(instance, symbol, 0, &address)){
+@@ -178,7 +178,7 @@ void *windows_access_kernel_symbol (
+ 
+ /* finds the EPROCESS struct for a given pid */
+ unsigned char *windows_get_EPROCESS (
+-        xa_instance_t *instance, int pid, uint32_t *offset)
++        xa_instance_t *instance, int pid, xa_addr_t *offset)
+ {
+     unsigned char *memory = NULL;
+     uint32_t list_head = 0, next_process = 0;
+@@ -224,7 +224,7 @@ error_exit:
+ uint32_t windows_pid_to_pgd (xa_instance_t *instance, int pid)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t pgd = 0, ptr = 0, offset = 0;
++    xa_addr_t pgd = 0, ptr = 0, offset = 0;
+     int pdbase_offset = instance->os.windows_instance.pdbase_offset;
+     int tasks_offset = instance->os.windows_instance.tasks_offset;
+ 
+@@ -250,7 +250,7 @@ int xa_windows_get_peb (
+         xa_instance_t *instance, int pid, xa_windows_peb_t *peb)
+ {
+     unsigned char *memory;
+-    uint32_t ptr = 0, offset = 0;
++    xa_addr_t ptr = 0, offset = 0;
+     int peb_offset = instance->os.windows_instance.peb_offset;
+     int tasks_offset = instance->os.windows_instance.tasks_offset;
+     int iba_offset = instance->os.windows_instance.iba_offset;
+diff -upNr old/xenaccess/windows_process.c new/xenaccess/windows_process.c
+--- old/xenaccess/windows_process.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/windows_process.c	2008-11-12 19:44:13.000000000 +0800
+@@ -31,10 +31,12 @@
+ #include <sys/mman.h>
+ #include "xenaccess.h"
+ 
++char *strndup(const char *s, size_t n);
++
+ char *windows_get_eprocess_name (xa_instance_t *instance, uint32_t paddr)
+ {
+-    uint32_t name_paddr = paddr + 0x174; /*TODO replace hard coded value */
+-    uint32_t offset = 0;
++    xa_addr_t name_paddr = paddr + 0x174; /*TODO replace hard coded value */
++    xa_addr_t offset = 0;
+     char *memory = xa_access_pa(instance, name_paddr, &offset, PROT_READ);
+     if (memory){
+         char *name = memory + offset;
+@@ -46,8 +48,8 @@ char *windows_get_eprocess_name (xa_inst
+ uint32_t windows_find_eprocess (xa_instance_t *instance, char *name)
+ {
+     uint32_t end = 0;
+-    uint32_t offset = 0;
+-    uint32_t value = 0;
++    xa_addr_t offset = 0;
++    xa_long value = 0;
+ 
+     if (XA_MODE_XEN == instance->mode){
+         end = instance->m.xen.size;
+diff -upNr old/xenaccess/windows_symbols.c new/xenaccess/windows_symbols.c
+--- old/xenaccess/windows_symbols.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/windows_symbols.c	2008-11-12 19:44:13.000000000 +0800
+@@ -43,7 +43,7 @@ uint32_t get_rva (char *row)
+ }
+ 
+ int windows_symbol_to_address (
+-        xa_instance_t *instance, char *symbol, uint32_t *address)
++        xa_instance_t *instance, char *symbol, xa_addr_t *address)
+ {
+     FILE *f = NULL;
+     char *row = NULL;
+diff -upNr old/xenaccess/xa_cache.c new/xenaccess/xa_cache.c
+--- old/xenaccess/xa_cache.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/xa_cache.c	2008-11-12 19:44:13.000000000 +0800
+@@ -40,7 +40,7 @@
+ int xa_check_cache_sym (xa_instance_t *instance,
+                         char *symbol_name,
+                         int pid,
+-                        uint32_t *mach_address)
++                        xa_addr_t *mach_address)
+ {
+     xa_cache_entry_t current;
+     int ret = 0;
+diff -upNr old/xenaccess/xa_core.c new/xenaccess/xa_core.c
+--- old/xenaccess/xa_core.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/xa_core.c	2008-11-12 19:44:13.000000000 +0800
+@@ -44,6 +44,8 @@
+ #include "xa_private.h"
+ #include <xen/arch-x86/xen.h>
+ 
++char *strndup(const char *s, size_t n);
++
+ int get_memory_size (xa_instance_t *instance)
+ {
+     int ret = XA_SUCCESS;
+@@ -265,8 +267,8 @@ int get_page_info_xen (xa_instance_t *in
+     xa_dbprint("**set instance->pse = %d\n", instance->pse);
+ 
+     /* testing to see CR3 value */
+-    instance->cr3 = ctxt.ctrlreg[3] & 0xFFFFF000;
+-    xa_dbprint("**set instance->cr3 = 0x%.8x\n", instance->cr3);
++    instance->cr3 = ctxt.ctrlreg[3] & CR3_MASK;
++    xa_dbprint("**set instance->cr3 = 0x%llx\n", instance->cr3);
+ 
+ error_exit:
+     return ret;
+@@ -275,7 +277,7 @@ error_exit:
+ void init_page_offset (xa_instance_t *instance)
+ {
+     if (XA_OS_LINUX == instance->os_type){
+-        instance->page_offset = 0xc0000000;
++        instance->page_offset = __PAGE_OFFSET;
+     }
+     else if (XA_OS_WINDOWS == instance->os_type){
+         instance->page_offset = 0x80000000;
+@@ -283,7 +285,7 @@ void init_page_offset (xa_instance_t *in
+     else{
+         instance->page_offset = 0;
+     }
+-    xa_dbprint("**set instance->page_offset = 0x%.8x\n", instance->page_offset);
++    xa_dbprint("**set instance->page_offset = 0x%llx\n", instance->page_offset);
+ 
+     /* assume 4k pages for now, update when 4M page is found */
+     instance->page_shift = 12;
+diff -upNr old/xenaccess/xa_domain_info.c new/xenaccess/xa_domain_info.c
+--- old/xenaccess/xa_domain_info.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/xa_domain_info.c	2008-11-12 19:44:13.000000000 +0800
+@@ -37,7 +37,7 @@
+ #include <stdio.h>
+ #include <xs.h>
+ 
+-char *xa_get_vmpath (int id)
++char *xa_get_vmpath (uint32_t id)
+ {
+     struct xs_handle *xsh = NULL;
+     xs_transaction_t xth = XBT_NULL;
+@@ -63,7 +63,7 @@ error_exit:
+     return vmpath;
+ }
+ 
+-char *xa_get_kernel_name (int id)
++char *xa_get_kernel_name (uint32_t id)
+ {
+     struct xs_handle *xsh = NULL;
+     xs_transaction_t xth = XBT_NULL;
+@@ -116,7 +116,7 @@ int xa_ishvm (int id)
+     if (NULL == ostype){
+         goto error_exit;
+     }
+-    else if (fnmatch("*hvmloader", ostype, NULL) == 0){
++    else if (fnmatch("*hvmloader", ostype, 0) == 0){
+         ret = 1;
+     }
+ 
+diff -upNr old/xenaccess/xa_memory.c new/xenaccess/xa_memory.c
+--- old/xenaccess/xa_memory.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/xa_memory.c	2008-11-12 19:44:13.000000000 +0800
+@@ -32,12 +32,15 @@
+ #include <sys/mman.h>
+ #include "xenaccess.h"
+ #include "xa_private.h"
++#include "arch/machine/types.h"
+ 
+ /* hack to get this to compile on xen 3.0.4 */
+ #ifndef XENMEM_maximum_gpfn
+ #define XENMEM_maximum_gpfn 0
+ #endif
+ 
++extern xa_addr_t linux_pid_to_pgd (xa_instance_t *instance, int pid);
++
+ /* convert a pfn to a mfn based on the live mapping tables */
+ unsigned long helper_pfn_to_mfn (xa_instance_t *instance, unsigned long pfn)
+ {
+@@ -74,6 +77,7 @@ unsigned long helper_pfn_to_mfn (xa_inst
+             nr_pfns = live_shinfo->arch.max_pfn;
+         }
+ 
++        //printf("[xa_memory.c]max_pfn: %d\n",live_shinfo->arch.max_pfn);
+         live_pfn_to_mfn_frame_list_list = xa_mmap_mfn(
+             instance, PROT_READ, live_shinfo->arch.pfn_to_mfn_frame_list_list);
+         if (live_pfn_to_mfn_frame_list_list == NULL){
+@@ -119,6 +123,7 @@ unsigned long helper_pfn_to_mfn (xa_inst
+     }
+ 
+     ret = instance->m.xen.live_pfn_to_mfn_table[pfn];
++    //printf("[xa_memory.c]helper_pfn_to_mfn() \n");
+ 
+ error_exit:
+     if (live_shinfo) munmap(live_shinfo, XC_PAGE_SIZE);
+@@ -140,13 +145,13 @@ void *xa_mmap_pfn (xa_instance_t *instan
+ {
+     unsigned long mfn = -1;
+ 
++    //printf("[xa_memory.c]xa_mmap_pfn() pfn:%ul\n",pfn);
+     if (XA_MODE_XEN == instance->mode){
+         mfn = helper_pfn_to_mfn(instance, pfn);
+     }
+     else if (XA_MODE_FILE == instance->mode){
+         mfn = pfn;
+     }
+-
+     if (-1 == mfn){
+         printf("ERROR: pfn to mfn mapping failed.\n");
+         return NULL;
+@@ -157,319 +162,9 @@ void *xa_mmap_pfn (xa_instance_t *instan
+     }
+ }
+ 
+-/* bit flag testing */
+-int entry_present (unsigned long entry){
+-    return xa_get_bit(entry, 0);
+-}
+-
+-int page_size_flag (unsigned long entry){
+-    return xa_get_bit(entry, 7);
+-}
+-
+-/* page directory pointer table */
+-uint32_t get_pdptb (uint32_t pdpr){
+-    return pdpr & 0xFFFFFFE0;
+-}
+-
+-uint32_t pdpi_index (uint32_t pdpi){
+-    return (pdpi >> 30) * sizeof(uint64_t);
+-}
+-
+-uint64_t get_pdpi (
+-        xa_instance_t *instance, uint32_t vaddr, uint32_t cr3, int k)
+-{
+-    uint64_t value;
+-    uint32_t pdpi_entry = get_pdptb(cr3) + pdpi_index(vaddr);
+-    xa_dbprint("--PTLookup: pdpi_entry = 0x%.8x\n", pdpi_entry);
+-    if (k){
+-        xa_read_long_long_mach(instance, pdpi_entry, &value);
+-    }
+-    else{
+-        xa_read_long_long_virt(instance, pdpi_entry, 0, &value);
+-    }
+-    return value;
+-}
+-
+-/* page directory */
+-uint32_t pgd_index (xa_instance_t *instance, uint32_t address){
+-    if (!instance->pae){
+-        return (((address) >> 22) & 0x3FF) * sizeof(uint32_t);
+-    }
+-    else{
+-        return (((address) >> 21) & 0x1FF) * sizeof(uint64_t);
+-    }
+-}
+-
+-uint32_t pdba_base_nopae (uint32_t pdpe){
+-    return pdpe & 0xFFFFF000;
+-}
+-
+-uint64_t pdba_base_pae (uint64_t pdpe){
+-    return pdpe & 0xFFFFFF000ULL;
+-}
+-
+-uint32_t get_pgd_nopae (
+-        xa_instance_t *instance, uint32_t vaddr, uint32_t pdpe, int k)
+-{
+-    uint32_t value;
+-    uint32_t pgd_entry = pdba_base_nopae(pdpe) + pgd_index(instance, vaddr);
+-    xa_dbprint("--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
+-    if (k){
+-        xa_read_long_mach(instance, pgd_entry, &value);
+-    }
+-    else{
+-        xa_read_long_virt(instance, pgd_entry, 0, &value);
+-    }
+-    return value;
+-}
+-
+-uint64_t get_pgd_pae (
+-        xa_instance_t *instance, uint32_t vaddr, uint64_t pdpe, int k)
+-{
+-    uint64_t value;
+-    uint32_t pgd_entry = pdba_base_pae(pdpe) + pgd_index(instance, vaddr);
+-    xa_dbprint("--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
+-    xa_read_long_long_mach(instance, pgd_entry, &value);
+-    return value;
+-}
+-
+-/* page table */
+-uint32_t pte_index (xa_instance_t *instance, uint32_t address){
+-    if (!instance->pae){
+-        return (((address) >> 12) & 0x3FF) * sizeof(uint32_t);
+-    }
+-    else{
+-        return (((address) >> 12) & 0x1FF) * sizeof(uint64_t); 
+-    }
+-}
+-        
+-uint32_t ptba_base_nopae (uint32_t pde){
+-    return pde & 0xFFFFF000;
+-}
+-
+-uint64_t ptba_base_pae (uint64_t pde){
+-    return pde & 0xFFFFFF000ULL;
+-}
+-
+-uint32_t get_pte_nopae (xa_instance_t *instance, uint32_t vaddr, uint32_t pgd){
+-    uint32_t value;
+-    uint32_t pte_entry = ptba_base_nopae(pgd) + pte_index(instance, vaddr);
+-    xa_dbprint("--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
+-    xa_read_long_mach(instance, pte_entry, &value);
+-    return value;
+-}
+-
+-uint64_t get_pte_pae (xa_instance_t *instance, uint32_t vaddr, uint64_t pgd){
+-    uint64_t value;
+-    uint32_t pte_entry = ptba_base_pae(pgd) + pte_index(instance, vaddr);
+-    xa_dbprint("--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
+-    xa_read_long_long_mach(instance, pte_entry, &value);
+-    return value;
+-}
+-
+-/* page */
+-uint32_t pte_pfn_nopae (uint32_t pte){
+-    return pte & 0xFFFFF000;
+-}
+-
+-uint64_t pte_pfn_pae (uint64_t pte){
+-    return pte & 0xFFFFFF000ULL;
+-}
+-
+-uint32_t get_paddr_nopae (uint32_t vaddr, uint32_t pte){
+-    return pte_pfn_nopae(pte) | (vaddr & 0xFFF);
+-}
+-
+-uint64_t get_paddr_pae (uint32_t vaddr, uint64_t pte){
+-    return pte_pfn_pae(pte) | (vaddr & 0xFFF);
+-}
+-
+-uint32_t get_large_paddr (
+-        xa_instance_t *instance, uint32_t vaddr, uint32_t pgd_entry)
+-{
+-    if (!instance->pae){
+-        return (pgd_entry & 0xFFC00000) | (vaddr & 0x3FFFFF);
+-    }
+-    else{
+-        return (pgd_entry & 0xFFE00000) | (vaddr & 0x1FFFFF);
+-    }
+-}
+-
+-/* "buffalo" routines
+- * see "Using Every Part of the Buffalo in Windows Memory Analysis" by
+- * Jesse D. Kornblum for details. 
+- * for now, just test the bits and print out details */
+-int get_transition_bit(uint32_t entry)
+-{
+-    return xa_get_bit(entry, 11);
+-}
+-
+-int get_prototype_bit(uint32_t entry)
+-{
+-    return xa_get_bit(entry, 10);
+-}
+-
+-void buffalo_nopae (xa_instance_t *instance, uint32_t entry, int pde)
+-{
+-    /* similar techniques are surely doable in linux, but for now
+-     * this is only testing for windows domains */
+-    if (!instance->os_type == XA_OS_WINDOWS){
+-        return;
+-    }
+-
+-    if (!get_transition_bit(entry) && !get_prototype_bit(entry)){
+-        uint32_t pfnum = (entry >> 1) & 0xF;
+-        uint32_t pfframe = entry & 0xFFFFF000;
+-
+-        /* pagefile */
+-        if (pfnum != 0 && pfframe != 0){
+-            xa_dbprint("--Buffalo: page file = %d, frame = 0x%.8x\n",
+-                pfnum, pfframe);
+-        }
+-        /* demand zero */
+-        else if (pfnum == 0 && pfframe == 0){
+-            xa_dbprint("--Buffalo: demand zero page\n");
+-        }
+-    }
+-
+-    else if (get_transition_bit(entry) && !get_prototype_bit(entry)){
+-        /* transition */
+-        xa_dbprint("--Buffalo: page in transition\n");
+-    }
+-
+-    else if (!pde && get_prototype_bit(entry)){
+-        /* prototype */
+-        xa_dbprint("--Buffalo: prototype entry\n");
+-    }
+-
+-    else if (entry == 0){
+-        /* zero */
+-        xa_dbprint("--Buffalo: entry is zero\n");
+-    }
+-
+-    else{
+-        /* zero */
+-        xa_dbprint("--Buffalo: unknown\n");
+-    }
+-}
+-
+-/* translation */
+-uint32_t v2p_nopae(xa_instance_t *instance, uint32_t cr3, uint32_t vaddr, int k)
+-{
+-    uint32_t paddr = 0;
+-    uint32_t pgd, pte;
+-        
+-    xa_dbprint("--PTLookup: lookup vaddr = 0x%.8x\n", vaddr);
+-    xa_dbprint("--PTLookup: cr3 = 0x%.8x\n", cr3);
+-    pgd = get_pgd_nopae(instance, vaddr, cr3, k);
+-    xa_dbprint("--PTLookup: pgd = 0x%.8x\n", pgd);
+-        
+-    if (entry_present(pgd)){
+-        if (page_size_flag(pgd)){
+-            paddr = get_large_paddr(instance, vaddr, pgd);
+-            xa_dbprint("--PTLookup: 4MB page\n", pgd);
+-        }
+-        else{
+-            pte = get_pte_nopae(instance, vaddr, pgd);
+-            xa_dbprint("--PTLookup: pte = 0x%.8x\n", pte);
+-            if (entry_present(pte)){
+-                paddr = get_paddr_nopae(vaddr, pte);
+-            }
+-            else{
+-                buffalo_nopae(instance, pte, 1);
+-            }
+-        }
+-    }
+-    else{
+-        buffalo_nopae(instance, pgd, 0);
+-    }
+-    xa_dbprint("--PTLookup: paddr = 0x%.8x\n", paddr);
+-    return paddr;
+-}
+-
+-uint32_t v2p_pae (xa_instance_t *instance, uint32_t cr3, uint32_t vaddr, int k)
+-{
+-    uint32_t paddr = 0;
+-    uint64_t pdpe, pgd, pte;
+-        
+-    xa_dbprint("--PTLookup: lookup vaddr = 0x%.8x\n", vaddr);
+-    xa_dbprint("--PTLookup: cr3 = 0x%.8x\n", cr3);
+-    pdpe = get_pdpi(instance, vaddr, cr3, k);
+-    xa_dbprint("--PTLookup: pdpe = 0x%.16x\n", pdpe);
+-    if (!entry_present(pdpe)){
+-        return paddr;
+-    }
+-    pgd = get_pgd_pae(instance, vaddr, pdpe, k);
+-    xa_dbprint("--PTLookup: pgd = 0x%.16x\n", pgd);
+-
+-    if (entry_present(pgd)){
+-        if (page_size_flag(pgd)){
+-            paddr = get_large_paddr(instance, vaddr, pgd);
+-            xa_dbprint("--PTLookup: 2MB page\n");
+-        }
+-        else{
+-            pte = get_pte_pae(instance, vaddr, pgd);
+-            xa_dbprint("--PTLookup: pte = 0x%.16x\n", pte);
+-            if (entry_present(pte)){
+-                paddr = get_paddr_pae(vaddr, pte);
+-            }
+-        }
+-    }
+-    xa_dbprint("--PTLookup: paddr = 0x%.8x\n", paddr);
+-    return paddr;
+-}
+-
+-/* convert address to machine address via page tables */
+-uint32_t xa_pagetable_lookup (
+-            xa_instance_t *instance,
+-            uint32_t cr3,
+-            uint32_t vaddr,
+-            int kernel)
+-{
+-    if (instance->pae){
+-        return v2p_pae(instance, cr3, vaddr, kernel);
+-    }
+-    else{
+-        return v2p_nopae(instance, cr3, vaddr, kernel);
+-    }
+-}
+-
+-uint32_t xa_current_cr3 (xa_instance_t *instance, uint32_t *cr3)
+-{
+-    int ret = XA_SUCCESS;
+-    vcpu_guest_context_t ctxt;
+-
+-    if (XA_MODE_XEN == instance->mode){
+-        if ((ret = xc_vcpu_getcontext(
+-                instance->m.xen.xc_handle,
+-                instance->m.xen.domain_id,
+-                0, /*TODO vcpu, assuming only 1 for now */
+-                &ctxt)) != 0){
+-            printf("ERROR: failed to get context information.\n");
+-            ret = XA_FAILURE;
+-            goto error_exit;
+-        }
+-        *cr3 = ctxt.ctrlreg[3] & 0xFFFFF000;
+-    }
+-    else if (XA_MODE_FILE == instance->mode){
+-        *cr3 = instance->kpgd - instance->page_offset;
+-    }
+-
+-error_exit:
+-    return ret;
+-}
+-
+-/* expose virtual to physical mapping via api call */
+-uint32_t xa_translate_kv2p(xa_instance_t *instance, uint32_t virt_address)
+-{
+-    uint32_t cr3 = 0;
+-    xa_current_cr3(instance, &cr3);
+-    return xa_pagetable_lookup(instance, cr3, virt_address, 1);
+-}
+-
+ /* map memory given a kernel symbol */
+ void *xa_access_kernel_sym (
+-        xa_instance_t *instance, char *symbol, uint32_t *offset, int prot)
++        xa_instance_t *instance, char *symbol, xa_addr_t *offset, int prot)
+ {
+     if (XA_OS_LINUX == instance->os_type){
+         return linux_access_kernel_symbol(instance, symbol, offset, prot);
+@@ -493,10 +188,13 @@ void *xa_access_kernel_symbol (
+ 
+ /*TODO fix these functions to return machine address just like real CR3 */
+ /* finds the address of the page global directory for a given pid */
+-uint32_t xa_pid_to_pgd (xa_instance_t *instance, int pid)
++xa_addr_t xa_pid_to_pgd (xa_instance_t *instance, int pid)
+ {
++    xa_addr_t ret = 0;
+     if (XA_OS_LINUX == instance->os_type){
+-        return linux_pid_to_pgd(instance, pid);
++        ret = linux_pid_to_pgd(instance, pid);
++        printf("[xa_memory.c]xa_addr_t:%d bytes. xa_pid_to_pgd:%llx\n",sizeof(xa_addr_t),ret);
++        return ret;
+     }
+     else if (XA_OS_WINDOWS == instance->os_type){
+         return windows_pid_to_pgd(instance, pid);
+@@ -508,49 +206,50 @@ uint32_t xa_pid_to_pgd (xa_instance_t *i
+ 
+ void *xa_access_user_va (
+         xa_instance_t *instance,
+-        uint32_t virt_address,
+-        uint32_t *offset,
++        xa_addr_t virt_address,
++        xa_addr_t *offset,
+         int pid,
+         int prot)
+ {
+-    uint32_t address = 0;
+-
++    xa_addr_t address = 0;
++#if 1
++#else
+     /* check the LRU cache */
+     if (xa_check_cache_virt(instance, virt_address, pid, &address)){
+         return xa_access_ma(instance, address, offset, PROT_READ);
+     }
+-
++#endif
+     /* use kernel page tables */
+     /*TODO HYPERVISOR_VIRT_START = 0xFC000000 so we can't go over that.
+       Figure out what this should be b/c there still may be a fixed
+       mapping range between the page'd addresses and VIRT_START */
+     if (!pid){
+-        uint32_t cr3 = 0;
+-        xa_current_cr3(instance, &cr3);
+-        address = xa_pagetable_lookup(instance, cr3, virt_address, 1);
++        address = xa_translate_kv2p(instance, virt_address);
+         if (!address){
+-            printf("ERROR: address not in page table (0x%x)\n", virt_address);
++            printf("ERROR: address not in page table (0x%llx)\n", virt_address);
+             return NULL;
+         }
+     }
+-
+     /* use user page tables */
+     else{
+-        uint32_t pgd = xa_pid_to_pgd(instance, pid);
+-        xa_dbprint("--UserVirt: pgd for pid=%d is 0x%.8x.\n", pid, pgd);
++        xa_addr_t pgd = xa_pid_to_pgd(instance, pid);
++        xa_dbprint("--UserVirt: pgd for pid=%d is 0x%llx.\n", pid, pgd);
+ 
+         if (pgd){
+             address = xa_pagetable_lookup(instance, pgd, virt_address, 0);
+         }
+ 
+         if (!address){
+-            printf("ERROR: address not in page table (0x%x)\n", virt_address);
++            printf("ERROR: address not in page table (0x%llx)\n", virt_address);
+             return NULL;
+         }
+     }
+ 
+     /* update cache and map the memory */
++#if 1
++#else
+     xa_update_cache(instance, NULL, virt_address, pid, address);
++#endif
+     return xa_access_ma(instance, address, offset, prot);
+ }
+ 
+@@ -593,8 +292,8 @@ void *xa_access_user_va_range (
+ 
+ void *xa_access_kernel_va (
+         xa_instance_t *instance,
+-        uint32_t virt_address,
+-        uint32_t *offset,
++        xa_addr_t virt_address,
++        xa_addr_t *offset,
+         int prot)
+ {
+     return xa_access_user_va(instance, virt_address, offset, 0, prot);
+@@ -613,8 +312,8 @@ void *xa_access_kernel_va_range (
+ 
+ void *xa_access_pa (
+         xa_instance_t *instance,
+-        uint32_t phys_address,
+-        uint32_t *offset,
++        xa_addr_t phys_address,
++        xa_addr_t *offset,
+         int prot)
+ {
+     unsigned long pfn;
+@@ -622,18 +321,19 @@ void *xa_access_pa (
+     
+     /* page frame number = physical address >> PAGE_SHIFT */
+     pfn = phys_address >> instance->page_shift;
+-    
++    //printf("[xa_memory.c]xa_access_pa() pfn:%d\n",pfn);
++
+     /* get the offset */
+     *offset = (instance->page_size-1) & phys_address;
+-    
++    //printf("[xa_memory.c]xa_access_pa()------------------------------------\n");
+     /* access the memory */
+     return xa_mmap_pfn(instance, prot, pfn);
+ }
+ 
+ void *xa_access_ma (
+         xa_instance_t *instance,
+-        uint32_t mach_address,
+-        uint32_t *offset,
++        xa_addr_t mach_address,
++        xa_addr_t *offset,
+         int prot)
+ {
+     unsigned long mfn;
+@@ -824,8 +524,8 @@ int xa_kernel_pd_selfref(
+ uint32_t xa_find_kernel_pd (xa_instance_t *instance)
+ {
+     uint32_t end = 0;
+-    uint32_t address = 0;
+-    uint32_t offset = 0;
++    xa_addr_t address = 0;
++    xa_addr_t offset = 0;
+     int score = 0;
+     int max_score = 0;
+     unsigned char *memory = NULL;
+diff -upNr old/xenaccess/xa_private.h new/xenaccess/xa_private.h
+--- old/xenaccess/xa_private.h	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/xa_private.h	2008-11-12 19:44:13.000000000 +0800
+@@ -91,7 +91,7 @@ void xa_dbprint(char *format, ...);
+ int xa_check_cache_sym (xa_instance_t *instance,
+                         char *symbol_name,
+                         int pid,
+-                        uint32_t *mach_address);
++                        xa_addr_t *mach_address);
+ 
+ /**
+  * Check if a virt_address is in the LRU cache.
+@@ -183,9 +183,9 @@ void *xa_mmap_pfn (xa_instance_t *instan
+  *
+  * @return Machine address resulting from page table lookup.
+  */
+-uint32_t xa_pagetable_lookup (
+-            xa_instance_t *instance, uint32_t pgd,
+-            uint32_t virt_address, int kernel);
++xa_addr_t xa_pagetable_lookup (
++            xa_instance_t *instance, xa_addr_t pgd,
++            xa_addr_t virt_address, int kernel);
+ 
+ /**
+  * Find the address of the page global directory for a given PID
+@@ -195,7 +195,7 @@ uint32_t xa_pagetable_lookup (
+  *
+  * @return Address of pgd, or zero if no address could be found.
+  */
+-uint32_t xa_pid_to_pgd (xa_instance_t *instance, int pid);
++xa_addr_t xa_pid_to_pgd (xa_instance_t *instance, int pid);
+ 
+ /**
+  * Gets address of a symbol in domU virtual memory. It uses System.map
+@@ -206,7 +206,7 @@ uint32_t xa_pid_to_pgd (xa_instance_t *i
+  * @param[out] address The addres of the symbol in guest memory.
+  */
+ int linux_system_map_symbol_to_address (
+-        xa_instance_t *instance, char *symbol, uint32_t *address);
++        xa_instance_t *instance, char *symbol, xa_addr_t *address);
+ 
+ /**
+  * Gets a memory page where @a symbol is located and sets @a offset
+@@ -220,7 +220,7 @@ int linux_system_map_symbol_to_address (
+  * @return Address of a page where \a symbol resides.
+  */
+ void *linux_access_kernel_symbol (
+-        xa_instance_t *instance, char *symbol, uint32_t *offset, int prot);
++        xa_instance_t *instance, char *symbol, xa_addr_t *offset, int prot);
+ 
+ /**
+  * Releases the cache.
+@@ -237,7 +237,7 @@ int xa_destroy_cache (xa_instance_t *ins
+  *
+  * @return String with the path to domU kernel.
+  */
+-char *xa_get_kernel_name (int id);
++char *xa_get_kernel_name (uint32_t id);
+ 
+ /**
+  * Finds out whether the domU is HVM (Hardware virtual machine).
+@@ -257,7 +257,7 @@ int xa_ishvm (int id);
+  * @param[out] address The addres of the symbol in guest memory.
+  */
+ int windows_symbol_to_address (
+-        xa_instance_t *instance, char *symbol, uint32_t *address);
++        xa_instance_t *instance, char *symbol, xa_addr_t *address);
+ 
+ /**
+  * Get the ntoskrnl base address by doing a backwards search.
+@@ -279,7 +279,7 @@ uint32_t get_ntoskrnl_base (xa_instance_
+  * @return Address of a page where \a symbol resides.
+  */
+ void *windows_access_kernel_symbol (
+-        xa_instance_t *instance, char *symbol, uint32_t *offset, int prot);
++        xa_instance_t *instance, char *symbol, xa_addr_t *offset, int prot);
+ 
+ int windows_init (xa_instance_t *instance);
+ int linux_init (xa_instance_t *instance);
+@@ -298,4 +298,6 @@ void *xc_map_foreign_pages(int xc_handle
+                            const xen_pfn_t *arr, int num);
+ #endif
+ 
++char *linux_predict_sysmap_name (uint32_t id);
++
+ #endif /* XA_PRIVATE_H */
+diff -upNr old/xenaccess/xa_util.c new/xenaccess/xa_util.c
+--- old/xenaccess/xa_util.c	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/xa_util.c	2008-11-12 19:44:13.000000000 +0800
+@@ -34,15 +34,16 @@
+ #include "xa_private.h"
+ #include <string.h>
+ #include <stdarg.h>
++#include "arch/machine/types.h"
+ 
+ int xa_read_long_mach (
+-        xa_instance_t *instance, uint32_t maddr, uint32_t *value)
++        xa_instance_t *instance, xa_addr_t maddr, xa_long *value)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t offset = 0;
++    xa_addr_t offset = 0;
+     memory = xa_access_ma(instance, maddr, &offset, PROT_READ);
+     if (NULL != memory){
+-        *value = *((uint32_t*)(memory + offset));
++        *value = *((xa_long*)(memory + offset));
+         munmap(memory, instance->page_size);
+         return XA_SUCCESS;
+     }
+@@ -52,13 +53,13 @@ int xa_read_long_mach (
+ }
+ 
+ int xa_read_long_long_mach (
+-        xa_instance_t *instance, uint32_t maddr, uint64_t *value)
++        xa_instance_t *instance, xa_addr_t maddr, xa_long_long *value)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t offset = 0;
++    xa_addr_t offset = 0;
+     memory = xa_access_ma(instance, maddr, &offset, PROT_READ);
+     if (NULL != memory){
+-        *value = *((uint64_t*)(memory + offset));
++        *value = *((xa_long_long*)(memory + offset));
+         munmap(memory, instance->page_size);
+         return XA_SUCCESS;
+     }
+@@ -68,13 +69,13 @@ int xa_read_long_long_mach (
+ }
+ 
+ int xa_read_long_phys (
+-        xa_instance_t *instance, uint32_t paddr, uint32_t *value)
++        xa_instance_t *instance, xa_addr_t paddr, xa_long *value)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t offset = 0;
++    xa_addr_t offset = 0;
+     memory = xa_access_pa(instance, paddr, &offset, PROT_READ);
+     if (NULL != memory){
+-        *value = *((uint32_t*)(memory + offset));
++        *value = *((xa_long*)(memory + offset));
+         munmap(memory, instance->page_size);
+         return XA_SUCCESS;
+     }
+@@ -84,13 +85,13 @@ int xa_read_long_phys (
+ }
+ 
+ int xa_read_long_long_phys (
+-        xa_instance_t *instance, uint32_t paddr, uint64_t *value)
++        xa_instance_t *instance, xa_addr_t paddr, xa_long_long *value)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t offset = 0;
++    xa_addr_t offset = 0;
+     memory = xa_access_pa(instance, paddr, &offset, PROT_READ);
+     if (NULL != memory){
+-        *value = *((uint64_t*)(memory + offset));
++        *value = *((xa_long_long*)(memory + offset));
+         munmap(memory, instance->page_size);
+         return XA_SUCCESS;
+     }
+@@ -100,13 +101,13 @@ int xa_read_long_long_phys (
+ }
+ 
+ int xa_read_long_virt (
+-        xa_instance_t *instance, uint32_t vaddr, int pid, uint32_t *value)
++        xa_instance_t *instance, xa_addr_t vaddr, int pid, xa_long *value)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t offset = 0;
++    xa_addr_t offset = 0;
+     memory = xa_access_user_va(instance, vaddr, &offset, pid, PROT_READ);
+     if (NULL != memory){
+-        *value = *((uint32_t*)(memory + offset));
++        *value = *((xa_long*)(memory + offset));
+         munmap(memory, instance->page_size);
+         return XA_SUCCESS;
+     }
+@@ -116,13 +117,13 @@ int xa_read_long_virt (
+ }
+ 
+ int xa_read_long_long_virt (
+-        xa_instance_t *instance, uint32_t vaddr, int pid, uint64_t *value)
++        xa_instance_t *instance, xa_addr_t vaddr, int pid, xa_long_long *value)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t offset = 0;
++    xa_addr_t offset = 0;
+     memory = xa_access_user_va(instance, vaddr, &offset, pid, PROT_READ);
+     if (NULL != memory){
+-        *value = *((uint64_t*)(memory + offset));
++        *value = *((xa_long_long*)(memory + offset));
+         munmap(memory, instance->page_size);
+         return XA_SUCCESS;
+     }
+@@ -132,13 +133,13 @@ int xa_read_long_long_virt (
+ }
+ 
+ int xa_read_long_sym (
+-        xa_instance_t *instance, char *sym, uint32_t *value)
++        xa_instance_t *instance, char *sym, xa_long *value)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t offset = 0;
++    xa_addr_t offset = 0;
+     memory = xa_access_kernel_sym(instance, sym, &offset, PROT_READ);
+     if (NULL != memory){
+-        *value = *((uint32_t*)(memory + offset));
++        *value = *((xa_long*)(memory + offset));
+         munmap(memory, instance->page_size);
+         return XA_SUCCESS;
+     }
+@@ -148,13 +149,13 @@ int xa_read_long_sym (
+ }
+ 
+ int xa_read_long_long_sym (
+-        xa_instance_t *instance, char *sym, uint64_t *value)
++        xa_instance_t *instance, char *sym, xa_long_long *value)
+ {
+     unsigned char *memory = NULL;
+-    uint32_t offset = 0;
++    xa_addr_t offset = 0;
+     memory = xa_access_kernel_sym(instance, sym, &offset, PROT_READ);
+     if (NULL != memory){
+-        *value = *((uint64_t*)(memory + offset));
++        *value = *((xa_long_long*)(memory + offset));
+         munmap(memory, instance->page_size);
+         return XA_SUCCESS;
+     }
+@@ -163,7 +164,8 @@ int xa_read_long_long_sym (
+     }
+ }
+ 
+-int xa_symbol_to_address (xa_instance_t *instance, char *sym, uint32_t *vaddr)
++int xa_symbol_to_address (
++        xa_instance_t *instance, char *sym, xa_addr_t *vaddr)
+ {
+     if (XA_OS_LINUX == instance->os_type){
+        return linux_system_map_symbol_to_address(instance, sym, vaddr);
+diff -upNr old/xenaccess/xenaccess.h new/xenaccess/xenaccess.h
+--- old/xenaccess/xenaccess.h	2008-10-26 01:23:42.000000000 +0800
++++ new/xenaccess/xenaccess.h	2008-11-12 19:44:13.000000000 +0800
+@@ -40,6 +40,7 @@
+ #include <stdio.h>
+ #include <sys/mman.h>
+ #include <errno.h>
++#include "arch/machine/types.h"
+ 
+ /* uncomment this to enable debug output */
+ //#define XA_DEBUG
+@@ -138,16 +139,16 @@ typedef struct xa_instance{
+     uint32_t error_mode;    /**< XA_FAILHARD or XA_FAILSOFT */
+     char *sysmap;           /**< system map file for domain's running kernel */
+     char *image_type;       /**< image type that we are accessing */
+-    uint32_t page_offset;   /**< page offset for this instance */
++    xa_addr_t page_offset;   /**< page offset for this instance */
+     uint32_t page_shift;    /**< page shift for last mapped page */
+     uint32_t page_size;     /**< page size for last mapped page */
+-    uint32_t kpgd;          /**< kernel page global directory */
+-    uint32_t init_task;     /**< address of task struct for init */
++    xa_addr_t kpgd;          /**< kernel page global directory */
++    xa_addr_t init_task;     /**< address of task struct for init */
+     int os_type;            /**< type of os: XA_OS_LINUX, etc */
+     int hvm;                /**< nonzero if HVM memory image */
+     int pae;                /**< nonzero if PAE is enabled */
+     int pse;                /**< nonzero if PSE is enabled */
+-    uint32_t cr3;           /**< value in the CR3 register */
++    xa_addr_t cr3;           /**< value in the CR3 register */
+     xa_cache_entry_t cache_head;
+     xa_cache_entry_t cache_tail;
+     int current_cache_size;
+@@ -194,6 +195,8 @@ typedef struct xa_instance{
+  * the xa_linux_get_taskaddr function.  The comments next to each
+  * entry are taken from Bovet & Cesati's excellent book Understanding
+  * the Linux Kernel 3rd Ed, p354.
++ *
++ * a piece of struct mm_struct in linux/sched.h 
+  */
+ typedef struct xa_linux_taskaddr{
+     unsigned long start_code;  /**< initial address of executable code */
+@@ -366,8 +369,8 @@ int xa_destroy (xa_instance_t *instance)
+  * @return Address of a page copy that contains phys_address.
+  */
+ void *xa_access_pa (
+-        xa_instance_t *instance, uint32_t phys_address,
+-        uint32_t *offset, int prot);
++        xa_instance_t *instance, xa_addr_t phys_address,
++        xa_addr_t *offset, int prot);
+ 
+ /**
+  * Memory maps page in domU that contains given machine address. For more
+@@ -381,8 +384,8 @@ void *xa_access_pa (
+  * @return Address of a page copy with content like mach_address.
+  */
+ void *xa_access_ma (
+-        xa_instance_t *instance, uint32_t mach_address,
+-        uint32_t *offset, int prot);
++        xa_instance_t *instance, xa_addr_t mach_address,
++        xa_addr_t *offset, int prot);
+ 
+ /**
+  * Memory maps one page from domU to a local address range.  The
+@@ -397,7 +400,7 @@ void *xa_access_ma (
+  * @return Beginning of mapped memory page or NULL on error
+  */
+ void *xa_access_kernel_sym (
+-        xa_instance_t *instance, char *symbol, uint32_t *offset, int prot);
++        xa_instance_t *instance, char *symbol, xa_addr_t *offset, int prot);
+ 
+ /**
+  * Memory maps one page from domU to a local address range.  The
+@@ -411,8 +414,8 @@ void *xa_access_kernel_sym (
+  * @return Beginning of mapped memory page or NULL on error
+  */
+ void *xa_access_kernel_va (
+-        xa_instance_t *instance, uint32_t virt_address,
+-        uint32_t *offset, int prot);
++        xa_instance_t *instance, xa_addr_t virt_address,
++        xa_addr_t *offset, int prot);
+ 
+ /**
+  * Memory maps multiple pages from domU to a local address range.
+@@ -446,8 +449,8 @@ void *xa_access_kernel_va_range (
+  * @return Beginning of mapped memory page or NULL on error
+  */
+ void *xa_access_user_va (
+-        xa_instance_t *instance, uint32_t virt_address,
+-        uint32_t *offset, int pid, int prot);
++        xa_instance_t *instance, xa_addr_t virt_address,
++        xa_addr_t *offset, int pid, int prot);
+ 
+ /**
+  * Memory maps multiple pages from domU to a local address range.
+@@ -478,34 +481,34 @@ void *xa_access_user_va_range (
+  * @param[in] virt_address Desired kernel virtual address to translate
+  * @return Physical address, or zero on error
+  */
+-uint32_t xa_translate_kv2p(xa_instance_t *instance, uint32_t virt_address);
++xa_addr_t xa_translate_kv2p(xa_instance_t *instance, xa_addr_t virt_address);
+ 
+ /*---------------------------------------
+  * Memory access functions from xa_util.c
+  */
+ 
+ /**
+- * Reads a long (32 bit) value from memory, given a kernel symbol.
++ * Reads a long (xa_long) value from memory, given a kernel symbol.
+  *
+  * @param[in] instance XenAccess instance
+  * @param[in] sym Kernel symbol to read from
+  * @param[out] value The value read from memory
+  * @return XA_SUCCESS or XA_FAILURE
+  */
+-int xa_read_long_sym (xa_instance_t *instance, char *sym, uint32_t *value);
++int xa_read_long_sym (xa_instance_t *instance, char *sym, xa_long *value);
+ 
+ /**
+- * Reads a long long (64 bit) value from memory, given a kernel symbol.
++ * Reads a long long (xa_long_long) value from memory, given a kernel symbol.
+  *
+  * @param[in] instance XenAccess instance
+  * @param[in] sym Kernel symbol to read from
+  * @param[out] value The value read from memory
+  * @return XA_SUCCESS or XA_FAILURE
+  */
+-int xa_read_long_long_sym (xa_instance_t *instance, char *sym, uint64_t *value);
++int xa_read_long_long_sym (xa_instance_t *instance, char *sym, xa_long_long *value);
+ 
+ /**
+- * Reads a long (32 bit) value from memory, given a virtual address.
++ * Reads a long (xa_long) value from memory, given a virtual address.
+  *
+  * @param[in] instance XenAccess instance
+  * @param[in] vaddr Virtual address to read from
+@@ -514,10 +517,10 @@ int xa_read_long_long_sym (xa_instance_t
+  * @return XA_SUCCESS or XA_FAILURE
+  */
+ int xa_read_long_virt (
+-        xa_instance_t *instance, uint32_t vaddr, int pid, uint32_t *value);
++        xa_instance_t *instance, xa_addr_t vaddr, int pid, xa_long *value);
+ 
+ /**
+- * Reads a long long (64 bit) value from memory, given a virtual address.
++ * Reads a long long (xa_long_long) value from memory, given a virtual address.
+  *
+  * @param[in] instance XenAccess instance
+  * @param[in] vaddr Virtual address to read from
+@@ -526,10 +529,10 @@ int xa_read_long_virt (
+  * @return XA_SUCCESS or XA_FAILURE
+  */
+ int xa_read_long_long_virt (
+-        xa_instance_t *instance, uint32_t vaddr, int pid, uint64_t *value);
++        xa_instance_t *instance, xa_addr_t vaddr, int pid, xa_long_long *value);
+ 
+ /**
+- * Reads a long (32 bit) value from memory, given a physical address.
++ * Reads a long (xa_long) value from memory, given a physical address.
+  *
+  * @param[in] instance XenAccess instance
+  * @param[in] paddr Physical address to read from
+@@ -537,10 +540,10 @@ int xa_read_long_long_virt (
+  * @return XA_SUCCESS or XA_FAILURE
+  */
+ int xa_read_long_phys (
+-        xa_instance_t *instance, uint32_t paddr, uint32_t *value);
++        xa_instance_t *instance, xa_addr_t paddr, xa_long *value);
+ 
+ /**
+- * Reads a long long (64 bit) value from memory, given a physical address.
++ * Reads a long long (xa_long_long) value from memory, given a physical address.
+  *
+  * @param[in] instance XenAccess instance
+  * @param[in] paddr Physical address to read from
+@@ -548,10 +551,10 @@ int xa_read_long_phys (
+  * @return XA_SUCCESS or XA_FAILURE
+  */
+ int xa_read_long_long_phys (
+-        xa_instance_t *instance, uint32_t paddr, uint64_t *value);
++        xa_instance_t *instance, xa_addr_t paddr, xa_long_long *value);
+ 
+ /**
+- * Reads a long (32 bit) value from memory, given a machine address.
++ * Reads a long (xa_long) value from memory, given a machine address.
+  *
+  * @param[in] instance XenAccess instance
+  * @param[in] maddr Machine address to read from
+@@ -559,10 +562,10 @@ int xa_read_long_long_phys (
+  * @return XA_SUCCESS or XA_FAILURE
+  */
+ int xa_read_long_mach (
+-        xa_instance_t *instance, uint32_t maddr, uint32_t *value);
++        xa_instance_t *instance, xa_addr_t maddr, xa_long *value);
+ 
+ /**
+- * Reads a long long (64 bit) value from memory, given a machine address.
++ * Reads a long long (xa_long_long) value from memory, given a machine address.
+  *
+  * @param[in] instance XenAccess instance
+  * @param[in] maddr Machine address to read from
+@@ -570,7 +573,7 @@ int xa_read_long_mach (
+  * @return XA_SUCCESS or XA_FAILURE
+  */
+ int xa_read_long_long_mach (
+-        xa_instance_t *instance, uint32_t maddr, uint64_t *value);
++        xa_instance_t *instance, xa_addr_t maddr, xa_long_long *value);
+ 
+ /**
+  * Looks up the virtual address of an exported kernel symbol.
+@@ -580,7 +583,7 @@ int xa_read_long_long_mach (
+  * @param[out] vaddr The virtual address of the symbol
+  * @return XA_SUCCESS or XA_FAILURE
+  */
+-int xa_symbol_to_address (xa_instance_t *instance, char *sym, uint32_t *vaddr);
++int xa_symbol_to_address (xa_instance_t *instance, char *sym, xa_addr_t *vaddr);
+ 
+ /*-----------------------------
+  * Linux-specific functionality

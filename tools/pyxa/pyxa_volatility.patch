@@ -1,0 +1,127 @@
+diff -uNr Volatility-1.3_Beta/forensics/xenaddrspace.py Volatility-1.3_Beta.new/forensics/xenaddrspace.py
+--- Volatility-1.3_Beta/forensics/xenaddrspace.py	1969-12-31 19:00:00.000000000 -0500
++++ Volatility-1.3_Beta.new/forensics/xenaddrspace.py	2008-12-31 15:45:55.000000000 -0500
+@@ -0,0 +1,54 @@
++from pyxa import pyxa_instance
++
++class PyXaAddressSpace:
++    def __init__(self, domain):
++        self.domain = domain
++        self.base = pyxa_instance(domain)
++        
++    def read(self, addr, length):
++        first_block = 0x1000 - addr % 0x1000
++        full_blocks = ((length + (addr % 0x1000)) / 0x1000) - 1
++        left_over = (length + addr) % 0x1000
++        
++        if length < first_block:
++            stuff_read = self.base.read(addr)
++            if stuff_read == None:
++                return None
++            return stuff_read[:length]
++
++        stuff_read = self.base.read(addr)
++        if stuff_read == None:
++            return None
++
++        new_addr = addr + first_block
++        for i in range(0,full_blocks):
++            new_stuff = self.base.read(addr)
++            if new_stuff == None:
++                return None
++            stuff_read = stuff_read + new_stuff
++            new_addr = new_addr + 0x1000
++
++        if left_over > 0:
++            new_stuff = self.base.read(addr)
++            if new_stuff == None:
++                return None
++            stuff_read = stuff_read + new_stuff[:left_over]
++        return stuff_read
++
++    def zread(self, addr, length):
++        return self.read(addr,length)
++    
++    def get_cr3(self):
++        return self.base.get_cr3()
++    
++    def is_pae(self):
++        return self.base.is_pae()
++
++    def is_pse(self):
++        return self.base.is_pse()
++
++    def size(self):
++        return self.base.get_size()
++    
++    def is_valid_address(self, addr):
++        return addr < self.size()
+diff -uNr Volatility-1.3_Beta/vutils.py Volatility-1.3_Beta.new/vutils.py
+--- Volatility-1.3_Beta/vutils.py	2008-06-23 13:49:26.000000000 -0400
++++ Volatility-1.3_Beta.new/vutils.py	2008-12-31 15:50:08.000000000 -0500
+@@ -35,6 +35,7 @@
+ from forensics.win32.tasks import find_csdversion
+ 
+ from forensics.addrspace import *
++from forensics.xenaddrspace import PyXaAddressSpace
+ from forensics.x86 import *
+ from forensics.win32.crash_addrspace import *
+ from forensics.win32.hiber_addrspace import *
+@@ -56,9 +57,11 @@
+     op.add_option('-t', '--type',
+                   help='(optional, default="auto") Identify the image type (pae, nopae, auto)',
+                   action='store', type='string', dest='type')    
++    op.add_option('-x', '--xen-domain',
++                  help='Xen domain to access',
++                  action='store', type='int', dest='xen')
+     return op
+ 
+-
+ def guess_dtb(filename, op):
+     """
+     Function performs a linear scan in search of a potential valid XP SP2 DTB
+@@ -149,12 +152,12 @@
+     addr_space = None
+     symtab = None
+ 
+-    if opts.filename is None:
++    # No filename for Xen images
++    if opts.filename is None and not opts.xen:
+         op.error("Image file required")
+     else:
+         filename = opts.filename
+ 
+-
+     if not opts.base is None:
+         try:
+             dtb = int(opts.base, 16)
+@@ -169,11 +172,26 @@
+         elif opts.type != 'auto':
+             op.error("-t option must be 'pae', 'nopae', or 'auto'")            
+ 
++    flat_space = None
+     if dtb is None:
+-        dtb = guess_dtb(filename, op)
++        if opts.xen:
++            flat_space = PyXaAddressSpace(opts.xen)
++            dtb = flat_space.get_cr3()
++        else:
++            dtb = guess_dtb(filename, op)
+ 
+-        if dtb is None and not verbose:
+-            op.error("Unable to locate valid DTB in image.")
++            if dtb is None and not verbose:
++                op.error("Unable to locate valid DTB in image.")
++   
++    if opts.xen:
++        if flat_space.is_pae():
++            addr_space = IA32PagedMemoryPae(flat_space, dtb)
++            symtab = pae_syms
++        else:
++            addr_space = IA32PagedMemory(flat_space, dtb)
++            symtab = nopae_syms
++        return addr_space, symtab, types
++         
+ 
+     if symtab == nopae_syms:
+         addr_space = load_nopae_address_space(filename, dtb)

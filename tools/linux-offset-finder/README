@@ -1,0 +1,18 @@
+You can use this program to get the offset values needed for
+the /etc/xenaccess.conf file.  To use, follow the steps below.
+
+1) Copy the files in this directory to the domU
+
+2) Log into the domU as root.
+
+3) cd into the directory with this program, then run make.
+
+4) insmod findOffsets.ko
+
+5) if you are logged into the console, you will see the output.
+   otherwise, see /var/log/syslog for the output.
+
+6) rmmod findOffsets
+
+7) copy the output into your /etc/xenaccess.conf file in dom0,
+   be sure to update the domain name and sysmap location.
