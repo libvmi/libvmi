@@ -1,37 +1,14 @@
 /*
- * The libxa library provides access to resources in domU machines.
- * 
- * Copyright (C) 2005 - 2007  Bryan D. Payne (bryan@thepaynes.cc)
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
+ * The LibVMI Library is an introspection library that simplifies access to 
+ * memory in a target virtual machine or in a file containing a dump of 
+ * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * --------------------
- * This file contains function headers for items that are not exported
- * outside of the library for public use.  These functions are intended
- * to only be used inside the library.
- *
- * File: xa_private.h
- *
- * Author(s): Bryan D. Payne (bryan@thepaynes.cc)
- *
- * $Id: xa_private.h 200 2009-02-23 21:37:56Z bdpayne $
- * $Date: 2006-11-29 20:38:20 -0500 (Wed, 29 Nov 2006) $
+ * Copyright (C) 2010 Sandia National Laboratories
+ * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
-#ifndef XA_PRIVATE_H
-#define XA_PRIVATE_H
+
+#ifndef PRIVATE_H
+#define PRIVATE_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -306,4 +283,4 @@ void *xc_map_foreign_pages(int xc_handle, uint32_t dom, int prot,
 #endif /* HAVE_MAP_FOREIGN */
 #endif /* ENABLE_XEN */
 
-#endif /* XA_PRIVATE_H */
+#endif /* PRIVATE_H */

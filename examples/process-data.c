@@ -30,7 +30,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <libvmi/libvmi.h>
-#include <libvmi/xa_private.h>
+#include <libvmi/private.h>
 
 #ifdef ENABLE_XEN
 void linux_printaddr (xa_linux_taskaddr_t taskaddr)

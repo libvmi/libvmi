@@ -1,36 +1,14 @@
 /*
- * The libxa library provides access to resources in domU machines.
- * 
- * Copyright (C) 2005 - 2009  Bryan D. Payne (bryan@thepaynes.cc)
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
+ * The LibVMI Library is an introspection library that simplifies access to 
+ * memory in a target virtual machine or in a file containing a dump of 
+ * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * --------------------
- * This file contains functions that read information from a PE file
- * stored in a memory image.  Initially it is designed to extract 
- * exports from the kernel image, but may prove useful for more 
- * general applications later.
- *
- * File: windows_peparse.c
- *
- * Author(s): Bryan D. Payne (bryan@thepaynes.cc)
+ * Copyright (C) 2010 Sandia National Laboratories
+ * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
 #include "libvmi.h"
-#include "xa_private.h"
+#include "private.h"
 #include <string.h>
 
 #define IMAGE_DOS_HEADER 0x5A4D

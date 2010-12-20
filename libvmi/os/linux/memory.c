@@ -1,38 +1,16 @@
 /*
- * The libxa library provides access to resources in domU machines.
- * 
- * Copyright (C) 2005 - 2007  Bryan D. Payne (bryan@thepaynes.cc)
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
+ * The LibVMI Library is an introspection library that simplifies access to 
+ * memory in a target virtual machine or in a file containing a dump of 
+ * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * --------------------
- * This file contains routines for accessing memory on a linux domU.
- *
- * File: linux_memory.c
- *
- * Author(s): Bryan D. Payne (bryan@thepaynes.cc)
- *
- * $Id: linux_memory.c 207 2009-05-06 02:00:26Z bdpayne $
- * $Date: 2006-12-06 01:23:30 -0500 (Wed, 06 Dec 2006) $
+ * Copyright (C) 2010 Sandia National Laboratories
+ * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
-#include "xa_private.h"
+#include "private.h"
 
 
 /* finds the task struct for a given pid */

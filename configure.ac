@@ -2,36 +2,22 @@ dnl --------------------------------
 dnl Initialization macros.
 dnl --------------------------------
 
-AC_INIT([libvmi])
-AC_CONFIG_SRCDIR(libvmi/xa_memory.c)
+AC_INIT([libvmi], [0.6.0])
+AM_INIT_AUTOMAKE([subdir-objects])
+
+AC_CONFIG_SRCDIR(libvmi/core.c)
 AM_CONFIG_HEADER(config.h)
 
-dnl -----------------------------------------------
-dnl Package name and version number (user defined)
-dnl -----------------------------------------------
-
 LIBRARY_NAME=libvmi
-
-#release versioning
 MAJOR_VERSION=0
 MINOR_VERSION=6
 MICRO_VERSION=0
-
-dnl --------------------------------
-dnl Package name and version number
-dnl --------------------------------
-
-PACKAGE=$LIBRARY_NAME
-AC_SUBST(LIBRARY_NAME)
-
 VERSION=$MAJOR_VERSION.$MINOR_VERSION.$MICRO_VERSION
 RELEASE=$MAJOR_VERSION.$MINOR_VERSION
-AC_SUBST(RELEASE)
+
+AC_SUBST(LIBRARY_NAME)
 AC_SUBST(VERSION)
-
-VERSION=$VERSION
-
-AM_INIT_AUTOMAKE($PACKAGE, $VERSION, no-define)
+AC_SUBST(RELEASE)
 
 dnl -----------------------------------------------
 dnl Check package options
@@ -62,6 +48,7 @@ dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
 
 AC_PROG_CC
+AM_PROG_CC_C_O
 AM_PROG_LIBTOOL
 AM_SANITY_CHECK
 

@@ -29,7 +29,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <libvmi/libvmi.h>
-#include <libvmi/xa_private.h>
+#include <libvmi/private.h>
 
 #ifdef ENABLE_XEN
 int main (int argc, char **argv)

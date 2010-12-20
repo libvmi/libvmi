@@ -1,34 +1,10 @@
 /*
- * The libxa library provides access to resources in domU machines.
- * 
- * Copyright (C) 2005 - 2007  Bryan D. Payne (bryan@thepaynes.cc)
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
+ * The LibVMI Library is an introspection library that simplifies access to 
+ * memory in a target virtual machine or in a file containing a dump of 
+ * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * --------------------
- * This file contains utility functions for collecting information
- * from the domains.  Most of this high-level information is
- * gathered using the libvirt library (http://libvirt.org).
- *
- * File: xa_domain_info.c
- *
- * Author(s): Bryan D. Payne (bryan@thepaynes.cc)
- *
- * $Id: xa_domain_info.c 179 2008-12-19 18:46:47Z bdpayne $
- * $Date$
+ * Copyright (C) 2010 Sandia National Laboratories
+ * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
 #ifdef HAVE_CONFIG_H
