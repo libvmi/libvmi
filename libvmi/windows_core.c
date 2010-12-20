@@ -26,7 +26,7 @@
  * Author(s): Bryan D. Payne (bryan@thepaynes.cc)
  */
 
-#include "xenaccess.h"
+#include "libvmi.h"
 #include "xa_private.h"
 
 /* Tries to find the kernel page directory by doing an exhaustive search

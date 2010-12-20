@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
-#include <xenaccess/xenaccess.h>
+#include <libvmi/libvmi.h>
 
 #ifdef ENABLE_XEN
 int main (int argc, char **argv)

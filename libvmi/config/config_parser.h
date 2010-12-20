@@ -29,7 +29,7 @@
  * $Id$
  * $Date$
  */
-#include "../xenaccess.h"
+#include "../libvmi.h"
 
 #define CONFIG_STR_LENGTH 1024
 

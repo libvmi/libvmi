@@ -3,8 +3,8 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: XenAccess Library
-Description: A monitoring framework for virtual machines running on Xen.
+Name: LibVMI Library
+Description: A virtual machine introspection library for Xen and KVM.
 Requires: 
 Version: @VERSION@
 Libs: -L@libdir@ @LIBS@

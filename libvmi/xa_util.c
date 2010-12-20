@@ -30,7 +30,7 @@
  * $Date: 2006-11-29 20:38:20 -0500 (Wed, 29 Nov 2006) $
  */
 
-#include "xenaccess.h"
+#include "libvmi.h"
 #include "xa_private.h"
 #include <string.h>
 #include <stdarg.h>

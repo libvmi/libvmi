@@ -25,13 +25,13 @@ DOXYFILE_ENCODING      = UTF-8
 # The PROJECT_NAME tag is a single word (or a sequence of words surrounded 
 # by quotes) that should identify the project.
 
-PROJECT_NAME           = XenAccess
+PROJECT_NAME           = LibVMI
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number. 
 # This could be handy for archiving the generated documentation or 
 # if some version control system is used.
 
-PROJECT_NUMBER         = "Version 0.5"
+PROJECT_NUMBER         = "Version 0.6"
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute) 
 # base path where the generated documentation will be put. 
@@ -462,7 +462,7 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories 
 # with spaces.
 
-INPUT                  = "../xenaccess" 
+INPUT                  = "../libvmi" 
 
 # This tag can be used to specify the character encoding of the source files that 
 # doxygen parses. Internally doxygen uses the UTF-8 encoding, which is also the default 

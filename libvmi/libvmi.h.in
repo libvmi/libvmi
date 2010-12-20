@@ -22,13 +22,13 @@
  * This file contains the public function definitions for the libxa
  * library.
  *
- * File: xenaccess.h
+ * File: libvmi.h
  *
  * Author(s): Bryan D. Payne (bryan@thepaynes.cc)
  */
 
 /**
- * @file xenaccess.h
+ * @file libvmi.h
  * @brief The primary XenAccess API is defined here.
  *
  * More detailed description can go here.

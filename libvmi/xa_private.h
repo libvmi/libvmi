@@ -45,7 +45,7 @@
 #ifdef ENABLE_XEN
 #include <xenctrl.h>
 #endif /* ENABLE_XEN */
-#include "xenaccess.h"
+#include "libvmi.h"
 
 /* Architecture dependent constants */
 #define fpp 1024		/* number of xen_pfn_t that fits on one frame */
@@ -73,7 +73,7 @@ int xa_get_bit (unsigned long reg, int bit);
 
 /**
  * Typical debug print function.  Only produces output when XA_DEBUG is
- * defined (usually in xenaccess.h) at compile time.
+ * defined (usually in libvmi.h) at compile time.
  */
 #ifndef XA_DEBUG
 #define xa_dbprint(format, args...) ((void)0)

@@ -30,7 +30,7 @@
 
 #include <stdlib.h>
 #include <sys/mman.h>
-#include "xenaccess.h"
+#include "libvmi.h"
 #include "xa_private.h"
 
 /* hack to get this to compile on xen 3.0.4 */

@@ -29,8 +29,9 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
-#include <xenaccess/xenaccess.h>
+#include <libvmi/libvmi.h>
 
+#ifdef ENABLE_XEN
 /* len and addr should be from a _UNICODE_STRING struct where len is the 
    'Length' field and addr is the 'Buffer' field */
 void print_unicode_string (xa_instance_t *xai, uint16_t len, uint32_t addr)
@@ -144,3 +145,12 @@ error_exit:
     return 0;
 }
 
+#else
+
+int main (int argc, char **argv)
+{
+    printf("The module list example is intended to work with a live Xen domain, but\n");
+    printf("XenAccess was compiled without support for Xen.  Exiting...\n");
+}
+
+#endif /* ENABLE_XEN */

@@ -31,7 +31,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/mman.h>
-#include "xenaccess.h"
+#include "libvmi.h"
 
 char *windows_get_eprocess_name (xa_instance_t *instance, uint32_t paddr)
 {

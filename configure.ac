@@ -2,20 +2,20 @@ dnl --------------------------------
 dnl Initialization macros.
 dnl --------------------------------
 
-AC_INIT([xenaccess])
-AC_CONFIG_SRCDIR(xenaccess/xa_memory.c)
+AC_INIT([libvmi])
+AC_CONFIG_SRCDIR(libvmi/xa_memory.c)
 AM_CONFIG_HEADER(config.h)
 
 dnl -----------------------------------------------
 dnl Package name and version number (user defined)
 dnl -----------------------------------------------
 
-LIBRARY_NAME=xenaccess
+LIBRARY_NAME=libvmi
 
 #release versioning
 MAJOR_VERSION=0
-MINOR_VERSION=5
-MICRO_VERSION=1
+MINOR_VERSION=6
+MICRO_VERSION=0
 
 dnl --------------------------------
 dnl Package name and version number
@@ -43,6 +43,13 @@ AC_ARG_ENABLE([xen],
       [enable_xen=yes])
 AM_CONDITIONAL([XEN], [test x$enable_xen = xyes])
 
+AC_ARG_ENABLE([kvm],
+      [AS_HELP_STRING([--disable-kvm],
+         [Support memory introspection with live KVM VMs (default is yes)])],
+      [enable_kvm=$enableval],
+      [enable_kvm=yes])
+AM_CONDITIONAL([KVM], [test x$enable_kvm = xyes])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -58,7 +65,7 @@ AM_SANITY_CHECK
     [if test "$LIBS" = "no"]
     [then]
         [echo "xenstore library not found. Please install this library and"]
-        [echo "run configure again before attemping to build XenAccess."]
+        [echo "run configure again before attemping to build LibVMI."]
         [exit 1]
     [fi]
 
@@ -66,7 +73,7 @@ AM_SANITY_CHECK
     [if test "$LIBS" = "no"]
     [then]
         [echo "xenctrl library not found. Please install this library and"]
-        [echo "run configure again before attemping to build XenAccess."]
+        [echo "run configure again before attemping to build LibVMI."]
         [exit 1]
     [fi]
 
@@ -79,12 +86,24 @@ AM_SANITY_CHECK
         [#include "xenctrl.h"])
 [fi]
 
+[if test "$enable_kvm" = "yes"]
+[then]
+    AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
+    AC_CHECK_LIB(virt, virConnectOpen, [LIBS="-lvirt $LIBS"], [LIBS="no"])
+    [if test "$LIBS" = "no"]
+    [then]
+        [echo "libvirt library not found. Please install this library and"]
+        [echo "run configure again before attemping to build LibVMI."]
+        [exit 1]
+    [fi]
+[fi]
+
 AC_CHECK_PROGS(YACC,bison yacc byacc,[no],[path = $PATH])
 [if test "$YACC" = "no"]
 [then]
     [echo "yacc not found in the search path. Please ensure that it is"]
     [echo "installed and its directory is included in the search path."]
-    [echo "Then run configure again before attempting to build XenAccess."]
+    [echo "Then run configure again before attempting to build LibVMI."]
     [exit 1]
 [else]
     [echo "Found yacc as $YACC."]
@@ -96,7 +115,7 @@ AC_CHECK_PROGS(LEX,lex flex ,[no],[path = $PATH])
 [then]
     [echo "lex not found in the search path. Please ensure that it is"]
     [echo "installed and its directory is included in the search path".]
-    [echo "Then run configure again before attempting to build XenAccess."]
+    [echo "Then run configure again before attempting to build LibVMI."]
     [exit 1]
 [else]
     [echo "Found lex as $LEX."]
@@ -109,9 +128,9 @@ dnl Generates Makefile's, configuration files and scripts
 dnl -----------------------------------------------
 
 AC_CONFIG_FILES(Makefile \
-                xenaccess.pc \
-                xenaccess/Makefile \
-                xenaccess/config/Makefile \
+                libvmi.pc \
+                libvmi/Makefile \
+                libvmi/config/Makefile \
                 examples/Makefile
 )
 AC_OUTPUT

@@ -8,6 +8,6 @@ SUBDIRS= $(LIBRARY_NAME) examples
 DIST_SUBDIRS = $(LIBRARY_NAME) examples
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = xenaccess.pc
+pkgconfig_DATA = libvmi.pc
 
 EXTRA_DIST=autogen.sh

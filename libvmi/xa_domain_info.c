@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #ifdef ENABLE_XEN
 #include <xs.h>

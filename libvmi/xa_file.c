@@ -29,7 +29,7 @@
 
 #include <stdio.h>
 #include <sys/mman.h>
-#include "xenaccess.h"
+#include "libvmi.h"
 
 void *xa_map_file_range (xa_instance_t *instance, int prot, unsigned long pfn)
 {

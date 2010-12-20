@@ -30,7 +30,7 @@
  * $Date: 2006-12-06 01:23:30 -0500 (Wed, 06 Dec 2006) $
  */
 
-#include "xenaccess.h"
+#include "libvmi.h"
 #include "xa_private.h"
 #include "config/config_parser.h"
 
@@ -106,9 +106,9 @@ int read_config_file (xa_instance_t *instance)
 #endif /* ENABLE_XEN */
     char *tmp = NULL;
 
-    yyin = fopen("/etc/xenaccess.conf", "r");
+    yyin = fopen("/etc/libvmi.conf", "r");
     if (NULL == yyin){
-        fprintf(stderr, "ERROR: config file not found at /etc/xenaccess.conf\n");
+        fprintf(stderr, "ERROR: config file not found at /etc/libvmi.conf\n");
         ret = XA_FAILURE;
         goto error_exit;
     }

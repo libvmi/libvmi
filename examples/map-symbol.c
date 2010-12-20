@@ -28,9 +28,10 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
-#include <xenaccess/xenaccess.h>
-#include <xenaccess/xa_private.h>
+#include <libvmi/libvmi.h>
+#include <libvmi/xa_private.h>
 
+#ifdef ENABLE_XEN
 int main (int argc, char **argv)
 {
     xa_instance_t xai;
@@ -69,3 +70,12 @@ error_exit:
     return 0;
 }
 
+#else
+
+int main (int argc, char **argv)
+{
+    printf("The map symbol example is intended to work with a live Xen domain, but\n");
+    printf("XenAccess was compiled without support for Xen.  Exiting...\n");
+}
+
+#endif /* ENABLE_XEN */
