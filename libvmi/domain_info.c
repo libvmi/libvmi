@@ -21,7 +21,7 @@
 #ifdef ENABLE_XEN
 #include <xs.h>
 
-char *xa_get_vmpath (int id)
+char *vmi_get_vmpath (int id)
 {
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
@@ -47,7 +47,7 @@ error_exit:
     return vmpath;
 }
 
-char *xa_get_kernel_name (int id)
+char *vmi_get_kernel_name (int id)
 {
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
@@ -55,7 +55,7 @@ char *xa_get_kernel_name (int id)
     char *kernel = NULL;
     char *tmp = NULL;
 
-    vmpath = xa_get_vmpath(id);
+    vmpath = vmi_get_vmpath(id);
 
     /* get the kernel name */
     tmp = malloc(100);
@@ -77,7 +77,7 @@ error_exit:
 }
 
 /*TODO use Xen version info to to correct test the first time */
-int xa_ishvm (int id)
+int vmi_ishvm (int id)
 {
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
@@ -88,7 +88,7 @@ int xa_ishvm (int id)
     int ret = 0;
 
     /* setup initial values */
-    vmpath = xa_get_vmpath(id);
+    vmpath = vmi_get_vmpath(id);
     xsh = xs_domain_open();
     tmp = malloc(100);
     if (NULL == tmp){
@@ -131,7 +131,7 @@ exit:
     return ret;
 }
 
-uint32_t xa_get_domain_id (char *name)
+uint32_t vmi_get_domain_id (char *name)
 {
     char **domains = NULL;
     int size = 0;
@@ -168,8 +168,8 @@ error_exit:
 }
 
 #else
-char *xa_get_vmpath (int id){return NULL;}
-char *xa_get_kernel_name (int id){return NULL;}
-int xa_ishvm (int id){return 0;}
-uint32_t xa_get_domain_id (char *name){return 0;}
+char *vmi_get_vmpath (int id){return NULL;}
+char *vmi_get_kernel_name (int id){return NULL;}
+int vmi_ishvm (int id){return 0;}
+uint32_t vmi_get_domain_id (char *name){return 0;}
 #endif /* ENABLE_XEN */

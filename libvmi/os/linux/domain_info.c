@@ -12,9 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#ifdef ENABLE_XEN
-#include <xs.h>
-#endif /* ENABLE_XEN */
 
 char *linux_predict_sysmap_name (uint32_t id)
 {
@@ -23,7 +20,7 @@ char *linux_predict_sysmap_name (uint32_t id)
     int length = 0;
     int i = 0;
 
-    kernel = xa_get_kernel_name(id);
+    kernel = vmi_get_kernel_name(id);
     if (NULL == kernel){
         fprintf(stderr, "ERROR: could not get kernel name for domain id %d\n", id);
         goto error_exit;

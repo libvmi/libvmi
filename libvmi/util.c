@@ -12,148 +12,148 @@
 #include <string.h>
 #include <stdarg.h>
 
-int xa_read_long_mach (
-        xa_instance_t *instance, uint32_t maddr, uint32_t *value)
+int vmi_read_long_mach (
+        vmi_instance_t instance, uint32_t maddr, uint32_t *value)
 {
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    memory = xa_access_ma(instance, maddr, &offset, PROT_READ);
+    memory = vmi_access_ma(instance, maddr, &offset, PROT_READ);
     if (NULL != memory){
         *value = *((uint32_t*)(memory + offset));
         munmap(memory, instance->page_size);
-        return XA_SUCCESS;
+        return VMI_SUCCESS;
     }
     else{
-        return XA_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
-int xa_read_long_long_mach (
-        xa_instance_t *instance, uint32_t maddr, uint64_t *value)
+int vmi_read_long_long_mach (
+        vmi_instance_t instance, uint32_t maddr, uint64_t *value)
 {
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    memory = xa_access_ma(instance, maddr, &offset, PROT_READ);
+    memory = vmi_access_ma(instance, maddr, &offset, PROT_READ);
     if (NULL != memory){
         *value = *((uint64_t*)(memory + offset));
         munmap(memory, instance->page_size);
-        return XA_SUCCESS;
+        return VMI_SUCCESS;
     }
     else{
-        return XA_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
-int xa_read_long_phys (
-        xa_instance_t *instance, uint32_t paddr, uint32_t *value)
+int vmi_read_long_phys (
+        vmi_instance_t instance, uint32_t paddr, uint32_t *value)
 {
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    memory = xa_access_pa(instance, paddr, &offset, PROT_READ);
+    memory = vmi_access_pa(instance, paddr, &offset, PROT_READ);
     if (NULL != memory){
         *value = *((uint32_t*)(memory + offset));
         munmap(memory, instance->page_size);
-        return XA_SUCCESS;
+        return VMI_SUCCESS;
     }
     else{
-        return XA_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
-int xa_read_long_long_phys (
-        xa_instance_t *instance, uint32_t paddr, uint64_t *value)
+int vmi_read_long_long_phys (
+        vmi_instance_t instance, uint32_t paddr, uint64_t *value)
 {
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    memory = xa_access_pa(instance, paddr, &offset, PROT_READ);
+    memory = vmi_access_pa(instance, paddr, &offset, PROT_READ);
     if (NULL != memory){
         *value = *((uint64_t*)(memory + offset));
         munmap(memory, instance->page_size);
-        return XA_SUCCESS;
+        return VMI_SUCCESS;
     }
     else{
-        return XA_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
-int xa_read_long_virt (
-        xa_instance_t *instance, uint32_t vaddr, int pid, uint32_t *value)
+int vmi_read_long_virt (
+        vmi_instance_t instance, uint32_t vaddr, int pid, uint32_t *value)
 {
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    memory = xa_access_user_va(instance, vaddr, &offset, pid, PROT_READ);
+    memory = vmi_access_user_va(instance, vaddr, &offset, pid, PROT_READ);
     if (NULL != memory){
         *value = *((uint32_t*)(memory + offset));
         munmap(memory, instance->page_size);
-        return XA_SUCCESS;
+        return VMI_SUCCESS;
     }
     else{
-        return XA_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
-int xa_read_long_long_virt (
-        xa_instance_t *instance, uint32_t vaddr, int pid, uint64_t *value)
+int vmi_read_long_long_virt (
+        vmi_instance_t instance, uint32_t vaddr, int pid, uint64_t *value)
 {
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    memory = xa_access_user_va(instance, vaddr, &offset, pid, PROT_READ);
+    memory = vmi_access_user_va(instance, vaddr, &offset, pid, PROT_READ);
     if (NULL != memory){
         *value = *((uint64_t*)(memory + offset));
         munmap(memory, instance->page_size);
-        return XA_SUCCESS;
+        return VMI_SUCCESS;
     }
     else{
-        return XA_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
-int xa_read_long_sym (
-        xa_instance_t *instance, char *sym, uint32_t *value)
+int vmi_read_long_sym (
+        vmi_instance_t instance, char *sym, uint32_t *value)
 {
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    memory = xa_access_kernel_sym(instance, sym, &offset, PROT_READ);
+    memory = vmi_access_kernel_sym(instance, sym, &offset, PROT_READ);
     if (NULL != memory){
         *value = *((uint32_t*)(memory + offset));
         munmap(memory, instance->page_size);
-        return XA_SUCCESS;
+        return VMI_SUCCESS;
     }
     else{
-        return XA_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
-int xa_read_long_long_sym (
-        xa_instance_t *instance, char *sym, uint64_t *value)
+int vmi_read_long_long_sym (
+        vmi_instance_t instance, char *sym, uint64_t *value)
 {
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    memory = xa_access_kernel_sym(instance, sym, &offset, PROT_READ);
+    memory = vmi_access_kernel_sym(instance, sym, &offset, PROT_READ);
     if (NULL != memory){
         *value = *((uint64_t*)(memory + offset));
         munmap(memory, instance->page_size);
-        return XA_SUCCESS;
+        return VMI_SUCCESS;
     }
     else{
-        return XA_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
-int xa_symbol_to_address (xa_instance_t *instance, char *sym, uint32_t *vaddr)
+int vmi_symbol_to_address (vmi_instance_t instance, char *sym, uint32_t *vaddr)
 {
-    if (XA_OS_LINUX == instance->os_type){
+    if (VMI_OS_LINUX == instance->os_type){
        return linux_system_map_symbol_to_address(instance, sym, vaddr);
     }
-    else if (XA_OS_WINDOWS == instance->os_type){
+    else if (VMI_OS_WINDOWS == instance->os_type){
         return windows_symbol_to_address(instance, sym, vaddr);
     }
     else{
-        return XA_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
-int xa_get_bit (unsigned long reg, int bit)
+int vmi_get_bit (unsigned long reg, int bit)
 {
     unsigned long mask = 1 << bit;
     if (reg & mask){
@@ -164,11 +164,11 @@ int xa_get_bit (unsigned long reg, int bit)
     }
 }
 
-void *xa_map_page (xa_instance_t *instance, int prot, unsigned long frame_num)
+void *vmi_map_page (vmi_instance_t instance, int prot, unsigned long frame_num)
 {
     void *memory = NULL;
 
-    if (XA_MODE_XEN == instance->mode){
+    if (VMI_MODE_XEN == instance->mode){
 #ifdef ENABLE_XEN
         memory = xc_map_foreign_range(
             instance->m.xen.xc_handle,
@@ -178,11 +178,11 @@ void *xa_map_page (xa_instance_t *instance, int prot, unsigned long frame_num)
             frame_num);
 #endif /* ENABLE_XEN */
     }
-    else if (XA_MODE_FILE == instance->mode){
-        memory = xa_map_file_range(instance, prot, frame_num);
+    else if (VMI_MODE_FILE == instance->mode){
+        memory = vmi_map_file_range(instance, prot, frame_num);
     }
     else{
-        xa_dbprint("BUG: invalid mode\n");
+        dbprint("BUG: invalid mode\n");
     }
 
     return memory;
@@ -235,10 +235,10 @@ void *xc_map_foreign_pages(int xc_handle, uint32_t dom, int prot,
 #endif /* HAVE_MAP_FOREIGN */
 #endif /* ENABLE_XEN */
 
-#ifndef XA_DEBUG
+#ifndef VMI_DEBUG
 /* Nothing */
 #else
-void xa_dbprint(char* format, ...) {
+void dbprint(char* format, ...) {
     va_list args;
     va_start(args, format);
     vfprintf(stdout, format, args);

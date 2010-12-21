@@ -18,7 +18,9 @@ c_sources = \
     os/windows/core.c \
     os/windows/memory.c \
     os/windows/peparse.c \
-    os/windows/process.c
+    os/windows/process.c \
+    driver/interface.c \
+    driver/xen.c
 
 library_includedir=$(includedir)/$(LIBRARY_NAME)
 library_include_HEADERS = $(h_sources)

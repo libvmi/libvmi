@@ -13,7 +13,7 @@
 #include "private.h"
 
 int windows_symbol_to_address (
-        xa_instance_t *instance, char *symbol, uint32_t *address)
+        vmi_instance_t instance, char *symbol, uint32_t *address)
 {
     /* check exports first */
     return windows_export_to_rva(instance, symbol, address);
@@ -23,7 +23,7 @@ int windows_symbol_to_address (
 
 /* find the ntoskrnl base address */
 #define NUM_BASE_ADDRESSES 11
-uint32_t get_ntoskrnl_base (xa_instance_t *instance)
+uint32_t get_ntoskrnl_base (vmi_instance_t instance)
 {
     uint32_t paddr;
     uint32_t sysproc_rva;
@@ -49,7 +49,7 @@ uint32_t get_ntoskrnl_base (xa_instance_t *instance)
     /* start by looking at known base addresses */
     for (i = 0; i < NUM_BASE_ADDRESSES; ++i){
         paddr = base_address[i];
-        if (valid_ntoskrnl_start(instance, paddr) == XA_SUCCESS){
+        if (valid_ntoskrnl_start(instance, paddr) == VMI_SUCCESS){
             goto fast_exit;
         }
     }
@@ -59,13 +59,13 @@ uint32_t get_ntoskrnl_base (xa_instance_t *instance)
     fprintf(stderr, "is searching for the correct address.\n");
     paddr = 0x0 + instance->page_size;
     while (1){
-        if (valid_ntoskrnl_start(instance, paddr) == XA_SUCCESS){
+        if (valid_ntoskrnl_start(instance, paddr) == VMI_SUCCESS){
             goto fast_exit;
         }
 
         paddr += instance->page_size;
         if (paddr <= 0 || 0x40000000 <= paddr){
-            xa_dbprint("--get_ntoskrnl_base failed\n");
+            dbprint("--get_ntoskrnl_base failed\n");
             return 0;
         }
     }
@@ -75,7 +75,7 @@ fast_exit:
 }
 
 void *windows_access_kernel_symbol (
-        xa_instance_t *instance, char *symbol, uint32_t *offset, int prot)
+        vmi_instance_t instance, char *symbol, uint32_t *offset, int prot)
 {
     uint32_t virt_address;
     uint32_t phys_address;
@@ -83,12 +83,12 @@ void *windows_access_kernel_symbol (
     uint32_t rva;
 
     /* check the LRU cache */
-    if (xa_check_cache_sym(instance, symbol, 0, &address)){
-        return xa_access_ma(instance, address, offset, PROT_READ);
+    if (vmi_check_cache_sym(instance, symbol, 0, &address)){
+        return vmi_access_ma(instance, address, offset, PROT_READ);
     }
 
     /* get the RVA of the symbol */
-    if (windows_symbol_to_address(instance, symbol, &rva) == XA_FAILURE){
+    if (windows_symbol_to_address(instance, symbol, &rva) == VMI_FAILURE){
         return NULL;
     }
 
@@ -96,13 +96,13 @@ void *windows_access_kernel_symbol (
     phys_address = instance->os.windows_instance.ntoskrnl + rva;
     virt_address = phys_address + instance->page_offset;
 
-    xa_update_cache(instance, symbol, virt_address, 0, 0);
-    return xa_access_pa(instance, phys_address, offset, prot);
+    vmi_update_cache(instance, symbol, virt_address, 0, 0);
+    return vmi_access_pa(instance, phys_address, offset, prot);
 }
 
 /* finds the EPROCESS struct for a given pid */
 unsigned char *windows_get_EPROCESS (
-        xa_instance_t *instance, int pid, uint32_t *offset)
+        vmi_instance_t instance, int pid, uint32_t *offset)
 {
     unsigned char *memory = NULL;
     uint32_t list_head = 0, next_process = 0;
@@ -115,7 +115,7 @@ unsigned char *windows_get_EPROCESS (
     list_head = next_process;
 
     while (1){
-        memory = xa_access_kernel_va(instance, next_process, offset, PROT_READ);
+        memory = vmi_access_kernel_va(instance, next_process, offset, PROT_READ);
         if (NULL == memory){
             fprintf(stderr, "ERROR: failed to get EPROCESS list next pointer");
             goto error_exit;
@@ -145,7 +145,7 @@ error_exit:
 }
 
 /* finds the address of the page global directory for a given pid */
-uint32_t windows_pid_to_pgd (xa_instance_t *instance, int pid)
+uint32_t windows_pid_to_pgd (vmi_instance_t instance, int pid)
 {
     unsigned char *memory = NULL;
     uint32_t pgd = 0, ptr = 0, offset = 0;
@@ -165,7 +165,7 @@ uint32_t windows_pid_to_pgd (xa_instance_t *instance, int pid)
     munmap(memory, instance->page_size);
 
     /* update the cache with this new pid->pgd mapping */
-    xa_update_pid_cache(instance, pid, pgd);
+    vmi_update_pid_cache(instance, pid, pgd);
 
 error_exit:
     if (memory) munmap(memory, instance->page_size);
@@ -173,8 +173,8 @@ error_exit:
 }
 
 /* fills the taskaddr struct for a given windows process */
-int xa_windows_get_peb (
-        xa_instance_t *instance, int pid, xa_windows_peb_t *peb)
+int vmi_windows_get_peb (
+        vmi_instance_t instance, int pid, vmi_windows_peb_t *peb)
 {
     unsigned char *memory;
     uint32_t ptr = 0, offset = 0;
@@ -193,12 +193,12 @@ int xa_windows_get_peb (
     munmap(memory, instance->page_size);
 
     /* copy appropriate values into peb struct */
-    xa_read_long_virt(instance, ptr + iba_offset, pid, &(peb->ImageBaseAddress));
-    xa_read_long_virt(instance, ptr + ph_offset, pid, &(peb->ProcessHeap));
+    vmi_read_long_virt(instance, ptr + iba_offset, pid, &(peb->ImageBaseAddress));
+    vmi_read_long_virt(instance, ptr + ph_offset, pid, &(peb->ProcessHeap));
 
-    return XA_SUCCESS;
+    return VMI_SUCCESS;
 
 error_exit:
     if (memory) munmap(memory, instance->page_size);
-    return XA_FAILURE;
+    return VMI_FAILURE;
 }

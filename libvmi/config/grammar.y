@@ -1,30 +1,11 @@
 %{
 /*
- * The libxa library provides access to resources in domU machines.
+ * The LibVMI Library is an introspection library that simplifies access to 
+ * memory in a target virtual machine or in a file containing a dump of 
+ * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * Copyright (C) 2005 - 2007  Bryan D. Payne (bryan@thepaynes.cc)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
- * --------------------
- * Definition of grammar for the configuration file.
- *
- * File: grammar.y
- *
- * Author(s): Bryan D. Payne (bryan@thepaynes.cc)
+ * Copyright (C) 2010 Sandia National Laboratories
+ * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
 #include <stdlib.h>
@@ -42,8 +23,8 @@
 int debug = 0;
 #endif /* XA_DEBUG */
 
-xa_config_entry_t entry;
-xa_config_entry_t tmp_entry;
+vmi_config_entry_t entry;
+vmi_config_entry_t tmp_entry;
 char *target_domain = NULL;
 char tmp_str[CONFIG_STR_LENGTH];
 
@@ -240,20 +221,20 @@ void entry_done ()
         entry.offsets = tmp_entry.offsets;
 */
     }
-    bzero(&tmp_entry, sizeof(xa_config_entry_t));
+    bzero(&tmp_entry, sizeof(vmi_config_entry_t));
 }
 
-xa_config_entry_t* xa_get_config()
+vmi_config_entry_t* vmi_get_config()
 {
     return &entry;
 }
   
-int xa_parse_config (char *td)
+int vmi_parse_config (char *td)
 {
     int ret;
     target_domain = strdup(td);
-    bzero(&entry, sizeof(xa_config_entry_t));
-    bzero(&tmp_entry, sizeof(xa_config_entry_t));
+    bzero(&entry, sizeof(vmi_config_entry_t));
+    bzero(&tmp_entry, sizeof(vmi_config_entry_t));
     ret = yyparse();
     if (target_domain) free(target_domain);
     return ret;

@@ -14,7 +14,7 @@
 
 int get_symbol_row (FILE *f, char *row, char *symbol, int position)
 {
-    int ret = XA_FAILURE;
+    int ret = VMI_FAILURE;
 
     while (fgets(row, MAX_ROW_LENGTH, f) != NULL){
         char *token = NULL;
@@ -49,13 +49,13 @@ int get_symbol_row (FILE *f, char *row, char *symbol, int position)
 
         /* check the token */
         if (strncmp(token, symbol, MAX_ROW_LENGTH) == 0){
-            ret = XA_SUCCESS;
+            ret = VMI_SUCCESS;
             break;
         }
     }
 
 error_exit:
-    if (ret == XA_FAILURE){
+    if (ret == VMI_FAILURE){
         memset(row, 0, MAX_ROW_LENGTH);
     }
     return ret;

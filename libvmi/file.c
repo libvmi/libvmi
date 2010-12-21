@@ -7,11 +7,12 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
+#include "libvmi.h"
+#include "private.h"
 #include <stdio.h>
 #include <sys/mman.h>
-#include "libvmi.h"
 
-void *xa_map_file_range (xa_instance_t *instance, int prot, unsigned long pfn)
+void *vmi_map_file_range (vmi_instance_t instance, int prot, unsigned long pfn)
 {
     void *memory = NULL;
     long address = pfn << instance->page_shift;
@@ -23,7 +24,7 @@ void *xa_map_file_range (xa_instance_t *instance, int prot, unsigned long pfn)
 
     memory = mmap(NULL, instance->page_size, prot, MAP_SHARED, fildes, address);
     if (MAP_FAILED == memory){
-        perror("xa_file.c: file mmap failed");
+        perror("file.c: file mmap failed");
         return NULL;
     }
     return memory;
