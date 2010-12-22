@@ -8,15 +8,25 @@
  */
 
 #ifdef ENABLE_XEN
+#include "libvmi.h"
+#include "private.h"
+#include "driver/xen.h"
 #include <xs.h>
 
-unsigned long xen_get_domainid ()
+xen_instance_t xen_get_instance(vmi_instance_t vmi)
 {
-    return 1; //TODO fix this to actually work!
+    xen_instance_t xeninst = (xen_instance_t) vmi->driver;
+    return xeninst;
 }
 
-unsigned long xen_get_memsize ()
+unsigned long xen_get_domainid (vmi_instance_t vmi)
 {
+    return xen_get_instance(vmi).domainid;
+}
+
+status_t xen_set_memsize (vmi_instance_t vmi)
+{
+    status_t ret = VMI_FAILURE;
     unsigned long size = 0;
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
@@ -44,17 +54,19 @@ unsigned long xen_get_memsize ()
         fprintf(stderr, "ERROR: failed to get memory size for Xen domain.\n");
         goto error_exit;
     }
-    dbprint("**set instance->m.xen.size = %d\n", instance->m.xen.size);
+    xen_get_instance(vmi).size = size;
+    dbprint("**set instance->driver.size = %d\n", size);
+    ret = VMI_SUCCESS;
 
 error_exit:
     if (xsh) xs_daemon_close(xsh);
-    return size;
+    return ret;
 }
 
 //////////////////////////////////////////////////////////////////////
 #else
 
-unsigned long xen_get_domainid () { return 0; };
-unsigned long xen_get_memsize () { return 0; };
+unsigned long xen_get_domainid (vmi_instance_t vmi) { return 0; }
+status_t xen_set_memsize (vmi_instance_t vmi) { return VMI_FAILURE; }
 
 #endif /* ENABLE_XEN */

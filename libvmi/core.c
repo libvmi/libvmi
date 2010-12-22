@@ -27,51 +27,6 @@
 #include <xen/arch-x86/xen.h>
 #endif /* ENABLE_XEN */
 
-int get_memory_size (vmi_instance_t instance)
-{
-    int ret = VMI_SUCCESS;
-
-    if (VMI_MODE_XEN == instance->mode){
-#ifdef ENABLE_XEN
-        struct xs_handle *xsh = NULL;
-        xs_transaction_t xth = XBT_NULL;
-        char *tmp = malloc(100);
-        if (NULL == tmp){
-            fprintf(stderr, "ERROR: failed to allocate memory for tmp variable\n");
-            ret = VMI_FAILURE;
-            goto error_exit;
-        }
-        memset(tmp, 0, 100);
-        sprintf(tmp, "/local/domain/%d/memory/target",
-            instance->m.xen.domain_id);
-        xsh = xs_domain_open();
-        instance->m.xen.size =
-            strtol(xs_read(xsh, xth, tmp, NULL), NULL, 10) * 1024;
-        if (0 == instance->m.xen.size){
-            fprintf(stderr, "ERROR: failed to get memory size for Xen domain.\n");
-            ret = VMI_FAILURE;
-            goto error_exit;
-        }
-        dbprint("**set instance->m.xen.size = %d\n", instance->m.xen.size);
-        if (xsh) xs_daemon_close(xsh);
-#endif /* ENABLE_XEN */
-    }
-    else if (VMI_MODE_FILE == instance->mode){
-        struct stat s;
-
-        if (fstat(fileno(instance->m.file.fhandle), &s) == -1){
-            fprintf(stderr, "ERROR: Failed to stat file\n");
-            ret = VMI_FAILURE;
-            goto error_exit;
-        }
-        instance->m.file.size = (uint32_t) s.st_size;
-        dbprint("**set instance->m.file.size = %d\n", instance->m.file.size);
-    }
-
-error_exit:
-    return ret;
-}
-
 int read_config_file (vmi_instance_t instance)
 {
     extern FILE *yyin;
@@ -462,8 +417,8 @@ int helper_init (vmi_instance_t instance)
     }
 
     /* get the memory size */
-    if (get_memory_size(instance) == VMI_FAILURE){
-        fprintf(stderr, "ERROR: Failed to get memory size.\n");
+    if (driver_set_memsize(instance) == VMI_FAILURE){
+        fprintf(stderr, "ERROR: Failed to set memory size.\n");
         ret = vmi_report_error(instance, 0, VMI_ECRITICAL);
         if (VMI_FAILURE == ret) goto error_exit;
     }

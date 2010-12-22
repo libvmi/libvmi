@@ -102,23 +102,7 @@ struct vmi_instance{
             int ph_offset;       /**< EPROCESS->Peb.ProcessHeap */
         } windows_instance;
     } os;
-    union{
-#ifdef ENABLE_XEN
-        struct xen{
-            int xc_handle;       /**< handle to xenctrl library (libxc) */
-            uint32_t domain_id;  /**< domid that we are accessing */
-            int xen_version;     /**< version of Xen libxa is running on */
-            xc_dominfo_t info;   /**< libxc info: domid, ssidref, stats, etc */
-            uint32_t size;       /**< total size of domain's memory */
-            unsigned long *live_pfn_to_mfn_table;
-            unsigned long nr_pfns;
-        } xen;
-#endif
-        struct file{
-            FILE *fhandle;       /**< handle to the memory image file */
-            uint32_t size;       /**< total size of file, in bytes */
-        } file;
-    } m;
+    void *driver;           /**< driver-specific information */
 };
 
 /*------------------------------

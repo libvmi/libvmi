@@ -10,16 +10,16 @@
 #include "libvmi.h"
 #include "private.h"
 #include "driver/xen.h"
-
 #include <stdlib.h>
 
 struct driver_instance{
-    unsigned long (*get_vmid_ptr)();
-    unsigned long (*get_memsize_ptr)();
+    unsigned long (*get_vmid_ptr)(vmi_instance_t);
+    unsigned long (*get_memsize_ptr)(vmi_instance_t);
 };
 typedef struct driver_instance * driver_instance_t;
 
 driver_instance_t instance = NULL;
+xen_instance_t xeninst;
 
 driver_instance_t driver_get_instance (vmi_instance_t vmi)
 {
@@ -35,6 +35,7 @@ driver_instance_t driver_get_instance (vmi_instance_t vmi)
 
         /* assign the function pointers */
         if (VMI_MODE_XEN == vmi->mode){
+            instance->driver = &xeninst;
             instance->get_vmid_ptr = &xen_get_domainid;
             instance->get_memsize_ptr = &xen_get_memsize;
         }
@@ -49,21 +50,21 @@ unsigned long driver_get_vmid (vmi_instance_t vmi)
 {
     driver_instance_t ptrs = driver_get_instance(vmi);
     if (NULL != ptrs){
-        return ptrs->get_vmid_ptr();
+        return ptrs->get_vmid_ptr(vmi);
     }
     else{
         return 0;
     }
 }
 
-unsigned long driver_get_memsize (vmi_instance_t vmi)
+status_t driver_set_memsize (vmi_instance_t vmi)
 {
     driver_instance_t ptrs = driver_get_instance(vmi);
     if (NULL != ptrs){
-        return ptrs->get_memsize_ptr();
+        return ptrs->get_memsize_ptr(vmi);
     }
     else{
-        return 0;
+        return VMI_FAILURE;
     }
 }
 

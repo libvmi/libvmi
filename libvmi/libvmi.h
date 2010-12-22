@@ -20,9 +20,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#ifdef ENABLE_XEN
-#include <xenctrl.h>
-#endif /* ENABLE_XEN */
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
