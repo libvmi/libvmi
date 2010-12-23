@@ -178,7 +178,7 @@ int vmi_update_cache (vmi_instance_t instance,
     }
 
     /* allocate memory for the new cache entry */
-    new_entry = (vmi_cache_entry_t) malloc(sizeof(struct vmi_cache_entry));
+    new_entry = (vmi_cache_entry_t) safe_malloc(sizeof(struct vmi_cache_entry));
     new_entry->last_used = time(NULL);
     if (symbol_name){
         new_entry->symbol_name = strndup(symbol_name, MAX_SYM_LEN);
@@ -334,7 +334,7 @@ int vmi_update_pid_cache (vmi_instance_t instance, int pid, uint32_t pgd)
     }
 
     /* allocate memory for the new cache entry */
-    new_entry = (vmi_pid_cache_entry_t)malloc(sizeof(struct vmi_pid_cache_entry));
+    new_entry = (vmi_pid_cache_entry_t)safe_malloc(sizeof(struct vmi_pid_cache_entry));
     new_entry->last_used = time(NULL);
     new_entry->pid = pid;
     new_entry->pgd = pgd;

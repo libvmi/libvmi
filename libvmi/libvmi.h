@@ -15,6 +15,7 @@
  */
 #ifndef LIBVMI_H
 #define LIBVMI_H
+#define _GNU_SOURCE
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -253,11 +254,11 @@ int vmi_init_vm_name_lax (char *domain_name, vmi_instance_t instance);
  * You should call this function only once per domain, and then use the
  * resulting instance when calling any of the other library functions.
  *
- * @param[in] domain_id Domain id to access, specified as a number
+ * @param[in] id Domain id to access, specified as a number
  * @param[out] instance Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_init_vm_id_strict (uint32_t domain_id, vmi_instance_t instance);
+int vmi_init_vm_id_strict (unsigned long id, vmi_instance_t instance);
 
 /**
  * Initializes access to a specific domU given a domain id.  The
@@ -273,11 +274,11 @@ int vmi_init_vm_id_strict (uint32_t domain_id, vmi_instance_t instance);
  * You should call this function only once per domain, and then use the
  * resulting instance when calling any of the other library functions.
  *
- * @param[in] domain_id Domain id to access, specified as a number
+ * @param[in] id Domain id to access, specified as a number
  * @param[out] instance Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_init_vm_id_lax (uint32_t domain_id, vmi_instance_t instance);
+int vmi_init_vm_id_lax (unsigned long id, vmi_instance_t instance);
 
 /**
  * Initializes access to a memory image stored in the given file.  All

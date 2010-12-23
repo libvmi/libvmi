@@ -207,9 +207,7 @@ void *xc_map_foreign_pages(int xc_handle, uint32_t dom, int prot,
     void *res;
     int i;
 
-    pfn = malloc(num * sizeof(*pfn));
-    if (!pfn)
-        return NULL;
+    pfn = safe_malloc(num * sizeof(*pfn));
     memcpy(pfn, arr, num * sizeof(*pfn));
 
     res = xc_map_foreign_batch(xc_handle, dom, prot, pfn, num);
@@ -235,13 +233,3 @@ void *xc_map_foreign_pages(int xc_handle, uint32_t dom, int prot,
 #endif /* HAVE_MAP_FOREIGN */
 #endif /* ENABLE_XEN */
 
-#ifndef VMI_DEBUG
-/* Nothing */
-#else
-void dbprint(char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    vfprintf(stdout, format, args);
-    va_end(args);
-}
-#endif

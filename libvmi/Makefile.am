@@ -1,11 +1,10 @@
 SUBDIRS = config
 
-h_sources = libvmi.h private.h
+h_sources = libvmi.h
 c_sources = \
     core.c \
     memory.c \
     cache.c \
-    domain_info.c \
     file.c \
     pretty_print.c \
     util.c \

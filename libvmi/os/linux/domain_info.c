@@ -33,7 +33,7 @@ char *linux_predict_sysmap_name (uint32_t id)
 
     /* replace 'vmlinuz' with 'System.map' */
     length = strlen(kernel) + 4;
-    sysmap = malloc(length);
+    sysmap = safe_malloc(length);
     memset(sysmap, 0, length);
     for (i = 0; i < length; ++i){
         if (strncmp(kernel + i, "vmlinu", 6) == 0){

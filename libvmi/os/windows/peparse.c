@@ -130,7 +130,7 @@ char *rva_to_string (vmi_instance_t instance, uint32_t rva)
     max_length = instance->page_size - offset - 1;
     length = strnlen(memory + offset, max_length);
     if (length > 0){
-        str = malloc(length + 1);
+        str = safe_malloc(length + 1);
         memset(str, 0, length + 1);
         memcpy(str, memory + offset, length);
     }

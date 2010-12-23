@@ -10,6 +10,7 @@
 #include "libvmi.h"
 #include "private.h"
 #include <stdarg.h>
+#include <stdlib.h>
 
 /* updates the errno value to the given value */
 void vmi_set_errno (int error){
@@ -17,8 +18,19 @@ void vmi_set_errno (int error){
 //    errno = error;
 }
 
+#ifndef VMI_DEBUG
+/* Nothing */
+#else
+void dbprint(char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    vfprintf(stdout, format, args);
+    va_end(args);
+}
+#endif
+
 /* prints an error message to stderr */
-void vmi_errprint (char* format, ...){
+void errprint (char* format, ...){
     va_list args;
     fprintf(stderr, "VMI_ERROR: ");
     va_start(args, format);
@@ -27,7 +39,7 @@ void vmi_errprint (char* format, ...){
 }
 
 /* prints a warning message to stderr */
-void vmi_warnprint (char* format, ...){
+void warnprint (char* format, ...){
     va_list args;
     fprintf(stderr, "VMI_WARNING: ");
     va_start(args, format);
@@ -62,4 +74,14 @@ int vmi_report_error (vmi_instance_t instance, int error, int error_type){
 
     /* return the return value to be used by the library */
     return ret;
+}
+
+void *safe_malloc_ (size_t size, char const *file, int line)
+{
+    void *p = malloc(size);
+    if (NULL == p){
+        errprint("malloc %lu bytes failed at %s:%d\n", (unsigned long)size, file, line);
+        exit(EXIT_FAILURE);
+   }
+   return p;
 }

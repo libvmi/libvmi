@@ -71,7 +71,7 @@ void printError (const char *errorstring, ...)
     }
 
     va_start(args, errorstring);
-    vsprintf(errmsg, errorstring, args);
+    vsnprintf(errmsg, 10000, errorstring, args);
     va_end(args);
 
     fprintf(stdout, "Error: %s\n", errmsg);
@@ -136,7 +136,7 @@ static int getNextLine (void)
 
     /* read a line */
     if (NULL == buffer){
-        buffer = malloc(lMaxBuffer);
+        buffer = safe_malloc(lMaxBuffer);
     }
     p = fgets(buffer, lMaxBuffer, yyin);
     if (p == NULL) {

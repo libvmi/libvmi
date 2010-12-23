@@ -9,7 +9,9 @@
 
 typedef struct file_instance{
     FILE *fhandle;       /**< handle to the memory image file */
-    uint32_t size;       /**< total size of file, in bytes */
+    char *filename;      /**< name of the file being accessed */
 } file_instance_t;
 
-status_t file_set_memsize (vmi_instance_t vmi);
+status_t file_init (vmi_instance_t vmi);
+void file_set_name (vmi_instance_t vmi, char *name);
+status_t file_get_memsize (vmi_instance_t vmi, unsigned long *size);

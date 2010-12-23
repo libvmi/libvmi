@@ -9,6 +9,7 @@
 
 #ifndef PRIVATE_H
 #define PRIVATE_H
+#define _GNU_SOURCE
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -19,9 +20,6 @@
 #include <math.h>
 #include <ctype.h>
 #include <time.h>
-#ifdef ENABLE_XEN
-#include <xenctrl.h>
-#endif /* ENABLE_XEN */
 #include "libvmi.h"
 
 /* Architecture dependent constants */
@@ -74,10 +72,10 @@ struct vmi_instance{
     uint32_t kpgd;          /**< kernel page global directory */
     uint32_t init_task;     /**< address of task struct for init */
     int os_type;            /**< type of os: VMI_OS_LINUX, etc */
-    int hvm;                /**< nonzero if HVM memory image */
     int pae;                /**< nonzero if PAE is enabled */
     int pse;                /**< nonzero if PSE is enabled */
     uint32_t cr3;           /**< value in the CR3 register */
+    unsigned long size;     /**< total size of target's memory */
     vmi_cache_entry_t cache_head;         /**< head of the address cache list */
     vmi_cache_entry_t cache_tail;         /**< tail of the address cache list */
     int current_cache_size;              /**< size of the address cache list */
@@ -105,18 +103,9 @@ struct vmi_instance{
     void *driver;           /**< driver-specific information */
 };
 
-/*------------------------------
- * Utility function from vmi_util
+/*----------------------------------------------
+ * Convenience functions from convenience.c
  */
-
-/**
- * Get the specifid bit from a given register entry.
- *
- * @param[in] reg The register contents to parse (e.g., CR0, CR3, etc)
- * @param[in] bit The number of the bit to check.
- * @param[out] zero if the bit in question is zero, else one
- */
-int vmi_get_bit (unsigned long reg, int bit);
 
 /**
  * Typical debug print function.  Only produces output when VMI_DEBUG is
@@ -127,6 +116,32 @@ int vmi_get_bit (unsigned long reg, int bit);
 #else
 void dbprint(char *format, ...);
 #endif
+
+/**
+ */
+void errprint (char *format, ...);
+
+/**
+ */
+void warnprint (char *format, ...);
+
+/**
+ */
+#define safe_malloc(size) safe_malloc_ (size, __FILE__, __LINE__) 
+void *safe_malloc_ (size_t size, char const *file, int line);
+
+/*----------------------------------------------
+ * Utility function from util.c
+ */
+
+/**
+ * Get the specifid bit from a given register entry.
+ *
+ * @param[in] reg The register contents to parse (e.g., CR0, CR3, etc)
+ * @param[in] bit The number of the bit to check.
+ * @param[out] zero if the bit in question is zero, else one
+ */
+int vmi_get_bit (unsigned long reg, int bit);
 
 /*-------------------------------------
  * Definitions to support the LRU cache

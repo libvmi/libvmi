@@ -558,7 +558,7 @@ void *vmi_access_user_va_range (
     else{
         vmi_current_cr3(instance, &pgd);
     }
-    xen_pfn_t* pfns = (xen_pfn_t*) malloc(sizeof(xen_pfn_t) * num_pages);
+    xen_pfn_t* pfns = (xen_pfn_t*) safe_malloc(sizeof(xen_pfn_t) * num_pages);
 	
     uint32_t start = virt_address & ~(instance->page_size - 1);
     for (i = 0; i < num_pages; i++){

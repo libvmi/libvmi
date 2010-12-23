@@ -26,10 +26,7 @@ int linux_system_map_symbol_to_address (
 #endif /* ENABLE_XEN */
     }
 
-    if ((row = malloc(MAX_ROW_LENGTH)) == NULL ){
-        ret = VMI_FAILURE;
-        goto error_exit;
-    }
+    row = safe_malloc(MAX_ROW_LENGTH);
     if ((f = fopen(instance->sysmap, "r")) == NULL){
         fprintf(stderr, "ERROR: could not find System.map file after checking:\n");
         fprintf(stderr, "\t%s\n", instance->sysmap);
