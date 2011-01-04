@@ -7,22 +7,26 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
-#ifdef ENABLE_FILE
 #include "libvmi.h"
 #include "private.h"
 #include "driver/file.h"
+#include "driver/interface.h"
+
+#ifdef ENABLE_FILE
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 //----------------------------------------------------------------------------
 // File-Specific Interface Functions (no direction mapping to driver_*)
 
-file_instance_t file_get_instance(vmi_instance_t vmi)
+static file_instance_t *file_get_instance (vmi_instance_t vmi)
 {
-    file_instance_t fileinst = (file_instance_t) vmi->driver;
-    return fileinst;
+    return ((file_instance_t *) vmi->driver);
 }
 
 //----------------------------------------------------------------------------
@@ -33,17 +37,17 @@ status_t file_init (vmi_instance_t vmi)
     FILE *fhandle = NULL;
 
     /* open handle to memory file */
-    if ((fhandle = fopen(filename, "rb")) == NULL){
+    if ((fhandle = fopen(file_get_instance(vmi)->filename, "rb")) == NULL){
         errprint("Failed to open file for reading.\n");
         return VMI_FAILURE;
     }
-    file_get_instance(vmi).fhandle = fhandle;
+    file_get_instance(vmi)->fhandle = fhandle;
 
 }
 
 void file_set_name (vmi_instance_t vmi, char *name)
 {
-    file_get_instance().filename = strndup(name, 500);
+    file_get_instance(vmi)->filename = strndup(name, 500);
 }
 
 status_t file_get_memsize (vmi_instance_t vmi, unsigned long *size)
@@ -51,7 +55,7 @@ status_t file_get_memsize (vmi_instance_t vmi, unsigned long *size)
     status_t ret = VMI_FAILURE;
     struct stat s;
 
-    if (fstat(fileno(file_get_instance(vmi).fhandle), &s) == -1){
+    if (fstat(fileno(file_get_instance(vmi)->fhandle), &s) == -1){
         errprint("Failed to stat file.\n");
         goto error_exit;
     }
@@ -85,7 +89,7 @@ void *file_map_page (vmi_instance_t vmi, int prot, unsigned long page)
 {
     void *memory = NULL;
     long address = page << vmi->page_shift;
-    int fildes = fileno(file_get_instance(vmi).fhandle);
+    int fildes = fileno(file_get_instance(vmi)->fhandle);
 
     if (address >= vmi->size){
         return NULL;

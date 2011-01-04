@@ -37,7 +37,7 @@ int read_config_file (vmi_instance_t vmi)
 
     /* convert domain id to domain name for Xen mode */
     if (VMI_MODE_XEN == vmi->mode){
-        if (driver_get_vmname(vmi, &vmi->image_type) == VMI_FAILURE){
+        if (driver_get_name(vmi, &vmi->image_type) == VMI_FAILURE){
             ret = VMI_FAILURE;
             goto error_exit;
         }
@@ -319,14 +319,14 @@ int vmi_init_file_private (
 /* below are stub init functions that are called by library users */
 status_t vmi_init_vm_name_strict (char *name, vmi_instance_t vmi)
 {
-    unsigned long id = vmi_get_domain_id(name);
+    unsigned long id = driver_get_id_from_name(vmi, name);
     dbprint("--got id from name (%s --> %d)\n", name, id);
     return vmi_init_vm_private(id, vmi, VMI_FAILHARD);
 }
 
 status_t vmi_init_vm_name_lax (char *name, vmi_instance_t vmi)
 {
-    unsigned long id = vmi_get_domain_id(name);
+    unsigned long id = driver_get_id_from_name(vmi, name);
     dbprint("--got id from name (%s --> %d)\n", name, id);
     return vmi_init_vm_private(id, vmi, VMI_FAILSOFT);
 }

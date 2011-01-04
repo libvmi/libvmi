@@ -11,7 +11,7 @@
 #include <xenctrl.h>
 
 typedef struct xen_instance{
-    int xc_handle;          /**< handle to xenctrl library (libxc) */
+    int xchandle;           /**< handle to xenctrl library (libxc) */
     unsigned long domainid; /**< domid that we are accessing */
     int xen_version;        /**< version of Xen libxa is running on */
     int hvm;                /**< nonzero if HVM memory image */
@@ -20,10 +20,16 @@ typedef struct xen_instance{
     unsigned long nr_pfns;
 } xen_instance_t;
 
+#else
+
+typedef struct xen_instance{
+} xen_instance_t;
+
 #endif /* ENABLE_XEN */
 
 status_t xen_init (vmi_instance_t vmi);
 void xen_destroy (vmi_instance_t vmi);
+unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name);
 unsigned long xen_get_domainid (vmi_instance_t vmi);
 void xen_set_domainid (vmi_instance_t vmi, unsigned long domainid);
 status_t xen_get_domainname (vmi_instance_t vmi, char **name);

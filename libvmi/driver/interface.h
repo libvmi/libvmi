@@ -12,6 +12,7 @@
 
 status_t driver_init (vmi_instance_t vmi);
 void driver_destroy (vmi_instance_t vmi);
+unsigned long driver_get_id_from_name (vmi_instance_t vmi, char *name);
 unsigned long driver_get_id (vmi_instance_t vmi);
 void driver_set_id (vmi_instance_t vmi, unsigned long id);
 status_t driver_get_name (vmi_instance_t vmi, char **name);

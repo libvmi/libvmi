@@ -16,6 +16,7 @@
 struct driver_instance{
     status_t (*init_ptr)(vmi_instance_t);
     void (*destroy_ptr)(vmi_instance_t);
+    unsigned long (*get_id_from_name_ptr)(vmi_instance_t, char *);
     unsigned long (*get_id_ptr)(vmi_instance_t);
     void (*set_id_ptr)(vmi_instance_t, unsigned long);
     status_t (*get_name_ptr)(vmi_instance_t, char **);
@@ -29,15 +30,16 @@ struct driver_instance{
 };
 typedef struct driver_instance * driver_instance_t;
 
-driver_instance_t instance = NULL;
-xen_instance_t xeninst;
-file_instance_t fileinst;
+static driver_instance_t instance = NULL;
+static xen_instance_t xeninst;
+static file_instance_t fileinst;
 
-void driver_xen_setup (vmi_instance_t vmi)
+static void driver_xen_setup (vmi_instance_t vmi)
 {
     vmi->driver = &xeninst;
     instance->init_ptr = &xen_init;
     instance->destroy_ptr = &xen_destroy;
+    instance->get_id_from_name_ptr = &xen_get_domainid_from_name;
     instance->get_id_ptr = &xen_get_domainid;
     instance->set_id_ptr = &xen_set_domainid;
     instance->get_name_ptr = &xen_get_domainname;
@@ -50,11 +52,12 @@ void driver_xen_setup (vmi_instance_t vmi)
     instance->is_pv_ptr = &xen_is_pv;
 }
 
-void driver_kvm_setup (vmi_instance_t vmi)
+static void driver_kvm_setup (vmi_instance_t vmi)
 {
     //TODO set vmi->driver
     //TODO add init_ptr
     //TODO add destroy_ptr
+    //TODO add get_id_from_name_ptr
     //TODO add get_id_ptr
     //TODO add set_id_ptr
     //TODO add get_name_ptr
@@ -67,11 +70,12 @@ void driver_kvm_setup (vmi_instance_t vmi)
     //TODO add is_pv_ptr
 }
 
-void driver_file_setup (vmi_instance_t vmi)
+static void driver_file_setup (vmi_instance_t vmi)
 {
     vmi->driver = &fileinst;
     instance->init_ptr = &file_init;
     //TODO add destroy_ptr
+    //TODO add get_id_from_name_ptr
     //TODO add get_id_ptr
     //TODO add set_id_ptr
     //TODO add get_name_ptr
@@ -84,7 +88,7 @@ void driver_file_setup (vmi_instance_t vmi)
     instance->is_pv_ptr = &file_is_pv;
 }
 
-driver_instance_t driver_get_instance (vmi_instance_t vmi)
+static driver_instance_t driver_get_instance (vmi_instance_t vmi)
 {
     if (NULL == instance){
         /* allocate memory for the function pointers */
@@ -124,6 +128,17 @@ void driver_destroy (vmi_instance_t vmi)
     }
     else{
         return;
+    }
+}
+
+unsigned long driver_get_id_from_name (vmi_instance_t vmi, char *name)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->get_id_from_name_ptr){
+        return ptrs->get_id_from_name_ptr(vmi, name);
+    }
+    else{
+        return 0;
     }
 }
 

@@ -342,7 +342,6 @@ int get_symbol_row (FILE *f, char *row, char *symbol, int position);
 void *vmi_map_page (vmi_instance_t instance, int prot, unsigned long frame_num);
 uint32_t windows_find_eprocess (vmi_instance_t instance, char *name);
 int vmi_report_error (vmi_instance_t instance, int error, int error_type);
-uint32_t vmi_get_domain_id (char *name);
 char *linux_predict_sysmap_name (uint32_t id);
 
 status_t windows_export_to_rva (vmi_instance_t , char *, uint32_t *);

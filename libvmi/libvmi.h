@@ -15,12 +15,13 @@
  */
 #ifndef LIBVMI_H
 #define LIBVMI_H
-#define _GNU_SOURCE
+#pragma GCC visibility push(default)
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#define _GNU_SOURCE
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
@@ -526,4 +527,5 @@ status_t vmi_windows_get_peb (
 os_t vmi_get_ostype (vmi_instance_t vmi);
 unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name);
 
+#pragma GCC visibility pop
 #endif /* LIBVMI_H */
