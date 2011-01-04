@@ -7,23 +7,24 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
+#include "private.h"
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
-#include "private.h"
 
 int windows_symbol_to_address (
-        vmi_instance_t instance, char *symbol, uint32_t *address)
+        vmi_instance_t vmi, char *symbol, uint32_t *address)
 {
     /* check exports first */
-    return windows_export_to_rva(instance, symbol, address);
+    return windows_export_to_rva(vmi, symbol, address);
 
     /*TODO check symbol server */
 }
 
 /* find the ntoskrnl base address */
 #define NUM_BASE_ADDRESSES 11
-uint32_t get_ntoskrnl_base (vmi_instance_t instance)
+uint32_t get_ntoskrnl_base (vmi_instance_t vmi)
 {
     uint32_t paddr;
     uint32_t sysproc_rva;
@@ -49,7 +50,7 @@ uint32_t get_ntoskrnl_base (vmi_instance_t instance)
     /* start by looking at known base addresses */
     for (i = 0; i < NUM_BASE_ADDRESSES; ++i){
         paddr = base_address[i];
-        if (valid_ntoskrnl_start(instance, paddr) == VMI_SUCCESS){
+        if (valid_ntoskrnl_start(vmi, paddr) == VMI_SUCCESS){
             goto fast_exit;
         }
     }
@@ -57,13 +58,13 @@ uint32_t get_ntoskrnl_base (vmi_instance_t instance)
     /* start the downward search looking for MZ header */
     fprintf(stderr, "Note: Fast checking for kernel base address failed, XenAccess\n");
     fprintf(stderr, "is searching for the correct address.\n");
-    paddr = 0x0 + instance->page_size;
+    paddr = 0x0 + vmi->page_size;
     while (1){
-        if (valid_ntoskrnl_start(instance, paddr) == VMI_SUCCESS){
+        if (valid_ntoskrnl_start(vmi, paddr) == VMI_SUCCESS){
             goto fast_exit;
         }
 
-        paddr += instance->page_size;
+        paddr += vmi->page_size;
         if (paddr <= 0 || 0x40000000 <= paddr){
             dbprint("--get_ntoskrnl_base failed\n");
             return 0;
@@ -75,7 +76,7 @@ fast_exit:
 }
 
 void *windows_access_kernel_symbol (
-        vmi_instance_t instance, char *symbol, uint32_t *offset, int prot)
+        vmi_instance_t vmi, char *symbol, uint32_t *offset, int prot)
 {
     uint32_t virt_address;
     uint32_t phys_address;
@@ -83,41 +84,41 @@ void *windows_access_kernel_symbol (
     uint32_t rva;
 
     /* check the LRU cache */
-    if (vmi_check_cache_sym(instance, symbol, 0, &address)){
-        return vmi_access_ma(instance, address, offset, PROT_READ);
+    if (vmi_check_cache_sym(vmi, symbol, 0, &address)){
+        return vmi_access_ma(vmi, address, offset, PROT_READ);
     }
 
     /* get the RVA of the symbol */
-    if (windows_symbol_to_address(instance, symbol, &rva) == VMI_FAILURE){
+    if (windows_symbol_to_address(vmi, symbol, &rva) == VMI_FAILURE){
         return NULL;
     }
 
     /* convert RVA into virt address */
-    phys_address = instance->os.windows_instance.ntoskrnl + rva;
-    virt_address = phys_address + instance->page_offset;
+    phys_address = vmi->os.windows_instance.ntoskrnl + rva;
+    virt_address = phys_address + vmi->page_offset;
 
-    vmi_update_cache(instance, symbol, virt_address, 0, 0);
-    return vmi_access_pa(instance, phys_address, offset, prot);
+    vmi_update_cache(vmi, symbol, virt_address, 0, 0);
+    return vmi_access_pa(vmi, phys_address, offset, prot);
 }
 
 /* finds the EPROCESS struct for a given pid */
 unsigned char *windows_get_EPROCESS (
-        vmi_instance_t instance, int pid, uint32_t *offset)
+        vmi_instance_t vmi, int pid, uint32_t *offset)
 {
     unsigned char *memory = NULL;
     uint32_t list_head = 0, next_process = 0;
     int task_pid = 0;
-    int pid_offset = instance->os.windows_instance.pid_offset;
-    int tasks_offset = instance->os.windows_instance.tasks_offset;
+    int pid_offset = vmi->os.windows_instance.pid_offset;
+    int tasks_offset = vmi->os.windows_instance.tasks_offset;
 
     /* first we need a pointer to this pid's EPROCESS struct */
-    next_process = instance->init_task;
+    next_process = vmi->init_task;
     list_head = next_process;
 
     while (1){
-        memory = vmi_access_kernel_va(instance, next_process, offset, PROT_READ);
+        memory = vmi_access_kernel_va(vmi, next_process, offset, PROT_READ);
         if (NULL == memory){
-            fprintf(stderr, "ERROR: failed to get EPROCESS list next pointer");
+            errprint("Failed to get EPROCESS list next pointer.\n");
             goto error_exit;
         }
         memcpy(&next_process, memory + *offset, 4);
@@ -136,69 +137,69 @@ unsigned char *windows_get_EPROCESS (
         if (task_pid == pid){
             return memory;
         }
-        munmap(memory, instance->page_size);
+        munmap(memory, vmi->page_size);
     }
 
 error_exit:
-    if (memory) munmap(memory, instance->page_size);
+    if (memory) munmap(memory, vmi->page_size);
     return NULL;
 }
 
 /* finds the address of the page global directory for a given pid */
-uint32_t windows_pid_to_pgd (vmi_instance_t instance, int pid)
+uint32_t windows_pid_to_pgd (vmi_instance_t vmi, int pid)
 {
     unsigned char *memory = NULL;
     uint32_t pgd = 0, ptr = 0, offset = 0;
-    int pdbase_offset = instance->os.windows_instance.pdbase_offset;
-    int tasks_offset = instance->os.windows_instance.tasks_offset;
+    int pdbase_offset = vmi->os.windows_instance.pdbase_offset;
+    int tasks_offset = vmi->os.windows_instance.tasks_offset;
 
     /* first we need a pointer to this pid's EPROCESS struct */
-    memory = windows_get_EPROCESS(instance, pid, &offset);
+    memory = windows_get_EPROCESS(vmi, pid, &offset);
     if (NULL == memory){
-        fprintf(stderr, "ERROR: could not find EPROCESS struct for pid = %d\n", pid);
+        errprint("Could not find EPROCESS struct for pid = %d.\n", pid);
         goto error_exit;
     }
 
     /* now follow the pointer to the memory descriptor and
        grab the pgd value */
     pgd = *((uint32_t*)(memory + offset + pdbase_offset - tasks_offset));
-    munmap(memory, instance->page_size);
+    munmap(memory, vmi->page_size);
 
     /* update the cache with this new pid->pgd mapping */
-    vmi_update_pid_cache(instance, pid, pgd);
+    vmi_update_pid_cache(vmi, pid, pgd);
 
 error_exit:
-    if (memory) munmap(memory, instance->page_size);
+    if (memory) munmap(memory, vmi->page_size);
     return pgd;
 }
 
 /* fills the taskaddr struct for a given windows process */
-int vmi_windows_get_peb (
-        vmi_instance_t instance, int pid, vmi_windows_peb_t *peb)
+status_t vmi_windows_get_peb (
+        vmi_instance_t vmi, int pid, vmi_windows_peb_t *peb)
 {
     unsigned char *memory;
     uint32_t ptr = 0, offset = 0;
-    int peb_offset = instance->os.windows_instance.peb_offset;
-    int tasks_offset = instance->os.windows_instance.tasks_offset;
-    int iba_offset = instance->os.windows_instance.iba_offset;
-    int ph_offset = instance->os.windows_instance.ph_offset;
+    int peb_offset = vmi->os.windows_instance.peb_offset;
+    int tasks_offset = vmi->os.windows_instance.tasks_offset;
+    int iba_offset = vmi->os.windows_instance.iba_offset;
+    int ph_offset = vmi->os.windows_instance.ph_offset;
 
     /* find the right EPROCESS struct */
-    memory = windows_get_EPROCESS(instance, pid, &offset);
+    memory = windows_get_EPROCESS(vmi, pid, &offset);
     if (NULL == memory){
-        fprintf(stderr, "ERROR: could not find EPROCESS struct for pid = %d\n", pid);
+        errprint("Could not find EPROCESS struct for pid = %d.\n", pid);
         goto error_exit;
     }
     ptr = *((uint32_t*)(memory+offset + peb_offset - tasks_offset));
-    munmap(memory, instance->page_size);
+    munmap(memory, vmi->page_size);
 
     /* copy appropriate values into peb struct */
-    vmi_read_long_virt(instance, ptr + iba_offset, pid, &(peb->ImageBaseAddress));
-    vmi_read_long_virt(instance, ptr + ph_offset, pid, &(peb->ProcessHeap));
+    vmi_read_long_virt(vmi, ptr + iba_offset, pid, &(peb->ImageBaseAddress));
+    vmi_read_long_virt(vmi, ptr + ph_offset, pid, &(peb->ProcessHeap));
 
     return VMI_SUCCESS;
 
 error_exit:
-    if (memory) munmap(memory, instance->page_size);
+    if (memory) munmap(memory, vmi->page_size);
     return VMI_FAILURE;
 }

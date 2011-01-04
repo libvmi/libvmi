@@ -7,11 +7,12 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
-#ifdef ENABLE_XEN
 #include "libvmi.h"
 #include "private.h"
 #include "driver/xen.h"
 #include "driver/interface.h"
+
+#ifdef ENABLE_XEN
 #include <fnmatch.h>
 #include <stdlib.h>
 #include <string.h>
@@ -160,11 +161,11 @@ exit:
 //}
 
 //----------------------------------------------------------------------------
-// Xen-Specific Interface Functions (no direction mapping to driver_*)
+// Xen-Specific Interface Functions (no direct mapping to driver_*)
 
 xen_instance_t xen_get_instance(vmi_instance_t vmi)
 {
-    xen_instance_t xeninst = (xen_instance_t) vmi->driver;
+    xen_instance_t xeninst = *((xen_instance_t *)vmi->driver);
     return xeninst;
 }
 
@@ -178,7 +179,7 @@ unsigned long xen_get_domainid (vmi_instance_t vmi)
 
 void xen_set_domainid (vmi_instance_t vmi, unsigned long domainid)
 {
-    xen_get_instance().domainid = domainid;
+    xen_get_instance(vmi).domainid = domainid;
 }
 
 status_t xen_init (vmi_instance_t vmi)
@@ -191,23 +192,23 @@ status_t xen_init (vmi_instance_t vmi)
         errprint("Failed to open libxc interface.\n");
         goto error_exit;
     }
-    xen_get_instance().xc_handle = xc_handle;
+    xen_get_instance(vmi).xc_handle = xc_handle;
 
     /* initialize other xen-specific values */
-    xen_get_instance().live_pfn_to_mfn_table = NULL;
-    xen_get_instance().nr_pfns = 0;
+    xen_get_instance(vmi).live_pfn_to_mfn_table = NULL;
+    xen_get_instance(vmi).nr_pfns = 0;
 
     /* setup the info struct */
-    if (xc_domain_getinfo(xc_handle, xen_get_domainid(vmi), 1, &(xen_get_instance().info)) != 1){
+    if (xc_domain_getinfo(xc_handle, xen_get_domainid(vmi), 1, &(xen_get_instance(vmi).info)) != 1){
         errprint("Failed to get domain info for Xen.\n");
         ret = vmi_report_error(vmi, 0, VMI_ECRITICAL);
         if (VMI_FAILURE == ret) goto error_exit;
     }
 
     /* determine if target is hvm or pv */
-    xen_get_instance().hvm = xen_ishvm(xen_get_domainid(vmi));
+    xen_get_instance(vmi).hvm = xen_ishvm(xen_get_domainid(vmi));
 #ifdef VMI_DEBUG
-    if (xen_get_instance().hvm){
+    if (xen_get_instance(vmi).hvm){
         dbprint("**set hvm to true (HVM).\n");
     }
     else{
@@ -223,12 +224,12 @@ error_exit:
 
 void xen_destroy (vmi_instance_t vmi)
 {
-    if (xen_get_instance().live_pfn_to_mfn_table){
-        munmap(xen_get_instance().live_pfn_to_mfn_table, xen_get_instance().nr_pfns * 4);
+    if (xen_get_instance(vmi).live_pfn_to_mfn_table){
+        munmap(xen_get_instance(vmi).live_pfn_to_mfn_table, xen_get_instance(vmi).nr_pfns * 4);
     }
 
-    get_xen_instance().domainid = 0;
-    xc_interface_close(get_xen_instance().xc_handle);
+    xen_get_instance(vmi).domainid = 0;
+    xc_interface_close(xen_get_instance(vmi).xc_handle);
 }
 
 status_t xen_get_domainname (vmi_instance_t vmi, char **name)
@@ -331,6 +332,93 @@ error_exit:
     return ret;
 }
 
+unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
+{
+    shared_info_t *live_shinfo = NULL;
+    unsigned long *live_pfn_to_mfn_frame_list_list = NULL;
+    unsigned long *live_pfn_to_mfn_frame_list = NULL;
+
+    /* Live mapping of the table mapping each PFN to its current MFN. */
+    unsigned long *live_pfn_to_mfn_table = NULL;
+    unsigned long nr_pfns = 0;
+    unsigned long ret = 0;
+
+    if (instance->hvm){
+        return pfn;
+    }
+
+    if (NULL == xen_get_instance(vmi).live_pfn_to_mfn_table){
+        live_shinfo = vmi_mmap_mfn(vmi, PROT_READ, xen_get_instance(vmi).info.shared_info_frame);
+        if (live_shinfo == NULL){
+            errprint("Failed to init live_shinfo.\n");
+            goto error_exit;
+        }
+        nr_pfns = live_shinfo->arch.max_pfn;
+
+        live_pfn_to_mfn_frame_list_list = vmi_mmap_mfn(vmi, PROT_READ, live_shinfo->arch.pfn_to_mfn_frame_list_list);
+        if (live_pfn_to_mfn_frame_list_list == NULL){
+            errprint("Failed to init live_pfn_to_mfn_frame_list_list.\n");
+            goto error_exit;
+        }
+
+        live_pfn_to_mfn_frame_list = xc_map_foreign_batch(
+            xen_get_instance(vmi).xc_handle,
+            xen_get_instance(vmi).domainid,
+            PROT_READ,
+            live_pfn_to_mfn_frame_list_list,
+            (nr_pfns+(fpp*fpp)-1)/(fpp*fpp) );
+        if (live_pfn_to_mfn_frame_list == NULL){
+            errprint("Failed to init live_pfn_to_mfn_frame_list.\n");
+            goto error_exit;
+        }
+        live_pfn_to_mfn_table = xc_map_foreign_batch(
+            xen_get_instance(vmi).xc_handle,
+            xen_get_instance(vmi).domainid,
+            PROT_READ,
+            live_pfn_to_mfn_frame_list, (nr_pfns+fpp-1)/fpp );
+        if (live_pfn_to_mfn_table  == NULL){
+            errprint("Failed to init live_pfn_to_mfn_table.\n");
+            goto error_exit;
+        }
+
+        /* save mappings for later use */
+        xen_get_instance(vmi).live_pfn_to_mfn_table = live_pfn_to_mfn_table;
+        xen_get_instance(vmi).nr_pfns = nr_pfns;
+    }
+
+    ret = xen_get_instance(vmi).live_pfn_to_mfn_table[pfn];
+
+error_exit:
+    if (live_shinfo) munmap(live_shinfo, XC_PAGE_SIZE);
+    if (live_pfn_to_mfn_frame_list_list)
+        munmap(live_pfn_to_mfn_frame_list_list, XC_PAGE_SIZE);
+    if (live_pfn_to_mfn_frame_list)
+        munmap(live_pfn_to_mfn_frame_list, XC_PAGE_SIZE);
+
+    return ret;
+}
+
+void *xen_map_page (vmi_instance_t vmi, int prot, unsigned long page)
+{
+    return xc_map_foreign_range(xen_get_instance(vmi).xc_handle, xen_get_instance(vmi).domainid, 1, prot, page);
+}
+
+void *xen_map_pages (vmi_instance_t vmi, int prot, unsigned long *pages, unsigned long num_pages)
+{
+    xen_pfn_t *pfns = (xen_pfn_t*) safe_malloc(sizeof(xen_pfn_t) * num_pages);
+    unsigned long i = 0;
+    
+    for (i = 0; i < num_pages; ++i){
+        pfns[i] = (xen_pfn_t) pages[i];
+    }
+    return xc_map_foreign_pages(xen_get_instance(vmi).xc_handle, xen_get_instance(vmi).domainid, prot, pfns, num_pages);
+}
+
+int xen_is_pv (vmi_instance_t vmi)
+{
+    return !xen_get_instance(vmi).hvm;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 #else
 
@@ -341,5 +429,9 @@ void xen_set_domainid (vmi_instance_t vmi, unsigned long domainid) { return; }
 status_t xen_get_domainname (vmi_instance_t vmi, char **name) { return VMI_FAILURE; }
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_FAILURE; }
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
+unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }
+void *xen_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
+void *xen_map_pages (vmi_instance_t vmi, int prot, unsigned long *pages, unsigned long num_pages) { return NULL; }
+int xen_is_pv (vmi_instance_t vmi) { return 0; }
 
 #endif /* ENABLE_XEN */

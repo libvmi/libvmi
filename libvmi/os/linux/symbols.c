@@ -7,29 +7,27 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
+#include "private.h"
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#include "private.h"
 
-int linux_system_map_symbol_to_address (
-        vmi_instance_t instance, char *symbol, uint32_t *address)
+status_t linux_system_map_symbol_to_address (
+        vmi_instance_t vmi, char *symbol, uint32_t *address)
 {
     FILE *f = NULL;
     char *row = NULL;
     int ret = VMI_SUCCESS;
 
-    if ((NULL == instance->sysmap) || (strlen(instance->sysmap) == 0)){
-#ifdef ENABLE_XEN
-        instance->sysmap =
-            linux_predict_sysmap_name(instance->m.xen.domain_id);
-#endif /* ENABLE_XEN */
+    if ((NULL == vmi->sysmap) || (strlen(vmi->sysmap) == 0)){
+        vmi->sysmap = strndup("unknown", 10);
     }
 
     row = safe_malloc(MAX_ROW_LENGTH);
-    if ((f = fopen(instance->sysmap, "r")) == NULL){
+    if ((f = fopen(vmi->sysmap, "r")) == NULL){
         fprintf(stderr, "ERROR: could not find System.map file after checking:\n");
-        fprintf(stderr, "\t%s\n", instance->sysmap);
+        fprintf(stderr, "\t%s\n", vmi->sysmap);
         fprintf(stderr, "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
         ret = VMI_FAILURE;
         goto error_exit;

@@ -21,11 +21,6 @@
 #include <limits.h>
 #include <fnmatch.h>
 
-#ifdef ENABLE_XEN
-#include <xs.h>
-#include <xen/arch-x86/xen.h>
-#endif /* ENABLE_XEN */
-
 int read_config_file (vmi_instance_t vmi)
 {
     extern FILE *yyin;
@@ -322,40 +317,40 @@ int vmi_init_file_private (
 }
 
 /* below are stub init functions that are called by library users */
-int vmi_init_vm_name_strict (char *name, vmi_instance_t vmi)
+status_t vmi_init_vm_name_strict (char *name, vmi_instance_t vmi)
 {
     unsigned long id = vmi_get_domain_id(name);
     dbprint("--got id from name (%s --> %d)\n", name, id);
     return vmi_init_vm_private(id, vmi, VMI_FAILHARD);
 }
 
-int vmi_init_vm_name_lax (char *name, vmi_instance_t vmi)
+status_t vmi_init_vm_name_lax (char *name, vmi_instance_t vmi)
 {
     unsigned long id = vmi_get_domain_id(name);
     dbprint("--got id from name (%s --> %d)\n", name, id);
     return vmi_init_vm_private(id, vmi, VMI_FAILSOFT);
 }
 
-int vmi_init_vm_id_strict (unsigned long id, vmi_instance_t vmi)
+status_t vmi_init_vm_id_strict (unsigned long id, vmi_instance_t vmi)
 {
     return vmi_init_vm_private(id, vmi, VMI_FAILHARD);
 }
 
-int vmi_init_vm_id_lax (unsigned long id, vmi_instance_t vmi)
+status_t vmi_init_vm_id_lax (unsigned long id, vmi_instance_t vmi)
 {
     return vmi_init_vm_private(id, vmi, VMI_FAILSOFT);
 }
 
-int vmi_init_file_strict (char *filename, char *image_type, vmi_instance_t vmi)
+status_t vmi_init_file_strict (char *filename, char *image_type, vmi_instance_t vmi)
 {
     return vmi_init_file_private(filename, image_type, vmi, VMI_FAILHARD);
 }
-int vmi_init_file_lax (char *filename, char *image_type, vmi_instance_t vmi)
+status_t vmi_init_file_lax (char *filename, char *image_type, vmi_instance_t vmi)
 {
     return vmi_init_file_private(filename, image_type, vmi, VMI_FAILSOFT);
 }
 
-int vmi_destroy (vmi_instance_t vmi)
+status_t vmi_destroy (vmi_instance_t vmi)
 {
     driver_destroy(vmi);
     vmi_destroy_cache(vmi);

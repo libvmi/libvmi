@@ -29,6 +29,7 @@
 #include <errno.h>
 
 /* uncomment this to enable debug output */
+//TODO make this a switch to configure instead
 //#define VMI_DEBUG
 
 typedef enum mode{
@@ -67,92 +68,20 @@ typedef enum status{
  */
 #define VMI_FAILSOFT 1
 
-/**
- * Constant used to specify that the os_type is unknown
- */
-#define VMI_OS_UNKNOWN 0
+typedef enum os{
+    VMI_OS_UNKNOWN,  /**< OS type is unknown */
+    VMI_OS_LINUX,    /**< OS type is Linux */
+    VMI_OS_WINDOWS   /**< OS type is Windows */
+} os_t;
 
-/**
- * Constant used to specify Linux in the os_type member of the
- * vmi_instance struct.
- */
-#define VMI_OS_LINUX 1
-/**
- * Constant used to specify Windows in the os_type member of the
- * vmi_instance struct.
- */
-#define VMI_OS_WINDOWS 2
-/**
- * Constant used to indicate that we are running on a version of Xen
- * that XenAccess does not support.  XenAccess might work, or it might
- * not.  This is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_UNKNOWN 0
-/**
- * Constant used to indicate that we are running on Xen 3.0.4.  This
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_0_4 1
-/**
- * Constant used to indicate that we are running on Xen 3.1.0  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_1_0 2
-/**
- * Constant used to indicate that we are running on Xen 3.1.1  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_1_1 3
-/**
- * Constant used to indicate that we are running on Xen 3.1.2  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_1_2 4
-/**
- * Constant used to indicate that we are running on Xen 3.1.3  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_1_3 5
-/**
- * Constant used to indicate that we are running on Xen 3.1.4  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_1_4 6
-/**
- * Constant used to indicate that we are running on Xen 3.2.0  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_2_0 7
-/**
- * Constant used to indicate that we are running on Xen 3.2.1  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_2_1 8
-/**
- * Constant used to indicate that we are running on Xen 3.2.2  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_2_2 9
-/**
- * Constant used to indicate that we are running on Xen 3.2.3  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_2_3 10
-/**
- * Constant used to indicate that we are running on Xen 3.3.0  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_3_0 11
-/**
- * Constant used to indicate that we are running on Xen 3.3.1  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_3_1 12
-/**
- * Constant used to indicate that we are running on Xen 3.4.0  This 
- * is used in the xen_version member of the vmi_instance struct.
- */
-#define VMI_XENVER_3_4_0 13
+typedef unsigned long reg_t;
+typedef enum registers{
+    REG_CR0,
+    REG_CR1,
+    REG_CR2,
+    REG_CR3,
+    REG_CR4
+} registers_t;
 
 /**
  * @brief LibVMI Instance.
@@ -220,7 +149,7 @@ typedef struct vmi_windows_peb{
  * @param[out] instance Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_init_vm_name_strict (char *domain_name, vmi_instance_t instance);
+status_t vmi_init_vm_name_strict (char *domain_name, vmi_instance_t instance);
 
 /**
  * Initializes access to a specific domU given a domain name.  All
@@ -239,7 +168,7 @@ int vmi_init_vm_name_strict (char *domain_name, vmi_instance_t instance);
  * @param[out] instance Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_init_vm_name_lax (char *domain_name, vmi_instance_t instance);
+status_t vmi_init_vm_name_lax (char *domain_name, vmi_instance_t instance);
 
 /**
  * Initializes access to a specific domU given a domain id.  The
@@ -258,7 +187,7 @@ int vmi_init_vm_name_lax (char *domain_name, vmi_instance_t instance);
  * @param[out] instance Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_init_vm_id_strict (unsigned long id, vmi_instance_t instance);
+status_t vmi_init_vm_id_strict (unsigned long id, vmi_instance_t instance);
 
 /**
  * Initializes access to a specific domU given a domain id.  The
@@ -278,7 +207,7 @@ int vmi_init_vm_id_strict (unsigned long id, vmi_instance_t instance);
  * @param[out] instance Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_init_vm_id_lax (unsigned long id, vmi_instance_t instance);
+status_t vmi_init_vm_id_lax (unsigned long id, vmi_instance_t instance);
 
 /**
  * Initializes access to a memory image stored in the given file.  All
@@ -297,7 +226,7 @@ int vmi_init_vm_id_lax (unsigned long id, vmi_instance_t instance);
  * @param[out] instance Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_init_file_strict
+status_t vmi_init_file_strict
     (char *filename, char *image_type, vmi_instance_t instance);
 
 /**
@@ -318,7 +247,7 @@ int vmi_init_file_strict
  * @param[out] instance Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_init_file_lax
+status_t vmi_init_file_lax
     (char *filename, char *image_type, vmi_instance_t instance);
 
 /**
@@ -327,7 +256,7 @@ int vmi_init_file_lax
  * @param[in] instance Instance to destroy
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_destroy (vmi_instance_t instance);
+status_t vmi_destroy (vmi_instance_t instance);
 
 /*-----------------------------------------
  * Memory access functions from vmi_memory.c
@@ -471,7 +400,7 @@ uint32_t vmi_translate_kv2p(vmi_instance_t instance, uint32_t virt_address);
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_read_long_sym (vmi_instance_t instance, char *sym, uint32_t *value);
+status_t vmi_read_long_sym (vmi_instance_t instance, char *sym, uint32_t *value);
 
 /**
  * Reads a long long (64 bit) value from memory, given a kernel symbol.
@@ -481,7 +410,7 @@ int vmi_read_long_sym (vmi_instance_t instance, char *sym, uint32_t *value);
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_read_long_long_sym (vmi_instance_t instance, char *sym, uint64_t *value);
+status_t vmi_read_long_long_sym (vmi_instance_t instance, char *sym, uint64_t *value);
 
 /**
  * Reads a long (32 bit) value from memory, given a virtual address.
@@ -492,7 +421,7 @@ int vmi_read_long_long_sym (vmi_instance_t instance, char *sym, uint64_t *value)
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_read_long_virt (
+status_t vmi_read_long_virt (
         vmi_instance_t instance, uint32_t vaddr, int pid, uint32_t *value);
 
 /**
@@ -504,7 +433,7 @@ int vmi_read_long_virt (
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_read_long_long_virt (
+status_t vmi_read_long_long_virt (
         vmi_instance_t instance, uint32_t vaddr, int pid, uint64_t *value);
 
 /**
@@ -515,7 +444,7 @@ int vmi_read_long_long_virt (
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_read_long_phys (
+status_t vmi_read_long_phys (
         vmi_instance_t instance, uint32_t paddr, uint32_t *value);
 
 /**
@@ -526,7 +455,7 @@ int vmi_read_long_phys (
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_read_long_long_phys (
+status_t vmi_read_long_long_phys (
         vmi_instance_t instance, uint32_t paddr, uint64_t *value);
 
 /**
@@ -537,7 +466,7 @@ int vmi_read_long_long_phys (
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_read_long_mach (
+status_t vmi_read_long_mach (
         vmi_instance_t instance, uint32_t maddr, uint32_t *value);
 
 /**
@@ -548,7 +477,7 @@ int vmi_read_long_mach (
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_read_long_long_mach (
+status_t vmi_read_long_long_mach (
         vmi_instance_t instance, uint32_t maddr, uint64_t *value);
 
 /**
@@ -559,7 +488,7 @@ int vmi_read_long_long_mach (
  * @param[out] vaddr The virtual address of the symbol
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_symbol_to_address (vmi_instance_t instance, char *sym, uint32_t *vaddr);
+status_t vmi_symbol_to_address (vmi_instance_t instance, char *sym, uint32_t *vaddr);
 
 /*-----------------------------
  * Linux-specific functionality
@@ -574,7 +503,7 @@ int vmi_symbol_to_address (vmi_instance_t instance, char *sym, uint32_t *vaddr);
  * @param[out] taskaddr Information from the specified task struct
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_linux_get_taskaddr (
+status_t vmi_linux_get_taskaddr (
         vmi_instance_t instance, int pid, vmi_linux_taskaddr_t *taskaddr);
 
 /*-----------------------------
@@ -590,7 +519,11 @@ int vmi_linux_get_taskaddr (
  * @param[out] peb Information from the specified PEB
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-int vmi_windows_get_peb (
+status_t vmi_windows_get_peb (
         vmi_instance_t instance, int pid, vmi_windows_peb_t *peb);
+
+//TODO document the new functions listed below
+os_t vmi_get_ostype (vmi_instance_t vmi);
+unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name);
 
 #endif /* LIBVMI_H */

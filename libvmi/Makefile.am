@@ -3,15 +3,13 @@ SUBDIRS = config
 h_sources = libvmi.h
 c_sources = \
     core.c \
+    accessors.c \
     memory.c \
     cache.c \
-    file.c \
     pretty_print.c \
     util.c \
     symbols.c \
-    error.c \
     os/linux/core.c \
-    os/linux/domain_info.c \
     os/linux/symbols.c \
     os/linux/memory.c \
     os/windows/core.c \

@@ -7,136 +7,29 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
-#include <stdlib.h>
-#include <sys/mman.h>
 #include "libvmi.h"
 #include "private.h"
+#include "driver/interface.h"
+#include <stdlib.h>
+#include <sys/mman.h>
 
-/* hack to get this to compile on xen 3.0.4 */
-#ifndef XENMEM_maximum_gpfn
-#define XENMEM_maximum_gpfn 0
-#endif
-
-/* convert a pfn to a mfn based on the live mapping tables */
-unsigned long helper_pfn_to_mfn (vmi_instance_t instance, unsigned long pfn)
+void *vmi_mmap_mfn (vmi_instance_t vmi, int prot, unsigned long mfn)
 {
-#ifdef ENABLE_XEN
-    shared_info_t *live_shinfo = NULL;
-    unsigned long *live_pfn_to_mfn_frame_list_list = NULL;
-    unsigned long *live_pfn_to_mfn_frame_list = NULL;
-
-    /* Live mapping of the table mapping each PFN to its current MFN. */
-    unsigned long *live_pfn_to_mfn_table = NULL;
-    unsigned long nr_pfns = 0;
-    unsigned long ret = -1;
-//    unsigned long mfn;
-//    int i;
-
-    if (instance->hvm){
-        return pfn;
-    }
-
-    if (NULL == instance->m.xen.live_pfn_to_mfn_table){
-        live_shinfo = vmi_mmap_mfn(
-            instance, PROT_READ, instance->m.xen.info.shared_info_frame);
-        if (live_shinfo == NULL){
-            fprintf(stderr, "ERROR: failed to init live_shinfo\n");
-            goto error_exit;
-        }
-
-        if (instance->m.xen.xen_version == VMI_XENVER_3_1_0){
-            nr_pfns = xc_memory_op(
-                        instance->m.xen.xc_handle,
-                        XENMEM_maximum_gpfn,
-                        &(instance->m.xen.domain_id)) + 1;
-        }
-        else{
-            nr_pfns = live_shinfo->arch.max_pfn;
-        }
-
-        live_pfn_to_mfn_frame_list_list = vmi_mmap_mfn(
-            instance, PROT_READ, live_shinfo->arch.pfn_to_mfn_frame_list_list);
-        if (live_pfn_to_mfn_frame_list_list == NULL){
-            fprintf(stderr, "ERROR: failed to init live_pfn_to_mfn_frame_list_list\n");
-            goto error_exit;
-        }
-
-        live_pfn_to_mfn_frame_list = xc_map_foreign_batch(
-            instance->m.xen.xc_handle,
-            instance->m.xen.domain_id,
-            PROT_READ,
-            live_pfn_to_mfn_frame_list_list,
-            (nr_pfns+(fpp*fpp)-1)/(fpp*fpp) );
-        if (live_pfn_to_mfn_frame_list == NULL){
-            fprintf(stderr, "ERROR: failed to init live_pfn_to_mfn_frame_list\n");
-            goto error_exit;
-        }
-
-        live_pfn_to_mfn_table = xc_map_foreign_batch(
-            instance->m.xen.xc_handle,
-            instance->m.xen.domain_id,
-            PROT_READ,
-            live_pfn_to_mfn_frame_list, (nr_pfns+fpp-1)/fpp );
-        if (live_pfn_to_mfn_table  == NULL){
-            fprintf(stderr, "ERROR: failed to init live_pfn_to_mfn_table\n");
-            goto error_exit;
-        }
-
-        /*TODO validate the mapping */
-//        for (i = 0; i < nr_pfns; ++i){
-//            mfn = live_pfn_to_mfn_table[i];
-//            if( (mfn != INVALID_P2M_ENTRY) && (mfn_to_pfn(mfn) != i) )
-//            {
-//                DPRINTF("i=0x%x mfn=%lx live_m2p=%lx\n", i,
-//                        mfn, mfn_to_pfn(mfn));
-//                err++;
-//            }
-//        }
-
-        /* save mappings for later use */
-        instance->m.xen.live_pfn_to_mfn_table = live_pfn_to_mfn_table;
-        instance->m.xen.nr_pfns = nr_pfns;
-    }
-
-    ret = instance->m.xen.live_pfn_to_mfn_table[pfn];
-
-error_exit:
-    if (live_shinfo) munmap(live_shinfo, XC_PAGE_SIZE);
-    if (live_pfn_to_mfn_frame_list_list)
-        munmap(live_pfn_to_mfn_frame_list_list, XC_PAGE_SIZE);
-    if (live_pfn_to_mfn_frame_list)
-        munmap(live_pfn_to_mfn_frame_list, XC_PAGE_SIZE);
-
-    return ret;
-#else
-    return 0;
-#endif /* ENABLE_XEN */
+//    dbprint("--MapMFN: Mapping mfn = 0x%.8x.\n", mfn);
+    return vmi_map_page(vmi, prot, mfn);
 }
 
-void *vmi_mmap_mfn (vmi_instance_t instance, int prot, unsigned long mfn)
+void *vmi_mmap_pfn (vmi_instance_t vmi, int prot, unsigned long pfn)
 {
-//    dbprint("--MapMFN: Mapping mfn = 0x%.8x.\n", (unsigned int)mfn);
-    return vmi_map_page(instance, prot, mfn);
-}
+    unsigned long mfn = driver_pfn_to_mfn(vmi, pfn);
 
-void *vmi_mmap_pfn (vmi_instance_t instance, int prot, unsigned long pfn)
-{
-    unsigned long mfn = -1;
-
-    if (VMI_MODE_XEN == instance->mode){
-        mfn = helper_pfn_to_mfn(instance, pfn);
-    }
-    else if (VMI_MODE_FILE == instance->mode){
-        mfn = pfn;
-    }
-
-    if (-1 == mfn){
-        fprintf(stderr, "ERROR: pfn to mfn mapping failed.\n");
+    if (!mfn){
+        errprint("pfn to mfn mapping failed.\n");
         return NULL;
     }
     else{
 //        dbprint("--MapPFN: Mapping mfn = %lu / pfn = %lu.\n", mfn, pfn);
-        return vmi_map_page(instance, prot, mfn);
+        return vmi_map_page(vmi, prot, mfn);
     }
 }
 
@@ -324,14 +217,14 @@ void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
 }
 
 /* translation */
-uint32_t v2p_nopae(vmi_instance_t instance, uint32_t cr3, uint32_t vaddr)
+uint32_t v2p_nopae(vmi_instance_t instance, reg_t cr3, uint32_t vaddr)
 {
     uint32_t paddr = 0;
     uint32_t pgd, pte;
         
     dbprint("--PTLookup: lookup vaddr = 0x%.8x\n", vaddr);
     dbprint("--PTLookup: cr3 = 0x%.8x\n", cr3);
-    pgd = get_pgd_nopae(instance, vaddr, cr3);
+    pgd = get_pgd_nopae(instance, vaddr, get_reg32(cr3));
     dbprint("--PTLookup: pgd = 0x%.8x\n", pgd);
         
     if (entry_present(pgd)){
@@ -357,14 +250,14 @@ uint32_t v2p_nopae(vmi_instance_t instance, uint32_t cr3, uint32_t vaddr)
     return paddr;
 }
 
-uint32_t v2p_pae (vmi_instance_t instance, uint32_t cr3, uint32_t vaddr)
+uint32_t v2p_pae (vmi_instance_t instance, reg_t cr3, uint32_t vaddr)
 {
     uint32_t paddr = 0;
     uint64_t pdpe, pgd, pte;
         
     dbprint("--PTLookup: lookup vaddr = 0x%.8x\n", vaddr);
     dbprint("--PTLookup: cr3 = 0x%.8x\n", cr3);
-    pdpe = get_pdpi(instance, vaddr, cr3);
+    pdpe = get_pdpi(instance, vaddr, get_reg32(cr3));
     dbprint("--PTLookup: pdpe = 0x%.16x\n", pdpe);
     if (!entry_present(pdpe)){
         return paddr;
@@ -392,7 +285,7 @@ uint32_t v2p_pae (vmi_instance_t instance, uint32_t cr3, uint32_t vaddr)
 /* convert address to machine address via page tables */
 uint32_t vmi_pagetable_lookup (
             vmi_instance_t instance,
-            uint32_t cr3,
+            reg_t cr3,
             uint32_t vaddr)
 {
     if (instance->pae){
@@ -403,56 +296,12 @@ uint32_t vmi_pagetable_lookup (
     }
 }
 
-uint32_t vmi_current_cr3 (vmi_instance_t instance, uint32_t *cr3)
-{
-    int ret = VMI_SUCCESS;
-#ifdef ENABLE_XEN
-#ifdef HAVE_CONTEXT_ANY
-    vcpu_guest_context_any_t ctxt_any;
-#endif /* HAVE_CONTEXT_ANY */
-    vcpu_guest_context_t ctxt;
-#endif /* ENABLE_XEN */
-
-    if (VMI_MODE_XEN == instance->mode){
-#ifdef ENABLE_XEN
-#ifdef HAVE_CONTEXT_ANY
-        if ((ret = xc_vcpu_getcontext(
-                instance->m.xen.xc_handle,
-                instance->m.xen.domain_id,
-                0, /*TODO vcpu, assuming only 1 for now */
-                &ctxt_any)) != 0){
-#else
-        if ((ret = xc_vcpu_getcontext(
-                instance->m.xen.xc_handle,
-                instance->m.xen.domain_id,
-                0, /*TODO vcpu, assuming only 1 for now */
-                &ctxt)) != 0){
-#endif /* HAVE_CONTEXT_ANY */
-            fprintf(stderr, "ERROR: failed to get context information.\n");
-            ret = VMI_FAILURE;
-            goto error_exit;
-        }
-#ifdef HAVE_CONTEXT_ANY
-        *cr3 = ctxt_any.c.ctrlreg[3] & 0xFFFFF000;
-#else
-        *cr3 = ctxt.ctrlreg[3] & 0xFFFFF000;
-#endif /* HAVE_CONTEXT_ANY */
-#endif /* ENABLE_XEN */
-    }
-    else if (VMI_MODE_FILE == instance->mode){
-        *cr3 = instance->kpgd - instance->page_offset;
-    }
-
-error_exit:
-    return ret;
-}
-
 /* expose virtual to physical mapping via api call */
-uint32_t vmi_translate_kv2p(vmi_instance_t instance, uint32_t virt_address)
+uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t virt_address)
 {
-    uint32_t cr3 = 0;
-    vmi_current_cr3(instance, &cr3);
-    return vmi_pagetable_lookup(instance, cr3, virt_address);
+    reg_t cr3 = 0;
+    driver_get_vcpureg(vmi, &cr3, REG_CR3, 0);
+    return vmi_pagetable_lookup(vmi, cr3, virt_address);
 }
 
 /* map memory given a kernel symbol */
@@ -471,7 +320,7 @@ void *vmi_access_kernel_sym (
 }
 
 /* finds the address of the page global directory for a given pid */
-uint32_t vmi_pid_to_pgd (vmi_instance_t instance, int pid)
+reg_t vmi_pid_to_pgd (vmi_instance_t instance, int pid)
 {
     /* first check the cache */
     uint32_t pgd = 0;
@@ -487,11 +336,11 @@ uint32_t vmi_pid_to_pgd (vmi_instance_t instance, int pid)
         pgd = windows_pid_to_pgd(instance, pid);
     }
 
-    return pgd;
+    return (reg_t) pgd;
 }
 
 void *vmi_access_user_va (
-        vmi_instance_t instance,
+        vmi_instance_t vmi,
         uint32_t virt_address,
         uint32_t *offset,
         int pid,
@@ -500,8 +349,8 @@ void *vmi_access_user_va (
     uint32_t address = 0;
 
     /* check the LRU cache */
-    if (vmi_check_cache_virt(instance, virt_address, pid, &address)){
-        return vmi_access_ma(instance, address, offset, prot);
+    if (vmi_check_cache_virt(vmi, virt_address, pid, &address)){
+        return vmi_access_ma(vmi, address, offset, prot);
     }
 
     /* use kernel page tables */
@@ -509,9 +358,9 @@ void *vmi_access_user_va (
       Figure out what this should be b/c there still may be a fixed
       mapping range between the page'd addresses and VIRT_START */
     if (!pid){
-        uint32_t cr3 = 0;
-        vmi_current_cr3(instance, &cr3);
-        address = vmi_pagetable_lookup(instance, cr3, virt_address);
+        reg_t cr3 = 0;
+        driver_get_vcpureg(vmi, &cr3, REG_CR3, 0);
+        address = vmi_pagetable_lookup(vmi, cr3, virt_address);
         if (!address){
             fprintf(stderr, "ERROR: address not in page table (0x%x)\n", virt_address);
             return NULL;
@@ -520,70 +369,61 @@ void *vmi_access_user_va (
 
     /* use user page tables */
     else{
-        uint32_t pgd = vmi_pid_to_pgd(instance, pid);
+        reg_t pgd = vmi_pid_to_pgd(vmi, pid);
         dbprint("--UserVirt: pgd for pid=%d is 0x%.8x.\n", pid, pgd);
 
         if (pgd){
-            address = vmi_pagetable_lookup(instance, pgd, virt_address);
+            address = vmi_pagetable_lookup(vmi, pgd, virt_address);
         }
 
         if (!address){
-            fprintf(stderr, "ERROR: address not in page table (0x%x)\n", virt_address);
+            errprint("Address not in page table (0x%x).\n", virt_address);
             return NULL;
         }
     }
 
     /* update cache and map the memory */
-    vmi_update_cache(instance, NULL, virt_address, pid, address);
-    return vmi_access_ma(instance, address, offset, prot);
+    vmi_update_cache(vmi, NULL, virt_address, pid, address);
+    return vmi_access_ma(vmi, address, offset, prot);
 }
 
-/*TODO find a way to support this in file mode */
 void *vmi_access_user_va_range (
-        vmi_instance_t instance,
+        vmi_instance_t vmi,
         uint32_t virt_address,
-		uint32_t size,
+        uint32_t size,
         uint32_t *offset,
         int pid,
         int prot)
 {
-#ifdef ENABLE_XEN
-    int i = 0;
-    uint32_t num_pages = size / instance->page_size + 1;
-    uint32_t pgd = 0;
+    unsigned long i = 0;
+    unsigned long num_pages = size / vmi->page_size + 1;
+    reg_t pgd = 0;
 
     if (pid){
-        pgd = vmi_pid_to_pgd(instance, pid);
+        pgd = vmi_pid_to_pgd(vmi, pid);
     }
     else{
-        vmi_current_cr3(instance, &pgd);
+        driver_get_vcpureg(vmi, &pgd, REG_CR3, 0);
     }
-    xen_pfn_t* pfns = (xen_pfn_t*) safe_malloc(sizeof(xen_pfn_t) * num_pages);
+    unsigned long* pages = (unsigned long*) safe_malloc(
+        sizeof(unsigned long) * num_pages
+    );
 	
-    uint32_t start = virt_address & ~(instance->page_size - 1);
+    uint32_t start = virt_address & ~(vmi->page_size - 1);
     for (i = 0; i < num_pages; i++){
         /* Virtual address for each page we will map */
-        uint32_t addr = start + i * instance->page_size;
+        uint32_t addr = start + i * vmi->page_size;
 	
         if(!addr) {
-            fprintf(stderr, "ERROR: address not in page table (%p)\n", addr);
+            errprint("Address not in page table (%p).\n", addr);
             return NULL;
         }
 
         /* Physical page frame number of each page */
-        pfns[i] = vmi_pagetable_lookup(
-            instance, pgd, addr) >> instance->page_shift;
+        pages[i] = vmi_pagetable_lookup(vmi, pgd, addr) >> vmi->page_shift;
     }
-
     *offset = virt_address - start;
-
-    return xc_map_foreign_pages(
-        instance->m.xen.xc_handle,
-        instance->m.xen.domain_id, prot, pfns, num_pages
-    );
-#else
-    return NULL;
-#endif /* ENABLE_XEN */
+    return driver_map_pages(vmi, prot, pages, num_pages);
 }
 
 void *vmi_access_kernel_va (

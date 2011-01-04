@@ -71,7 +71,7 @@ struct vmi_instance{
     uint32_t page_size;     /**< page size for last mapped page */
     uint32_t kpgd;          /**< kernel page global directory */
     uint32_t init_task;     /**< address of task struct for init */
-    int os_type;            /**< type of os: VMI_OS_LINUX, etc */
+    os_t os_type;           /**< type of os: VMI_OS_LINUX, etc */
     int pae;                /**< nonzero if PAE is enabled */
     int pse;                /**< nonzero if PSE is enabled */
     uint32_t cr3;           /**< value in the CR3 register */
@@ -129,6 +129,8 @@ void warnprint (char *format, ...);
  */
 #define safe_malloc(size) safe_malloc_ (size, __FILE__, __LINE__) 
 void *safe_malloc_ (size_t size, char const *file, int line);
+
+unsigned long get_reg32 (reg_t r);
 
 /*----------------------------------------------
  * Utility function from util.c
@@ -256,7 +258,7 @@ void *vmi_mmap_pfn (vmi_instance_t instance, int prot, unsigned long pfn);
  * @return Machine address resulting from page table lookup.
  */
 uint32_t vmi_pagetable_lookup (
-            vmi_instance_t instance, uint32_t pgd,
+            vmi_instance_t instance, reg_t cr3,
             uint32_t virt_address);
 
 /**
@@ -267,7 +269,7 @@ uint32_t vmi_pagetable_lookup (
  *
  * @return Address of pgd, or zero if no address could be found.
  */
-uint32_t vmi_pid_to_pgd (vmi_instance_t instance, int pid);
+reg_t vmi_pid_to_pgd (vmi_instance_t instance, int pid);
 
 /**
  * Gets address of a symbol in domU virtual memory. It uses System.map
@@ -277,7 +279,7 @@ uint32_t vmi_pid_to_pgd (vmi_instance_t instance, int pid);
  * @param[in] symbol Name of the requested symbol.
  * @param[out] address The addres of the symbol in guest memory.
  */
-int linux_system_map_symbol_to_address (
+status_t linux_system_map_symbol_to_address (
         vmi_instance_t instance, char *symbol, uint32_t *address);
 
 /**
@@ -334,19 +336,17 @@ uint32_t get_ntoskrnl_base (vmi_instance_t instance);
 void *windows_access_kernel_symbol (
         vmi_instance_t instance, char *symbol, uint32_t *offset, int prot);
 
-int windows_init (vmi_instance_t instance);
-int linux_init (vmi_instance_t instance);
+status_t windows_init (vmi_instance_t instance);
+status_t linux_init (vmi_instance_t instance);
 int get_symbol_row (FILE *f, char *row, char *symbol, int position);
-void *vmi_map_file_range (vmi_instance_t instance, int prot, unsigned long pfn);
 void *vmi_map_page (vmi_instance_t instance, int prot, unsigned long frame_num);
 uint32_t windows_find_eprocess (vmi_instance_t instance, char *name);
-uint32_t vmi_find_kernel_pd (vmi_instance_t instance);
 int vmi_report_error (vmi_instance_t instance, int error, int error_type);
 uint32_t vmi_get_domain_id (char *name);
 char *linux_predict_sysmap_name (uint32_t id);
 
-int windows_export_to_rva (vmi_instance_t , char *, uint32_t *);
-int valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr);
+status_t windows_export_to_rva (vmi_instance_t , char *, uint32_t *);
+status_t valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr);
 
 
 /** Duplicate function from xc_util that should remain

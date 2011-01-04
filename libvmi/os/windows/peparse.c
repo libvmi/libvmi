@@ -9,6 +9,7 @@
 
 #include "libvmi.h"
 #include "private.h"
+#define _GNU_SOURCE
 #include <string.h>
 
 #define IMAGE_DOS_HEADER 0x5A4D
@@ -109,7 +110,7 @@ struct export_table{
 };
 
 // takes an rva and looks up a null terminated string at that location
-char *rva_to_string (vmi_instance_t instance, uint32_t rva)
+char *rva_to_string (vmi_instance_t vmi, uint32_t rva)
 {
     unsigned char *memory = NULL;
     uint32_t offset = 0;
@@ -118,8 +119,8 @@ char *rva_to_string (vmi_instance_t instance, uint32_t rva)
     char *str = NULL;
 
     memory = vmi_access_pa(
-        instance,
-        instance->os.windows_instance.ntoskrnl + rva,
+        vmi,
+        vmi->os.windows_instance.ntoskrnl + rva,
         &offset,
         PROT_READ);
     if (NULL == memory){
@@ -127,22 +128,22 @@ char *rva_to_string (vmi_instance_t instance, uint32_t rva)
     }
 
     /* assuming that this is null terminated */
-    max_length = instance->page_size - offset - 1;
+    max_length = vmi->page_size - offset - 1;
     length = strnlen(memory + offset, max_length);
     if (length > 0){
         str = safe_malloc(length + 1);
         memset(str, 0, length + 1);
         memcpy(str, memory + offset, length);
     }
-    munmap(memory, instance->page_size);
+    munmap(memory, vmi->page_size);
 
     /* someone else will need to free this */
     return str;
 }
 
-void dump_exports (vmi_instance_t instance, struct export_table et)
+void dump_exports (vmi_instance_t vmi, struct export_table et)
 {
-    uint32_t base_addr = instance->os.windows_instance.ntoskrnl;
+    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
     unsigned char *memory1 = NULL;
     unsigned char *memory2 = NULL;
     unsigned char *memory3 = NULL;
@@ -154,21 +155,21 @@ void dump_exports (vmi_instance_t instance, struct export_table et)
 
     /* load name list */    
     memory1 = vmi_access_pa(
-        instance,
+        vmi,
         base_addr + et.address_of_names,
         &offset1,
         PROT_READ);
 
     /* load name ordinals list */
     memory2 = vmi_access_pa(
-        instance,
+        vmi,
         base_addr + et.address_of_name_ordinals,
         &offset2,
         PROT_READ);
 
     /* load function locations */
     memory3 = vmi_access_pa(
-        instance,
+        vmi,
         base_addr + et.address_of_functions,
         &offset3,
         PROT_READ);
@@ -181,7 +182,7 @@ void dump_exports (vmi_instance_t instance, struct export_table et)
         char *str = NULL;
         memcpy(&rva, memory1+offset1+ i * sizeof(uint32_t), sizeof(uint32_t));
         if (rva){
-            str = rva_to_string(instance, rva);
+            str = rva_to_string(vmi, rva);
             if (str){
                 memcpy(
                     &ordinal,
@@ -200,31 +201,31 @@ void dump_exports (vmi_instance_t instance, struct export_table et)
     }
     /*TODO this loop is running past the end of memory page */
 
-    munmap(memory1, instance->page_size);
-    munmap(memory2, instance->page_size);
-    munmap(memory3, instance->page_size);
+    munmap(memory1, vmi->page_size);
+    munmap(memory2, vmi->page_size);
+    munmap(memory3, vmi->page_size);
 }
 
-int get_export_rva (
-        vmi_instance_t instance, uint32_t *rva,
+status_t get_export_rva (
+        vmi_instance_t vmi, uint32_t *rva,
         int aof_index, struct export_table *et)
 {
-    uint32_t base_addr = instance->os.windows_instance.ntoskrnl;
+    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
     uint32_t rva_loc =
         base_addr + et->address_of_functions + aof_index * sizeof(uint32_t);
 
-    return vmi_read_long_phys(instance, rva_loc, rva);
+    return vmi_read_long_phys(vmi, rva_loc, rva);
 }
 
 int get_aof_index (
-        vmi_instance_t instance, int aon_index, struct export_table *et)
+        vmi_instance_t vmi, int aon_index, struct export_table *et)
 {
-    uint32_t base_addr = instance->os.windows_instance.ntoskrnl;
+    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
     uint32_t aof_index_loc =
         base_addr + et->address_of_name_ordinals + aon_index * sizeof(uint16_t);
     uint32_t aof_index = 0;
 
-    if (vmi_read_long_phys(instance, aof_index_loc, &aof_index) == VMI_SUCCESS){
+    if (vmi_read_long_phys(vmi, aof_index_loc, &aof_index) == VMI_SUCCESS){
         return (int) (aof_index & 0xffff);
     }
     else{
@@ -233,10 +234,10 @@ int get_aof_index (
 }
 
 int get_aon_index (
-        vmi_instance_t instance, char *symbol, struct export_table *et)
+        vmi_instance_t vmi, char *symbol, struct export_table *et)
 {
     /*TODO implement faster name search alg since names are sorted */
-    uint32_t base_addr = instance->os.windows_instance.ntoskrnl;
+    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
     uint32_t i = 0;
     unsigned char *memory = NULL;
     uint32_t offset = 0;
@@ -245,9 +246,9 @@ int get_aon_index (
         uint32_t str_rva_loc =
             base_addr + et->address_of_names + i * sizeof(uint32_t);
         uint32_t str_rva = 0;
-        vmi_read_long_phys(instance, str_rva_loc, &str_rva);
+        vmi_read_long_phys(vmi, str_rva_loc, &str_rva);
         if (str_rva){
-            char *rva = rva_to_string(instance, str_rva);
+            char *rva = rva_to_string(vmi, str_rva);
             if (NULL != rva){
                 if (strncmp(rva, symbol, strlen(rva)) == 0){
                     free(rva);
@@ -262,7 +263,7 @@ int get_aon_index (
     return -1;
 }
 
-int get_export_table (vmi_instance_t instance, uint32_t base_addr, struct export_table *et)
+status_t get_export_table (vmi_instance_t vmi, uint32_t base_addr, struct export_table *et)
 {
     uint32_t value = 0;
     uint32_t signature_location = 0;
@@ -273,13 +274,13 @@ int get_export_table (vmi_instance_t instance, uint32_t base_addr, struct export
     uint32_t export_header_rva = 0;
 
     /* signature location */
-    vmi_read_long_phys(instance, base_addr + 60, &value);
+    vmi_read_long_phys(vmi, base_addr + 60, &value);
     signature_location = base_addr + value;
 
     /* optional header */
     optional_header_location = signature_location+4+sizeof(struct file_header);
     memory = vmi_access_pa(
-        instance,
+        vmi,
         optional_header_location,
         &offset,
         PROT_READ);
@@ -287,12 +288,12 @@ int get_export_table (vmi_instance_t instance, uint32_t base_addr, struct export
         return VMI_FAILURE;
     }
     memcpy(&oh, memory + offset, sizeof(struct optional_header));
-    munmap(memory, instance->page_size);
+    munmap(memory, vmi->page_size);
     export_header_rva = oh.idd[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
 
     /* export header */
     memory = vmi_access_pa(
-        instance,
+        vmi,
         base_addr + export_header_rva,
         &offset,
         PROT_READ);
@@ -300,39 +301,39 @@ int get_export_table (vmi_instance_t instance, uint32_t base_addr, struct export
         return VMI_FAILURE;
     }
     memcpy(et, memory + offset, sizeof(struct export_table));
-    munmap(memory, instance->page_size);
+    munmap(memory, vmi->page_size);
 
     return VMI_SUCCESS;
 }
 
 /* returns the rva value for a windows kernel export */
-int windows_export_to_rva (vmi_instance_t instance, char *symbol, uint32_t *rva)
+status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, uint32_t *rva)
 {
-    uint32_t base_addr = instance->os.windows_instance.ntoskrnl;
+    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
     struct export_table et;
     int aon_index = -1;
     int aof_index = -1;
 
     // get export table structure
-    if (get_export_table(instance, base_addr, &et) != VMI_SUCCESS){
+    if (get_export_table(vmi, base_addr, &et) != VMI_SUCCESS){
         return VMI_FAILURE;
     }
 
     // find AddressOfNames index for export symbol
-    if ((aon_index = get_aon_index(instance, symbol, &et)) == -1){
+    if ((aon_index = get_aon_index(vmi, symbol, &et)) == -1){
         return VMI_FAILURE;
     }
 
     // find AddressOfFunctions index for export symbol
-    if ((aof_index = get_aof_index(instance, aon_index, &et)) == -1){
+    if ((aof_index = get_aof_index(vmi, aon_index, &et)) == -1){
         return VMI_FAILURE;
     }
 
     // find RVA value for export symbol
-    return get_export_rva(instance, rva, aof_index, &et);
+    return get_export_rva(vmi, rva, aof_index, &et);
 }
 
-int valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr)
+status_t valid_ntoskrnl_start (vmi_instance_t vmi, uint32_t addr)
 {
     uint32_t value = 0;
     uint32_t signature_location = 0;
@@ -343,26 +344,26 @@ int valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr)
     dbprint("--PEParse: checking possible ntoskrnl start at 0x%.8x\n", addr);
 
     /* validate DOS header */
-    vmi_read_long_phys(instance, addr, &value);
+    vmi_read_long_phys(vmi, addr, &value);
     if ((value & 0xffff) != IMAGE_DOS_HEADER){
         dbprint("--PEParse: bad header, no IMAGE_DOS_HEADER\n");
         return VMI_FAILURE;
     }
 
     /* validate nt signature */
-    vmi_read_long_phys(instance, addr + 60, &value);
+    vmi_read_long_phys(vmi, addr + 60, &value);
     signature_location = addr + value;
-    vmi_read_long_phys(instance, signature_location, &value);
+    vmi_read_long_phys(vmi, signature_location, &value);
     if (value != IMAGE_NT_SIGNATURE){
         dbprint("--PEParse: bad header, no IMAGE_NT_SIGNATURE\n");
         return VMI_FAILURE;
     }
 
     /* check name via export table */
-    if (get_export_table(instance, addr, &et) != VMI_SUCCESS){
+    if (get_export_table(vmi, addr, &et) != VMI_SUCCESS){
         return VMI_FAILURE;
     }
-    name = rva_to_string(instance, et.name + addr);
+    name = rva_to_string(vmi, et.name + addr);
     if (NULL != name){
         if (strcmp(name, "ntoskrnl.exe") == 0){
             ret = VMI_SUCCESS;

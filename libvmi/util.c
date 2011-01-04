@@ -12,7 +12,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-int vmi_read_long_mach (
+status_t vmi_read_long_mach (
         vmi_instance_t instance, uint32_t maddr, uint32_t *value)
 {
     unsigned char *memory = NULL;
@@ -28,7 +28,7 @@ int vmi_read_long_mach (
     }
 }
 
-int vmi_read_long_long_mach (
+status_t vmi_read_long_long_mach (
         vmi_instance_t instance, uint32_t maddr, uint64_t *value)
 {
     unsigned char *memory = NULL;
@@ -44,7 +44,7 @@ int vmi_read_long_long_mach (
     }
 }
 
-int vmi_read_long_phys (
+status_t vmi_read_long_phys (
         vmi_instance_t instance, uint32_t paddr, uint32_t *value)
 {
     unsigned char *memory = NULL;
@@ -60,7 +60,7 @@ int vmi_read_long_phys (
     }
 }
 
-int vmi_read_long_long_phys (
+status_t vmi_read_long_long_phys (
         vmi_instance_t instance, uint32_t paddr, uint64_t *value)
 {
     unsigned char *memory = NULL;
@@ -76,7 +76,7 @@ int vmi_read_long_long_phys (
     }
 }
 
-int vmi_read_long_virt (
+status_t vmi_read_long_virt (
         vmi_instance_t instance, uint32_t vaddr, int pid, uint32_t *value)
 {
     unsigned char *memory = NULL;
@@ -92,7 +92,7 @@ int vmi_read_long_virt (
     }
 }
 
-int vmi_read_long_long_virt (
+status_t vmi_read_long_long_virt (
         vmi_instance_t instance, uint32_t vaddr, int pid, uint64_t *value)
 {
     unsigned char *memory = NULL;
@@ -108,7 +108,7 @@ int vmi_read_long_long_virt (
     }
 }
 
-int vmi_read_long_sym (
+status_t vmi_read_long_sym (
         vmi_instance_t instance, char *sym, uint32_t *value)
 {
     unsigned char *memory = NULL;
@@ -124,7 +124,7 @@ int vmi_read_long_sym (
     }
 }
 
-int vmi_read_long_long_sym (
+status_t vmi_read_long_long_sym (
         vmi_instance_t instance, char *sym, uint64_t *value)
 {
     unsigned char *memory = NULL;
@@ -140,7 +140,7 @@ int vmi_read_long_long_sym (
     }
 }
 
-int vmi_symbol_to_address (vmi_instance_t instance, char *sym, uint32_t *vaddr)
+status_t vmi_symbol_to_address (vmi_instance_t instance, char *sym, uint32_t *vaddr)
 {
     if (VMI_OS_LINUX == instance->os_type){
        return linux_system_map_symbol_to_address(instance, sym, vaddr);
@@ -164,28 +164,9 @@ int vmi_get_bit (unsigned long reg, int bit)
     }
 }
 
-void *vmi_map_page (vmi_instance_t instance, int prot, unsigned long frame_num)
+void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num)
 {
-    void *memory = NULL;
-
-    if (VMI_MODE_XEN == instance->mode){
-#ifdef ENABLE_XEN
-        memory = xc_map_foreign_range(
-            instance->m.xen.xc_handle,
-            instance->m.xen.domain_id,
-            1,
-            prot,
-            frame_num);
-#endif /* ENABLE_XEN */
-    }
-    else if (VMI_MODE_FILE == instance->mode){
-        memory = vmi_map_file_range(instance, prot, frame_num);
-    }
-    else{
-        dbprint("BUG: invalid mode\n");
-    }
-
-    return memory;
+    return driver_map_page(vmi, prot, frame_num);
 }
 
 /* This function is taken from Markus Armbruster's

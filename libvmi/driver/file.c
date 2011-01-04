@@ -13,6 +13,8 @@
 #include "driver/file.h"
 #define _GNU_SOURCE
 #include <string.h>
+#include <stdio.h>
+#include <sys/mman.h>
 
 //----------------------------------------------------------------------------
 // File-Specific Interface Functions (no direction mapping to driver_*)
@@ -35,7 +37,7 @@ status_t file_init (vmi_instance_t vmi)
         errprint("Failed to open file for reading.\n");
         return VMI_FAILURE;
     }
-    instance->m.file.fhandle = fhandle;
+    file_get_instance(vmi).fhandle = fhandle;
 
 }
 
@@ -50,15 +52,56 @@ status_t file_get_memsize (vmi_instance_t vmi, unsigned long *size)
     struct stat s;
 
     if (fstat(fileno(file_get_instance(vmi).fhandle), &s) == -1){
-        fprintf(stderr, "ERROR: Failed to stat file\n");
+        errprint("Failed to stat file.\n");
         goto error_exit;
     }
     *size = (unsigned long) s.st_size;
-    dbprint("**set instance->driver.size = %d\n", size);
     ret = VMI_SUCCESS;
 
 error_exit:
     return ret;
+}
+
+status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
+{
+    status_t ret = VMI_SUCCESS;
+    switch (reg){
+        case REG_CR3:
+            *value = vmi->kpgd - vmi->page_offset;
+            break;
+        default:
+            ret = VMI_FAILURE;
+            break;
+    }
+    return ret;
+}
+
+unsigned long file_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
+{
+    return pfn;
+}
+
+void *file_map_page (vmi_instance_t vmi, int prot, unsigned long page)
+{
+    void *memory = NULL;
+    long address = page << vmi->page_shift;
+    int fildes = fileno(file_get_instance(vmi).fhandle);
+
+    if (address >= vmi->size){
+        return NULL;
+    }
+
+    memory = mmap(NULL, vmi->page_size, prot, MAP_SHARED, fildes, address);
+    if (MAP_FAILED == memory){
+        errprint("File mmap failed.\n");
+        return NULL;
+    }
+    return memory;
+}
+
+int file_is_pv (vmi_instance_t vmi)
+{
+    return 0;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -67,5 +110,9 @@ error_exit:
 status_t file_init (vmi_instance_t vmi) {return VMI_FAILURE; }
 void file_set_name (vmi_instance_t vmi, char *name) {return; }
 status_t file_get_memsize (vmi_instance_t vmi, unsigned long size) { return VMI_FAILURE; }
+status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
+unsigned long file_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0 };
+void *file_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
+int file_is_pv (vmi_instance_t vmi) { return 0; }
 
 #endif /* ENABLE_FILE */

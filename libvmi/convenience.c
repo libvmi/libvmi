@@ -85,3 +85,8 @@ void *safe_malloc_ (size_t size, char const *file, int line)
    }
    return p;
 }
+
+unsigned long get_reg32 (reg_t r)
+{
+    return (unsigned long) r;
+}
