@@ -42,7 +42,7 @@ int read_config_file (vmi_instance_t vmi)
             goto error_exit;
         }
         dbprint("--got domain name from id (%d ==> %s).\n",
-                driver_get_vmid(vmi),
+                driver_get_id(vmi),
                 vmi->image_type);
     }
 
