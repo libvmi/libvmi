@@ -57,16 +57,18 @@ xen_space=' '
 [if test "$enable_xen" = "yes"]
 [then]
     xen_space=''
-    AC_CHECK_LIB(xenstore, xs_read, [LIBS="-lxenstore $LIBS"], [LIBS="no"])
-    [if test "$LIBS" = "no"]
+    AC_CHECK_LIB(xenstore, xs_read, [], [missing="yes"])
+    [if test "$missing" = "yes"]
     [then]
         AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
+        missing='no'
         have_xen='no (missing xenstore)'
     [else]
-        AC_CHECK_LIB(xenctrl, xc_interface_open, [LIBS="-lxenctrl $LIBS"], [LIBS="no"])
-        [if test "$LIBS" = "no"]
+        AC_CHECK_LIB(xenctrl, xc_interface_open, [], [missing="yes"])
+        [if test "$missing" = "yes"]
         [then]
             AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
+            missing='no'
             have_xen='no (missing xenctrl)'
         [else]
             AC_DEFINE([ENABLE_XEN], [1], [Define to 1 to enable Xen support.])
@@ -88,10 +90,11 @@ kvm_space=' '
 [if test "$enable_kvm" = "yes"]
 [then]
     kvm_space=''
-    AC_CHECK_LIB(virt, virConnectOpen, [LIBS="-lvirt $LIBS"], [LIBS="no"])
-    [if test "$LIBS" = "no"]
+    AC_CHECK_LIB(virt, virConnectOpen, [], [missing="yes"])
+    [if test "$missing" = "yes"]
     [then]
         AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
+        missing='no'
         have_kvm='no (missing libvirt)'
     [else]
         AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
