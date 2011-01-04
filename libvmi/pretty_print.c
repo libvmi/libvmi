@@ -7,9 +7,9 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
-#include "private.h"
+#include "libvmi.h"
 
-void print_hex (unsigned char *data, int length)
+void vmi_print_hex (unsigned char *data, int length)
 {
     int i, j, numrows, index;
 

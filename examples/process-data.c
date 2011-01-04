@@ -7,16 +7,14 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
+#include <libvmi/libvmi.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
-#include <libvmi/libvmi.h>
-#include <libvmi/private.h>
 
-#ifdef ENABLE_XEN
-void linux_printaddr (xa_linux_taskaddr_t taskaddr)
+void linux_printaddr (vmi_linux_taskaddr_t taskaddr)
 {
     printf("start_code = 0x%.8lx\n", taskaddr.start_code);
     printf("end_code = 0x%.8lx\n", taskaddr.end_code);
@@ -31,17 +29,19 @@ void linux_printaddr (xa_linux_taskaddr_t taskaddr)
     printf("env_end = 0x%.8lx\n", taskaddr.env_end);
 }
 
-void windows_printaddr (xa_windows_peb_t peb)
+void windows_printaddr (vmi_windows_peb_t peb)
 {
     printf("ImageBaseAddress = 0x%.8x\n", peb.ImageBaseAddress);
     printf("ProcessHeap = 0x%.8x\n", peb.ProcessHeap);
 }
 
+#define PAGE_SIZE 1 << 12
+
 int main (int argc, char **argv)
 {
-    xa_instance_t xai;
-    xa_linux_taskaddr_t taskaddr;
-    xa_windows_peb_t peb;
+    vmi_instance_t vmi;
+    vmi_linux_taskaddr_t taskaddr;
+    vmi_windows_peb_t peb;
     unsigned char *memory = NULL;
     uint32_t offset = 0;
 
@@ -52,21 +52,21 @@ int main (int argc, char **argv)
        an argument on the command line. */
     int pid = atoi(argv[2]);
 
-    /* initialize the xen access library */
-    if (xa_init_vm_id_strict(dom, &xai) == XA_FAILURE){
-        perror("failed to init XenAccess library");
+    /* initialize the libvmi library */
+    if (vmi_init_vm_id_strict(dom, vmi) == VMI_FAILURE){
+        perror("failed to init LibVMI library");
         goto error_exit;
     }
 
     /* get the relavent addresses for this process */
-    if (XA_OS_LINUX == xai.os_type){
-        if (xa_linux_get_taskaddr(&xai, pid, &taskaddr) == XA_FAILURE){
+    if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
+        if (vmi_linux_get_taskaddr(vmi, pid, &taskaddr) == VMI_FAILURE){
             perror("failed to get task addresses");
             goto error_exit;
         }
     }
-    else if (XA_OS_WINDOWS == xai.os_type){
-        if (xa_windows_get_peb(&xai, pid, &peb) == XA_FAILURE){
+    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
+        if (vmi_windows_get_peb(vmi, pid, &peb) == VMI_FAILURE){
             perror("failed to get process addresses from peb");
             goto error_exit;
         }
@@ -74,47 +74,37 @@ int main (int argc, char **argv)
 
     /* print out the process address information */
     printf("Memory descriptor addresses for pid = %d:\n", pid);
-    if (XA_OS_LINUX == xai.os_type){
+    if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
         linux_printaddr(taskaddr);
     }
-    else if (XA_OS_WINDOWS == xai.os_type){
+    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
         windows_printaddr(peb);
     }
 
     /* grab the memory at the start of the code segment
        for this process and print it out */
-    if (XA_OS_LINUX == xai.os_type){
-        memory = xa_access_user_va(
-                 &xai, taskaddr.start_code, &offset, pid, PROT_READ);
+    if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
+        memory = vmi_access_user_va(
+                 vmi, taskaddr.start_code, &offset, pid, PROT_READ);
     }
-    else if (XA_OS_WINDOWS == xai.os_type){
-        memory = xa_access_user_va(
-                 &xai, peb.ImageBaseAddress, &offset, pid, PROT_READ);
+    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
+        memory = vmi_access_user_va(
+                 vmi, peb.ImageBaseAddress, &offset, pid, PROT_READ);
     }
     if (NULL == memory){
         perror("failed to map memory");
         goto error_exit;
     }
-    print_hex(memory, xai.page_size);
+    vmi_print_hex(memory, PAGE_SIZE);
     printf("offset = 0x%x\n", offset);
 
 error_exit:
 
     /* sanity check to unmap shared pages */
-    if (memory) munmap(memory, xai.page_size);
+    if (memory) munmap(memory, PAGE_SIZE);
 
-    /* cleanup any memory associated with the XenAccess instance */
-    xa_destroy(&xai);
+    /* cleanup any memory associated with the libvmi instance */
+    vmi_destroy(vmi);
 
     return 0;
 }
-
-#else
-
-int main (int argc, char **argv)
-{
-    printf("The process data example is intended to work with a live Xen domain, but\n");
-    printf("XenAccess was compiled without support for Xen.  Exiting...\n");
-}
-
-#endif

@@ -16,7 +16,6 @@
 
 #define PAGE_SIZE 1 << 12
 
-#ifdef ENABLE_XEN 
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
@@ -30,7 +29,7 @@ int main (int argc, char **argv)
     uint32_t id = atoi(argv[1]);
 
     /* initialize the libvmi library */
-    if (vmi_init_vm_id_strict(id, &vmi) == VMI_FAILURE){
+    if (vmi_init_vm_id_strict(id, vmi) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }
@@ -119,13 +118,3 @@ error_exit:
 
     return 0;
 }
-
-#else
-
-int main (int argc, char **argv)
-{
-    printf("The process list example is intended to work with a live Xen domain, but\n");
-    printf("LibVMI was compiled without support for Xen.  Exiting...\n");
-}
-
-#endif /* ENABLE_XEN */

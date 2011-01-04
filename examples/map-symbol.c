@@ -7,18 +7,18 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
+#include <libvmi/libvmi.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
-#include <libvmi/libvmi.h>
-#include <libvmi/private.h>
 
-#ifdef ENABLE_XEN
+#define PAGE_SIZE 1 << 12
+
 int main (int argc, char **argv)
 {
-    xa_instance_t xai;
+    vmi_instance_t vmi;
     unsigned char *memory = NULL;
     uint32_t offset;
 
@@ -28,38 +28,28 @@ int main (int argc, char **argv)
     /* this is the symbol to map */
     char *symbol = argv[2];
 
-    /* initialize the xen access library */
-    if (xa_init_vm_id_strict(dom, &xai) == XA_FAILURE){
-        perror("failed to init XenAccess library");
+    /* initialize the libvmi library */
+    if (vmi_init_vm_id_strict(dom, vmi) == VMI_FAILURE){
+        perror("failed to init LibVMI library");
         goto error_exit;
     }
 
     /* get the symbol's memory page */
-    memory = xa_access_kernel_sym(&xai, symbol, &offset, PROT_READ);
+    memory = vmi_access_kernel_sym(vmi, symbol, &offset, PROT_READ);
     if (NULL == memory){
         perror("failed to get symbol's memory");
         goto error_exit;
     }
     printf("offset = 0x%.8x\n", offset);
-    print_hex(memory, xai.page_size);
+    vmi_print_hex(memory, PAGE_SIZE);
 
 error_exit:
 
     /* sanity check to unmap shared pages */
-    if (memory) munmap(memory, xai.page_size);
+    if (memory) munmap(memory, PAGE_SIZE);
 
-    /* cleanup any memory associated with the XenAccess instance */
-    xa_destroy(&xai);
+    /* cleanup any memory associated with the libvmi instance */
+    vmi_destroy(vmi);
 
     return 0;
 }
-
-#else
-
-int main (int argc, char **argv)
-{
-    printf("The map symbol example is intended to work with a live Xen domain, but\n");
-    printf("XenAccess was compiled without support for Xen.  Exiting...\n");
-}
-
-#endif /* ENABLE_XEN */

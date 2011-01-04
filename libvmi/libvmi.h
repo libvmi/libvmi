@@ -523,9 +523,24 @@ status_t vmi_linux_get_taskaddr (
 status_t vmi_windows_get_peb (
         vmi_instance_t instance, int pid, vmi_windows_peb_t *peb);
 
+/*--------------------------------------------
+ * Print util functions from vmi_pretty_print.c
+ */
+
+/**
+ * Prints out the hex and ascii version of a chunk of bytes. The
+ * output is similar to what you would get with 'od -h' with the
+ * additional ascii information on the right side of the display.
+ *
+ * @param[in] data The bytes that will be printed to stdout
+ * @param[in] length The length (in bytes) of data
+ */
+void vmi_print_hex (unsigned char *data, int length);
+
 //TODO document the new functions listed below
 os_t vmi_get_ostype (vmi_instance_t vmi);
 unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name);
+unsigned long vmi_get_memsize (vmi_instance_t vmi);
 
 #pragma GCC visibility pop
 #endif /* LIBVMI_H */

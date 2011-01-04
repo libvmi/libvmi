@@ -206,20 +206,6 @@ int vmi_check_pid_cache (vmi_instance_t instance, int pid, uint32_t *pgd);
 int vmi_update_pid_cache (vmi_instance_t instance, int pid, uint32_t pgd);
 int vmi_destroy_pid_cache (vmi_instance_t instance);
 
-/*--------------------------------------------
- * Print util functions from vmi_pretty_print.c
- */
-
-/**
- * Prints out the hex and ascii version of a chunk of bytes. The
- * output is similar to what you would get with 'od -h' with the
- * additional ascii information on the right side of the display.
- *
- * @param[in] data The bytes that will be printed to stdout
- * @param[in] length The length (in bytes) of data
- */
-void print_hex (unsigned char *data, int length);
-
 /*-----------------------------------------
  * Memory access functions from vmi_memory.c
  */

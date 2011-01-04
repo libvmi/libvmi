@@ -57,3 +57,8 @@ unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name)
         return 0;
     }
 }
+
+unsigned long vmi_get_memsize (vmi_instance_t vmi)
+{
+    return vmi->size;
+}

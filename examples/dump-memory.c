@@ -7,18 +7,19 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
+#include <libvmi/libvmi.h>
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
-#include <libvmi/libvmi.h>
 
-#ifdef ENABLE_XEN
+#define PAGE_SIZE 1 << 12
+
 int main (int argc, char **argv)
 {
-    xa_instance_t xai;
+    vmi_instance_t vmi;
     char *filename = NULL;
     FILE *f = NULL;
     unsigned char *memory = NULL;
@@ -31,9 +32,9 @@ int main (int argc, char **argv)
     /* this is the file name to write the memory image to */
     filename = strndup(argv[2], 50);
 
-    /* initialize the xen access library */
-    if (xa_init_vm_id_lax(dom, &xai) == XA_FAILURE){
-        perror("failed to init XenAccess library");
+    /* initialize the libvmi library */
+    if (vmi_init_vm_id_lax(dom, vmi) == VMI_FAILURE){
+        perror("failed to init LibVMI library");
         goto error_exit;
     }
 
@@ -43,28 +44,27 @@ int main (int argc, char **argv)
         goto error_exit;
     }
 
-    /* assuming that we are looking at xen domain, and not image file */
-    while (address < xai.m.xen.size){
+    while (address < vmi_get_memsize(vmi)){
 
         /* access the memory */
-        memory = xa_access_pa(&xai, address, &offset, PROT_READ);
+        memory = vmi_access_pa(vmi, address, &offset, PROT_READ);
 
         /* write memory to file */
         if (memory){
             /* memory mapped, just write to file */
-            size_t written = fwrite(memory, 1, xai.page_size, f);
-            if (written != xai.page_size){
+            size_t written = fwrite(memory, 1, PAGE_SIZE, f);
+            if (written != PAGE_SIZE){
                 perror("failed to write memory to file");
                 goto error_exit;
             }
-            munmap(memory, xai.page_size);
+            munmap(memory, PAGE_SIZE);
         }
         else{
             /* memory not mapped, write zeros to maintain offset */
-            unsigned char *zeros = malloc(xai.page_size);
-            memset(zeros, 0, xai.page_size);
-            size_t written = fwrite(zeros, 1, xai.page_size, f);
-            if (written != xai.page_size){
+            unsigned char *zeros = malloc(PAGE_SIZE);
+            memset(zeros, 0, PAGE_SIZE);
+            size_t written = fwrite(zeros, 1, PAGE_SIZE, f);
+            if (written != PAGE_SIZE){
                 perror("failed to write zeros to file");
                 goto error_exit;
             }
@@ -72,25 +72,15 @@ int main (int argc, char **argv)
         }
 
         /* move on to the next page */
-        address += xai.page_size;
+        address += PAGE_SIZE;
     }
 
 error_exit:
-    if (memory){ munmap(memory, xai.page_size); }
+    if (memory){ munmap(memory, PAGE_SIZE); }
     if (f){ fclose(f); }
 
-    /* cleanup any memory associated with the XenAccess instance */
-    xa_destroy(&xai);
+    /* cleanup any memory associated with the libvmi instance */
+    vmi_destroy(vmi);
 
     return 0;
 }
-
-#else
-
-int main (int argc, char **argv)
-{
-    printf("The dump memory example is intended to work with a live Xen domain, but\n");
-    printf("XenAccess was compiled without support for Xen.  Exiting...\n");
-}
-
-#endif /* ENABLE_XEN */
