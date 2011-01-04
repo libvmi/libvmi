@@ -1,1 +1,0 @@
-driver/xen.lo: driver/xen.c
