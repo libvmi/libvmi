@@ -29,7 +29,7 @@ int main (int argc, char **argv)
     uint32_t id = atoi(argv[1]);
 
     /* initialize the libvmi library */
-    if (vmi_init_vm_id_strict(id, vmi) == VMI_FAILURE){
+    if (vmi_init_vm_id_strict(id, &vmi) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }

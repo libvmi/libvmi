@@ -30,7 +30,7 @@ int main (int argc, char **argv)
     uint32_t addr = (uint32_t) strtoul(addr_str, NULL, 16);
 
     /* initialize the libvmi library */
-    if (vmi_init_vm_id_strict(dom, vmi) == VMI_FAILURE){
+    if (vmi_init_vm_id_strict(dom, &vmi) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }

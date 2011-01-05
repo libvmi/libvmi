@@ -53,7 +53,7 @@ int main (int argc, char **argv)
     int pid = atoi(argv[2]);
 
     /* initialize the libvmi library */
-    if (vmi_init_vm_id_strict(dom, vmi) == VMI_FAILURE){
+    if (vmi_init_vm_id_strict(dom, &vmi) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }

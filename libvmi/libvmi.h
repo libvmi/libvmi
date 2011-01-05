@@ -147,10 +147,10 @@ typedef struct vmi_windows_peb{
  * resulting instance when calling any of the other library functions.
  *
  * @param[in] domain_name Domain name to access, specified as a string
- * @param[out] instance Struct that holds instance information
+ * @param[out] vmi Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_init_vm_name_strict (char *domain_name, vmi_instance_t instance);
+status_t vmi_init_vm_name_strict (char *domain_name, vmi_instance_t *vmi);
 
 /**
  * Initializes access to a specific domU given a domain name.  All
@@ -166,10 +166,10 @@ status_t vmi_init_vm_name_strict (char *domain_name, vmi_instance_t instance);
  * resulting instance when calling any of the other library functions.
  *
  * @param[in] domain_name Domain name to access, specified as a string
- * @param[out] instance Struct that holds instance information
+ * @param[out] vmi Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_init_vm_name_lax (char *domain_name, vmi_instance_t instance);
+status_t vmi_init_vm_name_lax (char *domain_name, vmi_instance_t *vmi);
 
 /**
  * Initializes access to a specific domU given a domain id.  The
@@ -185,10 +185,10 @@ status_t vmi_init_vm_name_lax (char *domain_name, vmi_instance_t instance);
  * resulting instance when calling any of the other library functions.
  *
  * @param[in] id Domain id to access, specified as a number
- * @param[out] instance Struct that holds instance information
+ * @param[out] vmi Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_init_vm_id_strict (unsigned long id, vmi_instance_t instance);
+status_t vmi_init_vm_id_strict (unsigned long id, vmi_instance_t *vmi);
 
 /**
  * Initializes access to a specific domU given a domain id.  The
@@ -205,10 +205,10 @@ status_t vmi_init_vm_id_strict (unsigned long id, vmi_instance_t instance);
  * resulting instance when calling any of the other library functions.
  *
  * @param[in] id Domain id to access, specified as a number
- * @param[out] instance Struct that holds instance information
+ * @param[out] vmi Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_init_vm_id_lax (unsigned long id, vmi_instance_t instance);
+status_t vmi_init_vm_id_lax (unsigned long id, vmi_instance_t *vmi);
 
 /**
  * Initializes access to a memory image stored in the given file.  All
@@ -224,11 +224,11 @@ status_t vmi_init_vm_id_lax (unsigned long id, vmi_instance_t instance);
  *
  * @param[in] filename Name of memory image file
  * @param[in] image_type Name of config file entry for this image
- * @param[out] instance Struct that holds instance information
+ * @param[out] vmi Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_init_file_strict
-    (char *filename, char *image_type, vmi_instance_t instance);
+    (char *filename, char *image_type, vmi_instance_t *vmi);
 
 /**
  * Initializes access to a memory image stored in the given file.  All
@@ -245,19 +245,19 @@ status_t vmi_init_file_strict
  *
  * @param[in] filename Name of memory image file
  * @param[in] image_type Name of config file entry for this image
- * @param[out] instance Struct that holds instance information
+ * @param[out] vmi Struct that holds instance information
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_init_file_lax
-    (char *filename, char *image_type, vmi_instance_t instance);
+    (char *filename, char *image_type, vmi_instance_t *vmi);
 
 /**
  * Destroys an instance by freeing memory and closing any open handles.
  *
- * @param[in] instance Instance to destroy
+ * @param[in] vmi Instance to destroy
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_destroy (vmi_instance_t instance);
+status_t vmi_destroy (vmi_instance_t vmi);
 
 /*-----------------------------------------
  * Memory access functions from vmi_memory.c

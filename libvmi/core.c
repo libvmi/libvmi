@@ -275,77 +275,84 @@ void vmi_init_common (vmi_instance_t vmi)
 
 /* initialize to view an actively running VM */
 status_t vmi_init_vm_private (
-    uint32_t vmid,
-    vmi_instance_t vmi,
+    unsigned long vmid,
+    char *name,
+    vmi_instance_t *vmi,
     uint32_t error_mode)
 {
-    bzero(vmi, sizeof(vmi_instance_t));
-    vmi->mode = VMI_MODE_XEN;
-    dbprint("LibVMI Mode Xen\n");
-    vmi->error_mode = error_mode;
-    dbprint("LibVMI Error Mode = %d\n", vmi->error_mode);
+    /* allocate memory for the instance structure */
+    *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
 
-    driver_set_id(vmi, vmid);
-    if (driver_init(vmi) == VMI_FAILURE){
+    /*TODO determine what vmm we are running on */
+    (*vmi)->mode = VMI_MODE_XEN;
+    dbprint("LibVMI Mode Xen\n");
+    (*vmi)->error_mode = error_mode;
+    dbprint("LibVMI Error Mode = %d\n", (*vmi)->error_mode);
+
+    /* resolve vmid, if needed */
+    if (!vmid && name){
+        vmid = driver_get_id_from_name(*vmi, name);
+        dbprint("--got id from name (%s --> %d)\n", name, vmid);
+    }
+    driver_set_id(*vmi, vmid);
+
+    /* complete the init */
+    if (driver_init(*vmi) == VMI_FAILURE){
         return VMI_FAILURE;
     }
-    vmi_init_common(vmi);
-    return helper_init(vmi);
+    vmi_init_common(*vmi);
+    return helper_init(*vmi);
 }
 
 /* initialize to view a file image */
 int vmi_init_file_private (
     char *filename,
     char *image_type,
-    vmi_instance_t vmi,
+    vmi_instance_t *vmi,
     uint32_t error_mode)
 {
 #define MAX_IMAGE_TYPE_LEN 256
-    bzero(vmi, sizeof(vmi_instance_t));
-    vmi->mode = VMI_MODE_FILE;
+    *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
+    (*vmi)->mode = VMI_MODE_FILE;
     dbprint("LibVMI Mode File\n");
-    vmi->error_mode = error_mode;
-    dbprint("LibVMI Error Mode = %d\n", vmi->error_mode);
+    (*vmi)->error_mode = error_mode;
+    dbprint("LibVMI Error Mode = %d\n", (*vmi)->error_mode);
 
-    driver_set_name(vmi, filename);
-    if (driver_init(vmi) == VMI_FAILURE){
+    driver_set_name(*vmi, filename);
+    if (driver_init(*vmi) == VMI_FAILURE){
         return VMI_FAILURE;
     }
-    vmi_init_common(vmi);
-    vmi->image_type = strndup(image_type, MAX_IMAGE_TYPE_LEN);
-    return helper_init(vmi);
+    vmi_init_common(*vmi);
+    (*vmi)->image_type = strndup(image_type, MAX_IMAGE_TYPE_LEN);
+    return helper_init(*vmi);
 }
 
 /* below are stub init functions that are called by library users */
-status_t vmi_init_vm_name_strict (char *name, vmi_instance_t vmi)
+status_t vmi_init_vm_name_strict (char *name, vmi_instance_t *vmi)
 {
-    unsigned long id = driver_get_id_from_name(vmi, name);
-    dbprint("--got id from name (%s --> %d)\n", name, id);
-    return vmi_init_vm_private(id, vmi, VMI_FAILHARD);
+    return vmi_init_vm_private(0, name, vmi, VMI_FAILHARD);
 }
 
-status_t vmi_init_vm_name_lax (char *name, vmi_instance_t vmi)
+status_t vmi_init_vm_name_lax (char *name, vmi_instance_t *vmi)
 {
-    unsigned long id = driver_get_id_from_name(vmi, name);
-    dbprint("--got id from name (%s --> %d)\n", name, id);
-    return vmi_init_vm_private(id, vmi, VMI_FAILSOFT);
+    return vmi_init_vm_private(0, name, vmi, VMI_FAILSOFT);
 }
 
-status_t vmi_init_vm_id_strict (unsigned long id, vmi_instance_t vmi)
+status_t vmi_init_vm_id_strict (unsigned long id, vmi_instance_t *vmi)
 {
-    return vmi_init_vm_private(id, vmi, VMI_FAILHARD);
+    return vmi_init_vm_private(id, NULL, vmi, VMI_FAILHARD);
 }
 
-status_t vmi_init_vm_id_lax (unsigned long id, vmi_instance_t vmi)
+status_t vmi_init_vm_id_lax (unsigned long id, vmi_instance_t *vmi)
 {
-    return vmi_init_vm_private(id, vmi, VMI_FAILSOFT);
+    return vmi_init_vm_private(id, NULL, vmi, VMI_FAILSOFT);
 }
 
-status_t vmi_init_file_strict (char *filename, char *image_type, vmi_instance_t vmi)
+status_t vmi_init_file_strict (char *filename, char *image_type, vmi_instance_t *vmi)
 {
     return vmi_init_file_private(filename, image_type, vmi, VMI_FAILHARD);
 }
-status_t vmi_init_file_lax (char *filename, char *image_type, vmi_instance_t vmi)
+status_t vmi_init_file_lax (char *filename, char *image_type, vmi_instance_t *vmi)
 {
     return vmi_init_file_private(filename, image_type, vmi, VMI_FAILSOFT);
 }
@@ -355,5 +362,6 @@ status_t vmi_destroy (vmi_instance_t vmi)
     driver_destroy(vmi);
     vmi_destroy_cache(vmi);
     vmi_destroy_pid_cache(vmi);
+    free(vmi);
     return VMI_SUCCESS;
 }
