@@ -39,3 +39,4 @@ unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn);
 void *xen_map_page (vmi_instance_t vmi, int prot, unsigned long page);
 void *xen_map_pages (vmi_instance_t vmi, int prot, unsigned long *pages, unsigned long num_pages);
 int xen_is_pv (vmi_instance_t vmi);
+status_t xen_test (unsigned long id, char *name);

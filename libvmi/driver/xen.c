@@ -425,6 +425,28 @@ int xen_is_pv (vmi_instance_t vmi)
     return !xen_get_instance(vmi)->hvm;
 }
 
+status_t xen_test (unsigned long id, char *name)
+{
+    status_t ret = VMI_FAILURE;
+    struct xs_handle *xsh = NULL;
+    xs_transaction_t xth = XBT_NULL;
+    char *tmp = NULL;
+
+    xsh = xs_domain_open();
+    if (NULL == xsh){
+        goto error_exit;
+    }
+    tmp = xs_read(xsh, xth, "/local/domain/0/name", NULL);
+    if (NULL == tmp){
+        goto error_exit;
+    }
+    free(tmp);
+    ret = VMI_SUCCESS;
+
+error_exit:
+    return ret;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 #else
 
@@ -440,5 +462,6 @@ unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0;
 void *xen_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
 void *xen_map_pages (vmi_instance_t vmi, int prot, unsigned long *pages, unsigned long num_pages) { return NULL; }
 int xen_is_pv (vmi_instance_t vmi) { return 0; }
+status_t xen_test (unsigned long id, char *name) { return VMI_FAILURE; }
 
 #endif /* ENABLE_XEN */

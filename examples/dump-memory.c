@@ -26,14 +26,14 @@ int main (int argc, char **argv)
     uint32_t offset = 0;
     uint32_t address = 0;
 
-    /* this is the domain ID that we are looking at */
-    uint32_t dom = atoi(argv[1]);
+    /* this is the VM or file that we are looking at */
+    char *name = argv[1];
 
     /* this is the file name to write the memory image to */
     filename = strndup(argv[2], 50);
 
     /* initialize the libvmi library */
-    if (vmi_init_vm_id_lax(dom, &vmi) == VMI_FAILURE){
+    if (vmi_init_name(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }

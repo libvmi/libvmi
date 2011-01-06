@@ -108,6 +108,31 @@ int file_is_pv (vmi_instance_t vmi)
     return 0;
 }
 
+status_t file_test (unsigned long id, char *name)
+{
+    status_t ret = VMI_FAILURE;
+    FILE *f = NULL;
+    struct stat s;
+
+    if (NULL == name){
+        goto error_exit;
+    }
+    if ((f = fopen(name, "rb")) == NULL){
+        goto error_exit;
+    }
+    if (fstat(fileno(f), &s) == -1){
+        goto error_exit;
+    }
+    if (!s.st_size){
+        goto error_exit;
+    }
+    ret = VMI_SUCCESS;
+
+error_exit:
+    if (f) fclose(f);
+    return ret;
+}
+
 //////////////////////////////////////////////////////////////////////
 #else
 
@@ -118,5 +143,6 @@ status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, un
 unsigned long file_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0 };
 void *file_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
 int file_is_pv (vmi_instance_t vmi) { return 0; }
+status_t file_test (unsigned long id, char *name) { return VMI_FAILURE; }
 
 #endif /* ENABLE_FILE */

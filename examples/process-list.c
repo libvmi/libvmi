@@ -21,15 +21,15 @@ int main (int argc, char **argv)
     vmi_instance_t vmi;
     unsigned char *memory = NULL;
     uint32_t offset, next_process, list_head;
-    char *name = NULL;
+    char *procname = NULL;
     int pid = 0;
     int tasks_offset, pid_offset, name_offset;
 
-    /* this is the VM ID that we are looking at */
-    uint32_t id = atoi(argv[1]);
+    /* this is the VM or file that we are looking at */
+    char *name = argv[1];
 
     /* initialize the libvmi library */
-    if (vmi_init_vm_id_strict(id, &vmi) == VMI_FAILURE){
+    if (vmi_init_name(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }
@@ -64,9 +64,9 @@ int main (int argc, char **argv)
             goto error_exit;
         }
         memcpy(&next_process, memory + offset + tasks_offset, 4);
-        name = (char *) (memory + offset + name_offset);
+        procname = (char *) (memory + offset + name_offset);
         memcpy(&pid, memory + offset + pid_offset, 4);
-        printf("[%5d] %s\n", pid, name);
+        printf("[%5d] %s\n", pid, procname);
     }
     list_head = next_process;
     munmap(memory, PAGE_SIZE);
@@ -97,14 +97,14 @@ int main (int argc, char **argv)
            code cleaner, if not more fragile.  In a real app, you'd
            want to do this a little more robust :-)  See
            include/linux/sched.h for mode details */
-        name = (char *) (memory + offset + name_offset - tasks_offset);
+        procname = (char *) (memory + offset + name_offset - tasks_offset);
         memcpy(&pid, memory + offset + pid_offset - tasks_offset, 4);
 
         /* trivial sanity check on data */
         if (pid < 0){
             continue;
         }
-        printf("[%5d] %s\n", pid, name);
+        printf("[%5d] %s\n", pid, procname);
         munmap(memory, PAGE_SIZE);
     }
 

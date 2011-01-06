@@ -15,20 +15,20 @@
 #include <errno.h>
 #include "config_parser.h"
 
-#ifdef XA_DEBUG
+#ifdef VMI_DEBUG
 #define YYERROR_VERBOSE 1
 #define true 1
 #define false 0
 
 int debug = 0;
-#endif /* XA_DEBUG */
+#endif /* VMI_DEBUG */
 
 vmi_config_entry_t entry;
 vmi_config_entry_t tmp_entry;
 char *target_domain = NULL;
 char tmp_str[CONFIG_STR_LENGTH];
 
-#ifdef XA_DEBUG
+#ifdef VMI_DEBUG
 extern FILE *yyin;
 static int eof = 0;
 static int nRow = 0;
@@ -136,7 +136,7 @@ static int getNextLine (void)
 
     /* read a line */
     if (NULL == buffer){
-        buffer = safe_malloc(lMaxBuffer);
+        buffer = malloc(lMaxBuffer);
     }
     p = fgets(buffer, lMaxBuffer, yyin);
     if (p == NULL) {
@@ -189,16 +189,16 @@ void BeginToken (char *t)
     nTokenNextStart = nBuffer; // + 1;
 }
 
-#else /* !XA_DEBUG */
+#else /* !VMI_DEBUG */
 
 int GetNextChar (char *b, int maxBuffer) { return 0; }
 void BeginToken (char *t) {}
 
-#endif /* XA_DEBUG */
+#endif /* VMI_DEBUG */
 
 void yyerror (const char *str)
 {
-#ifndef XA_DEBUG
+#ifndef VMI_DEBUG
     fprintf(stderr,"error: %s\n",str);
 #else
     printError(str);

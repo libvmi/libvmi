@@ -22,14 +22,14 @@ int main (int argc, char **argv)
     unsigned char *memory = NULL;
     uint32_t offset;
 
-    /* this is the domain ID that we are looking at */
-    uint32_t dom = atoi(argv[1]);
+    /* this is the VM or file that we are looking at */
+    char *name = argv[1];
 
     /* this is the symbol to map */
     char *symbol = argv[2];
 
     /* initialize the libvmi library */
-    if (vmi_init_vm_id_strict(dom, &vmi) == VMI_FAILURE){
+    if (vmi_init_name(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }

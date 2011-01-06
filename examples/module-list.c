@@ -48,13 +48,13 @@ int main (int argc, char **argv)
     vmi_instance_t vmi;
     unsigned char *memory = NULL;
     uint32_t offset, next_module, list_head;
-    char *name = NULL;
+    char *modname = NULL;
 
-    /* this is the domain ID that we are looking at */
-    uint32_t dom = atoi(argv[1]);
+    /* this is the VM or file that we are looking at */
+    char *name = argv[1];
 
     /* initialize the libvmi library */
-    if (vmi_init_vm_id_strict(dom, &vmi) == VMI_FAILURE){
+    if (vmi_init_name(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }
@@ -99,8 +99,8 @@ int main (int argc, char **argv)
            can just add 8 to get the name.  See include/linux/module.h
            for mode details */
         if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-            name = (char *) (memory + offset + 8);
-            printf("%s\n", name);
+            modname = (char *) (memory + offset + 8);
+            printf("%s\n", modname);
         }
         else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
             /*TODO don't use a hard-coded offsets here */

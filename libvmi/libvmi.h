@@ -34,16 +34,11 @@
 //#define VMI_DEBUG
 
 typedef enum mode{
+    VMI_MODE_AUTO, /**< mode indicating that libvmi should detect what to monitor */
     VMI_MODE_XEN,  /**< mode indicating that we are monitoring a Xen VM */
     VMI_MODE_KVM,  /**< mode indicating that we are monitoring a KVM VM */
     VMI_MODE_FILE  /**< mode indicating that we are viewing a file on disk */
 } mode_t;
-
-/**
- * Reading from a dd file type (file offset == physical address).  This value
- * is only used when mode equals VMI_MODE_FILE.
- */
-#define VMI_FILETYPE_DD 0
 
 typedef enum status{
     VMI_SUCCESS,  /**< return value indicating success */
@@ -135,121 +130,34 @@ typedef struct vmi_windows_peb{
  */
 
 /**
- * Initializes access to a specific domU given a domain name.  All
+ * Initializes access to a specific VM given an ID.  All
  * calls to vmi_init must eventually call vmi_destroy.
  *
- * This function will fail if any problems are detected upon init.
- * If you want to use XenAccess with reduced functionality instead
- * of failing during initialization, then use the lax function instead.
- *
  * This is a costly funtion in terms of the time needed to execute.
- * You should call this function only once per domain, and then use the
+ * You should call this function only once per VM, and then use the
  * resulting instance when calling any of the other library functions.
  *
- * @param[in] domain_name Domain name to access, specified as a string
  * @param[out] vmi Struct that holds instance information
+ * @param[in] mode VMI_MODE_AUTO, VMI_MODE_XEN, or VMI_MODE_KVM
+ * @param[in] id Unique id specifying the VM to view
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_init_vm_name_strict (char *domain_name, vmi_instance_t *vmi);
+status_t vmi_init_id (vmi_instance_t *vmi, mode_t mode, unsigned long id);
 
 /**
- * Initializes access to a specific domU given a domain name.  All
+ * Initializes access to a specific VM or file given a name.  All
  * calls to vmi_init must eventually call vmi_destroy.
  *
- * This function will init unless a critical error is found.  In some
- * cases minor errors can lead to reduced functionality.  If you want
- * to ensure that XenAccess has full functionality, then use the
- * strict function instead.
- *
  * This is a costly funtion in terms of the time needed to execute.
- * You should call this function only once per domain, and then use the
+ * You should call this function only once per VM or file, and then use the
  * resulting instance when calling any of the other library functions.
  *
- * @param[in] domain_name Domain name to access, specified as a string
  * @param[out] vmi Struct that holds instance information
+ * @param[in] mode VMI_MODE_AUTO, VMI_MODE_XEN, VMI_MODE_KVM, or VMI_MODE_FILE
+ * @param[in] name Unique name specifying the VM or file to view
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_init_vm_name_lax (char *domain_name, vmi_instance_t *vmi);
-
-/**
- * Initializes access to a specific domU given a domain id.  The
- * domain id must represent an active domain and must be > 0.  All
- * calls to vmi_init must eventually call vmi_destroy.
- *
- * This function will fail if any problems are detected upon init.
- * If you want to use XenAccess with reduced functionality instead
- * of failing during initialization, then use the lax function instead.
- *
- * This is a costly funtion in terms of the time needed to execute.
- * You should call this function only once per domain, and then use the
- * resulting instance when calling any of the other library functions.
- *
- * @param[in] id Domain id to access, specified as a number
- * @param[out] vmi Struct that holds instance information
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_init_vm_id_strict (unsigned long id, vmi_instance_t *vmi);
-
-/**
- * Initializes access to a specific domU given a domain id.  The
- * domain id must represent an active domain and must be > 0.  All
- * calls to vmi_init must eventually call vmi_destroy.
- *
- * This function will init unless a critical error is found.  In some
- * cases minor errors can lead to reduced functionality.  If you want
- * to ensure that XenAccess has full functionality, then use the
- * strict function instead.
- *
- * This is a costly funtion in terms of the time needed to execute.
- * You should call this function only once per domain, and then use the
- * resulting instance when calling any of the other library functions.
- *
- * @param[in] id Domain id to access, specified as a number
- * @param[out] vmi Struct that holds instance information
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_init_vm_id_lax (unsigned long id, vmi_instance_t *vmi);
-
-/**
- * Initializes access to a memory image stored in the given file.  All
- * calls to vmi_init_file must eventually call vmi_destroy.
- *
- * This function will fail if any problems are detected upon init.
- * If you want to use XenAccess with reduced functionality instead
- * of failing during initialization, then use the lax function instead.
- *
- * This is a costly funtion in terms of the time needed to execute.
- * You should call this function only once per file, and then use the
- * resulting instance when calling any of the other library functions.
- *
- * @param[in] filename Name of memory image file
- * @param[in] image_type Name of config file entry for this image
- * @param[out] vmi Struct that holds instance information
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_init_file_strict
-    (char *filename, char *image_type, vmi_instance_t *vmi);
-
-/**
- * Initializes access to a memory image stored in the given file.  All
- * calls to vmi_init_file must eventually call vmi_destroy.
- *
- * This function will init unless a critical error is found.  In some
- * cases minor errors can lead to reduced functionality.  If you want
- * to ensure that XenAccess has full functionality, then use the
- * strict function instead.
- *
- * This is a costly funtion in terms of the time needed to execute.
- * You should call this function only once per file, and then use the
- * resulting instance when calling any of the other library functions.
- *
- * @param[in] filename Name of memory image file
- * @param[in] image_type Name of config file entry for this image
- * @param[out] vmi Struct that holds instance information
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_init_file_lax
-    (char *filename, char *image_type, vmi_instance_t *vmi);
+status_t vmi_init_name (vmi_instance_t *vmi, mode_t mode, char *name);
 
 /**
  * Destroys an instance by freeing memory and closing any open handles.

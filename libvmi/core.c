@@ -21,7 +21,7 @@
 #include <limits.h>
 #include <fnmatch.h>
 
-int read_config_file (vmi_instance_t vmi)
+static int read_config_file (vmi_instance_t vmi)
 {
     extern FILE *yyin;
     int ret = VMI_SUCCESS;
@@ -33,17 +33,6 @@ int read_config_file (vmi_instance_t vmi)
         fprintf(stderr, "ERROR: config file not found at /etc/libvmi.conf\n");
         ret = VMI_FAILURE;
         goto error_exit;
-    }
-
-    /* convert domain id to domain name for Xen mode */
-    if (VMI_MODE_XEN == vmi->mode){
-        if (driver_get_name(vmi, &vmi->image_type) == VMI_FAILURE){
-            ret = VMI_FAILURE;
-            goto error_exit;
-        }
-        dbprint("--got domain name from id (%d ==> %s).\n",
-                driver_get_id(vmi),
-                vmi->image_type);
     }
 
     if (vmi_parse_config(vmi->image_type)){
@@ -156,7 +145,7 @@ error_exit:
 
 /* check that this vm uses a paging method that we support */
 //TODO add memory layout discovery here for file
-int get_memory_layout (vmi_instance_t vmi)
+static int get_memory_layout (vmi_instance_t vmi)
 {
     int ret = VMI_SUCCESS;
     reg_t cr0, cr3, cr4;
@@ -197,7 +186,7 @@ error_exit:
     return ret;
 }
 
-void init_page_offset (vmi_instance_t vmi)
+static status_t init_page_offset (vmi_instance_t vmi)
 {
     //TODO need to actually determine these values instead of just guessing
 
@@ -216,145 +205,166 @@ void init_page_offset (vmi_instance_t vmi)
     /* assume 4k pages for now, update when 4M page is found */
     vmi->page_shift = 12;
     vmi->page_size = 1 << vmi->page_shift;
+
+    return VMI_SUCCESS;
 }
 
-int helper_init (vmi_instance_t vmi)
+static status_t set_driver_type (vmi_instance_t vmi, mode_t mode, unsigned long id, char *name)
 {
-    int ret = VMI_SUCCESS;
-    uint32_t local_offset = 0;
-    unsigned char *memory = NULL;
-
-    /* read in configure file information */
-    if (read_config_file(vmi) == VMI_FAILURE){
-        ret = vmi_report_error(vmi, 0, VMI_EMINOR);
-        if (VMI_FAILURE == ret) goto error_exit;
+    if (VMI_MODE_AUTO == mode){
+        if (VMI_FAILURE == driver_init_mode(vmi, id, name)){
+            errprint("Failed to identify correct mode.\n");
+            return VMI_FAILURE;
+        }
     }
-    
-    /* determine the page sizes and layout for target OS */
-    if (get_memory_layout(vmi) == VMI_FAILURE){
-        warnprint("Memory layout not supported.\n");
-        ret = vmi_report_error(vmi, 0, VMI_ECRITICAL);
-        if (VMI_FAILURE == ret) goto error_exit;
+    else{
+        vmi->mode = mode;
     }
-    dbprint("--got memory layout.\n");
-
-    /* setup the correct page offset size for the target OS */
-    init_page_offset(vmi);
-
-    /* get the memory size */
-    if (driver_get_memsize(vmi, &vmi->size) == VMI_FAILURE){
-        errprint("Failed to get memory size.\n");
-        ret = vmi_report_error(vmi, 0, VMI_ECRITICAL);
-        if (VMI_FAILURE == ret) goto error_exit;
-    }
-    dbprint("**set size = %d\n", vmi->size);
-
-    /* setup OS specific stuff */
-    if (vmi->os_type == VMI_OS_LINUX){
-        ret = linux_init(vmi);
-    }
-    else if (vmi->os_type == VMI_OS_WINDOWS){
-        ret = windows_init(vmi);
-    }
-
-error_exit:
-    return ret;
+    dbprint("LibVMI Mode %d\n", vmi->mode);
+    return VMI_SUCCESS;
 }
 
-/* common code for all init functions */
-void vmi_init_common (vmi_instance_t vmi)
+/* the name passed may contain the full path and we just want the filename */
+static void set_image_type_for_file (vmi_instance_t vmi, char *name)
 {
-    dbprint("LibVMI Devel Version\n");
+    char *ptr = NULL;
+    if ((ptr = strrchr(name, '/')) == NULL){
+        ptr = name;
+    }
+    else{
+        ptr++;
+    }
+    vmi->image_type = strndup(ptr, 100);
+}
+
+static status_t set_id_and_name (vmi_instance_t vmi, mode_t mode, unsigned long id, char *name)
+{
+    if (VMI_MODE_FILE == vmi->mode){
+        if (name){
+            set_image_type_for_file(vmi, name);
+            driver_set_name(vmi, name);
+        }
+        else{
+            errprint("Must specify name for file mode.\n");
+            return VMI_FAILURE;
+        }
+    }
+    else{
+        /* resolve and set id and name */
+        if (!id){
+            if (name){
+                id = driver_get_id_from_name(vmi, name);
+                dbprint("--got id from name (%s --> %d)\n", name, id);
+                driver_set_id(vmi, id);
+            }
+            else{
+                errprint("Must specifiy either id or name.\n");
+                return VMI_FAILURE;
+            }
+        }
+        else{
+            driver_set_id(vmi, id);
+            if (name){
+                errprint("Specifying both id and name is undefined.\n");
+                return VMI_FAILURE;
+            }
+            else{
+                if (VMI_FAILURE == driver_get_name(vmi, &name)){
+                    errprint("Invalid id.\n");
+                    return VMI_FAILURE;
+                }
+            }
+        }
+        vmi->image_type = strndup(name, 100);
+        driver_set_name(vmi, name);
+    }
+    dbprint("**set image_type = %s\n", vmi->image_type);
+    return VMI_SUCCESS;
+}
+
+static void vmi_init_common (vmi_instance_t vmi)
+{
+    dbprint("LibVMI Devel Version\n");  //TODO change this with each release
     vmi->cache_head = NULL;
     vmi->cache_tail = NULL;
     vmi->current_cache_size = 0;
     vmi->pid_cache_head = NULL;
     vmi->pid_cache_tail = NULL;
     vmi->current_pid_cache_size = 0;
+    vmi->error_mode = VMI_FAILHARD;  //TODO remove this when error mode functionality goes away
 }
 
-/* initialize to view an actively running VM */
-status_t vmi_init_vm_private (
-    unsigned long vmid,
-    char *name,
-    vmi_instance_t *vmi,
-    uint32_t error_mode)
+static status_t vmi_init_private (vmi_instance_t *vmi, mode_t mode, unsigned long id, char *name)
 {
-    /* allocate memory for the instance structure */
+    /* allocate memory for instance structure */
     *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
 
-    /*TODO determine what vmm we are running on */
-    (*vmi)->mode = VMI_MODE_XEN;
-    dbprint("LibVMI Mode Xen\n");
-    (*vmi)->error_mode = error_mode;
-    dbprint("LibVMI Error Mode = %d\n", (*vmi)->error_mode);
-
-    /* resolve vmid, if needed */
-    if (!vmid && name){
-        vmid = driver_get_id_from_name(*vmi, name);
-        dbprint("--got id from name (%s --> %d)\n", name, vmid);
-    }
-    driver_set_id(*vmi, vmid);
-
-    /* complete the init */
-    if (driver_init(*vmi) == VMI_FAILURE){
-        return VMI_FAILURE;
-    }
+    /* initialize instance struct to default values */
     vmi_init_common(*vmi);
-    return helper_init(*vmi);
-}
 
-/* initialize to view a file image */
-int vmi_init_file_private (
-    char *filename,
-    char *image_type,
-    vmi_instance_t *vmi,
-    uint32_t error_mode)
-{
-#define MAX_IMAGE_TYPE_LEN 256
-    *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
-    (*vmi)->mode = VMI_MODE_FILE;
-    dbprint("LibVMI Mode File\n");
-    (*vmi)->error_mode = error_mode;
-    dbprint("LibVMI Error Mode = %d\n", (*vmi)->error_mode);
-
-    driver_set_name(*vmi, filename);
-    if (driver_init(*vmi) == VMI_FAILURE){
-        return VMI_FAILURE;
+    /* connecting to xen, kvm, file, etc */
+    if (VMI_FAILURE == set_driver_type(*vmi, mode, id, name)){
+        goto error_exit;
     }
-    vmi_init_common(*vmi);
-    (*vmi)->image_type = strndup(image_type, MAX_IMAGE_TYPE_LEN);
-    return helper_init(*vmi);
+
+    /* resolve the id and name */
+    if (VMI_FAILURE == set_id_and_name(*vmi, mode, id, name)){
+        goto error_exit;
+    }
+
+    /* driver-specific initilization */
+    if (VMI_FAILURE == driver_init(*vmi)){
+        goto error_exit;
+    }
+    dbprint("--completed driver init.\n");
+
+    /* read and parse the config file */
+    if (VMI_FAILURE == read_config_file(*vmi)){
+        goto error_exit;
+    }
+    
+    /* determine the page sizes and layout for target OS */
+    if (VMI_FAILURE == get_memory_layout(*vmi)){
+        errprint("Memory layout not supported.\n");
+        goto error_exit;
+    }
+    dbprint("--got memory layout.\n");
+
+    /* setup the correct page offset size for the target OS */
+    if (VMI_FAILURE == init_page_offset(*vmi)){
+        goto error_exit;
+    }
+
+    /* get the memory size */
+    if (driver_get_memsize(*vmi, &(*vmi)->size) == VMI_FAILURE){
+        errprint("Failed to get memory size.\n");
+        goto error_exit;
+    }
+    dbprint("**set size = %d\n", (*vmi)->size);
+
+    /* setup OS specific stuff */
+    if (VMI_OS_LINUX == (*vmi)->os_type){
+        return linux_init(*vmi);
+    }
+    else if (VMI_OS_WINDOWS == (*vmi)->os_type){
+        return windows_init(*vmi);
+    }
+
+error_exit:
+    return VMI_FAILURE;
 }
 
-/* below are stub init functions that are called by library users */
-status_t vmi_init_vm_name_strict (char *name, vmi_instance_t *vmi)
+status_t vmi_init_id (vmi_instance_t *vmi, mode_t mode, unsigned long id)
 {
-    return vmi_init_vm_private(0, name, vmi, VMI_FAILHARD);
+    if (VMI_MODE_FILE == mode){
+        errprint("LibVMI file mode requires a file name, not an id.\n");
+    }
+    return vmi_init_private(vmi, mode, id, NULL);
 }
 
-status_t vmi_init_vm_name_lax (char *name, vmi_instance_t *vmi)
+status_t vmi_init_name (vmi_instance_t *vmi, mode_t mode, char *name)
 {
-    return vmi_init_vm_private(0, name, vmi, VMI_FAILSOFT);
-}
-
-status_t vmi_init_vm_id_strict (unsigned long id, vmi_instance_t *vmi)
-{
-    return vmi_init_vm_private(id, NULL, vmi, VMI_FAILHARD);
-}
-
-status_t vmi_init_vm_id_lax (unsigned long id, vmi_instance_t *vmi)
-{
-    return vmi_init_vm_private(id, NULL, vmi, VMI_FAILSOFT);
-}
-
-status_t vmi_init_file_strict (char *filename, char *image_type, vmi_instance_t *vmi)
-{
-    return vmi_init_file_private(filename, image_type, vmi, VMI_FAILHARD);
-}
-status_t vmi_init_file_lax (char *filename, char *image_type, vmi_instance_t *vmi)
-{
-    return vmi_init_file_private(filename, image_type, vmi, VMI_FAILSOFT);
+    return vmi_init_private(vmi, mode, 0, name);
 }
 
 status_t vmi_destroy (vmi_instance_t vmi)

@@ -109,6 +109,41 @@ static driver_instance_t driver_get_instance (vmi_instance_t vmi)
     return instance;
 }
 
+status_t driver_init_mode (vmi_instance_t vmi, unsigned long id, char *name)
+{
+    unsigned long count = 0;
+
+    /* see what systems are accessable */
+    if (VMI_SUCCESS == xen_test(id, name)){
+        dbprint("--found Xen\n");
+        vmi->mode = VMI_MODE_XEN;
+        count++;
+    }
+//    if (VMI_SUCCESS == kvm_test(id, name)){
+//        dbprint("--found KVM\n");
+//        vmi->mode = VMI_MODE_KVM;
+//        count++;
+//    }
+    if (VMI_SUCCESS == file_test(id, name)){
+        dbprint("--found file\n");
+        vmi->mode = VMI_MODE_FILE;
+        count++;
+    }
+
+    /* if we didn't see exactly one system, report error */
+    if (count == 0){
+        errprint("Could not find a VMM or file to use.\n");
+        return VMI_FAILURE;
+    }
+    else if (count > 1){
+        errprint("Found more than one VMM of file to use,\nplease specify what you want instead of using VMI_MODE_AUTO.\n");
+        return VMI_FAILURE;
+    }
+    else{ // count == 1
+        return VMI_SUCCESS;
+    }
+}
+
 status_t driver_init (vmi_instance_t vmi)
 {
     driver_instance_t ptrs = driver_get_instance(vmi);
