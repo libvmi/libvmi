@@ -43,7 +43,7 @@ static void driver_xen_setup (vmi_instance_t vmi)
     instance->get_id_ptr = &xen_get_domainid;
     instance->set_id_ptr = &xen_set_domainid;
     instance->get_name_ptr = &xen_get_domainname;
-    //TODO add set_name_ptr
+    instance->set_name_ptr = NULL; //TODO add set_name_ptr
     instance->get_memsize_ptr = &xen_get_memsize;
     instance->get_vcpureg_ptr = &xen_get_vcpureg;
     instance->pfn_to_mfn_ptr = &xen_pfn_to_mfn;
@@ -54,37 +54,37 @@ static void driver_xen_setup (vmi_instance_t vmi)
 
 static void driver_kvm_setup (vmi_instance_t vmi)
 {
-    //TODO set vmi->driver
-    //TODO add init_ptr
-    //TODO add destroy_ptr
-    //TODO add get_id_from_name_ptr
-    //TODO add get_id_ptr
-    //TODO add set_id_ptr
-    //TODO add get_name_ptr
-    //TODO add set_name_ptr
-    //TODO add get_memsize_ptr
-    //TODO add get_vcpureg_ptr
-    //TODO add pfn_to_mfn_ptr
-    //TODO add map_page_ptr
-    //TODO add map_pages_ptr
-    //TODO add is_pv_ptr
+    vmi->driver = NULL; //TODO set vmi->driver
+    instance->init_ptr = NULL; //TODO add init_ptr
+    instance->destroy_ptr = NULL; //TODO add destroy_ptr
+    instance->get_id_from_name_ptr = NULL; //TODO add get_id_from_name_ptr
+    instance->get_id_ptr = NULL; //TODO add get_id_ptr
+    instance->set_id_ptr = NULL; //TODO add set_id_ptr
+    instance->get_name_ptr = NULL; //TODO add get_name_ptr
+    instance->set_name_ptr = NULL; //TODO add set_name_ptr
+    instance->get_memsize_ptr = NULL; //TODO add get_memsize_ptr
+    instance->get_vcpureg_ptr = NULL; //TODO add get_vcpureg_ptr
+    instance->pfn_to_mfn_ptr = NULL; //TODO add pfn_to_mfn_ptr
+    instance->map_page_ptr = NULL; //TODO add map_page_ptr
+    instance->map_pages_ptr = NULL; //TODO add map_pages_ptr
+    instance->is_pv_ptr = NULL; //TODO add is_pv_ptr
 }
 
 static void driver_file_setup (vmi_instance_t vmi)
 {
     vmi->driver = &fileinst;
     instance->init_ptr = &file_init;
-    //TODO add destroy_ptr
-    //TODO add get_id_from_name_ptr
-    //TODO add get_id_ptr
-    //TODO add set_id_ptr
-    //TODO add get_name_ptr
+    instance->destroy_ptr = &file_destroy;
+    instance->get_id_from_name_ptr = NULL; //TODO add get_id_from_name_ptr
+    instance->get_id_ptr = NULL; //TODO add get_id_ptr
+    instance->set_id_ptr = NULL; //TODO add set_id_ptr
+    instance->get_name_ptr = NULL; //TODO add get_name_ptr
     instance->set_name_ptr = &file_set_name;
     instance->get_memsize_ptr = &file_get_memsize;
     instance->get_vcpureg_ptr = &file_get_vcpureg;
     instance->pfn_to_mfn_ptr = &file_pfn_to_mfn;
     instance->map_page_ptr = &file_map_page;
-    //TODO add map_pages_ptr
+    instance->map_pages_ptr = NULL; //TODO add map_pages_ptr
     instance->is_pv_ptr = &file_is_pv;
 }
 
@@ -151,6 +151,7 @@ status_t driver_init (vmi_instance_t vmi)
         return ptrs->init_ptr(vmi);
     }
     else{
+        dbprint("WARNING: driver_init function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -162,6 +163,7 @@ void driver_destroy (vmi_instance_t vmi)
         return ptrs->destroy_ptr(vmi);
     }
     else{
+        dbprint("WARNING: driver_destroy function not implemented.\n");
         return;
     }
 }
@@ -173,6 +175,7 @@ unsigned long driver_get_id_from_name (vmi_instance_t vmi, char *name)
         return ptrs->get_id_from_name_ptr(vmi, name);
     }
     else{
+        dbprint("WARNING: driver_get_id_from_name function not implemented.\n");
         return 0;
     }
 }
@@ -184,6 +187,7 @@ unsigned long driver_get_id (vmi_instance_t vmi)
         return ptrs->get_id_ptr(vmi);
     }
     else{
+        dbprint("WARNING: driver_get_id function not implemented.\n");
         return 0;
     }
 }
@@ -195,6 +199,7 @@ void driver_set_id (vmi_instance_t vmi, unsigned long id)
         return ptrs->set_id_ptr(vmi, id);
     }
     else{
+        dbprint("WARNING: driver_set_id function not implemented.\n");
         return;
     }
 }
@@ -206,6 +211,7 @@ status_t driver_get_name (vmi_instance_t vmi, char **name)
         return ptrs->get_name_ptr(vmi, name);
     }
     else{
+        dbprint("WARNING: driver_get_name function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -217,6 +223,7 @@ void driver_set_name (vmi_instance_t vmi, char *name)
         return ptrs->set_name_ptr(vmi, name);
     }
     else{
+        dbprint("WARNING: driver_set_name function not implemented.\n");
         return;
     }
 }
@@ -228,6 +235,7 @@ status_t driver_get_memsize (vmi_instance_t vmi, unsigned long *size)
         return ptrs->get_memsize_ptr(vmi, size);
     }
     else{
+        dbprint("WARNING: driver_get_memsize function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -239,6 +247,7 @@ status_t driver_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, 
         return ptrs->get_vcpureg_ptr(vmi, value, reg, vcpu);
     }
     else{
+        dbprint("WARNING: driver_get_vcpureg function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -250,6 +259,7 @@ unsigned long driver_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
         return ptrs->pfn_to_mfn_ptr(vmi, pfn);
     }
     else{
+        dbprint("WARNING: driver_pfn_to_mfn function not implemented.\n");
         return 0;
     }
 }
@@ -261,6 +271,7 @@ void *driver_map_page (vmi_instance_t vmi, int prot, unsigned long page)
         return ptrs->map_page_ptr(vmi, prot, page);
     }
     else{
+        dbprint("WARNING: driver_map_page function not implemented.\n");
         return NULL;
     }
 }
@@ -272,6 +283,7 @@ void *driver_map_pages (vmi_instance_t vmi, int prot, unsigned long *pages, unsi
         return ptrs->map_pages_ptr(vmi, prot, pages, num_pages);
     }
     else{
+        dbprint("WARNING: driver_map_pages function not implemented.\n");
         return NULL;
     }
 }
@@ -283,6 +295,7 @@ int driver_is_pv (vmi_instance_t vmi)
         return ptrs->is_pv_ptr(vmi);
     }
     else{
+        dbprint("WARNING: driver_is_pv function not implemented.\n");
         return 0;
     }
 }

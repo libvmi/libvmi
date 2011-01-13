@@ -13,6 +13,7 @@ typedef struct file_instance{
 } file_instance_t;
 
 status_t file_init (vmi_instance_t vmi);
+void file_destroy (vmi_instance_t vmi);
 void file_set_name (vmi_instance_t vmi, char *name);
 status_t file_get_memsize (vmi_instance_t vmi, unsigned long *size);
 status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);

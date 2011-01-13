@@ -16,33 +16,38 @@
  */
 status_t get_kpgd_method2 (vmi_instance_t vmi, uint32_t *sysproc)
 {
-    int ret = VMI_SUCCESS;
-
     /* get address for Idle process */
-    if ((*sysproc = windows_find_eprocess(vmi, "System")) == 0){
-        dbprint("WARNING: failed to find System process.\n");
-        ret = vmi_report_error(vmi, 0, VMI_EMINOR);
-        if (VMI_FAILURE == ret) goto error_exit;
+    if ((*sysproc = windows_find_eprocess(vmi, "Idle")) == 0){
+        dbprint("--failed to find System process.\n");
+        goto error_exit;
     }
     dbprint("--got PA to PsInititalSystemProcess (0x%.8x).\n", *sysproc);
 
     /* get address for page directory (from system process) */
     /*TODO this 0x18 offset should not be hard coded below */
-    if (vmi_read_long_phys(
-            vmi, *sysproc + 0x18, &(vmi->kpgd)) == VMI_FAILURE){
-        dbprint("WARNING: failed to resolve PD for Idle process\n");
-        ret = vmi_report_error(vmi, 0, VMI_EMINOR);
-        if (VMI_FAILURE == ret) goto error_exit;
+    if (VMI_FAILURE == vmi_read_long_phys(vmi, *sysproc + 0x18, &vmi->kpgd)){
+        dbprint("--failed to resolve PD for Idle process\n");
+        goto error_exit;
     }
     vmi->kpgd += vmi->page_offset; /* store vaddr */
 
     if (vmi->kpgd == vmi->page_offset){
-        ret = vmi_report_error(vmi, 0, VMI_EMINOR);
+        dbprint("--kpgd was zero\n");
+        goto error_exit;
     }
 
+    return VMI_SUCCESS;
 error_exit:
-    return ret;
+    return VMI_FAILURE;
 }
+
+uint32_t windows_find_cr3 (vmi_instance_t vmi)
+{
+    uint32_t sysproc = 0;
+    get_kpgd_method2(vmi, &sysproc);
+    return vmi->kpgd - vmi->page_offset;
+}
+
 
 /* Tries to find the kernel page directory using the RVA value for
  * PSInitialSystemProcess and the ntoskrnl value to lookup the System
@@ -51,71 +56,93 @@ error_exit:
  */
 status_t get_kpgd_method1 (vmi_instance_t vmi, uint32_t *sysproc)
 {
-    int ret = VMI_SUCCESS;
-
-    if (vmi_read_long_sym(
-            vmi, "PsInitialSystemProcess", sysproc) == VMI_FAILURE){
-        dbprint("WARNING: failed to read pointer for system process\n");
-        ret = vmi_report_error(vmi, 0, VMI_EMINOR);
-        if (VMI_FAILURE == ret) goto error_exit;
+    if (VMI_FAILURE == vmi_read_long_sym(vmi, "PsInitialSystemProcess", sysproc)){
+        dbprint("--failed to read pointer for system process\n");
+        goto error_exit;
     }
     *sysproc = vmi_translate_kv2p(vmi, *sysproc);
     dbprint("--got PA to PsInititalSystemProcess (0x%.8x).\n", *sysproc);
 
-    if (vmi_read_long_phys(
-            vmi,
-            *sysproc + vmi->os.windows_instance.pdbase_offset,
-            &(vmi->kpgd)) == VMI_FAILURE){
-        dbprint("WARNING: failed to resolve pointer for system process\n");
-        ret = vmi_report_error(vmi, 0, VMI_EMINOR);
-        if (VMI_FAILURE == ret) goto error_exit;
+    if (VMI_FAILURE == vmi_read_long_phys(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
+        dbprint("--failed to resolve pointer for system process\n");
+        goto error_exit;
     }
     vmi->kpgd += vmi->page_offset; /* store vaddr */
 
     if (vmi->kpgd == vmi->page_offset){
-        ret = vmi_report_error(vmi, 0, VMI_EMINOR);
+        dbprint("--kpgd was zero\n");
+        goto error_exit;
     }
 
+    return VMI_SUCCESS;
 error_exit:
-    return ret;
+    return VMI_FAILURE;
+}
+
+static status_t get_kpgd_method0 (vmi_instance_t vmi, uint32_t *sysproc)
+{
+    if (VMI_FAILURE == vmi_symbol_to_address(vmi, "PsActiveProcessHead", sysproc)){
+        dbprint("--failed to resolve PsActiveProcessHead\n");
+        goto error_exit;
+    }
+    if (VMI_FAILURE == vmi_read_long_virt(vmi, *sysproc, 0, sysproc)){
+        dbprint("--failed to translate PsActiveProcessHead\n");
+        goto error_exit;
+    }
+    *sysproc = vmi_translate_kv2p(vmi, *sysproc) - vmi->os.windows_instance.tasks_offset;
+    dbprint("--got PA to PsActiveProcessHead (0x%.8x).\n", *sysproc);
+
+    if (VMI_FAILURE == vmi_read_long_phys(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
+        dbprint("--failed to resolve pointer for system process\n");
+        goto error_exit;
+    }
+    vmi->kpgd += vmi->page_offset; /* store vaddr */
+
+    if (vmi->kpgd == vmi->page_offset){
+        dbprint("--kpgd was zero\n");
+        goto error_exit;
+    }
+
+    return VMI_SUCCESS;
+error_exit:
+    return VMI_FAILURE;
 }
 
 status_t windows_init (vmi_instance_t vmi)
 {
-    int ret = VMI_SUCCESS;
     uint32_t sysproc = 0;
 
-    // get base address for kernel image in memory unless
-    // it has already been set in the configuration file.
-    if(vmi->os.windows_instance.ntoskrnl == 0){
-        vmi->os.windows_instance.ntoskrnl = get_ntoskrnl_base(vmi);
-        if (!vmi->os.windows_instance.ntoskrnl){
-            ret = vmi_report_error(vmi, 0, VMI_EMINOR);
-            if (VMI_FAILURE == ret) goto error_exit;
+    /* get base address for kernel image in memory */
+    if (VMI_FAILURE == vmi_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl)){
+        dbprint("--address translation failure, switching PAE mode\n");
+        vmi->pae = !vmi->pae;
+
+        if (VMI_FAILURE == vmi_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl)){
+            errprint("Address translation failure.\n");
+            goto error_exit;
         }
-        dbprint("--got ntoskrnl (0x%.8x).\n", vmi->os.windows_instance.ntoskrnl);
     }
+    vmi->os.windows_instance.ntoskrnl -= vmi->page_offset;
+    dbprint("**set ntoskrnl (0x%.8x).\n", vmi->os.windows_instance.ntoskrnl);
 
     /* get the kernel page directory location */
-    if (get_kpgd_method1(vmi, &sysproc) == VMI_FAILURE){
-        dbprint("--kpgd method1 failed, trying method2\n");
-        if (get_kpgd_method2(vmi, &sysproc) == VMI_FAILURE){
-            errprint("Failed to find kernel page directory.\n");
-            ret = vmi_report_error(vmi, 0, VMI_EMINOR);
-            if (VMI_FAILURE == ret) goto error_exit;
+    if (VMI_FAILURE == get_kpgd_method0(vmi, &sysproc)){
+        dbprint("--kpgd method0 failed, trying method1\n");
+        if (VMI_FAILURE == get_kpgd_method1(vmi, &sysproc)){
+            dbprint("--kpgd method1 failed, trying method2\n");
+            if (VMI_FAILURE == get_kpgd_method2(vmi, &sysproc)){
+                errprint("Failed to find kernel page directory.\n");
+                goto error_exit;
+            }
         }
     }
     dbprint("**set kpgd (0x%.8x).\n", vmi->kpgd);
 
     /* get address start of process list */
-    vmi_read_long_phys(
-        vmi,
-        sysproc + vmi->os.windows_instance.tasks_offset,
-        &(vmi->init_task));
+    vmi_read_long_phys(vmi, sysproc + vmi->os.windows_instance.tasks_offset, &vmi->init_task);
     dbprint("**set init_task (0x%.8x).\n", vmi->init_task);
 
-    /*TODO add some checking to test for PAE mode like in linux_core */
-
+    return VMI_SUCCESS;
 error_exit:
-    return ret;
+    return VMI_FAILURE;
 }

@@ -9,8 +9,10 @@
 
 #include "libvmi.h"
 #include "private.h"
+#include "driver/interface.h"
 #include <string.h>
 #include <stdarg.h>
+#include <sys/mman.h>
 
 status_t vmi_read_long_mach (
         vmi_instance_t instance, uint32_t maddr, uint32_t *value)

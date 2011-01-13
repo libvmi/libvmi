@@ -285,6 +285,7 @@ status_t get_export_table (vmi_instance_t vmi, uint32_t base_addr, struct export
         &offset,
         PROT_READ);
     if (NULL == memory){
+        dbprint("--PEParse: failed to map optional header\n");
         return VMI_FAILURE;
     }
     memcpy(&oh, memory + offset, sizeof(struct optional_header));
@@ -298,6 +299,7 @@ status_t get_export_table (vmi_instance_t vmi, uint32_t base_addr, struct export
         &offset,
         PROT_READ);
     if (NULL == memory){
+        dbprint("--PEParse: failed to map export header\n");
         return VMI_FAILURE;
     }
     memcpy(et, memory + offset, sizeof(struct export_table));
@@ -316,16 +318,19 @@ status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, uint32_t *rva)
 
     // get export table structure
     if (get_export_table(vmi, base_addr, &et) != VMI_SUCCESS){
+        dbprint("--PEParse: failed to get export table\n");
         return VMI_FAILURE;
     }
 
     // find AddressOfNames index for export symbol
     if ((aon_index = get_aon_index(vmi, symbol, &et)) == -1){
+        dbprint("--PEParse: failed to get aon index\n");
         return VMI_FAILURE;
     }
 
     // find AddressOfFunctions index for export symbol
     if ((aof_index = get_aof_index(vmi, aon_index, &et)) == -1){
+        dbprint("--PEParse: failed to get aof index\n");
         return VMI_FAILURE;
     }
 

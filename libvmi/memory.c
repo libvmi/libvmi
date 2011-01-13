@@ -24,7 +24,7 @@ void *vmi_mmap_pfn (vmi_instance_t vmi, int prot, unsigned long pfn)
     unsigned long mfn = driver_pfn_to_mfn(vmi, pfn);
 
     if (!mfn){
-        errprint("pfn to mfn mapping failed.\n");
+//        errprint("pfn to mfn mapping failed (0x%lx --> 0x%lx).\n", pfn, mfn);
         return NULL;
     }
     else{
@@ -301,7 +301,13 @@ uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t virt_address)
 {
     reg_t cr3 = 0;
     driver_get_vcpureg(vmi, &cr3, REG_CR3, 0);
-    return vmi_pagetable_lookup(vmi, cr3, virt_address);
+    if (!cr3){
+        dbprint("--early bail on v2p lookup because cr3 is zero\n");
+        return 0;
+    }
+    else{
+        return vmi_pagetable_lookup(vmi, cr3, virt_address);
+    }
 }
 
 /* map memory given a kernel symbol */
@@ -362,7 +368,7 @@ void *vmi_access_user_va (
         driver_get_vcpureg(vmi, &cr3, REG_CR3, 0);
         address = vmi_pagetable_lookup(vmi, cr3, virt_address);
         if (!address){
-            fprintf(stderr, "ERROR: address not in page table (0x%x)\n", virt_address);
+            dbprint("--address not in page table (0x%x)\n", virt_address);
             return NULL;
         }
     }

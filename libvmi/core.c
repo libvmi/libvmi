@@ -143,44 +143,69 @@ error_exit:
     return ret;
 }
 
+static uint32_t find_cr3 (vmi_instance_t vmi)
+{
+    if (VMI_OS_WINDOWS == vmi->os_type){
+        return windows_find_cr3(vmi);
+    }
+    else{
+        errprint("find_kpgd not implemented for this target OS\n");
+    }
+}
+
 /* check that this vm uses a paging method that we support */
-//TODO add memory layout discovery here for file
 static int get_memory_layout (vmi_instance_t vmi)
 {
     int ret = VMI_SUCCESS;
-    reg_t cr0, cr3, cr4;
 
-    /* get the control register values */
-    if (driver_get_vcpureg(vmi, &cr0, REG_CR0, 0) == VMI_FAILURE){
-        ret = VMI_FAILURE;
-        goto error_exit;
-    }
-    if (driver_get_vcpureg(vmi, &cr3, REG_CR3, 0) == VMI_FAILURE){
-        ret = VMI_FAILURE;
-        goto error_exit;
-    }
-    if (driver_get_vcpureg(vmi, &cr4, REG_CR4, 0) == VMI_FAILURE){
-        ret = VMI_FAILURE;
-        goto error_exit;
-    }
+    /* for VM-based introspection, pull info from registers */
+    if (VMI_MODE_FILE != vmi->mode){
+        reg_t cr0, cr3, cr4;
 
-    /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
-    if (!vmi_get_bit(cr0, 31)){
-        errprint("Paging disabled for this VM, not supported.\n");
-        ret = VMI_FAILURE;
-        goto error_exit;
+        /* get the control register values */
+        if (driver_get_vcpureg(vmi, &cr0, REG_CR0, 0) == VMI_FAILURE){
+            ret = VMI_FAILURE;
+            goto error_exit;
+        }
+        if (driver_get_vcpureg(vmi, &cr3, REG_CR3, 0) == VMI_FAILURE){
+            ret = VMI_FAILURE;
+            goto error_exit;
+        }
+        if (driver_get_vcpureg(vmi, &cr4, REG_CR4, 0) == VMI_FAILURE){
+            ret = VMI_FAILURE;
+            goto error_exit;
+        }
+
+        /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
+        if (!vmi_get_bit(cr0, 31)){
+            errprint("Paging disabled for this VM, not supported.\n");
+            ret = VMI_FAILURE;
+            goto error_exit;
+        }
+        /* PAE Flag --> CR4, bit 5 == 0 --> pae disabled */
+        vmi->pae = vmi_get_bit(cr4, 5);
+        dbprint("**set pae = %d\n", vmi->pae);
+
+        /* PSE Flag --> CR4, bit 4 == 0 --> pse disabled */
+        vmi->pse = vmi_get_bit(cr4, 4);
+        dbprint("**set pse = %d\n", vmi->pse);
+
+        /* testing to see CR3 value */
+        vmi->cr3 = cr3 & 0xFFFFF000;
+        dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
+
+        dbprint("--got memory layout.\n");
     }
-    /* PAE Flag --> CR4, bit 5 == 0 --> pae disabled */
-    vmi->pae = vmi_get_bit(cr4, 5);
-    dbprint("**set pae = %d\n", vmi->pae);
+    else{
+        vmi->pae = 1;
+        dbprint("**set pae = %d\n", vmi->pae);
 
-    /* PSE Flag --> CR4, bit 4 == 0 --> pse disabled */
-    vmi->pse = vmi_get_bit(cr4, 4);
-    dbprint("**set pse = %d\n", vmi->pse);
+        vmi->pse = 0;
+        dbprint("**set pse = %d\n", vmi->pse);
 
-    /* testing to see CR3 value */
-    vmi->cr3 = cr3 & 0xFFFFF000;
-    dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
+        vmi->cr3 = find_cr3(vmi);
+        dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
+    }
 
 error_exit:
     return ret;
@@ -323,13 +348,6 @@ static status_t vmi_init_private (vmi_instance_t *vmi, mode_t mode, unsigned lon
         goto error_exit;
     }
     
-    /* determine the page sizes and layout for target OS */
-    if (VMI_FAILURE == get_memory_layout(*vmi)){
-        errprint("Memory layout not supported.\n");
-        goto error_exit;
-    }
-    dbprint("--got memory layout.\n");
-
     /* setup the correct page offset size for the target OS */
     if (VMI_FAILURE == init_page_offset(*vmi)){
         goto error_exit;
@@ -341,6 +359,12 @@ static status_t vmi_init_private (vmi_instance_t *vmi, mode_t mode, unsigned lon
         goto error_exit;
     }
     dbprint("**set size = %d\n", (*vmi)->size);
+
+    /* determine the page sizes and layout for target OS */
+    if (VMI_FAILURE == get_memory_layout(*vmi)){
+        errprint("Memory layout not supported.\n");
+        goto error_exit;
+    }
 
     /* setup OS specific stuff */
     if (VMI_OS_LINUX == (*vmi)->os_type){

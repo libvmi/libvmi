@@ -45,6 +45,11 @@ status_t file_init (vmi_instance_t vmi)
 
 }
 
+void file_destroy (vmi_instance_t vmi)
+{
+    fclose(file_get_instance(vmi)->fhandle);
+}
+
 void file_set_name (vmi_instance_t vmi, char *name)
 {
     file_get_instance(vmi)->filename = strndup(name, 500);
@@ -71,7 +76,12 @@ status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, un
     status_t ret = VMI_SUCCESS;
     switch (reg){
         case REG_CR3:
-            *value = vmi->kpgd - vmi->page_offset;
+            if (vmi->kpgd){
+                *value = vmi->kpgd - vmi->page_offset;
+            }
+            else{
+                *value = vmi->cr3;
+            }
             break;
         default:
             ret = VMI_FAILURE;
@@ -137,6 +147,7 @@ error_exit:
 #else
 
 status_t file_init (vmi_instance_t vmi) {return VMI_FAILURE; }
+void file_destroy (vmi_instance_t vmi) { return; }
 void file_set_name (vmi_instance_t vmi, char *name) {return; }
 status_t file_get_memsize (vmi_instance_t vmi, unsigned long size) { return VMI_FAILURE; }
 status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }

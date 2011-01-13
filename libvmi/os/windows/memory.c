@@ -13,13 +13,31 @@
 #include <string.h>
 #include <sys/mman.h>
 
-int windows_symbol_to_address (
+status_t windows_symbol_to_address (
         vmi_instance_t vmi, char *symbol, uint32_t *address)
 {
-    /* check exports first */
-    return windows_export_to_rva(vmi, symbol, address);
+    /* see if we have a cr3 value */
+    reg_t cr3 = 0;
+    driver_get_vcpureg(vmi, &cr3, REG_CR3, 0);
 
-    /*TODO check symbol server */
+    /* check kpcr if we have a cr3 */
+    if (cr3 && VMI_SUCCESS == windows_kpcr_lookup(vmi, symbol, address)){
+        dbprint("--got symbol from kpcr (%s --> 0x%lx).\n", symbol, *address);
+        return VMI_SUCCESS;
+    }
+
+    /* check exports */
+    else if (VMI_SUCCESS == windows_export_to_rva(vmi, symbol, address)){
+        uint32_t rva = *address;
+        uint32_t phys_address = vmi->os.windows_instance.ntoskrnl + rva;
+        *address = phys_address + vmi->page_offset;
+        dbprint("--got symbol from PE export table (%s --> 0x%lx).\n", symbol, *address);
+        return VMI_SUCCESS;
+    }
+
+    /*TODO check symbol server ??? */
+
+    return VMI_FAILURE;
 }
 
 /* find the ntoskrnl base address */
@@ -79,26 +97,21 @@ void *windows_access_kernel_symbol (
         vmi_instance_t vmi, char *symbol, uint32_t *offset, int prot)
 {
     uint32_t virt_address;
-    uint32_t phys_address;
     uint32_t address;
-    uint32_t rva;
 
     /* check the LRU cache */
     if (vmi_check_cache_sym(vmi, symbol, 0, &address)){
-        return vmi_access_ma(vmi, address, offset, PROT_READ);
+        return vmi_access_ma(vmi, address, offset, prot);
     }
 
-    /* get the RVA of the symbol */
-    if (windows_symbol_to_address(vmi, symbol, &rva) == VMI_FAILURE){
+    /* get the VA of the symbol */
+    if (VMI_FAILURE == windows_symbol_to_address(vmi, symbol, &virt_address)){
+        dbprint("--failed to lookup address for '%s'\n", symbol);
         return NULL;
     }
 
-    /* convert RVA into virt address */
-    phys_address = vmi->os.windows_instance.ntoskrnl + rva;
-    virt_address = phys_address + vmi->page_offset;
-
     vmi_update_cache(vmi, symbol, virt_address, 0, 0);
-    return vmi_access_pa(vmi, phys_address, offset, prot);
+    return vmi_access_pa(vmi, virt_address - vmi->page_offset, offset, prot);
 }
 
 /* finds the EPROCESS struct for a given pid */

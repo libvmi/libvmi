@@ -92,6 +92,7 @@ struct vmi_instance{
         } linux_instance;
         struct windows_instance{
             uint32_t ntoskrnl;   /**< base phys address for ntoskrnl image */
+            uint32_t kddebugger_data64; /**< kernel virtual address for start of KDDEBUGGER_DATA64 structure */
             int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
             int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */
             int pid_offset;      /**< EPROCESS->UniqueProcessId */
@@ -332,6 +333,8 @@ char *linux_predict_sysmap_name (uint32_t id);
 
 status_t windows_export_to_rva (vmi_instance_t , char *, uint32_t *);
 status_t valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr);
+status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, uint32_t *address);
+uint32_t windows_find_cr3 (vmi_instance_t vmi);
 
 
 /** Duplicate function from xc_util that should remain
