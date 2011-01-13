@@ -64,15 +64,7 @@ int main (int argc, char **argv)
         vmi_read_long_sym(vmi, "modules", &next_module);
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        /*TODO don't use a hard-coded address here */
-        memory = vmi_access_kernel_va(vmi, 0x805533a0, &offset, PROT_READ); // PAE
-        //memory = vmi_access_kernel_va(vmi, 0x8055a620, &offset, PROT_READ); // NOT PAE
-        if (NULL == memory){
-            perror("failed to get PsLoadedModuleList");
-            goto error_exit;
-        }
-        memcpy(&next_module, memory + offset, 4);
-        munmap(memory, PAGE_SIZE);
+        vmi_read_long_sym(vmi, "PsLoadedModuleList", &next_module);
     }
     list_head = next_module;
 
