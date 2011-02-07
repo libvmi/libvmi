@@ -31,7 +31,7 @@
 
 /* uncomment this to enable debug output */
 //TODO make this a switch to configure instead
-//#define VMI_DEBUG
+#define VMI_DEBUG
 
 typedef enum mode{
     VMI_MODE_AUTO, /**< mode indicating that libvmi should detect what to monitor */
@@ -72,11 +72,11 @@ typedef enum os{
 
 typedef unsigned long reg_t;
 typedef enum registers{
-    REG_CR0,
-    REG_CR1,
-    REG_CR2,
-    REG_CR3,
-    REG_CR4
+    CR0,
+    CR1,
+    CR2,
+    CR3,
+    CR4
 } registers_t;
 
 /**

@@ -10,6 +10,7 @@
 #include "libvmi.h"
 #include "private.h"
 #include "driver/xen.h"
+#include "driver/kvm.h"
 #include "driver/file.h"
 #include <stdlib.h>
 
@@ -32,6 +33,7 @@ typedef struct driver_instance * driver_instance_t;
 
 static driver_instance_t instance = NULL;
 static xen_instance_t xeninst;
+static kvm_instance_t kvminst;
 static file_instance_t fileinst;
 
 static void driver_xen_setup (vmi_instance_t vmi)
@@ -54,18 +56,18 @@ static void driver_xen_setup (vmi_instance_t vmi)
 
 static void driver_kvm_setup (vmi_instance_t vmi)
 {
-    vmi->driver = NULL; //TODO set vmi->driver
-    instance->init_ptr = NULL; //TODO add init_ptr
-    instance->destroy_ptr = NULL; //TODO add destroy_ptr
-    instance->get_id_from_name_ptr = NULL; //TODO add get_id_from_name_ptr
+    vmi->driver = &kvminst;
+    instance->init_ptr = &kvm_init;
+    instance->destroy_ptr = &kvm_destroy;
+    instance->get_id_from_name_ptr = &kvm_get_id_from_name;
     instance->get_id_ptr = NULL; //TODO add get_id_ptr
-    instance->set_id_ptr = NULL; //TODO add set_id_ptr
+    instance->set_id_ptr = &kvm_set_id;
     instance->get_name_ptr = NULL; //TODO add get_name_ptr
-    instance->set_name_ptr = NULL; //TODO add set_name_ptr
-    instance->get_memsize_ptr = NULL; //TODO add get_memsize_ptr
-    instance->get_vcpureg_ptr = NULL; //TODO add get_vcpureg_ptr
-    instance->pfn_to_mfn_ptr = NULL; //TODO add pfn_to_mfn_ptr
-    instance->map_page_ptr = NULL; //TODO add map_page_ptr
+    instance->set_name_ptr = &kvm_set_name;
+    instance->get_memsize_ptr = &kvm_get_memsize;
+    instance->get_vcpureg_ptr = &kvm_get_vcpureg;
+    instance->pfn_to_mfn_ptr = &kvm_pfn_to_mfn;
+    instance->map_page_ptr = &kvm_map_page;
     instance->map_pages_ptr = NULL; //TODO add map_pages_ptr
     instance->is_pv_ptr = NULL; //TODO add is_pv_ptr
 }
@@ -88,6 +90,24 @@ static void driver_file_setup (vmi_instance_t vmi)
     instance->is_pv_ptr = &file_is_pv;
 }
 
+static void driver_null_setup (vmi_instance_t vmi)
+{
+    vmi->driver = NULL;
+    instance->init_ptr = NULL;
+    instance->destroy_ptr = NULL;
+    instance->get_id_from_name_ptr = NULL;
+    instance->get_id_ptr = NULL;
+    instance->set_id_ptr = NULL;
+    instance->get_name_ptr = NULL;
+    instance->set_name_ptr = NULL;
+    instance->get_memsize_ptr = NULL;
+    instance->get_vcpureg_ptr = NULL;
+    instance->pfn_to_mfn_ptr = NULL;
+    instance->map_page_ptr = NULL;
+    instance->map_pages_ptr = NULL;
+    instance->is_pv_ptr = NULL;
+}
+
 static driver_instance_t driver_get_instance (vmi_instance_t vmi)
 {
     if (NULL == instance){
@@ -104,6 +124,9 @@ static driver_instance_t driver_get_instance (vmi_instance_t vmi)
         else if (VMI_MODE_FILE == vmi->mode){
             driver_file_setup(vmi);
         }
+        else{
+            driver_null_setup(vmi);
+        }
 
     }
     return instance;
@@ -119,11 +142,11 @@ status_t driver_init_mode (vmi_instance_t vmi, unsigned long id, char *name)
         vmi->mode = VMI_MODE_XEN;
         count++;
     }
-//    if (VMI_SUCCESS == kvm_test(id, name)){
-//        dbprint("--found KVM\n");
-//        vmi->mode = VMI_MODE_KVM;
-//        count++;
-//    }
+    if (VMI_SUCCESS == kvm_test(id, name)){
+        dbprint("--found KVM\n");
+        vmi->mode = VMI_MODE_KVM;
+        count++;
+    }
     if (VMI_SUCCESS == file_test(id, name)){
         dbprint("--found file\n");
         vmi->mode = VMI_MODE_FILE;

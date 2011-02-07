@@ -314,19 +314,19 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
 #endif /* HAVE_CONTEXT_ANY */
 
     switch (reg){
-        case REG_CR0:
+        case CR0:
             *value = ctxt.ctrlreg[0];
             break;
-        case REG_CR1:
+        case CR1:
             *value = ctxt.ctrlreg[1];
             break;
-        case REG_CR2:
+        case CR2:
             *value = ctxt.ctrlreg[2];
             break;
-        case REG_CR3:
+        case CR3:
             *value = ctxt.ctrlreg[3];
             break;
-        case REG_CR4:
+        case CR4:
             *value = ctxt.ctrlreg[4];
             break;
         default:

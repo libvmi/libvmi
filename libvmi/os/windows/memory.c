@@ -18,7 +18,7 @@ status_t windows_symbol_to_address (
 {
     /* see if we have a cr3 value */
     reg_t cr3 = 0;
-    driver_get_vcpureg(vmi, &cr3, REG_CR3, 0);
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
 
     /* check kpcr if we have a cr3 */
     if (cr3 && VMI_SUCCESS == windows_kpcr_lookup(vmi, symbol, address)){

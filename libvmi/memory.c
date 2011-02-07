@@ -300,7 +300,7 @@ uint32_t vmi_pagetable_lookup (
 uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t virt_address)
 {
     reg_t cr3 = 0;
-    driver_get_vcpureg(vmi, &cr3, REG_CR3, 0);
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
     if (!cr3){
         dbprint("--early bail on v2p lookup because cr3 is zero\n");
         return 0;
@@ -365,7 +365,7 @@ void *vmi_access_user_va (
       mapping range between the page'd addresses and VIRT_START */
     if (!pid){
         reg_t cr3 = 0;
-        driver_get_vcpureg(vmi, &cr3, REG_CR3, 0);
+        driver_get_vcpureg(vmi, &cr3, CR3, 0);
         address = vmi_pagetable_lookup(vmi, cr3, virt_address);
         if (!address){
             dbprint("--address not in page table (0x%x)\n", virt_address);
@@ -409,7 +409,7 @@ void *vmi_access_user_va_range (
         pgd = vmi_pid_to_pgd(vmi, pid);
     }
     else{
-        driver_get_vcpureg(vmi, &pgd, REG_CR3, 0);
+        driver_get_vcpureg(vmi, &pgd, CR3, 0);
     }
     unsigned long* pages = (unsigned long*) safe_malloc(
         sizeof(unsigned long) * num_pages

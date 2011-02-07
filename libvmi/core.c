@@ -158,57 +158,52 @@ static int get_memory_layout (vmi_instance_t vmi)
 {
     int ret = VMI_SUCCESS;
 
-    /* for VM-based introspection, pull info from registers */
-    if (VMI_MODE_FILE != vmi->mode){
-        reg_t cr0, cr3, cr4;
+    /* pull info from registers, if we can */
+    reg_t cr0, cr3, cr4;
 
-        /* get the control register values */
-        if (driver_get_vcpureg(vmi, &cr0, REG_CR0, 0) == VMI_FAILURE){
-            ret = VMI_FAILURE;
-            goto error_exit;
-        }
-        if (driver_get_vcpureg(vmi, &cr3, REG_CR3, 0) == VMI_FAILURE){
-            ret = VMI_FAILURE;
-            goto error_exit;
-        }
-        if (driver_get_vcpureg(vmi, &cr4, REG_CR4, 0) == VMI_FAILURE){
-            ret = VMI_FAILURE;
-            goto error_exit;
-        }
-
-        /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
-        if (!vmi_get_bit(cr0, 31)){
-            errprint("Paging disabled for this VM, not supported.\n");
-            ret = VMI_FAILURE;
-            goto error_exit;
-        }
-        /* PAE Flag --> CR4, bit 5 == 0 --> pae disabled */
-        vmi->pae = vmi_get_bit(cr4, 5);
-        dbprint("**set pae = %d\n", vmi->pae);
-
-        /* PSE Flag --> CR4, bit 4 == 0 --> pse disabled */
-        vmi->pse = vmi_get_bit(cr4, 4);
-        dbprint("**set pse = %d\n", vmi->pse);
-
-        /* testing to see CR3 value */
-        vmi->cr3 = cr3 & 0xFFFFF000;
-        dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
-
-        dbprint("--got memory layout.\n");
+    /* get the control register values */
+    if (driver_get_vcpureg(vmi, &cr0, CR0, 0) == VMI_FAILURE){
+        goto backup_plan;
     }
-    else{
-        vmi->pae = 1;
-        dbprint("**set pae = %d\n", vmi->pae);
-
-        vmi->pse = 0;
-        dbprint("**set pse = %d\n", vmi->pse);
-
-        vmi->cr3 = find_cr3(vmi);
-        dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
+    if (driver_get_vcpureg(vmi, &cr3, CR3, 0) == VMI_FAILURE){
+        goto backup_plan;
     }
+    if (driver_get_vcpureg(vmi, &cr4, CR4, 0) == VMI_FAILURE){
+        goto backup_plan;
+    }
+
+    /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
+    if (!vmi_get_bit(cr0, 31)){
+        errprint("Paging disabled for this VM, not supported.\n");
+        goto error_exit;
+    }
+    /* PAE Flag --> CR4, bit 5 == 0 --> pae disabled */
+    vmi->pae = vmi_get_bit(cr4, 5);
+    dbprint("**set pae = %d\n", vmi->pae);
+
+    /* PSE Flag --> CR4, bit 4 == 0 --> pse disabled */
+    vmi->pse = vmi_get_bit(cr4, 4);
+    dbprint("**set pse = %d\n", vmi->pse);
+
+    /* testing to see CR3 value */
+    vmi->cr3 = cr3 & 0xFFFFF000;
+    dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
+    dbprint("--got memory layout.\n");
+    return VMI_SUCCESS;
+
+backup_plan:
+    vmi->pae = 0;
+    dbprint("**guessed pae = %d\n", vmi->pae);
+
+    vmi->pse = 0;
+    dbprint("**guessed pse = %d\n", vmi->pse);
+
+    vmi->cr3 = find_cr3(vmi);
+    dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
+    return VMI_SUCCESS;
 
 error_exit:
-    return ret;
+    return VMI_FAILURE;
 }
 
 static status_t init_page_offset (vmi_instance_t vmi)
@@ -396,6 +391,6 @@ status_t vmi_destroy (vmi_instance_t vmi)
     driver_destroy(vmi);
     vmi_destroy_cache(vmi);
     vmi_destroy_pid_cache(vmi);
-    free(vmi);
+    if (vmi) free(vmi);
     return VMI_SUCCESS;
 }

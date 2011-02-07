@@ -73,21 +73,26 @@ error_exit:
 
 status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
 {
-    status_t ret = VMI_SUCCESS;
     switch (reg){
-        case REG_CR3:
+        case CR3:
             if (vmi->kpgd){
                 *value = vmi->kpgd - vmi->page_offset;
             }
-            else{
+            else if (vmi->cr3){
                 *value = vmi->cr3;
+            }
+            else{
+                goto error_exit;
             }
             break;
         default:
-            ret = VMI_FAILURE;
+            goto error_exit;
             break;
     }
-    return ret;
+
+    return VMI_SUCCESS;
+error_exit:
+    return VMI_FAILURE;
 }
 
 unsigned long file_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
