@@ -1,0 +1,271 @@
+Index: qemu-kvm-0.14.0-rc1/monitor.c
+===================================================================
+--- qemu-kvm-0.14.0-rc1.orig/monitor.c
++++ qemu-kvm-0.14.0-rc1/monitor.c
+@@ -61,6 +61,7 @@
+ #include "trace.h"
+ #endif
+ #include "ui/qemu-spice.h"
++#include "memory-access.h"
+ 
+ //#define DEBUG
+ //#define DEBUG_COMPLETION
+@@ -1645,6 +1646,13 @@ exit:
+     return ret;
+ }
+ 
++static int do_physical_memory_access(Monitor *mon, const QDict *qdict, QObject **ret_data)
++{
++    const char *path = qdict_get_str(qdict, "path");
++    memory_access_start(path);
++    return 0;
++}
++
+ static void do_sum(Monitor *mon, const QDict *qdict)
+ {
+     uint32_t addr;
+Index: qemu-kvm-0.14.0-rc1/qmp-commands.hx
+===================================================================
+--- qemu-kvm-0.14.0-rc1.orig/qmp-commands.hx
++++ qemu-kvm-0.14.0-rc1/qmp-commands.hx
+@@ -430,6 +430,33 @@ Example:
+ EQMP
+ 
+     {
++        .name       = "pmemaccess",
++        .args_type  = "path:s",
++        .params     = "path",
++        .help       = "mount guest physical memory image at 'path'",
++        .user_print = monitor_user_noop,
++        .mhandler.cmd_new = do_physical_memory_access,
++    },
++
++SQMP
++pmemaccess
++----------
++
++Mount guest physical memory image at 'path'.
++
++Arguments:
++
++- "path": mount point path (json-string)
++
++Example:
++
++-> { "execute": "pmemaccess",
++             "arguments": { "path": "/tmp/guestname" } }
++<- { "return": {} }
++
++EQMP
++
++    {
+         .name       = "migrate",
+         .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
+         .params     = "[-d] [-b] [-i] uri",
+Index: qemu-kvm-0.14.0-rc1/Makefile.target
+===================================================================
+--- qemu-kvm-0.14.0-rc1.orig/Makefile.target
++++ qemu-kvm-0.14.0-rc1/Makefile.target
+@@ -195,7 +195,7 @@ endif #CONFIG_BSD_USER
+ # System emulator target
+ ifdef CONFIG_SOFTMMU
+ 
+-obj-y = arch_init.o cpus.o monitor.o pci.o machine.o gdbstub.o vl.o balloon.o
++obj-y = arch_init.o cpus.o monitor.o pci.o machine.o gdbstub.o vl.o balloon.o memory-access.o
+ # virtio has to be here due to weird dependency between PCI and virtio-net.
+ # need to fix this properly
+ obj-$(CONFIG_NO_PCI) += pci-stub.o
+Index: qemu-kvm-0.14.0-rc1/memory-access.c
+===================================================================
+--- /dev/null
++++ qemu-kvm-0.14.0-rc1/memory-access.c
+@@ -0,0 +1,124 @@
++/*
++ * Mount guest physical memory using FUSE.
++ *
++ * Copyright (C) 2011 Sandia National Laboratories
++ * Author: Bryan D. Payne (bpayne@sandia.gov)
++ */
++
++#include "memory-access.h"
++#ifdef CONFIG_FUSE
++
++#define FUSE_USE_VERSION 26
++
++#include <stdlib.h>
++#include <fuse.h>
++#include <stdio.h>
++#include <string.h>
++#include <errno.h>
++
++static const char *hello_str = "Hello World!\n";
++static const char *hello_path = "/hello";
++
++static int memory_access_getattr(const char *path, struct stat *stbuf)
++{
++    int res = 0;
++
++    memset(stbuf, 0, sizeof(struct stat));
++    if (strcmp(path, "/") == 0){
++        stbuf->st_mode = S_IFDIR | 0755;
++        stbuf->st_nlink = 2;
++    }
++    else if (strcmp(path, hello_path) == 0){
++        stbuf->st_mode = S_IFREG | 0444;
++        stbuf->st_nlink = 1;
++        stbuf->st_size = strlen(hello_str);  // file size
++    }
++    else{
++        res = -ENOENT;
++    }
++
++    return res;
++}
++
++static int memory_access_readdir(
++    const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
++{
++    if (strcmp(path, "/") != 0){
++        return -ENOENT;
++    }
++    filler(buf, ".", NULL, 0);
++    filler(buf, "..", NULL, 0);
++    filler(buf, hello_path + 1, NULL, 0);
++    return 0;
++}
++
++// if the user can open this file, return 0, else return error condition
++static int memory_access_open(const char *path, struct fuse_file_info *fi)
++{
++    if (strcmp(path, hello_path) != 0){
++        return -ENOENT;
++    }
++    if ((fi->flags & 3) != O_RDONLY){  // only allow read access
++        return -EACCES;
++    }
++    return 0;
++}
++
++// feeds the user data from the file
++// - path is file to read
++// - buf is buffer to place data in
++// - size is size of buf / amount to read
++// - offset is the place to start reading
++// - fi contains access information
++static int memory_access_read(
++    const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
++{
++    size_t len;
++
++    if (strcmp(path, hello_path) != 0){
++        return -ENOENT;
++    }
++
++    len = strlen(hello_str);
++    if (offset < len){
++        if (offset + size > len){
++            size = len - offset;
++        }
++        memcpy(buf, hello_str + offset, size);
++    }
++    else{
++        size = 0;
++    }
++
++    return size;
++}
++
++static struct fuse_operations memory_access_oper = {
++   .getattr = memory_access_getattr,
++   .readdir  = memory_access_readdir,
++   .open    = memory_access_open,
++   .read    = memory_access_read,
++};
++
++int memory_access_start (const char *path)
++{
++    int argc = 2;
++    char **argv = malloc(argc * sizeof(char *));
++    argv[0] = malloc(16);
++    memcpy(argv[0], "./dummyprogname\0", 16);
++    argv[1] = malloc(strlen(path) + 1);
++    memcpy(argv[1], path, strlen(path));
++
++    int ret = fuse_main(argc, argv, &memory_access_oper, NULL);
++
++    free(argv[0]);
++    free(argv[1]);
++    free(argv);
++    return ret;
++}
++
++#else
++
++inline int memory_access_start (const char *path) { return 0; }
++
++#endif /* CONFIG_FUSE */
+Index: qemu-kvm-0.14.0-rc1/memory-access.h
+===================================================================
+--- /dev/null
++++ qemu-kvm-0.14.0-rc1/memory-access.h
+@@ -0,0 +1,8 @@
++/*
++ * Mount guest physical memory using FUSE.
++ *
++ * Copyright (C) 2011 Sandia National Laboratories
++ * Author: Bryan D. Payne (bpayne@sandia.gov)
++ */
++
++int memory_access_start (const char *path);
+Index: qemu-kvm-0.14.0-rc1/configure
+===================================================================
+--- qemu-kvm-0.14.0-rc1.orig/configure
++++ qemu-kvm-0.14.0-rc1/configure
+@@ -2292,6 +2292,29 @@ if compile_prog "" "" ; then
+ fi
+ 
+ ##########################################
++# fuse probe
++
++if test "$fuse" != "no" ; then
++  cat > $TMPC <<EOF
++#define FUSE_USE_VERSION 26
++#include <fuse.h>
++int main (void) { fuse_main(0, NULL, NULL, NULL); return 0; }
++EOF
++  fuse_cflags=`pkg-config fuse --cflags`
++  fuse_libs=`pkg-config fuse --libs`
++  if compile_prog "$fuse_cflags" "$fuse_libs" ; then
++    fuse=yes
++    CFLAGS="$fuse_cflags $CFLAGS"
++    LIBS="$fuse_libs $LIBS"
++  else
++    if test "$attr" = "yes" ; then
++      feature_not_found "Fuse"
++    fi
++    fuse=no
++  fi
++fi
++
++##########################################
+ # Do we need librt
+ cat > $TMPC <<EOF
+ #include <signal.h>
+@@ -2596,6 +2619,7 @@ echo "Trace output file $trace_file-<pid
+ echo "spice support     $spice"
+ echo "rbd support       $rbd"
+ echo "xfsctl support    $xfs"
++echo "fuse support      $fuse"
+ 
+ if test $sdl_too_old = "yes"; then
+ echo "-> Your SDL version is too old - please upgrade to have SDL support"
+@@ -2744,6 +2768,9 @@ fi
+ if test "$xfs" = "yes" ; then
+   echo "CONFIG_XFS=y" >> $config_host_mak
+ fi
++if test "$fuse" = "yes" ; then
++  echo "CONFIG_FUSE=y" >> $config_host_mak
++fi
+ qemu_version=`head $source_path/VERSION`
+ echo "VERSION=$qemu_version" >>$config_host_mak
+ echo "PKGVERSION=$pkgversion" >>$config_host_mak
