@@ -12,7 +12,7 @@
 #include "driver/xen.h"
 #include "driver/interface.h"
 
-#ifdef ENABLE_XEN
+#if ENABLE_XEN == 1
 #define _GNU_SOURCE
 #include <fnmatch.h>
 #include <stdlib.h>

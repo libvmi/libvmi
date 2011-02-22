@@ -336,11 +336,10 @@ status_t valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr);
 status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, uint32_t *address);
 uint32_t windows_find_cr3 (vmi_instance_t vmi);
 
-
 /** Duplicate function from xc_util that should remain
  *  here until Xen 3.1.2 becomes widely distributed.
  */
-#ifdef ENABLE_XEN
+#if ENABLE_XEN == 1
 #ifndef HAVE_MAP_FOREIGN
 void *xc_map_foreign_pages(int xc_handle, uint32_t dom, int prot,
                            const xen_pfn_t *arr, int num);

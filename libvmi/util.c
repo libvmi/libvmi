@@ -181,7 +181,7 @@ void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num)
  * the libxc equivalent when Xen 3.1.2 becomes widely
  * distributed.
  */
-#ifdef ENABLE_XEN
+#if ENABLE_XEN == 1
 #ifndef HAVE_MAP_FOREIGN
 void *xc_map_foreign_pages(int xc_handle, uint32_t dom, int prot,
                            const xen_pfn_t *arr, int num)

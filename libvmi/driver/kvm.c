@@ -12,7 +12,7 @@
 #include "driver/kvm.h"
 #include "driver/interface.h"
 
-#ifdef ENABLE_KVM
+#if ENABLE_KVM == 1
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
@@ -28,122 +28,65 @@
 
 //----------------------------------------------------------------------------
 // Helper functions
-
-static char *get_arg_from_switch (int pid, char *s)
+static char *exec_qmp_cmd (kvm_instance_t *kvm, char *query)
 {
-    char *rtnval = NULL;
-    char *path = safe_malloc(100);
-    snprintf(path, 100, "/proc/%d/cmdline", pid);
+    FILE *p;
+    int status;
+    char *output = safe_malloc(4096);
+    size_t length = 0;
 
-    int fd = open(path, O_RDONLY);
-    char *buf = safe_malloc(1000);
-    ssize_t len = read(fd, buf, 1000);
-
-    char *ptr = buf;
-    int found = 0;
-    while (len > 0){
-        ssize_t tmplen = strlen(ptr);
-        if (strncmp(s, ptr, len) == 0){
-            found = 1;
-            ptr += tmplen + 1;
-            len -= tmplen + 1;
-            break;
-        }
-        ptr += tmplen + 1;
-        len -= tmplen + 1;
-    }
-
-    if (found){
-        rtnval = strndup(ptr, len);
-    }
-
-    free(buf);
-    close(fd);
-    return rtnval;
-}
-
-static int is_kvm_pid (char *path)
-{
-    int rtnval = 0;
-
-    int fd = open(path, O_RDONLY);
-    if (fd == -1){
-        goto exit;
-    }
-
-    char *buf = safe_malloc(15);
-    ssize_t len = read(fd, buf, 15);
-
-    //TODO may need to generalize this line a bit
-    if (strncmp("/usr/bin/kvm", buf, 13) == 0){
-       rtnval = 1;
-    }
-
-exit:
-    if (buf) free(buf);
-    if (fd != -1) close(fd);
-    return rtnval;
-}
-
-static GArray *get_kvm_pids ()
-{
-    GDir *dir = g_dir_open("/proc", 0, NULL);
-    char *name = NULL;
-    char *path = safe_malloc(100);
-    GArray *rtnval = g_array_new(FALSE, FALSE, sizeof(int));
-
-    while ((name = (char *) g_dir_read_name(dir)) != NULL){
-        snprintf(path, 100, "/proc/%s/cmdline", name);
-        if (is_kvm_pid(path)){
-            int val = atoi(name);
-            g_array_append_val(rtnval, val);
-        }
-    }
-    g_dir_close(dir);
-    free(path);
-
-    return rtnval;
-}
-
-static void get_monitor_path (kvm_instance_t *kvm)
-{
-    char *monitor_path = NULL;
     char *name = (char *) virDomainGetName(kvm->dom);
-    printf("--------------------\n");
-    printf("name: %s\n", name);
-
-    GArray *pids = get_kvm_pids();
-    int i = 0;
-
-    for (i = 0; i < pids->len; ++i){
-        int pid = g_array_index(pids, int, i);
-
-        // check is name is a match
-        char *vmname = get_arg_from_switch(pid, "-name");
-        if (strcmp(vmname, name) == 0){
-            char *arg = get_arg_from_switch(pid, "-chardev");
-            char *start = strstr(arg, "path=");
-            if (start != NULL){
-                char *end = strstr(start, ",");
-                end[0] = '\0';
-                monitor_path = strdup(start + 5);
-            }
-            else{
-                free(arg);
-                continue;
-            }
-            free(arg);
-            free(vmname);
-            break;
-        }
-        free(vmname);
+    int cmd_length = strlen(name) + strlen(query) + 29;
+    char *cmd = safe_malloc(cmd_length);
+    snprintf(cmd, cmd_length, "virsh qemu-monitor-command %s %s", name, query);
+    
+    p = popen(cmd, "r");
+    if (NULL == p){
+        dbprint("--failed to run QMP command\n");
+        return NULL;
     }
-    g_array_free(pids, TRUE);
- 
-    printf("monitor_path: %s\n", monitor_path);
-    printf("--------------------\n");
 
-    //TODO use this monitor path to establish a connection to KVM/QEMU
+    length = fread(output, 1, 4096, p);
+    pclose(p);
+    
+    if (length == 0){
+        free(output);
+        return NULL;
+    }
+    else{
+        return output;
+    }
+}
+
+static char *exec_info_registers (kvm_instance_t *kvm)
+{
+    char *query = "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info registers\"}}'";
+    return exec_qmp_cmd(kvm, query);
+}
+
+static reg_t parse_reg_value (char *regname, char *ir_output)
+{
+    char *ptr = strcasestr(ir_output, regname);
+    if (NULL != ptr){
+        ptr += strlen(regname) + 1;
+        return (reg_t) strtoll(ptr, (char **) NULL, 16);
+    }
+    else{
+        return 0;
+    }
+}
+
+//TODO add QMP command for memory access, then add support for it here
+static void testing (kvm_instance_t *kvm)
+{
+    char *output = exec_info_registers(kvm);
+
+    if (NULL != output){
+        reg_t reg = parse_reg_value("CR0", output);
+        printf("reg = 0x%x\n", reg);
+        free(output);
+    }
+
 }
 
 //----------------------------------------------------------------------------
@@ -178,7 +121,7 @@ status_t kvm_init (vmi_instance_t vmi)
     kvm_get_instance(vmi)->dom = dom;
 
 //////////
-    get_monitor_path(kvm_get_instance(vmi));
+    testing(kvm_get_instance(vmi));
 //////////
 
     return VMI_SUCCESS;
@@ -247,26 +190,28 @@ error_exit:
 
 status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
 {
-//TODO this information does not appear to be exported by libvirt ???
+    char *regs = exec_info_registers(kvm_get_instance(vmi));
+    status_t ret = VMI_SUCCESS;
+
     switch (reg){
+        case CR0:
+            *value = parse_reg_value("CR0", regs);
+            break;
+        case CR2:
+            *value = parse_reg_value("CR2", regs);
+            break;
         case CR3:
-            if (vmi->kpgd){
-                *value = vmi->kpgd - vmi->page_offset;
-            }
-            else if (vmi->cr3){
-                *value = vmi->cr3;
-            }
-            else{
-                goto error_exit;
-            }
+            *value = parse_reg_value("CR3", regs);
+            break;
+        case CR4:
+            *value = parse_reg_value("CR4", regs);
             break;
         default:
-            goto error_exit;
+            ret = VMI_FAILURE;
             break;
     }
 
-    return VMI_SUCCESS;
-error_exit:
+    if (regs) free(regs);
     return VMI_FAILURE;
 }
 

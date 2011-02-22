@@ -7,7 +7,7 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
-#ifdef ENABLE_KVM
+#if ENABLE_KVM == 1
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
 

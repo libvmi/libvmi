@@ -12,7 +12,7 @@
 #include "driver/file.h"
 #include "driver/interface.h"
 
-#ifdef ENABLE_FILE
+#if ENABLE_FILE == 1
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>

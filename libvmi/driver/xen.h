@@ -7,7 +7,7 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
-#ifdef ENABLE_XEN
+#if ENABLE_XEN == 1
 #include <xenctrl.h>
 
 typedef struct xen_instance{

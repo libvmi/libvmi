@@ -62,14 +62,18 @@ xen_space=' '
     [then]
         AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
         missing='no'
-        have_xen='no (missing xenstore)'
+        enable_xen='no'
+        xen_space=' '
+        have_xen='missing xenstore'
     [else]
         AC_CHECK_LIB(xenctrl, xc_interface_open, [], [missing="yes"])
         [if test "$missing" = "yes"]
         [then]
             AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
             missing='no'
-            have_xen='no (missing xenctrl)'
+            enable_xen='no'
+            xen_space=' '
+            have_xen='missing xenctrl'
         [else]
             AC_DEFINE([ENABLE_XEN], [1], [Define to 1 to enable Xen support.])
             have_xen='yes'
@@ -95,7 +99,9 @@ kvm_space=' '
     [then]
         AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
         missing='no'
-        have_kvm='no (missing libvirt)'
+        enable_kvm='no'
+        kvm_space=' '
+        have_kvm='missing libvirt'
     [else]
         AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
         have_kvm='yes'
@@ -163,7 +169,7 @@ Host system type: $host
 Build system type: $build
 Installation prefix: $prefix
 
-Feature      | Option             | Enabled?
+Feature      | Option             | Reason
 -------------|--------------------|-----------------------
 Xen Support  | --enable-xen=$enable_xen$xen_space   | $have_xen
 KVM Support  | --enable-kvm=$enable_kvm$kvm_space   | $have_kvm
