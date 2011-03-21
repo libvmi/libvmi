@@ -79,131 +79,147 @@ Index: qemu-kvm-0.14.0-rc1/memory-access.c
 ===================================================================
 --- /dev/null
 +++ qemu-kvm-0.14.0-rc1/memory-access.c
-@@ -0,0 +1,124 @@
+@@ -0,0 +1,140 @@
 +/*
-+ * Mount guest physical memory using FUSE.
++ * Access guest physical memory via a domain socket.
 + *
 + * Copyright (C) 2011 Sandia National Laboratories
 + * Author: Bryan D. Payne (bpayne@sandia.gov)
 + */
 +
 +#include "memory-access.h"
-+#ifdef CONFIG_FUSE
-+
-+#define FUSE_USE_VERSION 26
++#include "cpu-all.h"
++#include "config.h"
 +
 +#include <stdlib.h>
-+#include <fuse.h>
 +#include <stdio.h>
 +#include <string.h>
-+#include <errno.h>
++#include <pthread.h>
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <sys/un.h>
++#include <unistd.h>
++#include <signal.h>
++#include <stdint.h>
 +
-+static const char *hello_str = "Hello World!\n";
-+static const char *hello_path = "/hello";
-+
-+static int memory_access_getattr(const char *path, struct stat *stbuf)
-+{
-+    int res = 0;
-+
-+    memset(stbuf, 0, sizeof(struct stat));
-+    if (strcmp(path, "/") == 0){
-+        stbuf->st_mode = S_IFDIR | 0755;
-+        stbuf->st_nlink = 2;
-+    }
-+    else if (strcmp(path, hello_path) == 0){
-+        stbuf->st_mode = S_IFREG | 0444;
-+        stbuf->st_nlink = 1;
-+        stbuf->st_size = strlen(hello_str);  // file size
-+    }
-+    else{
-+        res = -ENOENT;
-+    }
-+
-+    return res;
-+}
-+
-+static int memory_access_readdir(
-+    const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
-+{
-+    if (strcmp(path, "/") != 0){
-+        return -ENOENT;
-+    }
-+    filler(buf, ".", NULL, 0);
-+    filler(buf, "..", NULL, 0);
-+    filler(buf, hello_path + 1, NULL, 0);
-+    return 0;
-+}
-+
-+// if the user can open this file, return 0, else return error condition
-+static int memory_access_open(const char *path, struct fuse_file_info *fi)
-+{
-+    if (strcmp(path, hello_path) != 0){
-+        return -ENOENT;
-+    }
-+    if ((fi->flags & 3) != O_RDONLY){  // only allow read access
-+        return -EACCES;
-+    }
-+    return 0;
-+}
-+
-+// feeds the user data from the file
-+// - path is file to read
-+// - buf is buffer to place data in
-+// - size is size of buf / amount to read
-+// - offset is the place to start reading
-+// - fi contains access information
-+static int memory_access_read(
-+    const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
-+{
-+    size_t len;
-+
-+    if (strcmp(path, hello_path) != 0){
-+        return -ENOENT;
-+    }
-+
-+    len = strlen(hello_str);
-+    if (offset < len){
-+        if (offset + size > len){
-+            size = len - offset;
-+        }
-+        memcpy(buf, hello_str + offset, size);
-+    }
-+    else{
-+        size = 0;
-+    }
-+
-+    return size;
-+}
-+
-+static struct fuse_operations memory_access_oper = {
-+   .getattr = memory_access_getattr,
-+   .readdir  = memory_access_readdir,
-+   .open    = memory_access_open,
-+   .read    = memory_access_read,
++struct request{
++    uint8_t type;  // 0 quit, 1 read, ... rest reserved
++    uint64_t address;
++    uint64_t length;
 +};
++
++static uint64_t connection_read_memory (uint64_t user_paddr, char *buf, uint64_t user_len)
++{
++    target_phys_addr_t paddr = (target_phys_addr_t) user_paddr;
++    target_phys_addr_t len = (target_phys_addr_t) user_len;
++    void *guestmem = cpu_physical_memory_map(paddr, &len, 0);
++    if (!guestmem){
++        return 0;
++    }
++    memcpy(buf, guestmem, len);
++    cpu_physical_memory_unmap(guestmem, len, 0, len);
++
++    return len;
++}
++
++static void connection_handler(int connection_fd)
++{
++    int nbytes;
++    struct request req;
++
++    while (1){
++        // client request should match the struct request format
++        nbytes = read(connection_fd, &req, sizeof(struct request));
++        if (nbytes != sizeof(struct request)){
++            // error
++            printf("QemuMemoryAccess: invalid request\n");
++        }
++        else if (req.type == 0){
++            // request to quit, goodbye
++            //printf("QemuMemoryAccess: quiting\n");
++            break;
++        }
++        else if (req.type == 1){
++            // request to read
++            //printf("QemuMemoryAccess: reading %llu bytes at 0x%llx\n", req.length, req.address);
++            char *buf = malloc(req.length + 1);
++            nbytes = connection_read_memory(req.address, buf + 1, req.length);
++            if (nbytes != req.length){
++                // read failure, return failure message
++                buf[0] = 0;
++                nbytes = write(connection_fd, buf, 1);
++            }
++            else{
++                // read success, return bytes
++                buf[0] = 1;
++                nbytes = write(connection_fd, buf, nbytes + 1);
++            }
++            free(buf);
++        }
++        else{
++            // unknown command
++            printf("QemuMemoryAccess: ignoring unknown command (%d)\n", req.type);
++            char *buf = malloc(1);
++            buf[0] = 0;
++            nbytes = write(connection_fd, buf, 1);
++            free(buf);
++        }
++    }
++
++    close(connection_fd);
++}
++
++static void *memory_access_thread (void *path)
++{
++    struct sockaddr_un address;
++    int socket_fd, connection_fd;
++    socklen_t address_length;
++
++    socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
++    if (socket_fd < 0){
++        printf("QemuMemoryAccess: socket failed\n");
++        goto error_exit;
++    }
++    unlink(path);
++    address.sun_family = AF_UNIX;
++    address_length = sizeof(address.sun_family) + sprintf(address.sun_path, "%s", (char *) path);
++
++    if (bind(socket_fd, (struct sockaddr *) &address, address_length) != 0){
++        printf("QemuMemoryAccess: bind failed\n");
++        goto error_exit;
++    }
++    if (listen(socket_fd, 0) != 0){
++        printf("QemuMemoryAccess: listen failed\n");
++        goto error_exit;
++    }
++
++    connection_fd = accept(socket_fd, (struct sockaddr *) &address, &address_length);
++    connection_handler(connection_fd);
++
++    close(socket_fd);
++    unlink(path);
++error_exit:
++    return NULL;
++}
 +
 +int memory_access_start (const char *path)
 +{
-+    int argc = 2;
-+    char **argv = malloc(argc * sizeof(char *));
-+    argv[0] = malloc(16);
-+    memcpy(argv[0], "./dummyprogname\0", 16);
-+    argv[1] = malloc(strlen(path) + 1);
-+    memcpy(argv[1], path, strlen(path));
++    pthread_t thread;
++    sigset_t set, oldset;
++    int ret;
 +
-+    int ret = fuse_main(argc, argv, &memory_access_oper, NULL);
++    // create a copy of path that we can safely use
++    char *pathcopy = malloc(strlen(path) + 1);
++    memcpy(pathcopy, path, strlen(path) + 1);
 +
-+    free(argv[0]);
-+    free(argv[1]);
-+    free(argv);
++    // start the thread
++    sigfillset(&set);
++    pthread_sigmask(SIG_SETMASK, &set, &oldset);
++    ret = pthread_create(&thread, NULL, memory_access_thread, pathcopy);
++    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
++
 +    return ret;
 +}
-+
-+#else
-+
-+inline int memory_access_start (const char *path) { return 0; }
-+
-+#endif /* CONFIG_FUSE */
 Index: qemu-kvm-0.14.0-rc1/memory-access.h
 ===================================================================
 --- /dev/null
@@ -217,55 +233,3 @@ Index: qemu-kvm-0.14.0-rc1/memory-access.h
 + */
 +
 +int memory_access_start (const char *path);
-Index: qemu-kvm-0.14.0-rc1/configure
-===================================================================
---- qemu-kvm-0.14.0-rc1.orig/configure
-+++ qemu-kvm-0.14.0-rc1/configure
-@@ -2292,6 +2292,29 @@ if compile_prog "" "" ; then
- fi
- 
- ##########################################
-+# fuse probe
-+
-+if test "$fuse" != "no" ; then
-+  cat > $TMPC <<EOF
-+#define FUSE_USE_VERSION 26
-+#include <fuse.h>
-+int main (void) { fuse_main(0, NULL, NULL, NULL); return 0; }
-+EOF
-+  fuse_cflags=`pkg-config fuse --cflags`
-+  fuse_libs=`pkg-config fuse --libs`
-+  if compile_prog "$fuse_cflags" "$fuse_libs" ; then
-+    fuse=yes
-+    CFLAGS="$fuse_cflags $CFLAGS"
-+    LIBS="$fuse_libs $LIBS"
-+  else
-+    if test "$attr" = "yes" ; then
-+      feature_not_found "Fuse"
-+    fi
-+    fuse=no
-+  fi
-+fi
-+
-+##########################################
- # Do we need librt
- cat > $TMPC <<EOF
- #include <signal.h>
-@@ -2596,6 +2619,7 @@ echo "Trace output file $trace_file-<pid
- echo "spice support     $spice"
- echo "rbd support       $rbd"
- echo "xfsctl support    $xfs"
-+echo "fuse support      $fuse"
- 
- if test $sdl_too_old = "yes"; then
- echo "-> Your SDL version is too old - please upgrade to have SDL support"
-@@ -2744,6 +2768,9 @@ fi
- if test "$xfs" = "yes" ; then
-   echo "CONFIG_XFS=y" >> $config_host_mak
- fi
-+if test "$fuse" = "yes" ; then
-+  echo "CONFIG_FUSE=y" >> $config_host_mak
-+fi
- qemu_version=`head $source_path/VERSION`
- echo "VERSION=$qemu_version" >>$config_host_mak
- echo "PKGVERSION=$pkgversion" >>$config_host_mak

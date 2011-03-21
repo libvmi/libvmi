@@ -31,7 +31,7 @@
 
 /* uncomment this to enable debug output */
 //TODO make this a switch to configure instead
-#define VMI_DEBUG
+//#define VMI_DEBUG
 
 typedef enum mode{
     VMI_MODE_AUTO, /**< mode indicating that libvmi should detect what to monitor */

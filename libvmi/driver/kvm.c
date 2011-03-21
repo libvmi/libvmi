@@ -16,9 +16,13 @@
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/un.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <glib.h>
@@ -26,8 +30,18 @@
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
 
+// request struct matches a definition in qemu source code
+struct request{
+    uint8_t type;  // 0 quit, 1 read, ... rest reserved
+    uint64_t address;
+    uint64_t length;
+};
+
 //----------------------------------------------------------------------------
 // Helper functions
+
+//
+// QMP Command Interactions
 static char *exec_qmp_cmd (kvm_instance_t *kvm, char *query)
 {
     FILE *p;
@@ -64,6 +78,16 @@ static char *exec_info_registers (kvm_instance_t *kvm)
     return exec_qmp_cmd(kvm, query);
 }
 
+static char *exec_memory_access (kvm_instance_t *kvm)
+{
+    char *tmpfile = tempnam("/tmp", "vmi");
+    char *query = (char *) malloc(256);
+    sprintf(query, "'{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}'", tmpfile);
+    kvm->ds_path = strdup(tmpfile);
+    free(tmpfile);
+    return exec_qmp_cmd(kvm, query);
+}
+
 static reg_t parse_reg_value (char *regname, char *ir_output)
 {
     char *ptr = strcasestr(ir_output, regname);
@@ -76,17 +100,39 @@ static reg_t parse_reg_value (char *regname, char *ir_output)
     }
 }
 
-//TODO add QMP command for memory access, then add support for it here
-static void testing (kvm_instance_t *kvm)
+//
+// Domain socket interactions (for memory access from KVM-QEMU)
+static status_t init_domain_socket (kvm_instance_t *kvm)
 {
-    char *output = exec_info_registers(kvm);
+    struct sockaddr_un address;
+    int socket_fd;
+    size_t address_length;
 
-    if (NULL != output){
-        reg_t reg = parse_reg_value("CR0", output);
-        printf("reg = 0x%x\n", reg);
-        free(output);
+    socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    if(socket_fd < 0){
+        dbprint("--socket() failed\n");
+        return VMI_FAILURE;
     }
 
+    address.sun_family = AF_UNIX;
+    address_length = sizeof(address.sun_family) + sprintf(address.sun_path, "%s", kvm->ds_path);
+
+    if(connect(socket_fd, (struct sockaddr *) &address, address_length) != 0){
+        dbprint("--connect() failed to %s\n", kvm->ds_path);
+        return VMI_FAILURE;
+    }
+
+    kvm->socket_fd = socket_fd;
+    return VMI_SUCCESS;
+}
+
+static void destroy_domain_socket (kvm_instance_t *kvm)
+{
+    struct request req;
+    req.type = 0; // quit
+    req.address = 0;
+    req.length = 0;
+    write(kvm->socket_fd, &req, sizeof(struct request));
 }
 
 //----------------------------------------------------------------------------
@@ -119,16 +165,14 @@ status_t kvm_init (vmi_instance_t vmi)
 
     kvm_get_instance(vmi)->conn = conn;
     kvm_get_instance(vmi)->dom = dom;
-
-//////////
-    testing(kvm_get_instance(vmi));
-//////////
-
-    return VMI_SUCCESS;
+    exec_memory_access(kvm_get_instance(vmi));
+    return init_domain_socket(kvm_get_instance(vmi));
 }
 
 void kvm_destroy (vmi_instance_t vmi)
 {
+    destroy_domain_socket(kvm_get_instance(vmi));
+
     if (kvm_get_instance(vmi)->dom){
         virDomainFree(kvm_get_instance(vmi)->dom);
     }
@@ -212,7 +256,7 @@ status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
     }
 
     if (regs) free(regs);
-    return VMI_FAILURE;
+    return ret;
 }
 
 unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
@@ -220,24 +264,50 @@ unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
     return pfn;
 }
 
+size_t kvm_read_memory (vmi_instance_t vmi, uint64_t paddr, void *buf, uint64_t len)
+{
+    struct request req;
+    req.type = 1; // read request
+    req.address = paddr;
+    req.length = len;
+
+    int nbytes = write(kvm_get_instance(vmi)->socket_fd, &req, sizeof(struct request));
+    if (nbytes != sizeof(struct request)){
+        return 0;
+    }
+    else{
+        //TODO reduce the amount of data copying
+        char *tmpbuf = safe_malloc(len + 1);
+        nbytes = read(kvm_get_instance(vmi)->socket_fd, tmpbuf, len + 1);
+        if (nbytes != len + 1){
+            free(tmpbuf);
+            return 0;
+        }
+        if (tmpbuf[0]){
+            // success, copy data into user buffer
+            memcpy(buf, tmpbuf + 1, len);
+            return len;
+        }
+    }
+
+    // default failure
+    return 0;
+}
+
 void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page)
 {
-//TODO using the VIR_MEMORY_PHYSICAL option requires a recent version of libvirt (2009-07-22 or newer), check with autoconf
 //TODO this isn't mapping the page, need to rethink how page map / unmap / free / etc is handled
-//TODO the virDomainMemoryPeek is poorly implemented, need another option
-/*
     unsigned long long start = page << vmi->page_shift;
     size_t size = vmi->page_size;
     void *memory = safe_malloc(size);
 
-    if (-1 == virDomainMemoryPeek(kvm_get_instance(vmi)->dom, start, size, memory, VIR_MEMORY_PHYSICAL)){
+    if (size == kvm_read_memory(vmi, start, memory, size)){
+        return memory;
+    }
+    else{
         dbprint("--failed to map memory\n");
         return NULL;
     }
-
-    return memory;
-*/
-    return NULL;
 }
 
 int kvm_is_pv (vmi_instance_t vmi)

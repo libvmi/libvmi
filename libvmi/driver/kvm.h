@@ -16,6 +16,8 @@ typedef struct kvm_instance{
     virDomainPtr dom;
     unsigned long id;
     char *name;
+    char *ds_path;
+    int socket_fd;
 } kvm_instance_t;
 
 #else
