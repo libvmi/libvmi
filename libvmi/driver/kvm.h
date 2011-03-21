@@ -30,7 +30,9 @@ typedef struct kvm_instance{
 status_t kvm_init (vmi_instance_t vmi);
 void kvm_destroy (vmi_instance_t vmi);
 unsigned long kvm_get_id_from_name (vmi_instance_t vmi, char *name);
+unsigned long kvm_get_id (vmi_instance_t vmi);
 void kvm_set_id (vmi_instance_t vmi, unsigned long id);
+status_t kvm_get_name (vmi_instance_t vmi, char **name);
 void kvm_set_name (vmi_instance_t vmi, char *name);
 status_t kvm_get_memsize (vmi_instance_t vmi, unsigned long *size);
 status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);
@@ -38,4 +40,3 @@ unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn);
 void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page);
 int kvm_is_pv (vmi_instance_t vmi);
 status_t kvm_test (unsigned long id, char *name);
-

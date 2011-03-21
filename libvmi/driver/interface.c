@@ -60,16 +60,16 @@ static void driver_kvm_setup (vmi_instance_t vmi)
     instance->init_ptr = &kvm_init;
     instance->destroy_ptr = &kvm_destroy;
     instance->get_id_from_name_ptr = &kvm_get_id_from_name;
-    instance->get_id_ptr = NULL; //TODO add get_id_ptr
+    instance->get_id_ptr = &kvm_get_id;
     instance->set_id_ptr = &kvm_set_id;
-    instance->get_name_ptr = NULL; //TODO add get_name_ptr
+    instance->get_name_ptr = &kvm_get_name;
     instance->set_name_ptr = &kvm_set_name;
     instance->get_memsize_ptr = &kvm_get_memsize;
     instance->get_vcpureg_ptr = &kvm_get_vcpureg;
     instance->pfn_to_mfn_ptr = &kvm_pfn_to_mfn;
     instance->map_page_ptr = &kvm_map_page;
     instance->map_pages_ptr = NULL; //TODO add map_pages_ptr
-    instance->is_pv_ptr = NULL; //TODO add is_pv_ptr
+    instance->is_pv_ptr = &kvm_is_pv;
 }
 
 static void driver_file_setup (vmi_instance_t vmi)

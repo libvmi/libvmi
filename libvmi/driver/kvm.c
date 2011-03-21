@@ -207,9 +207,28 @@ unsigned long kvm_get_id_from_name (vmi_instance_t vmi, char *name)
     return id;
 }
 
+unsigned long kvm_get_id (vmi_instance_t vmi)
+{
+    return kvm_get_instance(vmi)->id;
+}
+
 void kvm_set_id (vmi_instance_t vmi, unsigned long id)
 {
     kvm_get_instance(vmi)->id = id;
+}
+
+status_t kvm_get_name (vmi_instance_t vmi, char **name)
+{
+    char *tmpname = virDomainGetName(kvm_get_instance(vmi)->dom);
+    // don't need to deallocate the name, it will go away with the domain object
+
+    if (NULL != tmpname){
+        *name = strdup(tmpname);
+        return VMI_SUCCESS;
+    }
+    else{
+        return VMI_FAILURE;
+    }
 }
 
 void kvm_set_name (vmi_instance_t vmi, char *name)
@@ -343,7 +362,9 @@ status_t kvm_test (unsigned long id, char *name)
 status_t kvm_init (vmi_instance_t vmi) {return VMI_FAILURE; }
 void kvm_destroy (vmi_instance_t vmi) { return; }
 unsigned long kvm_get_id_from_name (vmi_instance_t vmi, char *name) { return 0; }
+unsigned long kvm_get_id (vmi_instance_t vmi) { return 0; }
 void kvm_set_id (vmi_instance_t vmi, unsigned long id) { return; }
+status_t kvm_get_name (vmi_instance_t vmi, char **name) { return VMI_FAILURE; }
 void kvm_set_name (vmi_instance_t vmi, char *name) { return; }
 status_t kvm_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_FAILURE; }
 status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
