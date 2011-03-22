@@ -42,7 +42,7 @@ int main (int argc, char **argv)
     vmi_instance_t vmi;
     vmi_linux_taskaddr_t taskaddr;
     vmi_windows_peb_t peb;
-    unsigned char *memory = NULL;
+    char *memory = NULL;
     uint32_t offset = 0;
 
     /* this is the VM or file that we are looking at */
@@ -83,26 +83,18 @@ int main (int argc, char **argv)
 
     /* grab the memory at the start of the code segment
        for this process and print it out */
+    memory = (char *) malloc(PAGE_SIZE);
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-        memory = vmi_access_user_va(
-                 vmi, taskaddr.start_code, &offset, pid, PROT_READ);
+        vmi_read_va(vmi, taskaddr.start_code, pid, memory, PAGE_SIZE);
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        memory = vmi_access_user_va(
-                 vmi, peb.ImageBaseAddress, &offset, pid, PROT_READ);
-    }
-    if (NULL == memory){
-        perror("failed to map memory");
-        goto error_exit;
+        vmi_read_va(vmi, peb.ImageBaseAddress, pid, memory, PAGE_SIZE);
     }
     vmi_print_hex(memory, PAGE_SIZE);
     printf("offset = 0x%x\n", offset);
+    free(memory);
 
 error_exit:
-
-    /* sanity check to unmap shared pages */
-    if (memory) munmap(memory, PAGE_SIZE);
-
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);
 

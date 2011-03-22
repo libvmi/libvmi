@@ -161,7 +161,7 @@ static status_t kpcr_symbol_resolve (vmi_instance_t vmi, unsigned long offset, u
     uint64_t tmp = 0;
     uint32_t symaddr = vmi->os.windows_instance.kddebugger_data64 + offset;
 
-    if (VMI_FAILURE == vmi_read_long_long_virt(vmi, symaddr, 0, &tmp)){
+    if (VMI_FAILURE == vmi_read_64_va(vmi, symaddr, 0, &tmp)){
         return VMI_FAILURE;
     }
     *address = (uint32_t) tmp;
@@ -440,13 +440,13 @@ static status_t init_kddebugger_data64 (vmi_instance_t vmi)
     uint32_t kpcr_address = 0xffdff000;
     uint32_t KdVersionBlock, DebuggerDataList, ListPtr;
 
-    if (VMI_FAILURE == vmi_read_long_virt(vmi, kpcr_address + 0x34, 0, &KdVersionBlock)){
+    if (VMI_FAILURE == vmi_read_32_va(vmi, kpcr_address + 0x34, 0, &KdVersionBlock)){
         goto error_exit;
     }
-    if (VMI_FAILURE == vmi_read_long_virt(vmi, KdVersionBlock + 0x20, 0, &DebuggerDataList)){
+    if (VMI_FAILURE == vmi_read_32_va(vmi, KdVersionBlock + 0x20, 0, &DebuggerDataList)){
         goto error_exit;
     }
-    if (VMI_FAILURE == vmi_read_long_virt(vmi, DebuggerDataList, 0, &ListPtr)){
+    if (VMI_FAILURE == vmi_read_32_va(vmi, DebuggerDataList, 0, &ListPtr)){
         goto error_exit;
     }
     vmi->os.windows_instance.kddebugger_data64 = ListPtr;

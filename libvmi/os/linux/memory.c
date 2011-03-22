@@ -77,7 +77,7 @@ uint32_t linux_pid_to_pgd (vmi_instance_t vmi, int pid)
        grab the pgd value */
     memcpy(&ptr, memory + offset + mm_offset - tasks_offset, 4);
     munmap(memory, vmi->page_size);
-    vmi_read_long_virt(vmi, ptr + pgd_offset, 0, &pgd);
+    vmi_read_32_va(vmi, ptr + pgd_offset, 0, &pgd);
 
     /* convert pgd into a machine address */
     pgd = vmi_translate_kv2p(vmi, pgd);

@@ -21,7 +21,7 @@ int main (int argc, char **argv)
     vmi_instance_t vmi;
     unsigned char *memory = NULL;
     uint32_t offset, next_process, list_head;
-    char *procname = NULL;
+    char *procname = (char *) malloc(256);
     int pid = 0;
     int tasks_offset, pid_offset, name_offset;
 
@@ -49,41 +49,27 @@ int main (int argc, char **argv)
 
     /* get the head of the list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-        memory = vmi_access_kernel_sym(vmi, "init_task", &offset, PROT_READ);
-        if (NULL == memory){
-            perror("failed to get process list head");
-            goto error_exit;
-        }    
-        memcpy(&next_process, memory + offset + tasks_offset, 4);
+        uint32_t init_task_va = vmi_translate_ksym2v(vmi, "init_task");
+        vmi_read_32_va(vmi, init_task_va + tasks_offset, 0, &next_process);
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        vmi_read_long_sym(vmi, "PsInitialSystemProcess", &list_head);
-        memory = vmi_access_kernel_va(vmi, list_head, &offset, PROT_READ);
-        if (NULL == memory){
-            perror("failed to get EPROCESS for PsInitialSystemProcess");
-            goto error_exit;
-        }
-        memcpy(&next_process, memory + offset + tasks_offset, 4);
-        procname = (char *) (memory + offset + name_offset);
-        memcpy(&pid, memory + offset + pid_offset, 4);
+        vmi_read_32_ksym(vmi, "PsInitialSystemProcess", &list_head);
+        vmi_read_32_va(vmi, list_head + tasks_offset, 0, &next_process);
+        vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
+        vmi_read_va(vmi, list_head + name_offset, 0, procname, 256);
         printf("[%5d] %s\n", pid, procname);
     }
     list_head = next_process;
-    munmap(memory, PAGE_SIZE);
 
     /* walk the task list */
     while (1){
 
         /* follow the next pointer */
-        memory = vmi_access_kernel_va(vmi, next_process, &offset, PROT_READ);
-        if (NULL == memory){
-            perror("failed to map memory for process list pointer");
-            goto error_exit;
-        }
-        memcpy(&next_process, memory + offset, 4);
+        uint32_t tmp_next = 0;
+        vmi_read_32_va(vmi, next_process, 0, &tmp_next);
 
         /* if we are back at the list head, we are done */
-        if (list_head == next_process){
+        if (list_head == tmp_next){
             break;
         }
 
@@ -97,21 +83,19 @@ int main (int argc, char **argv)
            code cleaner, if not more fragile.  In a real app, you'd
            want to do this a little more robust :-)  See
            include/linux/sched.h for mode details */
-        procname = (char *) (memory + offset + name_offset - tasks_offset);
-        memcpy(&pid, memory + offset + pid_offset - tasks_offset, 4);
+        vmi_read_va(vmi, next_process + name_offset - tasks_offset, 0, procname, 256);
+        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
 
         /* trivial sanity check on data */
         if (pid < 0){
             continue;
         }
         printf("[%5d] %s\n", pid, procname);
-        munmap(memory, PAGE_SIZE);
+        next_process = tmp_next;
     }
 
 error_exit:
-
-    /* sanity check to unmap shared pages */
-    if (memory) munmap(memory, PAGE_SIZE);
+    if (procname) free(procname);
 
     /* cleanup any memory associated with the LibVMI instance */
     vmi_destroy(vmi);

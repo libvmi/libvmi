@@ -46,11 +46,8 @@ int main (int argc, char **argv)
 
     while (address < vmi_get_memsize(vmi)){
 
-        /* access the memory */
-        memory = vmi_access_pa(vmi, address, &offset, PROT_READ);
-
         /* write memory to file */
-        if (memory){
+        if (PAGE_SIZE == vmi_read_pa(vmi, address, memory, PAGE_SIZE)){
             /* memory mapped, just write to file */
             size_t written = fwrite(memory, 1, PAGE_SIZE, f);
             if (written != PAGE_SIZE){
@@ -76,8 +73,8 @@ int main (int argc, char **argv)
     }
 
 error_exit:
-    if (memory){ munmap(memory, PAGE_SIZE); }
-    if (f){ fclose(f); }
+    if (memory) free(memory);
+    if (f) fclose(f);
 
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);

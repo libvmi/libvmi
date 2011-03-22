@@ -207,8 +207,8 @@ status_t vmi_windows_get_peb (
     munmap(memory, vmi->page_size);
 
     /* copy appropriate values into peb struct */
-    vmi_read_long_virt(vmi, ptr + iba_offset, pid, &(peb->ImageBaseAddress));
-    vmi_read_long_virt(vmi, ptr + ph_offset, pid, &(peb->ProcessHeap));
+    vmi_read_32_va(vmi, ptr + iba_offset, pid, &(peb->ImageBaseAddress));
+    vmi_read_32_va(vmi, ptr + ph_offset, pid, &(peb->ProcessHeap));
 
     return VMI_SUCCESS;
 

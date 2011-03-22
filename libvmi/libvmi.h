@@ -46,16 +46,16 @@ typedef enum status{
 } status_t;
 
 /**
- * Failure mode where XenAccess will exit with failure if there are
+ * Failure mode where LibVMI will exit with failure if there are
  * any problems found on startup.  This will provide for strict
  * checking of the configuration file parameters and the memory 
  * image itself.  If initialization completes successfully in this
- * mode, then you should then have full use of the XenAccess memory
+ * mode, then you should then have full use of the LibVMI memory
  * access functionality (e.g., virtual, physical, and symbolic lookups).
  */
 #define VMI_FAILHARD 0
 /**
- * Failure mode where XenAccess will try to complete initialization
+ * Failure mode where LibVMI will try to complete initialization
  * unless there is a fatal failure.  Assuming that initialization does
  * complete, memory access may be available with reduced functionality
  * (e.g., only able to access physical addresses).  The exact functionality
@@ -125,8 +125,8 @@ typedef struct vmi_windows_peb{
     uint32_t ProcessHeap;      /**< initial address of the heap */
 } vmi_windows_peb_t;
 
-/*--------------------------------------------------------
- * Initialization and Destruction functions from vmi_core.c
+/*---------------------------------------------------------
+ * Initialization and Destruction functions from core.c
  */
 
 /**
@@ -167,239 +167,206 @@ status_t vmi_init_name (vmi_instance_t *vmi, mode_t mode, char *name);
  */
 status_t vmi_destroy (vmi_instance_t vmi);
 
-/*-----------------------------------------
- * Memory access functions from vmi_memory.c
+/*---------------------------------------------------------
+ * Memory translation functions from memory.c
  */
-
-/**
- * Memory maps page in domU that contains given physical address.
- * The mapped memory is read-only.
- *
- * @param[in] instance Handle to xenaccess instance.
- * @param[in] phys_address Requested physical address.
- * @param[out] offset Offset of the address in returned page.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- *
- * @return Address of a page copy that contains phys_address.
- */
-void *vmi_access_pa (
-        vmi_instance_t instance, uint32_t phys_address,
-        uint32_t *offset, int prot);
-
-/**
- * Memory maps page in domU that contains given machine address. For more
- * info about machine, virtual and pseudo-physical page see xen dev docs.
- *
- * @param[in] instance Handle to xenaccess instance.
- * @param[in] mach_address Requested machine address.
- * @param[out] offset Offset of the address in returned page.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- *
- * @return Address of a page copy with content like mach_address.
- */
-void *vmi_access_ma (
-        vmi_instance_t instance, uint32_t mach_address,
-        uint32_t *offset, int prot);
-
-/**
- * Memory maps one page from domU to a local address range.  The
- * memory to be mapped is specified with a kernel symbol (e.g.,
- * from System.map on linux).  This memory must be unmapped manually
- * with munmap.
- *
- * @param[in] instance XenAccess instance
- * @param[in] symbol Desired kernel symbol to access
- * @param[out] offset Offset to kernel symbol within the mapped memory
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of mapped memory page or NULL on error
- */
-void *vmi_access_kernel_sym (
-        vmi_instance_t instance, char *symbol, uint32_t *offset, int prot);
-
-/**
- * Memory maps one page from domU to a local address range.  The
- * memory to be mapped is specified with a kernel virtual address.
- * This memory must be unmapped manually with munmap.
- *
- * @param[in] instance XenAccess instance
- * @param[in] virt_address Virtual address to access
- * @param[out] offset Offset to address within the mapped memory
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of mapped memory page or NULL on error
- */
-void *vmi_access_kernel_va (
-        vmi_instance_t instance, uint32_t virt_address,
-        uint32_t *offset, int prot);
-
-/**
- * Memory maps multiple pages from domU to a local address range.
- * The memory to be mapped is specified with a kernel virtual
- * address.  This memory must be unmapped manually with munmap.
- *
- * @param[in] instance XenAccess instance
- * @param[in] virt_address Desired virtual address to access
- * @param[in] size Size in bytes of the accessed range
- * @param[out] offset Offset to the address within mapped memory
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of the mapped memory pages or NULL on error
- */ 
-void *vmi_access_kernel_va_range (
-	vmi_instance_t instance, uint32_t virt_address,
-	uint32_t size, uint32_t* offset, int prot);
-
-/**
- * Memory maps one page from domU to a local address range.  The
- * memory to be mapped is specified with a virtual address from a 
- * process' address space.  This memory must be unmapped manually
- * with munmap.
- *
- * @param[in] instance XenAccess instance
- * @param[in] virt_address Desired virtual address to access
- * @param[out] offset Offset to address within the mapped memory
- * @param[in] pid PID of process' address space to use.  If you specify
- *     0 here, XenAccess will access the kernel virtual address space and
- *     this function's behavior will be the same as vmi_access_virtual_address.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of mapped memory page or NULL on error
- */
-void *vmi_access_user_va (
-        vmi_instance_t instance, uint32_t virt_address,
-        uint32_t *offset, int pid, int prot);
-
-/**
- * Memory maps multiple pages from domU to a local address range.
- * the memory to be mapped is specified by a virtual address from
- * process' address space.  Data structures that span multiple
- * pages can be mapped without dealing with fragmentation.
- *
- * @param[in] instance XenAccess instance
- * @param[in] virt_address Desired virtual address to access
- * @param[in] size Size in bytes of the accessed range
- * @param[out] offset Offset to the address within mapped memory
- * @param[in] pid PID of process' address space to use.  If you
- * 		specify 0 here, XenAccess will access the kernel virtual
- *  	address space and this function's be the same as
- *  	vmi_access_virtual_range.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of the mapped memory pages or NULL on error
- */
-void *vmi_access_user_va_range (
-	vmi_instance_t instance, uint32_t virt_address,
-	uint32_t size, uint32_t* offset, int pid, int prot);
 
 /**
  * Performs the translation from a kernel virtual address to a
  * physical address.
  *
- * @param[in] instance XenAccess instance
- * @param[in] virt_address Desired kernel virtual address to translate
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Desired kernel virtual address to translate
  * @return Physical address, or zero on error
  */
-uint32_t vmi_translate_kv2p(vmi_instance_t instance, uint32_t virt_address);
+uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t vaddr);
 
-/*---------------------------------------
- * Memory access functions from vmi_util.c
+/**
+ * Performs the translation from a user virtual address to a
+ * physical address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Desired kernel virtual address to translate
+ * @param[in] pid Process id for desired user address space
+ * @return Physical address, or zero on error
+ */
+uint32_t vmi_translate_uv2p(vmi_instance_t vmi, uint32_t vaddr, int pid);
+
+/**
+ * Performs the translation from a kernel symbol to a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] symbol Desired kernel symbol to translate
+ * @return Virtual address, or zero on error
+ */
+uint32_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol);
+
+/*---------------------------------------------------------
+ * Memory access functions from util.c
  */
 
 /**
- * Reads a long (32 bit) value from memory, given a kernel symbol.
+ * Reads \a count bytes from memory located at the kernel symbol \a symbol
+ * and stores the output in \a buf.
  *
- * @param[in] instance XenAccess instance
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to read from
+ * @param[out] buf The data read from memory
+ * @param[in] count The number of bytes to read
+ * @return The number of bytes read.
+ */
+size_t vmi_read_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count);
+
+/**
+ * Reads \a count bytes from memory located at the virtual address \a vaddr
+ * and stores the output in \a buf.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to read from
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[out] buf The data read from memory
+ * @param[in] count The number of bytes to read
+ * @return The number of bytes read.
+ */
+size_t vmi_read_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void *buf, size_t count);
+
+/**
+ * Reads \a count bytes from memory located at the physical address \a paddr
+ * and stores the output in \a buf.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to read from
+ * @param[out] buf The data read from memory
+ * @param[in] count The number of bytes to read
+ * @return The number of bytes read.
+ */
+size_t vmi_read_pa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count);
+
+/**
+ * Reads 8 bits from memory, given a kernel symbol.
+ *
+ * @param[in] vmi LibVMI instance
  * @param[in] sym Kernel symbol to read from
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_long_sym (vmi_instance_t instance, char *sym, uint32_t *value);
+status_t vmi_read_8_ksym (vmi_instance_t vmi, char *sym, uint8_t *value);
 
 /**
- * Reads a long long (64 bit) value from memory, given a kernel symbol.
+ * Reads 16 bits from memory, given a kernel symbol.
  *
- * @param[in] instance XenAccess instance
+ * @param[in] vmi LibVMI instance
  * @param[in] sym Kernel symbol to read from
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_long_long_sym (vmi_instance_t instance, char *sym, uint64_t *value);
+status_t vmi_read_16_ksym (vmi_instance_t vmi, char *sym, uint16_t *value);
 
 /**
- * Reads a long (32 bit) value from memory, given a virtual address.
+ * Reads 32 bits from memory, given a kernel symbol.
  *
- * @param[in] instance XenAccess instance
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to read from
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_32_ksym (vmi_instance_t vmi, char *sym, uint32_t *value);
+
+/**
+ * Reads 64 bits from memory, given a kernel symbol.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to read from
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_64_ksym (vmi_instance_t vmi, char *sym, uint64_t *value);
+
+/**
+ * Reads 8 bits from memory, given a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
  * @param[in] vaddr Virtual address to read from
  * @param[in] pid Pid of the virtual address space (0 for kernel)
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_long_virt (
-        vmi_instance_t instance, uint32_t vaddr, int pid, uint32_t *value);
+status_t vmi_read_8_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint8_t *value);
 
 /**
- * Reads a long long (64 bit) value from memory, given a virtual address.
+ * Reads 16 bits from memory, given a virtual address.
  *
- * @param[in] instance XenAccess instance
+ * @param[in] vmi LibVMI instance
  * @param[in] vaddr Virtual address to read from
  * @param[in] pid Pid of the virtual address space (0 for kernel)
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_long_long_virt (
-        vmi_instance_t instance, uint32_t vaddr, int pid, uint64_t *value);
+status_t vmi_read_16_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint16_t *value);
 
 /**
- * Reads a long (32 bit) value from memory, given a physical address.
+ * Reads 32 bits from memory, given a virtual address.
  *
- * @param[in] instance XenAccess instance
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to read from
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_32_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint32_t *value);
+
+/**
+ * Reads 64 bits from memory, given a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to read from
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_64_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint64_t *value);
+
+/**
+ * Reads 8 bits from memory, given a physical address.
+ *
+ * @param[in] vmi LibVMI instance
  * @param[in] paddr Physical address to read from
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_long_phys (
-        vmi_instance_t instance, uint32_t paddr, uint32_t *value);
+status_t vmi_read_8_pa (vmi_instance_t vmi, uint32_t paddr, uint8_t *value);
 
 /**
- * Reads a long long (64 bit) value from memory, given a physical address.
+ * Reads 16 bits from memory, given a physical address.
  *
- * @param[in] instance XenAccess instance
+ * @param[in] vmi LibVMI instance
  * @param[in] paddr Physical address to read from
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_long_long_phys (
-        vmi_instance_t instance, uint32_t paddr, uint64_t *value);
+status_t vmi_read_16_pa (vmi_instance_t vmi, uint32_t paddr, uint16_t *value);
 
 /**
- * Reads a long (32 bit) value from memory, given a machine address.
+ * Reads 32 bits from memory, given a physical address.
  *
- * @param[in] instance XenAccess instance
- * @param[in] maddr Machine address to read from
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to read from
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_long_mach (
-        vmi_instance_t instance, uint32_t maddr, uint32_t *value);
+status_t vmi_read_32_pa (vmi_instance_t vmi, uint32_t paddr, uint32_t *value);
 
 /**
- * Reads a long long (64 bit) value from memory, given a machine address.
+ * Reads 64 bits from memory, given a physical address.
  *
- * @param[in] instance XenAccess instance
- * @param[in] maddr Machine address to read from
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to read from
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_long_long_mach (
-        vmi_instance_t instance, uint32_t maddr, uint64_t *value);
+status_t vmi_read_64_pa (vmi_instance_t vmi, uint32_t paddr, uint64_t *value);
 
-/**
- * Looks up the virtual address of an exported kernel symbol.
- *
- * @param[in] instance XenAccess instance
- * @param[in] sym Kernel symbol (must be exported)
- * @param[out] vaddr The virtual address of the symbol
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_symbol_to_address (vmi_instance_t instance, char *sym, uint32_t *vaddr);
-
-/*-----------------------------
+/*---------------------------------------------------------
  * Linux-specific functionality
  */
 
@@ -407,15 +374,14 @@ status_t vmi_symbol_to_address (vmi_instance_t instance, char *sym, uint32_t *va
  * Extracts information about the specified process' location in memory from
  * the task struct specified by @a pid.
  *
- * @param[in] instance XenAccess instance
+ * @param[in] vmi LibVMI instance
  * @param[in] pid The PID for the task to read from
  * @param[out] taskaddr Information from the specified task struct
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_linux_get_taskaddr (
-        vmi_instance_t instance, int pid, vmi_linux_taskaddr_t *taskaddr);
+status_t vmi_linux_get_taskaddr (vmi_instance_t vmi, int pid, vmi_linux_taskaddr_t *taskaddr);
 
-/*-----------------------------
+/*---------------------------------------------------------
  * Windows-specific functionality
  */
 
@@ -423,16 +389,15 @@ status_t vmi_linux_get_taskaddr (
  * Extracts information from the PEB struct, which is located at the top of
  * the EPROCESS struct with the specified @a pid.
  *
- * @param[in] instance XenAccess instance
+ * @param[in] vmi LibVMI instance
  * @param[in] pid The unique ID for the PEB to read from
  * @param[out] peb Information from the specified PEB
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_windows_get_peb (
-        vmi_instance_t instance, int pid, vmi_windows_peb_t *peb);
+status_t vmi_windows_get_peb (vmi_instance_t vmi, int pid, vmi_windows_peb_t *peb);
 
-/*--------------------------------------------
- * Print util functions from vmi_pretty_print.c
+/*---------------------------------------------------------
+ * Print util functions from pretty_print.c
  */
 
 /**

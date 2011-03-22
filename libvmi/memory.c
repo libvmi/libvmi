@@ -296,7 +296,7 @@ uint32_t vmi_pagetable_lookup (
     }
 }
 
-/* expose virtual to physical mapping via api call */
+/* expose virtual to physical mapping for kernel space via api call */
 uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t virt_address)
 {
     reg_t cr3 = 0;
@@ -308,6 +308,40 @@ uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t virt_address)
     else{
         return vmi_pagetable_lookup(vmi, cr3, virt_address);
     }
+}
+
+/* expose virtual to physical mapping for user space via api call */
+uint32_t vmi_translate_uv2p(vmi_instance_t vmi, uint32_t virt_address, int pid)
+{
+    reg_t pgd = 0;
+    pgd = vmi_pid_to_pgd(vmi, pid);
+
+    if (!pgd){
+        dbprint("--early bail on v2p lookup because pgd is zero\n");
+        return 0;
+    }
+    else{
+        return vmi_pagetable_lookup(vmi, pgd, virt_address);
+    }
+}
+
+/* convert a kernel symbol into an address */
+uint32_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
+{
+    uint32_t ret = 0;
+
+    if (VMI_OS_LINUX == vmi->os_type){
+        if (VMI_FAILURE == linux_system_map_symbol_to_address(vmi, symbol, &ret)){
+            ret = 0;
+        }
+    }
+    else if (VMI_OS_WINDOWS == vmi->os_type){
+        if (VMI_FAILURE == windows_symbol_to_address(vmi, symbol, &ret)){
+            ret = 0;
+        }
+    }
+
+    return ret;
 }
 
 /* map memory given a kernel symbol */
@@ -359,33 +393,18 @@ void *vmi_access_user_va (
         return vmi_access_ma(vmi, address, offset, prot);
     }
 
-    /* use kernel page tables */
-    /*TODO HYPERVISOR_VIRT_START = 0xFC000000 so we can't go over that.
-      Figure out what this should be b/c there still may be a fixed
-      mapping range between the page'd addresses and VIRT_START */
+    /* lookup kernel or user address */
     if (!pid){
-        reg_t cr3 = 0;
-        driver_get_vcpureg(vmi, &cr3, CR3, 0);
-        address = vmi_pagetable_lookup(vmi, cr3, virt_address);
-        if (!address){
-            dbprint("--address not in page table (0x%x)\n", virt_address);
-            return NULL;
-        }
+        address = vmi_translate_kv2p(vmi, virt_address);
+    }
+    else{
+        address = vmi_translate_uv2p(vmi, virt_address, pid);
     }
 
-    /* use user page tables */
-    else{
-        reg_t pgd = vmi_pid_to_pgd(vmi, pid);
-        dbprint("--UserVirt: pgd for pid=%d is 0x%.8x.\n", pid, pgd);
-
-        if (pgd){
-            address = vmi_pagetable_lookup(vmi, pgd, virt_address);
-        }
-
-        if (!address){
-            errprint("Address not in page table (0x%x).\n", virt_address);
-            return NULL;
-        }
+    /* make sure that lookup worked */
+    if (!address){
+        dbprint("--address not in page table (0x%x)\n", virt_address);
+        return NULL;
     }
 
     /* update cache and map the memory */

@@ -25,7 +25,7 @@ status_t get_kpgd_method2 (vmi_instance_t vmi, uint32_t *sysproc)
 
     /* get address for page directory (from system process) */
     /*TODO this 0x18 offset should not be hard coded below */
-    if (VMI_FAILURE == vmi_read_long_phys(vmi, *sysproc + 0x18, &vmi->kpgd)){
+    if (VMI_FAILURE == vmi_read_32_pa(vmi, *sysproc + 0x18, &vmi->kpgd)){
         dbprint("--failed to resolve PD for Idle process\n");
         goto error_exit;
     }
@@ -56,14 +56,14 @@ uint32_t windows_find_cr3 (vmi_instance_t vmi)
  */
 status_t get_kpgd_method1 (vmi_instance_t vmi, uint32_t *sysproc)
 {
-    if (VMI_FAILURE == vmi_read_long_sym(vmi, "PsInitialSystemProcess", sysproc)){
+    if (VMI_FAILURE == vmi_read_32_ksym(vmi, "PsInitialSystemProcess", sysproc)){
         dbprint("--failed to read pointer for system process\n");
         goto error_exit;
     }
     *sysproc = vmi_translate_kv2p(vmi, *sysproc);
     dbprint("--got PA to PsInititalSystemProcess (0x%.8x).\n", *sysproc);
 
-    if (VMI_FAILURE == vmi_read_long_phys(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
+    if (VMI_FAILURE == vmi_read_32_pa(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
         dbprint("--failed to resolve pointer for system process\n");
         goto error_exit;
     }
@@ -81,18 +81,18 @@ error_exit:
 
 static status_t get_kpgd_method0 (vmi_instance_t vmi, uint32_t *sysproc)
 {
-    if (VMI_FAILURE == vmi_symbol_to_address(vmi, "PsActiveProcessHead", sysproc)){
+    if (VMI_FAILURE == windows_symbol_to_address(vmi, "PsActiveProcessHead", sysproc)){
         dbprint("--failed to resolve PsActiveProcessHead\n");
         goto error_exit;
     }
-    if (VMI_FAILURE == vmi_read_long_virt(vmi, *sysproc, 0, sysproc)){
+    if (VMI_FAILURE == vmi_read_32_va(vmi, *sysproc, 0, sysproc)){
         dbprint("--failed to translate PsActiveProcessHead\n");
         goto error_exit;
     }
     *sysproc = vmi_translate_kv2p(vmi, *sysproc) - vmi->os.windows_instance.tasks_offset;
     dbprint("--got PA to PsActiveProcessHead (0x%.8x).\n", *sysproc);
 
-    if (VMI_FAILURE == vmi_read_long_phys(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
+    if (VMI_FAILURE == vmi_read_32_pa(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
         dbprint("--failed to resolve pointer for system process\n");
         goto error_exit;
     }
@@ -113,11 +113,11 @@ status_t windows_init (vmi_instance_t vmi)
     uint32_t sysproc = 0;
 
     /* get base address for kernel image in memory */
-    if (VMI_FAILURE == vmi_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl)){
+    if (VMI_FAILURE == windows_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl)){
         dbprint("--address translation failure, switching PAE mode\n");
         vmi->pae = !vmi->pae;
 
-        if (VMI_FAILURE == vmi_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl)){
+        if (VMI_FAILURE == windows_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl)){
             errprint("Address translation failure.\n");
             goto error_exit;
         }
@@ -139,7 +139,7 @@ status_t windows_init (vmi_instance_t vmi)
     dbprint("**set kpgd (0x%.8x).\n", vmi->kpgd);
 
     /* get address start of process list */
-    vmi_read_long_phys(vmi, sysproc + vmi->os.windows_instance.tasks_offset, &vmi->init_task);
+    vmi_read_32_pa(vmi, sysproc + vmi->os.windows_instance.tasks_offset, &vmi->init_task);
     dbprint("**set init_task (0x%.8x).\n", vmi->init_task);
 
     return VMI_SUCCESS;

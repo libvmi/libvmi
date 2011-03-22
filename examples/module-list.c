@@ -25,13 +25,8 @@ void print_unicode_string (vmi_instance_t vmi, uint16_t len, uint32_t addr)
     uint32_t offset = 0;
     char *tmpname = malloc(len);
     char *name = malloc(len);
-    unsigned char *memory =
-        vmi_access_kernel_va(vmi, addr, &offset, PROT_READ);
-
-    if (memory){
+    if (len == vmi_read_va(vmi, addr, 0, tmpname, len)){
         memset(name, 0, len);
-        memcpy(tmpname, memory + offset, len);
-        munmap(memory, PAGE_SIZE);
         for (i = 0; i < len; i++){
             if (i%2 == 0){
                 name[i/2] = tmpname[i];
@@ -46,9 +41,7 @@ void print_unicode_string (vmi_instance_t vmi, uint16_t len, uint32_t addr)
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
-    unsigned char *memory = NULL;
     uint32_t offset, next_module, list_head;
-    char *modname = NULL;
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
@@ -61,10 +54,10 @@ int main (int argc, char **argv)
 
     /* get the head of the module list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-        vmi_read_long_sym(vmi, "modules", &next_module);
+        vmi_read_32_ksym(vmi, "modules", &next_module);
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        vmi_read_long_sym(vmi, "PsLoadedModuleList", &next_module);
+        vmi_read_32_ksym(vmi, "PsLoadedModuleList", &next_module);
     }
     list_head = next_module;
 
@@ -72,15 +65,11 @@ int main (int argc, char **argv)
     while (1){
 
         /* follow the next pointer */
-        memory = vmi_access_kernel_va(vmi, next_module, &offset, PROT_READ);
-        if (NULL == memory){
-            perror("failed to map memory for module list pointer");
-            goto error_exit;
-        }
-        memcpy(&next_module, memory + offset, 4);
+        uint32_t tmp_next = 0;
+        vmi_read_32_va(vmi, next_module, 0, &tmp_next);
 
         /* if we are back at the list head, we are done */
-        if (list_head == next_module){
+        if (list_head == tmp_next){
             break;
         }
 
@@ -91,26 +80,24 @@ int main (int argc, char **argv)
            can just add 8 to get the name.  See include/linux/module.h
            for mode details */
         if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-            modname = (char *) (memory + offset + 8);
+            char *modname = (char *) malloc(256);
+            vmi_read_va(vmi, next_module + 8, 0, modname, 256);
             printf("%s\n", modname);
+            free(modname);
         }
         else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
             /*TODO don't use a hard-coded offsets here */
             /* these offsets work with WinXP SP2 */
             uint16_t length;
             uint32_t buffer_addr;
-            memcpy(&length, memory + offset + 0x2c, 2);
-            memcpy(&buffer_addr, memory + offset + 0x30, 4);
+            vmi_read_va(vmi, next_module + 0x2c, 0, &length, 2);
+            vmi_read_va(vmi, next_module + 0x30, 0, &buffer_addr, 4);
             print_unicode_string(vmi, length, buffer_addr);
         }
-        munmap(memory, PAGE_SIZE);
+        next_module = tmp_next;
     }
 
 error_exit:
-
-    /* sanity check to unmap shared pages */
-    if (memory) munmap(memory, PAGE_SIZE);
-
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);
 

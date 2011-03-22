@@ -33,7 +33,7 @@ uint32_t windows_find_eprocess (vmi_instance_t vmi, char *name)
     uint32_t value = 0;
 
     while (offset < vmi->size){
-        vmi_read_long_phys(vmi, offset, &value);
+        vmi_read_32_pa(vmi, offset, &value);
         // Magic header numbers.  See get_ntoskrnl_base for
         // an explanation.
         if (value == 0x001b0003 || value == 0x00200003){

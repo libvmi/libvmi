@@ -19,8 +19,7 @@
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
-    unsigned char *memory = NULL;
-    uint32_t offset;
+    char *memory = (char *) malloc(PAGE_SIZE);
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
@@ -34,19 +33,15 @@ int main (int argc, char **argv)
         goto error_exit;
     }
 
-    /* get the symbol's memory page */
-    memory = vmi_access_kernel_sym(vmi, symbol, &offset, PROT_READ);
-    if (NULL == memory){
+    /* get memory starting at symbol for the next PAGE_SIZE bytes */
+    if (PAGE_SIZE != vmi_read_ksym(vmi, symbol, memory, PAGE_SIZE)){
         perror("failed to get symbol's memory");
         goto error_exit;
     }
-    printf("offset = 0x%.8x\n", offset);
     vmi_print_hex(memory, PAGE_SIZE);
 
 error_exit:
-
-    /* sanity check to unmap shared pages */
-    if (memory) munmap(memory, PAGE_SIZE);
+    if (memory) free(memory);
 
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);

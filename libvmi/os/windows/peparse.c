@@ -214,7 +214,7 @@ status_t get_export_rva (
     uint32_t rva_loc =
         base_addr + et->address_of_functions + aof_index * sizeof(uint32_t);
 
-    return vmi_read_long_phys(vmi, rva_loc, rva);
+    return vmi_read_32_pa(vmi, rva_loc, rva);
 }
 
 int get_aof_index (
@@ -225,7 +225,7 @@ int get_aof_index (
         base_addr + et->address_of_name_ordinals + aon_index * sizeof(uint16_t);
     uint32_t aof_index = 0;
 
-    if (vmi_read_long_phys(vmi, aof_index_loc, &aof_index) == VMI_SUCCESS){
+    if (vmi_read_32_pa(vmi, aof_index_loc, &aof_index) == VMI_SUCCESS){
         return (int) (aof_index & 0xffff);
     }
     else{
@@ -246,7 +246,7 @@ int get_aon_index (
         uint32_t str_rva_loc =
             base_addr + et->address_of_names + i * sizeof(uint32_t);
         uint32_t str_rva = 0;
-        vmi_read_long_phys(vmi, str_rva_loc, &str_rva);
+        vmi_read_32_pa(vmi, str_rva_loc, &str_rva);
         if (str_rva){
             char *rva = rva_to_string(vmi, str_rva);
             if (NULL != rva){
@@ -274,7 +274,7 @@ status_t get_export_table (vmi_instance_t vmi, uint32_t base_addr, struct export
     uint32_t export_header_rva = 0;
 
     /* signature location */
-    vmi_read_long_phys(vmi, base_addr + 60, &value);
+    vmi_read_32_pa(vmi, base_addr + 60, &value);
     signature_location = base_addr + value;
 
     /* optional header */
@@ -349,16 +349,16 @@ status_t valid_ntoskrnl_start (vmi_instance_t vmi, uint32_t addr)
     dbprint("--PEParse: checking possible ntoskrnl start at 0x%.8x\n", addr);
 
     /* validate DOS header */
-    vmi_read_long_phys(vmi, addr, &value);
+    vmi_read_32_pa(vmi, addr, &value);
     if ((value & 0xffff) != IMAGE_DOS_HEADER){
         dbprint("--PEParse: bad header, no IMAGE_DOS_HEADER\n");
         return VMI_FAILURE;
     }
 
     /* validate nt signature */
-    vmi_read_long_phys(vmi, addr + 60, &value);
+    vmi_read_32_pa(vmi, addr + 60, &value);
     signature_location = addr + value;
-    vmi_read_long_phys(vmi, signature_location, &value);
+    vmi_read_32_pa(vmi, signature_location, &value);
     if (value != IMAGE_NT_SIGNATURE){
         dbprint("--PEParse: bad header, no IMAGE_NT_SIGNATURE\n");
         return VMI_FAILURE;

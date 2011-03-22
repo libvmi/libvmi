@@ -27,7 +27,7 @@ status_t linux_init (vmi_instance_t vmi)
 
     if (driver_is_pv(vmi)){
         vmi->kpgd -= vmi->page_offset;
-        if (vmi_read_long_phys(
+        if (vmi_read_32_pa(
                 vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE){
             errprint("Failed to get physical addr for kpgd.\n");
             ret = vmi_report_error(vmi, 0, VMI_EMINOR);
