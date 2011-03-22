@@ -87,10 +87,9 @@ int main (int argc, char **argv)
         vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
 
         /* trivial sanity check on data */
-        if (pid < 0){
-            continue;
+        if (pid >= 0){
+            printf("[%5d] %s\n", pid, procname);
         }
-        printf("[%5d] %s\n", pid, procname);
         next_process = tmp_next;
     }
 
