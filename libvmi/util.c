@@ -41,7 +41,7 @@ size_t vmi_read_pa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count)
         
         /* do the read */
         memcpy( ((char *) buf) + buf_offset, memory + offset, read_len);
-        munmap(memory, vmi->page_size);
+//        munmap(memory, vmi->page_size); //TODO resolve this
 
         /* set variables for next loop */
         count -= read_len;

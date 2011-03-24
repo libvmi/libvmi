@@ -143,15 +143,15 @@ Index: qemu-kvm-0.14.0-rc1/memory-access.c
 +            // request to read
 +            //printf("QemuMemoryAccess: reading %llu bytes at 0x%llx\n", req.length, req.address);
 +            char *buf = malloc(req.length + 1);
-+            nbytes = connection_read_memory(req.address, buf + 1, req.length);
++            nbytes = connection_read_memory(req.address, buf, req.length);
 +            if (nbytes != req.length){
 +                // read failure, return failure message
-+                buf[0] = 0;
++                buf[req.length] = 0;
 +                nbytes = write(connection_fd, buf, 1);
 +            }
 +            else{
 +                // read success, return bytes
-+                buf[0] = 1;
++                buf[req.length] = 1;
 +                nbytes = write(connection_fd, buf, nbytes + 1);
 +            }
 +            free(buf);

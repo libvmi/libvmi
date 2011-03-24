@@ -13,6 +13,7 @@ c_sources = \
     driver/file.c \
     driver/interface.c \
     driver/kvm.c \
+    driver/memory_cache.c \
     driver/xen.c \
     os/linux/core.c \
     os/linux/memory.c \

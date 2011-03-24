@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <limits.h>
 
 //----------------------------------------------------------------------------
 // File-Specific Interface Functions (no direction mapping to driver_*)
@@ -27,6 +28,51 @@
 static file_instance_t *file_get_instance (vmi_instance_t vmi)
 {
     return ((file_instance_t *) vmi->driver);
+}
+
+void *file_get_memory (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+{
+    /*
+    void *memory = NULL;
+    int fildes = fileno(file_get_instance(vmi)->fhandle);
+
+    if (paddr >= vmi->size){
+        return NULL;
+    }
+
+    memory = mmap(NULL, length, PROT_READ, MAP_SHARED, fildes, paddr);
+    if (MAP_FAILED == memory){
+        errprint("File mmap failed.\n");
+        return NULL;
+    }
+    return memory;
+    */
+
+    void *memory = safe_malloc(length);
+    int fildes = fileno(file_get_instance(vmi)->fhandle);
+
+    if (paddr >= vmi->size){
+        goto error_exit;
+    }
+
+    if (paddr != lseek(fildes, paddr, SEEK_SET)){
+        goto error_exit;
+    }
+    if (length == read(fildes, memory, length)){
+        return memory;
+    }
+
+error_exit:
+    if (memory) free(memory);
+    return NULL;
+}
+
+void file_release_memory (void *memory, size_t length)
+{
+    /*
+    if (memory) munmap(memory, length);
+    */
+    if (memory) free(memory);
 }
 
 //----------------------------------------------------------------------------
@@ -42,7 +88,7 @@ status_t file_init (vmi_instance_t vmi)
         return VMI_FAILURE;
     }
     file_get_instance(vmi)->fhandle = fhandle;
-
+    memory_cache_init(file_get_memory, file_release_memory, ULONG_MAX);
 }
 
 void file_destroy (vmi_instance_t vmi)
@@ -102,20 +148,9 @@ unsigned long file_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
 
 void *file_map_page (vmi_instance_t vmi, int prot, unsigned long page)
 {
-    void *memory = NULL;
-    long address = page << vmi->page_shift;
-    int fildes = fileno(file_get_instance(vmi)->fhandle);
-
-    if (address >= vmi->size){
-        return NULL;
-    }
-
-    memory = mmap(NULL, vmi->page_size, prot, MAP_SHARED, fildes, address);
-    if (MAP_FAILED == memory){
-        errprint("File mmap failed.\n");
-        return NULL;
-    }
-    return memory;
+    uint32_t paddr = page << vmi->page_shift;
+    uint32_t offset = 0;
+    return memory_cache_insert(vmi, paddr, &offset);
 }
 
 int file_is_pv (vmi_instance_t vmi)

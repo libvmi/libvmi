@@ -11,6 +11,7 @@
 #include "private.h"
 #include "driver/kvm.h"
 #include "driver/interface.h"
+#include "driver/memory_cache.h"
 
 #if ENABLE_KVM == 1
 #define _GNU_SOURCE
@@ -143,6 +144,44 @@ static kvm_instance_t *kvm_get_instance (vmi_instance_t vmi)
     return ((kvm_instance_t *) vmi->driver);
 }
 
+void *kvm_get_memory (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+{
+    char *buf = safe_malloc(length + 1);
+    struct request req;
+    req.type = 1; // read request
+    req.address = (uint64_t) paddr;
+    req.length = (uint64_t) length;
+
+    int nbytes = write(kvm_get_instance(vmi)->socket_fd, &req, sizeof(struct request));
+    if (nbytes != sizeof(struct request)){
+        goto error_exit;
+    }
+    else{
+        // get the data from kvm
+        nbytes = read(kvm_get_instance(vmi)->socket_fd, buf, length + 1);
+        if (nbytes != (length + 1)){
+            goto error_exit;
+        }
+
+        // check that kvm thinks everything is ok by looking at the last byte
+        // of the buffer, 0 is failure and 1 is success
+        if (buf[length]){
+            // success, return pointer to buf
+            return buf;
+        }
+    }
+
+    // default failure
+error_exit:
+    if (buf) free(buf);
+    return NULL;
+}
+
+void kvm_release_memory (void *memory, size_t length)
+{
+    if (memory) free(memory);
+}
+
 //----------------------------------------------------------------------------
 // General Interface Functions (1-1 mapping to driver_* function)
 
@@ -166,6 +205,7 @@ status_t kvm_init (vmi_instance_t vmi)
     kvm_get_instance(vmi)->conn = conn;
     kvm_get_instance(vmi)->dom = dom;
     exec_memory_access(kvm_get_instance(vmi));
+	memory_cache_init(kvm_get_memory, kvm_release_memory, 1);
     return init_domain_socket(kvm_get_instance(vmi));
 }
 
@@ -283,50 +323,11 @@ unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
     return pfn;
 }
 
-size_t kvm_read_memory (vmi_instance_t vmi, uint64_t paddr, void *buf, uint64_t len)
-{
-    struct request req;
-    req.type = 1; // read request
-    req.address = paddr;
-    req.length = len;
-
-    int nbytes = write(kvm_get_instance(vmi)->socket_fd, &req, sizeof(struct request));
-    if (nbytes != sizeof(struct request)){
-        return 0;
-    }
-    else{
-        //TODO reduce the amount of data copying
-        char *tmpbuf = safe_malloc(len + 1);
-        nbytes = read(kvm_get_instance(vmi)->socket_fd, tmpbuf, len + 1);
-        if (nbytes != len + 1){
-            free(tmpbuf);
-            return 0;
-        }
-        if (tmpbuf[0]){
-            // success, copy data into user buffer
-            memcpy(buf, tmpbuf + 1, len);
-            return len;
-        }
-    }
-
-    // default failure
-    return 0;
-}
-
 void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page)
 {
-//TODO this isn't mapping the page, need to rethink how page map / unmap / free / etc is handled
-    unsigned long long start = page << vmi->page_shift;
-    size_t size = vmi->page_size;
-    void *memory = safe_malloc(size);
-
-    if (size == kvm_read_memory(vmi, start, memory, size)){
-        return memory;
-    }
-    else{
-        dbprint("--failed to map memory\n");
-        return NULL;
-    }
+    uint32_t paddr = page << vmi->page_shift;
+    uint32_t offset = 0;
+    return memory_cache_insert(vmi, paddr, &offset);
 }
 
 int kvm_is_pv (vmi_instance_t vmi)
