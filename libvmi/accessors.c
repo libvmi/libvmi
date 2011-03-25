@@ -9,6 +9,12 @@
 
 #include "libvmi.h"
 #include "private.h"
+#include "driver/interface.h"
+
+mode_t vmi_get_mode (vmi_instance_t vmi)
+{
+    return vmi->mode;
+}
 
 os_t vmi_get_ostype (vmi_instance_t vmi)
 {
@@ -61,4 +67,9 @@ unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name)
 unsigned long vmi_get_memsize (vmi_instance_t vmi)
 {
     return vmi->size;
+}
+
+status_t vmi_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
+{
+    return driver_get_vcpureg(vmi, value, reg, vcpu);
 }

@@ -410,10 +410,61 @@ status_t vmi_windows_get_peb (vmi_instance_t vmi, int pid, vmi_windows_peb_t *pe
  */
 void vmi_print_hex (unsigned char *data, int length);
 
-//TODO document the new functions listed below
+/*---------------------------------------------------------
+ * Accessor functions from accessors.c
+ */
+
+/**
+ * Gets the current operating mode for LibVMI, which tells what 
+ * resource is being using to access the memory (e.g., Xen, KVM
+ * or File).
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Operating mode
+ */
+mode_t vmi_get_mode (vmi_instance_t vmi);
+
+/**
+ * Get the OS type that LibVMI is currently accessing.  This is
+ * simple windows or linux (no version information).
+ *
+ * @param[in] vmi LibVMI instance
+ * @return OS type
+ */
 os_t vmi_get_ostype (vmi_instance_t vmi);
+
+/**
+ * Get the memory offset associated with the given offset_name.
+ * Valid names include everything in the libvmi.con file.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] offset_name String name for desired offset
+ * @return The offset value
+ */
 unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name);
+
+/**
+ * Gets the memory size of the guest or file that LibVMI is currently
+ * accessing.  This is effectively the max physical address that you
+ * can access in the system.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Memory size
+ */
 unsigned long vmi_get_memsize (vmi_instance_t vmi);
+
+/**
+ * Gets the current value of a VCPU register.  This currently only
+ * supports control registers.  When LibVMI is accessing a raw
+ * memory file, this function will fail.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[out] value Returned value from the register, only valid on VMI_SUCCESS
+ * @param[in] reg The register to access
+ * @param[in] vcpu The index of the VCPU to access, use 0 for single VCPU systems
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);
 
 #pragma GCC visibility pop
 #endif /* LIBVMI_H */
