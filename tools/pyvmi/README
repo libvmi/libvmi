@@ -1,0 +1,33 @@
+pyvmi -- A Python adapter for LibVMI by Bryan D. Payne
+
+If you'd rather perform introspection using python, instead of C, then this
+adapter will help get you going.  Follow the steps below to use it.
+
+1) Build and install LibVMI
+    ./autogen.sh
+    ./configure
+    make
+    make install
+    ldconfig
+
+2) Build and install pyvmi
+    python setup.py build
+    python setup.py install
+
+3) Start having fun with Python
+    import pyvmi
+    vmi = pyvmi.pyvmi_instance("win7")  # win7 is the vm name
+    vmi.read_pa(paddr, length)
+    vmi.read_va(vaddr, pid, length)
+    vmi.read_ksym(sym, length)
+    vmi.get_cr3()
+    vmi.get_memsize()
+
+Once you have pyvmi installed, you can write your own programs using Python or
+you can use Volatility to perform your memory analysis.  To use Volatility,
+you need to apply pyvmi_volatility.patch to Volatility.  This patch is included
+in the pyvmi directory in the LibVMI distribution.
+
+More information on Volatility and a link to download the tool, are available
+on the following web page:
+https://www.volatilesystems.com/default/volatility
