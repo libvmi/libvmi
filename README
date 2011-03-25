@@ -1,69 +1,94 @@
-XenAccess v0.5 README
+LibVMI v0.6 README
 by Bryan D. Payne
 =====================
 
 This file contains very basic instructions to get you up and running.  If you
-want more details about installation, or programming with XenAccess, then see
-the documentation included in the doc/ subdirectory of XenAccess, or view the
-documentation online at http://doc.xenaccess.org.
+want more details about installation, or programming with LibVMI, then see
+the documentation included in the doc/ subdirectory of LibVMI, or view the
+documentation online at http://vmitools.sandia.gov.
 
-Changes From Previous Versions
-------------------------------
-* #define ENABLE_XEN
-* --disable-xen
-* new init functions 
+Transition from XenAccess
+-------------------------
+The core LibVMI code is based on XenAccess, but there have been many API changes
+to make this library faster, easier to use, and more flexible.  XenAccess code
+will not directly compile using LibVMI.  However, the migration path is usually
+straightforward.  Below are a few notes on the most obvious API changes:
+
+* There are no longer strict / lax versions of the init functions.  The two
+  remaining init functions simply differ in whether you use an ID or a Name
+  to identify the guest VM.  The new init functions also take an argument 
+  that specifies where to access the memory from (e.g., Xen, KVM, or a File).
+  You can also have LibVMI automatically determine where to access memory.
+  For example, the example code uses a Name to identify the guest.  Using
+  the auto mode, if this is a KVM VM name then LibVMI will connect via KVM.
+  Similarly, if you specifiy a file name, then LibVMI will access that file
+  as a raw memory dump.  All of this happens under the hood, so you can
+  write code once that can be readily used on a variety of platforms.
+
+* The xa_access_* functions have been replaced with vmi_read_* functions.
+  The read functions give you the flexibility to read as much or as little
+  memory as you desire, so you are no longer working within page boundaries.
+  The read functions also handle page mapping management transparently, so 
+  you never need to worry about unmapping pages or writing code in a specific
+  way for performance reasons.  You can simply use the read functions and
+  LibVMI will work to make your memory accesses as fast as possible.
+
+* The xa_read_long_* functions have been renamed for clarity.  These functions
+  continue to work in the same way, just with different names.  For example:
+     xa_read_long_sym --> vmi_read_32_ksym
+     xa_read_long_long_virt --> vmi_read_64_va
+  Using this new naming convention, there are also new functions to make it
+  simple to read 8 bits / 1 byte and 16 bites / 2 bytes at a time.
+
+* There are now translation routines to perform kernel virtual address lookups,
+  user virtual address lookups, and kernel symbol lookups.
+
+* Kernel symbols on Windows are now available from both the kernel header
+  exports and the KPCR table.  The KPCR symbols are new, and useful because
+  these include many otherwise hard to find data locations.
+
+* The LibVMI instance structure is now opaque.  There are accessor functions
+  available to return useful information from this structure.
+
+For more details on using LibVMI, see the online documentation available at
+http://vmitools.sandia.gov.
 
 Dependencies
 ------------
 The following libraries are used in building this code:
 
-libxc (from Xen, the Xen Control library)
-libxenstore (from Xen, access to the xenstore)
+libxc (from Xen, the Xen Control library, required for Xen support)
+libxenstore (from Xen, access to the xenstore, required for Xen support)
+libvirt (from Red Hat, access to KVM guests, required for KVM support)
+qemu-kvm patch (for KVM memory access, required for KVM support, see Note 2)
 yacc OR bison (for reading the configuration file)
 lex OR flex (for reading the configuration file)
+glib (version 2.0 or better is required)
 
-Note: If you are installing a packaged version of Xen, you will likely
+Note 1: If you are installing a packaged version of Xen, you will likely
   need to install something like 'xen-devel' to obtain the files needed
   from libxc and libxenstore in the dependencies listed above.
 
+Note 2: If you want KVM support then you will need to build your own 
+  version of QEMU-KVM.  Before building, you need to apply the patch
+  provided under the libvmi/tools/qemu-kvm-patch directory.  This patch
+  allows LibVMI to access the memory of a running QEMU-KVM guest.  
+  Hopefully this patch will get accepted upstream, but until then this
+  is the only option.
+
 Building
 --------
-XenAccess uses the standard GNU build system.  To compile this library, simply
+LibVMI uses the standard GNU build system.  To compile this library, simply
 follow the steps below:
 
 ./autogen.sh
 ./configure
 make
 
-Note that if you only want to use XenAccess to read dd-style memory files,
-then you can pass the "--disable-xen" option to configure.  This will build
-XenAccess without any Xen support, allowing you to use the library on systems
-without Xen installed.
-
-The example code will work without installing XenAccess.  However, you may
+The example code will work without installing LibVMI.  However, you may
 choose to install the library into the prefix specified to 'configure' by:
 
 make install
 
-The default installation prefix is /usr/local.
-
-
-Want to Help?
--------------
-One of the motivations for starting this project was to create a place where
-everyone interested in using introspection could come together and share
-ideas.  Introspection has many potential uses and it doesn't make sense for
-everyone to keep rewriting code to do this.  Instead, let's use XenAccess as
-a common base and spend our time exploring all of the interesting things that
-introspection can be used for.  
-
-If you'd like to add features to the code, please drop me a line on the
-mailing list.  I'm always happy to take new ideas, code patches, and even
-add developers to the group, depending on how you would like to get invovled.
-
-
-Questions?
-----------
-The Google Group is the best place to get your questions answered:
-
-    http://groups.google.com/group/xenaccess
+The default installation prefix is /usr/local.  You may need to run
+'ldconfig' after performing a 'make install'.
