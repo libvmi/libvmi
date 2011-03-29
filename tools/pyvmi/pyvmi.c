@@ -18,15 +18,6 @@
 #define mem(v)  (((pyvmi_instance *)(v))->memory)
 #define name(v)  (((pyvmi_instance *)(v))->name)
 
-//void print_debug(xa_instance_t xai) {
-//    printf("DEBUG: KPGD [%#x] CR3: [%#x] DomId: [%d] Version: [%d]\n"
-//           "       Memory size: [%d] OS Type: [%s]\n",
-//
-//           xai.kpgd, xai.cr3, xai.m.xen.domain_id,
-//           xai.m.xen.xen_version, xai.m.xen.size,
-//           xai.os_type == XA_OS_LINUX ? "Linux" : "Windows");
-//}
-
 // PyVmi instance type fwdref
 staticforward PyTypeObject pyvmi_instance_Type;
 
@@ -57,7 +48,6 @@ pyvmi_init_name(PyObject *self, PyObject *args) {
     mem(object) = NULL;
     name(object) = strdup(vmname);
 
-    //print_debug(vmi(object));
     return (PyObject *) object;
 }
 
@@ -73,7 +63,8 @@ pyvmi_instance_dealloc(PyObject *self) {
     PyObject_DEL(self);
 }
 
-// Methods
+//-------------------------------------------------------------------
+// Primary read functions
 static PyObject *
 pyvmi_read_pa(PyObject *self, PyObject *args) {
     uint32_t paddr;
@@ -144,6 +135,83 @@ pyvmi_read_ksym(PyObject *self, PyObject *args) {
     return Py_BuildValue("s#", mem(self), length);
 }
 
+//-------------------------------------------------------------------
+// Utility read functions
+
+static PyObject *
+pyvmi_read_8_pa (PyObject *self, PyObject *args)
+{
+    uint32_t paddr;
+    uint8_t value;
+
+    if (!PyArg_ParseTuple(args, "I", &paddr)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_8_pa(vmi(self), paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("c", &value);
+}
+
+static PyObject *
+pyvmi_read_16_pa (PyObject *self, PyObject *args)
+{
+    uint32_t paddr;
+    uint16_t value;
+
+    if (!PyArg_ParseTuple(args, "I", &paddr)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_16_pa(vmi(self), paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("H", &value);
+}
+
+static PyObject *
+pyvmi_read_32_pa (PyObject *self, PyObject *args)
+{
+    uint32_t paddr;
+    uint32_t value;
+
+    if (!PyArg_ParseTuple(args, "I", &paddr)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_32_pa(vmi(self), paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("I", &value);
+}
+
+static PyObject *
+pyvmi_read_64_pa (PyObject *self, PyObject *args)
+{
+    uint32_t paddr;
+    uint64_t value;
+
+    if (!PyArg_ParseTuple(args, "I", &paddr)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_64_pa(vmi(self), paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("K", &value);
+}
+
+//-------------------------------------------------------------------
+// Accessor functions
 static PyObject *
 pyvmi_get_cr3(PyObject *self, PyObject *args) {
     reg_t cr3 = 0;
@@ -172,6 +240,9 @@ pyvmi_get_memsize(PyObject *self, PyObject *args) {
     return Py_BuildValue("I", size);
 }
 
+//-------------------------------------------------------------------
+// Python interface
+
 // pyvmi_instance method table
 static PyMethodDef pyvmi_instance_methods[] = {
     {"read_pa", pyvmi_read_pa, METH_VARARGS,
@@ -180,6 +251,14 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read virtual memory"},
     {"read_ksym", pyvmi_read_ksym, METH_VARARGS,
      "Read memory using kernel symbol"},
+    {"read_8_pa", pyvmi_read_8_pa, METH_VARARGS,
+     "Read 1 byte using a physical address"},
+    {"read_16_pa", pyvmi_read_16_pa, METH_VARARGS,
+     "Read 2 bytes using a physical address"},
+    {"read_32_pa", pyvmi_read_32_pa, METH_VARARGS,
+     "Read 4 bytes using a physical address"},
+    {"read_64_pa", pyvmi_read_64_pa, METH_VARARGS,
+     "Read 8 bytes using a physical address"},
     {"get_cr3", pyvmi_get_cr3, METH_VARARGS,
      "Get the current value of the CR3 register"},
     {"get_memsize", pyvmi_get_memsize, METH_VARARGS,
