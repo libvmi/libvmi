@@ -79,7 +79,7 @@ Index: qemu-kvm-0.14.0-rc1/memory-access.c
 ===================================================================
 --- /dev/null
 +++ qemu-kvm-0.14.0-rc1/memory-access.c
-@@ -0,0 +1,140 @@
+@@ -0,0 +1,138 @@
 +/*
 + * Access guest physical memory via a domain socket.
 + *
@@ -132,16 +132,14 @@ Index: qemu-kvm-0.14.0-rc1/memory-access.c
 +        nbytes = read(connection_fd, &req, sizeof(struct request));
 +        if (nbytes != sizeof(struct request)){
 +            // error
-+            printf("QemuMemoryAccess: invalid request\n");
++            continue;
 +        }
 +        else if (req.type == 0){
 +            // request to quit, goodbye
-+            //printf("QemuMemoryAccess: quiting\n");
 +            break;
 +        }
 +        else if (req.type == 1){
 +            // request to read
-+            //printf("QemuMemoryAccess: reading %llu bytes at 0x%llx\n", req.length, req.address);
 +            char *buf = malloc(req.length + 1);
 +            nbytes = connection_read_memory(req.address, buf, req.length);
 +            if (nbytes != req.length){
