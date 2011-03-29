@@ -1,7 +1,7 @@
-Index: qemu-kvm-0.14.0-rc1/monitor.c
+Index: qemu-kvm-0.14.0/monitor.c
 ===================================================================
---- qemu-kvm-0.14.0-rc1.orig/monitor.c
-+++ qemu-kvm-0.14.0-rc1/monitor.c
+--- qemu-kvm-0.14.0.orig/monitor.c
++++ qemu-kvm-0.14.0/monitor.c
 @@ -61,6 +61,7 @@
  #include "trace.h"
  #endif
@@ -24,10 +24,10 @@ Index: qemu-kvm-0.14.0-rc1/monitor.c
  static void do_sum(Monitor *mon, const QDict *qdict)
  {
      uint32_t addr;
-Index: qemu-kvm-0.14.0-rc1/qmp-commands.hx
+Index: qemu-kvm-0.14.0/qmp-commands.hx
 ===================================================================
---- qemu-kvm-0.14.0-rc1.orig/qmp-commands.hx
-+++ qemu-kvm-0.14.0-rc1/qmp-commands.hx
+--- qemu-kvm-0.14.0.orig/qmp-commands.hx
++++ qemu-kvm-0.14.0/qmp-commands.hx
 @@ -430,6 +430,33 @@ Example:
  EQMP
  
@@ -62,10 +62,10 @@ Index: qemu-kvm-0.14.0-rc1/qmp-commands.hx
          .name       = "migrate",
          .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
          .params     = "[-d] [-b] [-i] uri",
-Index: qemu-kvm-0.14.0-rc1/Makefile.target
+Index: qemu-kvm-0.14.0/Makefile.target
 ===================================================================
---- qemu-kvm-0.14.0-rc1.orig/Makefile.target
-+++ qemu-kvm-0.14.0-rc1/Makefile.target
+--- qemu-kvm-0.14.0.orig/Makefile.target
++++ qemu-kvm-0.14.0/Makefile.target
 @@ -195,7 +195,7 @@ endif #CONFIG_BSD_USER
  # System emulator target
  ifdef CONFIG_SOFTMMU
@@ -75,10 +75,10 @@ Index: qemu-kvm-0.14.0-rc1/Makefile.target
  # virtio has to be here due to weird dependency between PCI and virtio-net.
  # need to fix this properly
  obj-$(CONFIG_NO_PCI) += pci-stub.o
-Index: qemu-kvm-0.14.0-rc1/memory-access.c
+Index: qemu-kvm-0.14.0/memory-access.c
 ===================================================================
 --- /dev/null
-+++ qemu-kvm-0.14.0-rc1/memory-access.c
++++ qemu-kvm-0.14.0/memory-access.c
 @@ -0,0 +1,138 @@
 +/*
 + * Access guest physical memory via a domain socket.
@@ -218,10 +218,10 @@ Index: qemu-kvm-0.14.0-rc1/memory-access.c
 +
 +    return ret;
 +}
-Index: qemu-kvm-0.14.0-rc1/memory-access.h
+Index: qemu-kvm-0.14.0/memory-access.h
 ===================================================================
 --- /dev/null
-+++ qemu-kvm-0.14.0-rc1/memory-access.h
++++ qemu-kvm-0.14.0/memory-access.h
 @@ -0,0 +1,8 @@
 +/*
 + * Mount guest physical memory using FUSE.
