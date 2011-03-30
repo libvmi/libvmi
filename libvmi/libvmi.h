@@ -29,8 +29,7 @@
 #include <sys/mman.h>
 #include <errno.h>
 
-/* uncomment this to enable debug output */
-//TODO make this a switch to configure instead
+/* uncomment this and recompile to enable debug output */
 //#define VMI_DEBUG
 
 typedef enum mode{
@@ -44,25 +43,6 @@ typedef enum status{
     VMI_SUCCESS,  /**< return value indicating success */
     VMI_FAILURE   /**< return value indicating failure */
 } status_t;
-
-/**
- * Failure mode where LibVMI will exit with failure if there are
- * any problems found on startup.  This will provide for strict
- * checking of the configuration file parameters and the memory 
- * image itself.  If initialization completes successfully in this
- * mode, then you should then have full use of the LibVMI memory
- * access functionality (e.g., virtual, physical, and symbolic lookups).
- */
-#define VMI_FAILHARD 0
-/**
- * Failure mode where LibVMI will try to complete initialization
- * unless there is a fatal failure.  Assuming that initialization does
- * complete, memory access may be available with reduced functionality
- * (e.g., only able to access physical addresses).  The exact functionality
- * available will depend on the problems that were bypassed during 
- * initialization.
- */
-#define VMI_FAILSOFT 1
 
 typedef enum os{
     VMI_OS_UNKNOWN,  /**< OS type is unknown */
@@ -79,6 +59,8 @@ typedef enum registers{
     CR4
 } registers_t;
 
+typedef unsigned long addr_t;
+
 /**
  * @brief LibVMI Instance.
  *
@@ -89,60 +71,9 @@ typedef enum registers{
  */
 typedef struct vmi_instance * vmi_instance_t;
 
-/**
- * @brief Linux task information.
- *
- * This struct holds the task addresses that are found in a task's
- * memory descriptor.  You can fill the values in the struct using
- * the vmi_linux_get_taskaddr function.  The comments next to each
- * entry are taken from Bovet & Cesati's excellent book Understanding
- * the Linux Kernel 3rd Ed, p354.
- */
-typedef struct vmi_linux_taskaddr{
-    unsigned long start_code;  /**< initial address of executable code */
-    unsigned long end_code;    /**< final address of executable code */
-    unsigned long start_data;  /**< initial address of initialized data */
-    unsigned long end_data;    /**< final address of initialized data */
-    unsigned long start_brk;   /**< initial address of the heap */
-    unsigned long brk;         /**< current final address of the heap */
-    unsigned long start_stack; /**< initial address of user mode stack */
-    unsigned long arg_stack;   /**< initial address of command-line arguments */
-    unsigned long arg_end;     /**< final address of command-line arguments */
-    unsigned long env_start;   /**< initial address of environmental vars */
-    unsigned long env_end;     /**< final address of environmental vars */
-} vmi_linux_taskaddr_t;
-
-/**
- * @brief Windows PEB information.
- *
- * This struct holds process information found in the PEB, which is 
- * part of the EPROCESS structure.  You can fill the values in the
- * struct using the vmi_windows_get_peb function.  Note that this
- * struct does not contain all information from the PEB.
- */
-typedef struct vmi_windows_peb{
-    uint32_t ImageBaseAddress; /**< initial address of executable code */
-    uint32_t ProcessHeap;      /**< initial address of the heap */
-} vmi_windows_peb_t;
-
 /*---------------------------------------------------------
  * Initialization and Destruction functions from core.c
  */
-
-/**
- * Initializes access to a specific VM given an ID.  All
- * calls to vmi_init must eventually call vmi_destroy.
- *
- * This is a costly funtion in terms of the time needed to execute.
- * You should call this function only once per VM, and then use the
- * resulting instance when calling any of the other library functions.
- *
- * @param[out] vmi Struct that holds instance information
- * @param[in] mode VMI_MODE_AUTO, VMI_MODE_XEN, or VMI_MODE_KVM
- * @param[in] id Unique id specifying the VM to view
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_init_id (vmi_instance_t *vmi, mode_t mode, unsigned long id);
 
 /**
  * Initializes access to a specific VM or file given a name.  All
@@ -157,7 +88,7 @@ status_t vmi_init_id (vmi_instance_t *vmi, mode_t mode, unsigned long id);
  * @param[in] name Unique name specifying the VM or file to view
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_init_name (vmi_instance_t *vmi, mode_t mode, char *name);
+status_t vmi_init (vmi_instance_t *vmi, mode_t mode, char *name);
 
 /**
  * Destroys an instance by freeing memory and closing any open handles.
@@ -367,36 +298,6 @@ status_t vmi_read_32_pa (vmi_instance_t vmi, uint32_t paddr, uint32_t *value);
 status_t vmi_read_64_pa (vmi_instance_t vmi, uint32_t paddr, uint64_t *value);
 
 /*---------------------------------------------------------
- * Linux-specific functionality
- */
-
-/**
- * Extracts information about the specified process' location in memory from
- * the task struct specified by @a pid.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] pid The PID for the task to read from
- * @param[out] taskaddr Information from the specified task struct
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_linux_get_taskaddr (vmi_instance_t vmi, int pid, vmi_linux_taskaddr_t *taskaddr);
-
-/*---------------------------------------------------------
- * Windows-specific functionality
- */
-
-/**
- * Extracts information from the PEB struct, which is located at the top of
- * the EPROCESS struct with the specified @a pid.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] pid The unique ID for the PEB to read from
- * @param[out] peb Information from the specified PEB
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_windows_get_peb (vmi_instance_t vmi, int pid, vmi_windows_peb_t *peb);
-
-/*---------------------------------------------------------
  * Print util functions from pretty_print.c
  */
 
@@ -408,7 +309,7 @@ status_t vmi_windows_get_peb (vmi_instance_t vmi, int pid, vmi_windows_peb_t *pe
  * @param[in] data The bytes that will be printed to stdout
  * @param[in] length The length (in bytes) of data
  */
-void vmi_print_hex (unsigned char *data, int length);
+void vmi_print_hex (unsigned char *data, unsigned long length);
 
 /*---------------------------------------------------------
  * Accessor functions from accessors.c

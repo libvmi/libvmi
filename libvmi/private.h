@@ -63,7 +63,6 @@ typedef struct vmi_pid_cache_entry* vmi_pid_cache_entry_t;
  */
 struct vmi_instance{
     uint32_t mode;          /**< file or xen VM data source */
-    uint32_t error_mode;    /**< VMI_FAILHARD or VMI_FAILSOFT */
     char *sysmap;           /**< system map file for domain's running kernel */
     char *image_type;       /**< image type that we are accessing */
     uint32_t page_offset;   /**< page offset for this instance */
@@ -88,7 +87,6 @@ struct vmi_instance{
             int mm_offset;       /**< task_struct->mm */
             int pid_offset;      /**< task_struct->pid */
             int pgd_offset;      /**< mm_struct->pgd */
-            int addr_offset;     /**< mm_struct->start_code */
         } linux_instance;
         struct windows_instance{
             uint32_t ntoskrnl;   /**< base phys address for ntoskrnl image */
@@ -96,9 +94,6 @@ struct vmi_instance{
             int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
             int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */
             int pid_offset;      /**< EPROCESS->UniqueProcessId */
-            int peb_offset;      /**< EPROCESS->Peb */
-            int iba_offset;      /**< EPROCESS->Peb.ImageBaseAddress */
-            int ph_offset;       /**< EPROCESS->Peb.ProcessHeap */
         } windows_instance;
     } os;
     void *driver;           /**< driver-specific information */
@@ -447,7 +442,6 @@ status_t linux_init (vmi_instance_t instance);
 int get_symbol_row (FILE *f, char *row, char *symbol, int position);
 void *vmi_map_page (vmi_instance_t instance, int prot, unsigned long frame_num);
 uint32_t windows_find_eprocess (vmi_instance_t instance, char *name);
-int vmi_report_error (vmi_instance_t instance, int error, int error_type);
 char *linux_predict_sysmap_name (uint32_t id);
 
 status_t windows_export_to_rva (vmi_instance_t , char *, uint32_t *);

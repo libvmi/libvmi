@@ -28,7 +28,7 @@ int main (int argc, char **argv)
     char *symbol = argv[2];
 
     /* initialize the libvmi library */
-    if (vmi_init_name(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
+    if (vmi_init(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }

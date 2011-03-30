@@ -80,11 +80,6 @@ static int read_config_file (vmi_instance_t vmi)
             vmi->os.linux_instance.pgd_offset =
                 entry->offsets.linux_offsets.pgd;
         }
-
-        if(entry->offsets.linux_offsets.addr){
-            vmi->os.linux_instance.addr_offset =
-                entry->offsets.linux_offsets.addr;
-        }
     }
     else if (VMI_OS_WINDOWS == vmi->os_type){
         dbprint("--reading in windows offsets from config file.\n");
@@ -106,21 +101,6 @@ static int read_config_file (vmi_instance_t vmi)
         if(entry->offsets.windows_offsets.pid){
             vmi->os.windows_instance.pid_offset =
                 entry->offsets.windows_offsets.pid;
-        }
-
-        if(entry->offsets.windows_offsets.peb){
-            vmi->os.windows_instance.peb_offset =
-                entry->offsets.windows_offsets.peb;
-        }
-
-        if(entry->offsets.windows_offsets.iba){
-            vmi->os.windows_instance.iba_offset =
-                entry->offsets.windows_offsets.iba;
-        }
-
-        if(entry->offsets.windows_offsets.ph){
-            vmi->os.windows_instance.ph_offset =
-                entry->offsets.windows_offsets.ph;
         }
     }
 
@@ -311,7 +291,6 @@ static void vmi_init_common (vmi_instance_t vmi)
     vmi->pid_cache_head = NULL;
     vmi->pid_cache_tail = NULL;
     vmi->current_pid_cache_size = 0;
-    vmi->error_mode = VMI_FAILHARD;  //TODO remove this when error mode functionality goes away
 }
 
 static status_t vmi_init_private (vmi_instance_t *vmi, mode_t mode, unsigned long id, char *name)
@@ -373,15 +352,7 @@ error_exit:
     return VMI_FAILURE;
 }
 
-status_t vmi_init_id (vmi_instance_t *vmi, mode_t mode, unsigned long id)
-{
-    if (VMI_MODE_FILE == mode){
-        errprint("LibVMI file mode requires a file name, not an id.\n");
-    }
-    return vmi_init_private(vmi, mode, id, NULL);
-}
-
-status_t vmi_init_name (vmi_instance_t *vmi, mode_t mode, char *name)
+status_t vmi_init (vmi_instance_t *vmi, mode_t mode, char *name)
 {
     return vmi_init_private(vmi, mode, 0, name);
 }

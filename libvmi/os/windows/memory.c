@@ -185,34 +185,3 @@ error_exit:
     if (memory) munmap(memory, vmi->page_size);
     return pgd;
 }
-
-/* fills the taskaddr struct for a given windows process */
-status_t vmi_windows_get_peb (
-        vmi_instance_t vmi, int pid, vmi_windows_peb_t *peb)
-{
-    unsigned char *memory;
-    uint32_t ptr = 0, offset = 0;
-    int peb_offset = vmi->os.windows_instance.peb_offset;
-    int tasks_offset = vmi->os.windows_instance.tasks_offset;
-    int iba_offset = vmi->os.windows_instance.iba_offset;
-    int ph_offset = vmi->os.windows_instance.ph_offset;
-
-    /* find the right EPROCESS struct */
-    memory = windows_get_EPROCESS(vmi, pid, &offset);
-    if (NULL == memory){
-        errprint("Could not find EPROCESS struct for pid = %d.\n", pid);
-        goto error_exit;
-    }
-    ptr = *((uint32_t*)(memory+offset + peb_offset - tasks_offset));
-    munmap(memory, vmi->page_size);
-
-    /* copy appropriate values into peb struct */
-    vmi_read_32_va(vmi, ptr + iba_offset, pid, &(peb->ImageBaseAddress));
-    vmi_read_32_va(vmi, ptr + ph_offset, pid, &(peb->ProcessHeap));
-
-    return VMI_SUCCESS;
-
-error_exit:
-    if (memory) munmap(memory, vmi->page_size);
-    return VMI_FAILURE;
-}

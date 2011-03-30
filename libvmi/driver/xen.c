@@ -207,8 +207,7 @@ status_t xen_init (vmi_instance_t vmi)
     /* setup the info struct */
     if (xc_domain_getinfo(xchandle, xen_get_domainid(vmi), 1, &(xen_get_instance(vmi)->info)) != 1){
         errprint("Failed to get domain info for Xen.\n");
-        ret = vmi_report_error(vmi, 0, VMI_ECRITICAL);
-        if (VMI_FAILURE == ret) goto error_exit;
+        goto error_exit;
     }
 
     /* determine if target is hvm or pv */

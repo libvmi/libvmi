@@ -9,7 +9,7 @@
 
 #include "libvmi.h"
 
-void vmi_print_hex (unsigned char *data, int length)
+void vmi_print_hex (unsigned char *data, unsigned long length)
 {
     int i, j, numrows, index;
 

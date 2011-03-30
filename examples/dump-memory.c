@@ -33,7 +33,7 @@ int main (int argc, char **argv)
     filename = strndup(argv[2], 50);
 
     /* initialize the libvmi library */
-    if (vmi_init_name(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
+    if (vmi_init(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
         perror("failed to init LibVMI library");
         goto error_exit;
     }
