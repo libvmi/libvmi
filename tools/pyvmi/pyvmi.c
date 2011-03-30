@@ -30,7 +30,7 @@ typedef struct {
 
 // Constructor & Destructor
 static PyObject *
-pyvmi_init_name(PyObject *self, PyObject *args) {
+pyvmi_init(PyObject *self, PyObject *args) {
     char *vmname;
     pyvmi_instance *object = NULL;
     
@@ -40,7 +40,7 @@ pyvmi_init_name(PyObject *self, PyObject *args) {
         return NULL;
     }
     
-    if (VMI_FAILURE == vmi_init_name(&(vmi(object)), VMI_MODE_AUTO, vmname)){
+    if (VMI_FAILURE == vmi_init(&(vmi(object)), VMI_MODE_AUTO, vmname)){
         PyErr_SetString(PyExc_ValueError, "Init failed");
         return NULL;
     }
@@ -61,6 +61,60 @@ pyvmi_instance_dealloc(PyObject *self) {
         free(name(self));
     }
     PyObject_DEL(self);
+}
+
+//-------------------------------------------------------------------
+// Translate functions
+static PyObject *
+pyvmi_translate_kv2p(PyObject *self, PyObject *args) {
+    uint32_t vaddr;
+
+    if (!PyArg_ParseTuple(args, "I", &vaddr)){
+        return NULL;
+    }
+
+    uint32_t paddr = vmi_translate_kv2p(vmi(self), vaddr);
+    if(!paddr){
+        PyErr_SetString(PyExc_ValueError, "Address translation failed");
+        return NULL;
+    }
+
+    return Py_BuildValue("I", paddr);
+}
+
+static PyObject *
+pyvmi_translate_uv2p(PyObject *self, PyObject *args) {
+    uint32_t vaddr;
+    int pid;
+
+    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+        return NULL;
+    }
+
+    uint32_t paddr = vmi_translate_uv2p(vmi(self), vaddr, pid);
+    if(!paddr){
+        PyErr_SetString(PyExc_ValueError, "Address translation failed");
+        return NULL;
+    }
+
+    return Py_BuildValue("I", paddr);
+}
+
+static PyObject *
+pyvmi_translate_ksym2v(PyObject *self, PyObject *args) {
+    char *sym;
+
+    if (!PyArg_ParseTuple(args, "s", &sym)){
+        return NULL;
+    }
+
+    uint32_t vaddr = vmi_translate_ksym2v(vmi(self), sym);
+    if(!vaddr){
+        PyErr_SetString(PyExc_ValueError, "Symbol lookup failed");
+        return NULL;
+    }
+
+    return Py_BuildValue("I", vaddr);
 }
 
 //-------------------------------------------------------------------
@@ -210,8 +264,156 @@ pyvmi_read_64_pa (PyObject *self, PyObject *args)
     return Py_BuildValue("K", &value);
 }
 
+static PyObject *
+pyvmi_read_8_va (PyObject *self, PyObject *args)
+{
+    uint32_t vaddr;
+    int pid;
+    uint8_t value;
+
+    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_8_va(vmi(self), vaddr, pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("c", &value);
+}
+
+static PyObject *
+pyvmi_read_16_va (PyObject *self, PyObject *args)
+{
+    uint32_t vaddr;
+    int pid;
+    uint16_t value;
+
+    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_16_va(vmi(self), vaddr, pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("H", &value);
+}
+
+static PyObject *
+pyvmi_read_32_va (PyObject *self, PyObject *args)
+{
+    uint32_t vaddr;
+    int pid;
+    uint32_t value;
+
+    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_32_va(vmi(self), vaddr, pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("I", &value);
+}
+
+static PyObject *
+pyvmi_read_64_va (PyObject *self, PyObject *args)
+{
+    uint32_t vaddr;
+    int pid;
+    uint64_t value;
+
+    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_64_va(vmi(self), vaddr, pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("K", &value);
+}
+
+static PyObject *
+pyvmi_read_8_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    uint8_t value;
+
+    if (!PyArg_ParseTuple(args, "s", &sym)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_8_ksym(vmi(self), sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("c", &value);
+}
+
+static PyObject *
+pyvmi_read_16_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    uint16_t value;
+
+    if (!PyArg_ParseTuple(args, "s", &sym)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_16_ksym(vmi(self), sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("H", &value);
+}
+
+static PyObject *
+pyvmi_read_32_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    uint32_t value;
+
+    if (!PyArg_ParseTuple(args, "s", &sym)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_32_ksym(vmi(self), sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("I", &value);
+}
+
+static PyObject *
+pyvmi_read_64_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    uint64_t value;
+
+    if (!PyArg_ParseTuple(args, "s", &sym)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_64_ksym(vmi(self), sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("K", &value);
+}
+
 //-------------------------------------------------------------------
-// Accessor functions
+// Accessor and other utility functions
 static PyObject *
 pyvmi_get_cr3(PyObject *self, PyObject *args) {
     reg_t cr3 = 0;
@@ -240,11 +442,63 @@ pyvmi_get_memsize(PyObject *self, PyObject *args) {
     return Py_BuildValue("I", size);
 }
 
+static PyObject *
+pyvmi_get_offset(PyObject *self, PyObject *args) {
+    char *name;
+
+    if (!PyArg_ParseTuple(args, "s", &name)){
+        return NULL;
+    }
+
+    unsigned long offset = vmi_get_offset(vmi(self), name);
+    return Py_BuildValue("I", offset);
+}
+
+static PyObject *
+pyvmi_get_ostype(PyObject *self, PyObject *args) {
+    if (!PyArg_ParseTuple(args, "")){
+        return NULL;
+    }
+
+    os_t type = vmi_get_ostype(vmi(self));
+
+    PyObject *rtnval = NULL;
+    if (VMI_OS_WINDOWS == type){
+        rtnval = Py_BuildValue("s", "Windows");
+    }
+    else if (VMI_OS_LINUX == type){
+        rtnval = Py_BuildValue("s", "Linux");
+    }
+    else{
+        rtnval = Py_BuildValue("s", "Unknown");
+    }
+    return rtnval;
+}
+
+static PyObject *
+pyvmi_print_hex(PyObject *self, PyObject *args) {
+    unsigned char *data;
+    int length;
+
+    if (!PyArg_ParseTuple(args, "s#", &data, &length)){
+        return NULL;
+    }
+
+    vmi_print_hex(data, (unsigned long) length);
+    return Py_BuildValue(""); // return None
+}
+
 //-------------------------------------------------------------------
 // Python interface
 
 // pyvmi_instance method table
 static PyMethodDef pyvmi_instance_methods[] = {
+    {"translate_kv2p", pyvmi_translate_kv2p, METH_VARARGS,
+     "Translate kernel virtual address to physical address"},
+    {"translate_uv2p", pyvmi_translate_uv2p, METH_VARARGS,
+     "Translate user virtual address to physical address"},
+    {"translate_ksym2v", pyvmi_translate_ksym2v, METH_VARARGS,
+     "Translate kernel symbol to virtual address"},
     {"read_pa", pyvmi_read_pa, METH_VARARGS,
      "Read physical memory"},
     {"read_va", pyvmi_read_va, METH_VARARGS,
@@ -259,10 +513,32 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read 4 bytes using a physical address"},
     {"read_64_pa", pyvmi_read_64_pa, METH_VARARGS,
      "Read 8 bytes using a physical address"},
+    {"read_8_va", pyvmi_read_8_va, METH_VARARGS,
+     "Read 1 byte using a virtual address"},
+    {"read_16_va", pyvmi_read_16_va, METH_VARARGS,
+     "Read 2 bytes using a virtual address"},
+    {"read_32_va", pyvmi_read_32_va, METH_VARARGS,
+     "Read 4 bytes using a virtual address"},
+    {"read_64_va", pyvmi_read_64_va, METH_VARARGS,
+     "Read 8 bytes using a virtual address"},
+    {"read_8_ksym", pyvmi_read_8_ksym, METH_VARARGS,
+     "Read 1 byte using a kernel symbol"},
+    {"read_16_ksym", pyvmi_read_16_ksym, METH_VARARGS,
+     "Read 2 bytes using a kernel symbol"},
+    {"read_32_ksym", pyvmi_read_32_ksym, METH_VARARGS,
+     "Read 4 bytes using a kernel symbol"},
+    {"read_64_ksym", pyvmi_read_64_ksym, METH_VARARGS,
+     "Read 8 bytes using a kernel symbol"},
     {"get_cr3", pyvmi_get_cr3, METH_VARARGS,
      "Get the current value of the CR3 register"},
     {"get_memsize", pyvmi_get_memsize, METH_VARARGS,
      "Get the memory size (in bytes) of this memory"},
+    {"get_offset", pyvmi_get_offset, METH_VARARGS,
+     "Get an offset value by name from the config file"},
+    {"get_ostype", pyvmi_get_ostype, METH_VARARGS,
+     "Get the OS type of the target system"},
+    {"print_hex", pyvmi_print_hex, METH_VARARGS,
+     "Prints raw binary data to the screen in a useful format"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -302,8 +578,8 @@ static PyTypeObject pyvmi_instance_Type = {
 
 // module method table
 static PyMethodDef PyVmiMethods[] = {
-    {"pyvmi_init", pyvmi_init_name, METH_VARARGS,
-     "Create a new PyVmi instance"},
+    {"init", pyvmi_init, METH_VARARGS,
+     "Create a new PyVmi instance using the name"},
     {NULL, NULL, 0, NULL}
 };
 

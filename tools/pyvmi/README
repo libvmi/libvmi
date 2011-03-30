@@ -16,12 +16,30 @@ adapter will help get you going.  Follow the steps below to use it.
 
 3) Start having fun with Python
     import pyvmi
-    vmi = pyvmi.pyvmi_instance("win7")  # win7 is the vm name
-    vmi.read_pa(paddr, length)
-    vmi.read_va(vaddr, pid, length)
-    vmi.read_ksym(sym, length)
-    vmi.get_cr3()
-    vmi.get_memsize()
+    vmi = pyvmi.init("win7")  # where win7 is the target name
+    paddr = vmi.translate_kv2p(vaddr)
+    paddr = vmi.translate_uv2p(vaddr, pid)
+    vaddr = vmi.translate_ksym2v(sym)
+    memory = vmi.read_pa(paddr, length)
+    memory = vmi.read_va(vaddr, pid, length)
+    memory = vmi.read_ksym(sym, length)
+    memory = vmi.read_8_pa(paddr)
+    memory = vmi.read_16_pa(paddr)
+    memory = vmi.read_32_pa(paddr)
+    memory = vmi.read_64_pa(paddr)
+    memory = vmi.read_8_va(vaddr, pid)
+    memory = vmi.read_16_va(vaddr, pid)
+    memory = vmi.read_32_va(vaddr, pid)
+    memory = vmi.read_64_va(vaddr, pid)
+    memory = vmi.read_8_ksym(sym)
+    memory = vmi.read_16_ksym(sym)
+    memory = vmi.read_32_ksym(sym)
+    memory = vmi.read_64_ksym(sym)
+    cr3 = vmi.get_cr3()
+    size = vmi.get_memsize()
+    offset = vmi.get_offset(offset_name)
+    ostype = vmi.get_ostype()
+    vmi.print_hex(memory)
 
 Once you have pyvmi installed, you can write your own programs using Python or
 you can use Volatility to perform your memory analysis.  To use Volatility,
