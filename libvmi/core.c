@@ -14,16 +14,14 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <fnmatch.h>
 
+extern FILE *yyin;
+
 static int read_config_file (vmi_instance_t vmi)
 {
-    extern FILE *yyin;
     int ret = VMI_SUCCESS;
     vmi_config_entry_t *entry;
     char *tmp = NULL;
@@ -35,7 +33,7 @@ static int read_config_file (vmi_instance_t vmi)
         goto error_exit;
     }
 
-    if (vmi_parse_config(vmi->image_type)){
+    if (vmi_parse_config(vmi->image_type) != 0){
         errprint("Failed to read config file.\n");
         ret = VMI_FAILURE;
         goto error_exit;
