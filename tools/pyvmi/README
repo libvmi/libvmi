@@ -35,7 +35,7 @@ adapter will help get you going.  Follow the steps below to use it.
     memory = vmi.read_16_ksym(sym)
     memory = vmi.read_32_ksym(sym)
     memory = vmi.read_64_ksym(sym)
-    cr3 = vmi.get_cr3()
+    cr3 = vmi.get_vcpureg(reg_name, vcpu_num)
     size = vmi.get_memsize()
     offset = vmi.get_offset(offset_name)
     ostype = vmi.get_ostype()

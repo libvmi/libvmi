@@ -56,7 +56,8 @@ typedef enum registers{
     CR1,
     CR2,
     CR3,
-    CR4
+    CR4,
+    UNKNOWN
 } registers_t;
 
 typedef unsigned long addr_t;

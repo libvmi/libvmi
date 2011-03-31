@@ -415,19 +415,42 @@ pyvmi_read_64_ksym (PyObject *self, PyObject *args)
 //-------------------------------------------------------------------
 // Accessor and other utility functions
 static PyObject *
-pyvmi_get_cr3(PyObject *self, PyObject *args) {
-    reg_t cr3 = 0;
-    
-    if (!PyArg_ParseTuple(args, "")){
+pyvmi_get_vcpureg(PyObject *self, PyObject *args)
+{
+    char *reg_name = NULL;
+    unsigned long vcpu = 0;
+
+    if (!PyArg_ParseTuple(args, "sI", &reg_name, &vcpu)){
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_get_vcpureg(vmi(self), &cr3, CR3, 0)){
-        PyErr_SetString(PyExc_ValueError, "Unable to get CR3 value");
+    reg_t value;
+    registers_t reg;
+    if (strcmp(reg_name, "CR0") == 0 || strcmp(reg_name, "cr0") == 0){
+        reg = CR0;
+    }
+    else if (strcmp(reg_name, "CR1") == 0 || strcmp(reg_name, "cr1") == 0){
+        reg = CR1;
+    }
+    else if (strcmp(reg_name, "CR2") == 0 || strcmp(reg_name, "cr2") == 0){
+        reg = CR2;
+    }
+    else if (strcmp(reg_name, "CR3") == 0 || strcmp(reg_name, "cr3") == 0){
+        reg = CR3;
+    }
+    else if (strcmp(reg_name, "CR4") == 0 || strcmp(reg_name, "cr4") == 0){
+        reg = CR4;
+    }
+    else{
+        reg = UNKNOWN;
+    }
+
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi(self), &value, reg, vcpu)){
+        PyErr_SetString(PyExc_ValueError, "Unable to get register value");
         return NULL;
     }
-    
-    return Py_BuildValue("I", cr3);
+
+    return Py_BuildValue("I", (unsigned long) value);
 }
 
 static PyObject *
@@ -529,8 +552,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read 4 bytes using a kernel symbol"},
     {"read_64_ksym", pyvmi_read_64_ksym, METH_VARARGS,
      "Read 8 bytes using a kernel symbol"},
-    {"get_cr3", pyvmi_get_cr3, METH_VARARGS,
-     "Get the current value of the CR3 register"},
+    {"get_vcpureg", pyvmi_get_vcpureg, METH_VARARGS,
+     "Get the current value of a vcpu register"},
     {"get_memsize", pyvmi_get_memsize, METH_VARARGS,
      "Get the memory size (in bytes) of this memory"},
     {"get_offset", pyvmi_get_offset, METH_VARARGS,
