@@ -28,28 +28,20 @@ unsigned char *linux_get_taskstruct (
     list_head = next_process;
 
     while (1){
-        memory = vmi_access_kernel_va(vmi, next_process, offset, PROT_READ);
-        if (NULL == memory){
-            errprint("Failed to get task list next pointer.\n");
-            goto error_exit;
-        }
-        memcpy(&next_process, memory + *offset, 4);
+        uint32_t next_process_tmp = 0;
+        vmi_read_32_va(vmi, next_process, 0, &next_process_tmp);
 
         /* if we are back at the list head, we are done */
-        if (list_head == next_process){
+        if (list_head == next_process_tmp){
             goto error_exit;
         }
 
-        memcpy(&task_pid,
-               memory + *offset + pid_offset - tasks_offset,
-               4
-        );
-        
         /* if pid matches, then we found what we want */
+        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &task_pid);
         if (task_pid == pid){
             return memory;
         }
-        munmap(memory, vmi->page_size);
+        next_process = next_process_tmp;
     }
 
 error_exit:
@@ -87,25 +79,4 @@ uint32_t linux_pid_to_pgd (vmi_instance_t vmi, int pid)
 
 error_exit:
     return pgd;
-}
-
-void *linux_access_kernel_symbol (
-        vmi_instance_t vmi, char *symbol, uint32_t *offset, int prot)
-{
-    uint32_t virt_address;
-    uint32_t address;
-
-    /* check the LRU cache */
-    if (vmi_check_cache_sym(vmi, symbol, 0, &address)){
-        return vmi_access_ma(vmi, address, offset, PROT_READ);
-    }
-
-    /* get the virtual address of the symbol */
-    if (linux_system_map_symbol_to_address(
-            vmi, symbol, &virt_address) == VMI_FAILURE){
-        return NULL;
-    }
-
-    vmi_update_cache(vmi, symbol, virt_address, 0, 0);
-    return vmi_access_kernel_va(vmi, virt_address, offset, prot);
 }

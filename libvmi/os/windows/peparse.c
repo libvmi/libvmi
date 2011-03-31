@@ -112,30 +112,24 @@ struct export_table{
 // takes an rva and looks up a null terminated string at that location
 char *rva_to_string (vmi_instance_t vmi, uint32_t rva)
 {
-    unsigned char *memory = NULL;
-    uint32_t offset = 0;
+    int max_length = 1000; // arbitrary max length
+    char *memory = (char *) safe_malloc(max_length);
     int length = 0;
-    int max_length = 0;
     char *str = NULL;
+    addr_t paddr = vmi->os.windows_instance.ntoskrnl + rva;
 
-    memory = vmi_access_pa(
-        vmi,
-        vmi->os.windows_instance.ntoskrnl + rva,
-        &offset,
-        PROT_READ);
-    if (NULL == memory){
+    if (max_length != vmi_read_pa(vmi, paddr, memory, max_length)){
         return NULL;
     }
 
     /* assuming that this is null terminated */
-    max_length = vmi->page_size - offset - 1;
-    length = strnlen(memory + offset, max_length);
+    length = strnlen(memory, max_length);
     if (length > 0){
         str = safe_malloc(length + 1);
         memset(str, 0, length + 1);
-        memcpy(str, memory + offset, length);
+        memcpy(str, memory, length);
     }
-    munmap(memory, vmi->page_size);
+    free(memory);
 
     /* someone else will need to free this */
     return str;
@@ -144,35 +138,10 @@ char *rva_to_string (vmi_instance_t vmi, uint32_t rva)
 void dump_exports (vmi_instance_t vmi, struct export_table et)
 {
     uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
-    unsigned char *memory1 = NULL;
-    unsigned char *memory2 = NULL;
-    unsigned char *memory3 = NULL;
-    uint32_t offset1 = 0;
-    uint32_t offset2 = 0;
-    uint32_t offset3 = 0;
+    addr_t base1 = base_addr + et.address_of_names;
+    addr_t base2 = base_addr + et.address_of_name_ordinals;
+    addr_t base3 = base_addr + et.address_of_functions;
     uint32_t i = 0;
-    uint32_t j = 0;
-
-    /* load name list */    
-    memory1 = vmi_access_pa(
-        vmi,
-        base_addr + et.address_of_names,
-        &offset1,
-        PROT_READ);
-
-    /* load name ordinals list */
-    memory2 = vmi_access_pa(
-        vmi,
-        base_addr + et.address_of_name_ordinals,
-        &offset2,
-        PROT_READ);
-
-    /* load function locations */
-    memory3 = vmi_access_pa(
-        vmi,
-        base_addr + et.address_of_functions,
-        &offset3,
-        PROT_READ);
 
     /* print names */
     for ( ; i < et.number_of_names; ++i){
@@ -180,30 +149,17 @@ void dump_exports (vmi_instance_t vmi, struct export_table et)
         uint16_t ordinal = 0;
         uint32_t loc = 0;
         char *str = NULL;
-        memcpy(&rva, memory1+offset1+ i * sizeof(uint32_t), sizeof(uint32_t));
+        vmi_read_32_pa(vmi, base1 + i * sizeof(uint32_t), &rva);
         if (rva){
             str = rva_to_string(vmi, rva);
             if (str){
-                memcpy(
-                    &ordinal,
-                    memory2 + offset2 + i * sizeof(uint16_t),
-                    sizeof(uint16_t)
-                );
-                memcpy(
-                    &loc,
-                    memory3 + offset3 + ordinal * sizeof(uint32_t),
-                    sizeof(uint32_t)
-                );
+                vmi_read_16_pa(vmi, base2 + i * sizeof(uint16_t), &ordinal);
+                vmi_read_32_pa(vmi, base3 + ordinal + sizeof(uint32_t), &loc);
                 printf("%s:%d:0x%x\n", str, ordinal, loc);
                 free(str);
             }
         }
     }
-    /*TODO this loop is running past the end of memory page */
-
-    munmap(memory1, vmi->page_size);
-    munmap(memory2, vmi->page_size);
-    munmap(memory3, vmi->page_size);
 }
 
 status_t get_export_rva (
@@ -272,39 +228,35 @@ status_t get_export_table (vmi_instance_t vmi, uint32_t base_addr, struct export
     uint32_t offset = 0;
     struct optional_header oh;
     uint32_t export_header_rva = 0;
+    size_t nbytes = 0;
 
     /* signature location */
     vmi_read_32_pa(vmi, base_addr + 60, &value);
     signature_location = base_addr + value;
 
     /* optional header */
-    optional_header_location = signature_location+4+sizeof(struct file_header);
-    memory = vmi_access_pa(
+    optional_header_location = signature_location + 4 + sizeof(struct file_header);
+    nbytes = vmi_read_pa(
         vmi,
         optional_header_location,
-        &offset,
-        PROT_READ);
-    if (NULL == memory){
+        &oh,
+        sizeof(struct optional_header));
+    if (nbytes != sizeof(struct optional_header)){
         dbprint("--PEParse: failed to map optional header\n");
         return VMI_FAILURE;
     }
-    memcpy(&oh, memory + offset, sizeof(struct optional_header));
-    munmap(memory, vmi->page_size);
     export_header_rva = oh.idd[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
 
     /* export header */
-    memory = vmi_access_pa(
+    nbytes = vmi_read_pa(
         vmi,
         base_addr + export_header_rva,
-        &offset,
-        PROT_READ);
-    if (NULL == memory){
+        et,
+        sizeof(struct export_table));
+    if (nbytes != sizeof(struct export_table)){
         dbprint("--PEParse: failed to map export header\n");
         return VMI_FAILURE;
     }
-    memcpy(et, memory + offset, sizeof(struct export_table));
-    munmap(memory, vmi->page_size);
-
     return VMI_SUCCESS;
 }
 

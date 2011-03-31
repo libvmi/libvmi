@@ -13,26 +13,6 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-void *vmi_mmap_mfn (vmi_instance_t vmi, int prot, unsigned long mfn)
-{
-//    dbprint("--MapMFN: Mapping mfn = 0x%.8x.\n", mfn);
-    return vmi_map_page(vmi, prot, mfn);
-}
-
-void *vmi_mmap_pfn (vmi_instance_t vmi, int prot, unsigned long pfn)
-{
-    unsigned long mfn = driver_pfn_to_mfn(vmi, pfn);
-
-    if (!mfn){
-//        errprint("pfn to mfn mapping failed (0x%lx --> 0x%lx).\n", pfn, mfn);
-        return NULL;
-    }
-    else{
-//        dbprint("--MapPFN: Mapping mfn = %lu / pfn = %lu.\n", mfn, pfn);
-        return vmi_map_page(vmi, prot, mfn);
-    }
-}
-
 /* bit flag testing */
 int entry_present (unsigned long entry){
     return vmi_get_bit(entry, 0);
@@ -56,7 +36,7 @@ uint64_t get_pdpi (vmi_instance_t instance, uint32_t vaddr, uint32_t cr3)
     uint64_t value;
     uint32_t pdpi_entry = get_pdptb(cr3) + pdpi_index(vaddr);
     dbprint("--PTLookup: pdpi_entry = 0x%.8x\n", pdpi_entry);
-    vmi_read_long_long_mach(instance, pdpi_entry, &value);
+    vmi_read_64_ma(instance, pdpi_entry, &value);
     return value;
 }
 
@@ -83,7 +63,7 @@ uint32_t get_pgd_nopae (vmi_instance_t instance, uint32_t vaddr, uint32_t pdpe)
     uint32_t value;
     uint32_t pgd_entry = pdba_base_nopae(pdpe) + pgd_index(instance, vaddr);
     dbprint("--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
-    vmi_read_long_mach(instance, pgd_entry, &value);
+    vmi_read_32_ma(instance, pgd_entry, &value);
     return value;
 }
 
@@ -92,7 +72,7 @@ uint64_t get_pgd_pae (vmi_instance_t instance, uint32_t vaddr, uint64_t pdpe)
     uint64_t value;
     uint32_t pgd_entry = pdba_base_pae(pdpe) + pgd_index(instance, vaddr);
     dbprint("--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
-    vmi_read_long_long_mach(instance, pgd_entry, &value);
+    vmi_read_64_ma(instance, pgd_entry, &value);
     return value;
 }
 
@@ -118,7 +98,7 @@ uint32_t get_pte_nopae (vmi_instance_t instance, uint32_t vaddr, uint32_t pgd){
     uint32_t value;
     uint32_t pte_entry = ptba_base_nopae(pgd) + pte_index(instance, vaddr);
     dbprint("--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
-    vmi_read_long_mach(instance, pte_entry, &value);
+    vmi_read_32_ma(instance, pte_entry, &value);
     return value;
 }
 
@@ -126,7 +106,7 @@ uint64_t get_pte_pae (vmi_instance_t instance, uint32_t vaddr, uint64_t pgd){
     uint64_t value;
     uint32_t pte_entry = ptba_base_pae(pgd) + pte_index(instance, vaddr);
     dbprint("--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
-    vmi_read_long_long_mach(instance, pte_entry, &value);
+    vmi_read_64_ma(instance, pte_entry, &value);
     return value;
 }
 
@@ -344,21 +324,6 @@ uint32_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
     return ret;
 }
 
-/* map memory given a kernel symbol */
-void *vmi_access_kernel_sym (
-        vmi_instance_t instance, char *symbol, uint32_t *offset, int prot)
-{
-    if (VMI_OS_LINUX == instance->os_type){
-        return linux_access_kernel_symbol(instance, symbol, offset, prot);
-    }
-    else if (VMI_OS_WINDOWS == instance->os_type){
-        return windows_access_kernel_symbol(instance, symbol, offset, prot);
-    }
-    else{
-        return NULL;
-    }
-}
-
 /* finds the address of the page global directory for a given pid */
 reg_t vmi_pid_to_pgd (vmi_instance_t instance, int pid)
 {
@@ -378,134 +343,3 @@ reg_t vmi_pid_to_pgd (vmi_instance_t instance, int pid)
 
     return (reg_t) pgd;
 }
-
-void *vmi_access_user_va (
-        vmi_instance_t vmi,
-        uint32_t virt_address,
-        uint32_t *offset,
-        int pid,
-        int prot)
-{
-    uint32_t address = 0;
-
-    /* check the LRU cache */
-    if (vmi_check_cache_virt(vmi, virt_address, pid, &address)){
-        return vmi_access_ma(vmi, address, offset, prot);
-    }
-
-    /* lookup kernel or user address */
-    if (!pid){
-        address = vmi_translate_kv2p(vmi, virt_address);
-    }
-    else{
-        address = vmi_translate_uv2p(vmi, virt_address, pid);
-    }
-
-    /* make sure that lookup worked */
-    if (!address){
-        dbprint("--address not in page table (0x%x)\n", virt_address);
-        return NULL;
-    }
-
-    /* update cache and map the memory */
-    vmi_update_cache(vmi, NULL, virt_address, pid, address);
-    return vmi_access_ma(vmi, address, offset, prot);
-}
-
-void *vmi_access_user_va_range (
-        vmi_instance_t vmi,
-        uint32_t virt_address,
-        uint32_t size,
-        uint32_t *offset,
-        int pid,
-        int prot)
-{
-    unsigned long i = 0;
-    unsigned long num_pages = size / vmi->page_size + 1;
-    reg_t pgd = 0;
-
-    if (pid){
-        pgd = vmi_pid_to_pgd(vmi, pid);
-    }
-    else{
-        driver_get_vcpureg(vmi, &pgd, CR3, 0);
-    }
-    unsigned long* pages = (unsigned long*) safe_malloc(
-        sizeof(unsigned long) * num_pages
-    );
-	
-    uint32_t start = virt_address & ~(vmi->page_size - 1);
-    for (i = 0; i < num_pages; i++){
-        /* Virtual address for each page we will map */
-        uint32_t addr = start + i * vmi->page_size;
-	
-        if(!addr) {
-            errprint("Address not in page table (%p).\n", addr);
-            return NULL;
-        }
-
-        /* Physical page frame number of each page */
-        pages[i] = vmi_pagetable_lookup(vmi, pgd, addr) >> vmi->page_shift;
-    }
-    *offset = virt_address - start;
-    return driver_map_pages(vmi, prot, pages, num_pages);
-}
-
-void *vmi_access_kernel_va (
-        vmi_instance_t instance,
-        uint32_t virt_address,
-        uint32_t *offset,
-        int prot)
-{
-    return vmi_access_user_va(instance, virt_address, offset, 0, prot);
-}
-
-void *vmi_access_kernel_va_range (
-	vmi_instance_t instance,
-	uint32_t virt_address,
-	uint32_t size,
-	uint32_t* offset,
-    int prot)
-{
-	return vmi_access_user_va_range(
-        instance, virt_address, size, offset, 0, prot);
-}
-
-void *vmi_access_pa (
-        vmi_instance_t instance,
-        uint32_t phys_address,
-        uint32_t *offset,
-        int prot)
-{
-    unsigned long pfn;
-    int i;
-    
-    /* page frame number = physical address >> PAGE_SHIFT */
-    pfn = phys_address >> instance->page_shift;
-    
-    /* get the offset */
-    *offset = (instance->page_size-1) & phys_address;
-    
-    /* access the memory */
-    return vmi_mmap_pfn(instance, prot, pfn);
-}
-
-void *vmi_access_ma (
-        vmi_instance_t instance,
-        uint32_t mach_address,
-        uint32_t *offset,
-        int prot)
-{
-    unsigned long mfn;
-    int i;
-
-    /* machine frame number = machine address >> PAGE_SHIFT */
-    mfn = mach_address >> instance->page_shift;
-
-    /* get the offset */
-    *offset = (instance->page_size-1) & mach_address;
-
-    /* access the memory */
-    return vmi_mmap_mfn(instance, prot, mfn);
-}
-

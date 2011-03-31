@@ -93,32 +93,9 @@ fast_exit:
     return paddr;
 }
 
-void *windows_access_kernel_symbol (
-        vmi_instance_t vmi, char *symbol, uint32_t *offset, int prot)
-{
-    uint32_t virt_address;
-    uint32_t address;
-
-    /* check the LRU cache */
-    if (vmi_check_cache_sym(vmi, symbol, 0, &address)){
-        return vmi_access_ma(vmi, address, offset, prot);
-    }
-
-    /* get the VA of the symbol */
-    if (VMI_FAILURE == windows_symbol_to_address(vmi, symbol, &virt_address)){
-        dbprint("--failed to lookup address for '%s'\n", symbol);
-        return NULL;
-    }
-
-    vmi_update_cache(vmi, symbol, virt_address, 0, 0);
-    return vmi_access_pa(vmi, virt_address - vmi->page_offset, offset, prot);
-}
-
 /* finds the EPROCESS struct for a given pid */
-unsigned char *windows_get_EPROCESS (
-        vmi_instance_t vmi, int pid, uint32_t *offset)
+uint32_t windows_get_EPROCESS (vmi_instance_t vmi, int pid)
 {
-    unsigned char *memory = NULL;
     uint32_t list_head = 0, next_process = 0;
     int task_pid = 0;
     int pid_offset = vmi->os.windows_instance.pid_offset;
@@ -129,59 +106,48 @@ unsigned char *windows_get_EPROCESS (
     list_head = next_process;
 
     while (1){
-        memory = vmi_access_kernel_va(vmi, next_process, offset, PROT_READ);
-        if (NULL == memory){
-            errprint("Failed to get EPROCESS list next pointer.\n");
-            goto error_exit;
-        }
-        memcpy(&next_process, memory + *offset, 4);
+        uint32_t next_process_tmp = 0;
+        vmi_read_32_va(vmi, next_process, 0, &next_process_tmp);
 
         /* if we are back at the list head, we are done */
-        if (list_head == next_process){
+        if (list_head == next_process_tmp){
             goto error_exit;
         }
 
-        memcpy(&task_pid,
-               memory + *offset + pid_offset - tasks_offset,
-               4
-        );
-
         /* if pid matches, then we found what we want */
+        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &task_pid);
         if (task_pid == pid){
-            return memory;
+            return next_process;
         }
-        munmap(memory, vmi->page_size);
+        next_process = next_process_tmp;
     }
 
 error_exit:
-    if (memory) munmap(memory, vmi->page_size);
-    return NULL;
+    return 0;
 }
 
 /* finds the address of the page global directory for a given pid */
 uint32_t windows_pid_to_pgd (vmi_instance_t vmi, int pid)
 {
-    unsigned char *memory = NULL;
-    uint32_t pgd = 0, ptr = 0, offset = 0;
+    uint32_t pgd = 0;
+    uint32_t eprocess = 0;
     int pdbase_offset = vmi->os.windows_instance.pdbase_offset;
     int tasks_offset = vmi->os.windows_instance.tasks_offset;
 
     /* first we need a pointer to this pid's EPROCESS struct */
-    memory = windows_get_EPROCESS(vmi, pid, &offset);
-    if (NULL == memory){
+    eprocess = windows_get_EPROCESS(vmi, pid);
+    if (!eprocess){
         errprint("Could not find EPROCESS struct for pid = %d.\n", pid);
         goto error_exit;
     }
 
     /* now follow the pointer to the memory descriptor and
        grab the pgd value */
-    pgd = *((uint32_t*)(memory + offset + pdbase_offset - tasks_offset));
-    munmap(memory, vmi->page_size);
+    vmi_read_32_va(vmi, eprocess + pdbase_offset - tasks_offset, 0, &pgd);
 
     /* update the cache with this new pid->pgd mapping */
     vmi_update_pid_cache(vmi, pid, pgd);
 
 error_exit:
-    if (memory) munmap(memory, vmi->page_size);
     return pgd;
 }

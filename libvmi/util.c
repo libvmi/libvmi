@@ -16,17 +16,22 @@
 
 ///////////////////////////////////////////////////////////
 // Classic read functions for access to memory
-size_t vmi_read_pa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count)
+static size_t vmi_read_mpa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count, int is_p)
 {
     unsigned char *memory = NULL;
-    uint32_t offset = 0;
+    unsigned long phys_address = 0;
+    unsigned long pfn = 0;
+    unsigned long offset = 0;
     size_t buf_offset = 0;
 
     while (count > 0){
         size_t read_len = 0;
 
         /* access the memory */
-        memory = vmi_access_pa(vmi, paddr + buf_offset, &offset, PROT_READ);
+        phys_address = paddr + buf_offset;
+        pfn = phys_address >> vmi->page_shift;
+        offset = (vmi->page_size - 1) & phys_address;
+        memory = vmi_map_page(vmi, PROT_READ, pfn, is_p);
         if (NULL == memory){
             return buf_offset;
         }
@@ -41,7 +46,7 @@ size_t vmi_read_pa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count)
         
         /* do the read */
         memcpy( ((char *) buf) + buf_offset, memory + offset, read_len);
-//        munmap(memory, vmi->page_size); //TODO resolve this
+//        munmap(memory, vmi->page_size); //TODO resolve this by fixing xen driver to work with new memory cache
 
         /* set variables for next loop */
         count -= read_len;
@@ -49,6 +54,16 @@ size_t vmi_read_pa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count)
     }
 
     return buf_offset;
+}
+
+static size_t vmi_read_ma (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count)
+{
+    return vmi_read_mpa(vmi, paddr, buf, count, 0);
+}
+
+size_t vmi_read_pa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count)
+{
+    return vmi_read_mpa(vmi, paddr, buf, count, 1);
 }
 
 size_t vmi_read_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void *buf, size_t count)
@@ -72,16 +87,10 @@ size_t vmi_read_ksym (vmi_instance_t vmi, char *symbol, void *buf, size_t count)
 ///////////////////////////////////////////////////////////
 // Easy access to machine memory
 
-//TODO update the mach access functions throughout
-status_t vmi_read_long_mach (
-        vmi_instance_t instance, uint32_t maddr, uint32_t *value)
+static status_t vmi_read_X_ma (vmi_instance_t vmi, uint32_t maddr, void *value, int size)
 {
-    unsigned char *memory = NULL;
-    uint32_t offset = 0;
-    memory = vmi_access_ma(instance, maddr, &offset, PROT_READ);
-    if (NULL != memory){
-        *value = *((uint32_t*)(memory + offset));
-        munmap(memory, instance->page_size);
+    size_t len_read = vmi_read_ma(vmi, maddr, value, size);
+    if (len_read == size){
         return VMI_SUCCESS;
     }
     else{
@@ -89,20 +98,24 @@ status_t vmi_read_long_mach (
     }
 }
 
-status_t vmi_read_long_long_mach (
-        vmi_instance_t instance, uint32_t maddr, uint64_t *value)
+status_t vmi_read_8_ma (vmi_instance_t vmi, uint32_t maddr, uint8_t *value)
 {
-    unsigned char *memory = NULL;
-    uint32_t offset = 0;
-    memory = vmi_access_ma(instance, maddr, &offset, PROT_READ);
-    if (NULL != memory){
-        *value = *((uint64_t*)(memory + offset));
-        munmap(memory, instance->page_size);
-        return VMI_SUCCESS;
-    }
-    else{
-        return VMI_FAILURE;
-    }
+    return vmi_read_X_ma(vmi, maddr, value, 1);
+}
+
+status_t vmi_read_16_ma (vmi_instance_t vmi, uint32_t maddr, uint16_t *value)
+{
+    return vmi_read_X_ma(vmi, maddr, value, 2);
+}
+
+status_t vmi_read_32_ma (vmi_instance_t vmi, uint32_t maddr, uint32_t *value)
+{
+    return vmi_read_X_ma(vmi, maddr, value, 4);
+}
+
+status_t vmi_read_64_ma (vmi_instance_t vmi, uint32_t maddr, uint64_t *value)
+{
+    return vmi_read_X_ma(vmi, maddr, value, 8);
 }
 
 ///////////////////////////////////////////////////////////
@@ -217,9 +230,22 @@ int vmi_get_bit (unsigned long reg, int bit)
     }
 }
 
-void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num)
+void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num, int is_pfn)
 {
-    return driver_map_page(vmi, prot, frame_num);
+    unsigned long mfn;
+    if (is_pfn){
+        mfn = driver_pfn_to_mfn(vmi, frame_num);
+    }
+    else{
+        mfn = frame_num;
+    }
+
+    if (!mfn){
+        return NULL;
+    }
+    else{
+        return driver_map_page(vmi, prot, mfn);
+    }
 }
 
 /* This function is taken from Markus Armbruster's

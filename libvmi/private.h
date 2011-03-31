@@ -207,30 +207,6 @@ int vmi_destroy_pid_cache (vmi_instance_t instance);
  */
 
 /**
- * Memory maps one page from domU to a local address range.  The
- * memory to be mapped is specified with the machine frame number.
- * This memory must be unmapped manually with munmap.
- *
- * @param[in] instance libxa instance
- * @param[in] prot Desired memory protection (see 'man mmap' for values)
- * @param[in] mfn Machine frame number
- * @return Mapped memory or NULL on error
- */
-void *vmi_mmap_mfn (vmi_instance_t instance, int prot, unsigned long mfn);
-
-/**
- * Memory maps one page from domU to a local address range.  The
- * memory to be mapped is specified with the page frame number.
- * This memory must be unmapped manually with munmap.
- *
- * @param[in] instance libxa instance
- * @param[in] prot Desired memory protection (see 'man mmap' for values)
- * @param[in] pfn Page frame number
- * @return Mapped memory or NULL on error
- */
-void *vmi_mmap_pfn (vmi_instance_t instance, int prot, unsigned long pfn);
-
-/**
  * Covert virtual address to machine address via page table lookup.
  *
  * @param[in] instance Handle to xenaccess instance.
@@ -253,125 +229,7 @@ uint32_t vmi_pagetable_lookup (
  */
 reg_t vmi_pid_to_pgd (vmi_instance_t instance, int pid);
 
-
-//------------------------------------------------
-/**
- * Memory maps page in domU that contains given physical address.
- * The mapped memory is read-only.
- *
- * @param[in] instance Handle to xenaccess instance.
- * @param[in] phys_address Requested physical address.
- * @param[out] offset Offset of the address in returned page.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- *
- * @return Address of a page copy that contains phys_address.
- */
-void *vmi_access_pa (
-        vmi_instance_t instance, uint32_t phys_address,
-        uint32_t *offset, int prot);
-
-/**
- * Memory maps page in domU that contains given machine address. For more
- * info about machine, virtual and pseudo-physical page see xen dev docs.
- *
- * @param[in] instance Handle to xenaccess instance.
- * @param[in] mach_address Requested machine address.
- * @param[out] offset Offset of the address in returned page.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- *
- * @return Address of a page copy with content like mach_address.
- */
-void *vmi_access_ma (
-        vmi_instance_t instance, uint32_t mach_address,
-        uint32_t *offset, int prot);
-
-/**
- * Memory maps one page from domU to a local address range.  The
- * memory to be mapped is specified with a kernel symbol (e.g.,
- * from System.map on linux).  This memory must be unmapped manually
- * with munmap.
- *
- * @param[in] instance LibVMI instance
- * @param[in] symbol Desired kernel symbol to access
- * @param[out] offset Offset to kernel symbol within the mapped memory
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of mapped memory page or NULL on error
- */
-void *vmi_access_kernel_sym (
-        vmi_instance_t instance, char *symbol, uint32_t *offset, int prot);
-
-/**
- * Memory maps one page from domU to a local address range.  The
- * memory to be mapped is specified with a kernel virtual address.
- * This memory must be unmapped manually with munmap.
- *
- * @param[in] instance LibVMI instance
- * @param[in] virt_address Virtual address to access
- * @param[out] offset Offset to address within the mapped memory
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of mapped memory page or NULL on error
- */
-void *vmi_access_kernel_va (
-        vmi_instance_t instance, uint32_t virt_address,
-        uint32_t *offset, int prot);
-
-/**
- * Memory maps multiple pages from domU to a local address range.
- * The memory to be mapped is specified with a kernel virtual
- * address.  This memory must be unmapped manually with munmap.
- *
- * @param[in] instance LibVMI instance
- * @param[in] virt_address Desired virtual address to access
- * @param[in] size Size in bytes of the accessed range
- * @param[out] offset Offset to the address within mapped memory
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of the mapped memory pages or NULL on error
- */ 
-void *vmi_access_kernel_va_range (
-        vmi_instance_t instance, uint32_t virt_address,
-        uint32_t size, uint32_t* offset, int prot);
-
-/**
- * Memory maps one page from domU to a local address range.  The
- * memory to be mapped is specified with a virtual address from a 
- * process' address space.  This memory must be unmapped manually
- * with munmap.
- *
- * @param[in] instance LibVMI instance
- * @param[in] virt_address Desired virtual address to access
- * @param[out] offset Offset to address within the mapped memory
- * @param[in] pid PID of process' address space to use.  If you specify
- *     0 here, LibVMI will access the kernel virtual address space and
- *     this function's behavior will be the same as vmi_access_virtual_address.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of mapped memory page or NULL on error
- */
-void *vmi_access_user_va (
-        vmi_instance_t instance, uint32_t virt_address,
-        uint32_t *offset, int pid, int prot);
-
-/**
- * Memory maps multiple pages from domU to a local address range.
- * the memory to be mapped is specified by a virtual address from
- * process' address space.  Data structures that span multiple
- * pages can be mapped without dealing with fragmentation.
- *
- * @param[in] instance LibVMI instance
- * @param[in] virt_address Desired virtual address to access
- * @param[in] size Size in bytes of the accessed range
- * @param[out] offset Offset to the address within mapped memory
- * @param[in] pid PID of process' address space to use.  If you
- *              specify 0 here, LibVMI will access the kernel virtual
- *      address space and this function's be the same as
- *      vmi_access_virtual_range.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- * @return Beginning of the mapped memory pages or NULL on error
- */
-void *vmi_access_user_va_range (
-        vmi_instance_t instance, uint32_t virt_address,
-        uint32_t size, uint32_t* offset, int pid, int prot);
 //-------------------------------------------------
-
 /**
  * Gets address of a symbol in domU virtual memory. It uses System.map
  * file specified in xenaccess configuration file.
@@ -394,8 +252,8 @@ status_t linux_system_map_symbol_to_address (
  *
  * @return Address of a page where \a symbol resides.
  */
-void *linux_access_kernel_symbol (
-        vmi_instance_t instance, char *symbol, uint32_t *offset, int prot);
+//void *linux_access_kernel_symbol (
+//        vmi_instance_t instance, char *symbol, uint32_t *offset, int prot);
 
 /**
  * Gets name of the kernel for given \a id.
@@ -440,7 +298,7 @@ void *windows_access_kernel_symbol (
 status_t windows_init (vmi_instance_t instance);
 status_t linux_init (vmi_instance_t instance);
 int get_symbol_row (FILE *f, char *row, char *symbol, int position);
-void *vmi_map_page (vmi_instance_t instance, int prot, unsigned long frame_num);
+void *vmi_map_page (vmi_instance_t instance, int prot, unsigned long frame_num, int is_pfn);
 uint32_t windows_find_eprocess (vmi_instance_t instance, char *name);
 char *linux_predict_sysmap_name (uint32_t id);
 
@@ -449,27 +307,10 @@ status_t valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr);
 status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, uint32_t *address);
 uint32_t windows_find_cr3 (vmi_instance_t vmi);
 
-/**
- * Reads a long (32 bit) value from memory, given a machine address.
- *
- * @param[in] instance LibVMI instance
- * @param[in] maddr Machine address to read from
- * @param[out] value The value read from memory
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_read_long_mach (
-        vmi_instance_t instance, uint32_t maddr, uint32_t *value);
-
-/**
- * Reads a long long (64 bit) value from memory, given a machine address.
- *
- * @param[in] instance LibVMI instance
- * @param[in] maddr Machine address to read from
- * @param[out] value The value read from memory
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_read_long_long_mach (
-        vmi_instance_t instance, uint32_t maddr, uint64_t *value);
+status_t vmi_read_8_ma (vmi_instance_t vmi, uint32_t maddr, uint8_t *value);
+status_t vmi_read_16_ma (vmi_instance_t vmi, uint32_t maddr, uint16_t *value);
+status_t vmi_read_32_ma (vmi_instance_t vmi, uint32_t maddr, uint32_t *value);
+status_t vmi_read_64_ma (vmi_instance_t vmi, uint32_t maddr, uint64_t *value);
 
 /** Duplicate function from xc_util that should remain
  *  here until Xen 3.1.2 becomes widely distributed.

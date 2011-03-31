@@ -17,14 +17,17 @@
 
 char *windows_get_eprocess_name (vmi_instance_t vmi, uint32_t paddr)
 {
-    uint32_t name_paddr = paddr + 0x174; /*TODO replace hard coded value */
-    uint32_t offset = 0;
-    char *memory = vmi_access_pa(vmi, name_paddr, &offset, PROT_READ);
-    if (memory){
-        char *name = memory + offset;
-        return strndup(name, 50);
+    int name_length = 16; //TODO verify that this is correct for all versions
+    uint32_t name_paddr = paddr + 0x174; //TODO make this work on all versions
+    char *name = (char *) safe_malloc(name_length);
+
+    if (name_length == vmi_read_pa(vmi, name_paddr, name, name_length)){
+        return name;
     }
-    return NULL;
+    else{
+        free(name);
+        return NULL;
+    }
 }
 
 uint32_t windows_find_eprocess (vmi_instance_t vmi, char *name)

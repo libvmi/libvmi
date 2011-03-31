@@ -34,22 +34,17 @@ status_t linux_init (vmi_instance_t vmi)
     }
     dbprint("**set vmi->kpgd (0x%.8x).\n", vmi->kpgd);
 
-    memory = vmi_access_kernel_sym(vmi, "init_task", &local_offset, PROT_READ);
-    if (NULL == memory){
+    addr_t address = vmi_translate_ksym2v(vmi, "init_task");
+    address += vmi->os.linux_instance.tasks_offset;
+    if (VMI_FAILURE == vmi_read_32_va(vmi, address, 0, &(vmi->init_task))){
         dbprint("--address lookup failure, switching PAE mode\n");
         vmi->pae = !vmi->pae;
         dbprint("**set pae = %d\n", vmi->pae);
-        memory = vmi_access_kernel_sym(vmi, "init_task", &local_offset, PROT_READ);
-        if (NULL == memory){
+        if (VMI_FAILURE == vmi_read_32_va(vmi, address, 0, &(vmi->init_task))){
             errprint("Failed to get task list head 'init_task'.\n");
             goto error_exit;
         }
     }
-    vmi->init_task =
-        *((uint32_t*)(memory + local_offset +
-        vmi->os.linux_instance.tasks_offset));
-    dbprint("**set init_task (0x%.8x).\n", vmi->init_task);
-    munmap(memory, vmi->page_size);
 
     ret = VMI_SUCCESS;
 error_exit:
