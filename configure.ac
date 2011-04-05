@@ -80,8 +80,6 @@ xen_space=' '
         [fi]
     [fi]
 
-    AC_CHECK_FUNCS(xc_map_foreign_pages, AC_DEFINE([HAVE_MAP_FOREIGN], [], [Indicates existance of xc_map_foreign_pages]))
-
     AC_CHECK_TYPE(
         [vcpu_guest_context_any_t],
         AC_DEFINE([HAVE_CONTEXT_ANY], [1], [Checks existance of vcpu_guest_context_any_t to know how to check cpu context on this libxc version.]),
