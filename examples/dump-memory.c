@@ -24,7 +24,7 @@ int main (int argc, char **argv)
     FILE *f = NULL;
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    uint32_t address = 0;
+    addr_t address = 0;
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];

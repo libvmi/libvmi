@@ -26,7 +26,7 @@ int main (int argc, char **argv)
 
     /* this is the address to map */
     char *addr_str = argv[2];
-    uint32_t addr = (uint32_t) strtoul(addr_str, NULL, 16);
+    addr_t addr = (addr_t) strtoul(addr_str, NULL, 16);
 
     /* initialize the libvmi library */
     if (vmi_init(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){

@@ -277,7 +277,7 @@ uint32_t vmi_pagetable_lookup (
 }
 
 /* expose virtual to physical mapping for kernel space via api call */
-uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t virt_address)
+addr_t vmi_translate_kv2p(vmi_instance_t vmi, addr_t virt_address)
 {
     reg_t cr3 = 0;
     driver_get_vcpureg(vmi, &cr3, CR3, 0);
@@ -291,7 +291,7 @@ uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t virt_address)
 }
 
 /* expose virtual to physical mapping for user space via api call */
-uint32_t vmi_translate_uv2p(vmi_instance_t vmi, uint32_t virt_address, int pid)
+addr_t vmi_translate_uv2p(vmi_instance_t vmi, addr_t virt_address, int pid)
 {
     reg_t pgd = 0;
     pgd = vmi_pid_to_pgd(vmi, pid);
@@ -306,9 +306,9 @@ uint32_t vmi_translate_uv2p(vmi_instance_t vmi, uint32_t virt_address, int pid)
 }
 
 /* convert a kernel symbol into an address */
-uint32_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
+addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
 {
-    uint32_t ret = 0;
+    addr_t ret = 0;
 
     if (VMI_OS_LINUX == vmi->os_type){
         if (VMI_FAILURE == linux_system_map_symbol_to_address(vmi, symbol, &ret)){

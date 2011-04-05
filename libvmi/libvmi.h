@@ -60,7 +60,8 @@ typedef enum registers{
     UNKNOWN
 } registers_t;
 
-typedef unsigned long addr_t;
+/* type def for forward compatibility with 64-bit guests */
+typedef uint32_t addr_t;
 
 /**
  * @brief LibVMI Instance.
@@ -111,7 +112,7 @@ status_t vmi_destroy (vmi_instance_t vmi);
  * @param[in] vaddr Desired kernel virtual address to translate
  * @return Physical address, or zero on error
  */
-uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t vaddr);
+addr_t vmi_translate_kv2p(vmi_instance_t vmi, addr_t vaddr);
 
 /**
  * Performs the translation from a user virtual address to a
@@ -122,7 +123,7 @@ uint32_t vmi_translate_kv2p(vmi_instance_t vmi, uint32_t vaddr);
  * @param[in] pid Process id for desired user address space
  * @return Physical address, or zero on error
  */
-uint32_t vmi_translate_uv2p(vmi_instance_t vmi, uint32_t vaddr, int pid);
+addr_t vmi_translate_uv2p(vmi_instance_t vmi, addr_t vaddr, int pid);
 
 /**
  * Performs the translation from a kernel symbol to a virtual address.
@@ -131,7 +132,7 @@ uint32_t vmi_translate_uv2p(vmi_instance_t vmi, uint32_t vaddr, int pid);
  * @param[in] symbol Desired kernel symbol to translate
  * @return Virtual address, or zero on error
  */
-uint32_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol);
+addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol);
 
 /*---------------------------------------------------------
  * Memory access functions from util.c
@@ -160,7 +161,7 @@ size_t vmi_read_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count);
  * @param[in] count The number of bytes to read
  * @return The number of bytes read.
  */
-size_t vmi_read_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void *buf, size_t count);
+size_t vmi_read_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t count);
 
 /**
  * Reads \a count bytes from memory located at the physical address \a paddr
@@ -172,7 +173,7 @@ size_t vmi_read_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void *buf, size
  * @param[in] count The number of bytes to read
  * @return The number of bytes read.
  */
-size_t vmi_read_pa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count);
+size_t vmi_read_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count);
 
 /**
  * Reads 8 bits from memory, given a kernel symbol.
@@ -234,7 +235,7 @@ char *vmi_read_str_ksym (vmi_instance_t vmi, char *sym);
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_8_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint8_t *value);
+status_t vmi_read_8_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint8_t *value);
 
 /**
  * Reads 16 bits from memory, given a virtual address.
@@ -245,7 +246,7 @@ status_t vmi_read_8_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint8_t *va
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_16_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint16_t *value);
+status_t vmi_read_16_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint16_t *value);
 
 /**
  * Reads 32 bits from memory, given a virtual address.
@@ -256,7 +257,7 @@ status_t vmi_read_16_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint16_t *
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_32_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint32_t *value);
+status_t vmi_read_32_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint32_t *value);
 
 /**
  * Reads 64 bits from memory, given a virtual address.
@@ -267,7 +268,7 @@ status_t vmi_read_32_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint32_t *
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_64_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint64_t *value);
+status_t vmi_read_64_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint64_t *value);
 
 /**
  * Reads a nul terminated string from memory, starting at
@@ -288,7 +289,7 @@ char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_8_pa (vmi_instance_t vmi, uint32_t paddr, uint8_t *value);
+status_t vmi_read_8_pa (vmi_instance_t vmi, addr_t paddr, uint8_t *value);
 
 /**
  * Reads 16 bits from memory, given a physical address.
@@ -298,7 +299,7 @@ status_t vmi_read_8_pa (vmi_instance_t vmi, uint32_t paddr, uint8_t *value);
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_16_pa (vmi_instance_t vmi, uint32_t paddr, uint16_t *value);
+status_t vmi_read_16_pa (vmi_instance_t vmi, addr_t paddr, uint16_t *value);
 
 /**
  * Reads 32 bits from memory, given a physical address.
@@ -308,7 +309,7 @@ status_t vmi_read_16_pa (vmi_instance_t vmi, uint32_t paddr, uint16_t *value);
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_32_pa (vmi_instance_t vmi, uint32_t paddr, uint32_t *value);
+status_t vmi_read_32_pa (vmi_instance_t vmi, addr_t paddr, uint32_t *value);
 
 /**
  * Reads 64 bits from memory, given a physical address.
@@ -318,7 +319,7 @@ status_t vmi_read_32_pa (vmi_instance_t vmi, uint32_t paddr, uint32_t *value);
  * @param[out] value The value read from memory
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_read_64_pa (vmi_instance_t vmi, uint32_t paddr, uint64_t *value);
+status_t vmi_read_64_pa (vmi_instance_t vmi, addr_t paddr, uint64_t *value);
 
 /**
  * Reads a nul terminated string from memory, starting at

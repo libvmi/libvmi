@@ -20,7 +20,8 @@ int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
     unsigned char *memory = NULL;
-    uint32_t offset, next_process, list_head;
+    uint32_t offset;
+    addr_t next_process, list_head;
     char *procname = (char *) malloc(256);
     int pid = 0;
     int tasks_offset, pid_offset, name_offset;
@@ -49,7 +50,7 @@ int main (int argc, char **argv)
 
     /* get the head of the list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-        uint32_t init_task_va = vmi_translate_ksym2v(vmi, "init_task");
+        addr_t init_task_va = vmi_translate_ksym2v(vmi, "init_task");
         vmi_read_32_va(vmi, init_task_va + tasks_offset, 0, &next_process);
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
@@ -66,7 +67,7 @@ int main (int argc, char **argv)
     while (1){
 
         /* follow the next pointer */
-        uint32_t tmp_next = 0;
+        addr_t tmp_next = 0;
         vmi_read_32_va(vmi, next_process, 0, &tmp_next);
 
         /* if we are back at the list head, we are done */

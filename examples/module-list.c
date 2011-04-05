@@ -18,7 +18,7 @@
 
 /* len and addr should be from a _UNICODE_STRING struct where len is the 
    'Length' field and addr is the 'Buffer' field */
-void print_unicode_string (vmi_instance_t vmi, uint16_t len, uint32_t addr)
+void print_unicode_string (vmi_instance_t vmi, uint16_t len, addr_t addr)
 {
     //below is a total hack to bypass unicode support
     int i = 0;
@@ -41,7 +41,8 @@ void print_unicode_string (vmi_instance_t vmi, uint16_t len, uint32_t addr)
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
-    uint32_t offset, next_module, list_head;
+    uint32_t offset;
+    addr_t next_module, list_head;
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
@@ -65,7 +66,7 @@ int main (int argc, char **argv)
     while (1){
 
         /* follow the next pointer */
-        uint32_t tmp_next = 0;
+        addr_t tmp_next = 0;
         vmi_read_32_va(vmi, next_module, 0, &tmp_next);
 
         /* if we are back at the list head, we are done */
@@ -88,7 +89,7 @@ int main (int argc, char **argv)
             /*TODO don't use a hard-coded offsets here */
             /* these offsets work with WinXP SP2 */
             uint16_t length;
-            uint32_t buffer_addr;
+            addr_t buffer_addr;
             vmi_read_va(vmi, next_module + 0x2c, 0, &length, 2);
             vmi_read_va(vmi, next_module + 0x30, 0, &buffer_addr, 4);
             print_unicode_string(vmi, length, buffer_addr);

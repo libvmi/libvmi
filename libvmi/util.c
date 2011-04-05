@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////
 // Classic read functions for access to memory
-static size_t vmi_read_mpa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count, int is_p)
+static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count, int is_p)
 {
     unsigned char *memory = NULL;
     unsigned long phys_address = 0;
@@ -56,17 +56,17 @@ static size_t vmi_read_mpa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_
     return buf_offset;
 }
 
-static size_t vmi_read_ma (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count)
+static size_t vmi_read_ma (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
 {
     return vmi_read_mpa(vmi, paddr, buf, count, 0);
 }
 
-size_t vmi_read_pa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count)
+size_t vmi_read_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
 {
     return vmi_read_mpa(vmi, paddr, buf, count, 1);
 }
 
-size_t vmi_read_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void *buf, size_t count)
+size_t vmi_read_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t count)
 {
     addr_t paddr = 0;
     if (pid){
@@ -87,7 +87,7 @@ size_t vmi_read_ksym (vmi_instance_t vmi, char *symbol, void *buf, size_t count)
 ///////////////////////////////////////////////////////////
 // Easy access to machine memory
 
-static status_t vmi_read_X_ma (vmi_instance_t vmi, uint32_t maddr, void *value, int size)
+static status_t vmi_read_X_ma (vmi_instance_t vmi, addr_t maddr, void *value, int size)
 {
     size_t len_read = vmi_read_ma(vmi, maddr, value, size);
     if (len_read == size){
@@ -98,29 +98,29 @@ static status_t vmi_read_X_ma (vmi_instance_t vmi, uint32_t maddr, void *value, 
     }
 }
 
-status_t vmi_read_8_ma (vmi_instance_t vmi, uint32_t maddr, uint8_t *value)
+status_t vmi_read_8_ma (vmi_instance_t vmi, addr_t maddr, uint8_t *value)
 {
     return vmi_read_X_ma(vmi, maddr, value, 1);
 }
 
-status_t vmi_read_16_ma (vmi_instance_t vmi, uint32_t maddr, uint16_t *value)
+status_t vmi_read_16_ma (vmi_instance_t vmi, addr_t maddr, uint16_t *value)
 {
     return vmi_read_X_ma(vmi, maddr, value, 2);
 }
 
-status_t vmi_read_32_ma (vmi_instance_t vmi, uint32_t maddr, uint32_t *value)
+status_t vmi_read_32_ma (vmi_instance_t vmi, addr_t maddr, uint32_t *value)
 {
     return vmi_read_X_ma(vmi, maddr, value, 4);
 }
 
-status_t vmi_read_64_ma (vmi_instance_t vmi, uint32_t maddr, uint64_t *value)
+status_t vmi_read_64_ma (vmi_instance_t vmi, addr_t maddr, uint64_t *value)
 {
     return vmi_read_X_ma(vmi, maddr, value, 8);
 }
 
 ///////////////////////////////////////////////////////////
 // Easy access to physical memory
-static status_t vmi_read_X_pa (vmi_instance_t vmi, uint32_t paddr, void *value, int size)
+static status_t vmi_read_X_pa (vmi_instance_t vmi, addr_t paddr, void *value, int size)
 {
     size_t len_read = vmi_read_pa(vmi, paddr, value, size);
     if (len_read == size){
@@ -131,22 +131,22 @@ static status_t vmi_read_X_pa (vmi_instance_t vmi, uint32_t paddr, void *value, 
     }
 }
 
-status_t vmi_read_8_pa (vmi_instance_t vmi, uint32_t paddr, uint8_t *value)
+status_t vmi_read_8_pa (vmi_instance_t vmi, addr_t paddr, uint8_t *value)
 {
     return vmi_read_X_pa(vmi, paddr, value, 1);
 }
 
-status_t vmi_read_16_pa (vmi_instance_t vmi, uint32_t paddr, uint16_t *value)
+status_t vmi_read_16_pa (vmi_instance_t vmi, addr_t paddr, uint16_t *value)
 {
     return vmi_read_X_pa(vmi, paddr, value, 2);
 }
 
-status_t vmi_read_32_pa (vmi_instance_t vmi, uint32_t paddr, uint32_t *value)
+status_t vmi_read_32_pa (vmi_instance_t vmi, addr_t paddr, uint32_t *value)
 {
     return vmi_read_X_pa(vmi, paddr, value, 4);
 }
 
-status_t vmi_read_64_pa (vmi_instance_t vmi, uint32_t paddr, uint64_t *value)
+status_t vmi_read_64_pa (vmi_instance_t vmi, addr_t paddr, uint64_t *value)
 {
     return vmi_read_X_pa(vmi, paddr, value, 8);
 }
@@ -186,7 +186,7 @@ exit:
 
 ///////////////////////////////////////////////////////////
 // Easy access to virtual memory
-static status_t vmi_read_X_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void *value, int size)
+static status_t vmi_read_X_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *value, int size)
 {
     size_t len_read = vmi_read_va(vmi, vaddr, pid, value, size);
     if (len_read == size){
@@ -197,22 +197,22 @@ static status_t vmi_read_X_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void
     }
 }
 
-status_t vmi_read_8_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint8_t *value)
+status_t vmi_read_8_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint8_t *value)
 {
     return vmi_read_X_va(vmi, vaddr, pid, value, 1);
 }
 
-status_t vmi_read_16_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint16_t *value)
+status_t vmi_read_16_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint16_t *value)
 {
     return vmi_read_X_va(vmi, vaddr, pid, value, 2);
 }
 
-status_t vmi_read_32_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint32_t *value)
+status_t vmi_read_32_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint32_t *value)
 {
     return vmi_read_X_va(vmi, vaddr, pid, value, 4);
 }
 
-status_t vmi_read_64_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint64_t *value)
+status_t vmi_read_64_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint64_t *value)
 {
     return vmi_read_X_va(vmi, vaddr, pid, value, 8);
 }
