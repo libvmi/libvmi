@@ -265,6 +265,24 @@ pyvmi_read_64_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
+pyvmi_read_str_pa (PyObject *self, PyObject *args)
+{
+    uint32_t paddr;
+    char *str = NULL;
+
+    if (!PyArg_ParseTuple(args, "I", &paddr)){
+        return NULL;
+    }
+
+    if ((str = vmi_read_str_pa(vmi(self), paddr)) == NULL){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("s", &str);
+}
+
+static PyObject *
 pyvmi_read_8_va (PyObject *self, PyObject *args)
 {
     uint32_t vaddr;
@@ -341,6 +359,25 @@ pyvmi_read_64_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
+pyvmi_read_str_va (PyObject *self, PyObject *args)
+{
+    uint32_t paddr;
+    int pid;
+    char *str = NULL;
+
+    if (!PyArg_ParseTuple(args, "Ii", &paddr, &pid)){
+        return NULL;
+    }
+
+    if ((str = vmi_read_str_va(vmi(self), paddr, pid)) == NULL){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("s", &str);
+}
+
+static PyObject *
 pyvmi_read_8_ksym (PyObject *self, PyObject *args)
 {
     char *sym;
@@ -410,6 +447,24 @@ pyvmi_read_64_ksym (PyObject *self, PyObject *args)
     }
 
     return Py_BuildValue("K", &value);
+}
+
+static PyObject *
+pyvmi_read_str_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    char *str = NULL;
+
+    if (!PyArg_ParseTuple(args, "s", &sym)){
+        return NULL;
+    }
+
+    if ((str = vmi_read_str_ksym(vmi(self), sym)) == NULL){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("s", &str);
 }
 
 //-------------------------------------------------------------------
@@ -536,6 +591,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read 4 bytes using a physical address"},
     {"read_64_pa", pyvmi_read_64_pa, METH_VARARGS,
      "Read 8 bytes using a physical address"},
+    {"read_str_pa", pyvmi_read_str_pa, METH_VARARGS,
+     "Read string using a physical address"},
     {"read_8_va", pyvmi_read_8_va, METH_VARARGS,
      "Read 1 byte using a virtual address"},
     {"read_16_va", pyvmi_read_16_va, METH_VARARGS,
@@ -544,6 +601,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read 4 bytes using a virtual address"},
     {"read_64_va", pyvmi_read_64_va, METH_VARARGS,
      "Read 8 bytes using a virtual address"},
+    {"read_str_va", pyvmi_read_str_va, METH_VARARGS,
+     "Read string using a virtual address"},
     {"read_8_ksym", pyvmi_read_8_ksym, METH_VARARGS,
      "Read 1 byte using a kernel symbol"},
     {"read_16_ksym", pyvmi_read_16_ksym, METH_VARARGS,
@@ -552,6 +611,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read 4 bytes using a kernel symbol"},
     {"read_64_ksym", pyvmi_read_64_ksym, METH_VARARGS,
      "Read 8 bytes using a kernel symbol"},
+    {"read_str_ksym", pyvmi_read_str_ksym, METH_VARARGS,
+     "Read string using a kernel symbol"},
     {"get_vcpureg", pyvmi_get_vcpureg, METH_VARARGS,
      "Get the current value of a vcpu register"},
     {"get_memsize", pyvmi_get_memsize, METH_VARARGS,

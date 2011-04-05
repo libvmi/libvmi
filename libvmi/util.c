@@ -68,7 +68,7 @@ size_t vmi_read_pa (vmi_instance_t vmi, uint32_t paddr, void *buf, size_t count)
 
 size_t vmi_read_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void *buf, size_t count)
 {
-    uint32_t paddr = 0;
+    addr_t paddr = 0;
     if (pid){
         paddr = vmi_translate_uv2p(vmi, vaddr, pid);
     }
@@ -80,7 +80,7 @@ size_t vmi_read_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void *buf, size
 
 size_t vmi_read_ksym (vmi_instance_t vmi, char *symbol, void *buf, size_t count)
 {
-    uint32_t vaddr = vmi_translate_ksym2v(vmi, symbol);
+    addr_t vaddr = vmi_translate_ksym2v(vmi, symbol);
     return vmi_read_va(vmi, vaddr, 0, buf, count);
 }
 
@@ -151,6 +151,39 @@ status_t vmi_read_64_pa (vmi_instance_t vmi, uint32_t paddr, uint64_t *value)
     return vmi_read_X_pa(vmi, paddr, value, 8);
 }
 
+char *vmi_read_str_pa (vmi_instance_t vmi, addr_t paddr)
+{
+    char *rtnval = NULL;
+    size_t chunk_size = 4096;
+    char *buf = (char *) safe_malloc(chunk_size);
+
+    // read in chunk of data
+    if (chunk_size != vmi_read_pa(vmi, paddr, buf, chunk_size)){
+        goto exit;
+    }
+
+    // look for \0 character, expand as needed
+    size_t len = strnlen(buf, chunk_size);
+    size_t buf_size = chunk_size;
+    while (len == buf_size){
+        size_t offset = buf_size;
+        buf_size += chunk_size;
+        buf = realloc(buf, buf_size);
+        if (chunk_size != vmi_read_pa(vmi, paddr + offset, buf + offset, chunk_size)){
+            goto exit;
+        }
+        len = strnlen(buf, buf_size);
+    }
+
+    rtnval = (char *) safe_malloc(len + 1);
+    memcpy(rtnval, buf, len);
+    rtnval[len] = '\0';
+
+exit:
+    free(buf);
+    return rtnval;
+}
+
 ///////////////////////////////////////////////////////////
 // Easy access to virtual memory
 static status_t vmi_read_X_va (vmi_instance_t vmi, uint32_t vaddr, int pid, void *value, int size)
@@ -182,6 +215,18 @@ status_t vmi_read_32_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint32_t *
 status_t vmi_read_64_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint64_t *value)
 {
     return vmi_read_X_va(vmi, vaddr, pid, value, 8);
+}
+
+char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
+{
+    addr_t paddr = 0;
+    if (pid){
+        paddr = vmi_translate_uv2p(vmi, vaddr, pid);
+    }
+    else{
+        paddr = vmi_translate_kv2p(vmi, vaddr);
+    }
+    return vmi_read_str_pa(vmi, paddr);
 }
 
 ///////////////////////////////////////////////////////////
@@ -217,6 +262,12 @@ status_t vmi_read_64_ksym (vmi_instance_t vmi, char *sym, uint64_t *value)
     return vmi_read_X_ksym(vmi, sym, value, 8);
 }
 
+char *vmi_read_str_ksym (vmi_instance_t vmi, char *sym)
+{
+    addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
+    return vmi_read_str_va(vmi, vaddr, 0);
+}
+
 ///////////////////////////////////////////////////////////
 // Other utility functions
 int vmi_get_bit (unsigned long reg, int bit)
@@ -247,49 +298,3 @@ void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num, int i
         return driver_map_page(vmi, prot, mfn);
     }
 }
-
-/* This function is taken from Markus Armbruster's
- * xc_map_foreign_pages that is now part of xc_util.c.
- * 
- * It is a very nice function that unfortunately
- * only appears in very recent libxc's (late 2007).
- * 
- * Calls to this function should be replaced with
- * the libxc equivalent when Xen 3.1.2 becomes widely
- * distributed.
- */
-#if ENABLE_XEN == 1
-#ifndef HAVE_MAP_FOREIGN
-void *xc_map_foreign_pages(int xc_handle, uint32_t dom, int prot,
-                           const xen_pfn_t *arr, int num)
-{
-    xen_pfn_t *pfn;
-    void *res;
-    int i;
-
-    pfn = safe_malloc(num * sizeof(*pfn));
-    memcpy(pfn, arr, num * sizeof(*pfn));
-
-    res = xc_map_foreign_batch(xc_handle, dom, prot, pfn, num);
-    if (res) {
-        for (i = 0; i < num; i++) {
-            if ((pfn[i] & 0xF0000000UL) == 0xF0000000UL) {
-                /*
-                 * xc_map_foreign_batch() doesn't give us an error
-                 * code, so we have to make one up.  May not be the
-                 * appropriate one.
-                 */
-                errno = EINVAL;
-                munmap(res, num * PAGE_SIZE);
-                res = NULL;
-                break;
-            }
-        }
-    }
-
-    free(pfn);
-    return res;
-}
-#endif /* HAVE_MAP_FOREIGN */
-#endif /* ENABLE_XEN */
-

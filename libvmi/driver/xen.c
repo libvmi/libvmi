@@ -408,17 +408,6 @@ void *xen_map_page (vmi_instance_t vmi, int prot, unsigned long page)
     return xc_map_foreign_range(xen_get_xchandle(vmi), xen_get_domainid(vmi), 1, prot, page);
 }
 
-void *xen_map_pages (vmi_instance_t vmi, int prot, unsigned long *pages, unsigned long num_pages)
-{
-    xen_pfn_t *pfns = (xen_pfn_t*) safe_malloc(sizeof(xen_pfn_t) * num_pages);
-    unsigned long i = 0;
-    
-    for (i = 0; i < num_pages; ++i){
-        pfns[i] = (xen_pfn_t) pages[i];
-    }
-    return xc_map_foreign_pages(xen_get_xchandle(vmi), xen_get_domainid(vmi), prot, pfns, num_pages);
-}
-
 int xen_is_pv (vmi_instance_t vmi)
 {
     return !xen_get_instance(vmi)->hvm;

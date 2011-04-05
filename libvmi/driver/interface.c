@@ -26,7 +26,6 @@ struct driver_instance{
     status_t (*get_vcpureg_ptr)(vmi_instance_t, reg_t *, registers_t, unsigned long);
     unsigned long (*pfn_to_mfn_ptr)(vmi_instance_t, unsigned long);
     void *(*map_page_ptr)(vmi_instance_t, int, unsigned long);
-    void *(*map_pages_ptr)(vmi_instance_t, int, unsigned long *, unsigned long);
     int (*is_pv_ptr)(vmi_instance_t);
 };
 typedef struct driver_instance * driver_instance_t;
@@ -50,7 +49,6 @@ static void driver_xen_setup (vmi_instance_t vmi)
     instance->get_vcpureg_ptr = &xen_get_vcpureg;
     instance->pfn_to_mfn_ptr = &xen_pfn_to_mfn;
     instance->map_page_ptr = &xen_map_page;
-    instance->map_pages_ptr = &xen_map_pages;
     instance->is_pv_ptr = &xen_is_pv;
 }
 
@@ -68,7 +66,6 @@ static void driver_kvm_setup (vmi_instance_t vmi)
     instance->get_vcpureg_ptr = &kvm_get_vcpureg;
     instance->pfn_to_mfn_ptr = &kvm_pfn_to_mfn;
     instance->map_page_ptr = &kvm_map_page;
-    instance->map_pages_ptr = NULL; //TODO add map_pages_ptr
     instance->is_pv_ptr = &kvm_is_pv;
 }
 
@@ -86,7 +83,6 @@ static void driver_file_setup (vmi_instance_t vmi)
     instance->get_vcpureg_ptr = &file_get_vcpureg;
     instance->pfn_to_mfn_ptr = &file_pfn_to_mfn;
     instance->map_page_ptr = &file_map_page;
-    instance->map_pages_ptr = NULL; //TODO add map_pages_ptr
     instance->is_pv_ptr = &file_is_pv;
 }
 
@@ -104,7 +100,6 @@ static void driver_null_setup (vmi_instance_t vmi)
     instance->get_vcpureg_ptr = NULL;
     instance->pfn_to_mfn_ptr = NULL;
     instance->map_page_ptr = NULL;
-    instance->map_pages_ptr = NULL;
     instance->is_pv_ptr = NULL;
 }
 
@@ -295,18 +290,6 @@ void *driver_map_page (vmi_instance_t vmi, int prot, unsigned long page)
     }
     else{
         dbprint("WARNING: driver_map_page function not implemented.\n");
-        return NULL;
-    }
-}
-
-void *driver_map_pages (vmi_instance_t vmi, int prot, unsigned long *pages, unsigned long num_pages)
-{
-    driver_instance_t ptrs = driver_get_instance(vmi);
-    if (NULL != ptrs && NULL != ptrs->map_pages_ptr){
-        return ptrs->map_pages_ptr(vmi, prot, pages, num_pages);
-    }
-    else{
-        dbprint("WARNING: driver_map_pages function not implemented.\n");
         return NULL;
     }
 }

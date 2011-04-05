@@ -312,14 +312,4 @@ status_t vmi_read_16_ma (vmi_instance_t vmi, uint32_t maddr, uint16_t *value);
 status_t vmi_read_32_ma (vmi_instance_t vmi, uint32_t maddr, uint32_t *value);
 status_t vmi_read_64_ma (vmi_instance_t vmi, uint32_t maddr, uint64_t *value);
 
-/** Duplicate function from xc_util that should remain
- *  here until Xen 3.1.2 becomes widely distributed.
- */
-#if ENABLE_XEN == 1
-#ifndef HAVE_MAP_FOREIGN
-void *xc_map_foreign_pages(int xc_handle, uint32_t dom, int prot,
-                           const xen_pfn_t *arr, int num);
-#endif /* HAVE_MAP_FOREIGN */
-#endif /* ENABLE_XEN */
-
 #endif /* PRIVATE_H */

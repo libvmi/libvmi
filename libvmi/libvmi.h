@@ -215,6 +215,17 @@ status_t vmi_read_32_ksym (vmi_instance_t vmi, char *sym, uint32_t *value);
 status_t vmi_read_64_ksym (vmi_instance_t vmi, char *sym, uint64_t *value);
 
 /**
+ * Reads a nul terminated string from memory, starting at
+ * the given kernel symbol.  The returned value must be
+ * freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address for start of string
+ * @return String read from memory or NULL on error
+ */
+char *vmi_read_str_ksym (vmi_instance_t vmi, char *sym);
+
+/**
  * Reads 8 bits from memory, given a virtual address.
  *
  * @param[in] vmi LibVMI instance
@@ -259,6 +270,17 @@ status_t vmi_read_32_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint32_t *
 status_t vmi_read_64_va (vmi_instance_t vmi, uint32_t vaddr, int pid, uint64_t *value);
 
 /**
+ * Reads a nul terminated string from memory, starting at
+ * the given virtual address.  The returned value must be
+ * freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address for start of string
+ * @return String read from memory or NULL on error
+ */
+char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
+
+/**
  * Reads 8 bits from memory, given a physical address.
  *
  * @param[in] vmi LibVMI instance
@@ -297,6 +319,17 @@ status_t vmi_read_32_pa (vmi_instance_t vmi, uint32_t paddr, uint32_t *value);
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_read_64_pa (vmi_instance_t vmi, uint32_t paddr, uint64_t *value);
+
+/**
+ * Reads a nul terminated string from memory, starting at
+ * the given physical address.  The returned value must be
+ * freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address for start of string
+ * @return String read from memory or NULL on error
+ */
+char *vmi_read_str_pa (vmi_instance_t vmi, addr_t paddr);
 
 /*---------------------------------------------------------
  * Print util functions from pretty_print.c

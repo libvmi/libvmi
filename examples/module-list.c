@@ -80,8 +80,7 @@ int main (int argc, char **argv)
            can just add 8 to get the name.  See include/linux/module.h
            for mode details */
         if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-            char *modname = (char *) malloc(256);
-            vmi_read_va(vmi, next_module + 8, 0, modname, 256);
+            char *modname = vmi_read_str_va(vmi, next_module + 8, 0);
             printf("%s\n", modname);
             free(modname);
         }

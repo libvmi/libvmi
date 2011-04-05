@@ -112,27 +112,8 @@ struct export_table{
 // takes an rva and looks up a null terminated string at that location
 char *rva_to_string (vmi_instance_t vmi, uint32_t rva)
 {
-    int max_length = 1000; // arbitrary max length
-    char *memory = (char *) safe_malloc(max_length);
-    int length = 0;
-    char *str = NULL;
     addr_t paddr = vmi->os.windows_instance.ntoskrnl + rva;
-
-    if (max_length != vmi_read_pa(vmi, paddr, memory, max_length)){
-        return NULL;
-    }
-
-    /* assuming that this is null terminated */
-    length = strnlen(memory, max_length);
-    if (length > 0){
-        str = safe_malloc(length + 1);
-        memset(str, 0, length + 1);
-        memcpy(str, memory, length);
-    }
-    free(memory);
-
-    /* someone else will need to free this */
-    return str;
+    return vmi_read_str_pa(vmi, paddr);
 }
 
 void dump_exports (vmi_instance_t vmi, struct export_table et)

@@ -56,8 +56,9 @@ int main (int argc, char **argv)
         vmi_read_32_ksym(vmi, "PsInitialSystemProcess", &list_head);
         vmi_read_32_va(vmi, list_head + tasks_offset, 0, &next_process);
         vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
-        vmi_read_va(vmi, list_head + name_offset, 0, procname, 256);
+        procname = vmi_read_str_va(vmi, list_head + name_offset, 0);
         printf("[%5d] %s\n", pid, procname);
+        if (procname) free(procname);
     }
     list_head = next_process;
 
@@ -83,13 +84,14 @@ int main (int argc, char **argv)
            code cleaner, if not more fragile.  In a real app, you'd
            want to do this a little more robust :-)  See
            include/linux/sched.h for mode details */
-        vmi_read_va(vmi, next_process + name_offset - tasks_offset, 0, procname, 256);
+        procname = vmi_read_str_va(vmi, next_process + name_offset - tasks_offset, 0);
         vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
 
         /* trivial sanity check on data */
         if (pid >= 0){
             printf("[%5d] %s\n", pid, procname);
         }
+        if (procname) free(procname);
         next_process = tmp_next;
     }
 

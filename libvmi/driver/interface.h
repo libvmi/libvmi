@@ -22,5 +22,4 @@ status_t driver_get_memsize (vmi_instance_t vmi, unsigned long *size);
 status_t driver_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);
 unsigned long driver_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn);
 void *driver_map_page (vmi_instance_t vmi, int prot, unsigned long page);
-void *driver_map_pages (vmi_instance_t vmi, int prot, unsigned long *pages, unsigned long num_pages);
 int driver_is_pv (vmi_instance_t vmi);
