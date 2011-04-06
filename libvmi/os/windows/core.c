@@ -24,8 +24,7 @@ status_t get_kpgd_method2 (vmi_instance_t vmi, uint32_t *sysproc)
     dbprint("--got PA to PsInititalSystemProcess (0x%.8x).\n", *sysproc);
 
     /* get address for page directory (from system process) */
-    /*TODO this 0x18 offset should not be hard coded below */
-    if (VMI_FAILURE == vmi_read_32_pa(vmi, *sysproc + 0x18, &vmi->kpgd)){
+    if (VMI_FAILURE == vmi_read_32_pa(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
         dbprint("--failed to resolve PD for Idle process\n");
         goto error_exit;
     }
