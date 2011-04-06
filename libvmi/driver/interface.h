@@ -23,3 +23,5 @@ status_t driver_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, 
 unsigned long driver_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn);
 void *driver_map_page (vmi_instance_t vmi, int prot, unsigned long page);
 int driver_is_pv (vmi_instance_t vmi);
+status_t driver_pause_vm (vmi_instance_t vmi);
+status_t driver_resume_vm (vmi_instance_t vmi);

@@ -183,6 +183,16 @@ error_exit:
     return ret;
 }
 
+status_t file_pause_vm (vmi_instance_t vmi)
+{
+    return VMI_SUCCESS;
+}
+
+status_t file_resume_vm (vmi_instance_t vmi)
+{
+    return VMI_SUCCESS;
+}
+
 //////////////////////////////////////////////////////////////////////
 #else
 
@@ -195,5 +205,7 @@ unsigned long file_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0
 void *file_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
 int file_is_pv (vmi_instance_t vmi) { return 0; }
 status_t file_test (unsigned long id, char *name) { return VMI_FAILURE; }
+status_t file_pause_vm (vmi_instance_t vmi) { return VMI_FAILURE; }
+status_t file_resume_vm (vmi_instance_t vmi) { return VMI_FAILURE; }
 
 #endif /* ENABLE_FILE */

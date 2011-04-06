@@ -21,4 +21,5 @@ unsigned long file_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn);
 void *file_map_page (vmi_instance_t vmi, int prot, unsigned long page);
 int file_is_pv (vmi_instance_t vmi);
 status_t file_test (unsigned long id, char *name);
-
+status_t file_pause_vm (vmi_instance_t vmi);
+status_t file_resume_vm (vmi_instance_t vmi);

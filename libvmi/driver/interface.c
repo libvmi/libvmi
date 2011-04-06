@@ -27,6 +27,8 @@ struct driver_instance{
     unsigned long (*pfn_to_mfn_ptr)(vmi_instance_t, unsigned long);
     void *(*map_page_ptr)(vmi_instance_t, int, unsigned long);
     int (*is_pv_ptr)(vmi_instance_t);
+    status_t (*pause_vm_ptr)(vmi_instance_t);
+    status_t (*resume_vm_ptr)(vmi_instance_t);
 };
 typedef struct driver_instance * driver_instance_t;
 
@@ -50,6 +52,8 @@ static void driver_xen_setup (vmi_instance_t vmi)
     instance->pfn_to_mfn_ptr = &xen_pfn_to_mfn;
     instance->map_page_ptr = &xen_map_page;
     instance->is_pv_ptr = &xen_is_pv;
+    instance->pause_vm_ptr = &xen_pause_vm;
+    instance->resume_vm_ptr = &xen_resume_vm;
 }
 
 static void driver_kvm_setup (vmi_instance_t vmi)
@@ -67,6 +71,8 @@ static void driver_kvm_setup (vmi_instance_t vmi)
     instance->pfn_to_mfn_ptr = &kvm_pfn_to_mfn;
     instance->map_page_ptr = &kvm_map_page;
     instance->is_pv_ptr = &kvm_is_pv;
+    instance->pause_vm_ptr = &kvm_pause_vm;
+    instance->resume_vm_ptr = &kvm_resume_vm;
 }
 
 static void driver_file_setup (vmi_instance_t vmi)
@@ -84,6 +90,8 @@ static void driver_file_setup (vmi_instance_t vmi)
     instance->pfn_to_mfn_ptr = &file_pfn_to_mfn;
     instance->map_page_ptr = &file_map_page;
     instance->is_pv_ptr = &file_is_pv;
+    instance->pause_vm_ptr = &file_pause_vm;
+    instance->resume_vm_ptr = &file_resume_vm;
 }
 
 static void driver_null_setup (vmi_instance_t vmi)
@@ -101,6 +109,8 @@ static void driver_null_setup (vmi_instance_t vmi)
     instance->pfn_to_mfn_ptr = NULL;
     instance->map_page_ptr = NULL;
     instance->is_pv_ptr = NULL;
+    instance->pause_vm_ptr = NULL;
+    instance->resume_vm_ptr = NULL;
 }
 
 static driver_instance_t driver_get_instance (vmi_instance_t vmi)
@@ -303,5 +313,29 @@ int driver_is_pv (vmi_instance_t vmi)
     else{
         dbprint("WARNING: driver_is_pv function not implemented.\n");
         return 0;
+    }
+}
+
+status_t driver_pause_vm (vmi_instance_t vmi)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->pause_vm_ptr){
+        return ptrs->pause_vm_ptr(vmi);
+    }
+    else{
+        dbprint("WARNING: driver_pause_vm function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t driver_resume_vm (vmi_instance_t vmi)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->resume_vm_ptr){
+        return ptrs->resume_vm_ptr(vmi);
+    }
+    else{
+        dbprint("WARNING: driver_resume_vm function not implemented.\n");
+        return VMI_FAILURE;
     }
 }

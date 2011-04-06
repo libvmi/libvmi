@@ -48,6 +48,9 @@ int main (int argc, char **argv)
         pid_offset = vmi_get_offset(vmi, "win_pid");
     }
 
+    /* pause the vm for consistent memory access */
+    vmi_pause_vm(vmi);
+
     /* get the head of the list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
         addr_t init_task_va = vmi_translate_ksym2v(vmi, "init_task");
@@ -98,6 +101,9 @@ int main (int argc, char **argv)
 
 error_exit:
     if (procname) free(procname);
+
+    /* resume the vm */
+    vmi_resume_vm(vmi);
 
     /* cleanup any memory associated with the LibVMI instance */
     vmi_destroy(vmi);

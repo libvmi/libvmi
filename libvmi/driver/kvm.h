@@ -40,3 +40,5 @@ unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn);
 void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page);
 int kvm_is_pv (vmi_instance_t vmi);
 status_t kvm_test (unsigned long id, char *name);
+status_t kvm_pause_vm (vmi_instance_t vmi);
+status_t kvm_resume_vm (vmi_instance_t vmi);

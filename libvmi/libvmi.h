@@ -402,5 +402,23 @@ unsigned long vmi_get_memsize (vmi_instance_t vmi);
  */
 status_t vmi_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);
 
+/**
+ * Pauses the VM.  Use vmi_resume_vm to resume the VM after pausing
+ * it.  If accessing a memory file, this has no effect.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_pause_vm (vmi_instance_t vmi);
+
+/**
+ * Resumes the VM.  Use vmi_pause_vm to pause the VM before calling
+ * this function.  If accessing a memory file, this has no effect.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_resume_vm (vmi_instance_t vmi);
+
 #pragma GCC visibility pop
 #endif /* LIBVMI_H */

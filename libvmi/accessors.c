@@ -61,3 +61,13 @@ status_t vmi_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
 {
     return driver_get_vcpureg(vmi, value, reg, vcpu);
 }
+
+status_t vmi_pause_vm (vmi_instance_t vmi)
+{
+    return driver_pause_vm(vmi);
+}
+
+status_t vmi_resume_vm (vmi_instance_t vmi)
+{
+    return driver_resume_vm(vmi);
+}

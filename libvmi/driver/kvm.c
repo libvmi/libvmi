@@ -357,6 +357,22 @@ status_t kvm_test (unsigned long id, char *name)
     return VMI_SUCCESS;
 }
 
+status_t kvm_pause_vm (vmi_instance_t vmi)
+{
+    if (-1 == virDomainSuspend(kvm_get_instance(vmi)->dom)){
+        return VMI_FAILURE;
+    }
+    return VMI_SUCCESS;
+}
+
+status_t kvm_resume_vm (vmi_instance_t vmi)
+{
+    if (-1 == virDomainResume(kvm_get_instance(vmi)->dom)){
+        return VMI_FAILURE;
+    }
+    return VMI_SUCCESS;
+}
+
 //////////////////////////////////////////////////////////////////////
 #else
 
@@ -373,5 +389,7 @@ unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0;
 void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
 int kvm_is_pv (vmi_instance_t vmi) { return 0; }
 status_t kvm_test (unsigned long id, char *name) { return VMI_FAILURE; }
+status_t kvm_pause_vm (vmi_instance_t vmi) { return VMI_FAILURE; }
+status_t kvm_resume_vm (vmi_instance_t vmi) { return VMI_FAILURE; }
 
 #endif /* ENABLE_KVM */

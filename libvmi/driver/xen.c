@@ -435,6 +435,22 @@ error_exit:
     return ret;
 }
 
+status_t xen_pause_vm (vmi_instance_t vmi)
+{
+    if (-1 == xc_domain_pause(xen_get_xchandle(vmi), xen_get_domainid(vmi))){
+        return VMI_FAILURE;
+    }
+    return VMI_SUCCESS;
+}
+
+status_t xen_resume_vm (vmi_instance_t vmi)
+{
+    if (-1 == xc_domain_unpause(xen_get_xchandle(vmi), xen_get_domainid(vmi))){
+        return VMI_FAILURE;
+    }
+    return VMI_SUCCESS;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 #else
 
@@ -451,5 +467,7 @@ void *xen_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return N
 void *xen_map_pages (vmi_instance_t vmi, int prot, unsigned long *pages, unsigned long num_pages) { return NULL; }
 int xen_is_pv (vmi_instance_t vmi) { return 0; }
 status_t xen_test (unsigned long id, char *name) { return VMI_FAILURE; }
+status_t xen_pause_vm (vmi_instance_t vmi) { return VMI_FAILURE; }
+status_t xen_resume_vm (vmi_instance_t vmi) { return VMI_FAILURE; }
 
 #endif /* ENABLE_XEN */

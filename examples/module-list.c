@@ -53,6 +53,9 @@ int main (int argc, char **argv)
         goto error_exit;
     }
 
+    /* pause the vm for consistent memory access */
+    vmi_pause_vm(vmi);
+
     /* get the head of the module list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
         vmi_read_32_ksym(vmi, "modules", &next_module);
@@ -98,6 +101,9 @@ int main (int argc, char **argv)
     }
 
 error_exit:
+    /* resume the vm */
+    vmi_resume_vm(vmi);
+
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);
 
