@@ -50,13 +50,23 @@ typedef enum os{
     VMI_OS_WINDOWS   /**< OS type is Windows */
 } os_t;
 
-typedef unsigned long reg_t;
+typedef uint32_t reg_t;
 typedef enum registers{
     CR0,
     CR1,
     CR2,
     CR3,
     CR4,
+    EAX,
+    EBX,
+    ECX,
+    EDX,
+    ESI,
+    EDI,
+    EBP,
+    ESP,
+    EIP,
+    EFL,
     UNKNOWN
 } registers_t;
 
@@ -221,7 +231,7 @@ status_t vmi_read_64_ksym (vmi_instance_t vmi, char *sym, uint64_t *value);
  * freed by the caller.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] paddr Physical address for start of string
+ * @param[in] sym Kernel symbol for memory location where string starts
  * @return String read from memory or NULL on error
  */
 char *vmi_read_str_ksym (vmi_instance_t vmi, char *sym);
@@ -276,7 +286,8 @@ status_t vmi_read_64_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint64_t *va
  * freed by the caller.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] paddr Physical address for start of string
+ * @param[in] vaddr Virtual address for start of string
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
  * @return String read from memory or NULL on error
  */
 char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
@@ -371,7 +382,7 @@ os_t vmi_get_ostype (vmi_instance_t vmi);
 
 /**
  * Get the memory offset associated with the given offset_name.
- * Valid names include everything in the libvmi.con file.
+ * Valid names include everything in the /etc/libvmi.conf file.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] offset_name String name for desired offset

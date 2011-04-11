@@ -309,6 +309,36 @@ status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
         case CR4:
             *value = parse_reg_value("CR4", regs);
             break;
+        case EAX:
+            *value = parse_reg_value("EAX", regs);
+            break;
+        case EBX:
+            *value = parse_reg_value("EBX", regs);
+            break;
+        case ECX:
+            *value = parse_reg_value("ECX", regs);
+            break;
+        case EDX:
+            *value = parse_reg_value("EDX", regs);
+            break;
+        case ESI:
+            *value = parse_reg_value("ESI", regs);
+            break;
+        case EDI:
+            *value = parse_reg_value("EDI", regs);
+            break;
+        case EBP:
+            *value = parse_reg_value("EBP", regs);
+            break;
+        case ESP:
+            *value = parse_reg_value("ESP", regs);
+            break;
+        case EIP:
+            *value = parse_reg_value("EIP", regs);
+            break;
+        case EFL:
+            *value = parse_reg_value("EFL", regs);
+            break;
         default:
             ret = VMI_FAILURE;
             break;

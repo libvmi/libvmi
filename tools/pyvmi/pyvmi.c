@@ -496,6 +496,36 @@ pyvmi_get_vcpureg(PyObject *self, PyObject *args)
     else if (strcmp(reg_name, "CR4") == 0 || strcmp(reg_name, "cr4") == 0){
         reg = CR4;
     }
+    else if (strcmp(reg_name, "EAX") == 0 || strcmp(reg_name, "eax") == 0){
+        reg = EAX;
+    }
+    else if (strcmp(reg_name, "EBX") == 0 || strcmp(reg_name, "ebx") == 0){
+        reg = EBX;
+    }
+    else if (strcmp(reg_name, "ECX") == 0 || strcmp(reg_name, "ecx") == 0){
+        reg = ECX;
+    }
+    else if (strcmp(reg_name, "EDX") == 0 || strcmp(reg_name, "edx") == 0){
+        reg = EDX;
+    }
+    else if (strcmp(reg_name, "ESI") == 0 || strcmp(reg_name, "esi") == 0){
+        reg = ESI;
+    }
+    else if (strcmp(reg_name, "EDI") == 0 || strcmp(reg_name, "edi") == 0){
+        reg = EDI;
+    }
+    else if (strcmp(reg_name, "EBP") == 0 || strcmp(reg_name, "ebp") == 0){
+        reg = EBP;
+    }
+    else if (strcmp(reg_name, "ESP") == 0 || strcmp(reg_name, "esp") == 0){
+        reg = ESP;
+    }
+    else if (strcmp(reg_name, "EIP") == 0 || strcmp(reg_name, "eip") == 0){
+        reg = EIP;
+    }
+    else if (strcmp(reg_name, "EFL") == 0 || strcmp(reg_name, "efl") == 0){
+        reg = EFL;
+    }
     else{
         reg = UNKNOWN;
     }
