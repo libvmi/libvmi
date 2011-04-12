@@ -328,6 +328,36 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
         case CR4:
             *value = ctxt.ctrlreg[4];
             break;
+        case EAX:
+            *value = ctxt.user_regs.eax;
+            break;
+        case EBX:
+            *value = ctxt.user_regs.ebx;
+            break;
+        case ECX:
+            *value = ctxt.user_regs.ecx;
+            break;
+        case EDX:
+            *value = ctxt.user_regs.edx;
+            break;
+        case ESI:
+            *value = ctxt.user_regs.esi;
+            break;
+        case EDI:
+            *value = ctxt.user_regs.edi;
+            break;
+        case EBP:
+            *value = ctxt.user_regs.ebp;
+            break;
+        case ESP:
+            *value = ctxt.user_regs.esp;
+            break;
+        case EIP:
+            *value = ctxt.user_regs.eip;
+            break;
+        case EFL:
+            *value = ctxt.user_regs.eflags;
+            break;
         default:
             ret = VMI_FAILURE;
             break;
