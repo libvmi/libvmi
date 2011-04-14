@@ -28,11 +28,6 @@
 /* other globals */
 #define MAX_ROW_LENGTH 200
 
-/* internal error types */
-#define VMI_ENONE 0
-#define VMI_ECRITICAL 1
-#define VMI_EMINOR 2
-
 struct vmi_cache_entry{
     time_t last_used;
     char *symbol_name;
@@ -100,213 +95,66 @@ struct vmi_instance{
 };
 
 /*----------------------------------------------
- * Convenience functions from convenience.c
+ * convenience.c
  */
 
-/**
- * Typical debug print function.  Only produces output when VMI_DEBUG is
- * defined (usually in libvmi.h) at compile time.
- */
 #ifndef VMI_DEBUG
 #define dbprint(format, args...) ((void)0)
 #else
 void dbprint(char *format, ...);
 #endif
-
-/**
- */
 void errprint (char *format, ...);
-
-/**
- */
 void warnprint (char *format, ...);
-
-/**
- */
 #define safe_malloc(size) safe_malloc_ (size, __FILE__, __LINE__) 
 void *safe_malloc_ (size_t size, char const *file, int line);
-
 unsigned long get_reg32 (reg_t r);
-
-/*----------------------------------------------
- * Utility function from util.c
- */
-
-/**
- * Get the specifid bit from a given register entry.
- *
- * @param[in] reg The register contents to parse (e.g., CR0, CR3, etc)
- * @param[in] bit The number of the bit to check.
- * @param[out] zero if the bit in question is zero, else one
- */
 int vmi_get_bit (unsigned long reg, int bit);
 
 /*-------------------------------------
- * Definitions to support the LRU cache
+ * cache.c
  */
+//TODO need to update the cache code and integrate cache lookups back into memory access (we lost them with the access funcs)
 #define VMI_CACHE_SIZE 25
 #define VMI_PID_CACHE_SIZE 5
-
-/**
- * Check if a symbol_name is in the LRU cache.
- *
- * @param[in] instance libxa instance
- * @param[in] symbol_name Name of the requested symbol.
- * @param[in] pid Id of the associated process.
- * @param[out] mach_address Machine address of the symbol.
- */
-int vmi_check_cache_sym (vmi_instance_t instance,
-                        char *symbol_name,
-                        int pid,
-                        uint32_t *mach_address);
-
-/**
- * Check if a virt_address is in the LRU cache.
- * 
- * @param[in] instance libxa instance
- * @param[in] virt_address Virtual address in space of guest process.
- * @param[in] pid Id of the process.
- * @param[out] mach_address Machine address of the symbol.
- */
-int vmi_check_cache_virt (vmi_instance_t instance,
-                         uint32_t virt_address,
-                         int pid,
-                         uint32_t *mach_address);
-
-/**
- * Updates cache of guest symbols. Every symbol name has an 
- * associated virtual address (address space of host process),
- * pid and machine address (see memory chapter in Xen developers doc).
- *
- * @param[in] instance libxa instance
- * @param[in] symbol_name Name of the cached symbol
- * @param[in] virt_address Virtual address of the symbol
- * @param[in] pid Id of the process associated with symbol
- * @param[in] mach_address Machine address
- */
-int vmi_update_cache (vmi_instance_t instance,
-                     char *symbol_name,
-                     uint32_t virt_address,
-                     int pid,
-                     uint32_t mach_address);
-
-/**
- * Releases the cache.
- *
- * @param[in] instance libxa instance
- * @return 0 for success. -1 for failure.
- */
+int vmi_check_cache_sym (vmi_instance_t instance, char *symbol_name, int pid, uint32_t *mach_address);
+int vmi_check_cache_virt (vmi_instance_t instance, uint32_t virt_address, int pid, uint32_t *mach_address);
+int vmi_update_cache (vmi_instance_t instance, char *symbol_name, uint32_t virt_address, int pid, uint32_t mach_address);
 int vmi_destroy_cache (vmi_instance_t instance);
-
 int vmi_check_pid_cache (vmi_instance_t instance, int pid, uint32_t *pgd);
 int vmi_update_pid_cache (vmi_instance_t instance, int pid, uint32_t pgd);
 int vmi_destroy_pid_cache (vmi_instance_t instance);
 
 /*-----------------------------------------
- * Memory access functions from vmi_memory.c
- */
-
-/**
- * Covert virtual address to machine address via page table lookup.
- *
- * @param[in] instance Handle to xenaccess instance.
- * @param[in] pgd Page directory to use for this lookup.
- * @param[in] virt_address Virtual address to convert.
- *
- * @return Machine address resulting from page table lookup.
- */
-uint32_t vmi_pagetable_lookup (
-            vmi_instance_t instance, reg_t cr3,
-            uint32_t virt_address);
-
-/**
- * Find the address of the page global directory for a given PID
- *
- * @param[in] instance Handle to xenaccess instance.
- * @param[in] pid The process to lookup.
- *
- * @return Address of pgd, or zero if no address could be found.
+ * memory.c
  */
 reg_t vmi_pid_to_pgd (vmi_instance_t instance, int pid);
-
-//-------------------------------------------------
-/**
- * Gets address of a symbol in domU virtual memory. It uses System.map
- * file specified in xenaccess configuration file.
- *
- * @param[in] instance Handle to xenaccess instance (see vmi_init).
- * @param[in] symbol Name of the requested symbol.
- * @param[out] address The addres of the symbol in guest memory.
- */
-status_t linux_system_map_symbol_to_address (
-        vmi_instance_t instance, char *symbol, uint32_t *address);
-
-/**
- * Gets a memory page where @a symbol is located and sets @a offset
- * of the symbol. The mapping is cached internally. 
- *
- * @param[in] instance Handle to xenaccess instance.
- * @param[in] symbol Name of the requested symbol.
- * @param[out] offset Offset of symbol in returned page.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- *
- * @return Address of a page where \a symbol resides.
- */
-//void *linux_access_kernel_symbol (
-//        vmi_instance_t instance, char *symbol, uint32_t *offset, int prot);
-
-/**
- * Gets name of the kernel for given \a id.
- *
- * @param[in] id Domain id.
- *
- * @return String with the path to domU kernel.
- */
-char *vmi_get_kernel_name (int id);
-
-/**
- * Finds out whether the domU is HVM (Hardware virtual machine).
- *
- * @param[in] id Domain id.
- *
- * @return 1 if domain is HVM. 0 otherwise.
- */
-int vmi_ishvm (int id);
-
-/**
- * Get the ntoskrnl base address by doing a backwards search.
- *
- * @param[in] instance Handle to xenaccess instance (see vmi_init).
- * @param[out] address The address of ntoskrnl base.
- */
-uint32_t get_ntoskrnl_base (vmi_instance_t instance);
-
-/**
- * Gets a memory page where \a symbol is located and sets \a offset
- * of the symbol. The mapping is cached internally.
- *
- * @param[in] instance Handle to xenaccess instance.
- * @param[in] symbol Name of the requested symbol.
- * @param[out] offset Offset of symbol in returned page.
- * @param[in] prot Desired memory protection (PROT_READ, PROT_WRITE, etc)
- *
- * @return Address of a page where \a symbol resides.
- */
-void *windows_access_kernel_symbol (
-        vmi_instance_t instance, char *symbol, uint32_t *offset, int prot);
-
-status_t windows_init (vmi_instance_t instance);
-status_t linux_init (vmi_instance_t instance);
-int get_symbol_row (FILE *f, char *row, char *symbol, int position);
 void *vmi_map_page (vmi_instance_t instance, int prot, unsigned long frame_num, int is_pfn);
-uint32_t windows_find_eprocess (vmi_instance_t instance, char *name);
-char *linux_predict_sysmap_name (uint32_t id);
 
+/*-----------------------------------------
+ * os/linux/...
+ */
+status_t linux_init (vmi_instance_t instance);
+status_t linux_system_map_symbol_to_address (vmi_instance_t instance, char *symbol, uint32_t *address);
+
+/*-----------------------------------------
+ * os/windows/...
+ */
+status_t windows_init (vmi_instance_t instance);
+uint32_t get_ntoskrnl_base (vmi_instance_t instance);
+uint32_t windows_find_eprocess (vmi_instance_t instance, char *name);
 status_t windows_export_to_rva (vmi_instance_t , char *, uint32_t *);
 status_t valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr);
 status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, uint32_t *address);
 uint32_t windows_find_cr3 (vmi_instance_t vmi);
 
+/*-----------------------------------------
+ * symbols.c
+ */
+int get_symbol_row (FILE *f, char *row, char *symbol, int position);
+
+/*-----------------------------------------
+ * read.c
+ */
 status_t vmi_read_8_ma (vmi_instance_t vmi, uint32_t maddr, uint8_t *value);
 status_t vmi_read_16_ma (vmi_instance_t vmi, uint32_t maddr, uint16_t *value);
 status_t vmi_read_32_ma (vmi_instance_t vmi, uint32_t maddr, uint32_t *value);

@@ -52,21 +52,21 @@ typedef enum os{
 
 typedef uint32_t reg_t;
 typedef enum registers{
-    CR0,
-    CR1,
-    CR2,
-    CR3,
-    CR4,
-    EAX,
-    EBX,
-    ECX,
-    EDX,
-    ESI,
-    EDI,
-    EBP,
-    ESP,
-    EIP,
-    EFL,
+    EAX,    /**< accumulator register EAX */
+    EBX,    /**< base index register EBX */
+    ECX,    /**< count register ECX */
+    EDX,    /**< data register EDX */
+    EBP,    /**< base pointer register EBP */
+    EDI,    /**< destination index register EDI */
+    ESI,    /**< source index register ESI */
+    EIP,    /**< instruction pointer register EIP */
+    ESP,    /**< stack pointer register ESP */
+    EFL,    /**< flags register EFLAGS */
+    CR0,    /**< control register CR0 */
+    CR1,    /**< control register CR1 */
+    CR2,    /**< control register CR2 */
+    CR3,    /**< control register CR3 */
+    CR4,    /**< control register CR4 */
     UNKNOWN
 } registers_t;
 
