@@ -33,9 +33,9 @@
 
 // request struct matches a definition in qemu source code
 struct request{
-    uint8_t type;  // 0 quit, 1 read, ... rest reserved
-    uint64_t address;
-    uint64_t length;
+    uint8_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
+    uint64_t address;  // address to read from OR write to
+    uint64_t length;   // number of bytes to read OR write
 };
 
 //----------------------------------------------------------------------------
@@ -180,6 +180,31 @@ error_exit:
 void kvm_release_memory (void *memory, size_t length)
 {
     if (memory) free(memory);
+}
+
+status_t kvm_put_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length, void *buf)
+{
+    struct request req;
+    req.type = 2; // write request
+    req.address = (uint64_t) paddr;
+    req.length = (uint64_t) length;
+
+    int nbytes = write(kvm_get_instance(vmi)->socket_fd, &req, sizeof(struct request));
+    if (nbytes != sizeof(struct request)){
+        goto error_exit;
+    }
+    else{
+        uint8_t status = 0;
+        write(kvm_get_instance(vmi)->socket_fd, buf, length);
+        read(kvm_get_instance(vmi)->socket_fd, &status, 1);
+        if (0 == status){
+            goto error_exit;
+        }
+    }
+
+    return VMI_SUCCESS;
+error_exit:
+    return VMI_FAILURE;
 }
 
 //----------------------------------------------------------------------------
@@ -360,6 +385,11 @@ void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page)
     return memory_cache_insert(vmi, paddr, &offset);
 }
 
+status_t kvm_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length)
+{
+    return kvm_put_memory(vmi, paddr, length, buf);
+}
+
 int kvm_is_pv (vmi_instance_t vmi)
 {
     return 0;
@@ -417,6 +447,7 @@ status_t kvm_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_
 status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
 unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }
 void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
+status_t kvm_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length) { return VMI_FAILURE; }
 int kvm_is_pv (vmi_instance_t vmi) { return 0; }
 status_t kvm_test (unsigned long id, char *name) { return VMI_FAILURE; }
 status_t kvm_pause_vm (vmi_instance_t vmi) { return VMI_FAILURE; }

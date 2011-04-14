@@ -149,7 +149,7 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol);
  */
 
 /**
- * Reads \a count bytes from memory located at the kernel symbol \a symbol
+ * Reads \a count bytes from memory located at the kernel symbol \a sym
  * and stores the output in \a buf.
  *
  * @param[in] vmi LibVMI instance
@@ -342,6 +342,168 @@ status_t vmi_read_64_pa (vmi_instance_t vmi, addr_t paddr, uint64_t *value);
  * @return String read from memory or NULL on error
  */
 char *vmi_read_str_pa (vmi_instance_t vmi, addr_t paddr);
+
+/**
+ * Writes \a count bytes to memory located at the kernel symbol \a sym
+ * from \a buf.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to write to
+ * @param[in] buf The data written to memory
+ * @param[in] count The number of bytes to write
+ * @return The number of bytes written.
+ */
+size_t vmi_write_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count);
+
+/**
+ * Writes \a count bytes to memory located at the virtual address \a vaddr
+ * from \a buf.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to write to
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[in] buf The data written to memory
+ * @param[in] count The number of bytes to write
+ * @return The number of bytes written.
+ */
+size_t vmi_write_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t count);
+
+/**
+ * Writes \a count bytes to memory located at the physical address \a paddr
+ * from \a buf.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to write to
+ * @param[in] buf The data written to memory
+ * @param[in] count The number of bytes to write
+ * @return The number of bytes written.
+ */
+size_t vmi_write_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count);
+
+/**
+ * Writes 8 bits to memory, given a kernel symbol.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to write to
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_8_ksym (vmi_instance_t vmi, char *sym, uint8_t *value);
+
+/**
+ * Writes 16 bits to memory, given a kernel symbol.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to write to
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_16_ksym (vmi_instance_t vmi, char *sym, uint16_t *value);
+
+/**
+ * Writes 32 bits to memory, given a kernel symbol.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to write to
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_32_ksym (vmi_instance_t vmi, char *sym, uint32_t *value);
+
+/**
+ * Writes 64 bits to memory, given a kernel symbol.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to write to
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_64_ksym (vmi_instance_t vmi, char *sym, uint64_t *value);
+
+/**
+ * Writes 8 bits to memory, given a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to write to
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_8_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint8_t *value);
+
+/**
+ * Writes 16 bits to memory, given a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to write to
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_16_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint16_t *value);
+
+/**
+ * Writes 32 bits to memory, given a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to write to
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_32_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint32_t *value);
+
+/**
+ * Writes 64 bits to memory, given a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to write to
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_64_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint64_t *value);
+
+/**
+ * Writes 8 bits to memory, given a physical address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to write to
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_8_pa (vmi_instance_t vmi, addr_t paddr, uint8_t *value);
+
+/**
+ * Writes 16 bits to memory, given a physical address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to write to
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_16_pa (vmi_instance_t vmi, addr_t paddr, uint16_t *value);
+
+/**
+ * Writes 32 bits to memory, given a physical address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to write to
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_32_pa (vmi_instance_t vmi, addr_t paddr, uint32_t *value);
+
+/**
+ * Writes 64 bits from memory, given a physical address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to write to
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_64_pa (vmi_instance_t vmi, addr_t paddr, uint64_t *value);
+
 
 /*---------------------------------------------------------
  * Print util functions from pretty_print.c

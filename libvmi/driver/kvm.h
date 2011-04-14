@@ -38,6 +38,7 @@ status_t kvm_get_memsize (vmi_instance_t vmi, unsigned long *size);
 status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);
 unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn);
 void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page);
+status_t kvm_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length);
 int kvm_is_pv (vmi_instance_t vmi);
 status_t kvm_test (unsigned long id, char *name);
 status_t kvm_pause_vm (vmi_instance_t vmi);

@@ -8,8 +8,9 @@ c_sources = \
     core.c \
     memory.c \
     pretty_print.c \
+    read.c \
     symbols.c \
-    util.c \
+    write.c \
     driver/file.c \
     driver/interface.c \
     driver/kvm.c \

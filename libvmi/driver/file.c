@@ -153,6 +153,12 @@ void *file_map_page (vmi_instance_t vmi, int prot, unsigned long page)
     return memory_cache_insert(vmi, paddr, &offset);
 }
 
+//TODO decide if this functionality makes sense for files
+status_t file_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length)
+{
+    return VMI_FAILURE;
+}
+
 int file_is_pv (vmi_instance_t vmi)
 {
     return 0;
@@ -203,6 +209,7 @@ status_t file_get_memsize (vmi_instance_t vmi, unsigned long size) { return VMI_
 status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
 unsigned long file_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0 };
 void *file_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
+status_t file_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length) { return VMI_FAILURE; }
 int file_is_pv (vmi_instance_t vmi) { return 0; }
 status_t file_test (unsigned long id, char *name) { return VMI_FAILURE; }
 status_t file_pause_vm (vmi_instance_t vmi) { return VMI_FAILURE; }

@@ -26,6 +26,7 @@ struct driver_instance{
     status_t (*get_vcpureg_ptr)(vmi_instance_t, reg_t *, registers_t, unsigned long);
     unsigned long (*pfn_to_mfn_ptr)(vmi_instance_t, unsigned long);
     void *(*map_page_ptr)(vmi_instance_t, int, unsigned long);
+    status_t (*write_ptr)(vmi_instance_t, addr_t, void *, uint32_t);
     int (*is_pv_ptr)(vmi_instance_t);
     status_t (*pause_vm_ptr)(vmi_instance_t);
     status_t (*resume_vm_ptr)(vmi_instance_t);
@@ -51,6 +52,7 @@ static void driver_xen_setup (vmi_instance_t vmi)
     instance->get_vcpureg_ptr = &xen_get_vcpureg;
     instance->pfn_to_mfn_ptr = &xen_pfn_to_mfn;
     instance->map_page_ptr = &xen_map_page;
+    instance->write_ptr = &xen_write;
     instance->is_pv_ptr = &xen_is_pv;
     instance->pause_vm_ptr = &xen_pause_vm;
     instance->resume_vm_ptr = &xen_resume_vm;
@@ -70,6 +72,7 @@ static void driver_kvm_setup (vmi_instance_t vmi)
     instance->get_vcpureg_ptr = &kvm_get_vcpureg;
     instance->pfn_to_mfn_ptr = &kvm_pfn_to_mfn;
     instance->map_page_ptr = &kvm_map_page;
+    instance->write_ptr = &kvm_write;
     instance->is_pv_ptr = &kvm_is_pv;
     instance->pause_vm_ptr = &kvm_pause_vm;
     instance->resume_vm_ptr = &kvm_resume_vm;
@@ -89,6 +92,7 @@ static void driver_file_setup (vmi_instance_t vmi)
     instance->get_vcpureg_ptr = &file_get_vcpureg;
     instance->pfn_to_mfn_ptr = &file_pfn_to_mfn;
     instance->map_page_ptr = &file_map_page;
+    instance->write_ptr = &file_write;
     instance->is_pv_ptr = &file_is_pv;
     instance->pause_vm_ptr = &file_pause_vm;
     instance->resume_vm_ptr = &file_resume_vm;
@@ -301,6 +305,18 @@ void *driver_map_page (vmi_instance_t vmi, int prot, unsigned long page)
     else{
         dbprint("WARNING: driver_map_page function not implemented.\n");
         return NULL;
+    }
+}
+
+status_t driver_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->write_ptr){
+        return ptrs->write_ptr(vmi, paddr, buf, length);
+    }
+    else{
+        dbprint("WARNING: driver_write function not implemented.\n");
+        return VMI_FAILURE;
     }
 }
 

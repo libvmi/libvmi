@@ -55,3 +55,15 @@ unsigned long get_reg32 (reg_t r)
 {
     return (unsigned long) r;
 }
+
+int vmi_get_bit (unsigned long reg, int bit)
+{
+    unsigned long mask = 1 << bit;
+    if (reg & mask){
+        return 1;
+    }
+    else{
+        return 0;
+    }
+}
+

@@ -343,3 +343,22 @@ reg_t vmi_pid_to_pgd (vmi_instance_t instance, int pid)
 
     return (reg_t) pgd;
 }
+
+//TODO change this to vmi_read_page and remove the prot argument
+void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num, int is_pfn)
+{
+    unsigned long mfn;
+    if (is_pfn){
+        mfn = driver_pfn_to_mfn(vmi, frame_num);
+    }
+    else{
+        mfn = frame_num;
+    }
+
+    if (!mfn){
+        return NULL;
+    }
+    else{
+        return driver_map_page(vmi, prot, mfn);
+    }
+}
