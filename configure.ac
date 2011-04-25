@@ -139,7 +139,7 @@ AC_CHECK_PROGS(LEX,lex flex ,[no],[path = $PATH])
 [fi]
 AC_PROG_LEX
 
-PKG_CHECK_MODULES([GLIB], [glib-2.0])
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.22])
 AC_SUBST([GLIB_CFLAGS])
 AC_SUBST([GLIB_LIBS])
 
