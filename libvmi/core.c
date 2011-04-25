@@ -280,24 +280,18 @@ static status_t set_id_and_name (vmi_instance_t vmi, mode_t mode, unsigned long 
     return VMI_SUCCESS;
 }
 
-static void vmi_init_common (vmi_instance_t vmi)
-{
-    dbprint("LibVMI Devel Version\n");  //TODO change this with each release
-    vmi->cache_head = NULL;
-    vmi->cache_tail = NULL;
-    vmi->current_cache_size = 0;
-    vmi->pid_cache_head = NULL;
-    vmi->pid_cache_tail = NULL;
-    vmi->current_pid_cache_size = 0;
-}
-
 static status_t vmi_init_private (vmi_instance_t *vmi, mode_t mode, unsigned long id, char *name)
 {
     /* allocate memory for instance structure */
     *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
 
     /* initialize instance struct to default values */
-    vmi_init_common(*vmi);
+    dbprint("LibVMI Devel Version\n");  //TODO change this with each release
+
+    /* setup the caches */
+    pid_cache_init(*vmi);
+    sym_cache_init(*vmi);
+    v2p_cache_init(*vmi);
 
     /* connecting to xen, kvm, file, etc */
     if (VMI_FAILURE == set_driver_type(*vmi, mode, id, name)){
@@ -358,8 +352,9 @@ status_t vmi_init (vmi_instance_t *vmi, mode_t mode, char *name)
 status_t vmi_destroy (vmi_instance_t vmi)
 {
     driver_destroy(vmi);
-    vmi_destroy_cache(vmi);
-    vmi_destroy_pid_cache(vmi);
+    pid_cache_destroy(vmi);
+    sym_cache_destroy(vmi);
+    v2p_cache_destroy(vmi);
     if (vmi) free(vmi);
     return VMI_SUCCESS;
 }

@@ -15,6 +15,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <glib.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -23,30 +24,11 @@
 #include "libvmi.h"
 
 /* Architecture dependent constants */
+//TODO this is xen specific and should be moved into the xen driver code
 #define fpp 1024		/* number of xen_pfn_t that fits on one frame */
 
 /* other globals */
 #define MAX_ROW_LENGTH 200
-
-struct vmi_cache_entry{
-    time_t last_used;
-    char *symbol_name;
-    uint32_t virt_address;
-    uint32_t mach_address;
-    int pid;
-    struct vmi_cache_entry *next;
-    struct vmi_cache_entry *prev;
-};
-typedef struct vmi_cache_entry* vmi_cache_entry_t;
-
-struct vmi_pid_cache_entry{
-    time_t last_used;
-    int pid;
-    uint32_t pgd;
-    struct vmi_pid_cache_entry *next;
-    struct vmi_pid_cache_entry *prev;
-};
-typedef struct vmi_pid_cache_entry* vmi_pid_cache_entry_t;
 
 /**
  * @brief LibVMI Instance.
@@ -70,12 +52,6 @@ struct vmi_instance{
     int pse;                /**< nonzero if PSE is enabled */
     uint32_t cr3;           /**< value in the CR3 register */
     unsigned long size;     /**< total size of target's memory */
-    vmi_cache_entry_t cache_head;         /**< head of the address cache list */
-    vmi_cache_entry_t cache_tail;         /**< tail of the address cache list */
-    int current_cache_size;              /**< size of the address cache list */
-    vmi_pid_cache_entry_t pid_cache_head; /**< head of the pid cache list */
-    vmi_pid_cache_entry_t pid_cache_tail; /**< tail of the pid cache list */
-    int current_pid_cache_size;          /**< size of the pid cache list */
     union{
         struct linux_instance{
             int tasks_offset;    /**< task_struct->tasks */
@@ -91,13 +67,15 @@ struct vmi_instance{
             int pid_offset;      /**< EPROCESS->UniqueProcessId */
         } windows_instance;
     } os;
+    GHashTable *pid_cache;  /**< hash table to hold the PID cache data */
+    GHashTable *sym_cache;  /**< hash table to hold the sym cache data */
+    GHashTable *v2p_cache;  /**< hash table to hold the v2p cache data */
     void *driver;           /**< driver-specific information */
 };
 
 /*----------------------------------------------
  * convenience.c
  */
-
 #ifndef VMI_DEBUG
 #define dbprint(format, args...) ((void)0)
 #else
@@ -113,22 +91,29 @@ int vmi_get_bit (unsigned long reg, int bit);
 /*-------------------------------------
  * cache.c
  */
-//TODO need to update the cache code and integrate cache lookups back into memory access (we lost them with the access funcs)
-#define VMI_CACHE_SIZE 25
-#define VMI_PID_CACHE_SIZE 5
-int vmi_check_cache_sym (vmi_instance_t instance, char *symbol_name, int pid, uint32_t *mach_address);
-int vmi_check_cache_virt (vmi_instance_t instance, uint32_t virt_address, int pid, uint32_t *mach_address);
-int vmi_update_cache (vmi_instance_t instance, char *symbol_name, uint32_t virt_address, int pid, uint32_t mach_address);
-int vmi_destroy_cache (vmi_instance_t instance);
-int vmi_check_pid_cache (vmi_instance_t instance, int pid, uint32_t *pgd);
-int vmi_update_pid_cache (vmi_instance_t instance, int pid, uint32_t pgd);
-int vmi_destroy_pid_cache (vmi_instance_t instance);
+void pid_cache_init (vmi_instance_t vmi);
+void pid_cache_destroy (vmi_instance_t vmi);
+status_t pid_cache_get (vmi_instance_t vmi, int pid, addr_t *dtb);
+void pid_cache_set (vmi_instance_t vmi, int pid, addr_t dtb);
+status_t pid_cache_del (vmi_instance_t vmi, int pid);
+
+void sym_cache_init (vmi_instance_t vmi);
+void sym_cache_destroy (vmi_instance_t vmi);
+status_t sym_cache_get (vmi_instance_t vmi, char *sym, addr_t *va);
+void sym_cache_set (vmi_instance_t vmi, char *sym, addr_t va);
+status_t sym_cache_del (vmi_instance_t vmi, char *sym);
+
+void v2p_cache_init (vmi_instance_t vmi);
+void v2p_cache_destroy (vmi_instance_t vmi);
+status_t v2p_cache_get (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa);
+void v2p_cache_set (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t pa);
+status_t v2p_cache_del (vmi_instance_t vmi, addr_t va, addr_t dtb);
 
 /*-----------------------------------------
  * memory.c
  */
-reg_t vmi_pid_to_pgd (vmi_instance_t instance, int pid);
-void *vmi_map_page (vmi_instance_t instance, int prot, unsigned long frame_num, int is_pfn);
+addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid);
+void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num, int is_pfn);
 
 /*-----------------------------------------
  * os/linux/...

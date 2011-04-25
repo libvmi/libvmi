@@ -145,9 +145,6 @@ uint32_t windows_pid_to_pgd (vmi_instance_t vmi, int pid)
        grab the pgd value */
     vmi_read_32_va(vmi, eprocess + pdbase_offset - tasks_offset, 0, &pgd);
 
-    /* update the cache with this new pid->pgd mapping */
-    vmi_update_pid_cache(vmi, pid, pgd);
-
 error_exit:
     return pgd;
 }

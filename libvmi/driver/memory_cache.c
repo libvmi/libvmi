@@ -74,7 +74,7 @@ void memory_cache_init (
 void *memory_cache_insert (vmi_instance_t vmi, uint32_t paddr, uint32_t *offset)
 {
     memory_cache_entry_t entry = NULL;
-    *offset = paddr & (vmi->page_size -1);
+    *offset = paddr & (vmi->page_size - 1);
     paddr &= ~(vmi->page_size - 1);
     gint key = (gint) paddr;
 
@@ -90,3 +90,4 @@ void *memory_cache_insert (vmi_instance_t vmi, uint32_t paddr, uint32_t *offset)
 
 //TODO should this cache grow indefinately, or should we have a strategy to remove old items?
 //TODO if we want to remove old items, perhaps a separate thread so that insert remains fast?
+//TODO hash table should be in instance struct and not in a global variable

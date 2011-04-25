@@ -197,61 +197,61 @@ void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
 }
 
 /* translation */
-uint32_t v2p_nopae(vmi_instance_t instance, reg_t cr3, uint32_t vaddr)
+uint32_t v2p_nopae(vmi_instance_t vmi, addr_t dtb, uint32_t vaddr)
 {
     uint32_t paddr = 0;
     uint32_t pgd, pte;
         
     dbprint("--PTLookup: lookup vaddr = 0x%.8x\n", vaddr);
-    dbprint("--PTLookup: cr3 = 0x%.8x\n", cr3);
-    pgd = get_pgd_nopae(instance, vaddr, get_reg32(cr3));
+    dbprint("--PTLookup: dtb = 0x%.8x\n", dtb);
+    pgd = get_pgd_nopae(vmi, vaddr, dtb);
     dbprint("--PTLookup: pgd = 0x%.8x\n", pgd);
         
     if (entry_present(pgd)){
         if (page_size_flag(pgd)){
-            paddr = get_large_paddr(instance, vaddr, pgd);
+            paddr = get_large_paddr(vmi, vaddr, pgd);
             dbprint("--PTLookup: 4MB page\n", pgd);
         }
         else{
-            pte = get_pte_nopae(instance, vaddr, pgd);
+            pte = get_pte_nopae(vmi, vaddr, pgd);
             dbprint("--PTLookup: pte = 0x%.8x\n", pte);
             if (entry_present(pte)){
                 paddr = get_paddr_nopae(vaddr, pte);
             }
             else{
-                buffalo_nopae(instance, pte, 1);
+                buffalo_nopae(vmi, pte, 1);
             }
         }
     }
     else{
-        buffalo_nopae(instance, pgd, 0);
+        buffalo_nopae(vmi, pgd, 0);
     }
     dbprint("--PTLookup: paddr = 0x%.8x\n", paddr);
     return paddr;
 }
 
-uint32_t v2p_pae (vmi_instance_t instance, reg_t cr3, uint32_t vaddr)
+uint32_t v2p_pae (vmi_instance_t vmi, addr_t dtb, uint32_t vaddr)
 {
     uint32_t paddr = 0;
     uint64_t pdpe, pgd, pte;
         
     dbprint("--PTLookup: lookup vaddr = 0x%.8x\n", vaddr);
-    dbprint("--PTLookup: cr3 = 0x%.8x\n", cr3);
-    pdpe = get_pdpi(instance, vaddr, get_reg32(cr3));
+    dbprint("--PTLookup: dtb = 0x%.8x\n", dtb);
+    pdpe = get_pdpi(vmi, vaddr, dtb);
     dbprint("--PTLookup: pdpe = 0x%.16x\n", pdpe);
     if (!entry_present(pdpe)){
         return paddr;
     }
-    pgd = get_pgd_pae(instance, vaddr, pdpe);
+    pgd = get_pgd_pae(vmi, vaddr, pdpe);
     dbprint("--PTLookup: pgd = 0x%.16x\n", pgd);
 
     if (entry_present(pgd)){
         if (page_size_flag(pgd)){
-            paddr = get_large_paddr(instance, vaddr, pgd);
+            paddr = get_large_paddr(vmi, vaddr, pgd);
             dbprint("--PTLookup: 2MB page\n");
         }
         else{
-            pte = get_pte_pae(instance, vaddr, pgd);
+            pte = get_pte_pae(vmi, vaddr, pgd);
             dbprint("--PTLookup: pte = 0x%.16x\n", pte);
             if (entry_present(pte)){
                 paddr = get_paddr_pae(vaddr, pte);
@@ -262,18 +262,36 @@ uint32_t v2p_pae (vmi_instance_t instance, reg_t cr3, uint32_t vaddr)
     return paddr;
 }
 
-/* convert address to machine address via page tables */
-uint32_t vmi_pagetable_lookup (
-            vmi_instance_t instance,
-            reg_t cr3,
-            uint32_t vaddr)
+addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, uint32_t vaddr)
 {
-    if (instance->pae){
-        return v2p_pae(instance, cr3, vaddr);
+    addr_t paddr = 0;
+
+    /* check if entry exists in the cachec */
+    if (VMI_SUCCESS == v2p_cache_get(vmi, vaddr, dtb, &paddr)){
+
+        /* verify that address is still valid */
+        uint8_t value = 0;
+        if (VMI_SUCCESS == vmi_read_8_pa(vmi, paddr, &value)){
+            return paddr;
+        }
+        else{
+            v2p_cache_del(vmi, vaddr, dtb);
+        }
+    }
+
+    /* do the actual page walk in guest memory */
+    if (vmi->pae){
+        paddr = v2p_pae(vmi, dtb, vaddr);
     }
     else{
-        return v2p_nopae(instance, cr3, vaddr);
+        paddr = v2p_nopae(vmi, dtb, vaddr);
     }
+
+    /* add this to the cache */
+    if (paddr){
+        v2p_cache_set(vmi, vaddr, dtb, paddr);
+    }
+    return paddr;
 }
 
 /* expose virtual to physical mapping for kernel space via api call */
@@ -293,15 +311,19 @@ addr_t vmi_translate_kv2p(vmi_instance_t vmi, addr_t virt_address)
 /* expose virtual to physical mapping for user space via api call */
 addr_t vmi_translate_uv2p(vmi_instance_t vmi, addr_t virt_address, int pid)
 {
-    reg_t pgd = 0;
-    pgd = vmi_pid_to_pgd(vmi, pid);
-
-    if (!pgd){
-        dbprint("--early bail on v2p lookup because pgd is zero\n");
+    addr_t dtb = vmi_pid_to_dtb(vmi, pid);
+    if (!dtb){
+        dbprint("--early bail on v2p lookup because dtb is zero\n");
         return 0;
     }
     else{
-        return vmi_pagetable_lookup(vmi, pgd, virt_address);
+        addr_t rtnval = vmi_pagetable_lookup(vmi, dtb, virt_address);
+        if (!rtnval){
+            if (VMI_SUCCESS == pid_cache_del(vmi, pid)){
+                return vmi_translate_uv2p(vmi, virt_address, pid);
+            }
+        }
+        return rtnval;    
     }
 }
 
@@ -310,14 +332,20 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
 {
     addr_t ret = 0;
 
-    if (VMI_OS_LINUX == vmi->os_type){
-        if (VMI_FAILURE == linux_system_map_symbol_to_address(vmi, symbol, &ret)){
-            ret = 0;
+    if (VMI_FAILURE == sym_cache_get(vmi, symbol, &ret)){
+        if (VMI_OS_LINUX == vmi->os_type){
+            if (VMI_FAILURE == linux_system_map_symbol_to_address(vmi, symbol, &ret)){
+                ret = 0;
+            }
         }
-    }
-    else if (VMI_OS_WINDOWS == vmi->os_type){
-        if (VMI_FAILURE == windows_symbol_to_address(vmi, symbol, &ret)){
-            ret = 0;
+        else if (VMI_OS_WINDOWS == vmi->os_type){
+            if (VMI_FAILURE == windows_symbol_to_address(vmi, symbol, &ret)){
+                ret = 0;
+            }
+        }
+
+        if (ret){
+            sym_cache_set(vmi, symbol, ret);
         }
     }
 
@@ -325,23 +353,24 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
 }
 
 /* finds the address of the page global directory for a given pid */
-reg_t vmi_pid_to_pgd (vmi_instance_t instance, int pid)
+addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid)
 {
-    /* first check the cache */
-    uint32_t pgd = 0;
-    if (vmi_check_pid_cache(instance, pid, &pgd)){
-        /* nothing */
+    addr_t dtb = 0;
+
+    if (VMI_FAILURE == pid_cache_get(vmi, pid, &dtb)){
+        if (VMI_OS_LINUX == vmi->os_type){
+            dtb = linux_pid_to_pgd(vmi, pid);
+        }
+        else if (VMI_OS_WINDOWS == vmi->os_type){
+            dtb = windows_pid_to_pgd(vmi, pid);
+        }
+
+        if (dtb){
+            pid_cache_set(vmi, pid, dtb);
+        }
     }
 
-    /* otherwise do the lookup */
-    else if (VMI_OS_LINUX == instance->os_type){
-        pgd = linux_pid_to_pgd(instance, pid);
-    }
-    else if (VMI_OS_WINDOWS == instance->os_type){
-        pgd = windows_pid_to_pgd(instance, pid);
-    }
-
-    return (reg_t) pgd;
+    return dtb;
 }
 
 //TODO change this to vmi_read_page and remove the prot argument

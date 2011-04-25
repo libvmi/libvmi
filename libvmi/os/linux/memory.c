@@ -74,9 +74,6 @@ uint32_t linux_pid_to_pgd (vmi_instance_t vmi, int pid)
     /* convert pgd into a machine address */
     pgd = vmi_translate_kv2p(vmi, pgd);
 
-    /* update the cache with this new pid->pgd mapping */
-    vmi_update_pid_cache(vmi, pid, pgd);
-
 error_exit:
     return pgd;
 }

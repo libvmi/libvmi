@@ -7,367 +7,252 @@
  * Author: Bryan D. Payne (bpayne@sandia.gov)
  */
 
-#define _GNU_SOURCE
-#include <string.h>
-#include <time.h>
+// Three kinds of cache:
+//  1) PID --> DTB
+//  2) Symbol --> Virtual address
+//  3) Virtual address --> physical address
+
+#include "libvmi.h"
 #include "private.h"
 
-#define MAX_SYM_LEN 512
+#define _GNU_SOURCE
+#include <glib.h>
+#include <time.h>
+#include <string.h>
 
-int vmi_check_cache_sym (vmi_instance_t instance,
-                        char *symbol_name,
-                        int pid,
-                        uint32_t *mach_address)
+//
+// PID --> DTB cache implementation
+// Note: DTB is a physical address
+struct pid_cache_entry{
+    int pid;
+    addr_t dtb;
+    time_t last_used;
+};
+typedef struct pid_cache_entry *pid_cache_entry_t;
+
+static void pid_cache_key_free (gpointer data)
 {
-    vmi_cache_entry_t current;
-    int ret = 0;
-
-    current = instance->cache_head;
-    while (current != NULL){
-        if ((strncmp(current->symbol_name, symbol_name, MAX_SYM_LEN) == 0) &&
-            (current->pid == pid) && (current->mach_address)){
-            current->last_used = time(NULL);
-            *mach_address = current->mach_address;
-            ret = 1;
-            dbprint("++Cache hit (%s --> 0x%.8x)\n",
-                symbol_name, *mach_address);
-            goto exit;
-        }
-        current = current->next;
-    }
-
-exit:
-    return ret;
+    if (data) free(data);
 }
 
-int vmi_check_cache_virt (vmi_instance_t instance,
-                         uint32_t virt_address,
-                         int pid,
-                         uint32_t *mach_address)
+static void pid_cache_entry_free (gpointer data)
 {
-    vmi_cache_entry_t current;
-    int ret = 0;
-    uint32_t lookup = virt_address & ~(instance->page_size - 1);
-
-    current = instance->cache_head;
-    for (current = instance->cache_head;
-         current != NULL;
-         current = current->next)
-    {
-        if (!current->virt_address){
-            continue;
-        }
-        else if ((current->virt_address == lookup) &&
-            (current->pid == pid) &&
-            (current->mach_address)){
-            current->last_used = time(NULL);
-            *mach_address = (current->mach_address |
-                (virt_address & (instance->page_size - 1)));
-            ret = 1;
-            dbprint("++Cache hit (0x%.8x --> 0x%.8x, 0x%.8x)\n",
-                virt_address, *mach_address, current->mach_address);
-            goto exit;
-        }
-    }
-
-exit:
-    return ret;
+    pid_cache_entry_t entry = (pid_cache_entry_t) data;
+    if (entry) free(entry);
 }
 
-int vmi_update_cache (vmi_instance_t instance,
-                     char *symbol_name,
-                     uint32_t virt_address,
-                     int pid,
-                     uint32_t mach_address)
+static pid_cache_entry_t pid_cache_entry_create (int pid, addr_t dtb)
 {
-    vmi_cache_entry_t new_entry = NULL;
-    uint32_t vlookup = virt_address & ~(instance->page_size - 1);
-    uint32_t mlookup = mach_address & ~(instance->page_size - 1);
+    pid_cache_entry_t entry = (pid_cache_entry_t) safe_malloc(sizeof(struct pid_cache_entry));
+    entry->pid = pid;
+    entry->dtb = dtb;
+    entry->last_used = time(NULL);
+    return entry;
+}
 
-    /* is cache enabled? */
-    if (VMI_CACHE_SIZE == 0){
-        return 1;
+void pid_cache_init (vmi_instance_t vmi)
+{
+    vmi->pid_cache = g_hash_table_new_full(g_int_hash, g_int_equal, pid_cache_key_free, pid_cache_entry_free);
+}
+
+void pid_cache_destroy (vmi_instance_t vmi)
+{
+    g_hash_table_unref(vmi->pid_cache);
+}
+
+status_t pid_cache_get (vmi_instance_t vmi, int pid, addr_t *dtb)
+{
+    pid_cache_entry_t entry = NULL;
+    gint key = (gint) pid;
+
+    if ((entry = g_hash_table_lookup(vmi->pid_cache, &key)) != NULL){
+        entry->last_used = time(NULL);
+        *dtb = entry->dtb;
+        dbprint("--PID cache hit %d -- 0x%.8x\n", pid, *dtb);
+        return VMI_SUCCESS;
     }
 
-    /* does anything match the passed symbol_name? */
-    /* if so, update other entries */
-    if (symbol_name){
-        vmi_cache_entry_t current = instance->cache_head;
-        while (current != NULL){
-            if (strncmp(current->symbol_name, symbol_name, MAX_SYM_LEN) == 0){
-                current->last_used = time(NULL);
-                current->virt_address = 0;
-                current->pid = pid;
-                if (mach_address){
-                    current->mach_address = mach_address;
-                }
-                else{
-                    current->mach_address =
-                        vmi_translate_kv2p(instance, virt_address);
-                }
-                dbprint("++Cache update (%s --> 0x%.8x)\n",
-                    symbol_name, current->mach_address);
-                goto exit;
-            }
-            current = current->next;
-        }
-    }
+    return VMI_FAILURE;
+}
 
-    /* does anything match the passed virt_address? */
-    /* if so, update other entries */
-    if (virt_address){
-        vmi_cache_entry_t current = instance->cache_head;
-        while (current != NULL){
-            if (current->virt_address == vlookup){
-                current->last_used = time(NULL);
-                current->pid = pid;
-                current->mach_address = mlookup;
-                dbprint("++Cache update (0x%.8x --> 0x%.8x)\n",
-                    vlookup, mlookup);
-                goto exit;
-            }
-            current = current->next;
-        }
-    }
+void pid_cache_set (vmi_instance_t vmi, int pid, addr_t dtb)
+{
+    gint *key = (gint *) safe_malloc(sizeof(gint));
+    *key = pid;
+    pid_cache_entry_t entry = pid_cache_entry_create(pid, dtb);
+    g_hash_table_insert(vmi->pid_cache, key, entry);
+    dbprint("--PID cache set %d -- 0x%.8x\n", pid, dtb);
+}
 
-    /* was this a spurious call with bad info? */
-    if (!symbol_name && !virt_address){
-        goto exit;
-    }
-
-    /* do we need to remove anything from the cache? */
-    if (instance->current_cache_size >= VMI_CACHE_SIZE){
-        vmi_cache_entry_t oldest = instance->cache_head;
-        vmi_cache_entry_t current = instance->cache_head;
-
-        /* find the least recently used entry */
-        while (current != NULL){
-            if (current->last_used < oldest->last_used){
-                oldest = current;
-            }
-            current = current->next;
-        }
-
-        /* remove that entry */
-        if (NULL == oldest->next && NULL == oldest->prev){  /* only entry */
-            instance->cache_head = NULL;
-            instance->cache_tail = NULL;
-        }
-        else if (NULL == oldest->next){  /* last entry */
-            instance->cache_tail = oldest->prev;
-            oldest->prev->next = NULL;
-        }
-        else if (NULL == oldest->prev){  /* first entry */
-            instance->cache_head = oldest->next;
-            oldest->next->prev = NULL;
-        }
-        else{  /* somewhere in the middle */
-            oldest->prev->next = oldest->next;
-            oldest->next->prev = oldest->prev;
-        }
-
-        /* free up memory */
-        if (oldest->symbol_name){
-            free(oldest->symbol_name);
-        }
-        oldest->next = NULL;
-        oldest->prev = NULL;
-        free(oldest);
-
-        instance->current_cache_size--;
-    }
-
-    /* allocate memory for the new cache entry */
-    new_entry = (vmi_cache_entry_t) safe_malloc(sizeof(struct vmi_cache_entry));
-    new_entry->last_used = time(NULL);
-    if (symbol_name){
-        new_entry->symbol_name = strndup(symbol_name, MAX_SYM_LEN);
-        new_entry->virt_address = 0;
-        if (mach_address){
-            new_entry->mach_address = mach_address;
-        }
-        else{
-            new_entry->mach_address =
-                vmi_translate_kv2p(instance, virt_address);
-        }
-        dbprint("++Cache set (%s --> 0x%.8x)\n",
-            symbol_name, new_entry->mach_address);
+status_t pid_cache_del (vmi_instance_t vmi, int pid)
+{
+    gint key = (gint) pid;
+    dbprint("--PID cache del %d\n", pid);
+    if (TRUE == g_hash_table_remove(vmi->pid_cache, &key)){
+        return VMI_SUCCESS;
     }
     else{
-        new_entry->symbol_name = strndup("", MAX_SYM_LEN);
-        new_entry->virt_address = vlookup;
-        new_entry->mach_address = mlookup;
-        dbprint("++Cache set (0x%.8x --> 0x%.8x)\n", vlookup, mlookup);
+        return VMI_FAILURE;
     }
-    new_entry->pid = pid;
-
-    /* add it to the end of the list */
-    if (NULL != instance->cache_tail){
-        instance->cache_tail->next = new_entry;
-    }
-    new_entry->prev = instance->cache_tail;
-    instance->cache_tail = new_entry;
-    if (NULL == instance->cache_head){
-        instance->cache_head = new_entry;
-    }
-    new_entry->next = NULL;
-    instance->current_cache_size++;
-
-exit:
-    return 1;
 }
 
-int vmi_destroy_cache (vmi_instance_t instance)
-{
-    vmi_cache_entry_t current = instance->cache_head;
-    vmi_cache_entry_t tmp = NULL;
-    while (current != NULL){
-        tmp = current->next;
-        free(current);
-        current = tmp;
-    }
+//
+// Symbol --> Virtual address cache implementation
+struct sym_cache_entry{
+    char *sym;
+    addr_t va;
+    time_t last_used;
+};
+typedef struct sym_cache_entry *sym_cache_entry_t;
 
-    instance->cache_head = NULL;
-    instance->cache_tail = NULL;
-    instance->current_cache_size = 0;
-    return 0;
+static void sym_cache_entry_free (gpointer data)
+{
+    sym_cache_entry_t entry = (sym_cache_entry_t) data;
+    if (entry){
+        if (entry->sym) free(entry->sym);
+        free(entry);
+    }
 }
 
-/* ========================================================= */
-/*     Cache implementation for PID to PGD cache below.      */
-/* ========================================================= */
-
-vmi_pid_cache_entry_t vmi_check_pid_cache_helper (
-    vmi_instance_t instance, int pid)
+static sym_cache_entry_t sym_cache_entry_create (char *sym, addr_t va)
 {
-    vmi_pid_cache_entry_t current = instance->pid_cache_head;
-    while (current != NULL){
-        if (current->pid == pid){
-            current->last_used = time(NULL);
-            goto exit;
-        }
-        current = current->next;
-    }
-
-exit:
-    return current;
+    sym_cache_entry_t entry = (sym_cache_entry_t) safe_malloc(sizeof(struct sym_cache_entry));
+    entry->sym = strdup(sym);
+    entry->va = va;
+    entry->last_used = time(NULL);
+    return entry;
 }
 
-int vmi_check_pid_cache (vmi_instance_t instance, int pid, uint32_t *pgd)
+void sym_cache_init (vmi_instance_t vmi)
 {
-    vmi_pid_cache_entry_t search;
-    int ret = 0;
-
-    /* if found, set ret to 1 and put answer in *pgd */
-    search = vmi_check_pid_cache_helper(instance, pid);
-    if (search != NULL){
-        *pgd = search->pgd;
-        ret = 1;
-        dbprint("++PID Cache hit (%d --> 0x%.8x)\n", pid, *pgd);
-    }
-
-exit:
-    return ret;
+    vmi->sym_cache = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, sym_cache_entry_free);
 }
 
-int vmi_update_pid_cache (vmi_instance_t instance, int pid, uint32_t pgd)
+void sym_cache_destroy (vmi_instance_t vmi)
 {
-    vmi_pid_cache_entry_t search = NULL;
-    vmi_pid_cache_entry_t new_entry = NULL;
-
-    /* is cache enabled? */
-    if (VMI_PID_CACHE_SIZE == 0){
-        return 1;
-    }
-
-    /* was this a spurious call with bad info? */
-    if (!pid){
-        goto exit;
-    }
-
-    /* does anything match the passed pid? */
-    /* if so, update that entry */
-    search = vmi_check_pid_cache_helper(instance, pid);
-    if (search != NULL){
-        search->pgd = pgd;
-        dbprint("++PID Cache update (%d --> 0x%.8x)\n", pid, pgd);
-        goto exit;
-    }
-
-    /* do we need to remove anything from the cache? */
-    if (instance->current_pid_cache_size >= VMI_PID_CACHE_SIZE){
-        vmi_pid_cache_entry_t oldest = instance->pid_cache_head;
-        vmi_pid_cache_entry_t current = instance->pid_cache_head;
-
-        /* find the least recently used entry */
-        while (current != NULL){
-            if (current->last_used < oldest->last_used){
-                oldest = current;
-            }
-            current = current->next;
-        }
-
-        /* remove that entry */
-        if (NULL == oldest->next && NULL == oldest->prev){  /* only entry */
-            instance->pid_cache_head = NULL;
-            instance->pid_cache_tail = NULL;
-        }
-        else if (NULL == oldest->next){  /* last entry */
-            instance->pid_cache_tail = oldest->prev;
-            oldest->prev->next = NULL;
-        }
-        else if (NULL == oldest->prev){  /* first entry */
-            instance->pid_cache_head = oldest->next;
-            oldest->next->prev = NULL;
-        }
-        else{  /* somewhere in the middle */
-            oldest->prev->next = oldest->next;
-            oldest->next->prev = oldest->prev;
-        }
-
-        /* free up memory */
-        oldest->next = NULL;
-        oldest->prev = NULL;
-        free(oldest);
-
-        instance->current_pid_cache_size--;
-    }
-
-    /* allocate memory for the new cache entry */
-    new_entry = (vmi_pid_cache_entry_t)safe_malloc(sizeof(struct vmi_pid_cache_entry));
-    new_entry->last_used = time(NULL);
-    new_entry->pid = pid;
-    new_entry->pgd = pgd;
-    dbprint("++PID Cache set (%d --> 0x%.8x)\n", pid, pgd);
-
-    /* add it to the end of the list */
-    if (NULL != instance->pid_cache_tail){
-        instance->pid_cache_tail->next = new_entry;
-    }
-    new_entry->prev = instance->pid_cache_tail;
-    instance->pid_cache_tail = new_entry;
-    if (NULL == instance->pid_cache_head){
-        instance->pid_cache_head = new_entry;
-    }
-    new_entry->next = NULL;
-    instance->current_pid_cache_size++;
-
-exit:
-    return 1;
+    g_hash_table_unref(vmi->sym_cache);
 }
 
-int vmi_destroy_pid_cache (vmi_instance_t instance)
+status_t sym_cache_get (vmi_instance_t vmi, char *sym, addr_t *va)
 {
-    vmi_pid_cache_entry_t current = instance->pid_cache_head;
-    vmi_pid_cache_entry_t tmp = NULL;
-    while (current != NULL){
-        tmp = current->next;
-        free(current);
-        current = tmp;
+    sym_cache_entry_t entry = NULL;
+
+    if ((entry = g_hash_table_lookup(vmi->sym_cache, sym)) != NULL){
+        entry->last_used = time(NULL);
+        *va = entry->va;
+        dbprint("--SYM cache hit %s -- 0x%.8x\n", sym, *va);
+        return VMI_SUCCESS;
     }
 
-    instance->pid_cache_head = NULL;
-    instance->pid_cache_tail = NULL;
-    instance->current_pid_cache_size = 0;
-    return 0;
+    return VMI_FAILURE;
+}
+
+void sym_cache_set (vmi_instance_t vmi, char *sym, addr_t va)
+{
+    sym_cache_entry_t entry = sym_cache_entry_create(sym, va);
+    g_hash_table_insert(vmi->sym_cache, sym, entry);
+    dbprint("--SYM cache set %s -- 0x%.8x\n", sym, va);
+}
+
+status_t sym_cache_del (vmi_instance_t vmi, char *sym)
+{
+    dbprint("--SYM cache del %s\n", sym);
+    if (TRUE == g_hash_table_remove(vmi->sym_cache, sym)){
+        return VMI_SUCCESS;
+    }
+    else{
+        return VMI_FAILURE;
+    }
+}
+
+//
+// Virtual address --> Physical address cache implementation
+struct v2p_cache_entry{
+    addr_t va;
+    addr_t dtb;
+    addr_t pa;
+    time_t last_used;
+};
+typedef struct v2p_cache_entry *v2p_cache_entry_t;
+
+static void v2p_cache_key_free (gpointer data)
+{
+    if (data) free(data);
+}
+
+static void v2p_cache_entry_free (gpointer data)
+{
+    v2p_cache_entry_t entry = (v2p_cache_entry_t) data;
+    if (entry) free(entry);
+}
+
+static v2p_cache_entry_t v2p_cache_entry_create (addr_t va, addr_t dtb, addr_t pa)
+{
+    v2p_cache_entry_t entry = (v2p_cache_entry_t) safe_malloc(sizeof(struct v2p_cache_entry));
+    entry->va = va;
+    entry->dtb = dtb;
+    entry->pa = pa;
+    entry->last_used = time(NULL);
+    return entry;
+}
+
+//TODO this function assumes a 32-bit address, will need to fix this for 64-bit support
+static gint64 *v2p_build_key (vmi_instance_t vmi, uint32_t va, uint32_t dtb)
+{
+    uint64_t *key = (uint64_t *) safe_malloc(sizeof(uint64_t));
+    *key = 0;
+    *key |= ((uint64_t) (va & ~(vmi->page_size - 1))) << 32;
+    *key |= ((uint64_t) dtb);
+    return (gint64 *) key;
+}
+
+void v2p_cache_init (vmi_instance_t vmi)
+{
+    vmi->v2p_cache = g_hash_table_new_full(g_int64_hash, g_int64_equal, v2p_cache_key_free, v2p_cache_entry_free);
+}
+
+void v2p_cache_destroy (vmi_instance_t vmi)
+{
+    g_hash_table_unref(vmi->v2p_cache);
+}
+
+status_t v2p_cache_get (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa)
+{
+    v2p_cache_entry_t entry = NULL;
+    gint64 *key = v2p_build_key(vmi, va, dtb);
+
+    if ((entry = g_hash_table_lookup(vmi->v2p_cache, key)) != NULL){
+        entry->last_used = time(NULL);
+        *pa = entry->pa | ((vmi->page_size - 1) & va);
+        dbprint("--V2P cache hit 0x%.8x -- 0x%.8x (0x%.16llx)\n", va, *pa, *key);
+        return VMI_SUCCESS;
+    }
+
+    return VMI_FAILURE;
+}
+
+void v2p_cache_set (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t pa)
+{
+    if (!va || !dtb || !pa){
+        return;
+    }
+    gint64 *key = v2p_build_key(vmi, va, dtb);
+    pa &= ~(vmi->page_size - 1);
+    v2p_cache_entry_t entry = v2p_cache_entry_create(va, dtb, pa);
+    g_hash_table_insert(vmi->v2p_cache, key, entry);
+    dbprint("--V2P cache set 0x%.8x -- 0x%.8x (0x%.16llx)\n", va, pa, *key);
+}
+
+status_t v2p_cache_del (vmi_instance_t vmi, addr_t va, addr_t dtb)
+{
+    gint64 *key = v2p_build_key(vmi, va, dtb);
+    dbprint("--V2P cache del 0x%.8x (0x%.16llx)\n", va, *key);
+    if (TRUE == g_hash_table_remove(vmi->v2p_cache, key)){
+        free(key);
+        return VMI_SUCCESS;
+    }
+    else{
+        free(key);
+        return VMI_FAILURE;
+    }
 }
