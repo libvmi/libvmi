@@ -39,6 +39,7 @@ static void *validate_and_return_data (vmi_instance_t vmi, memory_cache_entry_t 
 {
     time_t now = time(NULL);
     if (max_entry_age && (now - entry->last_updated > max_entry_age)){
+        dbprint("--MEMORY cache refresh 0x%.8x\n", entry->paddr);
 		release_data_callback(entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
     }
@@ -79,9 +80,11 @@ void *memory_cache_insert (vmi_instance_t vmi, uint32_t paddr, uint32_t *offset)
     gint key = (gint) paddr;
 
     if ((entry = g_hash_table_lookup(ht, &key)) != NULL){
+        dbprint("--MEMORY cache hit 0x%.8x\n", paddr);
         return validate_and_return_data(vmi, entry);
     }
     else{
+        dbprint("--MEMORY cache set 0x%.8x\n", paddr);
         entry = create_new_entry(vmi, paddr, vmi->page_size);
         g_hash_table_insert(ht, &key, entry);
         return entry->data;
