@@ -53,6 +53,13 @@ straightforward.  Below are a few notes on the most obvious API changes:
 For more details on using LibVMI, see the online documentation available at
 http://vmitools.sandia.gov.
 
+Python Interface
+----------------
+LibVMI is written in C.  If you would rather work with Python, then look at
+the tools/pyvmi/ directory after installing LibVMI.  PyVMI provides a
+feature complete python interface to LibVMI with a relatively small
+performance overhead.
+
 Dependencies
 ------------
 The following libraries are used in building this code:
@@ -63,7 +70,7 @@ libvirt (from Red Hat, access to KVM guests, required for KVM support)
 qemu-kvm patch (for KVM memory access, required for KVM support, see Note 2)
 yacc OR bison (for reading the configuration file)
 lex OR flex (for reading the configuration file)
-glib (version 2.0 or better is required)
+glib (version 2.22 or better is required)
 
 Note 1: If you are installing a packaged version of Xen, you will likely
   need to install something like 'xen-devel' to obtain the files needed
