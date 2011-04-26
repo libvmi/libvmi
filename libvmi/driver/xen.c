@@ -138,6 +138,74 @@ static unsigned long xen_get_xchandle (vmi_instance_t vmi)
     return xen_get_instance(vmi)->xchandle;
 }
 
+//TODO assuming length == page size is safe for now, but isn't the most clean approach
+void *xen_get_memory_mfn (vmi_instance_t vmi, addr_t mfn, int prot)
+{
+    void *memory = xc_map_foreign_range(
+        xen_get_xchandle(vmi),
+        xen_get_domainid(vmi),
+        1,
+        prot,
+        mfn
+    );
+    return memory;
+}
+
+void *xen_get_memory (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+{
+    addr_t pfn = paddr >> vmi->page_shift;
+    addr_t mfn = xen_pfn_to_mfn(vmi, pfn);
+//TODO assuming length == page size is safe for now, but isn't the most clean approach
+    return xen_get_memory_mfn(vmi, mfn, PROT_READ);
+}
+
+void xen_release_memory (void *memory, size_t length)
+{
+    munmap(memory, length);
+}
+
+status_t xen_put_memory (vmi_instance_t vmi, addr_t paddr, uint32_t count, void *buf)
+{
+    unsigned char *memory = NULL;
+    addr_t phys_address = 0;
+    addr_t pfn = 0;
+    addr_t mfn = 0;
+    addr_t offset = 0;
+    size_t buf_offset = 0;
+
+    while (count > 0){
+        size_t write_len = 0;
+
+        /* access the memory */
+        phys_address = paddr + buf_offset;
+        pfn = phys_address >> vmi->page_shift;
+        mfn = xen_pfn_to_mfn(vmi, pfn);
+        offset = (vmi->page_size - 1) & phys_address;
+        memory = xen_get_memory_mfn(vmi, mfn, PROT_WRITE);
+        if (NULL == memory){
+            return VMI_FAILURE;
+        }
+
+        /* determine how much we can write */
+        if ((offset + count) > vmi->page_size){
+            write_len = vmi->page_size - offset;
+        }
+        else{
+            write_len = count;
+        }
+
+        /* do the write */
+        memcpy(memory + offset, ((char *) buf) + buf_offset, write_len);
+
+        /* set variables for next loop */
+        count -= write_len;
+        buf_offset += write_len;
+        xen_release_memory(memory, vmi->page_size);
+    }
+
+    return VMI_SUCCESS;
+}
+
 //----------------------------------------------------------------------------
 // General Interface Functions (1-1 mapping to driver_* function)
 
@@ -221,6 +289,7 @@ status_t xen_init (vmi_instance_t vmi)
     }
 #endif /* VMI_DEBUG */
 
+    memory_cache_init(xen_get_memory, xen_release_memory, 0);
     ret = VMI_SUCCESS;
 
 error_exit:
@@ -230,7 +299,10 @@ error_exit:
 void xen_destroy (vmi_instance_t vmi)
 {
     if (xen_get_instance(vmi)->live_pfn_to_mfn_table){
-        munmap(xen_get_instance(vmi)->live_pfn_to_mfn_table, xen_get_instance(vmi)->nr_pfns * 4);
+        xen_release_memory(
+            xen_get_instance(vmi)->live_pfn_to_mfn_table,
+            xen_get_instance(vmi)->nr_pfns * 4
+        );
     }
 
     xen_get_instance(vmi)->domainid = 0;
@@ -383,14 +455,14 @@ unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
     }
 
     if (NULL == xen_get_instance(vmi)->live_pfn_to_mfn_table){
-        live_shinfo = vmi_mmap_mfn(vmi, PROT_READ, xen_get_instance(vmi)->info.shared_info_frame);
+        live_shinfo = xen_get_memory_mfn(vmi, xen_get_instance(vmi)->info.shared_info_frame, PROT_READ);
         if (live_shinfo == NULL){
             errprint("Failed to init live_shinfo.\n");
             goto error_exit;
         }
         nr_pfns = live_shinfo->arch.max_pfn;
 
-        live_pfn_to_mfn_frame_list_list = vmi_mmap_mfn(vmi, PROT_READ, live_shinfo->arch.pfn_to_mfn_frame_list_list);
+        live_pfn_to_mfn_frame_list_list = xen_get_memory_mfn(vmi, live_shinfo->arch.pfn_to_mfn_frame_list_list, PROT_READ);
         if (live_pfn_to_mfn_frame_list_list == NULL){
             errprint("Failed to init live_pfn_to_mfn_frame_list_list.\n");
             goto error_exit;
@@ -424,25 +496,25 @@ unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
     ret = xen_get_instance(vmi)->live_pfn_to_mfn_table[pfn];
 
 error_exit:
-    if (live_shinfo) munmap(live_shinfo, XC_PAGE_SIZE);
+    if (live_shinfo) xen_release_memory(live_shinfo, XC_PAGE_SIZE);
     if (live_pfn_to_mfn_frame_list_list)
-        munmap(live_pfn_to_mfn_frame_list_list, XC_PAGE_SIZE);
+        xen_release_memory(live_pfn_to_mfn_frame_list_list, XC_PAGE_SIZE);
     if (live_pfn_to_mfn_frame_list)
-        munmap(live_pfn_to_mfn_frame_list, XC_PAGE_SIZE);
+        xen_release_memory(live_pfn_to_mfn_frame_list, XC_PAGE_SIZE);
 
     return ret;
 }
 
-//TODO integrate this into the new page cache system
 void *xen_map_page (vmi_instance_t vmi, int prot, unsigned long page)
 {
-    return xc_map_foreign_range(xen_get_xchandle(vmi), xen_get_domainid(vmi), 1, prot, page);
+    uint32_t paddr = page << vmi->page_shift;
+    uint32_t offset = 0;
+    return memory_cache_insert(vmi, paddr, &offset);
 }
 
-//TODO implement this function
 status_t xen_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length)
 {
-    return VMI_FAILURE;
+    return xen_put_memory(vmi, paddr, length, buf);
 }
 
 int xen_is_pv (vmi_instance_t vmi)
