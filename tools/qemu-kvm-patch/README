@@ -1,0 +1,13 @@
+This patch is required in order for LibVMI to access memory from a running KVM virtual 
+machine.  To start, you need the source code for QEMU-KVM 0.14.0.
+
+tar zxvf qemu-kvm-0.14.0.tar.gz
+cd qemu-kvm-0.14.0
+patch -p1 < ../kvm-physmem-access.patch
+./configure
+make
+make install
+
+At this point you should make any other changes necessary to ensure that your system 
+used this newly installed version of qemu-kvm when running KVM virtual machines.  You
+will then be able to access the memory of each running virtual machine using LibVMI.
