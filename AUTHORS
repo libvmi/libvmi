@@ -1,10 +1,13 @@
 LibVMI Authors
+--------------
 
-Lead Developer(s):
+Lead Developer:
   Bryan D. Payne (bpayne@sandia.gov)
 
-Patch Contributors, in alphabetical order:
+LibVMI is based on XenAccess.  The people below provided valuable contributions to
+XenAccess and, therefore, to the LibVMI project.  The are listed in alphabetical order:
   Brendan Dolan-Gavitt (brendandg@gatech.edu)
   Stephan Creutz (stephan.creutz@inf.tu-dresden.de)
   Hajime Inoue (hinoue@ccsl.carleton.ca)
   Tomas Kouba (tomas@jikos.cz)
+  Nilushan Silva (nilushanucsc@gmail.com)

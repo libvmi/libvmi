@@ -1,12 +1,24 @@
-/*
- * The LibVMI Library is an introspection library that simplifies access to 
+/* The LibVMI Library is an introspection library that simplifies access to 
  * memory in a target virtual machine or in a file containing a dump of 
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * This code is based on the original PyXa module by Brendan Dolan-Gavitt.
- *
- * Copyright (C) 2010 Sandia National Laboratories
+ * Copyright (C) 2011 Sandia National Laboratories
  * Author: Bryan D. Payne (bpayne@sandia.gov)
+ *
+ * This file is part of LibVMI.
+ *
+ * LibVMI is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * LibVMI is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <Python.h>
@@ -190,8 +202,67 @@ pyvmi_read_ksym(PyObject *self, PyObject *args) {
 }
 
 //-------------------------------------------------------------------
-// Utility read functions
+// Primary write functions
+static PyObject *
+pyvmi_write_pa(PyObject *self, PyObject *args) {
+    addr_t paddr;
+    void *buf;
+    int count;
 
+    if (!PyArg_ParseTuple(args, "Is#", &paddr, &buf, &count)){
+        return NULL;
+    }
+
+    size_t nbytes = vmi_write_pa(vmi(self), paddr, buf, (size_t) count);
+    if(nbytes != count){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("I", nbytes);
+}
+
+static PyObject *
+pyvmi_write_va(PyObject *self, PyObject *args) {
+    addr_t vaddr;
+    int pid;
+    void *buf;
+    int count;
+
+    if (!PyArg_ParseTuple(args, "Iis#", &vaddr, &pid, &buf, &count)){
+        return NULL;
+    }
+
+    size_t nbytes = vmi_write_va(vmi(self), vaddr, pid, buf, (size_t) count);
+    if(nbytes != count){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("I", nbytes);
+}
+
+static PyObject *
+pyvmi_write_ksym(PyObject *self, PyObject *args) {
+    char *sym;
+    void *buf;
+    int count;
+
+    if (!PyArg_ParseTuple(args, "ss#", &sym, &buf, &count)){
+        return NULL;
+    }
+
+    size_t nbytes = vmi_write_ksym(vmi(self), sym, buf, (size_t) count);
+    if(nbytes != count){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("I", nbytes);
+}
+
+//-------------------------------------------------------------------
+// Utility read functions
 static PyObject *
 pyvmi_read_8_pa (PyObject *self, PyObject *args)
 {
@@ -468,6 +539,228 @@ pyvmi_read_str_ksym (PyObject *self, PyObject *args)
 }
 
 //-------------------------------------------------------------------
+// Utility write functions
+static PyObject *
+pyvmi_write_8_pa (PyObject *self, PyObject *args)
+{
+    addr_t paddr;
+    uint8_t value;
+
+    if (!PyArg_ParseTuple(args, "Ic", &paddr, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_8_pa(vmi(self), paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_16_pa (PyObject *self, PyObject *args)
+{
+    addr_t paddr;
+    uint16_t value;
+
+    if (!PyArg_ParseTuple(args, "IH", &paddr, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_16_pa(vmi(self), paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_32_pa (PyObject *self, PyObject *args)
+{
+    addr_t paddr;
+    uint32_t value;
+
+    if (!PyArg_ParseTuple(args, "II", &paddr, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_32_pa(vmi(self), paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_64_pa (PyObject *self, PyObject *args)
+{
+    addr_t paddr;
+    uint64_t value;
+
+    if (!PyArg_ParseTuple(args, "IK", &paddr, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_64_pa(vmi(self), paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_8_va (PyObject *self, PyObject *args)
+{
+    addr_t vaddr;
+    int pid;
+    uint8_t value;
+
+    if (!PyArg_ParseTuple(args, "Iic", &vaddr, &pid, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_8_va(vmi(self), vaddr, pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_16_va (PyObject *self, PyObject *args)
+{
+    addr_t vaddr;
+    int pid;
+    uint16_t value;
+
+    if (!PyArg_ParseTuple(args, "IiH", &vaddr, &pid, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_16_va(vmi(self), vaddr, pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_32_va (PyObject *self, PyObject *args)
+{
+    addr_t vaddr;
+    int pid;
+    uint32_t value;
+
+    if (!PyArg_ParseTuple(args, "IiI", &vaddr, &pid, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_32_va(vmi(self), vaddr, pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_64_va (PyObject *self, PyObject *args)
+{
+    addr_t vaddr;
+    int pid;
+    uint64_t value;
+
+    if (!PyArg_ParseTuple(args, "IiK", &vaddr, &pid, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_64_va(vmi(self), vaddr, pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_8_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    uint8_t value;
+
+    if (!PyArg_ParseTuple(args, "sc", &sym, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_8_ksym(vmi(self), sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_16_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    uint16_t value;
+
+    if (!PyArg_ParseTuple(args, "sH", &sym, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_16_ksym(vmi(self), sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_32_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    uint32_t value;
+
+    if (!PyArg_ParseTuple(args, "sI", &sym, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_32_ksym(vmi(self), sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+static PyObject *
+pyvmi_write_64_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    uint64_t value;
+
+    if (!PyArg_ParseTuple(args, "sK", &sym, &value)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_write_64_ksym(vmi(self), sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("");
+}
+
+//-------------------------------------------------------------------
 // Accessor and other utility functions
 static PyObject *
 pyvmi_get_vcpureg(PyObject *self, PyObject *args)
@@ -643,6 +936,36 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read 8 bytes using a kernel symbol"},
     {"read_str_ksym", pyvmi_read_str_ksym, METH_VARARGS,
      "Read string using a kernel symbol"},
+    {"write_pa", pyvmi_write_pa, METH_VARARGS,
+     "Write physical memory"},
+    {"write_va", pyvmi_write_va, METH_VARARGS,
+     "Write virtual memory"},
+    {"write_ksym", pyvmi_write_ksym, METH_VARARGS,
+     "Write memory using kernel symbol"},
+    {"write_8_pa", pyvmi_write_8_pa, METH_VARARGS,
+     "Write 1 byte using a physical address"},
+    {"write_16_pa", pyvmi_write_16_pa, METH_VARARGS,
+     "Write 2 bytes using a physical address"},
+    {"write_32_pa", pyvmi_write_32_pa, METH_VARARGS,
+     "Write 4 bytes using a physical address"},
+    {"write_64_pa", pyvmi_write_64_pa, METH_VARARGS,
+     "Write 8 bytes using a physical address"},
+    {"write_8_va", pyvmi_write_8_va, METH_VARARGS,
+     "Write 1 byte using a virtual address"},
+    {"write_16_va", pyvmi_write_16_va, METH_VARARGS,
+     "Write 2 bytes using a virtual address"},
+    {"write_32_va", pyvmi_write_32_va, METH_VARARGS,
+     "Write 4 bytes using a virtual address"},
+    {"write_64_va", pyvmi_write_64_va, METH_VARARGS,
+     "Write 8 bytes using a virtual address"},
+    {"write_8_ksym", pyvmi_write_8_ksym, METH_VARARGS,
+     "Write 1 byte using a kernel symbol"},
+    {"write_16_ksym", pyvmi_write_16_ksym, METH_VARARGS,
+     "Write 2 bytes using a kernel symbol"},
+    {"write_32_ksym", pyvmi_write_32_ksym, METH_VARARGS,
+     "Write 4 bytes using a kernel symbol"},
+    {"write_64_ksym", pyvmi_write_64_ksym, METH_VARARGS,
+     "Write 8 bytes using a kernel symbol"},
     {"get_vcpureg", pyvmi_get_vcpureg, METH_VARARGS,
      "Get the current value of a vcpu register"},
     {"get_memsize", pyvmi_get_memsize, METH_VARARGS,
