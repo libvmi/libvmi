@@ -11,7 +11,11 @@
 #include <xenctrl.h>
 
 typedef struct xen_instance{
+#ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
+    xc_interface *xchandle; /**< handle to xenctrl library (libxc) */
+#else
     int xchandle;           /**< handle to xenctrl library (libxc) */
+#endif
     unsigned long domainid; /**< domid that we are accessing */
     int xen_version;        /**< version of Xen libxa is running on */
     int hvm;                /**< nonzero if HVM memory image */

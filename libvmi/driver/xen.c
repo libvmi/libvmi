@@ -133,7 +133,13 @@ static xen_instance_t *xen_get_instance (vmi_instance_t vmi)
     return ((xen_instance_t *)vmi->driver);
 }
 
-static unsigned long xen_get_xchandle (vmi_instance_t vmi)
+static
+#ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
+xc_interface *
+#else
+int
+#endif
+xen_get_xchandle (vmi_instance_t vmi)
 {
     return xen_get_instance(vmi)->xchandle;
 }
@@ -259,10 +265,15 @@ void xen_set_domainid (vmi_instance_t vmi, unsigned long domainid)
 status_t xen_init (vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
-    int xchandle;
 
     /* open handle to the libxc interface */
+#ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
+    xc_interface *xchandle = NULL;
+    if ((xchandle = xc_interface_open(NULL, NULL, 0)) == -1){
+#else
+    int xchandle = -1;
     if ((xchandle = xc_interface_open()) == -1){
+#endif
         errprint("Failed to open libxc interface.\n");
         goto error_exit;
     }
