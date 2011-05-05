@@ -283,7 +283,7 @@ status_t xen_init (vmi_instance_t vmi)
     /* open handle to the libxc interface */
 #ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
     xc_interface *xchandle = NULL;
-    if ((xchandle = xc_interface_open(NULL, NULL, 0)) == -1){
+    if ((xchandle = xc_interface_open(NULL, NULL, 0)) == NULL){
 #else
     int xchandle = -1;
     if ((xchandle = xc_interface_open()) == -1){
@@ -472,7 +472,8 @@ unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
 
     /* Live mapping of the table mapping each PFN to its current MFN. */
     unsigned long *live_pfn_to_mfn_table = NULL;
-    unsigned long nr_pfns = 0;
+    uint32_t nr_pfns = 0;
+    uint32_t fll = 0;
     unsigned long ret = 0;
 
     if (xen_get_instance(vmi)->hvm){
@@ -486,17 +487,16 @@ unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
             goto error_exit;
         }
         nr_pfns = live_shinfo->arch.max_pfn;
+        fll = live_shinfo->arch.pfn_to_mfn_frame_list_list;
 
-        live_pfn_to_mfn_frame_list_list = xen_get_memory_mfn(vmi, live_shinfo->arch.pfn_to_mfn_frame_list_list, PROT_READ);
+        live_pfn_to_mfn_frame_list_list = xen_get_memory_mfn(vmi, fll, PROT_READ);
         if (live_pfn_to_mfn_frame_list_list == NULL){
             errprint("Failed to init live_pfn_to_mfn_frame_list_list.\n");
             goto error_exit;
         }
 
         live_pfn_to_mfn_frame_list = xc_map_foreign_batch(
-            xen_get_xchandle(vmi),
-            xen_get_domainid(vmi),
-            PROT_READ,
+            xen_get_xchandle(vmi), xen_get_domainid(vmi), PROT_READ,
             live_pfn_to_mfn_frame_list_list,
             (nr_pfns+(fpp*fpp)-1)/(fpp*fpp) );
         if (live_pfn_to_mfn_frame_list == NULL){
@@ -504,9 +504,7 @@ unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
             goto error_exit;
         }
         live_pfn_to_mfn_table = xc_map_foreign_batch(
-            xen_get_xchandle(vmi),
-            xen_get_domainid(vmi),
-            PROT_READ,
+            xen_get_xchandle(vmi), xen_get_domainid(vmi), PROT_READ,
             live_pfn_to_mfn_frame_list, (nr_pfns+fpp-1)/fpp );
         if (live_pfn_to_mfn_table  == NULL){
             errprint("Failed to init live_pfn_to_mfn_table.\n");
