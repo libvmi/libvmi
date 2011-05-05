@@ -43,7 +43,7 @@ int main (int argc, char **argv)
 
     /* initialize the libvmi library */
     if (vmi_init(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
-        perror("failed to init LibVMI library");
+        printf("Failed to init LibVMI library.\n");
         goto error_exit;
     }
 
