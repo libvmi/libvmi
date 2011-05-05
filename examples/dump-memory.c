@@ -25,7 +25,6 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
 
@@ -54,7 +53,7 @@ int main (int argc, char **argv)
 
     /* open the file for writing */
     if ((f = fopen(filename, "w+")) == NULL){
-        perror("failed to open file for writing");
+        printf("failed to open file for writing.\n");
         goto error_exit;
     }
 
@@ -65,7 +64,7 @@ int main (int argc, char **argv)
             /* memory mapped, just write to file */
             size_t written = fwrite(memory, 1, PAGE_SIZE, f);
             if (written != PAGE_SIZE){
-                perror("failed to write memory to file");
+                printf("failed to write memory to file.\n");
                 goto error_exit;
             }
             munmap(memory, PAGE_SIZE);
@@ -76,7 +75,7 @@ int main (int argc, char **argv)
             memset(zeros, 0, PAGE_SIZE);
             size_t written = fwrite(zeros, 1, PAGE_SIZE, f);
             if (written != PAGE_SIZE){
-                perror("failed to write zeros to file");
+                printf("failed to write zeros to file.\n");
                 goto error_exit;
             }
             free(zeros);

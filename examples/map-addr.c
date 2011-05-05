@@ -50,7 +50,7 @@ int main (int argc, char **argv)
 
     /* get the symbol's memory page */
     if (PAGE_SIZE != vmi_read_va(vmi, addr, 0, memory, PAGE_SIZE)){
-        perror("failed to map memory");
+        printf("failed to map memory.\n");
         goto error_exit;
     }
     vmi_print_hex(memory, PAGE_SIZE);

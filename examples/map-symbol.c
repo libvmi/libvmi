@@ -24,7 +24,6 @@
 #include <libvmi/libvmi.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
 
@@ -49,7 +48,7 @@ int main (int argc, char **argv)
 
     /* get memory starting at symbol for the next PAGE_SIZE bytes */
     if (PAGE_SIZE != vmi_read_ksym(vmi, symbol, memory, PAGE_SIZE)){
-        perror("failed to get symbol's memory");
+        printf("failed to get symbol's memory.\n");
         goto error_exit;
     }
     vmi_print_hex(memory, PAGE_SIZE);
