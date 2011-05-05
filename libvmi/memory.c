@@ -323,6 +323,22 @@ addr_t vmi_translate_kv2p(vmi_instance_t vmi, addr_t virt_address)
 }
 
 /* expose virtual to physical mapping for user space via api call */
+addr_t vmi_translate_uv2p_nocache(vmi_instance_t vmi, addr_t virt_address, int pid)
+{
+    addr_t dtb = vmi_pid_to_dtb(vmi, pid);
+    if (!dtb){
+        dbprint("--early bail on v2p lookup because dtb is zero\n");
+        return 0;
+    }
+    else{
+        addr_t rtnval = vmi_pagetable_lookup(vmi, dtb, virt_address);
+        if (!rtnval){
+            pid_cache_del(vmi, pid);
+        }
+        return rtnval;    
+    }
+}
+
 addr_t vmi_translate_uv2p(vmi_instance_t vmi, addr_t virt_address, int pid)
 {
     addr_t dtb = vmi_pid_to_dtb(vmi, pid);
@@ -334,7 +350,7 @@ addr_t vmi_translate_uv2p(vmi_instance_t vmi, addr_t virt_address, int pid)
         addr_t rtnval = vmi_pagetable_lookup(vmi, dtb, virt_address);
         if (!rtnval){
             if (VMI_SUCCESS == pid_cache_del(vmi, pid)){
-                return vmi_translate_uv2p(vmi, virt_address, pid);
+                return vmi_translate_uv2p_nocache(vmi, virt_address, pid);
             }
         }
         return rtnval;    

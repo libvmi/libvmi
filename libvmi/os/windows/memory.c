@@ -117,7 +117,6 @@ uint32_t windows_get_EPROCESS (vmi_instance_t vmi, int pid)
 
     /* first we need a pointer to this pid's EPROCESS struct */
     next_process = vmi->init_task;
-    list_head = next_process;
 
     while (1){
         uint32_t next_process_tmp = 0;
@@ -133,7 +132,11 @@ uint32_t windows_get_EPROCESS (vmi_instance_t vmi, int pid)
         if (task_pid == pid){
             return next_process;
         }
+
         next_process = next_process_tmp;
+        if (!list_head){
+            list_head = next_process;
+        }
     }
 
 error_exit:

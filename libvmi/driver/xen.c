@@ -355,6 +355,11 @@ error_exit:
     return ret;
 }
 
+void xen_set_domainname (vmi_instance_t vmi, char *name)
+{
+    xen_get_instance(vmi)->name = strndup(name, 500);
+}
+
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
 {
     status_t ret = VMI_FAILURE;
@@ -592,6 +597,7 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name) { retu
 unsigned long xen_get_domainid (vmi_instance_t vmi) { return 0; }
 void xen_set_domainid (vmi_instance_t vmi, unsigned long domainid) { return; }
 status_t xen_get_domainname (vmi_instance_t vmi, char **name) { return VMI_FAILURE; }
+void xen_set_domainname (vmi_instance_t vmi, char *name) { return; }
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_FAILURE; }
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
 unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }

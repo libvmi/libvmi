@@ -298,7 +298,7 @@ void kvm_set_id (vmi_instance_t vmi, unsigned long id)
 
 status_t kvm_get_name (vmi_instance_t vmi, char **name)
 {
-    char *tmpname = virDomainGetName(kvm_get_instance(vmi)->dom);
+    const char *tmpname = virDomainGetName(kvm_get_instance(vmi)->dom);
     // don't need to deallocate the name, it will go away with the domain object
 
     if (NULL != tmpname){
