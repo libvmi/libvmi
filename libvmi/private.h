@@ -101,6 +101,7 @@ void warnprint (char *format, ...);
 void *safe_malloc_ (size_t size, char const *file, int line);
 unsigned long get_reg32 (reg_t r);
 int vmi_get_bit (unsigned long reg, int bit);
+addr_t p2m (vmi_instance_t vmi, addr_t paddr);
 
 /*-------------------------------------
  * cache.c

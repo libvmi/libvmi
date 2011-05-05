@@ -86,7 +86,13 @@ size_t vmi_read_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t
     else{
         paddr = vmi_translate_kv2p(vmi, vaddr);
     }
-    return vmi_read_pa(vmi, paddr, buf, count);
+
+    if (!driver_is_pv(vmi)){
+        return vmi_read_pa(vmi, paddr, buf, count);
+    }
+    else{
+        return vmi_read_ma(vmi, paddr, buf, count);
+    }
 }
 
 size_t vmi_read_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count)
@@ -129,6 +135,39 @@ status_t vmi_read_64_ma (vmi_instance_t vmi, addr_t maddr, uint64_t *value)
     return vmi_read_X_ma(vmi, maddr, value, 8);
 }
 
+char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr)
+{
+    char *rtnval = NULL;
+    size_t chunk_size = 4096;
+    char *buf = (char *) safe_malloc(chunk_size);
+
+    // read in chunk of data
+    if (chunk_size != vmi_read_ma(vmi, maddr, buf, chunk_size)){
+        goto exit;
+    }
+
+    // look for \0 character, expand as needed
+    size_t len = strnlen(buf, chunk_size);
+    size_t buf_size = chunk_size;
+    while (len == buf_size){
+        size_t offset = buf_size;
+        buf_size += chunk_size;
+        buf = realloc(buf, buf_size);
+        if (chunk_size != vmi_read_ma(vmi, maddr + offset, buf + offset, chunk_size)){
+            goto exit;
+        }
+        len = strnlen(buf, buf_size);
+    }
+
+    rtnval = (char *) safe_malloc(len + 1);
+    memcpy(rtnval, buf, len);
+    rtnval[len] = '\0';
+
+exit:
+    free(buf);
+    return rtnval;
+}
+
 ///////////////////////////////////////////////////////////
 // Easy access to physical memory
 static status_t vmi_read_X_pa (vmi_instance_t vmi, addr_t paddr, void *value, int size)
@@ -164,35 +203,7 @@ status_t vmi_read_64_pa (vmi_instance_t vmi, addr_t paddr, uint64_t *value)
 
 char *vmi_read_str_pa (vmi_instance_t vmi, addr_t paddr)
 {
-    char *rtnval = NULL;
-    size_t chunk_size = 4096;
-    char *buf = (char *) safe_malloc(chunk_size);
-
-    // read in chunk of data
-    if (chunk_size != vmi_read_pa(vmi, paddr, buf, chunk_size)){
-        goto exit;
-    }
-
-    // look for \0 character, expand as needed
-    size_t len = strnlen(buf, chunk_size);
-    size_t buf_size = chunk_size;
-    while (len == buf_size){
-        size_t offset = buf_size;
-        buf_size += chunk_size;
-        buf = realloc(buf, buf_size);
-        if (chunk_size != vmi_read_pa(vmi, paddr + offset, buf + offset, chunk_size)){
-            goto exit;
-        }
-        len = strnlen(buf, buf_size);
-    }
-
-    rtnval = (char *) safe_malloc(len + 1);
-    memcpy(rtnval, buf, len);
-    rtnval[len] = '\0';
-
-exit:
-    free(buf);
-    return rtnval;
+    return vmi_read_str_ma(vmi, p2m(vmi, paddr));
 }
 
 ///////////////////////////////////////////////////////////
@@ -237,7 +248,13 @@ char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
     else{
         paddr = vmi_translate_kv2p(vmi, vaddr);
     }
-    return vmi_read_str_pa(vmi, paddr);
+
+    if (!driver_is_pv(vmi)){
+        return vmi_read_str_pa(vmi, paddr);
+    }
+    else{
+        return vmi_read_str_ma(vmi, paddr);
+    }
 }
 
 ///////////////////////////////////////////////////////////

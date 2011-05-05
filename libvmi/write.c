@@ -27,9 +27,20 @@
 
 ///////////////////////////////////////////////////////////
 // Classic write functions for access to memory
+size_t vmi_write_ma (vmi_instance_t vmi, addr_t maddr, void *buf, size_t count)
+{
+    if (VMI_SUCCESS == driver_write(vmi, maddr, buf, count)){
+        return count;
+    }
+    else{
+        return 0;
+    }
+}
+
 size_t vmi_write_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
 {
-    if (VMI_SUCCESS == driver_write(vmi, paddr, buf, count)){
+    addr_t maddr = p2m(vmi, paddr);
+    if (VMI_SUCCESS == driver_write(vmi, maddr, buf, count)){
         return count;
     }
     else{
@@ -46,7 +57,13 @@ size_t vmi_write_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_
     else{
         paddr = vmi_translate_kv2p(vmi, vaddr);
     }
-    return vmi_write_pa(vmi, paddr, buf, count);
+
+    if (!driver_is_pv(vmi)){
+        return vmi_write_pa(vmi, paddr, buf, count);
+    }
+    else{
+        return vmi_write_ma(vmi, paddr, buf, count);
+    }
 }
 
 size_t vmi_write_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count)

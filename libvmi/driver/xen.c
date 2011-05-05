@@ -171,10 +171,9 @@ void *xen_get_memory_mfn (vmi_instance_t vmi, addr_t mfn, int prot)
     return memory;
 }
 
-void *xen_get_memory (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+void *xen_get_memory (vmi_instance_t vmi, uint32_t maddr, uint32_t length)
 {
-    addr_t pfn = paddr >> vmi->page_shift;
-    addr_t mfn = xen_pfn_to_mfn(vmi, pfn);
+    addr_t mfn = maddr >> vmi->page_shift;
 //TODO assuming length == page size is safe for now, but isn't the most clean approach
     return xen_get_memory_mfn(vmi, mfn, PROT_READ);
 }
