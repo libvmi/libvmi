@@ -36,6 +36,7 @@ typedef struct xen_instance{
     xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
     unsigned long *live_pfn_to_mfn_table;
     unsigned long nr_pfns;
+    char *name;
 } xen_instance_t;
 
 #else
@@ -51,6 +52,7 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name);
 unsigned long xen_get_domainid (vmi_instance_t vmi);
 void xen_set_domainid (vmi_instance_t vmi, unsigned long domainid);
 status_t xen_get_domainname (vmi_instance_t vmi, char **name);
+void xen_set_domainname (vmi_instance_t vmi, char *name);
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size);
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);
 unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn);

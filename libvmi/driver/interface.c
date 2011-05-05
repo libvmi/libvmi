@@ -61,7 +61,7 @@ static void driver_xen_setup (vmi_instance_t vmi)
     instance->get_id_ptr = &xen_get_domainid;
     instance->set_id_ptr = &xen_set_domainid;
     instance->get_name_ptr = &xen_get_domainname;
-    instance->set_name_ptr = NULL; //TODO add set_name_ptr
+    instance->set_name_ptr = &xen_set_domainname;
     instance->get_memsize_ptr = &xen_get_memsize;
     instance->get_vcpureg_ptr = &xen_get_vcpureg;
     instance->pfn_to_mfn_ptr = &xen_pfn_to_mfn;
