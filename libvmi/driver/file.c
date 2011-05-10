@@ -25,6 +25,7 @@
 #include "private.h"
 #include "driver/file.h"
 #include "driver/interface.h"
+#include "driver/memory_cache.h"
 
 #if ENABLE_FILE == 1
 #define _GNU_SOURCE

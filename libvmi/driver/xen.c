@@ -25,6 +25,7 @@
 #include "private.h"
 #include "driver/xen.h"
 #include "driver/interface.h"
+#include "driver/memory_cache.h"
 
 #if ENABLE_XEN == 1
 #define _GNU_SOURCE
