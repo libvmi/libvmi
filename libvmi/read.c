@@ -43,7 +43,7 @@ static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t 
         phys_address = paddr + buf_offset;
         pfn = phys_address >> vmi->page_shift;
         offset = (vmi->page_size - 1) & phys_address;
-        memory = vmi_map_page(vmi, PROT_READ, pfn, is_p);
+        memory = vmi_read_page(vmi, pfn, is_p);
         if (NULL == memory){
             return buf_offset;
         }

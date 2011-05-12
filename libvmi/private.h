@@ -37,10 +37,6 @@
 #include <time.h>
 #include "libvmi.h"
 
-/* Architecture dependent constants */
-//TODO this is xen specific and should be moved into the xen driver code
-#define fpp 1024		/* number of xen_pfn_t that fits on one frame */
-
 /* other globals */
 #define MAX_ROW_LENGTH 200
 
@@ -85,6 +81,8 @@ struct vmi_instance{
     GHashTable *sym_cache;  /**< hash table to hold the sym cache data */
     GHashTable *v2p_cache;  /**< hash table to hold the v2p cache data */
     void *driver;           /**< driver-specific information */
+    GHashTable *memory_cache;       /**< hash table for memory cache */
+    unsigned long memory_cache_age; /**< max age of memory cache entry */
 };
 
 /*----------------------------------------------
@@ -128,7 +126,7 @@ status_t v2p_cache_del (vmi_instance_t vmi, addr_t va, addr_t dtb);
  * memory.c
  */
 addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid);
-void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num, int is_pfn);
+void *vmi_read_page (vmi_instance_t vmi, unsigned long frame_num, int is_pfn);
 
 /*-----------------------------------------
  * os/linux/...

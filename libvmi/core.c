@@ -300,7 +300,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, mode_t mode, unsigned lon
     *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
 
     /* initialize instance struct to default values */
-    dbprint("LibVMI Devel Version\n");  //TODO change this with each release
+    dbprint("LibVMI Version 0.6\n");  //TODO change this with each release
 
     /* setup the caches */
     pid_cache_init(*vmi);

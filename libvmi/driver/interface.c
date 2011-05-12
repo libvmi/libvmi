@@ -39,7 +39,7 @@ struct driver_instance{
     status_t (*get_memsize_ptr)(vmi_instance_t, unsigned long *);
     status_t (*get_vcpureg_ptr)(vmi_instance_t, reg_t *, registers_t, unsigned long);
     unsigned long (*pfn_to_mfn_ptr)(vmi_instance_t, unsigned long);
-    void *(*map_page_ptr)(vmi_instance_t, int, unsigned long);
+    void *(*read_page_ptr)(vmi_instance_t, unsigned long);
     status_t (*write_ptr)(vmi_instance_t, addr_t, void *, uint32_t);
     int (*is_pv_ptr)(vmi_instance_t);
     status_t (*pause_vm_ptr)(vmi_instance_t);
@@ -65,7 +65,7 @@ static void driver_xen_setup (vmi_instance_t vmi)
     instance->get_memsize_ptr = &xen_get_memsize;
     instance->get_vcpureg_ptr = &xen_get_vcpureg;
     instance->pfn_to_mfn_ptr = &xen_pfn_to_mfn;
-    instance->map_page_ptr = &xen_map_page;
+    instance->read_page_ptr = &xen_read_page;
     instance->write_ptr = &xen_write;
     instance->is_pv_ptr = &xen_is_pv;
     instance->pause_vm_ptr = &xen_pause_vm;
@@ -85,7 +85,7 @@ static void driver_kvm_setup (vmi_instance_t vmi)
     instance->get_memsize_ptr = &kvm_get_memsize;
     instance->get_vcpureg_ptr = &kvm_get_vcpureg;
     instance->pfn_to_mfn_ptr = &kvm_pfn_to_mfn;
-    instance->map_page_ptr = &kvm_map_page;
+    instance->read_page_ptr = &kvm_read_page;
     instance->write_ptr = &kvm_write;
     instance->is_pv_ptr = &kvm_is_pv;
     instance->pause_vm_ptr = &kvm_pause_vm;
@@ -105,7 +105,7 @@ static void driver_file_setup (vmi_instance_t vmi)
     instance->get_memsize_ptr = &file_get_memsize;
     instance->get_vcpureg_ptr = &file_get_vcpureg;
     instance->pfn_to_mfn_ptr = &file_pfn_to_mfn;
-    instance->map_page_ptr = &file_map_page;
+    instance->read_page_ptr = &file_read_page;
     instance->write_ptr = &file_write;
     instance->is_pv_ptr = &file_is_pv;
     instance->pause_vm_ptr = &file_pause_vm;
@@ -125,7 +125,7 @@ static void driver_null_setup (vmi_instance_t vmi)
     instance->get_memsize_ptr = NULL;
     instance->get_vcpureg_ptr = NULL;
     instance->pfn_to_mfn_ptr = NULL;
-    instance->map_page_ptr = NULL;
+    instance->read_page_ptr = NULL;
     instance->is_pv_ptr = NULL;
     instance->pause_vm_ptr = NULL;
     instance->resume_vm_ptr = NULL;
@@ -310,14 +310,14 @@ unsigned long driver_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
     }
 }
 
-void *driver_map_page (vmi_instance_t vmi, int prot, unsigned long page)
+void *driver_read_page (vmi_instance_t vmi, unsigned long page)
 {
     driver_instance_t ptrs = driver_get_instance(vmi);
-    if (NULL != ptrs && NULL != ptrs->map_page_ptr){
-        return ptrs->map_page_ptr(vmi, prot, page);
+    if (NULL != ptrs && NULL != ptrs->read_page_ptr){
+        return ptrs->read_page_ptr(vmi, page);
     }
     else{
-        dbprint("WARNING: driver_map_page function not implemented.\n");
+        dbprint("WARNING: driver_read_page function not implemented.\n");
         return NULL;
     }
 }

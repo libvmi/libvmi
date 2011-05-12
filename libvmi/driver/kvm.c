@@ -244,7 +244,7 @@ status_t kvm_init (vmi_instance_t vmi)
     kvm_get_instance(vmi)->conn = conn;
     kvm_get_instance(vmi)->dom = dom;
     exec_memory_access(kvm_get_instance(vmi));
-	memory_cache_init(kvm_get_memory, kvm_release_memory, 1);
+	memory_cache_init(vmi, kvm_get_memory, kvm_release_memory, 1);
     return init_domain_socket(kvm_get_instance(vmi));
 }
 
@@ -392,7 +392,7 @@ unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
     return pfn;
 }
 
-void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page)
+void *kvm_read_page (vmi_instance_t vmi, unsigned long page)
 {
     uint32_t paddr = page << vmi->page_shift;
     uint32_t offset = 0;
@@ -460,7 +460,7 @@ void kvm_set_name (vmi_instance_t vmi, char *name) { return; }
 status_t kvm_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_FAILURE; }
 status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
 unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }
-void *kvm_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
+void *kvm_read_page (vmi_instance_t vmi, unsigned long page) { return NULL; }
 status_t kvm_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length) { return VMI_FAILURE; }
 int kvm_is_pv (vmi_instance_t vmi) { return 0; }
 status_t kvm_test (unsigned long id, char *name) { return VMI_FAILURE; }

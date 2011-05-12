@@ -36,6 +36,8 @@
 #include <stdint.h>
 #include <xs.h>
 
+#define fpp 1024		/* number of xen_pfn_t that fits on one frame */
+
 //----------------------------------------------------------------------------
 // Helper functions
 
@@ -314,7 +316,7 @@ status_t xen_init (vmi_instance_t vmi)
     }
 #endif /* VMI_DEBUG */
 
-    memory_cache_init(xen_get_memory, xen_release_memory, 0);
+    memory_cache_init(vmi, xen_get_memory, xen_release_memory, 0);
     ret = VMI_SUCCESS;
 
 error_exit:
@@ -533,7 +535,7 @@ error_exit:
     return ret;
 }
 
-void *xen_map_page (vmi_instance_t vmi, int prot, unsigned long page)
+void *xen_read_page (vmi_instance_t vmi, unsigned long page)
 {
     uint32_t paddr = page << vmi->page_shift;
     uint32_t offset = 0;
@@ -601,7 +603,7 @@ void xen_set_domainname (vmi_instance_t vmi, char *name) { return; }
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_FAILURE; }
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
 unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }
-void *xen_map_page (vmi_instance_t vmi, int prot, unsigned long page) { return NULL; }
+void *xen_read_page (vmi_instance_t vmi, unsigned long page) { return NULL; }
 status_t xen_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length) { return VMI_FAILURE; }
 int xen_is_pv (vmi_instance_t vmi) { return 0; }
 status_t xen_test (unsigned long id, char *name) { return VMI_FAILURE; }

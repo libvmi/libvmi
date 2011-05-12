@@ -28,8 +28,6 @@
 #include <glib.h>
 #include <time.h>
 
-static GHashTable *ht = NULL;
-static unsigned long max_entry_age = 0;
 struct memory_cache_entry{
     uint32_t paddr;
     uint32_t length;
@@ -52,7 +50,7 @@ static void *get_memory_data (vmi_instance_t vmi, uint32_t paddr, uint32_t lengt
 static void *validate_and_return_data (vmi_instance_t vmi, memory_cache_entry_t entry)
 {
     time_t now = time(NULL);
-    if (max_entry_age && (now - entry->last_updated > max_entry_age)){
+    if (vmi->memory_cache_age && (now - entry->last_updated > vmi->memory_cache_age)){
         dbprint("--MEMORY cache refresh 0x%.8x\n", entry->paddr);
 		release_data_callback(entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
@@ -76,12 +74,13 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, uint32_t paddr
 //---------------------------------------------------------
 // External API functions
 void memory_cache_init (
+        vmi_instance_t vmi,
         void *(*get_data)(vmi_instance_t, uint32_t, uint32_t),
 		void (*release_data)(void *, size_t),
 		unsigned long age_limit)
 {
-    ht = g_hash_table_new(g_int_hash, g_int_equal);
-    max_entry_age = age_limit;
+    vmi->memory_cache = g_hash_table_new(g_int_hash, g_int_equal);
+    vmi->memory_cache_age = age_limit;
     get_data_callback = get_data;
 	release_data_callback = release_data;
 }
@@ -93,18 +92,17 @@ void *memory_cache_insert (vmi_instance_t vmi, uint32_t paddr, uint32_t *offset)
     paddr &= ~(vmi->page_size - 1);
     gint key = (gint) paddr;
 
-    if ((entry = g_hash_table_lookup(ht, &key)) != NULL){
+    if ((entry = g_hash_table_lookup(vmi->memory_cache, &key)) != NULL){
         dbprint("--MEMORY cache hit 0x%.8x\n", paddr);
         return validate_and_return_data(vmi, entry);
     }
     else{
         dbprint("--MEMORY cache set 0x%.8x\n", paddr);
         entry = create_new_entry(vmi, paddr, vmi->page_size);
-        g_hash_table_insert(ht, &key, entry);
+        g_hash_table_insert(vmi->memory_cache, &key, entry);
         return entry->data;
     }
 }
 
 //TODO should this cache grow indefinately, or should we have a strategy to remove old items?
 //TODO if we want to remove old items, perhaps a separate thread so that insert remains fast?
-//TODO hash table should be in instance struct and not in a global variable

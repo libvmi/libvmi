@@ -403,8 +403,7 @@ addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid)
     return dtb;
 }
 
-//TODO change this to vmi_read_page and remove the prot argument
-void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num, int is_pfn)
+void *vmi_read_page (vmi_instance_t vmi, unsigned long frame_num, int is_pfn)
 {
     unsigned long mfn;
     if (is_pfn){
@@ -418,6 +417,6 @@ void *vmi_map_page (vmi_instance_t vmi, int prot, unsigned long frame_num, int i
         return NULL;
     }
     else{
-        return driver_map_page(vmi, prot, mfn);
+        return driver_read_page(vmi, mfn);
     }
 }
