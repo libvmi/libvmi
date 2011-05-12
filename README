@@ -14,16 +14,16 @@ to make this library faster, easier to use, and more flexible.  XenAccess code
 will not directly compile using LibVMI.  However, the migration path is usually
 straightforward.  Below are a few notes on the most obvious API changes:
 
-* There are no longer strict / lax versions of the init functions.  The two
-  remaining init functions simply differ in whether you use an ID or a Name
-  to identify the guest VM.  The new init functions also take an argument 
-  that specifies where to access the memory from (e.g., Xen, KVM, or a File).
-  You can also have LibVMI automatically determine where to access memory.
-  For example, the example code uses a Name to identify the guest.  Using
-  the auto mode, if this is a KVM VM name then LibVMI will connect via KVM.
-  Similarly, if you specifiy a file name, then LibVMI will access that file
-  as a raw memory dump.  All of this happens under the hood, so you can
-  write code once that can be readily used on a variety of platforms.
+* There are no longer strict / lax versions of the init functions.  The
+  remaining init function simply takes a Name to identify the guest VM.  The
+  new init function also take an argument that specifies where to access the
+  memory from (e.g., Xen, KVM, or a File).  You can also have LibVMI
+  automatically determine where to access memory.  For example, the example
+  code uses a Name to identify the guest.  Using the auto mode, if this is a
+  KVM VM name then LibVMI will connect via KVM.  Similarly, if you specifiy a
+  file name, then LibVMI will access that file as a raw memory dump.  All of
+  this happens under the hood, so you can write code once that can be readily
+  used on a variety of platforms.
 
 * The xa_access_* functions have been replaced with vmi_read_* functions.
   The read functions give you the flexibility to read as much or as little
