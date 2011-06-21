@@ -88,7 +88,7 @@ uint32_t get_ntoskrnl_base (vmi_instance_t vmi)
     }
 
     /* start the downward search looking for MZ header */
-    fprintf(stderr, "Note: Fast checking for kernel base address failed, XenAccess\n");
+    fprintf(stderr, "Note: Fast checking for kernel base address failed, LibVMI\n");
     fprintf(stderr, "is searching for the correct address.\n");
     paddr = 0x0 + vmi->page_size;
     while (1){

@@ -1,5 +1,5 @@
 You can use this program to get the offset values needed for
-the /etc/xenaccess.conf file.  To use, follow the steps below.
+the /etc/libvmi.conf file.  To use, follow the steps below.
 
 1) Copy the files in this directory to the domU
 
@@ -14,5 +14,5 @@ the /etc/xenaccess.conf file.  To use, follow the steps below.
 
 6) rmmod findOffsets
 
-7) copy the output into your /etc/xenaccess.conf file in dom0,
+7) copy the output into your /etc/libvmi.conf file in dom0,
    be sure to update the domain name and sysmap location.
