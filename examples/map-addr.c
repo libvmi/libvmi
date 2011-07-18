@@ -43,7 +43,7 @@ int main (int argc, char **argv)
     addr_t addr = (addr_t) strtoul(addr_str, NULL, 16);
 
     /* initialize the libvmi library */
-    if (vmi_init(&vmi, VMI_MODE_AUTO, name) == VMI_FAILURE){
+    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) == VMI_FAILURE){
         printf("Failed to init LibVMI library.\n");
         goto error_exit;
     }

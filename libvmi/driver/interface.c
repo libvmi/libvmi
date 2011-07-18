@@ -138,13 +138,13 @@ static driver_instance_t driver_get_instance (vmi_instance_t vmi)
         instance = (driver_instance_t) safe_malloc(sizeof(struct driver_instance));
 
         /* assign the function pointers */
-        if (VMI_MODE_XEN == vmi->mode){
+        if (VMI_XEN == vmi->mode){
             driver_xen_setup(vmi);
         }
-        else if (VMI_MODE_KVM == vmi->mode){
+        else if (VMI_KVM == vmi->mode){
             driver_kvm_setup(vmi);
         }
-        else if (VMI_MODE_FILE == vmi->mode){
+        else if (VMI_FILE == vmi->mode){
             driver_file_setup(vmi);
         }
         else{
@@ -162,17 +162,17 @@ status_t driver_init_mode (vmi_instance_t vmi, unsigned long id, char *name)
     /* see what systems are accessable */
     if (VMI_SUCCESS == xen_test(id, name)){
         dbprint("--found Xen\n");
-        vmi->mode = VMI_MODE_XEN;
+        vmi->mode = VMI_XEN;
         count++;
     }
     if (VMI_SUCCESS == kvm_test(id, name)){
         dbprint("--found KVM\n");
-        vmi->mode = VMI_MODE_KVM;
+        vmi->mode = VMI_KVM;
         count++;
     }
     if (VMI_SUCCESS == file_test(id, name)){
         dbprint("--found file\n");
-        vmi->mode = VMI_MODE_FILE;
+        vmi->mode = VMI_FILE;
         count++;
     }
 
@@ -182,7 +182,7 @@ status_t driver_init_mode (vmi_instance_t vmi, unsigned long id, char *name)
         return VMI_FAILURE;
     }
     else if (count > 1){
-        errprint("Found more than one VMM of file to use,\nplease specify what you want instead of using VMI_MODE_AUTO.\n");
+        errprint("Found more than one VMM of file to use,\nplease specify what you want instead of using VMI_AUTO.\n");
         return VMI_FAILURE;
     }
     else{ // count == 1

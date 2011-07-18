@@ -39,12 +39,19 @@ static int read_config_file (vmi_instance_t vmi)
     int ret = VMI_SUCCESS;
     vmi_config_entry_t *entry;
     char *tmp = NULL;
+    yyin = NULL;
 
-    yyin = fopen("/etc/libvmi.conf", "r");
+    if (vmi->configstr){
+        yyin = fmemopen(vmi->configstr, strlen(vmi->configstr), "r");
+    }
+
     if (NULL == yyin){
-        fprintf(stderr, "ERROR: config file not found at /etc/libvmi.conf\n");
-        ret = VMI_FAILURE;
-        goto error_exit;
+        yyin = fopen("/etc/libvmi.conf", "r");
+        if (NULL == yyin){
+            fprintf(stderr, "ERROR: config file not found at /etc/libvmi.conf\n");
+            ret = VMI_FAILURE;
+            goto error_exit;
+        }
     }
 
     if (vmi_parse_config(vmi->image_type) != 0){
@@ -223,7 +230,7 @@ static status_t init_page_offset (vmi_instance_t vmi)
 
 static status_t set_driver_type (vmi_instance_t vmi, mode_t mode, unsigned long id, char *name)
 {
-    if (VMI_MODE_AUTO == mode){
+    if (VMI_AUTO == mode){
         if (VMI_FAILURE == driver_init_mode(vmi, id, name)){
             errprint("Failed to identify correct mode.\n");
             return VMI_FAILURE;
@@ -251,7 +258,7 @@ static void set_image_type_for_file (vmi_instance_t vmi, char *name)
 
 static status_t set_id_and_name (vmi_instance_t vmi, mode_t mode, unsigned long id, char *name)
 {
-    if (VMI_MODE_FILE == vmi->mode){
+    if (VMI_FILE == vmi->mode){
         if (name){
             set_image_type_for_file(vmi, name);
             driver_set_name(vmi, name);
@@ -294,13 +301,21 @@ static status_t set_id_and_name (vmi_instance_t vmi, mode_t mode, unsigned long 
     return VMI_SUCCESS;
 }
 
-static status_t vmi_init_private (vmi_instance_t *vmi, mode_t mode, unsigned long id, char *name)
+static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned long id, char *name, char *configstr)
 {
+    uint32_t access_mode = flags & 0x0000FFFF;
+    uint32_t init_mode = flags & 0xFFFF0000;
+
     /* allocate memory for instance structure */
     *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
 
     /* initialize instance struct to default values */
     dbprint("LibVMI Version 0.6\n");  //TODO change this with each release
+
+    /* save the flags and init mode */
+    (*vmi)->flags = flags;
+    (*vmi)->init_mode = init_mode;
+    (*vmi)->configstr = configstr;
 
     /* setup the caches */
     pid_cache_init(*vmi);
@@ -308,12 +323,12 @@ static status_t vmi_init_private (vmi_instance_t *vmi, mode_t mode, unsigned lon
     v2p_cache_init(*vmi);
 
     /* connecting to xen, kvm, file, etc */
-    if (VMI_FAILURE == set_driver_type(*vmi, mode, id, name)){
+    if (VMI_FAILURE == set_driver_type(*vmi, access_mode, id, name)){
         goto error_exit;
     }
 
     /* resolve the id and name */
-    if (VMI_FAILURE == set_id_and_name(*vmi, mode, id, name)){
+    if (VMI_FAILURE == set_id_and_name(*vmi, access_mode, id, name)){
         goto error_exit;
     }
 
@@ -323,44 +338,70 @@ static status_t vmi_init_private (vmi_instance_t *vmi, mode_t mode, unsigned lon
     }
     dbprint("--completed driver init.\n");
 
-    /* read and parse the config file */
-    if (VMI_FAILURE == read_config_file(*vmi)){
-        goto error_exit;
+    if (VMI_INIT_PARTIAL == init_mode){
+        return VMI_SUCCESS;
     }
+    else if (VMI_INIT_COMPLETE == init_mode){
+        /* read and parse the config file */
+        if (VMI_FAILURE == read_config_file(*vmi)){
+            goto error_exit;
+        }
     
-    /* setup the correct page offset size for the target OS */
-    if (VMI_FAILURE == init_page_offset(*vmi)){
-        goto error_exit;
-    }
+        /* setup the correct page offset size for the target OS */
+        if (VMI_FAILURE == init_page_offset(*vmi)){
+            goto error_exit;
+        }
 
-    /* get the memory size */
-    if (driver_get_memsize(*vmi, &(*vmi)->size) == VMI_FAILURE){
-        errprint("Failed to get memory size.\n");
-        goto error_exit;
-    }
-    dbprint("**set size = %d\n", (*vmi)->size);
+        /* get the memory size */
+        if (driver_get_memsize(*vmi, &(*vmi)->size) == VMI_FAILURE){
+            errprint("Failed to get memory size.\n");
+            goto error_exit;
+        }
+        dbprint("**set size = %d\n", (*vmi)->size);
 
-    /* determine the page sizes and layout for target OS */
-    if (VMI_FAILURE == get_memory_layout(*vmi)){
-        errprint("Memory layout not supported.\n");
-        goto error_exit;
-    }
+        /* determine the page sizes and layout for target OS */
+        if (VMI_FAILURE == get_memory_layout(*vmi)){
+            errprint("Memory layout not supported.\n");
+            goto error_exit;
+        }
 
-    /* setup OS specific stuff */
-    if (VMI_OS_LINUX == (*vmi)->os_type){
-        return linux_init(*vmi);
-    }
-    else if (VMI_OS_WINDOWS == (*vmi)->os_type){
-        return windows_init(*vmi);
+        /* setup OS specific stuff */
+        if (VMI_OS_LINUX == (*vmi)->os_type){
+            return linux_init(*vmi);
+        }
+        else if (VMI_OS_WINDOWS == (*vmi)->os_type){
+            return windows_init(*vmi);
+        }
     }
 
 error_exit:
     return VMI_FAILURE;
 }
 
-status_t vmi_init (vmi_instance_t *vmi, mode_t mode, char *name)
+char *build_config_str (vmi_instance_t *vmi, char *config)
 {
-    return vmi_init_private(vmi, mode, 0, name);
+    int length = strlen(config) + strlen((*vmi)->image_type) + 2;
+    char *config_str = malloc(length);
+    sprintf(config_str, "%s %s\0", (*vmi)->image_type, config);
+    return config_str;
+}
+
+status_t vmi_init (vmi_instance_t *vmi, uint32_t flags, char *name)
+{
+    return vmi_init_private(vmi, flags, 0, name, NULL);
+}
+
+status_t vmi_init_complete (vmi_instance_t *vmi, char *config)
+{
+    uint32_t flags = VMI_INIT_COMPLETE | (*vmi)->mode;
+    char *name = strdup((*vmi)->image_type);
+    char *configstr = NULL;
+
+    if (config){
+        configstr = build_config_str(vmi, config);
+    }
+    vmi_destroy(*vmi);
+    return vmi_init_private(vmi, flags, 0, name, configstr);
 }
 
 status_t vmi_destroy (vmi_instance_t vmi)
@@ -369,6 +410,7 @@ status_t vmi_destroy (vmi_instance_t vmi)
     pid_cache_destroy(vmi);
     sym_cache_destroy(vmi);
     v2p_cache_destroy(vmi);
+    if (vmi->configstr) free(vmi->configstr);
     if (vmi) free(vmi);
     return VMI_SUCCESS;
 }

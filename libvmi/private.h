@@ -49,7 +49,10 @@
  * its resources can be freed using the vmi_destroy function.
  */
 struct vmi_instance{
-    uint32_t mode;          /**< file or xen VM data source */
+    uint32_t mode;          /**< VMI_FILE, VMI_XEN, VMI_KVM */
+    uint32_t flags;         /**< flags passed to init function */
+    uint32_t init_mode;     /**< VMI_INIT_PARTIAL or VMI_INIT_COMPLETE */
+    char *configstr;        /**< string holding config info */
     char *sysmap;           /**< system map file for domain's running kernel */
     char *image_type;       /**< image type that we are accessing */
     uint32_t page_offset;   /**< page offset for this instance */

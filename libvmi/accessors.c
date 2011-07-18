@@ -25,9 +25,9 @@
 #include "private.h"
 #include "driver/interface.h"
 
-mode_t vmi_get_mode (vmi_instance_t vmi)
+uint32_t vmi_get_access_mode (vmi_instance_t vmi)
 {
-    return vmi->mode;
+    return vmi->flags & 0x0000FFFF;
 }
 
 os_t vmi_get_ostype (vmi_instance_t vmi)

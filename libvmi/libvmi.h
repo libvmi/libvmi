@@ -46,12 +46,12 @@
 /* uncomment this and recompile to enable debug output */
 //#define VMI_DEBUG
 
-typedef enum mode{
-    VMI_MODE_AUTO, /**< mode indicating that libvmi should detect what to monitor */
-    VMI_MODE_XEN,  /**< mode indicating that we are monitoring a Xen VM */
-    VMI_MODE_KVM,  /**< mode indicating that we are monitoring a KVM VM */
-    VMI_MODE_FILE  /**< mode indicating that we are viewing a file on disk */
-} mode_t;
+#define VMI_AUTO (1 << 0)  /**< libvmi should detect what to monitor or view */
+#define VMI_XEN  (1 << 1)  /**< libvmi is monitoring a Xen VM */
+#define VMI_KVM  (1 << 2)  /**< libvmi is monitoring a KVM VM */
+#define VMI_FILE (1 << 3)  /**< libvmi is viewing a file on disk */
+#define VMI_INIT_PARTIAL  (1 << 16) /**< init enough to view physical addresses */
+#define VMI_INIT_COMPLETE (1 << 17) /**< full initialization */
 
 typedef enum status{
     VMI_SUCCESS,  /**< return value indicating success */
@@ -110,11 +110,30 @@ typedef struct vmi_instance * vmi_instance_t;
  * resulting instance when calling any of the other library functions.
  *
  * @param[out] vmi Struct that holds instance information
- * @param[in] mode VMI_MODE_AUTO, VMI_MODE_XEN, VMI_MODE_KVM, or VMI_MODE_FILE
+ * @param[in] flags VMI_AUTO, VMI_XEN, VMI_KVM, or VMI_FILE plus
+ *  VMI_INIT_PARTIAL or VMI_INIT_COMPLETE
  * @param[in] name Unique name specifying the VM or file to view
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_init (vmi_instance_t *vmi, mode_t mode, char *name);
+status_t vmi_init (vmi_instance_t *vmi, uint32_t flags, char *name);
+
+/**
+ * Completes initialization.  Call this after calling vmi_init with 
+ * VMI_INIT_PARTIAL.  Calling this at any other time results in undefined
+ * behavior.  The partial init provides physical memory access only.  So 
+ * the purpose of this function is to allow for a staged init of LibVMI.
+ * You can gain physical memory access, run some heuristics to obtain
+ * the necessary offsets, and then complete the init.
+ *
+ * @param[in,out] vmi Struct that holds the instance information and was
+ *  passed to vmi_init with a VMI_INIT_PARTIAL flag
+ * @param[in] config Pointer to a string containing the config entries for
+ *  this domain.  Entries should be specified as in the config file
+ *  (e.g., '{ostype = "Windows"; win_tasks = 0x88; win_pdbase = 0x18; ...}').
+ *  If this is NULL, then the config is pulled from /etc/libvmi.conf.
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_init_complete (vmi_instance_t *vmi, char *config);
 
 /**
  * Destroys an instance by freeing memory and closing any open handles.
@@ -538,14 +557,14 @@ void vmi_print_hex (unsigned char *data, unsigned long length);
  */
 
 /**
- * Gets the current operating mode for LibVMI, which tells what 
- * resource is being using to access the memory (e.g., Xen, KVM
- * or File).
+ * Gets the current access mode for LibVMI, which tells what 
+ * resource is being using to access the memory (e.g., VMI_XEN,
+ * VMI_KVM, or VMI_FILE).
  *
  * @param[in] vmi LibVMI instance
- * @return Operating mode
+ * @return Access mode
  */
-mode_t vmi_get_mode (vmi_instance_t vmi);
+uint32_t vmi_get_access_mode (vmi_instance_t vmi);
 
 /**
  * Get the OS type that LibVMI is currently accessing.  This is
