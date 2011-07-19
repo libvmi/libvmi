@@ -339,6 +339,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
     dbprint("--completed driver init.\n");
 
     if (VMI_INIT_PARTIAL == init_mode){
+        init_page_offset(*vmi);
         return VMI_SUCCESS;
     }
     else if (VMI_INIT_COMPLETE == init_mode){
