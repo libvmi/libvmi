@@ -44,15 +44,27 @@ typedef struct {
 static PyObject *
 pyvmi_init(PyObject *self, PyObject *args) {
     char *vmname;
+    char *inittype;
+    uint32_t flags = 0;
     pyvmi_instance *object = NULL;
     
     object = PyObject_NEW(pyvmi_instance, &pyvmi_instance_Type);    
 
-    if (!PyArg_ParseTuple(args, "s", &vmname)){
+    if (!PyArg_ParseTuple(args, "ss", &vmname, &inittype)){
+        return NULL;
+    }
+
+    if (strcmp("complete", inittype) == 0){
+        flags = VMI_AUTO | VMI_INIT_COMPLETE;
+    }
+    else if (strcmp("partial", inittype) == 0){
+        flags = VMI_AUTO | VMI_INIT_PARTIAL;
+    }
+    else{
         return NULL;
     }
     
-    if (VMI_FAILURE == vmi_init(&(vmi(object)), VMI_MODE_AUTO, vmname)){
+    if (VMI_FAILURE == vmi_init(&(vmi(object)), flags, vmname)){
         PyErr_SetString(PyExc_ValueError, "Init failed");
         return NULL;
     }
@@ -62,6 +74,23 @@ pyvmi_init(PyObject *self, PyObject *args) {
 
     return (PyObject *) object;
 }
+
+static PyObject *
+pyvmi_init_complete(PyObject *self, PyObject *args) {
+    char *config = NULL;
+    
+    if (!PyArg_ParseTuple(args, "s", &config)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_init_complete(&(vmi(self)), config)){
+        PyErr_SetString(PyExc_ValueError, "Init complete failed");
+        return NULL;
+    }
+
+    return Py_BuildValue(""); // return None
+}
+
 
 static void
 pyvmi_instance_dealloc(PyObject *self) {
@@ -278,7 +307,7 @@ pyvmi_read_8_pa (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("c", &value);
+    return Py_BuildValue("s#", &value, 1);
 }
 
 static PyObject *
@@ -296,7 +325,7 @@ pyvmi_read_16_pa (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("H", &value);
+    return Py_BuildValue("s#", &value, 2);
 }
 
 static PyObject *
@@ -314,7 +343,7 @@ pyvmi_read_32_pa (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("I", &value);
+    return Py_BuildValue("s#", &value, 4);
 }
 
 static PyObject *
@@ -332,7 +361,7 @@ pyvmi_read_64_pa (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("K", &value);
+    return Py_BuildValue("s#", &value, 8);
 }
 
 static PyObject *
@@ -350,7 +379,7 @@ pyvmi_read_str_pa (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("s", &str);
+    return Py_BuildValue("s", str);
 }
 
 static PyObject *
@@ -369,7 +398,7 @@ pyvmi_read_8_va (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("c", &value);
+    return Py_BuildValue("s#", &value, 1);
 }
 
 static PyObject *
@@ -388,7 +417,7 @@ pyvmi_read_16_va (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("H", &value);
+    return Py_BuildValue("s#", &value, 2);
 }
 
 static PyObject *
@@ -407,7 +436,7 @@ pyvmi_read_32_va (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("I", &value);
+    return Py_BuildValue("s#", &value, 4);
 }
 
 static PyObject *
@@ -426,7 +455,7 @@ pyvmi_read_64_va (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("K", &value);
+    return Py_BuildValue("s#", &value, 8);
 }
 
 static PyObject *
@@ -445,7 +474,7 @@ pyvmi_read_str_va (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("s", &str);
+    return Py_BuildValue("s", str);
 }
 
 static PyObject *
@@ -463,7 +492,7 @@ pyvmi_read_8_ksym (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("c", &value);
+    return Py_BuildValue("s#", &value, 1);
 }
 
 static PyObject *
@@ -481,7 +510,7 @@ pyvmi_read_16_ksym (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("H", &value);
+    return Py_BuildValue("s#", &value, 2);
 }
 
 static PyObject *
@@ -499,7 +528,8 @@ pyvmi_read_32_ksym (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("I", &value);
+    return Py_BuildValue("s#", &value, 4);
+
 }
 
 static PyObject *
@@ -517,7 +547,7 @@ pyvmi_read_64_ksym (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("K", &value);
+    return Py_BuildValue("s#", &value, 8);
 }
 
 static PyObject *
@@ -535,7 +565,7 @@ pyvmi_read_str_ksym (PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("s", &str);
+    return Py_BuildValue("s", str);
 }
 
 //-------------------------------------------------------------------
@@ -894,6 +924,8 @@ pyvmi_print_hex(PyObject *self, PyObject *args) {
 
 // pyvmi_instance method table
 static PyMethodDef pyvmi_instance_methods[] = {
+    {"init_complete", pyvmi_init_complete, METH_VARARGS,
+     "Complete initialization when init was only partial"},
     {"translate_kv2p", pyvmi_translate_kv2p, METH_VARARGS,
      "Translate kernel virtual address to physical address"},
     {"translate_uv2p", pyvmi_translate_uv2p, METH_VARARGS,

@@ -308,6 +308,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
 
     /* allocate memory for instance structure */
     *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
+    memset(*vmi, 0, sizeof(struct vmi_instance));
 
     /* initialize instance struct to default values */
     dbprint("LibVMI Version 0.6\n");  //TODO change this with each release
@@ -340,6 +341,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
 
     if (VMI_INIT_PARTIAL == init_mode){
         init_page_offset(*vmi);
+        driver_get_memsize(*vmi, &(*vmi)->size);
         return VMI_SUCCESS;
     }
     else if (VMI_INIT_COMPLETE == init_mode){

@@ -16,7 +16,8 @@ adapter will help get you going.  Follow the steps below to use it.
 
 3) Start having fun with Python
     import pyvmi
-    vmi = pyvmi.init("win7")  # where win7 is the target name
+    vmi = pyvmi.init("win7", "partial"|"complete")  # win7 is the target name
+    vmi.init_complete(config)
     paddr = vmi.translate_kv2p(vaddr)
     paddr = vmi.translate_uv2p(vaddr, pid)
     vaddr = vmi.translate_ksym2v(sym)
