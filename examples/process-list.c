@@ -76,7 +76,10 @@ int main (int argc, char **argv)
         vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
         procname = vmi_read_str_va(vmi, list_head + name_offset, 0);
         printf("[%5d] %s\n", pid, procname);
-        if (procname) free(procname);
+        if (procname){
+            free(procname);
+            procname = NULL;
+        }
     }
     list_head = next_process;
 
@@ -109,7 +112,10 @@ int main (int argc, char **argv)
         if (pid >= 0){
             printf("[%5d] %s\n", pid, procname);
         }
-        if (procname) free(procname);
+        if (procname){
+            free(procname);
+            procname = NULL;
+        }
         next_process = tmp_next;
     }
 
