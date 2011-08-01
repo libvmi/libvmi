@@ -41,6 +41,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <glib.h>
+#include <math.h>
 #include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
@@ -61,13 +62,14 @@ static char *exec_qmp_cmd (kvm_instance_t *kvm, char *query)
 {
     FILE *p;
     int status;
-    char *output = safe_malloc(4096);
+    char *output = safe_malloc(20000);
     size_t length = 0;
 
     char *name = (char *) virDomainGetName(kvm->dom);
     int cmd_length = strlen(name) + strlen(query) + 29;
     char *cmd = safe_malloc(cmd_length);
     snprintf(cmd, cmd_length, "virsh qemu-monitor-command %s %s", name, query);
+    dbprint("--qmp: %s\n", cmd);
     
     p = popen(cmd, "r");
     if (NULL == p){
@@ -75,7 +77,7 @@ static char *exec_qmp_cmd (kvm_instance_t *kvm, char *query)
         return NULL;
     }
 
-    length = fread(output, 1, 4096, p);
+    length = fread(output, 1, 20000, p);
     pclose(p);
     
     if (length == 0){
@@ -103,6 +105,13 @@ static char *exec_memory_access (kvm_instance_t *kvm)
     return exec_qmp_cmd(kvm, query);
 }
 
+static char *exec_xp (kvm_instance_t *kvm, int numwords, addr_t paddr)
+{
+    char *query = (char *) malloc(256);
+    sprintf(query, "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%x\"}}'", numwords, paddr);
+    return exec_qmp_cmd(kvm, query);
+}
+
 static reg_t parse_reg_value (char *regname, char *ir_output)
 {
     char *ptr = strcasestr(ir_output, regname);
@@ -112,6 +121,17 @@ static reg_t parse_reg_value (char *regname, char *ir_output)
     }
     else{
         return 0;
+    }
+}
+
+status_t exec_memory_access_success (char *status)
+{
+    char *ptr = strcasestr(status, "CommandNotFound");
+    if (NULL == ptr){
+        return VMI_SUCCESS;
+    }
+    else{
+        return VMI_FAILURE;
     }
 }
 
@@ -143,11 +163,13 @@ static status_t init_domain_socket (kvm_instance_t *kvm)
 
 static void destroy_domain_socket (kvm_instance_t *kvm)
 {
-    struct request req;
-    req.type = 0; // quit
-    req.address = 0;
-    req.length = 0;
-    write(kvm->socket_fd, &req, sizeof(struct request));
+    if (kvm->socket_fd){
+        struct request req;
+        req.type = 0; // quit
+        req.address = 0;
+        req.length = 0;
+        write(kvm->socket_fd, &req, sizeof(struct request));
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -158,7 +180,7 @@ static kvm_instance_t *kvm_get_instance (vmi_instance_t vmi)
     return ((kvm_instance_t *) vmi->driver);
 }
 
-void *kvm_get_memory (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+void *kvm_get_memory_patch (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
 {
     char *buf = safe_malloc(length + 1);
     struct request req;
@@ -189,6 +211,35 @@ void *kvm_get_memory (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
 error_exit:
     if (buf) free(buf);
     return NULL;
+}
+
+void *kvm_get_memory_native (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+{
+    int numwords = ceil(length / 4);
+    char *buf = safe_malloc(numwords * 4);
+    char *bufstr = exec_xp(kvm_get_instance(vmi), numwords, paddr);
+
+    char *paddrstr = safe_malloc(32);
+    sprintf(paddrstr, "%.16x", paddr);
+
+    char *ptr = strcasestr(bufstr, paddrstr);
+    int i = 0, j = 0;
+    while (i < numwords && NULL != ptr){
+        ptr += strlen(paddrstr) + 2;
+
+        for (j = 0; j < 4; ++j){
+            uint32_t value = strtol(ptr, (char **) NULL, 16);
+            memcpy(buf + i * 4, &value, 4);
+            ptr += 11;
+            i++;
+        }
+
+        sprintf(paddrstr, "%.16x", paddr + i * 4);
+        ptr = strcasestr(ptr, paddrstr);
+    }
+    if (bufstr) free(bufstr);
+    if (paddrstr) free(paddrstr);
+    return buf;
 }
 
 void kvm_release_memory (void *memory, size_t length)
@@ -243,9 +294,21 @@ status_t kvm_init (vmi_instance_t vmi)
 
     kvm_get_instance(vmi)->conn = conn;
     kvm_get_instance(vmi)->dom = dom;
-    exec_memory_access(kvm_get_instance(vmi));
-	memory_cache_init(vmi, kvm_get_memory, kvm_release_memory, 1);
-    return init_domain_socket(kvm_get_instance(vmi));
+    kvm_get_instance(vmi)->socket_fd = 0;
+
+    char *status = exec_memory_access(kvm_get_instance(vmi));
+    if (VMI_SUCCESS == exec_memory_access_success(status)){
+        dbprint("--kvm: using custom patch for fast memory access\n");
+	    memory_cache_init(vmi, kvm_get_memory_patch, kvm_release_memory, 1);
+        if (status) free(status);
+        return init_domain_socket(kvm_get_instance(vmi));
+    }
+    else{
+        dbprint("--kvm: didn't find patch, falling back to slower native access\n");
+	    memory_cache_init(vmi, kvm_get_memory_native, kvm_release_memory, 1);
+        if (status) free(status);
+        return VMI_SUCCESS;
+    }
 }
 
 void kvm_destroy (vmi_instance_t vmi)
