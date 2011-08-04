@@ -1,7 +1,9 @@
 pyvmi -- A Python adapter for LibVMI by Bryan D. Payne
 
 If you'd rather perform introspection using python, instead of C, then this
-adapter will help get you going.  Follow the steps below to use it.
+adapter will help get you going.  This adapter is also useful for connecting
+the Volatility memory analysis tool to a running VM.  Follow the steps below
+to build, install, and use pyvmi.
 
 1) Build and install LibVMI
     ./autogen.sh
@@ -60,11 +62,11 @@ adapter will help get you going.  Follow the steps below to use it.
     ostype = vmi.get_ostype()
     vmi.print_hex(memory)
 
-Once you have pyvmi installed, you can write your own programs using Python or
-you can use Volatility to perform your memory analysis.  To use Volatility,
-you need to apply pyvmi_volatility.patch to Volatility.  This patch is included
-in the pyvmi directory in the LibVMI distribution.
-
-More information on Volatility and a link to download the tool, are available
-on the following web page:
-https://www.volatilesystems.com/default/volatility
+4) Start using pyvmi!
+   - Write your own memory introspection programs in python.
+   - Connect Volatility 2.0 to a running VM.  To do this, simply install
+     pyvmi and then copy the pyvmiaddressspace.py file into the following
+     directory under Volatility 2.0: volatility/plugins/addrspaces/.  Then
+     run Volatility as you normally would, specifying the VM name with the
+     '-l' command line option.  More information on Volatility and a link
+     to download it are available at http://code.google.com/p/volatility/.
