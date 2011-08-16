@@ -133,9 +133,11 @@ static void driver_null_setup (vmi_instance_t vmi)
 
 static driver_instance_t driver_get_instance (vmi_instance_t vmi)
 {
-    if (NULL == instance){
-        /* allocate memory for the function pointers */
-        instance = (driver_instance_t) safe_malloc(sizeof(struct driver_instance));
+    if (NULL == vmi->driver || NULL == instance){
+        /* allocate memory for the function pointers, if needed */
+        if (NULL == instance){
+            instance = (driver_instance_t) safe_malloc(sizeof(struct driver_instance));
+        }
 
         /* assign the function pointers */
         if (VMI_XEN == vmi->mode){
