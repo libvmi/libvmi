@@ -292,6 +292,14 @@ status_t kvm_init (vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
+    // get the libvirt version
+    unsigned long libVer = 0;
+    if (virConnectGetLibVersion(conn, &libVer) != 0){
+        dbprint("--failed to get libvirt version\n");
+        return VMI_FAILURE;
+    }
+    dbprint("--libvirt version %lu\n", libVer);
+
     kvm_get_instance(vmi)->conn = conn;
     kvm_get_instance(vmi)->dom = dom;
     kvm_get_instance(vmi)->socket_fd = 0;
@@ -299,13 +307,13 @@ status_t kvm_init (vmi_instance_t vmi)
     char *status = exec_memory_access(kvm_get_instance(vmi));
     if (VMI_SUCCESS == exec_memory_access_success(status)){
         dbprint("--kvm: using custom patch for fast memory access\n");
-	    memory_cache_init(vmi, kvm_get_memory_patch, kvm_release_memory, 1);
+        memory_cache_init(vmi, kvm_get_memory_patch, kvm_release_memory, 1);
         if (status) free(status);
         return init_domain_socket(kvm_get_instance(vmi));
     }
     else{
         dbprint("--kvm: didn't find patch, falling back to slower native access\n");
-	    memory_cache_init(vmi, kvm_get_memory_native, kvm_release_memory, 1);
+        memory_cache_init(vmi, kvm_get_memory_native, kvm_release_memory, 1);
         if (status) free(status);
         return VMI_SUCCESS;
     }
