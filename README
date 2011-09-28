@@ -66,8 +66,12 @@ The following libraries are used in building this code:
 
 libxc (from Xen, the Xen Control library, required for Xen support)
 libxenstore (from Xen, access to the xenstore, required for Xen support)
-libvirt (from Red Hat, access to KVM guests, required for KVM support)
-qemu-kvm patch (for KVM memory access, required for KVM support, see Note 2)
+libvirt (from Red Hat, access to KVM guests, 0.8.7 or newer required for KVM
+    support, MUST BE BUILT WITH QMP SUPPORT -- THIS REQUIRES yajl)
+qemu-kvm patch (option 1 for KVM memory access, optional for KVM support,
+    still buggy but faster than alternative option, see Note 2)
+gdb enabled kvm VM (option 2 for KVM memory access, optional for KVM
+    support, more stable than option 1 but slower, see Note 2)
 yacc OR bison (for reading the configuration file)
 lex OR flex (for reading the configuration file)
 glib (version 2.22 or better is required)
@@ -77,11 +81,55 @@ Note 1: If you are installing a packaged version of Xen, you will likely
   from libxc and libxenstore in the dependencies listed above.
 
 Note 2: If you want KVM support then you will need to build your own 
-  version of QEMU-KVM.  Before building, you need to apply the patch
-  provided under the libvmi/tools/qemu-kvm-patch directory.  This patch
-  allows LibVMI to access the memory of a running QEMU-KVM guest.  
-  Hopefully this patch will get accepted upstream, but until then this
-  is the only option.
+  version of QEMU-KVM or enable GDB support for your VM.  See the
+  section on KVM support (below) for additional information.
+
+Xen Support
+-----------
+If you would like LibVMI to work on Xen domains, you must simply ensure
+that you have Xen installed along with any Xen development packages.
+LibVMI should effectively just work on any recent version of Xen.
+
+KVM Support
+-----------
+If you would like LibVMI to work on KVM VM's, you must do some additional
+setup.  This is because KVM doesn't have much built-in capability for
+introspection.  For KVM support you need to do the following:
+
+* Ensure that you have libvirt version 0.8.7 or newer
+* Ensure that your libvirt installation supports QMP commands, most 
+  prepackaged versions do not support this by default so you may need
+  to install libvirt from source yourself.  To enable QMP support 
+  when installing from source, ensure that you have libyajl-dev (or 
+  the equivalent from your linux distro) installed, then run the
+  configure script from libvirt.  Ensure that the configure script
+  reports that it found yajl.  Then run make && make install.
+* Choose a memory access technique:
+  1) Patch QEMU-KVM with the provided patch.  This technique will 
+     provide the fastest memory access, but is buggy and may cause
+     your VM to crash / lose data / etc.  To use this method, 
+     follow the instructions in the libvmi/tools/qemu-kvm-patch
+     directory.
+  2) Enable GDB access to your KVM VM.  This is done by adding
+     '-s' to the VM creation line or, by modifying the VM XML
+     definition used by libvirt as follows:
+     - Change <domain type='kvm'> to
+       <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
+     - Add...
+       <qemu:commandline>
+         <qemu:arg value='-s'/>
+       </qemu:commandline>
+       ...under the <domain> level of the XML.
+* You only need one memory access technique.  LibVMI will first look
+  for the QEMU-KVM patch and use that if it is installed.  Otherwise
+  it will fall back to using GDB.  So if you want to use GDB, you 
+  should both enable GDB and ensure that QEMU-KVM does not have the
+  LibVMI patch.
+
+File / Snapshot Support
+-----------------------
+If you would like LibVMI to work on physical memory snapshots saved to
+a file, then you don't need any special setup.
 
 Building
 --------
