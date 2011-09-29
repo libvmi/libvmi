@@ -35,7 +35,7 @@ def val_uint (value):
 
 def process_list(vmi):
     tasks_offset = vmi.get_offset("win_tasks")
-    name_offset = 0x174
+    name_offset = vmi.get_offset("win_pname")
     pid_offset = vmi.get_offset("win_pid")
 
     list_head = val_uint(vmi.read_32_ksym("PsInitialSystemProcess"))

@@ -57,8 +57,7 @@ int main (int argc, char **argv)
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
         tasks_offset = vmi_get_offset(vmi, "win_tasks");
-        name_offset = 0x174; /* Windows XP SP2 */
-//        name_offset = 0x14c; /* Windows Vista */
+        name_offset = vmi_get_offset(vmi, "win_pname");
         pid_offset = vmi_get_offset(vmi, "win_pid");
     }
 

@@ -148,6 +148,7 @@ status_t windows_export_to_rva (vmi_instance_t , char *, uint32_t *);
 status_t valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr);
 status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, uint32_t *address);
 uint32_t windows_find_cr3 (vmi_instance_t vmi);
+int find_pname_offset (vmi_instance_t vmi);
 
 /*-----------------------------------------
  * symbols.c
