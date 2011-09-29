@@ -78,6 +78,7 @@ struct vmi_instance{
             int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
             int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */
             int pid_offset;      /**< EPROCESS->UniqueProcessId */
+            int pname_offset;    /**< EPROCESS->ImageFileName */
         } windows_instance;
     } os;
     GHashTable *pid_cache;  /**< hash table to hold the PID cache data */

@@ -32,7 +32,7 @@
 char *windows_get_eprocess_name (vmi_instance_t vmi, uint32_t paddr)
 {
     int name_length = 16; //TODO verify that this is correct for all versions
-    uint32_t name_paddr = paddr + 0x174; //TODO make this work on all versions
+    uint32_t name_paddr = paddr + vmi->os.windows_instance.pname_offset;
     char *name = (char *) safe_malloc(name_length);
 
     if (name_length == vmi_read_pa(vmi, name_paddr, name, name_length)){
@@ -44,15 +44,51 @@ char *windows_get_eprocess_name (vmi_instance_t vmi, uint32_t paddr)
     }
 }
 
-uint32_t windows_find_eprocess (vmi_instance_t vmi, char *name)
+int find_pname_offset (vmi_instance_t vmi)
 {
     uint32_t offset = 0;
     uint32_t value = 0;
 
     while (offset < vmi->size){
         vmi_read_32_pa(vmi, offset, &value);
-        // Magic header numbers.  See get_ntoskrnl_base for
-        // an explanation.
+        // Magic header numbers.
+        if (value == 0x001b0003 || value == 0x00200003){
+            int i = 0;
+            for ( ; i < 0x500; ++i){
+                char *procname = vmi_read_str_pa(vmi, offset + i);
+                if (NULL == procname){
+                    continue;
+                }
+                else if (strncmp(procname, "Idle", 4) == 0){
+                    free(procname);
+                    return i;
+                }
+                else{
+                    free(procname);
+                }
+            }
+        }
+        offset += 8;
+    }
+    return 0;
+}
+
+uint32_t windows_find_eprocess (vmi_instance_t vmi, char *name)
+{
+    uint32_t offset = 0;
+    uint32_t value = 0;
+
+    if (vmi->os.windows_instance.pname_offset == 0){
+        vmi->os.windows_instance.pname_offset = find_pname_offset(vmi);
+        if (vmi->os.windows_instance.pname_offset == 0){
+            dbprint("--failed to find pname_offset\n");
+            return 0;
+        }
+    }
+
+    while (offset < vmi->size){
+        vmi_read_32_pa(vmi, offset, &value);
+        // Magic header numbers.
         if (value == 0x001b0003 || value == 0x00200003){
             char *procname = windows_get_eprocess_name(vmi, offset);
             if (procname){

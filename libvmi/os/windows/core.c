@@ -61,7 +61,6 @@ uint32_t windows_find_cr3 (vmi_instance_t vmi)
     return vmi->kpgd - vmi->page_offset;
 }
 
-
 /* Tries to find the kernel page directory using the RVA value for
  * PSInitialSystemProcess and the ntoskrnl value to lookup the System
  * process, and the extract the page directory location from this
