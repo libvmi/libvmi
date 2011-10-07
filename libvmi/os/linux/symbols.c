@@ -28,7 +28,7 @@
 #include <string.h>
 
 status_t linux_system_map_symbol_to_address (
-        vmi_instance_t vmi, char *symbol, uint32_t *address)
+        vmi_instance_t vmi, char *symbol, addr_t *address)
 {
     FILE *f = NULL;
     char *row = NULL;
@@ -51,7 +51,7 @@ status_t linux_system_map_symbol_to_address (
         goto error_exit;
     }
 
-    *address = (uint32_t) strtoul(row, NULL, 16);
+    *address = (addr_t) strtoul(row, NULL, 16);
 
 error_exit:
     if (row) free(row);

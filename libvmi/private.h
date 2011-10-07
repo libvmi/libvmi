@@ -40,6 +40,13 @@
 /* other globals */
 #define MAX_ROW_LENGTH 200
 
+/* Three paging modes from Intel Vol3a Section 4.1.1 */
+typedef enum page_mode{
+    LEGACY,  /**< 32-bit paging */
+    PAE,     /**< PAE paging */
+    IA32E    /**< IA-32e paging */
+} page_mode_t;
+
 /**
  * @brief LibVMI Instance.
  *
@@ -58,13 +65,15 @@ struct vmi_instance{
     uint32_t page_offset;   /**< page offset for this instance */
     uint32_t page_shift;    /**< page shift for last mapped page */
     uint32_t page_size;     /**< page size for last mapped page */
-    uint32_t kpgd;          /**< kernel page global directory */
-    uint32_t init_task;     /**< address of task struct for init */
+    addr_t kpgd;            /**< kernel page global directory */
+    addr_t init_task;       /**< address of task struct for init */
     os_t os_type;           /**< type of os: VMI_OS_LINUX, etc */
     int pae;                /**< nonzero if PAE is enabled */
     int pse;                /**< nonzero if PSE is enabled */
-    uint32_t cr3;           /**< value in the CR3 register */
-    unsigned long size;     /**< total size of target's memory */
+    int lme;                /**< nonzero if LME is enabled */
+    reg_t cr3;              /**< value in the CR3 register */
+    page_mode_t page_mode;  /**< paging mode in use */
+    uint64_t size;          /**< total size of target's memory */
     union{
         struct linux_instance{
             int tasks_offset;    /**< task_struct->tasks */
@@ -86,7 +95,7 @@ struct vmi_instance{
     GHashTable *v2p_cache;  /**< hash table to hold the v2p cache data */
     void *driver;           /**< driver-specific information */
     GHashTable *memory_cache;       /**< hash table for memory cache */
-    unsigned long memory_cache_age; /**< max age of memory cache entry */
+    uint32_t memory_cache_age; /**< max age of memory cache entry */
 };
 
 /*----------------------------------------------
@@ -102,7 +111,7 @@ void warnprint (char *format, ...);
 #define safe_malloc(size) safe_malloc_ (size, __FILE__, __LINE__) 
 void *safe_malloc_ (size_t size, char const *file, int line);
 unsigned long get_reg32 (reg_t r);
-int vmi_get_bit (unsigned long reg, int bit);
+int vmi_get_bit (reg_t reg, int bit);
 addr_t p2m (vmi_instance_t vmi, addr_t paddr);
 
 /*-------------------------------------
@@ -136,7 +145,7 @@ void *vmi_read_page (vmi_instance_t vmi, unsigned long frame_num, int is_pfn);
  * os/linux/...
  */
 status_t linux_init (vmi_instance_t instance);
-status_t linux_system_map_symbol_to_address (vmi_instance_t instance, char *symbol, uint32_t *address);
+status_t linux_system_map_symbol_to_address (vmi_instance_t instance, char *symbol, addr_t *address);
 
 /*-----------------------------------------
  * os/windows/...
@@ -158,9 +167,11 @@ int get_symbol_row (FILE *f, char *row, char *symbol, int position);
 /*-----------------------------------------
  * read.c
  */
-status_t vmi_read_8_ma (vmi_instance_t vmi, uint32_t maddr, uint8_t *value);
-status_t vmi_read_16_ma (vmi_instance_t vmi, uint32_t maddr, uint16_t *value);
-status_t vmi_read_32_ma (vmi_instance_t vmi, uint32_t maddr, uint32_t *value);
-status_t vmi_read_64_ma (vmi_instance_t vmi, uint32_t maddr, uint64_t *value);
+status_t vmi_read_8_ma (vmi_instance_t vmi, addr_t maddr, uint8_t *value);
+status_t vmi_read_16_ma (vmi_instance_t vmi, addr_t maddr, uint16_t *value);
+status_t vmi_read_32_ma (vmi_instance_t vmi, addr_t maddr, uint32_t *value);
+status_t vmi_read_64_ma (vmi_instance_t vmi, addr_t maddr, uint64_t *value);
+status_t vmi_read_addr_ma (vmi_instance_t vmi, addr_t maddr, addr_t *value);
+char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr);
 
 #endif /* PRIVATE_H */

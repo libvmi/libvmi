@@ -67,11 +67,11 @@ int main (int argc, char **argv)
     /* get the head of the list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
         addr_t init_task_va = vmi_translate_ksym2v(vmi, "init_task");
-        vmi_read_32_va(vmi, init_task_va + tasks_offset, 0, &next_process);
+        vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0, &next_process);
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        vmi_read_32_ksym(vmi, "PsInitialSystemProcess", &list_head);
-        vmi_read_32_va(vmi, list_head + tasks_offset, 0, &next_process);
+        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head);
+        vmi_read_addr_va(vmi, list_head + tasks_offset, 0, &next_process);
         vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
         procname = vmi_read_str_va(vmi, list_head + name_offset, 0);
         printf("[%5d] %s\n", pid, procname);
@@ -87,7 +87,7 @@ int main (int argc, char **argv)
 
         /* follow the next pointer */
         addr_t tmp_next = 0;
-        vmi_read_32_va(vmi, next_process, 0, &tmp_next);
+        vmi_read_addr_va(vmi, next_process, 0, &tmp_next);
 
         /* if we are back at the list head, we are done */
         if (list_head == tmp_next){

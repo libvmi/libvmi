@@ -40,7 +40,7 @@ status_t linux_init (vmi_instance_t vmi)
 
     if (driver_is_pv(vmi)){
         vmi->kpgd -= vmi->page_offset;
-        if (vmi_read_32_pa(
+        if (vmi_read_addr_pa(
                 vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE){
             errprint("Failed to get physical addr for kpgd.\n");
             goto error_exit;
@@ -50,11 +50,11 @@ status_t linux_init (vmi_instance_t vmi)
 
     addr_t address = vmi_translate_ksym2v(vmi, "init_task");
     address += vmi->os.linux_instance.tasks_offset;
-    if (VMI_FAILURE == vmi_read_32_va(vmi, address, 0, &(vmi->init_task))){
+    if (VMI_FAILURE == vmi_read_addr_va(vmi, address, 0, &(vmi->init_task))){
         dbprint("--address lookup failure, switching PAE mode\n");
         vmi->pae = !vmi->pae;
         dbprint("**set pae = %d\n", vmi->pae);
-        if (VMI_FAILURE == vmi_read_32_va(vmi, address, 0, &(vmi->init_task))){
+        if (VMI_FAILURE == vmi_read_addr_va(vmi, address, 0, &(vmi->init_task))){
             errprint("Failed to get task list head 'init_task'.\n");
             goto error_exit;
         }

@@ -44,7 +44,7 @@
 #include <errno.h>
 
 /* uncomment this and recompile to enable debug output */
-//#define VMI_DEBUG
+#define VMI_DEBUG
 
 #define VMI_AUTO (1 << 0)  /**< libvmi should detect what to monitor or view */
 #define VMI_XEN  (1 << 1)  /**< libvmi is monitoring a Xen VM */
@@ -64,28 +64,29 @@ typedef enum os{
     VMI_OS_WINDOWS   /**< OS type is Windows */
 } os_t;
 
-typedef uint32_t reg_t;
+typedef uint64_t reg_t;
 typedef enum registers{
-    EAX,    /**< accumulator register EAX */
-    EBX,    /**< base index register EBX */
-    ECX,    /**< count register ECX */
-    EDX,    /**< data register EDX */
-    EBP,    /**< base pointer register EBP */
-    EDI,    /**< destination index register EDI */
-    ESI,    /**< source index register ESI */
-    EIP,    /**< instruction pointer register EIP */
-    ESP,    /**< stack pointer register ESP */
-    EFL,    /**< flags register EFLAGS */
-    CR0,    /**< control register CR0 */
-    CR1,    /**< control register CR1 */
-    CR2,    /**< control register CR2 */
-    CR3,    /**< control register CR3 */
-    CR4,    /**< control register CR4 */
+    EAX,       /**< accumulator register EAX */
+    EBX,       /**< base index register EBX */
+    ECX,       /**< count register ECX */
+    EDX,       /**< data register EDX */
+    EBP,       /**< base pointer register EBP */
+    EDI,       /**< destination index register EDI */
+    ESI,       /**< source index register ESI */
+    EIP,       /**< instruction pointer register EIP */
+    ESP,       /**< stack pointer register ESP */
+    EFL,       /**< flags register EFLAGS */
+    CR0,       /**< control register CR0 */
+    CR1,       /**< control register CR1 */
+    CR2,       /**< control register CR2 */
+    CR3,       /**< control register CR3 */
+    CR4,       /**< control register CR4 */
+    MSR_EFER,  /**< MSR for extended feature enables */
     UNKNOWN
 } registers_t;
 
 /* type def for forward compatibility with 64-bit guests */
-typedef uint32_t addr_t;
+typedef uint64_t addr_t;
 
 /**
  * @brief LibVMI Instance.
@@ -259,6 +260,17 @@ status_t vmi_read_32_ksym (vmi_instance_t vmi, char *sym, uint32_t *value);
 status_t vmi_read_64_ksym (vmi_instance_t vmi, char *sym, uint64_t *value);
 
 /**
+ * Reads an address from memory, given a kernel symbol.  The number of
+ * bytes read is 8 for 64-bit systems and 4 for 32-bit systems.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to read from
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_addr_ksym (vmi_instance_t vmi, char *sym, addr_t *value);
+
+/**
  * Reads a nul terminated string from memory, starting at
  * the given kernel symbol.  The returned value must be
  * freed by the caller.
@@ -314,6 +326,18 @@ status_t vmi_read_32_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint32_t *va
 status_t vmi_read_64_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint64_t *value);
 
 /**
+ * Reads an address from memory, given a virtual address.  The number of
+ * bytes read is 8 for 64-bit systems and 4 for 32-bit systems.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to read from
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_addr_va (vmi_instance_t vmi, addr_t vaddr, int pid, addr_t *value);
+
+/**
  * Reads a nul terminated string from memory, starting at
  * the given virtual address.  The returned value must be
  * freed by the caller.
@@ -364,6 +388,17 @@ status_t vmi_read_32_pa (vmi_instance_t vmi, addr_t paddr, uint32_t *value);
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_read_64_pa (vmi_instance_t vmi, addr_t paddr, uint64_t *value);
+
+/**
+ * Reads an address from memory, given a physical address.  The number of
+ * bytes read is 8 for 64-bit systems and 4 for 32-bit systems.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to read from
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_addr_pa (vmi_instance_t vmi, addr_t paddr, addr_t *value);
 
 /**
  * Reads a nul terminated string from memory, starting at

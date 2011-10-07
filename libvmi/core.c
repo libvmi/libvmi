@@ -158,7 +158,7 @@ static int get_memory_layout (vmi_instance_t vmi)
     int ret = VMI_SUCCESS;
 
     /* pull info from registers, if we can */
-    reg_t cr0, cr3, cr4;
+    reg_t cr0, cr3, cr4, efer;
 
     /* get the control register values */
     if (driver_get_vcpureg(vmi, &cr0, CR0, 0) == VMI_FAILURE){
@@ -170,19 +170,44 @@ static int get_memory_layout (vmi_instance_t vmi)
     if (driver_get_vcpureg(vmi, &cr4, CR4, 0) == VMI_FAILURE){
         goto backup_plan;
     }
+    if (driver_get_vcpureg(vmi, &efer, MSR_EFER, 0) == VMI_FAILURE){
+        goto backup_plan;
+    }
 
     /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
     if (!vmi_get_bit(cr0, 31)){
         errprint("Paging disabled for this VM, not supported.\n");
         goto error_exit;
     }
-    /* PAE Flag --> CR4, bit 5 == 0 --> pae disabled */
+    /* PAE Flag --> CR4, bit 5 */
     vmi->pae = vmi_get_bit(cr4, 5);
     dbprint("**set pae = %d\n", vmi->pae);
 
-    /* PSE Flag --> CR4, bit 4 == 0 --> pse disabled */
+    /* PSE Flag --> CR4, bit 4 */
     vmi->pse = vmi_get_bit(cr4, 4);
     dbprint("**set pse = %d\n", vmi->pse);
+
+    /* LME Flag --> IA32_EFER, bit 8 */
+    vmi->lme = vmi_get_bit(efer, 8);
+    dbprint("**set lme = %d\n", vmi->lme);
+
+    /* now set the paging mode */
+    if (!vmi->pae){
+        dbprint("**set paging mode to 32-bit paging\n");
+        vmi->page_mode = LEGACY;
+    }
+    else if (vmi->pae && !vmi->lme){
+        dbprint("**set paging mode to PAE paging\n");
+        vmi->page_mode = PAE;
+    }
+    else if (vmi->pae && vmi->lme){
+        dbprint("**set paging mode to IA-32e paging\n");
+        vmi->page_mode = IA32E;
+    }
+    else{
+        dbprint("Invalid paging mode\n");
+        goto error_exit;
+    }
 
     /* testing to see CR3 value */
     vmi->cr3 = cr3 & 0xFFFFF000;
@@ -196,6 +221,9 @@ backup_plan:
 
     vmi->pse = 0;
     dbprint("**guessed pse = %d\n", vmi->pse);
+
+    vmi->lme = 0;
+    dbprint("**guessed lme = %d\n", vmi->pse);
 
     vmi->cr3 = find_cr3(vmi);
     dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);

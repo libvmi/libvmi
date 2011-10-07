@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <xs.h>
+#include <xen/hvm/save.h>
 
 #define fpp 1024		/* number of xen_pfn_t that fits on one frame */
 
@@ -393,6 +394,7 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
     vcpu_guest_context_any_t ctxt_any;
 #endif /* HAVE_CONTEXT_ANY */
     vcpu_guest_context_t ctxt;
+    struct hvm_hw_cpu hw_ctxt;
 
 #ifdef HAVE_CONTEXT_ANY
     if ((ret = xc_vcpu_getcontext(
@@ -415,6 +417,18 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
 #ifdef HAVE_CONTEXT_ANY
     ctxt = ctxt_any.c;
 #endif /* HAVE_CONTEXT_ANY */
+
+    if (xc_domain_hvm_getcontext_partial(
+            xen_get_xchandle(vmi),
+            xen_get_domainid(vmi),
+            HVM_SAVE_CODE(CPU),
+            vcpu,
+            &hw_ctxt,
+            sizeof hw_ctxt) != 0){
+        errprint("Failed to get context information.\n");
+        ret = VMI_FAILURE;
+        goto error_exit;
+    }
 
     switch (reg){
         case CR0:
@@ -461,6 +475,9 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
             break;
         case EFL:
             *value = ctxt.user_regs.eflags;
+            break;
+        case MSR_EFER:
+            *value = hw_ctxt.msr_efer;
             break;
         default:
             ret = VMI_FAILURE;

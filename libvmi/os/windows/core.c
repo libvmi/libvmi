@@ -38,7 +38,7 @@ status_t get_kpgd_method2 (vmi_instance_t vmi, uint32_t *sysproc)
     dbprint("--got PA to PsInititalSystemProcess (0x%.8x).\n", *sysproc);
 
     /* get address for page directory (from system process) */
-    if (VMI_FAILURE == vmi_read_32_pa(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
+    if (VMI_FAILURE == vmi_read_addr_pa(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
         dbprint("--failed to resolve PD for Idle process\n");
         goto error_exit;
     }
@@ -75,7 +75,7 @@ status_t get_kpgd_method1 (vmi_instance_t vmi, uint32_t *sysproc)
     *sysproc = vmi_translate_kv2p(vmi, *sysproc);
     dbprint("--got PA to PsInititalSystemProcess (0x%.8x).\n", *sysproc);
 
-    if (VMI_FAILURE == vmi_read_32_pa(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
+    if (VMI_FAILURE == vmi_read_addr_pa(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
         dbprint("--failed to resolve pointer for system process\n");
         goto error_exit;
     }
@@ -104,7 +104,7 @@ static status_t get_kpgd_method0 (vmi_instance_t vmi, uint32_t *sysproc)
     *sysproc = vmi_translate_kv2p(vmi, *sysproc) - vmi->os.windows_instance.tasks_offset;
     dbprint("--got PA to PsActiveProcessHead (0x%.8x).\n", *sysproc);
 
-    if (VMI_FAILURE == vmi_read_32_pa(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
+    if (VMI_FAILURE == vmi_read_addr_pa(vmi, *sysproc + vmi->os.windows_instance.pdbase_offset, &vmi->kpgd)){
         dbprint("--failed to resolve pointer for system process\n");
         goto error_exit;
     }
@@ -151,7 +151,7 @@ status_t windows_init (vmi_instance_t vmi)
     dbprint("**set kpgd (0x%.8x).\n", vmi->kpgd);
 
     /* get address start of process list */
-    vmi_read_32_pa(vmi, sysproc + vmi->os.windows_instance.tasks_offset, &vmi->init_task);
+    vmi_read_addr_pa(vmi, sysproc + vmi->os.windows_instance.tasks_offset, &vmi->init_task);
     dbprint("**set init_task (0x%.8x).\n", vmi->init_task);
 
     return VMI_SUCCESS;

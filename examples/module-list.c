@@ -72,10 +72,10 @@ int main (int argc, char **argv)
 
     /* get the head of the module list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-        vmi_read_32_ksym(vmi, "modules", &next_module);
+        vmi_read_addr_ksym(vmi, "modules", &next_module);
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        vmi_read_32_ksym(vmi, "PsLoadedModuleList", &next_module);
+        vmi_read_addr_ksym(vmi, "PsLoadedModuleList", &next_module);
     }
     list_head = next_module;
 
@@ -84,7 +84,7 @@ int main (int argc, char **argv)
 
         /* follow the next pointer */
         addr_t tmp_next = 0;
-        vmi_read_32_va(vmi, next_module, 0, &tmp_next);
+        vmi_read_addr_va(vmi, next_module, 0, &tmp_next);
 
         /* if we are back at the list head, we are done */
         if (list_head == tmp_next){
