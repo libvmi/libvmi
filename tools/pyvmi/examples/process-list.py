@@ -4,7 +4,10 @@ The LibVMI Library is an introspection library that simplifies access to
 memory in a target virtual machine or in a file containing a dump of 
 a system's physical memory.  LibVMI is based on the XenAccess Library.
 
-Copyright (C) 2011 Sandia National Laboratories
+Copyright 2011 Sandia Corporation. Under the terms of Contract
+DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
+retains certain rights in this software.
+
 Author: Bryan D. Payne (bpayne@sandia.gov)
 
 This file is part of LibVMI.
