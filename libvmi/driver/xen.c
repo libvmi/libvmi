@@ -390,33 +390,8 @@ error_exit:
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
 {
     status_t ret = VMI_SUCCESS;
-#ifdef HAVE_CONTEXT_ANY
-    vcpu_guest_context_any_t ctxt_any;
-#endif /* HAVE_CONTEXT_ANY */
-    vcpu_guest_context_t ctxt;
     struct hvm_hw_cpu hw_ctxt;
-
-#ifdef HAVE_CONTEXT_ANY
-    if ((ret = xc_vcpu_getcontext(
-                xen_get_xchandle(vmi),
-                xen_get_domainid(vmi),
-                vcpu,
-                &ctxt_any)) != 0){
-#else
-    if ((ret = xc_vcpu_getcontext(
-                xen_get_xchandle(vmi),
-                xen_get_domainid(vmi),
-                vcpu,
-                &ctxt)) != 0){
-#endif /* HAVE_CONTEXT_ANY */
-        errprint("Failed to get context information.\n");
-        ret = VMI_FAILURE;
-        goto error_exit;
-    }
-
-#ifdef HAVE_CONTEXT_ANY
-    ctxt = ctxt_any.c;
-#endif /* HAVE_CONTEXT_ANY */
+    memset(&hw_ctxt, 0, sizeof(struct hvm_hw_cpu));
 
     if (xc_domain_hvm_getcontext_partial(
             xen_get_xchandle(vmi),
@@ -431,53 +406,239 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
     }
 
     switch (reg){
-        case CR0:
-            *value = ctxt.ctrlreg[0];
+        case RAX:
+            *value = (reg_t) hw_ctxt.rax;
             break;
-        case CR1:
-            *value = ctxt.ctrlreg[1];
+        case RBX:
+            *value = (reg_t) hw_ctxt.rbx;
+            break;
+        case RCX:
+            *value = (reg_t) hw_ctxt.rcx;
+            break;
+        case RDX:
+            *value = (reg_t) hw_ctxt.rdx;
+            break;
+        case RBP:
+            *value = (reg_t) hw_ctxt.rbx;
+            break;
+        case RSI:
+            *value = (reg_t) hw_ctxt.rsi;
+            break;
+        case RDI:
+            *value = (reg_t) hw_ctxt.rdi;
+            break;
+        case RSP:
+            *value = (reg_t) hw_ctxt.rsp;
+            break;
+        case R8:
+            *value = (reg_t) hw_ctxt.r8;
+            break;
+        case R9:
+            *value = (reg_t) hw_ctxt.r9;
+            break;
+        case R10:
+            *value = (reg_t) hw_ctxt.r10;
+            break;
+        case R11:
+            *value = (reg_t) hw_ctxt.r11;
+            break;
+        case R12:
+            *value = (reg_t) hw_ctxt.r12;
+            break;
+        case R13:
+            *value = (reg_t) hw_ctxt.r13;
+            break;
+        case R14:
+            *value = (reg_t) hw_ctxt.r14;
+            break;
+        case R15:
+            *value = (reg_t) hw_ctxt.r15;
+            break;
+        case RIP:
+            *value = (reg_t) hw_ctxt.rip;
+            break;
+        case RFLAGS:
+            *value = (reg_t) hw_ctxt.rflags;
+            break;
+
+        case CR0:
+            *value = (reg_t) hw_ctxt.cr0;
             break;
         case CR2:
-            *value = ctxt.ctrlreg[2];
+            *value = (reg_t) hw_ctxt.cr2;
             break;
         case CR3:
-            *value = ctxt.ctrlreg[3];
+            *value = (reg_t) hw_ctxt.cr3;
             break;
         case CR4:
-            *value = ctxt.ctrlreg[4];
+            *value = (reg_t) hw_ctxt.cr4;
             break;
-        case EAX:
-            *value = ctxt.user_regs.eax;
+
+        case DR0:
+            *value = (reg_t) hw_ctxt.dr0;
             break;
-        case EBX:
-            *value = ctxt.user_regs.ebx;
+        case DR1:
+            *value = (reg_t) hw_ctxt.dr1;
             break;
-        case ECX:
-            *value = ctxt.user_regs.ecx;
+        case DR2:
+            *value = (reg_t) hw_ctxt.dr2;
             break;
-        case EDX:
-            *value = ctxt.user_regs.edx;
+        case DR3:
+            *value = (reg_t) hw_ctxt.dr3;
             break;
-        case ESI:
-            *value = ctxt.user_regs.esi;
+        case DR6:
+            *value = (reg_t) hw_ctxt.dr6;
             break;
-        case EDI:
-            *value = ctxt.user_regs.edi;
+        case DR7:
+            *value = (reg_t) hw_ctxt.dr7;
             break;
-        case EBP:
-            *value = ctxt.user_regs.ebp;
+
+        case CS_SEL:
+            *value = (reg_t) hw_ctxt.cs_sel;
             break;
-        case ESP:
-            *value = ctxt.user_regs.esp;
+        case DS_SEL:
+            *value = (reg_t) hw_ctxt.ds_sel;
             break;
-        case EIP:
-            *value = ctxt.user_regs.eip;
+        case ES_SEL:
+            *value = (reg_t) hw_ctxt.es_sel;
             break;
-        case EFL:
-            *value = ctxt.user_regs.eflags;
+        case FS_SEL:
+            *value = (reg_t) hw_ctxt.fs_sel;
+            break;
+        case GS_SEL:
+            *value = (reg_t) hw_ctxt.gs_sel;
+            break;
+        case SS_SEL:
+            *value = (reg_t) hw_ctxt.ss_sel;
+            break;
+        case TR_SEL:
+            *value = (reg_t) hw_ctxt.tr_sel;
+            break;
+        case LDTR_SEL:
+            *value = (reg_t) hw_ctxt.ldtr_sel;
+            break;
+
+        case CS_LIMIT:
+            *value = (reg_t) hw_ctxt.cs_limit;
+            break;
+        case DS_LIMIT:
+            *value = (reg_t) hw_ctxt.ds_limit;
+            break;
+        case ES_LIMIT:
+            *value = (reg_t) hw_ctxt.es_limit;
+            break;
+        case FS_LIMIT:
+            *value = (reg_t) hw_ctxt.fs_limit;
+            break;
+        case GS_LIMIT:
+            *value = (reg_t) hw_ctxt.gs_limit;
+            break;
+        case SS_LIMIT:
+            *value = (reg_t) hw_ctxt.ss_limit;
+            break;
+        case TR_LIMIT:
+            *value = (reg_t) hw_ctxt.tr_limit;
+            break;
+        case LDTR_LIMIT:
+            *value = (reg_t) hw_ctxt.ldtr_limit;
+            break;
+        case IDTR_LIMIT:
+            *value = (reg_t) hw_ctxt.idtr_limit;
+            break;
+        case GDTR_LIMIT:
+            *value = (reg_t) hw_ctxt.gdtr_limit;
+            break;
+
+        case CS_BASE:
+            *value = (reg_t) hw_ctxt.cs_base;
+            break;
+        case DS_BASE:
+            *value = (reg_t) hw_ctxt.ds_base;
+            break;
+        case ES_BASE:
+            *value = (reg_t) hw_ctxt.es_base;
+            break;
+        case FS_BASE:
+            *value = (reg_t) hw_ctxt.fs_base;
+            break;
+        case GS_BASE:
+            *value = (reg_t) hw_ctxt.gs_base;
+            break;
+        case SS_BASE:
+            *value = (reg_t) hw_ctxt.ss_base;
+            break;
+        case TR_BASE:
+            *value = (reg_t) hw_ctxt.tr_base;
+            break;
+        case LDTR_BASE:
+            *value = (reg_t) hw_ctxt.ldtr_base;
+            break;
+        case IDTR_BASE:
+            *value = (reg_t) hw_ctxt.idtr_base;
+            break;
+        case GDTR_BASE:
+            *value = (reg_t) hw_ctxt.gdtr_base;
+            break;
+
+        case CS_ARBYTES:
+            *value = (reg_t) hw_ctxt.cs_arbytes;
+            break;
+        case DS_ARBYTES:
+            *value = (reg_t) hw_ctxt.ds_arbytes;
+            break;
+        case ES_ARBYTES:
+            *value = (reg_t) hw_ctxt.es_arbytes;
+            break;
+        case FS_ARBYTES:
+            *value = (reg_t) hw_ctxt.fs_arbytes;
+            break;
+        case GS_ARBYTES:
+            *value = (reg_t) hw_ctxt.gs_arbytes;
+            break;
+        case SS_ARBYTES:
+            *value = (reg_t) hw_ctxt.ss_arbytes;
+            break;
+        case TR_ARBYTES:
+            *value = (reg_t) hw_ctxt.tr_arbytes;
+            break;
+        case LDTR_ARBYTES:
+            *value = (reg_t) hw_ctxt.ldtr_arbytes;
+            break;
+
+        case SYSENTER_CS:
+            *value = (reg_t) hw_ctxt.sysenter_cs;
+            break;
+        case SYSENTER_ESP:
+            *value = (reg_t) hw_ctxt.sysenter_esp;
+            break;
+        case SYSENTER_EIP:
+            *value = (reg_t) hw_ctxt.sysenter_eip;
+            break;
+        case SHADOW_GS:
+            *value = (reg_t) hw_ctxt.shadow_gs;
+            break;
+
+        case MSR_FLAGS:
+            *value = (reg_t) hw_ctxt.msr_flags;
+            break;
+        case MSR_LSTAR:
+            *value = (reg_t) hw_ctxt.msr_lstar;
+            break;
+        case MSR_CSTAR:
+            *value = (reg_t) hw_ctxt.msr_cstar;
+            break;
+        case MSR_SYSCALL_MASK:
+            *value = (reg_t) hw_ctxt.msr_syscall_mask;
             break;
         case MSR_EFER:
-            *value = hw_ctxt.msr_efer;
+            *value = (reg_t) hw_ctxt.msr_efer;
+            break;
+        case MSR_TSC_AUX:
+            *value = (reg_t) hw_ctxt.msr_tsc_aux;
+            break;
+
+        case TSC:
+            *value = (reg_t) hw_ctxt.tsc;
             break;
         default:
             ret = VMI_FAILURE;

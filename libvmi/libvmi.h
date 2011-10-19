@@ -66,23 +66,92 @@ typedef enum os{
 
 typedef uint64_t reg_t;
 typedef enum registers{
-    EAX,       /**< accumulator register EAX */
-    EBX,       /**< base index register EBX */
-    ECX,       /**< count register ECX */
-    EDX,       /**< data register EDX */
-    EBP,       /**< base pointer register EBP */
-    EDI,       /**< destination index register EDI */
-    ESI,       /**< source index register ESI */
-    EIP,       /**< instruction pointer register EIP */
-    ESP,       /**< stack pointer register ESP */
-    EFL,       /**< flags register EFLAGS */
-    CR0,       /**< control register CR0 */
-    CR1,       /**< control register CR1 */
-    CR2,       /**< control register CR2 */
-    CR3,       /**< control register CR3 */
-    CR4,       /**< control register CR4 */
-    MSR_EFER,  /**< MSR for extended feature enables */
-    UNKNOWN
+    RAX,
+    RBX,
+    RCX,
+    RDX,
+    RBP,
+    RSI,
+    RDI,
+    RSP,
+    R8,
+    R9,
+    R10,
+    R11,
+    R12,
+    R13,
+    R14,
+    R15,
+
+    RIP,
+    RFLAGS,
+
+    CR0,
+    CR2,
+    CR3,
+    CR4,
+
+    DR0,
+    DR1,
+    DR2,
+    DR3,
+    DR6,
+    DR7,
+
+    CS_SEL,
+    DS_SEL,
+    ES_SEL,
+    FS_SEL,
+    GS_SEL,
+    SS_SEL,
+    TR_SEL,
+    LDTR_SEL,
+
+    CS_LIMIT,
+    DS_LIMIT,
+    ES_LIMIT,
+    FS_LIMIT,
+    GS_LIMIT,
+    SS_LIMIT,
+    TR_LIMIT,
+    LDTR_LIMIT,
+    IDTR_LIMIT,
+    GDTR_LIMIT,
+
+    CS_BASE,
+    DS_BASE,
+    ES_BASE,
+    FS_BASE,
+    GS_BASE,
+    SS_BASE,
+    TR_BASE,
+    LDTR_BASE,
+    IDTR_BASE,
+    GDTR_BASE,
+
+    CS_ARBYTES,
+    DS_ARBYTES,
+    ES_ARBYTES,
+    FS_ARBYTES,
+    GS_ARBYTES,
+    SS_ARBYTES,
+    TR_ARBYTES,
+    LDTR_ARBYTES,
+
+    SYSENTER_CS,
+    SYSENTER_ESP,
+    SYSENTER_EIP,
+
+    SHADOW_GS,
+
+    MSR_FLAGS,
+    MSR_LSTAR,
+    MSR_CSTAR,
+    MSR_SYSCALL_MASK,
+    MSR_EFER,
+    MSR_TSC_AUX,
+
+    TSC
 } registers_t;
 
 /* type def for forward compatibility with 64-bit guests */
