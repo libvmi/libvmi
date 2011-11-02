@@ -454,7 +454,7 @@ static status_t kpcr_symbol_offset (vmi_instance_t vmi, char *symbol, unsigned l
 
 static void print_address (vmi_instance_t vmi, addr_t va, uint32_t size)
 {
-    unsigned char *buf = malloc(size);
+    unsigned char *buf = safe_malloc(size);
     vmi_read_va(vmi, va, 0, buf, size);
     vmi_print_hex(buf, size);
     free(buf);

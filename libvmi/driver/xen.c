@@ -264,17 +264,21 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
         if (strncmp(name, nameCandidate, 100) == 0){
             int idNum = atoi(idStr);
             domainid = (unsigned long) idNum;
+            free(tmp);
             break;
         }
 
         /* free memory as we go */
-        if (tmp) free(tmp);
+        free(tmp);
         if (nameCandidate) free(nameCandidate);
     }
 
 error_exit:
     if (domains) free(domains);
-    if (xsh) xs_daemon_close(xsh);
+    if (NULL != xsh){
+        xs_daemon_close(xsh);
+        free(xsh);
+    }
     return domainid;
 }
 
@@ -392,7 +396,11 @@ status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
     ret = VMI_SUCCESS;
 
 error_exit:
-    if (xsh) xs_daemon_close(xsh);
+    if (NULL != xsh){
+        xs_daemon_close(xsh);
+        free(xsh);
+    }
+    free(tmp);
     return ret;
 }
 
@@ -758,6 +766,10 @@ status_t xen_test (unsigned long id, char *name)
     ret = VMI_SUCCESS;
 
 error_exit:
+    if (NULL != xsh){
+        xs_daemon_close(xsh);
+        free(xsh);
+    }
     return ret;
 }
 

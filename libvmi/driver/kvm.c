@@ -101,7 +101,7 @@ static char *exec_info_registers (kvm_instance_t *kvm)
 static char *exec_memory_access (kvm_instance_t *kvm)
 {
     char *tmpfile = tempnam("/tmp", "vmi");
-    char *query = (char *) malloc(256);
+    char *query = (char *) safe_malloc(256);
     sprintf(query, "'{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}'", tmpfile);
     kvm->ds_path = strdup(tmpfile);
     free(tmpfile);
@@ -110,7 +110,7 @@ static char *exec_memory_access (kvm_instance_t *kvm)
 
 static char *exec_xp (kvm_instance_t *kvm, int numwords, addr_t paddr)
 {
-    char *query = (char *) malloc(256);
+    char *query = (char *) safe_malloc(256);
     sprintf(query, "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%x\"}}'", numwords, paddr);
     return exec_qmp_cmd(kvm, query);
 }

@@ -52,31 +52,38 @@ static void *get_memory_data (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 
 static void check_age (gpointer key, gpointer value, gpointer list)
 {
+    GSList **listptr = (GSList **) list;
     memory_cache_entry_t entry = value;
     time_t now = time(NULL);
     if (now - entry->last_used > 2){
-        release_data_callback(entry->data, entry->length);
-        g_slist_append(list, key);
+        *listptr = g_slist_prepend(*listptr, key);
         //dbprint("--MEMORY cache cleanup 0x%.16llx\n", entry->paddr);
     }
 }
 
 static void list_all (gpointer key, gpointer value, gpointer list)
 {
-    g_slist_append(list, key);
+    GSList **listptr = (GSList **) list;
+    *listptr = g_slist_prepend(*listptr, key);
 }
 
 static void remove_entry (gpointer key, gpointer cache)
 {
+    memory_cache_entry_t entry = NULL;
     GHashTable *memory_cache = cache;
+
+    if ((entry = g_hash_table_lookup(memory_cache, key)) != NULL){
+        release_data_callback(entry->data, entry->length);
+        free(entry);
+    }
     g_hash_table_remove(memory_cache, key);
 }
 
 static void clean_cache (vmi_instance_t vmi)
 {
     GSList *list = NULL;
-    //g_hash_table_foreach(vmi->memory_cache, check_age, list);
-    g_hash_table_foreach(vmi->memory_cache, list_all, list);
+    //g_hash_table_foreach(vmi->memory_cache, check_age, list); // hold items for 2 seconds
+    g_hash_table_foreach(vmi->memory_cache, list_all, &list);  // effectively no cache
     g_slist_foreach(list, remove_entry, vmi->memory_cache);
     g_slist_free(list);
     //dbprint("--MEMORY cache cleanup round complete\n");

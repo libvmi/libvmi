@@ -415,7 +415,7 @@ error_exit:
 char *build_config_str (vmi_instance_t *vmi, char *config)
 {
     int length = strlen(config) + strlen((*vmi)->image_type) + 2;
-    char *config_str = malloc(length);
+    char *config_str = safe_malloc(length);
     sprintf(config_str, "%s %s\0", (*vmi)->image_type, config);
     return config_str;
 }
