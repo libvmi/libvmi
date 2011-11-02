@@ -82,8 +82,8 @@ static void remove_entry (gpointer key, gpointer cache)
 static void clean_cache (vmi_instance_t vmi)
 {
     GSList *list = NULL;
-    //g_hash_table_foreach(vmi->memory_cache, check_age, list); // hold items for 2 seconds
-    g_hash_table_foreach(vmi->memory_cache, list_all, &list);  // effectively no cache
+    g_hash_table_foreach(vmi->memory_cache, check_age, &list); // hold items for 2 seconds
+    //g_hash_table_foreach(vmi->memory_cache, list_all, &list);  // effectively no cache
     g_slist_foreach(list, remove_entry, vmi->memory_cache);
     g_slist_free(list);
     //dbprint("--MEMORY cache cleanup round complete\n");

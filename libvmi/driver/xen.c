@@ -277,7 +277,6 @@ error_exit:
     if (domains) free(domains);
     if (NULL != xsh){
         xs_daemon_close(xsh);
-        free(xsh);
     }
     return domainid;
 }
@@ -398,7 +397,6 @@ status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
 error_exit:
     if (NULL != xsh){
         xs_daemon_close(xsh);
-        free(xsh);
     }
     free(tmp);
     return ret;
@@ -768,7 +766,6 @@ status_t xen_test (unsigned long id, char *name)
 error_exit:
     if (NULL != xsh){
         xs_daemon_close(xsh);
-        free(xsh);
     }
     return ret;
 }
