@@ -31,9 +31,9 @@
 static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count, int is_p)
 {
     unsigned char *memory = NULL;
-    unsigned long phys_address = 0;
-    unsigned long pfn = 0;
-    unsigned long offset = 0;
+    addr_t phys_address = 0;
+    addr_t pfn = 0;
+    addr_t offset = 0;
     size_t buf_offset = 0;
 
     while (count > 0){
@@ -57,7 +57,14 @@ static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t 
         }
         
         /* do the read */
-        memcpy( ((char *) buf) + buf_offset, memory + offset, read_len);
+        if (NULL == buf || NULL == memory){
+            fprintf(stdout, "DANGER!!! memcpy with NULL values\n");
+        }
+        else if (buf_offset != 0){
+            fprintf(stdout, "buf=0x%llx, buf_offset=0x%lx, memory=0x%llx, offset=0x%llx, read_len=0x%lx\n", buf, buf_offset, memory, offset, read_len);
+        }
+        fflush(stdout);
+        memcpy( ((char *) buf) + (addr_t) buf_offset, memory + (addr_t) offset, read_len);
 
         /* set variables for next loop */
         count -= read_len;

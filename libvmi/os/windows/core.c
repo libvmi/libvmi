@@ -125,6 +125,8 @@ status_t windows_init (vmi_instance_t vmi)
     uint32_t sysproc = 0;
 
     /* get base address for kernel image in memory */
+//    addr_t tmp = get_ntoskrnl_base(vmi);
+//    fprintf(stderr, "get_ntoskrnl_base returned 0x%.16x\n", tmp);
     if (VMI_FAILURE == windows_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl)){
         dbprint("--address translation failure, switching PAE mode\n");
         vmi->pae = !vmi->pae;

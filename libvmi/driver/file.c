@@ -45,7 +45,7 @@ static file_instance_t *file_get_instance (vmi_instance_t vmi)
     return ((file_instance_t *) vmi->driver);
 }
 
-void *file_get_memory (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+void *file_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
     /*
     void *memory = NULL;
@@ -156,14 +156,14 @@ error_exit:
     return VMI_FAILURE;
 }
 
-unsigned long file_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
+addr_t file_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 {
     return pfn;
 }
 
-void *file_read_page (vmi_instance_t vmi, unsigned long page)
+void *file_read_page (vmi_instance_t vmi, addr_t page)
 {
-    uint32_t paddr = page << vmi->page_shift;
+    addr_t paddr = page << vmi->page_shift;
     uint32_t offset = 0;
     return memory_cache_insert(vmi, paddr, &offset);
 }

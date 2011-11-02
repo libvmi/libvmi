@@ -170,15 +170,15 @@ struct _KDDEBUGGER_DATA64
 } __attribute__ ((packed));
 typedef struct _KDDEBUGGER_DATA64 KDDEBUGGER_DATA64;
 
-static status_t kpcr_symbol_resolve (vmi_instance_t vmi, unsigned long offset, uint32_t *address)
+static status_t kpcr_symbol_resolve (vmi_instance_t vmi, unsigned long offset, addr_t *address)
 {
     uint64_t tmp = 0;
-    uint32_t symaddr = vmi->os.windows_instance.kddebugger_data64 + offset;
+    addr_t symaddr = vmi->os.windows_instance.kddebugger_data64 + offset;
 
     if (VMI_FAILURE == vmi_read_64_va(vmi, symaddr, 0, &tmp)){
         return VMI_FAILURE;
     }
-    *address = (uint32_t) tmp;
+    *address = tmp;
     return VMI_SUCCESS;
 }
 
@@ -449,17 +449,49 @@ static status_t kpcr_symbol_offset (vmi_instance_t vmi, char *symbol, unsigned l
     return VMI_SUCCESS;
 }
 
+static void print_address (vmi_instance_t vmi, addr_t va, uint32_t size)
+{
+    unsigned char *buf = malloc(size);
+    vmi_read_va(vmi, va, 0, buf, size);
+    vmi_print_hex(buf, size);
+    free(buf);
+}
+
+static addr_t find_kpcr_address (vmi_instance_t vmi)
+{
+    addr_t kpcr_address = 0;
+    addr_t paddr = 0;
+    unsigned char buf[12];
+
+    for (paddr = 0; paddr < vmi_get_memsize(vmi); paddr += 4){
+        if (VMI_SUCCESS == vmi_read_pa(vmi, paddr, buf, 12)){
+            if (memcmp(buf, "\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12) == 0){
+                kpcr_address = paddr - 0x10;
+                break;
+            }
+        }
+    }
+
+    return kpcr_address;
+}
+
 static status_t init_kddebugger_data64 (vmi_instance_t vmi)
 {
-    uint32_t kpcr_address = 0xffdff000;
+    addr_t kpcr_address = 0xffdff000;
+    addr_t tmp = find_kpcr_address(vmi);
+    //addr_t tmp = 0;
     uint32_t KdVersionBlock, DebuggerDataList, ListPtr;
 
+    print_address(vmi, kpcr_address, 200);
     if (VMI_FAILURE == vmi_read_32_va(vmi, kpcr_address + 0x34, 0, &KdVersionBlock)){
         goto error_exit;
     }
+    printf("COMPARE --> 0x%llx, 0x%llx\n", tmp, KdVersionBlock);
+    print_address(vmi, KdVersionBlock, 200);
     if (VMI_FAILURE == vmi_read_32_va(vmi, KdVersionBlock + 0x20, 0, &DebuggerDataList)){
         goto error_exit;
     }
+    print_address(vmi, DebuggerDataList, 200);
     if (VMI_FAILURE == vmi_read_32_va(vmi, DebuggerDataList, 0, &ListPtr)){
         goto error_exit;
     }
@@ -470,7 +502,7 @@ error_exit:
     return VMI_FAILURE;
 }
 
-status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, uint32_t *address)
+status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address)
 {
     unsigned long offset = 0;
 

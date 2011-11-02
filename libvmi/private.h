@@ -82,8 +82,8 @@ struct vmi_instance{
             int pgd_offset;      /**< mm_struct->pgd */
         } linux_instance;
         struct windows_instance{
-            uint32_t ntoskrnl;   /**< base phys address for ntoskrnl image */
-            uint32_t kddebugger_data64; /**< kernel virtual address for start of KDDEBUGGER_DATA64 structure */
+            addr_t ntoskrnl;   /**< base phys address for ntoskrnl image */
+            addr_t kddebugger_data64; /**< kernel virtual address for start of KDDEBUGGER_DATA64 structure */
             int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
             int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */
             int pid_offset;      /**< EPROCESS->UniqueProcessId */
@@ -139,7 +139,7 @@ status_t v2p_cache_del (vmi_instance_t vmi, addr_t va, addr_t dtb);
  * memory.c
  */
 addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid);
-void *vmi_read_page (vmi_instance_t vmi, unsigned long frame_num, int is_pfn);
+void *vmi_read_page (vmi_instance_t vmi, addr_t frame_num, int is_pfn);
 
 /*-----------------------------------------
  * os/linux/...
@@ -151,11 +151,11 @@ status_t linux_system_map_symbol_to_address (vmi_instance_t instance, char *symb
  * os/windows/...
  */
 status_t windows_init (vmi_instance_t instance);
-uint32_t get_ntoskrnl_base (vmi_instance_t instance);
+addr_t get_ntoskrnl_base (vmi_instance_t instance);
 uint32_t windows_find_eprocess (vmi_instance_t instance, char *name);
-status_t windows_export_to_rva (vmi_instance_t , char *, uint32_t *);
-status_t valid_ntoskrnl_start (vmi_instance_t instance, uint32_t addr);
-status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, uint32_t *address);
+status_t windows_export_to_rva (vmi_instance_t , char *, addr_t *);
+status_t valid_ntoskrnl_start (vmi_instance_t instance, addr_t addr);
+status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address);
 uint32_t windows_find_cr3 (vmi_instance_t vmi);
 int find_pname_offset (vmi_instance_t vmi);
 

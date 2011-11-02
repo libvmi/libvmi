@@ -29,29 +29,61 @@
 #include <time.h>
 
 struct memory_cache_entry{
-    uint32_t paddr;
+    addr_t paddr;
     uint32_t length;
     time_t last_updated;
     time_t last_used;
     void *data;
 };
 typedef struct memory_cache_entry *memory_cache_entry_t;
-static void *(*get_data_callback)(vmi_instance_t, uint32_t, uint32_t) = NULL;
+static void *(*get_data_callback)(vmi_instance_t, addr_t, uint32_t) = NULL;
 static void (*release_data_callback)(void *, size_t) = NULL;
 
 //---------------------------------------------------------
 // Internal implementation functions
 
-static void *get_memory_data (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+static void *get_memory_data (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
     return get_data_callback(vmi, paddr, length);
+}
+
+static void check_age (gpointer key, gpointer value, gpointer list)
+{
+    memory_cache_entry_t entry = value;
+    time_t now = time(NULL);
+    if (now - entry->last_used > 2){
+        release_data_callback(entry->data, entry->length);
+        g_slist_append(list, key);
+        //dbprint("--MEMORY cache cleanup 0x%.16llx\n", entry->paddr);
+    }
+}
+
+static void list_all (gpointer key, gpointer value, gpointer list)
+{
+    g_slist_append(list, key);
+}
+
+static void remove_entry (gpointer key, gpointer cache)
+{
+    GHashTable *memory_cache = cache;
+    g_hash_table_remove(memory_cache, key);
+}
+
+static void clean_cache (vmi_instance_t vmi)
+{
+    GSList *list = NULL;
+    //g_hash_table_foreach(vmi->memory_cache, check_age, list);
+    g_hash_table_foreach(vmi->memory_cache, list_all, list);
+    g_slist_foreach(list, remove_entry, vmi->memory_cache);
+    g_slist_free(list);
+    //dbprint("--MEMORY cache cleanup round complete\n");
 }
 
 static void *validate_and_return_data (vmi_instance_t vmi, memory_cache_entry_t entry)
 {
     time_t now = time(NULL);
     if (vmi->memory_cache_age && (now - entry->last_updated > vmi->memory_cache_age)){
-        dbprint("--MEMORY cache refresh 0x%.8x\n", entry->paddr);
+        //dbprint("--MEMORY cache refresh 0x%.16llx\n", entry->paddr);
 		release_data_callback(entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
     }
@@ -59,7 +91,7 @@ static void *validate_and_return_data (vmi_instance_t vmi, memory_cache_entry_t 
     return entry->data;
 }
 
-static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
     memory_cache_entry_t entry =
         (memory_cache_entry_t) safe_malloc(sizeof(struct memory_cache_entry));
@@ -68,6 +100,7 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, uint32_t paddr
     entry->last_updated = time(NULL);
     entry->last_used = entry->last_updated;
     entry->data = get_memory_data(vmi, paddr, length);
+    clean_cache(vmi);
     return entry;
 }
 
@@ -85,24 +118,23 @@ void memory_cache_init (
 	release_data_callback = release_data;
 }
 
-void *memory_cache_insert (vmi_instance_t vmi, uint32_t paddr, uint32_t *offset)
+void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
 {
     memory_cache_entry_t entry = NULL;
-    *offset = paddr & (vmi->page_size - 1);
-    paddr &= ~(vmi->page_size - 1);
+    *offset = (uint32_t) (paddr & (vmi->page_size - 1));
+    paddr &= ~( ((addr_t) vmi->page_size) - 1);
     gint key = (gint) paddr;
+    //dbprint("--MEMORY cache warning: possible truncation 0x%llx --> 0x%lx\n", paddr, key);
 
     if ((entry = g_hash_table_lookup(vmi->memory_cache, &key)) != NULL){
-        dbprint("--MEMORY cache hit 0x%.8x\n", paddr);
+        //dbprint("--MEMORY cache hit 0x%.16llx\n", paddr);
         return validate_and_return_data(vmi, entry);
     }
     else{
-        dbprint("--MEMORY cache set 0x%.8x\n", paddr);
+        //dbprint("--MEMORY cache set 0x%.16llx\n", paddr);
         entry = create_new_entry(vmi, paddr, vmi->page_size);
         g_hash_table_insert(vmi->memory_cache, &key, entry);
+        //dbprint("--MEMORY cache memory at 0x%llx\n", entry->data);
         return entry->data;
     }
 }
-
-//TODO should this cache grow indefinately, or should we have a strategy to remove old items?
-//TODO if we want to remove old items, perhaps a separate thread so that insert remains fast?

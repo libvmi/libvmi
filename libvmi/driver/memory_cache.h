@@ -30,4 +30,4 @@ void memory_cache_init (
         void (*release_data)(void *, size_t),
         unsigned long age_limit
 );
-void *memory_cache_insert (vmi_instance_t vmi, uint32_t paddr, uint32_t *offset);
+void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset);

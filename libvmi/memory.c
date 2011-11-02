@@ -538,9 +538,9 @@ addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid)
     return dtb;
 }
 
-void *vmi_read_page (vmi_instance_t vmi, unsigned long frame_num, int is_pfn)
+void *vmi_read_page (vmi_instance_t vmi, addr_t frame_num, int is_pfn)
 {
-    unsigned long mfn;
+    addr_t mfn;
     if (is_pfn){
         mfn = driver_pfn_to_mfn(vmi, frame_num);
     }

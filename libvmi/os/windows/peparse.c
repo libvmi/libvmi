@@ -26,22 +26,25 @@
 #define _GNU_SOURCE
 #include <string.h>
 
-#define IMAGE_DOS_HEADER 0x5A4D
-#define IMAGE_NT_SIGNATURE 0x00004550
+#define IMAGE_DOS_HEADER 0x5A4D // ZM
+#define IMAGE_NT_SIGNATURE 0x00004550 // 00EP
 
 #define IMAGE_DIRECTORY_ENTRY_EXPORT 0
 #define IMAGE_DIRECTORY_ENTRY_IMPORT 1
 #define IMAGE_DIRECTORY_ENTRY_RESOURCE 2
 #define IMAGE_DIRECTORY_ENTRY_EXCEPTION 3
-#define IMAGE_DIRECTORY_ENTRY_SECURITY 4
+#define IMAGE_DIRECTORY_ENTRY_CERTIFICATE 4
 #define IMAGE_DIRECTORY_ENTRY_BASERELOC 5
 #define IMAGE_DIRECTORY_ENTRY_DEBUG 6
-#define IMAGE_DIRECTORY_ENTRY_COPYRIGHT 7
+#define IMAGE_DIRECTORY_ENTRY_ARCHITECTURE 7
 #define IMAGE_DIRECTORY_ENTRY_GLOBALPTR 8
 #define IMAGE_DIRECTORY_ENTRY_TLS 9
 #define IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG 10
 #define IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT 11
 #define IMAGE_DIRECTORY_ENTRY_IAT 12
+#define IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT 13
+#define IMAGE_DIRECTORY_ENTRY_CLR_RUNTIME 14
+#define IMAGE_DIRECTORY_ENTRY_RESERVED 15
 
 struct image_data_directory{
     uint32_t virtual_address;
@@ -59,8 +62,8 @@ struct file_header{
     // characteristics flags defined in pe.txt
 };
 
-struct optional_header{
-    uint16_t magic;  // always 0x010b
+struct optional_header_pe32{
+    uint16_t magic; // 0x10b
     uint8_t major_linker_version;
     uint8_t minor_linker_version;
     uint32_t size_of_code;
@@ -93,6 +96,39 @@ struct optional_header{
     struct image_data_directory idd[16];
 };
 
+struct optional_header_pe32plus{
+    uint16_t magic; // 0x20b
+    uint8_t major_linker_version;
+    uint8_t minor_linker_version;
+    uint32_t size_of_code;
+    uint32_t size_of_initialized_data;
+    uint32_t size_of_uninitialized_data;
+    uint32_t address_of_entry_point;
+    uint32_t base_of_code;
+    uint64_t image_base;
+    uint32_t section_alignment;
+    uint32_t file_alignment;
+    uint16_t major_os_version;
+    uint16_t minor_os_version;
+    uint16_t major_image_version;
+    uint16_t minor_image_version;
+    uint16_t major_subsystem_version;
+    uint16_t minor_subsystem_version;
+    uint32_t win32_version_value;
+    uint32_t size_of_image;
+    uint32_t size_of_headers;
+    uint32_t checksum;
+    uint16_t subsystem;
+    uint16_t dll_characteristics;
+    uint64_t size_of_stack_reserve; 
+    uint64_t size_of_stack_commit; 
+    uint64_t size_of_heap_reserve; 
+    uint64_t size_of_heap_commit; 
+    uint32_t loader_flags;
+    uint32_t number_of_rva_and_sizes;
+    struct image_data_directory idd[16];
+};
+
 struct section_header{
     char short_name[8];
     union{
@@ -110,7 +146,7 @@ struct section_header{
 };
 
 struct export_table{
-    uint32_t characteristics;
+    uint32_t export_flags; // reserved, must be 0
     uint32_t time_date_stamp;
     uint16_t major_version;
     uint16_t minor_version;
@@ -124,7 +160,7 @@ struct export_table{
 };
 
 // takes an rva and looks up a null terminated string at that location
-char *rva_to_string (vmi_instance_t vmi, uint32_t rva)
+char *rva_to_string (vmi_instance_t vmi, addr_t rva)
 {
     addr_t paddr = vmi->os.windows_instance.ntoskrnl + rva;
     return vmi_read_str_pa(vmi, paddr);
@@ -146,7 +182,7 @@ void dump_exports (vmi_instance_t vmi, struct export_table et)
         char *str = NULL;
         vmi_read_32_pa(vmi, base1 + i * sizeof(uint32_t), &rva);
         if (rva){
-            str = rva_to_string(vmi, rva);
+            str = rva_to_string(vmi, (addr_t) rva);
             if (str){
                 vmi_read_16_pa(vmi, base2 + i * sizeof(uint16_t), &ordinal);
                 vmi_read_32_pa(vmi, base3 + ordinal + sizeof(uint32_t), &loc);
@@ -158,21 +194,24 @@ void dump_exports (vmi_instance_t vmi, struct export_table et)
 }
 
 status_t get_export_rva (
-        vmi_instance_t vmi, uint32_t *rva,
+        vmi_instance_t vmi, addr_t *rva,
         int aof_index, struct export_table *et)
 {
-    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
-    uint32_t rva_loc =
+    addr_t base_addr = vmi->os.windows_instance.ntoskrnl;
+    addr_t rva_loc =
         base_addr + et->address_of_functions + aof_index * sizeof(uint32_t);
 
-    return vmi_read_32_pa(vmi, rva_loc, rva);
+    uint32_t tmp = 0;
+    status_t ret = vmi_read_32_pa(vmi, rva_loc, &tmp);
+    *rva = (addr_t) tmp;
+    return ret;
 }
 
 int get_aof_index (
         vmi_instance_t vmi, int aon_index, struct export_table *et)
 {
-    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
-    uint32_t aof_index_loc =
+    addr_t base_addr = vmi->os.windows_instance.ntoskrnl;
+    addr_t aof_index_loc =
         base_addr + et->address_of_name_ordinals + aon_index * sizeof(uint16_t);
     uint32_t aof_index = 0;
 
@@ -188,18 +227,18 @@ int get_aon_index (
         vmi_instance_t vmi, char *symbol, struct export_table *et)
 {
     /*TODO implement faster name search alg since names are sorted */
-    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
+    addr_t base_addr = vmi->os.windows_instance.ntoskrnl;
     uint32_t i = 0;
     unsigned char *memory = NULL;
     uint32_t offset = 0;
 
     for ( ; i < et->number_of_names; ++i){
-        uint32_t str_rva_loc =
+        addr_t str_rva_loc =
             base_addr + et->address_of_names + i * sizeof(uint32_t);
         uint32_t str_rva = 0;
         vmi_read_32_pa(vmi, str_rva_loc, &str_rva);
         if (str_rva){
-            char *rva = rva_to_string(vmi, str_rva);
+            char *rva = rva_to_string(vmi, (addr_t) str_rva);
             if (NULL != rva){
                 if (strncmp(rva, symbol, strlen(rva)) == 0){
                     free(rva);
@@ -214,35 +253,61 @@ int get_aon_index (
     return -1;
 }
 
-status_t get_export_table (vmi_instance_t vmi, uint32_t base_addr, struct export_table *et)
+status_t get_export_table (vmi_instance_t vmi, addr_t base_addr, struct export_table *et)
 {
     uint32_t value = 0;
-    uint32_t signature_location = 0;
-    uint32_t optional_header_location = 0;
+    addr_t signature_location = 0;
+    addr_t optional_header_location = 0;
     unsigned char *memory = NULL;
     uint32_t offset = 0;
-    struct optional_header oh;
-    uint32_t export_header_rva = 0;
+    addr_t export_header_rva = 0;
     size_t nbytes = 0;
 
     /* signature location */
-    vmi_read_32_pa(vmi, base_addr + 60, &value);
+    vmi_read_32_pa(vmi, base_addr + 0x3c, &value);
     signature_location = base_addr + value;
 
     /* optional header */
     optional_header_location = signature_location + 4 + sizeof(struct file_header);
-    nbytes = vmi_read_pa(
-        vmi,
-        optional_header_location,
-        &oh,
-        sizeof(struct optional_header));
-    if (nbytes != sizeof(struct optional_header)){
-        dbprint("--PEParse: failed to map optional header\n");
+    
+    /* check magic value */
+    uint16_t magic = 0;
+    vmi_read_16_pa(vmi, optional_header_location, &magic);
+    dbprint("--PEParse: magic is 0x%x\n", magic);
+
+    if (0x10b == magic){
+        struct optional_header_pe32 oh;
+        nbytes = vmi_read_pa(
+            vmi,
+            optional_header_location,
+            &oh,
+            sizeof(struct optional_header_pe32));
+        if (nbytes != sizeof(struct optional_header_pe32)){
+            dbprint("--PEParse: failed to map optional header\n");
+            return VMI_FAILURE;
+        }
+        export_header_rva = (addr_t) oh.idd[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
+    }
+    else if (0x20b == magic){
+        struct optional_header_pe32plus oh;
+        nbytes = vmi_read_pa(
+            vmi,
+            optional_header_location,
+            &oh,
+            sizeof(struct optional_header_pe32plus));
+        if (nbytes != sizeof(struct optional_header_pe32plus)){
+            dbprint("--PEParse: failed to map optional header\n");
+            return VMI_FAILURE;
+        }
+        export_header_rva = (addr_t) oh.idd[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
+    }
+    else{
+        dbprint("--PEParse: invalid magic value for optional header\n");
         return VMI_FAILURE;
     }
-    export_header_rva = oh.idd[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
 
     /* export header */
+    dbprint("--PEParse: export_header_rva = 0x%llx\n", export_header_rva);
     nbytes = vmi_read_pa(
         vmi,
         base_addr + export_header_rva,
@@ -256,9 +321,9 @@ status_t get_export_table (vmi_instance_t vmi, uint32_t base_addr, struct export
 }
 
 /* returns the rva value for a windows kernel export */
-status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, uint32_t *rva)
+status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, addr_t *rva)
 {
-    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
+    addr_t base_addr = vmi->os.windows_instance.ntoskrnl;
     struct export_table et;
     int aon_index = -1;
     int aof_index = -1;
@@ -285,15 +350,15 @@ status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, uint32_t *rva)
     return get_export_rva(vmi, rva, aof_index, &et);
 }
 
-status_t valid_ntoskrnl_start (vmi_instance_t vmi, uint32_t addr)
+status_t valid_ntoskrnl_start (vmi_instance_t vmi, addr_t addr)
 {
     uint32_t value = 0;
-    uint32_t signature_location = 0;
+    addr_t signature_location = 0;
     struct export_table et;
     char *name = NULL;
     int ret = VMI_FAILURE;
 
-    dbprint("--PEParse: checking possible ntoskrnl start at 0x%.8x\n", addr);
+    dbprint("--PEParse: checking possible ntoskrnl start at 0x%llx\n", addr);
 
     /* validate DOS header */
     vmi_read_32_pa(vmi, addr, &value);
@@ -302,8 +367,12 @@ status_t valid_ntoskrnl_start (vmi_instance_t vmi, uint32_t addr)
         return VMI_FAILURE;
     }
 
+    unsigned char buf[0x50];
+    vmi_read_pa(vmi, addr, buf, 0x50);
+    vmi_print_hex(buf, 0x50);
+
     /* validate nt signature */
-    vmi_read_32_pa(vmi, addr + 60, &value);
+    vmi_read_32_pa(vmi, addr + 0x3c, &value);
     signature_location = addr + value;
     vmi_read_32_pa(vmi, signature_location, &value);
     if (value != IMAGE_NT_SIGNATURE){
@@ -315,9 +384,16 @@ status_t valid_ntoskrnl_start (vmi_instance_t vmi, uint32_t addr)
     if (get_export_table(vmi, addr, &et) != VMI_SUCCESS){
         return VMI_FAILURE;
     }
-    name = rva_to_string(vmi, et.name + addr);
+    if (et.export_flags || !et.name){
+        dbprint("--PEParse: bad export directory table\n");
+        return VMI_FAILURE;
+    }
+    vmi_print_hex(&et, sizeof(struct export_table));
+    // next line assumes that ntoskrnl in vmi_instance is zero
+    name = rva_to_string(vmi, (addr_t) et.name + addr);
     if (NULL != name){
         if (strcmp(name, "ntoskrnl.exe") == 0){
+            dbprint("--PEParse: found it (%s) at 0x%x\n", name, et.name);
             ret = VMI_SUCCESS;
         }
         else{

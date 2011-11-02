@@ -172,10 +172,16 @@ void *xen_get_memory_mfn (vmi_instance_t vmi, addr_t mfn, int prot)
         prot,
         mfn
     );
-    return memory;
+    if (MAP_FAILED == memory || NULL == memory){
+        dbprint("--xen_get_memory_mfn failed\n");
+        return NULL;
+    }
+    else{
+        return memory;
+    }
 }
 
-void *xen_get_memory (vmi_instance_t vmi, uint32_t maddr, uint32_t length)
+void *xen_get_memory (vmi_instance_t vmi, addr_t maddr, uint32_t length)
 {
     addr_t mfn = maddr >> vmi->page_shift;
 //TODO assuming length == page size is safe for now, but isn't the most clean approach
@@ -649,7 +655,7 @@ error_exit:
     return ret;
 }
 
-unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
+addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 {
     shared_info_t *live_shinfo = NULL;
     unsigned long *live_pfn_to_mfn_frame_list_list = NULL;
@@ -713,9 +719,9 @@ error_exit:
     return ret;
 }
 
-void *xen_read_page (vmi_instance_t vmi, unsigned long page)
+void *xen_read_page (vmi_instance_t vmi, addr_t page)
 {
-    uint32_t paddr = page << vmi->page_shift;
+    addr_t paddr = page << vmi->page_shift;
     uint32_t offset = 0;
     return memory_cache_insert(vmi, paddr, &offset);
 }

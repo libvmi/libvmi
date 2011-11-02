@@ -180,7 +180,7 @@ static kvm_instance_t *kvm_get_instance (vmi_instance_t vmi)
     return ((kvm_instance_t *) vmi->driver);
 }
 
-void *kvm_get_memory_patch (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+void *kvm_get_memory_patch (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
     char *buf = safe_malloc(length + 1);
     struct request req;
@@ -213,7 +213,7 @@ error_exit:
     return NULL;
 }
 
-void *kvm_get_memory_native (vmi_instance_t vmi, uint32_t paddr, uint32_t length)
+void *kvm_get_memory_native (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
     int numwords = ceil(length / 4);
     char *buf = safe_malloc(numwords * 4);
@@ -458,14 +458,14 @@ status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
     return ret;
 }
 
-unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
+addr_t kvm_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 {
     return pfn;
 }
 
-void *kvm_read_page (vmi_instance_t vmi, unsigned long page)
+void *kvm_read_page (vmi_instance_t vmi, addr_t page)
 {
-    uint32_t paddr = page << vmi->page_shift;
+    addr_t paddr = page << vmi->page_shift;
     uint32_t offset = 0;
     return memory_cache_insert(vmi, paddr, &offset);
 }

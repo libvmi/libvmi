@@ -38,8 +38,8 @@ struct driver_instance{
     void (*set_name_ptr)(vmi_instance_t, char *);
     status_t (*get_memsize_ptr)(vmi_instance_t, unsigned long *);
     status_t (*get_vcpureg_ptr)(vmi_instance_t, reg_t *, registers_t, unsigned long);
-    unsigned long (*pfn_to_mfn_ptr)(vmi_instance_t, unsigned long);
-    void *(*read_page_ptr)(vmi_instance_t, unsigned long);
+    addr_t (*pfn_to_mfn_ptr)(vmi_instance_t, addr_t);
+    void *(*read_page_ptr)(vmi_instance_t, addr_t);
     status_t (*write_ptr)(vmi_instance_t, addr_t, void *, uint32_t);
     int (*is_pv_ptr)(vmi_instance_t);
     status_t (*pause_vm_ptr)(vmi_instance_t);
@@ -300,7 +300,7 @@ status_t driver_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, 
     }
 }
 
-unsigned long driver_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
+addr_t driver_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 {
     driver_instance_t ptrs = driver_get_instance(vmi);
     if (NULL != ptrs && NULL != ptrs->pfn_to_mfn_ptr){
@@ -312,7 +312,7 @@ unsigned long driver_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn)
     }
 }
 
-void *driver_read_page (vmi_instance_t vmi, unsigned long page)
+void *driver_read_page (vmi_instance_t vmi, addr_t page)
 {
     driver_instance_t ptrs = driver_get_instance(vmi);
     if (NULL != ptrs && NULL != ptrs->read_page_ptr){

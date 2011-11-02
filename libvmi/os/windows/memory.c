@@ -28,7 +28,7 @@
 #include <sys/mman.h>
 
 status_t windows_symbol_to_address (
-        vmi_instance_t vmi, char *symbol, uint32_t *address)
+        vmi_instance_t vmi, char *symbol, addr_t *address)
 {
     /* see if we have a cr3 value */
     reg_t cr3 = 0;
@@ -42,10 +42,10 @@ status_t windows_symbol_to_address (
 
     /* check exports */
     else if (VMI_SUCCESS == windows_export_to_rva(vmi, symbol, address)){
-        uint32_t rva = *address;
-        uint32_t phys_address = vmi->os.windows_instance.ntoskrnl + rva;
+        addr_t rva = *address;
+        addr_t phys_address = vmi->os.windows_instance.ntoskrnl + rva;
         *address = phys_address + vmi->page_offset;
-        dbprint("--got symbol from PE export table (%s --> 0x%lx).\n", symbol, *address);
+        dbprint("--got symbol from PE export table (%s --> 0x%.16x).\n", symbol, *address);
         return VMI_SUCCESS;
     }
 
@@ -56,16 +56,15 @@ status_t windows_symbol_to_address (
 
 /* find the ntoskrnl base address */
 #define NUM_BASE_ADDRESSES 11
-uint32_t get_ntoskrnl_base (vmi_instance_t vmi)
+addr_t get_ntoskrnl_base (vmi_instance_t vmi)
 {
-    uint32_t paddr;
-    uint32_t sysproc_rva;
+    addr_t paddr;
     int i = 0;
 
     /* Various base addresses that are known to exist across different
        versions of windows.  If you add to this list, be sure to change
        the value of NUM_BASE_ADDRESSES as well! */
-    uint32_t base_address[NUM_BASE_ADDRESSES] = {
+    addr_t base_address[NUM_BASE_ADDRESSES] = {
         0x00100000, /* NT 4 */
         0x00400000, /* Windows 2000 */
         0x004d4000, /* Windows XP */
@@ -83,27 +82,42 @@ uint32_t get_ntoskrnl_base (vmi_instance_t vmi)
     for (i = 0; i < NUM_BASE_ADDRESSES; ++i){
         paddr = base_address[i];
         if (valid_ntoskrnl_start(vmi, paddr) == VMI_SUCCESS){
-            goto fast_exit;
+            goto normal_exit;
         }
     }
 
-    /* start the downward search looking for MZ header */
-    fprintf(stderr, "Note: Fast checking for kernel base address failed, LibVMI\n");
-    fprintf(stderr, "is searching for the correct address.\n");
-    paddr = 0x0 + vmi->page_size;
-    while (1){
+    /* IDTR and work backwards */
+    /*
+    reg_t idtr = 0;
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &idtr, IDTR_BASE, 0)){
+        dbprint("Failed to get idtr register\n");
+        return 0;
+    }
+
+    paddr = (idtr & 0x0000FFFFFFFF0000ULL) >> 16;
+    while (paddr != 0){
+        printf("paddr=0x%llx\n", paddr);
         if (valid_ntoskrnl_start(vmi, paddr) == VMI_SUCCESS){
-            goto fast_exit;
+            goto normal_exit;
         }
+        paddr -= vmi->page_size;
+    }
+    */
 
-        paddr += vmi->page_size;
-        if (paddr <= 0 || 0x40000000 <= paddr){
-            dbprint("--get_ntoskrnl_base failed\n");
-            return 0;
+    /* 0 and work forward */
+    paddr = 0;
+    while (paddr < vmi_get_memsize(vmi)){
+        if (valid_ntoskrnl_start(vmi, paddr) == VMI_SUCCESS){
+            printf("FOUND KERNEL at paddr=0x%llx\n", paddr);
+            goto normal_exit;
         }
+        paddr += vmi->page_size;
     }
 
-fast_exit:
+error_exit:
+    dbprint("--get_ntoskrnl_base failed\n");
+    return 0;
+normal_exit:
     return paddr;
 }
 
