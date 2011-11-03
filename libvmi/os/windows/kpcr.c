@@ -470,6 +470,8 @@ static addr_t find_kpcr_address (vmi_instance_t vmi)
         if (VMI_SUCCESS == vmi_read_pa(vmi, paddr, buf, 12)){
             if (memcmp(buf, "\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12) == 0){
                 kpcr_address = paddr - 0x10;
+                printf("FOUND KPCR AT 0x%.16llx\n", kpcr_address);
+                print_address(vmi, kpcr_address, 200);
                 break;
             }
         }
@@ -481,20 +483,19 @@ static addr_t find_kpcr_address (vmi_instance_t vmi)
 static status_t init_kddebugger_data64 (vmi_instance_t vmi)
 {
     addr_t kpcr_address = 0xffdff000;
-    addr_t tmp = find_kpcr_address(vmi);
-    //addr_t tmp = 0;
+    //addr_t tmp = find_kpcr_address(vmi);
     uint32_t KdVersionBlock, DebuggerDataList, ListPtr;
 
-    print_address(vmi, kpcr_address, 200);
+    //print_address(vmi, kpcr_address, 200);
     if (VMI_FAILURE == vmi_read_32_va(vmi, kpcr_address + 0x34, 0, &KdVersionBlock)){
         goto error_exit;
     }
-    printf("COMPARE --> 0x%llx, 0x%llx\n", tmp, KdVersionBlock);
-    print_address(vmi, KdVersionBlock, 200);
+    //printf("COMPARE --> 0x%llx, 0x%llx\n", tmp, KdVersionBlock);
+    //print_address(vmi, KdVersionBlock, 200);
     if (VMI_FAILURE == vmi_read_32_va(vmi, KdVersionBlock + 0x20, 0, &DebuggerDataList)){
         goto error_exit;
     }
-    print_address(vmi, DebuggerDataList, 200);
+    //print_address(vmi, DebuggerDataList, 200);
     if (VMI_FAILURE == vmi_read_32_va(vmi, DebuggerDataList, 0, &ListPtr)){
         goto error_exit;
     }
