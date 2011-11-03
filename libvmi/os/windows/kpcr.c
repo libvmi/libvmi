@@ -472,7 +472,7 @@ static void print_vaddress (vmi_instance_t vmi, addr_t va, uint32_t size)
 static void find_windows_version (vmi_instance_t vmi, addr_t KdVersionBlock)
 {
     uint16_t size = 0;
-    vmi_read_16_pa(vmi, KdVersionBlock + 0x3c, &size);
+    vmi_read_16_pa(vmi, KdVersionBlock + 0x14, &size);
 
     if (memcmp(&size, "\x08\x02", 2) == 0){
         dbprint("--OS Guess: Windows 2000\n");
@@ -505,13 +505,17 @@ static addr_t find_kdversionblock_address (vmi_instance_t vmi)
 
     for (paddr = 0; paddr < vmi_get_memsize(vmi); paddr += 4){
         if (12 == vmi_read_pa(vmi, paddr, buf, 12)){
-            if (memcmp(buf, "\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12) == 0){ // 32-bit pattern
-                kdvb_address = paddr - 0x30;
-                break;
+            if (IA32E == vmi->page_mode){
+                if (memcmp(buf, "\x00\xf8\xff\xffKDBG", 8) == 0){
+                    kdvb_address = paddr - 0xc;
+                    break;
+                }
             }
-            else if (memcmp(buf, "\x00\xf8\xff\xffKDBG", 8) == 0){ // 64-bit pattern
-                kdvb_address = paddr - 0x34;
-                break;
+            else{
+                if (memcmp(buf, "\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12) == 0){
+                    kdvb_address = paddr - 0x8;
+                    break;
+                }
             }
         }
     }
@@ -522,7 +526,7 @@ static addr_t find_kdversionblock_address (vmi_instance_t vmi)
 static status_t init_kddebugger_data64 (vmi_instance_t vmi)
 {
     addr_t KdVersionBlock = find_kdversionblock_address(vmi);
-    uint32_t DebuggerDataList, ListPtr;
+    addr_t DebuggerDataList, ListPtr;
 
     if (0 == KdVersionBlock){
         goto error_exit;
@@ -532,14 +536,27 @@ static status_t init_kddebugger_data64 (vmi_instance_t vmi)
     }
 
     print_paddress(vmi, KdVersionBlock, 200);
-    if (VMI_FAILURE == vmi_read_32_pa(vmi, KdVersionBlock + 0x20, &DebuggerDataList)){
-        dbprint("error exit 1\n");
-        goto error_exit;
+    if (IA32E == vmi->page_mode){
+        if (VMI_FAILURE == vmi_read_64_pa(vmi, KdVersionBlock, &DebuggerDataList)){
+            dbprint("error exit 1\n");
+            goto error_exit;
+        }
+        print_vaddress(vmi, DebuggerDataList, 200);
+        if (VMI_FAILURE == vmi_read_64_va(vmi, DebuggerDataList, 0, &ListPtr)){
+            dbprint("error exit 2\n");
+            goto error_exit;
+        }
     }
-    print_vaddress(vmi, DebuggerDataList, 200);
-    if (VMI_FAILURE == vmi_read_32_va(vmi, DebuggerDataList, 0, &ListPtr)){
-        dbprint("error exit 2\n");
-        goto error_exit;
+    else{
+        if (VMI_FAILURE == vmi_read_32_pa(vmi, KdVersionBlock, &DebuggerDataList)){
+            dbprint("error exit 1\n");
+            goto error_exit;
+        }
+        print_vaddress(vmi, DebuggerDataList, 200);
+        if (VMI_FAILURE == vmi_read_32_va(vmi, DebuggerDataList, 0, &ListPtr)){
+            dbprint("error exit 2\n");
+            goto error_exit;
+        }
     }
     vmi->os.windows_instance.kddebugger_data64 = ListPtr;
 
