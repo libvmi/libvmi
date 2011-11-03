@@ -452,7 +452,15 @@ static status_t kpcr_symbol_offset (vmi_instance_t vmi, char *symbol, unsigned l
     return VMI_SUCCESS;
 }
 
-static void print_address (vmi_instance_t vmi, addr_t va, uint32_t size)
+static void print_paddress (vmi_instance_t vmi, addr_t pa, uint32_t size)
+{
+    unsigned char *buf = safe_malloc(size);
+    vmi_read_pa(vmi, pa, buf, size);
+    vmi_print_hex(buf, size);
+    free(buf);
+}
+
+static void print_vaddress (vmi_instance_t vmi, addr_t va, uint32_t size)
 {
     unsigned char *buf = safe_malloc(size);
     vmi_read_va(vmi, va, 0, buf, size);
@@ -460,43 +468,77 @@ static void print_address (vmi_instance_t vmi, addr_t va, uint32_t size)
     free(buf);
 }
 
-static addr_t find_kpcr_address (vmi_instance_t vmi)
+// Idea from http://gleeda.blogspot.com/2010/12/identifying-memory-images.html
+static void find_windows_version (vmi_instance_t vmi, addr_t KdVersionBlock)
 {
-    addr_t kpcr_address = 0;
+    uint16_t size = 0;
+    vmi_read_16_pa(vmi, KdVersionBlock + 0x3c, &size);
+
+    if (memcmp(&size, "\x08\x02", 2) == 0){
+        dbprint("--OS Guess: Windows 2000\n");
+    }
+    else if (memcmp(&size, "\x90\x02", 2) == 0){
+        dbprint("--OS Guess: Windows XP\n");
+    }
+    else if (memcmp(&size, "\x18\x03", 2) == 0){
+        dbprint("--OS Guess: Windows 2003\n");
+    }
+    else if (memcmp(&size, "\x28\x03", 2) == 0){
+        dbprint("--OS Guess: Windows Vista\n");
+    }
+    else if (memcmp(&size, "\x30\x03", 2) == 0){
+        dbprint("--OS Guess: Windows 2008\n");
+    }
+    else if (memcmp(&size, "\x40\x03", 2) == 0){
+        dbprint("--OS Guess: Windows 7\n");
+    }
+    else{
+        dbprint("--OS Guess: Unknown (0x%.4x)\n", size);
+    }
+}
+
+static addr_t find_kdversionblock_address (vmi_instance_t vmi)
+{
+    addr_t kdvb_address = 0;
     addr_t paddr = 0;
     unsigned char buf[12];
 
     for (paddr = 0; paddr < vmi_get_memsize(vmi); paddr += 4){
-        if (VMI_SUCCESS == vmi_read_pa(vmi, paddr, buf, 12)){
-            if (memcmp(buf, "\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12) == 0){
-                kpcr_address = paddr - 0x10;
-                printf("FOUND KPCR AT 0x%.16llx\n", kpcr_address);
-                print_address(vmi, kpcr_address, 200);
+        if (12 == vmi_read_pa(vmi, paddr, buf, 12)){
+            if (memcmp(buf, "\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12) == 0){ // 32-bit pattern
+                kdvb_address = paddr - 0x30;
+                break;
+            }
+            else if (memcmp(buf, "\x00\xf8\xff\xffKDBG", 8) == 0){ // 64-bit pattern
+                kdvb_address = paddr - 0x34;
                 break;
             }
         }
     }
 
-    return kpcr_address;
+    return kdvb_address;
 }
 
 static status_t init_kddebugger_data64 (vmi_instance_t vmi)
 {
-    addr_t kpcr_address = 0xffdff000;
-    //addr_t tmp = find_kpcr_address(vmi);
-    uint32_t KdVersionBlock, DebuggerDataList, ListPtr;
+    addr_t KdVersionBlock = find_kdversionblock_address(vmi);
+    uint32_t DebuggerDataList, ListPtr;
 
-    //print_address(vmi, kpcr_address, 200);
-    if (VMI_FAILURE == vmi_read_32_va(vmi, kpcr_address + 0x34, 0, &KdVersionBlock)){
+    if (0 == KdVersionBlock){
         goto error_exit;
     }
-    //printf("COMPARE --> 0x%llx, 0x%llx\n", tmp, KdVersionBlock);
-    //print_address(vmi, KdVersionBlock, 200);
-    if (VMI_FAILURE == vmi_read_32_va(vmi, KdVersionBlock + 0x20, 0, &DebuggerDataList)){
+    else{
+        find_windows_version(vmi, KdVersionBlock);
+    }
+
+    print_paddress(vmi, KdVersionBlock, 200);
+    if (VMI_FAILURE == vmi_read_32_pa(vmi, KdVersionBlock + 0x20, &DebuggerDataList)){
+        dbprint("error exit 1\n");
         goto error_exit;
     }
-    //print_address(vmi, DebuggerDataList, 200);
+    print_vaddress(vmi, DebuggerDataList, 200);
     if (VMI_FAILURE == vmi_read_32_va(vmi, DebuggerDataList, 0, &ListPtr)){
+        dbprint("error exit 2\n");
         goto error_exit;
     }
     vmi->os.windows_instance.kddebugger_data64 = ListPtr;
