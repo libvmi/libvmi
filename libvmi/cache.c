@@ -85,7 +85,7 @@ status_t pid_cache_get (vmi_instance_t vmi, int pid, addr_t *dtb)
     if ((entry = g_hash_table_lookup(vmi->pid_cache, &key)) != NULL){
         entry->last_used = time(NULL);
         *dtb = entry->dtb;
-        dbprint("--PID cache hit %d -- 0x%.8x\n", pid, *dtb);
+        dbprint("--PID cache hit %d -- 0x%.16llx\n", pid, *dtb);
         return VMI_SUCCESS;
     }
 
@@ -98,7 +98,7 @@ void pid_cache_set (vmi_instance_t vmi, int pid, addr_t dtb)
     *key = pid;
     pid_cache_entry_t entry = pid_cache_entry_create(pid, dtb);
     g_hash_table_insert(vmi->pid_cache, key, entry);
-    dbprint("--PID cache set %d -- 0x%.8x\n", pid, dtb);
+    dbprint("--PID cache set %d -- 0x%.16llx\n", pid, dtb);
 }
 
 status_t pid_cache_del (vmi_instance_t vmi, int pid)
@@ -157,7 +157,7 @@ status_t sym_cache_get (vmi_instance_t vmi, char *sym, addr_t *va)
     if ((entry = g_hash_table_lookup(vmi->sym_cache, sym)) != NULL){
         entry->last_used = time(NULL);
         *va = entry->va;
-        dbprint("--SYM cache hit %s -- 0x%.8x\n", sym, *va);
+        dbprint("--SYM cache hit %s -- 0x%.16llx\n", sym, *va);
         return VMI_SUCCESS;
     }
 
@@ -168,7 +168,7 @@ void sym_cache_set (vmi_instance_t vmi, char *sym, addr_t va)
 {
     sym_cache_entry_t entry = sym_cache_entry_create(sym, va);
     g_hash_table_insert(vmi->sym_cache, sym, entry);
-    dbprint("--SYM cache set %s -- 0x%.8x\n", sym, va);
+    dbprint("--SYM cache set %s -- 0x%.16llx\n", sym, va);
 }
 
 status_t sym_cache_del (vmi_instance_t vmi, char *sym)
@@ -213,13 +213,31 @@ static v2p_cache_entry_t v2p_cache_entry_create (addr_t va, addr_t dtb, addr_t p
     return entry;
 }
 
-//TODO this function assumes a 32-bit address, will need to fix this for 64-bit support
-static gint64 *v2p_build_key (vmi_instance_t vmi, uint32_t va, uint32_t dtb)
+// This function borrowed from cityhash-1.0.3
+static uint64_t hash128to64 (uint64_t low, uint64_t high)
+{
+    // Murmur-inspired hashing
+    uint64_t kMul = 0x9ddfea08eb382d69ULL;
+    uint64_t a = (low ^ high) * kMul;
+    a ^= (a >> 47);
+    uint64_t b = (high ^ a) * kMul;
+    b ^= (b >> 47);
+    b *= kMul;
+    return b;
+}
+
+static gint64 *v2p_build_key (vmi_instance_t vmi, addr_t va, addr_t dtb)
 {
     uint64_t *key = (uint64_t *) safe_malloc(sizeof(uint64_t));
-    *key = 0;
-    *key |= ((uint64_t) (va & ~(vmi->page_size - 1))) << 32;
-    *key |= ((uint64_t) dtb);
+
+    if (IA32E == vmi->page_mode){
+        *key = hash128to64(dtb, va);
+    }
+    else{
+        *key = 0;
+        *key |= ((uint64_t) (va & ~((addr_t) vmi->page_size - 1))) << 32;
+        *key |= ((uint64_t) dtb);
+    }
     return (gint64 *) key;
 }
 
@@ -239,9 +257,16 @@ status_t v2p_cache_get (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa)
     gint64 *key = v2p_build_key(vmi, va, dtb);
 
     if ((entry = g_hash_table_lookup(vmi->v2p_cache, key)) != NULL){
+
+        // make sure we don't have a key collision
+        if (entry->va != va || entry->dtb != dtb){
+            dbprint("--V2P cache collision\n");
+            return VMI_FAILURE;
+        }
+
         entry->last_used = time(NULL);
         *pa = entry->pa | ((vmi->page_size - 1) & va);
-        dbprint("--V2P cache hit 0x%.8x -- 0x%.8x (0x%.16llx)\n", va, *pa, *key);
+        dbprint("--V2P cache hit 0x%.16llx -- 0x%.16llx (0x%.16llx)\n", va, *pa, *key);
         return VMI_SUCCESS;
     }
 
@@ -257,13 +282,17 @@ void v2p_cache_set (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t pa)
     pa &= ~(vmi->page_size - 1);
     v2p_cache_entry_t entry = v2p_cache_entry_create(va, dtb, pa);
     g_hash_table_insert(vmi->v2p_cache, key, entry);
-    dbprint("--V2P cache set 0x%.8x -- 0x%.8x (0x%.16llx)\n", va, pa, *key);
+    dbprint("--V2P cache set 0x%.16llx -- 0x%.16llx (0x%.16llx)\n", va, pa, *key);
 }
 
 status_t v2p_cache_del (vmi_instance_t vmi, addr_t va, addr_t dtb)
 {
     gint64 *key = v2p_build_key(vmi, va, dtb);
-    dbprint("--V2P cache del 0x%.8x (0x%.16llx)\n", va, *key);
+    dbprint("--V2P cache del 0x%.16llx (0x%.16llx)\n", va, *key);
+
+    // key collision doesn't really matter here because worst case
+    // scenario we incur an small performance hit
+
     if (TRUE == g_hash_table_remove(vmi->v2p_cache, key)){
         free(key);
         return VMI_SUCCESS;

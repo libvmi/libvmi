@@ -140,7 +140,7 @@ status_t windows_init (vmi_instance_t vmi)
         }
     }
     vmi->os.windows_instance.ntoskrnl -= vmi->page_offset;
-    dbprint("**set ntoskrnl (0x%.8x).\n", vmi->os.windows_instance.ntoskrnl);
+    dbprint("**set ntoskrnl (0x%.16llx).\n", vmi->os.windows_instance.ntoskrnl);
 
     /* get the kernel page directory location */
     if (VMI_FAILURE == get_kpgd_method0(vmi, &sysproc)){
@@ -153,11 +153,11 @@ status_t windows_init (vmi_instance_t vmi)
             }
         }
     }
-    dbprint("**set kpgd (0x%.8x).\n", vmi->kpgd);
+    dbprint("**set kpgd (0x%.16llx).\n", vmi->kpgd);
 
     /* get address start of process list */
     vmi_read_addr_pa(vmi, sysproc + vmi->os.windows_instance.tasks_offset, &vmi->init_task);
-    dbprint("**set init_task (0x%.8x).\n", vmi->init_task);
+    dbprint("**set init_task (0x%.16llx).\n", vmi->init_task);
 
     return VMI_SUCCESS;
 error_exit:
