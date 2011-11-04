@@ -536,27 +536,14 @@ static status_t init_kddebugger_data64 (vmi_instance_t vmi)
     }
 
     print_paddress(vmi, KdVersionBlock, 200);
-    if (IA32E == vmi->page_mode){
-        if (VMI_FAILURE == vmi_read_64_pa(vmi, KdVersionBlock, &DebuggerDataList)){
-            dbprint("error exit 1\n");
-            goto error_exit;
-        }
-        print_vaddress(vmi, DebuggerDataList, 200);
-        if (VMI_FAILURE == vmi_read_64_va(vmi, DebuggerDataList, 0, &ListPtr)){
-            dbprint("error exit 2\n");
-            goto error_exit;
-        }
+    if (VMI_FAILURE == vmi_read_addr_pa(vmi, KdVersionBlock, &DebuggerDataList)){
+        dbprint("error exit 1\n");
+        goto error_exit;
     }
-    else{
-        if (VMI_FAILURE == vmi_read_32_pa(vmi, KdVersionBlock, &DebuggerDataList)){
-            dbprint("error exit 1\n");
-            goto error_exit;
-        }
-        print_vaddress(vmi, DebuggerDataList, 200);
-        if (VMI_FAILURE == vmi_read_32_va(vmi, DebuggerDataList, 0, &ListPtr)){
-            dbprint("error exit 2\n");
-            goto error_exit;
-        }
+    print_vaddress(vmi, DebuggerDataList, 200);
+    if (VMI_FAILURE == vmi_read_addr_va(vmi, DebuggerDataList, 0, &ListPtr)){
+        dbprint("error exit 2\n");
+        goto error_exit;
     }
     vmi->os.windows_instance.kddebugger_data64 = ListPtr;
 
