@@ -87,14 +87,19 @@ addr_t get_ntoskrnl_base (vmi_instance_t vmi)
     }
 
     /* IDTR and work backwards */
-    /*
+#if 0 
+
+// not sure if this will work (1) is idtr a VA or PA? (2) how to extract start
+// addr from idtr?
     reg_t idtr = 0;
     if (VMI_FAILURE == vmi_get_vcpureg(vmi, &idtr, IDTR_BASE, 0)){
         dbprint("Failed to get idtr register\n");
         return 0;
     }
-
-    paddr = (idtr & 0x0000FFFFFFFF0000ULL) >> 16;
+    printf("idtr=0x%llx\n", idtr);
+    //paddr = (idtr & 0x0000FFFFFFFF0000ULL) >> 16; // 32 bit?
+   paddr = aligned_addr (vmi, idtr);
+    printf("first paddr=0x%llx\n", paddr);
     while (paddr != 0){
         printf("paddr=0x%llx\n", paddr);
         if (valid_ntoskrnl_start(vmi, paddr) == VMI_SUCCESS){
@@ -102,7 +107,7 @@ addr_t get_ntoskrnl_base (vmi_instance_t vmi)
         }
         paddr -= vmi->page_size;
     }
-    */
+#endif
 
     /* 0 and work forward */
     paddr = 0;

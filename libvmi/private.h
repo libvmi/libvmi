@@ -116,6 +116,8 @@ void *safe_malloc_ (size_t size, char const *file, int line);
 unsigned long get_reg32 (reg_t r);
 int vmi_get_bit (reg_t reg, int bit);
 addr_t p2m (vmi_instance_t vmi, addr_t paddr);
+addr_t aligned_addr (vmi_instance_t vmi, addr_t addr);
+int is_addr_aligned (vmi_instance_t vmi, addr_t addr);
 
 /*-------------------------------------
  * cache.c

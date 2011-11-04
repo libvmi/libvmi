@@ -320,6 +320,13 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_addr, struct export_t
         dbprint("--PEParse: failed to map export header\n");
         return VMI_FAILURE;
     }
+
+    /* sanity check */
+    if (et->export_flags || !et->name){
+        dbprint("--PEParse: bad export directory table\n");
+        return VMI_FAILURE;
+    }
+
     return VMI_SUCCESS;
 }
 
@@ -387,12 +394,10 @@ status_t valid_ntoskrnl_start (vmi_instance_t vmi, addr_t addr)
     if (get_export_table(vmi, addr, &et) != VMI_SUCCESS){
         return VMI_FAILURE;
     }
-    if (et.export_flags || !et.name){
-        dbprint("--PEParse: bad export directory table\n");
-        return VMI_FAILURE;
-    }
+
     vmi_print_hex(&et, sizeof(struct export_table));
     // next line assumes that ntoskrnl in vmi_instance is zero
+
     name = rva_to_string(vmi, (addr_t) et.name + addr);
     if (NULL != name){
         if (strcmp(name, "ntoskrnl.exe") == 0){

@@ -97,3 +97,18 @@ addr_t p2m (vmi_instance_t vmi, addr_t paddr)
     return maddr;
 }
 
+addr_t aligned_addr (vmi_instance_t vmi, addr_t addr)
+{
+    addr_t mask = ~((addr_t)vmi->page_size-1);
+    addr_t aligned = (addr_t)addr & (addr_t)mask;
+//    printf ("%llx & %llx = %llx\n", addr, mask, aligned);
+    return aligned;
+
+}
+
+int is_addr_aligned (vmi_instance_t vmi, addr_t addr)
+{
+    return (addr == aligned_addr(vmi, addr));
+}
+
+
