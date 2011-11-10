@@ -24,9 +24,11 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include "libvmi.h"
+#include "private.h"
 
-void vmi_print_hex (unsigned char *data, unsigned long length)
+void vmi_print_hex (unsigned char *data, size_t length)
 {
     int i, j, numrows, index;
 
@@ -76,3 +78,30 @@ void vmi_print_hex (unsigned char *data, unsigned long length)
     }
 }
 
+void vmi_print_hex_pa (vmi_instance_t vmi, addr_t paddr, size_t length)
+{
+    unsigned char *buf = safe_malloc(length);
+    vmi_read_pa(vmi, paddr, buf, length);
+    vmi_print_hex(buf, length);
+    free(buf);
+}
+
+void vmi_print_hex_va (vmi_instance_t vmi, addr_t vaddr, int pid, size_t length)
+{
+    addr_t paddr = 0;
+
+    if (!pid){
+        paddr = vmi_translate_kv2p(vmi, vaddr);
+    }
+    else{
+        paddr = vmi_translate_uv2p(vmi, vaddr, pid);
+    }
+
+    vmi_print_hex_pa(vmi, paddr, length);
+}
+
+void vmi_print_hex_ksym (vmi_instance_t vmi, char *sym, size_t length)
+{
+    addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
+    vmi_print_hex_va(vmi, vaddr, 0, length);
+}

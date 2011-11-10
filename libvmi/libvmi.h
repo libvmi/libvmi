@@ -659,6 +659,41 @@ status_t vmi_write_64_pa (vmi_instance_t vmi, addr_t paddr, uint64_t *value);
  */
 void vmi_print_hex (unsigned char *data, unsigned long length);
 
+/**
+ * Prints out the hex and ascii version of a chunk of bytes. The
+ * output is similar to what you would get with 'od -h' with the
+ * additional ascii information on the right side of the display.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol to use as starting address
+ * @param[in] length The length (in bytes) of data to print
+ */
+void vmi_print_hex_ksym (vmi_instance_t vmi, char *sym, size_t length);
+
+/**
+ * Prints out the hex and ascii version of a chunk of bytes. The
+ * output is similar to what you would get with 'od -h' with the
+ * additional ascii information on the right side of the display.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to use as starting address
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[in] length The length (in bytes) of data to print
+ */
+void vmi_print_hex_va (vmi_instance_t vmi, addr_t vaddr, int pid, size_t length);
+
+/**
+ * Prints out the hex and ascii version of a chunk of bytes. The
+ * output is similar to what you would get with 'od -h' with the
+ * additional ascii information on the right side of the display.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to use as starting address
+ * @param[in] length The length (in bytes) of data to print
+ */
+void vmi_print_hex_pa (vmi_instance_t vmi, addr_t paddr, size_t length);
+
+
 /*---------------------------------------------------------
  * Accessor functions from accessors.c
  */
