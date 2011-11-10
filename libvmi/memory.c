@@ -55,7 +55,7 @@ uint64_t get_pml4e (vmi_instance_t vmi, addr_t vaddr, reg_t cr3)
 {
     uint64_t value = 0;
     addr_t pml4e_address = get_bits_51to12(cr3) | get_pml4_index(vaddr);
-    dbprint("--PTLookup pml4e_address = 0x%llx\n", pml4e_address);
+    dbprint("--PTLookup pml4e_address = 0x%.16llx\n", pml4e_address);
     vmi_read_64_ma(vmi, pml4e_address, &value);
     return value;
 }
@@ -87,7 +87,7 @@ uint64_t get_pdpte_ia32e (vmi_instance_t vmi, addr_t vaddr, uint64_t pml4e)
 {
     uint64_t value = 0;
     addr_t pdpte_address = get_bits_51to12(pml4e) | get_pdpt_index_ia32e(vaddr);
-    dbprint("--PTLookup: pdpte_address = 0x%llx\n", pdpte_address);
+    dbprint("--PTLookup: pdpte_address = 0x%.16llx\n", pdpte_address);
     vmi_read_64_pa(vmi, pdpte_address, &value);
     return value;
 }
@@ -137,7 +137,7 @@ uint64_t get_pde_ia32e (vmi_instance_t vmi, addr_t vaddr, uint64_t pdpte)
 {
     uint64_t value = 0;
     addr_t pde_address = get_bits_51to12(pdpte) | get_pd_index_ia32e(vaddr);
-    dbprint("--PTLookup: pde_address = 0x%llx\n", pde_address);
+    dbprint("--PTLookup: pde_address = 0x%.16llx\n", pde_address);
     vmi_read_64_pa(vmi, pde_address, &value);
     return value;
 }
@@ -185,7 +185,7 @@ uint64_t get_pte_ia32e (vmi_instance_t vmi, addr_t vaddr, uint64_t pde)
 {
     uint64_t value = 0;
     addr_t pte_address = get_bits_51to12(pde) | get_pt_index_ia32e(vaddr);
-    dbprint("--PTLookup: pte_address = 0x%llx\n", pte_address);
+    dbprint("--PTLookup: pte_address = 0x%.16llx\n", pte_address);
     vmi_read_64_pa(vmi, pte_address, &value);
     return value;
 }
@@ -297,8 +297,8 @@ addr_t v2p_nopae(vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
     addr_t paddr = 0;
     uint32_t pgd, pte;
         
-    dbprint("--PTLookup: lookup vaddr = 0x%llx\n", vaddr);
-    dbprint("--PTLookup: dtb = 0x%llx\n", dtb);
+    dbprint("--PTLookup: lookup vaddr = 0x%.16llx\n", vaddr);
+    dbprint("--PTLookup: dtb = 0x%.16llx\n", dtb);
     pgd = get_pgd_nopae(vmi, vaddr, dtb);
     dbprint("--PTLookup: pgd = 0x%.8x\n", pgd);
         
@@ -321,7 +321,7 @@ addr_t v2p_nopae(vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
     else{
         buffalo_nopae(vmi, pgd, 0);
     }
-    dbprint("--PTLookup: paddr = 0x%llx\n", paddr);
+    dbprint("--PTLookup: paddr = 0x%.16llx\n", paddr);
     return paddr;
 }
 
@@ -330,15 +330,15 @@ addr_t v2p_pae (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
     addr_t paddr = 0;
     uint64_t pdpe, pgd, pte;
         
-    dbprint("--PTLookup: lookup vaddr = 0x%llx\n", vaddr);
-    dbprint("--PTLookup: dtb = 0x%llx\n", dtb);
+    dbprint("--PTLookup: lookup vaddr = 0x%.16llx\n", vaddr);
+    dbprint("--PTLookup: dtb = 0x%.16llx\n", dtb);
     pdpe = get_pdpi(vmi, vaddr, dtb);
-    dbprint("--PTLookup: pdpe = 0x%llx\n", pdpe);
+    dbprint("--PTLookup: pdpe = 0x%.16llx\n", pdpe);
     if (!entry_present(pdpe)){
         return paddr;
     }
     pgd = get_pgd_pae(vmi, vaddr, pdpe);
-    dbprint("--PTLookup: pgd = 0x%llx\n", pgd);
+    dbprint("--PTLookup: pgd = 0x%.16llx\n", pgd);
 
     if (entry_present(pgd)){
         if (page_size_flag(pgd)){
@@ -347,13 +347,13 @@ addr_t v2p_pae (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
         }
         else{
             pte = get_pte_pae(vmi, vaddr, pgd);
-            dbprint("--PTLookup: pte = 0x%llx\n", pte);
+            dbprint("--PTLookup: pte = 0x%.16llx\n", pte);
             if (entry_present(pte)){
                 paddr = get_paddr_pae(vaddr, pte);
             }
         }
     }
-    dbprint("--PTLookup: paddr = 0x%llx\n", paddr);
+    dbprint("--PTLookup: paddr = 0x%.16llx\n", paddr);
     return paddr;
 }
 
@@ -368,14 +368,14 @@ addr_t v2p_ia32e (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
 
     // determine what MAXPHYADDR is
 
-    dbprint("--PTLookup: lookup vaddr = 0x%llx\n", vaddr);
-    dbprint("--PTLookup: dtb = 0x%llx\n", dtb);
+    dbprint("--PTLookup: lookup vaddr = 0x%.16llx\n", vaddr);
+    dbprint("--PTLookup: dtb = 0x%.16llx\n", dtb);
     pml4e = get_pml4e(vmi, vaddr, dtb);
-    dbprint("--PTLookup: pml4e = 0x%llx\n", pml4e);
+    dbprint("--PTLookup: pml4e = 0x%.16llx\n", pml4e);
 
     if (entry_present(pml4e)){
         pdpte = get_pdpte_ia32e(vmi, vaddr, pml4e);
-        dbprint("--PTLookup: pdpte = 0x%llx\n", pdpte);
+        dbprint("--PTLookup: pdpte = 0x%.16llx\n", pdpte);
 
         if (entry_present(pdpte)){
             if (page_size_flag(pdpte)){ // pdpte maps a 1GB page
@@ -384,7 +384,7 @@ addr_t v2p_ia32e (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
             }
             else{
                 pde = get_pde_ia32e(vmi, vaddr, pdpte);
-                dbprint("--PTLookup: pde = 0x%llx\n", pde);
+                dbprint("--PTLookup: pde = 0x%.16llx\n", pde);
             }
 
             if (entry_present(pde)){
@@ -394,7 +394,7 @@ addr_t v2p_ia32e (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
                 }
                 else{
                     pte = get_pte_ia32e(vmi, vaddr, pde);
-                    dbprint("--PTLookup: pte = 0x%llx\n", pte);
+                    dbprint("--PTLookup: pte = 0x%.16llx\n", pte);
                 }
 
                 if (entry_present(pte)){
@@ -404,7 +404,7 @@ addr_t v2p_ia32e (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
         }
     }
 
-    dbprint("--PTLookup: paddr = 0x%llx\n", paddr);
+    dbprint("--PTLookup: paddr = 0x%.16llx\n", paddr);
     return paddr;
 }
 

@@ -55,7 +55,7 @@ int find_pname_offset (vmi_instance_t vmi)
     while (offset < vmi->size){
         vmi_read_32_pa(vmi, offset, &value);
         // Magic header numbers.
-        if (value == 0x001b0003 || value == 0x00200003){
+        if (value == 0x001b0003 || value == 0x00200003 || value == 0x00260003){
             int i = 0;
             for ( ; i < 0x500; ++i){
                 char *procname = vmi_read_str_pa(vmi, offset + i);
@@ -92,7 +92,7 @@ uint32_t windows_find_eprocess (vmi_instance_t vmi, char *name)
     while (offset < vmi->size){
         vmi_read_32_pa(vmi, offset, &value);
         // Magic header numbers.
-        if (value == 0x001b0003 || value == 0x00200003){
+        if (value == 0x001b0003 || value == 0x00200003 || value == 0x00260003){
             char *procname = windows_get_eprocess_name(vmi, offset);
             if (procname){
                 if (strncmp(procname, name, 50) == 0){

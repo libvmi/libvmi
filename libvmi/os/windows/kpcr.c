@@ -452,22 +452,6 @@ static status_t kpcr_symbol_offset (vmi_instance_t vmi, char *symbol, unsigned l
     return VMI_SUCCESS;
 }
 
-static void print_paddress (vmi_instance_t vmi, addr_t pa, uint32_t size)
-{
-    unsigned char *buf = safe_malloc(size);
-    vmi_read_pa(vmi, pa, buf, size);
-    vmi_print_hex(buf, size);
-    free(buf);
-}
-
-static void print_vaddress (vmi_instance_t vmi, addr_t va, uint32_t size)
-{
-    unsigned char *buf = safe_malloc(size);
-    vmi_read_va(vmi, va, 0, buf, size);
-    vmi_print_hex(buf, size);
-    free(buf);
-}
-
 // Idea from http://gleeda.blogspot.com/2010/12/identifying-memory-images.html
 static void find_windows_version (vmi_instance_t vmi, addr_t KdVersionBlock)
 {
@@ -535,14 +519,10 @@ static status_t init_kddebugger_data64 (vmi_instance_t vmi)
         find_windows_version(vmi, KdVersionBlock);
     }
 
-    print_paddress(vmi, KdVersionBlock, 200);
     if (VMI_FAILURE == vmi_read_addr_pa(vmi, KdVersionBlock, &DebuggerDataList)){
-        dbprint("error exit 1\n");
         goto error_exit;
     }
-    print_vaddress(vmi, DebuggerDataList, 200);
     if (VMI_FAILURE == vmi_read_addr_va(vmi, DebuggerDataList, 0, &ListPtr)){
-        dbprint("error exit 2\n");
         goto error_exit;
     }
     vmi->os.windows_instance.kddebugger_data64 = ListPtr;
