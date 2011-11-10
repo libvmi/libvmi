@@ -229,15 +229,7 @@ static uint64_t hash128to64 (uint64_t low, uint64_t high)
 static gint64 *v2p_build_key (vmi_instance_t vmi, addr_t va, addr_t dtb)
 {
     uint64_t *key = (uint64_t *) safe_malloc(sizeof(uint64_t));
-
-    if (IA32E == vmi->page_mode){
-        *key = hash128to64(dtb, va);
-    }
-    else{
-        *key = 0;
-        *key |= ((uint64_t) (va & ~((addr_t) vmi->page_size - 1))) << 32;
-        *key |= ((uint64_t) dtb);
-    }
+    *key = hash128to64(dtb, va);
     return (gint64 *) key;
 }
 
