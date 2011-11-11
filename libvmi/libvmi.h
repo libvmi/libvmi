@@ -67,6 +67,16 @@ typedef enum os{
     VMI_OS_WINDOWS   /**< OS type is Windows */
 } os_t;
 
+typedef enum win_ver {
+    VMI_OS_WINDOWS_UNKNOWN,
+    VMI_OS_WINDOWS_2000,
+    VMI_OS_WINDOWS_XP,
+    VMI_OS_WINDOWS_2003,
+    VMI_OS_WINDOWS_VISTA,
+    VMI_OS_WINDOWS_2008,
+    VMI_OS_WINDOWS_7
+} win_ver_t;
+
 typedef uint64_t reg_t;
 typedef enum registers{
     RAX,

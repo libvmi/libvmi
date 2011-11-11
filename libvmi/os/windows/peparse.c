@@ -277,7 +277,7 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_
     
     /* check magic value */
     uint16_t magic = 0;
-    vmi_read_16_pa(vmi, optional_header_location, &magic);
+    (void)vmi_read_16_pa(vmi, optional_header_location, &magic);
     dbprint("--PEParse: magic is 0x%x\n", magic);
 
     if (0x10b == magic){
@@ -311,19 +311,25 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_
         return VMI_FAILURE;
     }
 
-    // HACK HACK
+    // assume the export header is in a different page than the PE header
     export_header_va =  vmi->os.windows_instance.ntoskrnl_va + export_header_rva;
-//    export_header_rva += vmi->os.windows_instance.ntoskrnl_va;
-//    export_header_pa = vmi_translate_kv2p (vmi, export_header_rva);
-    dbprint("--PEParse: found export table at [VA] 0x%.16llx + 0x%llx = 0x%.16llx\n",
+
+    // sanity check -- CURRENTLY FAILS ON WIN7 BUT WORKS ON XP (msl 2011-11-11)
+    export_header_pa = vmi_translate_kv2p (vmi, export_header_va);
+    if (0 == export_header_pa) { 
+	dbprint("--PEParse: failed to find PA for VA 0x%.16llx\n", export_header_va);
+	return VMI_FAILURE;
+    } // if
+
+    dbprint("--PEParse: found export table at [VA] 0x%.16llx = 0x%.16llx + 0x%x\n",
 	    export_header_va, vmi->os.windows_instance.ntoskrnl_va, export_header_rva );
 
     /* export header */
     dbprint("--PEParse: export_header_rva = 0x%llx\n", export_header_rva);
 
-    nbytes = vmi_read_va (vmi,
-			  export_header_rva,
-			  0, // system's pid
+    // TODO: failure here - invalid export_header address
+    nbytes = vmi_read_pa (vmi,
+			  export_header_pa,
 			  et,
 			  sizeof(*et));
 

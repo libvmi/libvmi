@@ -460,24 +460,31 @@ static void find_windows_version (vmi_instance_t vmi, addr_t KdVersionBlock)
 
     if (memcmp(&size, "\x08\x02", 2) == 0){
         dbprint("--OS Guess: Windows 2000\n");
+	vmi->os.windows_instance.version = VMI_OS_WINDOWS_2000;
     }
     else if (memcmp(&size, "\x90\x02", 2) == 0){
         dbprint("--OS Guess: Windows XP\n");
+	vmi->os.windows_instance.version = VMI_OS_WINDOWS_XP;
     }
     else if (memcmp(&size, "\x18\x03", 2) == 0){
         dbprint("--OS Guess: Windows 2003\n");
+	vmi->os.windows_instance.version = VMI_OS_WINDOWS_2003;
     }
     else if (memcmp(&size, "\x28\x03", 2) == 0){
         dbprint("--OS Guess: Windows Vista\n");
+	vmi->os.windows_instance.version = VMI_OS_WINDOWS_VISTA;
     }
     else if (memcmp(&size, "\x30\x03", 2) == 0){
         dbprint("--OS Guess: Windows 2008\n");
+	vmi->os.windows_instance.version = VMI_OS_WINDOWS_2008;
     }
     else if (memcmp(&size, "\x40\x03", 2) == 0){
         dbprint("--OS Guess: Windows 7\n");
+	vmi->os.windows_instance.version = VMI_OS_WINDOWS_7;
     }
     else{
         dbprint("--OS Guess: Unknown (0x%.4x)\n", size);
+	vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
     }
 }
 

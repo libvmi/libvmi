@@ -51,13 +51,43 @@ int find_pname_offset (vmi_instance_t vmi)
 {
     uint32_t offset = 0;
     uint32_t value = 0;
+    uint32_t target_val = 0;
+
+        // Magic header numbers.
+#define MAGIC1 0x1b0003
+#define MAGIC2 0x200003
+#define MAGIC3 0x580003
+
+
+    switch (vmi->os.windows_instance.version) {
+	case VMI_OS_WINDOWS_7:
+	    target_val = MAGIC3; break;
+	case VMI_OS_WINDOWS_XP: 
+	    target_val = MAGIC1; break;
+
+	    // TODO: fill in with correct vals /////////////////////////
+	case VMI_OS_WINDOWS_2000:
+	case VMI_OS_WINDOWS_2003:
+	case VMI_OS_WINDOWS_VISTA:
+	case VMI_OS_WINDOWS_2008:
+	case VMI_OS_WINDOWS_UNKNOWN:
+	    target_val = MAGIC2; break;
+	default:
+	    dbprint("--%s: illegal value in vmi->os.windows_instance.version\n");
+	    return 0;
+    } // switch
+
+    dbprint("--%s: magic header number for this version of Windows is 0x%x\n",
+	    __FUNCTION__, target_val);
 
     while (offset < vmi->size){
         vmi_read_32_pa(vmi, offset, &value);
-        // Magic header numbers.
-        //TODO might be able to optimize this by only looking for the value for OS version we see
-        if (value == 0x001b0003 || value == 0x00200003 || value == 0x00580003){
-	    dbprint("--%s: found value 0x%.8x @ offset 0x%.8x\n",
+
+//	if (MAGIC1 == value ||
+//	    MAGIC2 == value ||
+//	    MAGIC3 == value   ) {
+	if (value == target_val) { // look for specific magic #
+	    dbprint("--%s: found magic value 0x%.8x @ offset 0x%.8x\n",
 		    __FUNCTION__, value, offset);
 
             int i = 0;
@@ -76,10 +106,10 @@ int find_pname_offset (vmi_instance_t vmi)
                 else{
                     free(procname);
                 }
-            }
-        }
+            } // for
+        } // if
         offset += 8;
-    }
+    } // while
     return 0;
 }
 
