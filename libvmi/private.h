@@ -86,6 +86,7 @@ struct vmi_instance{
         } linux_instance;
         struct windows_instance{
             addr_t ntoskrnl;   /**< base phys address for ntoskrnl image */
+            addr_t ntoskrnl_va;       /**< base virt address for ntoskrnl image */
             addr_t kddebugger_data64; /**< kernel virtual address for start of KDDEBUGGER_DATA64 structure */
             int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
             int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */

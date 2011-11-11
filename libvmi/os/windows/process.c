@@ -57,7 +57,8 @@ int find_pname_offset (vmi_instance_t vmi)
         // Magic header numbers.
         //TODO might be able to optimize this by only looking for the value for OS version we see
         if (value == 0x001b0003 || value == 0x00200003 || value == 0x00580003){
-	    dbprint("--found value 0x%.8x @ offset 0x%.8x\n", value, offset);
+	    dbprint("--%s: found value 0x%.8x @ offset 0x%.8x\n",
+		    __FUNCTION__, value, offset);
 
             int i = 0;
             for ( ; i < 0x500; ++i){

@@ -133,16 +133,18 @@ status_t windows_init (vmi_instance_t vmi)
     /* get base address for kernel image in memory */
 //    addr_t tmp = get_ntoskrnl_base(vmi); // works for 32 bit only - msl 20111104
 //    fprintf(stderr, "get_ntoskrnl_base returned 0x%.16x\n", tmp);
-    if (VMI_FAILURE == windows_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl)){
+    if (VMI_FAILURE == windows_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl_va)){
         dbprint("--address translation failure, switching PAE mode\n");
         vmi->pae = !vmi->pae;
 
-        if (VMI_FAILURE == windows_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl)){
+        if (VMI_FAILURE == windows_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl_va)){
             errprint("Address translation failure.\n");
             goto error_exit;
         }
     }
-    vmi->os.windows_instance.ntoskrnl = vmi_translate_kv2p(vmi, vmi->os.windows_instance.ntoskrnl);
+
+    dbprint("**ntoskrnl @ VA 0x%.16llx.\n", vmi->os.windows_instance.ntoskrnl_va);
+    vmi->os.windows_instance.ntoskrnl = vmi_translate_kv2p(vmi, vmi->os.windows_instance.ntoskrnl_va);
     dbprint("**set ntoskrnl (0x%.16llx).\n", vmi->os.windows_instance.ntoskrnl);
 
     /* get the kernel page directory location */

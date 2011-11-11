@@ -256,7 +256,7 @@ int get_aon_index (
     return -1;
 }
 
-status_t get_export_table (vmi_instance_t vmi, addr_t base_addr, struct export_table *et)
+status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_table *et)
 {
     uint32_t value = 0;
     addr_t signature_location = 0;
@@ -264,11 +264,12 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_addr, struct export_t
     unsigned char *memory = NULL;
     uint32_t offset = 0;
     addr_t export_header_rva = 0;
+    addr_t export_header_pa = 0;
     size_t nbytes = 0;
 
     /* signature location */
-    vmi_read_32_pa(vmi, base_addr + 0x3c, &value);
-    signature_location = base_addr + value;
+    vmi_read_32_pa(vmi, base_paddr + 0x3c, &value);
+    signature_location = base_paddr + value;
 
     /* optional header */
     optional_header_location = signature_location + 4 + sizeof(struct file_header);
@@ -309,13 +310,21 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_addr, struct export_t
         return VMI_FAILURE;
     }
 
+    // HACK HACK
+    export_header_rva += vmi->os.windows_instance.ntoskrnl_va;
+//    export_header_pa = vmi_translate_kv2p (vmi, export_header_rva);
+    dbprint("--PEParse: found export table at [VA] %p\n",
+	    export_header_rva);
+
     /* export header */
     dbprint("--PEParse: export_header_rva = 0x%llx\n", export_header_rva);
-    nbytes = vmi_read_pa(
-        vmi,
-        base_addr + export_header_rva,
-        et,
-        sizeof(struct export_table));
+
+    nbytes = vmi_read_va (vmi,
+			  export_header_rva,
+			  0, // system's pid
+			  et,
+			  sizeof(*et));
+
     if (nbytes != sizeof(struct export_table)){
         dbprint("--PEParse: failed to map export header\n");
         return VMI_FAILURE;
@@ -333,13 +342,13 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_addr, struct export_t
 /* returns the rva value for a windows kernel export */
 status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, addr_t *rva)
 {
-    addr_t base_addr = vmi->os.windows_instance.ntoskrnl;
+    addr_t base_paddr = vmi->os.windows_instance.ntoskrnl;
     struct export_table et;
     int aon_index = -1;
     int aof_index = -1;
 
     // get export table structure
-    if (get_export_table(vmi, base_addr, &et) != VMI_SUCCESS){
+    if (get_export_table(vmi, base_paddr, &et) != VMI_SUCCESS){
         dbprint("--PEParse: failed to get export table\n");
         return VMI_FAILURE;
     }
