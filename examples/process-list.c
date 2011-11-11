@@ -86,7 +86,7 @@ int main (int argc, char **argv)
     list_head = next_process;
 
     /* walk the task list */
-    while (1){
+    while (0){
 
         /* follow the next pointer */
         addr_t tmp_next = 0;

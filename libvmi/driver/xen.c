@@ -176,7 +176,7 @@ void *xen_get_memory_mfn (vmi_instance_t vmi, addr_t mfn, int prot)
         mfn
     );
     if (MAP_FAILED == memory || NULL == memory){
-        dbprint("--xen_get_memory_mfn failed\n");
+        dbprint("--xen_get_memory_mfn failed on mfn=0x%.16llx\n", mfn);
         return NULL;
     }
     else{

@@ -34,20 +34,21 @@ status_t linux_init (vmi_instance_t vmi)
     unsigned char *memory = NULL;
     uint32_t local_offset = 0;
 
-    if (linux_system_map_symbol_to_address(
-             vmi, "swapper_pg_dir", &vmi->kpgd) == VMI_FAILURE){
+    if (linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", &vmi->kpgd) == VMI_FAILURE){
         errprint("Failed to lookup 'swapper_pg_dir' address.\n");
         goto error_exit;
     }
     dbprint("--got vaddr for swapper_pg_dir (0x%.8x).\n", vmi->kpgd);
 
     if (driver_is_pv(vmi)){
-        vmi->kpgd -= vmi->page_offset;
-        if (vmi_read_addr_pa(
-                vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE){
+        vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
+        if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE){
             errprint("Failed to get physical addr for kpgd.\n");
             goto error_exit;
         }
+    }
+    else{
+        vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
     }
     dbprint("**set vmi->kpgd (0x%.8x).\n", vmi->kpgd);
 

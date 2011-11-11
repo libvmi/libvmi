@@ -140,7 +140,7 @@ status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, un
     switch (reg){
         case CR3:
             if (vmi->kpgd){
-                *value = vmi->kpgd - vmi->page_offset;
+                *value = vmi->kpgd;
             }
             else if (vmi->cr3){
                 *value = vmi->cr3;

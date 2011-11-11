@@ -45,14 +45,14 @@ status_t get_kpgd_method2 (vmi_instance_t vmi, addr_t *sysproc)
         dbprint("--failed to resolve PD for Idle process\n");
         goto error_exit;
     }
-    vmi->kpgd += vmi->page_offset; /* store vaddr */ //TODO fix for 64-bit
 
-    if (vmi->kpgd == vmi->page_offset){
+    if (!vmi->kpgd){
         dbprint("--kpgd was zero\n");
         goto error_exit;
     }
 
-printf("2) sysproc=0x%.16llx, kpgd=0x%.16llx\n", *sysproc, vmi->kpgd);
+//printf("2) sysproc=0x%.16llx, kpgd=0x%.16llx\n", *sysproc, vmi->kpgd);
+//vmi_print_hex_pa(vmi, *sysproc, 0x300);
     return VMI_SUCCESS;
 error_exit:
     return VMI_FAILURE;
@@ -62,7 +62,7 @@ uint32_t windows_find_cr3 (vmi_instance_t vmi)
 {
     uint32_t sysproc = 0;
     get_kpgd_method2(vmi, &sysproc);
-    return vmi->kpgd - vmi->page_offset;
+    return vmi->kpgd;
 }
 
 /* Tries to find the kernel page directory using the RVA value for
@@ -83,14 +83,14 @@ status_t get_kpgd_method1 (vmi_instance_t vmi, addr_t *sysproc)
         dbprint("--failed to resolve pointer for system process\n");
         goto error_exit;
     }
-    vmi->kpgd += vmi->page_offset; /* store vaddr */ //TODO fix for 64-bit
 
-    if (vmi->kpgd == vmi->page_offset){
+    if (!vmi->kpgd){
         dbprint("--kpgd was zero\n");
         goto error_exit;
     }
 
-printf("1) sysproc=0x%.16llx, kpgd=0x%.16llx\n", *sysproc, vmi->kpgd);
+//printf("1) sysproc=0x%.16llx, kpgd=0x%.16llx\n", *sysproc, vmi->kpgd);
+//vmi_print_hex_pa(vmi, *sysproc, 0x300);
     return VMI_SUCCESS;
 error_exit:
     return VMI_FAILURE;
@@ -113,14 +113,14 @@ static status_t get_kpgd_method0 (vmi_instance_t vmi, addr_t *sysproc)
         dbprint("--failed to resolve pointer for system process\n");
         goto error_exit;
     }
-    vmi->kpgd += vmi->page_offset; /* store vaddr */ //TODO fix for 64-bit
 
-    if (vmi->kpgd == vmi->page_offset){
+    if (!vmi->kpgd){
         dbprint("--kpgd was zero\n");
         goto error_exit;
     }
 
-printf("0) sysproc=0x%.16llx, kpgd=0x%.16llx\n", *sysproc, vmi->kpgd);
+//printf("0) sysproc=0x%.16llx, kpgd=0x%.16llx\n", *sysproc, vmi->kpgd);
+//vmi_print_hex_pa(vmi, *sysproc, 0x300);
     return VMI_SUCCESS;
 error_exit:
     return VMI_FAILURE;
@@ -144,9 +144,9 @@ status_t windows_init (vmi_instance_t vmi)
     }
     vmi->os.windows_instance.ntoskrnl = vmi_translate_kv2p(vmi, vmi->os.windows_instance.ntoskrnl);
     dbprint("**set ntoskrnl (0x%.16llx).\n", vmi->os.windows_instance.ntoskrnl);
+    vmi_print_hex_pa(vmi, vmi->os.windows_instance.ntoskrnl, 0x200);
 
     /* get the kernel page directory location */
-    /*
     if (VMI_FAILURE == get_kpgd_method0(vmi, &sysproc)){
         dbprint("--kpgd method0 failed, trying method1\n");
         if (VMI_FAILURE == get_kpgd_method1(vmi, &sysproc)){
@@ -157,22 +157,11 @@ status_t windows_init (vmi_instance_t vmi)
             }
         }
     }
-    */
-    get_kpgd_method0(vmi, &sysproc);
-    get_kpgd_method1(vmi, &sysproc);
-    get_kpgd_method2(vmi, &sysproc);
     dbprint("**set kpgd (0x%.16llx).\n", vmi->kpgd);
 
     /* get address start of process list */
     vmi_read_addr_pa(vmi, sysproc + vmi->os.windows_instance.tasks_offset, &vmi->init_task);
     dbprint("**set init_task (0x%.16llx).\n", vmi->init_task);
-
-    //
-    char *buf = safe_malloc(200);
-    vmi_read_va(vmi, vmi->init_task, 0, buf, 200);
-    vmi_print_hex(buf, 200);
-    free(buf);
-    //
 
     return VMI_SUCCESS;
 error_exit:

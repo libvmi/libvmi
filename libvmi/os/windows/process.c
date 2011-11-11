@@ -55,7 +55,8 @@ int find_pname_offset (vmi_instance_t vmi)
     while (offset < vmi->size){
         vmi_read_32_pa(vmi, offset, &value);
         // Magic header numbers.
-        if (value == 0x001b0003 || value == 0x00200003 || value == 0x00260003){
+        //TODO might be able to optimize this by only looking for the value for OS version we see
+        if (value == 0x001b0003 || value == 0x00200003 || value == 0x00580003){
             int i = 0;
             for ( ; i < 0x500; ++i){
                 char *procname = vmi_read_str_pa(vmi, offset + i);
@@ -63,6 +64,7 @@ int find_pname_offset (vmi_instance_t vmi)
                     continue;
                 }
                 else if (strncmp(procname, "Idle", 4) == 0){
+                    vmi->init_task = offset + vmi->os.windows_instance.tasks_offset;
                     free(procname);
                     return i;
                 }
@@ -87,12 +89,20 @@ uint32_t windows_find_eprocess (vmi_instance_t vmi, char *name)
             dbprint("--failed to find pname_offset\n");
             return 0;
         }
+        else{
+            dbprint("**set os.windows_instance.pname_offset (0x%x)\n", vmi->os.windows_instance.pname_offset);
+        }
+    }
+
+    if (vmi->init_task){
+        offset = vmi->init_task - vmi->os.windows_instance.tasks_offset;
     }
 
     while (offset < vmi->size){
         vmi_read_32_pa(vmi, offset, &value);
         // Magic header numbers.
-        if (value == 0x001b0003 || value == 0x00200003 || value == 0x00260003){
+        //TODO might be able to optimize this by only looking for the value for OS version we see
+        if (value == 0x001b0003 || value == 0x00200003 || value == 0x00580003){
             char *procname = windows_get_eprocess_name(vmi, offset);
             if (procname){
                 if (strncmp(procname, name, 50) == 0){
