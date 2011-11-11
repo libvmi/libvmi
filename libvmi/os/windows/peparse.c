@@ -264,6 +264,7 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_
     unsigned char *memory = NULL;
     uint32_t offset = 0;
     addr_t export_header_rva = 0;
+    addr_t export_header_va = 0;
     addr_t export_header_pa = 0;
     size_t nbytes = 0;
 
@@ -311,10 +312,11 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_
     }
 
     // HACK HACK
-    export_header_rva += vmi->os.windows_instance.ntoskrnl_va;
+    export_header_va =  vmi->os.windows_instance.ntoskrnl_va + export_header_rva;
+//    export_header_rva += vmi->os.windows_instance.ntoskrnl_va;
 //    export_header_pa = vmi_translate_kv2p (vmi, export_header_rva);
-    dbprint("--PEParse: found export table at [VA] %p\n",
-	    export_header_rva);
+    dbprint("--PEParse: found export table at [VA] 0x%.16llx + 0x%llx = 0x%.16llx\n",
+	    export_header_va, vmi->os.windows_instance.ntoskrnl_va, export_header_rva );
 
     /* export header */
     dbprint("--PEParse: export_header_rva = 0x%llx\n", export_header_rva);
@@ -404,7 +406,7 @@ status_t valid_ntoskrnl_start (vmi_instance_t vmi, addr_t addr)
         return VMI_FAILURE;
     }
 
-    vmi_print_hex(&et, sizeof(struct export_table));
+    vmi_print_hex((unsigned char *)&et, sizeof(struct export_table));
     // next line assumes that ntoskrnl in vmi_instance is zero
 
     name = rva_to_string(vmi, (addr_t) et.name + addr);

@@ -60,7 +60,7 @@ error_exit:
 
 uint32_t windows_find_cr3 (vmi_instance_t vmi)
 {
-    uint32_t sysproc = 0;
+    addr_t sysproc = 0;
     get_kpgd_method2(vmi, &sysproc);
     return vmi->kpgd;
 }

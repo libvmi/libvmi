@@ -68,6 +68,8 @@ int find_pname_offset (vmi_instance_t vmi)
                 }
                 else if (strncmp(procname, "Idle", 4) == 0){
                     vmi->init_task = offset + vmi->os.windows_instance.tasks_offset;
+		    dbprint("--%s: found Idle process at 0x%.8x + 0x%x\n",
+			    __FUNCTION__, offset, i);
                     free(procname);
                     return i;
                 }

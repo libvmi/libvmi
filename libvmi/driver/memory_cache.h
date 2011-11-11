@@ -29,7 +29,7 @@
 
 void memory_cache_init (
         vmi_instance_t vmi,
-        void *(*get_data)(vmi_instance_t, uint32_t, uint32_t),
+        void *(*get_data)(vmi_instance_t, addr_t, uint32_t),
         void (*release_data)(void *, size_t),
         unsigned long age_limit
 );
