@@ -146,16 +146,25 @@ status_t windows_init (vmi_instance_t vmi)
     dbprint("**set ntoskrnl (0x%.16llx).\n", vmi->os.windows_instance.ntoskrnl);
 
     /* get the kernel page directory location */
-    if (VMI_FAILURE == get_kpgd_method0(vmi, &sysproc)){
-        dbprint("--kpgd method0 failed, trying method1\n");
-        if (VMI_FAILURE == get_kpgd_method1(vmi, &sysproc)){
-            dbprint("--kpgd method1 failed, trying method2\n");
-            if (VMI_FAILURE == get_kpgd_method2(vmi, &sysproc)){
-                errprint("Failed to find kernel page directory.\n");
-                goto error_exit;
-            }
-        }
+    if (VMI_SUCCESS == get_kpgd_method0(vmi, &sysproc)){
+        dbprint("--kpgd method0 success\n");
+	goto found_kpgd;
     }
+    if (VMI_SUCCESS == get_kpgd_method1(vmi, &sysproc)){
+	dbprint("--kpgd method1 success\n");
+	goto found_kpgd;
+    }
+
+    if (VMI_SUCCESS == get_kpgd_method2(vmi, &sysproc)){
+	dbprint("--kpgd method1 success\n");
+	goto found_kpgd;
+    }
+
+    /* all methods exhausted */
+    errprint("Failed to find kernel page directory.\n");
+    goto error_exit;
+
+found_kpgd:
     dbprint("**set kpgd (0x%.16llx).\n", vmi->kpgd);
 
     /* get address start of process list */

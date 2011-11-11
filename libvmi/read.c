@@ -108,6 +108,10 @@ size_t vmi_read_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t
 size_t vmi_read_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count)
 {
     addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
+    if (0 == vaddr) {
+	dprint ("-- vmi_translate_ksym2v(vmi, \"%s\") failed", sym);
+	return 0;
+    }
     return vmi_read_va(vmi, vaddr, 0, buf, count);
 }
 

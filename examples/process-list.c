@@ -60,8 +60,20 @@ int main (int argc, char **argv)
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
         tasks_offset = vmi_get_offset(vmi, "win_tasks");
+	if (0 == tasks_offset) {
+	    printf("Failed to find win_tasks\n");
+	    goto error_exit;
+	}
         name_offset = vmi_get_offset(vmi, "win_pname");
+	if (0 == tasks_offset) {
+	    printf("Failed to find win_pname\n");
+	    goto error_exit;
+	}
         pid_offset = vmi_get_offset(vmi, "win_pid");
+	if (0 == tasks_offset) {
+	    printf("Failed to find win_pid\n");
+	    goto error_exit;
+	}
     }
 
     /* pause the vm for consistent memory access */
@@ -119,6 +131,7 @@ int main (int argc, char **argv)
             procname = NULL;
         }
         next_process = tmp_next;
+	break; // 1 iteration of look for now
     }
 
 error_exit:
