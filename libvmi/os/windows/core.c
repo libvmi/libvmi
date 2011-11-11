@@ -144,7 +144,6 @@ status_t windows_init (vmi_instance_t vmi)
     }
     vmi->os.windows_instance.ntoskrnl = vmi_translate_kv2p(vmi, vmi->os.windows_instance.ntoskrnl);
     dbprint("**set ntoskrnl (0x%.16llx).\n", vmi->os.windows_instance.ntoskrnl);
-    vmi_print_hex_pa(vmi, vmi->os.windows_instance.ntoskrnl, 0x200);
 
     /* get the kernel page directory location */
     if (VMI_FAILURE == get_kpgd_method0(vmi, &sysproc)){
