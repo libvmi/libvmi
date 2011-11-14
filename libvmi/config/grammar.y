@@ -278,6 +278,7 @@ int vmi_parse_config (char *td)
 %token         WIN_PEB
 %token         WIN_IBA
 %token         WIN_PH
+%token         WIN_PNAME
 %token         SYSMAPTOK
 %token         OSTYPETOK
 %token<str>    WORD
@@ -337,6 +338,8 @@ assignment:
         win_iba_assignment
         |
         win_ph_assignment
+        |
+        win_pname_assignment
         ;
 
 linux_tasks_assignment:
@@ -432,6 +435,14 @@ win_ph_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.ph = tmp;
+        }
+        ;
+
+win_pname_assignment:
+        WIN_PNAME EQUALS NUM
+        {
+            int tmp = strtol($3, NULL, 0);
+            tmp_entry.offsets.windows_offsets.pname = tmp;
         }
         ;
 

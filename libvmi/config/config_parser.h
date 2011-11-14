@@ -48,6 +48,7 @@ typedef struct vmi_config_entry {
             int peb;
             int iba;
             int ph;
+            int pname;
         } windows_offsets;
     } offsets;
 } vmi_config_entry_t;

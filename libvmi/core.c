@@ -124,6 +124,11 @@ static int read_config_file (vmi_instance_t vmi)
             vmi->os.windows_instance.pid_offset =
                 entry->offsets.windows_offsets.pid;
         }
+
+        if(entry->offsets.windows_offsets.pname){
+            vmi->os.windows_instance.pname_offset =
+                entry->offsets.windows_offsets.pname;
+        }
     }
 
 #ifdef VMI_DEBUG

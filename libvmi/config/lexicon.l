@@ -52,6 +52,7 @@ win_pid                 { BeginToken(yytext); return WIN_PID; }
 win_peb                 { BeginToken(yytext); return WIN_PEB; }
 win_iba                 { BeginToken(yytext); return WIN_IBA; }
 win_ph                  { BeginToken(yytext); return WIN_PH; }
+win_pname               { BeginToken(yytext); return WIN_PNAME; }
 sysmap                  { BeginToken(yytext); return SYSMAPTOK; }
 ostype                  { BeginToken(yytext); return OSTYPETOK; }
 0x[0-9a-fA-F]+|[0-9]+   {

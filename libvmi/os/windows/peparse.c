@@ -256,7 +256,7 @@ int get_aon_index (
     return -1;
 }
 
-status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_table *et)
+status_t get_export_table (vmi_instance_t vmi, addr_t base_vaddr, struct export_table *et)
 {
     uint32_t value = 0;
     addr_t signature_location = 0;
@@ -269,22 +269,23 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_
     size_t nbytes = 0;
 
     /* signature location */
-    vmi_read_32_pa(vmi, base_paddr + 0x3c, &value);
-    signature_location = base_paddr + value;
+    vmi_read_32_va(vmi, base_vaddr + 0x3c, 0, &value);
+    signature_location = base_vaddr + value;
 
     /* optional header */
     optional_header_location = signature_location + 4 + sizeof(struct file_header);
     
     /* check magic value */
     uint16_t magic = 0;
-    (void)vmi_read_16_pa(vmi, optional_header_location, &magic);
+    (void)vmi_read_16_va(vmi, optional_header_location, 0, &magic);
     dbprint("--PEParse: magic is 0x%x\n", magic);
 
     if (0x10b == magic){
         struct optional_header_pe32 oh;
-        nbytes = vmi_read_pa(
+        nbytes = vmi_read_va(
             vmi,
             optional_header_location,
+            0,
             &oh,
             sizeof(struct optional_header_pe32));
         if (nbytes != sizeof(struct optional_header_pe32)){
@@ -295,9 +296,10 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_
     }
     else if (0x20b == magic){
         struct optional_header_pe32plus oh;
-        nbytes = vmi_read_pa(
+        nbytes = vmi_read_va(
             vmi,
             optional_header_location,
+            0,
             &oh,
             sizeof(struct optional_header_pe32plus));
         if (nbytes != sizeof(struct optional_header_pe32plus)){
@@ -350,13 +352,13 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_
 /* returns the rva value for a windows kernel export */
 status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, addr_t *rva)
 {
-    addr_t base_paddr = vmi->os.windows_instance.ntoskrnl;
+    addr_t base_vaddr = vmi->os.windows_instance.ntoskrnl_va;
     struct export_table et;
     int aon_index = -1;
     int aof_index = -1;
 
     // get export table structure
-    if (get_export_table(vmi, base_paddr, &et) != VMI_SUCCESS){
+    if (get_export_table(vmi, base_vaddr, &et) != VMI_SUCCESS){
         dbprint("--PEParse: failed to get export table\n");
         return VMI_FAILURE;
     }
@@ -379,6 +381,7 @@ status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, addr_t *rva)
 
 status_t valid_ntoskrnl_start (vmi_instance_t vmi, addr_t addr)
 {
+    dbprint("*!*!*! THE %s FUNCTION HAS NOT BEEN UPDATED AND MAY BE BROKEN !*!*!*\n", __FUNCTION__);
     uint32_t value = 0;
     addr_t signature_location = 0;
     struct export_table et;
