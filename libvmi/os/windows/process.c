@@ -47,48 +47,67 @@ char *windows_get_eprocess_name (vmi_instance_t vmi, uint32_t paddr)
     }
 }
 
-int find_pname_offset (vmi_instance_t vmi)
+#define MAGIC1 0x1b0003
+#define MAGIC2 0x200003
+#define MAGIC3 0x580003
+static inline int check_magic_2k (uint32_t a) { return (a == MAGIC1); }
+static inline int check_magic_xp (uint32_t a) { return (a == MAGIC1); }
+static inline int check_magic_2k3 (uint32_t a) { return (a == MAGIC1); }
+static inline int check_magic_vista (uint32_t a) { return (a == MAGIC2); }
+static inline int check_magic_2k8 (uint32_t a) { return (a == MAGIC1 || a == MAGIC2 || a == MAGIC3); } // not sure what this is, check all
+static inline int check_magic_7 (uint32_t a) { return (a == MAGIC3); }
+static inline int check_magic_unknown (uint32_t a) { return (a == MAGIC1 || a == MAGIC2 || a == MAGIC3); }
+
+static check_magic_func get_check_magic_func (vmi_instance_t vmi)
+{
+    check_magic_func rtn = NULL;
+
+    switch (vmi->os.windows_instance.version) {
+        case VMI_OS_WINDOWS_2000:
+            rtn = &check_magic_2k;
+            break;
+        case VMI_OS_WINDOWS_XP:
+            rtn = &check_magic_xp;
+            break;
+        case VMI_OS_WINDOWS_2003:
+            rtn = &check_magic_2k3;
+            break;
+        case VMI_OS_WINDOWS_VISTA:
+            rtn = &check_magic_vista;
+            break;
+        case VMI_OS_WINDOWS_2008:
+            rtn = &check_magic_2k8;
+            break;
+        case VMI_OS_WINDOWS_7:
+            rtn = &check_magic_7;
+            break;
+        case VMI_OS_WINDOWS_UNKNOWN:
+            rtn = &check_magic_unknown;
+            break;
+        default:
+            rtn = &check_magic_unknown;
+            dbprint("--%s: illegal value in vmi->os.windows_instance.version\n", __FUNCTION__);
+            break;
+    }
+
+    return rtn;
+}
+
+int find_pname_offset (vmi_instance_t vmi, check_magic_func check)
 {
     uint32_t offset = 0;
     uint32_t value = 0;
     uint32_t target_val = 0;
 
-        // Magic header numbers.
-#define MAGIC1 0x1b0003
-#define MAGIC2 0x200003
-#define MAGIC3 0x580003
-
-
-    switch (vmi->os.windows_instance.version) {
-	case VMI_OS_WINDOWS_7:
-	    target_val = MAGIC3; break;
-	case VMI_OS_WINDOWS_XP: 
-	    target_val = MAGIC1; break;
-
-	    // TODO: fill in with correct vals /////////////////////////
-	case VMI_OS_WINDOWS_2000:
-	case VMI_OS_WINDOWS_2003:
-	case VMI_OS_WINDOWS_VISTA:
-	case VMI_OS_WINDOWS_2008:
-	case VMI_OS_WINDOWS_UNKNOWN:
-	    target_val = MAGIC2; break;
-	default:
-	    dbprint("--%s: illegal value in vmi->os.windows_instance.version\n");
-	    return 0;
-    } // switch
-
-    dbprint("--%s: magic header number for this version of Windows is 0x%x\n",
-	    __FUNCTION__, target_val);
+    if (NULL == check){
+        check = get_check_magic_func(vmi);
+    }
 
     while (offset < vmi->size){
         vmi_read_32_pa(vmi, offset, &value);
 
-//	if (MAGIC1 == value ||
-//	    MAGIC2 == value ||
-//	    MAGIC3 == value   ) {
-	if (value == target_val) { // look for specific magic #
-	    dbprint("--%s: found magic value 0x%.8x @ offset 0x%.8x\n",
-		    __FUNCTION__, value, offset);
+        if (check(value)) { // look for specific magic #
+            dbprint("--%s: found magic value 0x%.8x @ offset 0x%.8x\n", __FUNCTION__, value, offset);
 
             int i = 0;
             for ( ; i < 0x500; ++i){
@@ -98,8 +117,7 @@ int find_pname_offset (vmi_instance_t vmi)
                 }
                 else if (strncmp(procname, "Idle", 4) == 0){
                     vmi->init_task = offset + vmi->os.windows_instance.tasks_offset;
-		    dbprint("--%s: found Idle process at 0x%.8x + 0x%x\n",
-			    __FUNCTION__, offset, i);
+                    dbprint("--%s: found Idle process at 0x%.8x + 0x%x\n", __FUNCTION__, offset, i);
                     free(procname);
                     return i;
                 }
@@ -117,9 +135,10 @@ uint32_t windows_find_eprocess (vmi_instance_t vmi, char *name)
 {
     uint32_t offset = 0;
     uint32_t value = 0;
+    check_magic_func check = get_check_magic_func(vmi);
 
     if (vmi->os.windows_instance.pname_offset == 0){
-        vmi->os.windows_instance.pname_offset = find_pname_offset(vmi);
+        vmi->os.windows_instance.pname_offset = find_pname_offset(vmi, check);
         if (vmi->os.windows_instance.pname_offset == 0){
             dbprint("--failed to find pname_offset\n");
             return 0;
@@ -135,9 +154,7 @@ uint32_t windows_find_eprocess (vmi_instance_t vmi, char *name)
 
     while (offset < vmi->size){
         vmi_read_32_pa(vmi, offset, &value);
-        // Magic header numbers.
-        //TODO might be able to optimize this by only looking for the value for OS version we see
-        if (value == 0x001b0003 || value == 0x00200003 || value == 0x00580003){
+        if (check(value)){ // look for specific magic #
             char *procname = windows_get_eprocess_name(vmi, offset);
             if (procname){
                 if (strncmp(procname, name, 50) == 0){

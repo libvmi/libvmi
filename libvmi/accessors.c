@@ -53,7 +53,7 @@ unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name)
     }
     else if (strncmp(offset_name, "win_pname", max_length) == 0){
         if (vmi->os.windows_instance.pname_offset == 0){
-            vmi->os.windows_instance.pname_offset = find_pname_offset(vmi);
+            vmi->os.windows_instance.pname_offset = find_pname_offset(vmi, NULL);
             if (vmi->os.windows_instance.pname_offset == 0){
                 dbprint("--failed to find pname_offset\n");
                 return 0;
