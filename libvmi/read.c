@@ -33,48 +33,36 @@
 // Classic read functions for access to memory
 static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count, int is_p)
 {
+    //TODO not sure how to best handle this with respect to page size.  Is this hypervisor dependent?
+    //  For example, the pfn for a given paddr should vary based on the size of the page where the
+    //  paddr resides.  However, it is hard to know the page size from just the paddr.  For now, just
+    //  assuming 4k pages and doing the read from there.
     unsigned char *memory = NULL;
-    addr_t phys_address = 0;
     addr_t pfn = 0;
     addr_t offset = 0;
-    size_t buf_offset = 0;
+    size_t read_len = 0;
 
-    while (count > 0){
-        size_t read_len = 0;
-
-        /* access the memory */
-        phys_address = paddr + buf_offset;
-        pfn = phys_address >> vmi->page_shift;
-        offset = (vmi->page_size - 1) & phys_address;
-        memory = vmi_read_page(vmi, pfn, is_p);
-        if (NULL == memory){
-            return buf_offset;
-        }
-
-        /* determine how much we can read */
-        if ((offset + count) > vmi->page_size){
-            read_len = vmi->page_size - offset;
-        }
-        else{
-            read_len = count;
-        }
-        
-        /* do the read */
-        if (NULL == buf || NULL == memory){
-            fprintf(stdout, "DANGER!!! memcpy with NULL values\n");
-        }
-//        else{
-//            fprintf(stdout, "buf=0x%llx, buf_offset=0x%lx, memory=0x%llx, offset=0x%llx, read_len=0x%lx\n", buf, buf_offset, memory, offset, read_len);
-//        }
-//        fflush(stdout);
-        memcpy( ((char *) buf) + (addr_t) buf_offset, memory + (addr_t) offset, read_len);
-
-        /* set variables for next loop */
-        count -= read_len;
-        buf_offset += read_len;
+    /* access the memory */
+    pfn = paddr >> vmi->page_shift;
+    offset = (vmi->page_size - 1) & paddr;
+    memory = vmi_read_page(vmi, pfn, is_p);
+    if (NULL == memory){
+        return 0;
     }
 
-    return buf_offset;
+    /* determine how much we can read */
+    if ((offset + count) > vmi->page_size){
+        read_len = vmi->page_size - offset;
+        //dbprint("--%s: returning partial read, can't wrap read on physical pages\n", __FUNCTION__);
+    }
+    else{
+        read_len = count;
+    }
+        
+    /* do the read */
+    memcpy( ((char *) buf), memory + (addr_t) offset, read_len);
+
+    return read_len;
 }
 
 static size_t vmi_read_ma (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
@@ -89,28 +77,59 @@ size_t vmi_read_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
 
 size_t vmi_read_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t count)
 {
+    unsigned char *memory = NULL;
     addr_t paddr = 0;
-    if (pid){
-        paddr = vmi_translate_uv2p(vmi, vaddr, pid);
-    }
-    else{
-        paddr = vmi_translate_kv2p(vmi, vaddr);
+    addr_t pfn = 0;
+    addr_t offset = 0;
+    size_t buf_offset = 0;
+
+    if (NULL == buf){
+        dbprint("--%s: buf passed as NULL, returning without read\n", __FUNCTION__);
+        return 0;
     }
 
-    if (!driver_is_pv(vmi)){
-        return vmi_read_pa(vmi, paddr, buf, count);
+    while (count > 0){
+        size_t read_len = 0;
+        if (pid){
+            paddr = vmi_translate_uv2p(vmi, vaddr + buf_offset, pid);
+        }
+        else{
+            paddr = vmi_translate_kv2p(vmi, vaddr + buf_offset);
+        }
+
+        /* access the memory */
+        pfn = paddr >> vmi->page_shift;
+        offset = (vmi->page_size - 1) & paddr;
+        memory = vmi_read_page(vmi, pfn, driver_is_pv(vmi));
+        if (NULL == memory){
+            return buf_offset;
+        }
+
+        /* determine how much we can read */
+        if ((offset + count) > vmi->page_size){
+            read_len = vmi->page_size - offset;
+        }
+        else{
+            read_len = count;
+        }
+        
+        /* do the read */
+        memcpy( ((char *) buf) + (addr_t) buf_offset, memory + (addr_t) offset, read_len);
+
+        /* set variables for next loop */
+        count -= read_len;
+        buf_offset += read_len;
     }
-    else{
-        return vmi_read_ma(vmi, paddr, buf, count);
-    }
+
+    return buf_offset;
 }
 
 size_t vmi_read_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count)
 {
     addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
-    if (0 == vaddr) {
-	dbprint ("-- vmi_translate_ksym2v(vmi, \"%s\") failed", sym);
-	return 0;
+    if (0 == vaddr){
+        dbprint("--%s: vmi_translate_ksym2v failed for '%s'\n", __FUNCTION__, sym);
+        return 0;
     }
     return vmi_read_va(vmi, vaddr, 0, buf, count);
 }
@@ -165,7 +184,7 @@ status_t vmi_read_addr_ma (vmi_instance_t vmi, addr_t maddr, addr_t *value)
 char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr)
 {
     char *rtnval = NULL;
-    size_t chunk_size = 4096;
+    size_t chunk_size = vmi->page_size - ((vmi->page_size - 1) & maddr);
     char *buf = (char *) safe_malloc(chunk_size);
 
     // read in chunk of data

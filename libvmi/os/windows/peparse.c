@@ -315,10 +315,10 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_paddr, struct export_
     export_header_va =  vmi->os.windows_instance.ntoskrnl_va + export_header_rva;
 
     // sanity check -- CURRENTLY FAILS ON WIN7 BUT WORKS ON XP (msl 2011-11-11)
-    export_header_pa = vmi_translate_kv2p (vmi, export_header_va);
-    if (0 == export_header_pa) { 
-	dbprint("--PEParse: failed to find PA for VA 0x%.16llx\n", export_header_va);
-	return VMI_FAILURE;
+    export_header_pa = vmi_translate_kv2p(vmi, export_header_va);
+    if (0 == export_header_pa){ 
+        dbprint("--PEParse: failed to find PA for VA 0x%.16llx\n", export_header_va);
+        return VMI_FAILURE;
     } // if
 
     dbprint("--PEParse: found export table at [VA] 0x%.16llx = 0x%.16llx + 0x%x\n",

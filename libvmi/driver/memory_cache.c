@@ -122,7 +122,7 @@ void memory_cache_init (
 		void (*release_data)(void *, size_t),
 		unsigned long age_limit)
 {
-    vmi->memory_cache = g_hash_table_new(g_int_hash, g_int_equal);
+    vmi->memory_cache = g_hash_table_new(g_int64_hash, g_int64_equal);
     vmi->memory_cache_age = age_limit;
     get_data_callback = get_data;
 	release_data_callback = release_data;
@@ -133,8 +133,7 @@ void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
     memory_cache_entry_t entry = NULL;
     *offset = (uint32_t) (paddr & (vmi->page_size - 1));
     paddr &= ~( ((addr_t) vmi->page_size) - 1);
-    gint key = (gint) paddr;
-    //dbprint("--MEMORY cache warning: possible truncation 0x%llx --> 0x%lx\n", paddr, key);
+    gint64 key = (gint64) paddr;
 
     if ((entry = g_hash_table_lookup(vmi->memory_cache, &key)) != NULL){
         //dbprint("--MEMORY cache hit 0x%.16llx\n", paddr);
