@@ -52,7 +52,7 @@
 struct image_data_directory{
     uint32_t virtual_address;
     uint32_t size;
-};
+} __attribute__ ((packed));
 
 struct file_header{
     uint16_t machine;
@@ -63,7 +63,7 @@ struct file_header{
     uint16_t size_of_optional_header;
     uint16_t characteristics;
     // characteristics flags defined in pe.txt
-};
+} __attribute__ ((packed));
 
 struct optional_header_pe32{
     uint16_t magic; // 0x10b
@@ -97,7 +97,7 @@ struct optional_header_pe32{
     uint32_t loader_flags;
     uint32_t number_of_rva_and_sizes;
     struct image_data_directory idd[16];
-};
+} __attribute__ ((packed));
 
 struct optional_header_pe32plus{
     uint16_t magic; // 0x20b
@@ -130,7 +130,7 @@ struct optional_header_pe32plus{
     uint32_t loader_flags;
     uint32_t number_of_rva_and_sizes;
     struct image_data_directory idd[16];
-};
+} __attribute__ ((packed));
 
 struct section_header{
     char short_name[8];
@@ -146,7 +146,7 @@ struct section_header{
     uint16_t number_of_relocations;
     uint16_t number_of_line_numbers;
     uint32_t characteristics;
-};
+} __attribute__ ((packed));
 
 struct export_table{
     uint32_t export_flags; // reserved, must be 0
@@ -160,7 +160,7 @@ struct export_table{
     uint32_t address_of_functions;
     uint32_t address_of_names;
     uint32_t address_of_name_ordinals;
-};
+} __attribute__ ((packed));
 
 // takes an rva and looks up a null terminated string at that location
 char *rva_to_string (vmi_instance_t vmi, addr_t rva)
