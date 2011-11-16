@@ -129,6 +129,11 @@ static int read_config_file (vmi_instance_t vmi)
             vmi->os.windows_instance.pname_offset =
                 entry->offsets.windows_offsets.pname;
         }
+
+        if(entry->offsets.windows_offsets.kpcr){
+            vmi->os.windows_instance.kddebugger_data64 = 
+                entry->offsets.windows_offsets.kpcr;
+        }
     }
 
 #ifdef VMI_DEBUG

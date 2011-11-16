@@ -511,7 +511,6 @@ static addr_t find_kdversionblock_address (vmi_instance_t vmi)
         }
     }
 
-    dbprint("--%s: KdVersionBlock address is 0x%.16llx\n", __FUNCTION__, kdvb_address);
     return kdvb_address;
 }
 
@@ -548,6 +547,7 @@ status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address)
         if (VMI_FAILURE == init_kddebugger_data64(vmi)){
             goto error_exit;
         }
+        printf("**set KPCR address=0x%.16llx\n", vmi->os.windows_instance.kddebugger_data64);
     }
     if (VMI_FAILURE == kpcr_symbol_offset(vmi, symbol, &offset)){
         goto error_exit;
