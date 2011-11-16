@@ -98,7 +98,7 @@ int main (int argc, char **argv)
     list_head = next_process;
 
     /* walk the task list */
-    while (0){
+    while (1){
 
         /* follow the next pointer */
         addr_t tmp_next = 0;
@@ -131,7 +131,6 @@ int main (int argc, char **argv)
             procname = NULL;
         }
         next_process = tmp_next;
-	break; // 1 iteration of look for now
     }
 
 error_exit:

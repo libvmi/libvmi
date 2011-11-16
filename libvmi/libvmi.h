@@ -47,7 +47,7 @@
 #include <errno.h>
 
 /* uncomment this and recompile to enable debug output */
-#define VMI_DEBUG
+//#define VMI_DEBUG
 
 #define VMI_AUTO (1 << 0)  /**< libvmi should detect what to monitor or view */
 #define VMI_XEN  (1 << 1)  /**< libvmi is monitoring a Xen VM */
