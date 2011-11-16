@@ -226,18 +226,14 @@ int get_aof_index (
     }
 }
 
-int get_aon_index (
-        vmi_instance_t vmi, char *symbol, struct export_table *et)
+int get_aon_index (vmi_instance_t vmi, char *symbol, struct export_table *et)
 {
     /*TODO implement faster name search alg since names are sorted */
     addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     uint32_t i = 0;
-    unsigned char *memory = NULL;
-    uint32_t offset = 0;
 
     for ( ; i < et->number_of_names; ++i){
-        addr_t str_rva_loc =
-            base_addr + et->address_of_names + i * sizeof(uint32_t);
+        addr_t str_rva_loc = base_addr + et->address_of_names + i * sizeof(uint32_t);
         uint32_t str_rva = 0;
         vmi_read_32_va(vmi, str_rva_loc, 0, &str_rva);
         if (str_rva){

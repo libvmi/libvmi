@@ -43,9 +43,8 @@ status_t windows_symbol_to_address (
     /* check exports */
     else if (VMI_SUCCESS == windows_export_to_rva(vmi, symbol, address)){
         addr_t rva = *address;
-        addr_t phys_address = vmi->os.windows_instance.ntoskrnl + rva;
-        *address = phys_address + vmi->page_offset;
-        dbprint("--got symbol from PE export table (%s --> 0x%.16x).\n", symbol, *address);
+        *address = vmi->os.windows_instance.ntoskrnl_va + rva;
+        dbprint("--got symbol from PE export table (%s --> 0x%.16llx).\n", symbol, *address);
         return VMI_SUCCESS;
     }
 
