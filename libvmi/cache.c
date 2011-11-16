@@ -229,6 +229,7 @@ static uint64_t hash128to64 (uint64_t low, uint64_t high)
 static gint64 *v2p_build_key (vmi_instance_t vmi, addr_t va, addr_t dtb)
 {
     uint64_t *key = (uint64_t *) safe_malloc(sizeof(uint64_t));
+    va = (va & ~(vmi->page_size - 1));
     *key = hash128to64(dtb, va);
     return (gint64 *) key;
 }
@@ -251,7 +252,7 @@ status_t v2p_cache_get (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa)
     if ((entry = g_hash_table_lookup(vmi->v2p_cache, key)) != NULL){
 
         // make sure we don't have a key collision
-        if (entry->va != va || entry->dtb != dtb){
+        if ((entry->va & ~(vmi->page_size - 1)) != (va & ~(vmi->page_size - 1)) || entry->dtb != dtb){
             dbprint("--V2P cache collision\n");
             return VMI_FAILURE;
         }
