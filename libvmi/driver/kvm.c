@@ -72,7 +72,7 @@ static char *exec_qmp_cmd (kvm_instance_t *kvm, char *query)
     int cmd_length = strlen(name) + strlen(query) + 29;
     char *cmd = safe_malloc(cmd_length);
     snprintf(cmd, cmd_length, "virsh qemu-monitor-command %s %s", name, query);
-    dbprint("--qmp: %s\n", cmd);
+    //dbprint("--qmp: %s\n", cmd);
     
     p = popen(cmd, "r");
     if (NULL == p){
@@ -422,6 +422,10 @@ status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
         case CR4:
             *value = parse_reg_value("CR4", regs);
             break;
+        case MSR_EFER:
+            *value = parse_reg_value("EFER", regs);
+            break;
+            /*
         case EAX:
             *value = parse_reg_value("EAX", regs);
             break;
@@ -452,6 +456,7 @@ status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
         case EFL:
             *value = parse_reg_value("EFL", regs);
             break;
+            */
         default:
             ret = VMI_FAILURE;
             break;

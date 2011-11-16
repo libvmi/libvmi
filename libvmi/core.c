@@ -396,7 +396,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
             errprint("Failed to get memory size.\n");
             goto error_exit;
         }
-        dbprint("**set size = %d\n", (*vmi)->size);
+        dbprint("**set size = %llu\n", (*vmi)->size);
 
         /* determine the page sizes and layout for target OS */
         if (VMI_FAILURE == get_memory_layout(*vmi)){
