@@ -511,6 +511,7 @@ static addr_t find_kdversionblock_address (vmi_instance_t vmi)
         }
     }
 
+    dbprint("--%s: KdVersionBlock address is 0x%.16llx\n", __FUNCTION__, kdvb_address);
     return kdvb_address;
 }
 

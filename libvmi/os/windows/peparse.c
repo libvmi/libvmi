@@ -165,13 +165,13 @@ struct export_table{
 // takes an rva and looks up a null terminated string at that location
 char *rva_to_string (vmi_instance_t vmi, addr_t rva)
 {
-    addr_t paddr = vmi->os.windows_instance.ntoskrnl + rva;
-    return vmi_read_str_pa(vmi, paddr);
+    addr_t vaddr = vmi->os.windows_instance.ntoskrnl_va + rva;
+    return vmi_read_str_va(vmi, vaddr, 0);
 }
 
 void dump_exports (vmi_instance_t vmi, struct export_table et)
 {
-    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl;
+    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     addr_t base1 = base_addr + et.address_of_names;
     addr_t base2 = base_addr + et.address_of_name_ordinals;
     addr_t base3 = base_addr + et.address_of_functions;
@@ -183,12 +183,12 @@ void dump_exports (vmi_instance_t vmi, struct export_table et)
         uint16_t ordinal = 0;
         uint32_t loc = 0;
         char *str = NULL;
-        vmi_read_32_pa(vmi, base1 + i * sizeof(uint32_t), &rva);
+        vmi_read_32_va(vmi, base1 + i * sizeof(uint32_t), 0, &rva);
         if (rva){
             str = rva_to_string(vmi, (addr_t) rva);
             if (str){
-                vmi_read_16_pa(vmi, base2 + i * sizeof(uint16_t), &ordinal);
-                vmi_read_32_pa(vmi, base3 + ordinal + sizeof(uint32_t), &loc);
+                vmi_read_16_va(vmi, base2 + i * sizeof(uint16_t), 0, &ordinal);
+                vmi_read_32_va(vmi, base3 + ordinal + sizeof(uint32_t), 0, &loc);
                 printf("%s:%d:0x%x\n", str, ordinal, loc);
                 free(str);
             }
@@ -200,12 +200,12 @@ status_t get_export_rva (
         vmi_instance_t vmi, addr_t *rva,
         int aof_index, struct export_table *et)
 {
-    addr_t base_addr = vmi->os.windows_instance.ntoskrnl;
+    addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     addr_t rva_loc =
         base_addr + et->address_of_functions + aof_index * sizeof(uint32_t);
 
     uint32_t tmp = 0;
-    status_t ret = vmi_read_32_pa(vmi, rva_loc, &tmp);
+    status_t ret = vmi_read_32_va(vmi, rva_loc, 0, &tmp);
     *rva = (addr_t) tmp;
     return ret;
 }
@@ -213,12 +213,12 @@ status_t get_export_rva (
 int get_aof_index (
         vmi_instance_t vmi, int aon_index, struct export_table *et)
 {
-    addr_t base_addr = vmi->os.windows_instance.ntoskrnl;
+    addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     addr_t aof_index_loc =
         base_addr + et->address_of_name_ordinals + aon_index * sizeof(uint16_t);
     uint32_t aof_index = 0;
 
-    if (vmi_read_32_pa(vmi, aof_index_loc, &aof_index) == VMI_SUCCESS){
+    if (vmi_read_32_va(vmi, aof_index_loc, 0, &aof_index) == VMI_SUCCESS){
         return (int) (aof_index & 0xffff);
     }
     else{
@@ -230,7 +230,7 @@ int get_aon_index (
         vmi_instance_t vmi, char *symbol, struct export_table *et)
 {
     /*TODO implement faster name search alg since names are sorted */
-    addr_t base_addr = vmi->os.windows_instance.ntoskrnl;
+    addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     uint32_t i = 0;
     unsigned char *memory = NULL;
     uint32_t offset = 0;
@@ -239,7 +239,7 @@ int get_aon_index (
         addr_t str_rva_loc =
             base_addr + et->address_of_names + i * sizeof(uint32_t);
         uint32_t str_rva = 0;
-        vmi_read_32_pa(vmi, str_rva_loc, &str_rva);
+        vmi_read_32_va(vmi, str_rva_loc, 0, &str_rva);
         if (str_rva){
             char *rva = rva_to_string(vmi, (addr_t) str_rva);
             if (NULL != rva){
