@@ -31,8 +31,6 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
-#define PAGE_SIZE 1 << 12
-
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
@@ -44,6 +42,11 @@ int main (int argc, char **argv)
     int tasks_offset, pid_offset, name_offset;
 
     /* this is the VM or file that we are looking at */
+    if (argc != 2) {
+        printf ("Usage: %s <vmname>\n", argv[0]);
+        return 1;
+    } // if
+
     char *name = argv[1];
 
     /* initialize the libvmi library */
@@ -60,20 +63,20 @@ int main (int argc, char **argv)
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
         tasks_offset = vmi_get_offset(vmi, "win_tasks");
-	if (0 == tasks_offset) {
-	    printf("Failed to find win_tasks\n");
-	    goto error_exit;
-	}
+        if (0 == tasks_offset) {
+            printf("Failed to find win_tasks\n");
+            goto error_exit;
+        }
         name_offset = vmi_get_offset(vmi, "win_pname");
-	if (0 == tasks_offset) {
-	    printf("Failed to find win_pname\n");
-	    goto error_exit;
-	}
+        if (0 == tasks_offset) {
+            printf("Failed to find win_pname\n");
+            goto error_exit;
+        }
         pid_offset = vmi_get_offset(vmi, "win_pid");
-	if (0 == tasks_offset) {
-	    printf("Failed to find win_pid\n");
-	    goto error_exit;
-	}
+        if (0 == tasks_offset) {
+            printf("Failed to find win_pid\n");
+            goto error_exit;
+        }
     }
 
     /* pause the vm for consistent memory access */
@@ -120,11 +123,17 @@ int main (int argc, char **argv)
            want to do this a little more robust :-)  See
            include/linux/sched.h for mode details */
         procname = vmi_read_str_va(vmi, next_process + name_offset - tasks_offset, 0);
+
+        if (!procname) {
+            printf ("Failed to find procname\n"); // set bp here
+        } // if
+
+
         vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
 
         /* trivial sanity check on data */
-        if (pid >= 0){
-            printf("[%5d] %s\n", pid, procname);
+        if (pid >= 0 && procname){
+            printf("[%5d = %x] %s\n", pid, pid, procname);
         }
         if (procname){
             free(procname);
