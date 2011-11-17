@@ -40,6 +40,7 @@ int main (int argc, char **argv)
     char *procname = (char *) malloc(256);
     int pid = 0;
     int tasks_offset, pid_offset, name_offset;
+    status_t status;
 
     /* this is the VM or file that we are looking at */
     if (argc != 2) {
@@ -80,7 +81,10 @@ int main (int argc, char **argv)
     }
 
     /* pause the vm for consistent memory access */
-    vmi_pause_vm(vmi);
+    if (vmi_pause_vm(vmi) == VMI_FAILURE) {
+        printf("Failed to pause VM\n");
+        goto error_exit;
+    } // if
 
     /* get the head of the list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
@@ -133,7 +137,7 @@ int main (int argc, char **argv)
 
         /* trivial sanity check on data */
         if (pid >= 0 && procname){
-            printf("[%5d = %x] %s\n", pid, pid, procname);
+            printf("[%5d] %s\n", pid, procname);
         }
         if (procname){
             free(procname);
