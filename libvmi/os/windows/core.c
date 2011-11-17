@@ -144,22 +144,23 @@ status_t windows_init (vmi_instance_t vmi)
     }
 
     dbprint("**ntoskrnl @ VA 0x%.16llx.\n", vmi->os.windows_instance.ntoskrnl_va);
+
     vmi->os.windows_instance.ntoskrnl = vmi_translate_kv2p(vmi, vmi->os.windows_instance.ntoskrnl_va);
     dbprint("**set ntoskrnl (0x%.16llx).\n", vmi->os.windows_instance.ntoskrnl);
 
     /* get the kernel page directory location */
     if (VMI_SUCCESS == get_kpgd_method0(vmi, &sysproc)){
         dbprint("--kpgd method0 success\n");
-	goto found_kpgd;
+        goto found_kpgd;
     }
     if (VMI_SUCCESS == get_kpgd_method1(vmi, &sysproc)){
-	dbprint("--kpgd method1 success\n");
-	goto found_kpgd;
+        dbprint("--kpgd method1 success\n");
+        goto found_kpgd;
     }
 
     if (VMI_SUCCESS == get_kpgd_method2(vmi, &sysproc)){
-	dbprint("--kpgd method1 success\n");
-	goto found_kpgd;
+        dbprint("--kpgd method1 success\n");
+        goto found_kpgd;
     }
 
     /* all methods exhausted */
@@ -168,7 +169,6 @@ status_t windows_init (vmi_instance_t vmi)
 
 found_kpgd:
     dbprint("**set kpgd (0x%.16llx).\n", vmi->kpgd);
-
     /* get address start of process list */
     vmi_read_addr_pa(vmi, sysproc + vmi->os.windows_instance.tasks_offset, &vmi->init_task);
     dbprint("**set init_task (0x%.16llx).\n", vmi->init_task);

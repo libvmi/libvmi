@@ -81,7 +81,7 @@ int main (int argc, char **argv)
     }
 
     /* pause the vm for consistent memory access */
-    if (vmi_pause_vm(vmi) == VMI_FAILURE) {
+    if (vmi_pause_vm(vmi) != VMI_SUCCESS) {
         printf("Failed to pause VM\n");
         goto error_exit;
     } // if
@@ -92,16 +92,29 @@ int main (int argc, char **argv)
         vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0, &next_process);
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head);
+
+        uint32_t pdbase = 0;
+
+        // find PEPROCESS PsInitialSystemProcess
+        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head); 
+        
         vmi_read_addr_va(vmi, list_head + tasks_offset, 0, &next_process);
         vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
+
+        vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
         procname = vmi_read_str_va(vmi, list_head + name_offset, 0);
+        if (!procname) {
+            printf ("Failed to find first procname\n");
+            goto error_exit;
+        }
+
         printf("[%5d] %s\n", pid, procname);
         if (procname){
             free(procname);
             procname = NULL;
         }
     }
+
     list_head = next_process;
 
     /* walk the task list */
@@ -129,9 +142,8 @@ int main (int argc, char **argv)
         procname = vmi_read_str_va(vmi, next_process + name_offset - tasks_offset, 0);
 
         if (!procname) {
-            printf ("Failed to find procname\n"); // set bp here
+            printf ("Failed to find procname\n");
         } // if
-
 
         vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
 
