@@ -55,7 +55,8 @@ int main (int argc, char **argv)
     /* init the offset values */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
         tasks_offset = vmi_get_offset(vmi, "linux_tasks");
-        name_offset = 0x194; /* pv, xen 3.3.1, centos 2.6.18-92.1.10.el5xen */
+        //name_offset = 0x194; /* pv, xen 3.3.1, centos 2.6.18-92.1.10.el5xen */
+        name_offset = 0x2e4; /* hvm, ubuntu 11.10 kernel 3.0.0-12-generic */
         pid_offset = vmi_get_offset(vmi, "linux_pid");
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
