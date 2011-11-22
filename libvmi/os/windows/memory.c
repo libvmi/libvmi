@@ -97,7 +97,7 @@ addr_t get_ntoskrnl_base (vmi_instance_t vmi)
     }
     printf("idtr=0x%llx\n", idtr);
     //paddr = (idtr & 0x0000FFFFFFFF0000ULL) >> 16; // 32 bit?
-   paddr = aligned_addr (vmi, idtr);
+    paddr = aligned_addr (vmi, idtr);
     printf("first paddr=0x%llx\n", paddr);
     while (paddr != 0){
         printf("paddr=0x%llx\n", paddr);

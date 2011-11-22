@@ -321,6 +321,11 @@ char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
         paddr = vmi_translate_kv2p(vmi, vaddr);
     }
 
+    if (0 == paddr) {
+        dbprint("--%s: failed to translate addr 0x%.16llx\n", __FUNCTION__, vaddr);
+        return 0;
+    } // if
+
     if (!driver_is_pv(vmi)){
         return vmi_read_str_pa(vmi, paddr);
     }

@@ -252,7 +252,7 @@ int get_aon_index (vmi_instance_t vmi, char *symbol, struct export_table *et)
     return -1;
 }
 
-status_t get_export_table (vmi_instance_t vmi, addr_t base_vaddr, struct export_table *et)
+status_t get_export_table (vmi_instance_t vmi, struct export_table *et)
 {
     uint32_t value = 0;
     addr_t signature_location = 0;
@@ -263,6 +263,7 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_vaddr, struct export_
     addr_t export_header_va = 0;
     addr_t export_header_pa = 0;
     size_t nbytes = 0;
+    addr_t base_vaddr = vmi->os.windows_instance.ntoskrnl_va;
 
     /* signature location */
     vmi_read_32_va(vmi, base_vaddr + 0x3c, 0, &value);
@@ -278,12 +279,11 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_vaddr, struct export_
 
     if (0x10b == magic){
         struct optional_header_pe32 oh;
-        nbytes = vmi_read_va(
-            vmi,
-            optional_header_location,
-            0,
-            &oh,
-            sizeof(struct optional_header_pe32));
+        nbytes = vmi_read_va(vmi,
+                             optional_header_location,
+                             0,
+                             &oh,
+                             sizeof(struct optional_header_pe32));
         if (nbytes != sizeof(struct optional_header_pe32)){
             dbprint("--PEParse: failed to map optional header\n");
             return VMI_FAILURE;
@@ -292,12 +292,11 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_vaddr, struct export_
     }
     else if (0x20b == magic){
         struct optional_header_pe32plus oh;
-        nbytes = vmi_read_va(
-            vmi,
-            optional_header_location,
-            0,
-            &oh,
-            sizeof(struct optional_header_pe32plus));
+        nbytes = vmi_read_va(vmi,
+                             optional_header_location,
+                             0,
+                             &oh,
+                             sizeof(struct optional_header_pe32plus));
         if (nbytes != sizeof(struct optional_header_pe32plus)){
             dbprint("--PEParse: failed to map optional header\n");
             return VMI_FAILURE;
@@ -310,8 +309,9 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_vaddr, struct export_
     }
 
     // assume the export header is in a different page than the PE header
-    export_header_va =  vmi->os.windows_instance.ntoskrnl_va + export_header_rva;
-
+//    export_header_va = vmi->os.windows_instance.ntoskrnl_va + export_header_rva;
+    export_header_va = base_vaddr + export_header_rva;
+ 
     // sanity check -- CURRENTLY FAILS ON WIN7 BUT WORKS ON XP (msl 2011-11-11)
     export_header_pa = vmi_translate_kv2p(vmi, export_header_va);
     if (0 == export_header_pa){ 
@@ -327,9 +327,9 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_vaddr, struct export_
 
     // TODO: failure here - invalid export_header address
     nbytes = vmi_read_pa (vmi,
-			  export_header_pa,
-			  et,
-			  sizeof(*et));
+                          export_header_pa,
+                          et,
+                          sizeof(*et));
 
     if (nbytes != sizeof(struct export_table)){
         dbprint("--PEParse: failed to map export header\n");
@@ -348,13 +348,12 @@ status_t get_export_table (vmi_instance_t vmi, addr_t base_vaddr, struct export_
 /* returns the rva value for a windows kernel export */
 status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, addr_t *rva)
 {
-    addr_t base_vaddr = vmi->os.windows_instance.ntoskrnl_va;
     struct export_table et;
     int aon_index = -1;
     int aof_index = -1;
 
     // get export table structure
-    if (get_export_table(vmi, base_vaddr, &et) != VMI_SUCCESS){
+    if (get_export_table(vmi, &et) != VMI_SUCCESS){
         dbprint("--PEParse: failed to get export table\n");
         return VMI_FAILURE;
     }
@@ -377,6 +376,7 @@ status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, addr_t *rva)
 
 status_t valid_ntoskrnl_start (vmi_instance_t vmi, addr_t addr)
 {
+    // TODO: is addr a PA or VA ?
     dbprint("*!*!*! THE %s FUNCTION HAS NOT BEEN UPDATED AND MAY BE BROKEN !*!*!*\n", __FUNCTION__);
     uint32_t value = 0;
     addr_t signature_location = 0;
@@ -407,7 +407,7 @@ status_t valid_ntoskrnl_start (vmi_instance_t vmi, addr_t addr)
     }
 
     /* check name via export table */
-    if (get_export_table(vmi, addr, &et) != VMI_SUCCESS){
+    if (get_export_table(vmi, &et) != VMI_SUCCESS){
         return VMI_FAILURE;
     }
 

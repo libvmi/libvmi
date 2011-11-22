@@ -31,8 +31,6 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
-#define PAGE_SIZE 1 << 12
-
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
@@ -42,8 +40,14 @@ int main (int argc, char **argv)
     char *procname = (char *) malloc(256);
     int pid = 0;
     int tasks_offset, pid_offset, name_offset;
+    status_t status;
 
     /* this is the VM or file that we are looking at */
+    if (argc != 2) {
+        printf ("Usage: %s <vmname>\n", argv[0]);
+        return 1;
+    } // if
+
     char *name = argv[1];
 
     /* initialize the libvmi library */
@@ -61,24 +65,27 @@ int main (int argc, char **argv)
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
         tasks_offset = vmi_get_offset(vmi, "win_tasks");
-	if (0 == tasks_offset) {
-	    printf("Failed to find win_tasks\n");
-	    goto error_exit;
-	}
+        if (0 == tasks_offset) {
+            printf("Failed to find win_tasks\n");
+            goto error_exit;
+        }
         name_offset = vmi_get_offset(vmi, "win_pname");
-	if (0 == tasks_offset) {
-	    printf("Failed to find win_pname\n");
-	    goto error_exit;
-	}
+        if (0 == tasks_offset) {
+            printf("Failed to find win_pname\n");
+            goto error_exit;
+        }
         pid_offset = vmi_get_offset(vmi, "win_pid");
-	if (0 == tasks_offset) {
-	    printf("Failed to find win_pid\n");
-	    goto error_exit;
-	}
+        if (0 == tasks_offset) {
+            printf("Failed to find win_pid\n");
+            goto error_exit;
+        }
     }
 
     /* pause the vm for consistent memory access */
-    vmi_pause_vm(vmi);
+    if (vmi_pause_vm(vmi) != VMI_SUCCESS) {
+        printf("Failed to pause VM\n");
+        goto error_exit;
+    } // if
 
     /* get the head of the list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
@@ -86,16 +93,29 @@ int main (int argc, char **argv)
         vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0, &next_process);
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head);
+
+        uint32_t pdbase = 0;
+
+        // find PEPROCESS PsInitialSystemProcess
+        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head); 
+        
         vmi_read_addr_va(vmi, list_head + tasks_offset, 0, &next_process);
         vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
+
+        vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
         procname = vmi_read_str_va(vmi, list_head + name_offset, 0);
+        if (!procname) {
+            printf ("Failed to find first procname\n");
+            goto error_exit;
+        }
+
         printf("[%5d] %s\n", pid, procname);
         if (procname){
             free(procname);
             procname = NULL;
         }
     }
+
     list_head = next_process;
 
     /* walk the task list */
@@ -121,10 +141,15 @@ int main (int argc, char **argv)
            want to do this a little more robust :-)  See
            include/linux/sched.h for mode details */
         procname = vmi_read_str_va(vmi, next_process + name_offset - tasks_offset, 0);
+
+        if (!procname) {
+            printf ("Failed to find procname\n");
+        } // if
+
         vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
 
         /* trivial sanity check on data */
-        if (pid >= 0){
+        if (pid >= 0 && procname){
             printf("[%5d] %s\n", pid, procname);
         }
         if (procname){
