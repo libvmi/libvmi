@@ -187,7 +187,7 @@ status_t driver_init_mode (vmi_instance_t vmi, unsigned long id, char *name)
         return VMI_FAILURE;
     }
     else if (count > 1){
-        errprint("Found more than one VMM of file to use,\nplease specify what you want instead of using VMI_AUTO.\n");
+        errprint("Found more than one VMM or file to use,\nplease specify what you want instead of using VMI_AUTO.\n");
         return VMI_FAILURE;
     }
     else{ // count == 1
