@@ -111,37 +111,37 @@ pyvmi_instance_dealloc(PyObject *self) {
 // Translate functions
 static PyObject *
 pyvmi_translate_kv2p(PyObject *self, PyObject *args) {
-    uint32_t vaddr;
+    addr_t vaddr;
 
-    if (!PyArg_ParseTuple(args, "I", &vaddr)){
+    if (!PyArg_ParseTuple(args, "K", &vaddr)){
         return NULL;
     }
 
-    uint32_t paddr = vmi_translate_kv2p(vmi(self), vaddr);
+    addr_t paddr = vmi_translate_kv2p(vmi(self), vaddr);
     if(!paddr){
         PyErr_SetString(PyExc_ValueError, "Address translation failed");
         return NULL;
     }
 
-    return Py_BuildValue("I", paddr);
+    return Py_BuildValue("K", paddr);
 }
 
 static PyObject *
 pyvmi_translate_uv2p(PyObject *self, PyObject *args) {
-    uint32_t vaddr;
+    addr_t vaddr;
     int pid;
 
-    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
         return NULL;
     }
 
-    uint32_t paddr = vmi_translate_uv2p(vmi(self), vaddr, pid);
+    addr_t paddr = vmi_translate_uv2p(vmi(self), vaddr, pid);
     if(!paddr){
         PyErr_SetString(PyExc_ValueError, "Address translation failed");
         return NULL;
     }
 
-    return Py_BuildValue("I", paddr);
+    return Py_BuildValue("K", paddr);
 }
 
 static PyObject *
@@ -152,23 +152,23 @@ pyvmi_translate_ksym2v(PyObject *self, PyObject *args) {
         return NULL;
     }
 
-    uint32_t vaddr = vmi_translate_ksym2v(vmi(self), sym);
+    addr_t vaddr = vmi_translate_ksym2v(vmi(self), sym);
     if(!vaddr){
         PyErr_SetString(PyExc_ValueError, "Symbol lookup failed");
         return NULL;
     }
 
-    return Py_BuildValue("I", vaddr);
+    return Py_BuildValue("K", vaddr);
 }
 
 //-------------------------------------------------------------------
 // Primary read functions
 static PyObject *
 pyvmi_read_pa(PyObject *self, PyObject *args) {
-    uint32_t paddr;
+    addr_t paddr;
     uint32_t length;
 
-    if (!PyArg_ParseTuple(args, "II", &paddr, &length)){
+    if (!PyArg_ParseTuple(args, "KI", &paddr, &length)){
         return NULL;
     }
 
@@ -188,11 +188,11 @@ pyvmi_read_pa(PyObject *self, PyObject *args) {
 
 static PyObject *
 pyvmi_read_va(PyObject *self, PyObject *args) {
-    uint32_t vaddr;
+    addr_t vaddr;
     int pid;
     uint32_t length;
 
-    if (!PyArg_ParseTuple(args, "IiI", &vaddr, &pid, &length)){
+    if (!PyArg_ParseTuple(args, "KiI", &vaddr, &pid, &length)){
         return NULL;
     }
 
@@ -298,10 +298,10 @@ pyvmi_write_ksym(PyObject *self, PyObject *args) {
 static PyObject *
 pyvmi_read_8_pa (PyObject *self, PyObject *args)
 {
-    uint32_t paddr;
+    addr_t paddr;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "I", &paddr)){
+    if (!PyArg_ParseTuple(args, "K", &paddr)){
         return NULL;
     }
 
@@ -316,10 +316,10 @@ pyvmi_read_8_pa (PyObject *self, PyObject *args)
 static PyObject *
 pyvmi_read_16_pa (PyObject *self, PyObject *args)
 {
-    uint32_t paddr;
+    addr_t paddr;
     uint16_t value;
 
-    if (!PyArg_ParseTuple(args, "I", &paddr)){
+    if (!PyArg_ParseTuple(args, "K", &paddr)){
         return NULL;
     }
 
@@ -334,10 +334,10 @@ pyvmi_read_16_pa (PyObject *self, PyObject *args)
 static PyObject *
 pyvmi_read_32_pa (PyObject *self, PyObject *args)
 {
-    uint32_t paddr;
+    addr_t paddr;
     uint32_t value;
 
-    if (!PyArg_ParseTuple(args, "I", &paddr)){
+    if (!PyArg_ParseTuple(args, "K", &paddr)){
         return NULL;
     }
 
@@ -352,10 +352,10 @@ pyvmi_read_32_pa (PyObject *self, PyObject *args)
 static PyObject *
 pyvmi_read_64_pa (PyObject *self, PyObject *args)
 {
-    uint32_t paddr;
+    addr_t paddr;
     uint64_t value;
 
-    if (!PyArg_ParseTuple(args, "I", &paddr)){
+    if (!PyArg_ParseTuple(args, "K", &paddr)){
         return NULL;
     }
 
@@ -368,12 +368,30 @@ pyvmi_read_64_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
+pyvmi_read_addr_pa (PyObject *self, PyObject *args)
+{
+    addr_t paddr;
+    addr_t value;
+
+    if (!PyArg_ParseTuple(args, "K", &paddr)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_addr_pa(vmi(self), paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("s#", &value, 8);
+}
+
+static PyObject *
 pyvmi_read_str_pa (PyObject *self, PyObject *args)
 {
-    uint32_t paddr;
+    addr_t paddr;
     char *str = NULL;
 
-    if (!PyArg_ParseTuple(args, "I", &paddr)){
+    if (!PyArg_ParseTuple(args, "K", &paddr)){
         return NULL;
     }
 
@@ -388,11 +406,11 @@ pyvmi_read_str_pa (PyObject *self, PyObject *args)
 static PyObject *
 pyvmi_read_8_va (PyObject *self, PyObject *args)
 {
-    uint32_t vaddr;
+    addr_t vaddr;
     int pid;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
         return NULL;
     }
 
@@ -407,11 +425,11 @@ pyvmi_read_8_va (PyObject *self, PyObject *args)
 static PyObject *
 pyvmi_read_16_va (PyObject *self, PyObject *args)
 {
-    uint32_t vaddr;
+    addr_t vaddr;
     int pid;
     uint16_t value;
 
-    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
         return NULL;
     }
 
@@ -426,11 +444,11 @@ pyvmi_read_16_va (PyObject *self, PyObject *args)
 static PyObject *
 pyvmi_read_32_va (PyObject *self, PyObject *args)
 {
-    uint32_t vaddr;
+    addr_t vaddr;
     int pid;
     uint32_t value;
 
-    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
         return NULL;
     }
 
@@ -445,11 +463,11 @@ pyvmi_read_32_va (PyObject *self, PyObject *args)
 static PyObject *
 pyvmi_read_64_va (PyObject *self, PyObject *args)
 {
-    uint32_t vaddr;
+    addr_t vaddr;
     int pid;
     uint64_t value;
 
-    if (!PyArg_ParseTuple(args, "Ii", &vaddr, &pid)){
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
         return NULL;
     }
 
@@ -462,17 +480,36 @@ pyvmi_read_64_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_str_va (PyObject *self, PyObject *args)
+pyvmi_read_addr_va (PyObject *self, PyObject *args)
 {
-    uint32_t paddr;
+    addr_t vaddr;
     int pid;
-    char *str = NULL;
+    addr_t value;
 
-    if (!PyArg_ParseTuple(args, "Ii", &paddr, &pid)){
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
         return NULL;
     }
 
-    if ((str = vmi_read_str_va(vmi(self), paddr, pid)) == NULL){
+    if (VMI_FAILURE == vmi_read_addr_va(vmi(self), vaddr, pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("s#", &value, 8);
+}
+
+static PyObject *
+pyvmi_read_str_va (PyObject *self, PyObject *args)
+{
+    addr_t vaddr;
+    int pid;
+    char *str = NULL;
+
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
+        return NULL;
+    }
+
+    if ((str = vmi_read_str_va(vmi(self), vaddr, pid)) == NULL){
         PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
         return NULL;
     }
@@ -546,6 +583,24 @@ pyvmi_read_64_ksym (PyObject *self, PyObject *args)
     }
 
     if (VMI_FAILURE == vmi_read_64_ksym(vmi(self), sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        return NULL;
+    }
+
+    return Py_BuildValue("s#", &value, 8);
+}
+
+static PyObject *
+pyvmi_read_addr_ksym (PyObject *self, PyObject *args)
+{
+    char *sym;
+    addr_t value;
+
+    if (!PyArg_ParseTuple(args, "s", &sym)){
+        return NULL;
+    }
+
+    if (VMI_FAILURE == vmi_read_addr_ksym(vmi(self), sym, &value)){
         PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
         return NULL;
     }
@@ -807,11 +862,62 @@ pyvmi_get_vcpureg(PyObject *self, PyObject *args)
 
     reg_t value;
     registers_t reg;
-    if (strcmp(reg_name, "CR0") == 0 || strcmp(reg_name, "cr0") == 0){
-        reg = CR0;
+    if (strcmp(reg_name, "RAX") == 0 || strcmp(reg_name, "rax") == 0){
+        reg = RAX;
     }
-    else if (strcmp(reg_name, "CR1") == 0 || strcmp(reg_name, "cr1") == 0){
-        reg = CR1;
+    else if (strcmp(reg_name, "RBX") == 0 || strcmp(reg_name, "rbx") == 0){
+        reg = RBX;
+    }
+    else if (strcmp(reg_name, "RCX") == 0 || strcmp(reg_name, "rcx") == 0){
+        reg = RCX;
+    }
+    else if (strcmp(reg_name, "RDX") == 0 || strcmp(reg_name, "rdx") == 0){
+        reg = RDX;
+    }
+    else if (strcmp(reg_name, "RBP") == 0 || strcmp(reg_name, "rbp") == 0){
+        reg = RBP;
+    }
+    else if (strcmp(reg_name, "RSI") == 0 || strcmp(reg_name, "rsi") == 0){
+        reg = RSI;
+    }
+    else if (strcmp(reg_name, "RDI") == 0 || strcmp(reg_name, "rdi") == 0){
+        reg = RDI;
+    }
+    else if (strcmp(reg_name, "RSP") == 0 || strcmp(reg_name, "rsp") == 0){
+        reg = RSP;
+    }
+    else if (strcmp(reg_name, "R8") == 0 || strcmp(reg_name, "r8") == 0){
+        reg = R8;
+    }
+    else if (strcmp(reg_name, "R9") == 0 || strcmp(reg_name, "r9") == 0){
+        reg = R9;
+    }
+    else if (strcmp(reg_name, "R10") == 0 || strcmp(reg_name, "r10") == 0){
+        reg = R10;
+    }
+    else if (strcmp(reg_name, "R11") == 0 || strcmp(reg_name, "r11") == 0){
+        reg = R11;
+    }
+    else if (strcmp(reg_name, "R12") == 0 || strcmp(reg_name, "r12") == 0){
+        reg = R12;
+    }
+    else if (strcmp(reg_name, "R13") == 0 || strcmp(reg_name, "r13") == 0){
+        reg = R13;
+    }
+    else if (strcmp(reg_name, "R14") == 0 || strcmp(reg_name, "r14") == 0){
+        reg = R14;
+    }
+    else if (strcmp(reg_name, "R15") == 0 || strcmp(reg_name, "r15") == 0){
+        reg = R15;
+    }
+    else if (strcmp(reg_name, "RIP") == 0 || strcmp(reg_name, "rip") == 0){
+        reg = RIP;
+    }
+    else if (strcmp(reg_name, "RFLAGS") == 0 || strcmp(reg_name, "rflags") == 0){
+        reg = RFLAGS;
+    }
+    else if (strcmp(reg_name, "CR0") == 0 || strcmp(reg_name, "cr0") == 0){
+        reg = CR0;
     }
     else if (strcmp(reg_name, "CR2") == 0 || strcmp(reg_name, "cr2") == 0){
         reg = CR2;
@@ -822,38 +928,168 @@ pyvmi_get_vcpureg(PyObject *self, PyObject *args)
     else if (strcmp(reg_name, "CR4") == 0 || strcmp(reg_name, "cr4") == 0){
         reg = CR4;
     }
-    else if (strcmp(reg_name, "EAX") == 0 || strcmp(reg_name, "eax") == 0){
-        reg = EAX;
+    else if (strcmp(reg_name, "DR0") == 0 || strcmp(reg_name, "dr0") == 0){
+        reg = DR0;
     }
-    else if (strcmp(reg_name, "EBX") == 0 || strcmp(reg_name, "ebx") == 0){
-        reg = EBX;
+    else if (strcmp(reg_name, "DR1") == 0 || strcmp(reg_name, "dr1") == 0){
+        reg = DR1;
     }
-    else if (strcmp(reg_name, "ECX") == 0 || strcmp(reg_name, "ecx") == 0){
-        reg = ECX;
+    else if (strcmp(reg_name, "DR2") == 0 || strcmp(reg_name, "dr2") == 0){
+        reg = DR2;
     }
-    else if (strcmp(reg_name, "EDX") == 0 || strcmp(reg_name, "edx") == 0){
-        reg = EDX;
+    else if (strcmp(reg_name, "DR3") == 0 || strcmp(reg_name, "dr3") == 0){
+        reg = DR3;
     }
-    else if (strcmp(reg_name, "ESI") == 0 || strcmp(reg_name, "esi") == 0){
-        reg = ESI;
+    else if (strcmp(reg_name, "DR6") == 0 || strcmp(reg_name, "dr6") == 0){
+        reg = DR6;
     }
-    else if (strcmp(reg_name, "EDI") == 0 || strcmp(reg_name, "edi") == 0){
-        reg = EDI;
+    else if (strcmp(reg_name, "DR7") == 0 || strcmp(reg_name, "dr7") == 0){
+        reg = DR7;
     }
-    else if (strcmp(reg_name, "EBP") == 0 || strcmp(reg_name, "ebp") == 0){
-        reg = EBP;
+    else if (strcmp(reg_name, "CS_SEL") == 0 || strcmp(reg_name, "cs_sel") == 0){
+        reg = CS_SEL;
     }
-    else if (strcmp(reg_name, "ESP") == 0 || strcmp(reg_name, "esp") == 0){
-        reg = ESP;
+    else if (strcmp(reg_name, "DS_SEL") == 0 || strcmp(reg_name, "ds_sel") == 0){
+        reg = DS_SEL;
     }
-    else if (strcmp(reg_name, "EIP") == 0 || strcmp(reg_name, "eip") == 0){
-        reg = EIP;
+    else if (strcmp(reg_name, "ES_SEL") == 0 || strcmp(reg_name, "es_sel") == 0){
+        reg = ES_SEL;
     }
-    else if (strcmp(reg_name, "EFL") == 0 || strcmp(reg_name, "efl") == 0){
-        reg = EFL;
+    else if (strcmp(reg_name, "FS_SEL") == 0 || strcmp(reg_name, "fs_sel") == 0){
+        reg = FS_SEL;
+    }
+    else if (strcmp(reg_name, "GS_SEL") == 0 || strcmp(reg_name, "gs_sel") == 0){
+        reg = GS_SEL;
+    }
+    else if (strcmp(reg_name, "SS_SEL") == 0 || strcmp(reg_name, "ss_sel") == 0){
+        reg = SS_SEL;
+    }
+    else if (strcmp(reg_name, "TR_SEL") == 0 || strcmp(reg_name, "tr_sel") == 0){
+        reg = TR_SEL;
+    }
+    else if (strcmp(reg_name, "LDTR_SEL") == 0 || strcmp(reg_name, "ldtr_sel") == 0){
+        reg = LDTR_SEL;
+    }
+    else if (strcmp(reg_name, "CS_LIMIT") == 0 || strcmp(reg_name, "cs_limit") == 0){
+        reg = CS_LIMIT;
+    }
+    else if (strcmp(reg_name, "DS_LIMIT") == 0 || strcmp(reg_name, "ds_limit") == 0){
+        reg = DS_LIMIT;
+    }
+    else if (strcmp(reg_name, "ES_LIMIT") == 0 || strcmp(reg_name, "es_limit") == 0){
+        reg = ES_LIMIT;
+    }
+    else if (strcmp(reg_name, "FS_LIMIT") == 0 || strcmp(reg_name, "fs_limit") == 0){
+        reg = FS_LIMIT;
+    }
+    else if (strcmp(reg_name, "GS_LIMIT") == 0 || strcmp(reg_name, "gs_limit") == 0){
+        reg = GS_LIMIT;
+    }
+    else if (strcmp(reg_name, "SS_LIMIT") == 0 || strcmp(reg_name, "ss_limit") == 0){
+        reg = SS_LIMIT;
+    }
+    else if (strcmp(reg_name, "TR_LIMIT") == 0 || strcmp(reg_name, "tr_limit") == 0){
+        reg = TR_LIMIT;
+    }
+    else if (strcmp(reg_name, "LDTR_LIMIT") == 0 || strcmp(reg_name, "ldtr_limit") == 0){
+        reg = LDTR_LIMIT;
+    }
+    else if (strcmp(reg_name, "IDTR_LIMIT") == 0 || strcmp(reg_name, "idtr_limit") == 0){
+        reg = IDTR_LIMIT;
+    }
+    else if (strcmp(reg_name, "GDTR_LIMIT") == 0 || strcmp(reg_name, "gdtr_limit") == 0){
+        reg = GDTR_LIMIT;
+    }
+    else if (strcmp(reg_name, "CS_BASE") == 0 || strcmp(reg_name, "cs_base") == 0){
+        reg = CS_BASE;
+    }
+    else if (strcmp(reg_name, "DS_BASE") == 0 || strcmp(reg_name, "ds_base") == 0){
+        reg = DS_BASE;
+    }
+    else if (strcmp(reg_name, "ES_BASE") == 0 || strcmp(reg_name, "es_base") == 0){
+        reg = ES_BASE;
+    }
+    else if (strcmp(reg_name, "FS_BASE") == 0 || strcmp(reg_name, "fs_base") == 0){
+        reg = FS_BASE;
+    }
+    else if (strcmp(reg_name, "GS_BASE") == 0 || strcmp(reg_name, "gs_base") == 0){
+        reg = GS_BASE;
+    }
+    else if (strcmp(reg_name, "SS_BASE") == 0 || strcmp(reg_name, "ss_base") == 0){
+        reg = SS_BASE;
+    }
+    else if (strcmp(reg_name, "TR_BASE") == 0 || strcmp(reg_name, "tr_base") == 0){
+        reg = TR_BASE;
+    }
+    else if (strcmp(reg_name, "LDTR_BASE") == 0 || strcmp(reg_name, "ldtr_base") == 0){
+        reg = LDTR_BASE;
+    }
+    else if (strcmp(reg_name, "IDTR_BASE") == 0 || strcmp(reg_name, "idtr_base") == 0){
+        reg = IDTR_BASE;
+    }
+    else if (strcmp(reg_name, "GDTR_BASE") == 0 || strcmp(reg_name, "gdtr_base") == 0){
+        reg = GDTR_BASE;
+    }
+    else if (strcmp(reg_name, "CS_ARBYTES") == 0 || strcmp(reg_name, "cs_arbytes") == 0){
+        reg = CS_ARBYTES;
+    }
+    else if (strcmp(reg_name, "DS_ARBYTES") == 0 || strcmp(reg_name, "ds_arbytes") == 0){
+        reg = DS_ARBYTES;
+    }
+    else if (strcmp(reg_name, "ES_ARBYTES") == 0 || strcmp(reg_name, "es_arbytes") == 0){
+        reg = ES_ARBYTES;
+    }
+    else if (strcmp(reg_name, "FS_ARBYTES") == 0 || strcmp(reg_name, "fs_arbytes") == 0){
+        reg = FS_ARBYTES;
+    }
+    else if (strcmp(reg_name, "GS_ARBYTES") == 0 || strcmp(reg_name, "gs_arbytes") == 0){
+        reg = GS_ARBYTES;
+    }
+    else if (strcmp(reg_name, "SS_ARBYTES") == 0 || strcmp(reg_name, "ss_arbytes") == 0){
+        reg = SS_ARBYTES;
+    }
+    else if (strcmp(reg_name, "TR_ARBYTES") == 0 || strcmp(reg_name, "tr_arbytes") == 0){
+        reg = TR_ARBYTES;
+    }
+    else if (strcmp(reg_name, "LDTR_ARBYTES") == 0 || strcmp(reg_name, "ldtr_arbytes") == 0){
+        reg = LDTR_ARBYTES;
+    }
+    else if (strcmp(reg_name, "SYSENTER_CS") == 0 || strcmp(reg_name, "sysenter_cs") == 0){
+        reg = SYSENTER_CS;
+    }
+    else if (strcmp(reg_name, "SYSENTER_ESP") == 0 || strcmp(reg_name, "sysenter_esp") == 0){
+        reg = SYSENTER_ESP;
+    }
+    else if (strcmp(reg_name, "SYSENTER_EIP") == 0 || strcmp(reg_name, "sysenter_eip") == 0){
+        reg = SYSENTER_EIP;
+    }
+    else if (strcmp(reg_name, "SHADOW_GS") == 0 || strcmp(reg_name, "shadow_gs") == 0){
+        reg = SHADOW_GS;
+    }
+    else if (strcmp(reg_name, "MSR_FLAGS") == 0 || strcmp(reg_name, "msr_flags") == 0){
+        reg = MSR_FLAGS;
+    }
+    else if (strcmp(reg_name, "MSR_LSTAR") == 0 || strcmp(reg_name, "msr_lstar") == 0){
+        reg = MSR_LSTAR;
+    }
+    else if (strcmp(reg_name, "MSR_CSTAR") == 0 || strcmp(reg_name, "msr_cstar") == 0){
+        reg = MSR_CSTAR;
+    }
+    else if (strcmp(reg_name, "MSR_SYSCALL_MASK") == 0 || strcmp(reg_name, "msr_syscall_mask") == 0){
+        reg = MSR_SYSCALL_MASK;
+    }
+    else if (strcmp(reg_name, "MSR_EFER") == 0 || strcmp(reg_name, "msr_efer") == 0){
+        reg = MSR_EFER;
+    }
+    else if (strcmp(reg_name, "MSR_TSC_AUX") == 0 || strcmp(reg_name, "msr_tsc_aux") == 0){
+        reg = MSR_TSC_AUX;
+    }
+    else if (strcmp(reg_name, "TSC") == 0 || strcmp(reg_name, "tsc") == 0){
+        reg = TSC;
     }
     else{
-        reg = UNKNOWN;
+        PyErr_SetString(PyExc_ValueError, "Bad register name");
+        return NULL;
     }
 
     if (VMI_FAILURE == vmi_get_vcpureg(vmi(self), &value, reg, vcpu)){
@@ -861,7 +1097,7 @@ pyvmi_get_vcpureg(PyObject *self, PyObject *args)
         return NULL;
     }
 
-    return Py_BuildValue("I", (unsigned long) value);
+    return Py_BuildValue("K", value);
 }
 
 static PyObject *
@@ -918,7 +1154,63 @@ pyvmi_print_hex(PyObject *self, PyObject *args) {
         return NULL;
     }
 
-    vmi_print_hex(data, (unsigned long) length);
+    vmi_print_hex(data, (uint32_t) length);
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_print_hex_pa(PyObject *self, PyObject *args) {
+    addr_t paddr;
+    uint32_t length;
+
+    if (!PyArg_ParseTuple(args, "KI", &paddr, &length)){
+        return NULL;
+    }
+
+    vmi_print_hex_pa(vmi(self), paddr, length);
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_print_hex_va(PyObject *self, PyObject *args) {
+    addr_t vaddr;
+    int pid;
+    uint32_t length;
+
+    if (!PyArg_ParseTuple(args, "KiI", &vaddr, &pid, &length)){
+        return NULL;
+    }
+
+    vmi_print_hex_va(vmi(self), vaddr, pid, length);
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_print_hex_ksym(PyObject *self, PyObject *args) {
+    char *sym;
+    uint32_t length;
+
+    if (!PyArg_ParseTuple(args, "sI", &sym, &length)){
+        return NULL;
+    }
+
+    vmi_print_hex_ksym(vmi(self), sym, length);
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_pause_vm(PyObject *self, PyObject *args) {
+    if (VMI_FAILURE == vmi_pause_vm(vmi(self))){
+        return NULL;
+    }
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_resume_vm(PyObject *self, PyObject *args) {
+    if (VMI_FAILURE == vmi_resume_vm(vmi(self))){
+        return NULL;
+    }
     return Py_BuildValue(""); // return None
 }
 
@@ -949,6 +1241,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read 4 bytes using a physical address"},
     {"read_64_pa", pyvmi_read_64_pa, METH_VARARGS,
      "Read 8 bytes using a physical address"},
+    {"read_addr_pa", pyvmi_read_addr_pa, METH_VARARGS,
+     "Read address using a physical address"},
     {"read_str_pa", pyvmi_read_str_pa, METH_VARARGS,
      "Read string using a physical address"},
     {"read_8_va", pyvmi_read_8_va, METH_VARARGS,
@@ -959,6 +1253,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read 4 bytes using a virtual address"},
     {"read_64_va", pyvmi_read_64_va, METH_VARARGS,
      "Read 8 bytes using a virtual address"},
+    {"read_addr_va", pyvmi_read_addr_va, METH_VARARGS,
+     "Read address using a virtual address"},
     {"read_str_va", pyvmi_read_str_va, METH_VARARGS,
      "Read string using a virtual address"},
     {"read_8_ksym", pyvmi_read_8_ksym, METH_VARARGS,
@@ -969,6 +1265,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Read 4 bytes using a kernel symbol"},
     {"read_64_ksym", pyvmi_read_64_ksym, METH_VARARGS,
      "Read 8 bytes using a kernel symbol"},
+    {"read_addr_ksym", pyvmi_read_addr_ksym, METH_VARARGS,
+     "Read address using a kernel symbol"},
     {"read_str_ksym", pyvmi_read_str_ksym, METH_VARARGS,
      "Read string using a kernel symbol"},
     {"write_pa", pyvmi_write_pa, METH_VARARGS,
@@ -1011,6 +1309,16 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Get the OS type of the target system"},
     {"print_hex", pyvmi_print_hex, METH_VARARGS,
      "Prints raw binary data to the screen in a useful format"},
+    {"print_hex_pa", pyvmi_print_hex_pa, METH_VARARGS,
+     "Prints raw binary data to the screen in a useful format"},
+    {"print_hex_pa", pyvmi_print_hex_va, METH_VARARGS,
+     "Prints raw binary data to the screen in a useful format"},
+    {"print_hex_pa", pyvmi_print_hex_ksym, METH_VARARGS,
+     "Prints raw binary data to the screen in a useful format"},
+    {"pause_vm", pyvmi_pause_vm, METH_VARARGS,
+     "Pauses the VM to allow for consistent analysis"},
+    {"resume_vm", pyvmi_resume_vm, METH_VARARGS,
+     "Resumes the VM, called after pause_vm"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

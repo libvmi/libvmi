@@ -36,20 +36,23 @@ def val_int (value):
 def val_uint (value):
     return struct.unpack("I", value)[0]
 
+def val_uint64 (value):
+    return struct.unpack("Q", value)[0]
+
 def process_list(vmi):
     tasks_offset = vmi.get_offset("win_tasks")
     name_offset = vmi.get_offset("win_pname")
     pid_offset = vmi.get_offset("win_pid")
 
-    list_head = val_uint(vmi.read_32_ksym("PsInitialSystemProcess"))
-    next_process = val_uint(vmi.read_32_va(list_head + tasks_offset, 0))
+    list_head = val_uint64(vmi.read_addr_ksym("PsInitialSystemProcess"))
+    next_process = val_uint64(vmi.read_addr_va(list_head + tasks_offset, 0))
     pid = val_int(vmi.read_32_va(list_head + pid_offset, 0))
     procname = vmi.read_str_va(list_head + name_offset, 0)
     print "[%5d] %s" % (pid, procname)
 
     list_head = next_process
     while 1:
-        tmp_next = val_uint(vmi.read_32_va(next_process, 0))
+        tmp_next = val_uint64(vmi.read_addr_va(next_process, 0))
         if (list_head == tmp_next):
             break
         procname = vmi.read_str_va(next_process + name_offset - tasks_offset, 0)
