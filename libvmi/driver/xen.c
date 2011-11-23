@@ -747,27 +747,13 @@ int xen_is_pv (vmi_instance_t vmi)
 
 status_t xen_test (unsigned long id, char *name)
 {
-    status_t ret = VMI_FAILURE;
-    struct xs_handle *xsh = NULL;
-    xs_transaction_t xth = XBT_NULL;
-    char *tmp = NULL;
-
-    xsh = xs_domain_open();
-    if (NULL == xsh){
-        goto error_exit;
+    id = xen_get_domainid_from_name(NULL, name);
+    if (!id){
+        return VMI_FAILURE;
     }
-    tmp = xs_read(xsh, xth, "/local/domain/0/name", NULL);
-    if (NULL == tmp){
-        goto error_exit;
+    else{
+        return VMI_SUCCESS;
     }
-    free(tmp);
-    ret = VMI_SUCCESS;
-
-error_exit:
-    if (NULL != xsh){
-        xs_daemon_close(xsh);
-    }
-    return ret;
 }
 
 status_t xen_pause_vm (vmi_instance_t vmi)
