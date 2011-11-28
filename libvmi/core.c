@@ -223,8 +223,8 @@ static int get_memory_layout (vmi_instance_t vmi)
     }
 
     /* testing to see CR3 value */
-    vmi->cr3 = cr3 & 0xFFFFF000;
-    dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
+    vmi->cr3 = cr3 & 0xFFFFFFFFFFFFF000ULL;
+    dbprint("**set cr3 = 0x%.16llx\n", vmi->cr3);
     dbprint("--got memory layout.\n");
     return VMI_SUCCESS;
 
