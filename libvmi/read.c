@@ -37,32 +37,42 @@ static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t 
     //  For example, the pfn for a given paddr should vary based on the size of the page where the
     //  paddr resides.  However, it is hard to know the page size from just the paddr.  For now, just
     //  assuming 4k pages and doing the read from there.
+
     unsigned char *memory = NULL;
+    addr_t phys_address = 0;
     addr_t pfn = 0;
     addr_t offset = 0;
-    size_t read_len = 0;
+    size_t buf_offset = 0;
 
-    /* access the memory */
-    pfn = paddr >> vmi->page_shift;
-    offset = (vmi->page_size - 1) & paddr;
-    memory = vmi_read_page(vmi, pfn, is_p);
-    if (NULL == memory){
-        return 0;
-    }
+    while (count > 0){
+        size_t read_len = 0;
 
-    /* determine how much we can read */
-    if ((offset + count) > vmi->page_size){
-        read_len = vmi->page_size - offset;
-        //dbprint("--%s: returning partial read, can't wrap read on physical pages\n", __FUNCTION__);
-    }
-    else{
-        read_len = count;
-    }
+        /* access the memory */
+        phys_address = paddr + buf_offset;
+        pfn = phys_address >> vmi->page_shift;
+        offset = (vmi->page_size - 1) & phys_address;
+        memory = vmi_read_page(vmi, pfn, is_p);
+        if (NULL == memory){
+            return buf_offset;
+        }
+
+        /* determine how much we can read */
+        if ((offset + count) > vmi->page_size){
+            read_len = vmi->page_size - offset;
+        }
+        else{
+            read_len = count;
+        }
         
-    /* do the read */
-    memcpy( ((char *) buf), memory + (addr_t) offset, read_len);
+        /* do the read */
+        memcpy( ((char *) buf) + (addr_t) buf_offset, memory + (addr_t) offset, read_len);
 
-    return read_len;
+        /* set variables for next loop */
+        count -= read_len;
+        buf_offset += read_len;
+    }
+
+    return buf_offset;
 }
 
 static size_t vmi_read_ma (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
