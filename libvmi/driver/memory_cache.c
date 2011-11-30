@@ -83,7 +83,7 @@ static void clean_cache (vmi_instance_t vmi)
 {
     GSList *list = NULL;
     g_hash_table_foreach(vmi->memory_cache, check_age, &list); // hold items for 2 seconds
-    //g_hash_table_foreach(vmi->memory_cache, list_all, &list);  // effectively no cache
+    //g_hash_table_foreach(vmi->memory_cache, list_all, &list);  // effectively one cache entry
     g_slist_foreach(list, remove_entry, vmi->memory_cache);
     g_slist_free(list);
     //dbprint("--MEMORY cache cleanup round complete\n");
@@ -128,6 +128,7 @@ void memory_cache_init (
 	release_data_callback = release_data;
 }
 
+#if ENABLE_PAGE_CACHE == 1
 void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
 {
     memory_cache_entry_t entry = NULL;
@@ -147,3 +148,9 @@ void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
         return entry->data;
     }
 }
+#else
+void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
+{
+    return get_memory_data(vmi, paddr, vmi->page_size);
+}
+#endif
