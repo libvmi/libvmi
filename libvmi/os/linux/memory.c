@@ -79,8 +79,8 @@ addr_t linux_pid_to_pgd (vmi_instance_t vmi, int pid)
     }
 
     /* now follow the pointer to the memory descriptor and grab the pgd value */
-    vmi_read_32_va(vmi, ts_addr + mm_offset - tasks_offset, 0, &ptr);
-    vmi_read_32_va(vmi, ptr + pgd_offset, 0, &pgd);
+    vmi_read_addr_va(vmi, ts_addr + mm_offset - tasks_offset, 0, &ptr);
+    vmi_read_addr_va(vmi, ptr + pgd_offset, 0, &pgd);
 
     /* convert pgd into a machine address */
     pgd = vmi_translate_kv2p(vmi, pgd);

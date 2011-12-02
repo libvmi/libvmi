@@ -51,8 +51,6 @@ status_t get_kpgd_method2 (vmi_instance_t vmi, addr_t *sysproc)
         goto error_exit;
     }
 
-//printf("2) sysproc=0x%.16llx, kpgd=0x%.16llx\n", *sysproc, vmi->kpgd);
-//vmi_print_hex_pa(vmi, *sysproc, 0x300);
     return VMI_SUCCESS;
 error_exit:
     return VMI_FAILURE;
@@ -89,8 +87,6 @@ status_t get_kpgd_method1 (vmi_instance_t vmi, addr_t *sysproc)
         goto error_exit;
     }
 
-//printf("1) sysproc=0x%.16llx, kpgd=0x%.16llx\n", *sysproc, vmi->kpgd);
-//vmi_print_hex_pa(vmi, *sysproc, 0x300);
     return VMI_SUCCESS;
 error_exit:
     return VMI_FAILURE;
@@ -119,8 +115,6 @@ static status_t get_kpgd_method0 (vmi_instance_t vmi, addr_t *sysproc)
         goto error_exit;
     }
 
-//printf("0) sysproc=0x%.16llx, kpgd=0x%.16llx\n", *sysproc, vmi->kpgd);
-//vmi_print_hex_pa(vmi, *sysproc, 0x300);
     return VMI_SUCCESS;
 error_exit:
     return VMI_FAILURE;
@@ -131,8 +125,6 @@ status_t windows_init (vmi_instance_t vmi)
     addr_t sysproc = 0;
 
     /* get base address for kernel image in memory */
-//    addr_t tmp = get_ntoskrnl_base(vmi); // works for 32 bit only - msl 20111104
-//    fprintf(stderr, "get_ntoskrnl_base returned 0x%.16x\n", tmp);
     if (VMI_FAILURE == windows_symbol_to_address(vmi, "KernBase", &vmi->os.windows_instance.ntoskrnl_va)){
         dbprint("--address translation failure, switching PAE mode\n");
         vmi->pae = !vmi->pae;
