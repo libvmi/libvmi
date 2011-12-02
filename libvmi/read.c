@@ -180,7 +180,7 @@ status_t vmi_read_64_ma (vmi_instance_t vmi, addr_t maddr, uint64_t *value)
 
 status_t vmi_read_addr_ma (vmi_instance_t vmi, addr_t maddr, addr_t *value)
 {
-    if (vmi->page_mode == IA32E){
+    if (vmi->page_mode == VMI_IA32E){
         return vmi_read_64_ma(vmi, maddr, value);
     }
     else{
@@ -259,7 +259,7 @@ status_t vmi_read_64_pa (vmi_instance_t vmi, addr_t paddr, uint64_t *value)
 
 status_t vmi_read_addr_pa (vmi_instance_t vmi, addr_t paddr, addr_t *value)
 {
-    if (vmi->page_mode == IA32E){
+    if (vmi->page_mode == VMI_IA32E){
         return vmi_read_64_pa(vmi, paddr, value);
     }
     else{
@@ -310,7 +310,7 @@ status_t vmi_read_64_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint64_t *va
 
 status_t vmi_read_addr_va (vmi_instance_t vmi, addr_t vaddr, int pid, addr_t *value)
 {
-    if (vmi->page_mode == IA32E){
+    if (vmi->page_mode == VMI_IA32E){
         return vmi_read_64_va(vmi, vaddr, pid, value);
     }
     else{
@@ -379,7 +379,7 @@ status_t vmi_read_64_ksym (vmi_instance_t vmi, char *sym, uint64_t *value)
 
 status_t vmi_read_addr_ksym (vmi_instance_t vmi, char *sym, addr_t *value)
 {
-    if (vmi->page_mode == IA32E){
+    if (vmi->page_mode == VMI_IA32E){
         return vmi_read_64_ksym(vmi, sym, value);
     }
     else{

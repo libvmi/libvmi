@@ -207,15 +207,15 @@ static int get_memory_layout (vmi_instance_t vmi)
     /* now set the paging mode */
     if (!vmi->pae){
         dbprint("**set paging mode to 32-bit paging\n");
-        vmi->page_mode = LEGACY;
+        vmi->page_mode = VMI_LEGACY;
     }
     else if (vmi->pae && !vmi->lme){
         dbprint("**set paging mode to PAE paging\n");
-        vmi->page_mode = PAE;
+        vmi->page_mode = VMI_PAE;
     }
     else if (vmi->pae && vmi->lme){
         dbprint("**set paging mode to IA-32e paging\n");
-        vmi->page_mode = IA32E;
+        vmi->page_mode = VMI_IA32E;
     }
     else{
         dbprint("Invalid paging mode\n");

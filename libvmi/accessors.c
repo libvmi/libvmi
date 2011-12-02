@@ -28,6 +28,11 @@
 #include "private.h"
 #include "driver/interface.h"
 
+page_mode_t vmi_get_page_mode (vmi_instance_t vmi)
+{
+    return vmi->page_mode;
+}
+
 uint32_t vmi_get_access_mode (vmi_instance_t vmi)
 {
     return vmi->flags & 0x0000FFFF;

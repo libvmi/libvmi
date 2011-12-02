@@ -31,11 +31,9 @@
 
 
 /* finds the task struct for a given pid */
-unsigned char *linux_get_taskstruct (
-        vmi_instance_t vmi, int pid, uint32_t *offset)
+static addr_t linux_get_taskstruct_addr (vmi_instance_t vmi, int pid)
 {
-    unsigned char *memory = NULL;
-    uint32_t list_head = 0, next_process = 0;
+    addr_t list_head = 0, next_process = 0;
     int task_pid = 0;
     int pid_offset = vmi->os.linux_instance.pid_offset;
     int tasks_offset = vmi->os.linux_instance.tasks_offset;
@@ -45,8 +43,8 @@ unsigned char *linux_get_taskstruct (
     list_head = next_process;
 
     while (1){
-        uint32_t next_process_tmp = 0;
-        vmi_read_32_va(vmi, next_process, 0, &next_process_tmp);
+        addr_t next_process_tmp = 0;
+        vmi_read_addr_va(vmi, next_process, 0, &next_process_tmp);
 
         /* if we are back at the list head, we are done */
         if (list_head == next_process_tmp){
@@ -56,36 +54,32 @@ unsigned char *linux_get_taskstruct (
         /* if pid matches, then we found what we want */
         vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &task_pid);
         if (task_pid == pid){
-            return memory;
+            return next_process;
         }
         next_process = next_process_tmp;
     }
 
 error_exit:
-    if (memory) munmap(memory, vmi->page_size);
-    return NULL;
+    return 0;
 }
 
 /* finds the address of the page global directory for a given pid */
-uint32_t linux_pid_to_pgd (vmi_instance_t vmi, int pid)
+addr_t linux_pid_to_pgd (vmi_instance_t vmi, int pid)
 {
-    unsigned char *memory = NULL;
-    uint32_t pgd = 0, ptr = 0, offset = 0;
+    addr_t ts_addr = 0, pgd = 0, ptr = 0;
     int mm_offset = vmi->os.linux_instance.mm_offset;
     int tasks_offset = vmi->os.linux_instance.tasks_offset;
     int pgd_offset = vmi->os.linux_instance.pgd_offset;
 
     /* first we need a pointer to this pid's task_struct */
-    memory = linux_get_taskstruct(vmi, pid, &offset);
-    if (NULL == memory){
+    ts_addr = linux_get_taskstruct_addr(vmi, pid);
+    if (!ts_addr){
         errprint("Could not find task struct for pid = %d.\n", pid);
         goto error_exit;
     }
 
-    /* now follow the pointer to the memory descriptor and
-       grab the pgd value */
-    memcpy(&ptr, memory + offset + mm_offset - tasks_offset, 4);
-    munmap(memory, vmi->page_size);
+    /* now follow the pointer to the memory descriptor and grab the pgd value */
+    vmi_read_32_va(vmi, ts_addr + mm_offset - tasks_offset, 0, &ptr);
     vmi_read_32_va(vmi, ptr + pgd_offset, 0, &pgd);
 
     /* convert pgd into a machine address */

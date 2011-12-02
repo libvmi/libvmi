@@ -426,13 +426,13 @@ addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
     }
 
     /* do the actual page walk in guest memory */
-    if (vmi->page_mode == LEGACY){
+    if (vmi->page_mode == VMI_LEGACY){
         paddr = v2p_nopae(vmi, dtb, vaddr);
     }
-    else if (vmi->page_mode == PAE){
+    else if (vmi->page_mode == VMI_PAE){
         paddr = v2p_pae(vmi, dtb, vaddr);
     }
-    else if (vmi->page_mode == IA32E){
+    else if (vmi->page_mode == VMI_IA32E){
         paddr = v2p_ia32e(vmi, dtb, vaddr);
     }
     else{
@@ -450,7 +450,12 @@ addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
 addr_t vmi_translate_kv2p(vmi_instance_t vmi, addr_t virt_address)
 {
     reg_t cr3 = 0;
-    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+    if (vmi->kpgd){
+        cr3 = vmi->kpgd;
+    }
+    else{
+        driver_get_vcpureg(vmi, &cr3, CR3, 0);
+    }
     if (!cr3){
         dbprint("--early bail on v2p lookup because cr3 is zero\n");
         return 0;

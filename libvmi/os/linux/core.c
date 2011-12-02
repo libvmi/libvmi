@@ -31,37 +31,35 @@
 status_t linux_init (vmi_instance_t vmi)
 {
     int ret = VMI_FAILURE;
-    unsigned char *memory = NULL;
-    uint32_t local_offset = 0;
 
-    if (linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", &vmi->kpgd) == VMI_FAILURE){
-        errprint("Failed to lookup 'swapper_pg_dir' address.\n");
-        goto error_exit;
+    if (vmi->cr3){
+        vmi->kpgd = vmi->cr3;
     }
-    dbprint("--got vaddr for swapper_pg_dir (0x%.8x).\n", vmi->kpgd);
-
-    if (driver_is_pv(vmi)){
-        vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
-        if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE){
-            errprint("Failed to get physical addr for kpgd.\n");
-            goto error_exit;
+    else if (VMI_SUCCESS == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", &vmi->kpgd)){
+        dbprint("--got vaddr for swapper_pg_dir (0x%.16llx).\n", vmi->kpgd);
+        if (driver_is_pv(vmi)){
+            vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
+            if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE){
+                errprint("Failed to get physical addr for kpgd.\n");
+                goto error_exit;
+            }
+        }
+        else{
+            vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
         }
     }
     else{
-        vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
+        errprint("swapper_pg_dir not found and CR3 not set, exiting\n");
+        goto error_exit;
     }
-    dbprint("**set vmi->kpgd (0x%.8x).\n", vmi->kpgd);
+        vmi->kpgd = vmi->cr3;
+    dbprint("**set vmi->kpgd (0x%.16llx).\n", vmi->kpgd);
 
     addr_t address = vmi_translate_ksym2v(vmi, "init_task");
     address += vmi->os.linux_instance.tasks_offset;
     if (VMI_FAILURE == vmi_read_addr_va(vmi, address, 0, &(vmi->init_task))){
-        dbprint("--address lookup failure, switching PAE mode\n");
-        vmi->pae = !vmi->pae;
-        dbprint("**set pae = %d\n", vmi->pae);
-        if (VMI_FAILURE == vmi_read_addr_va(vmi, address, 0, &(vmi->init_task))){
-            errprint("Failed to get task list head 'init_task'.\n");
-            goto error_exit;
-        }
+        errprint("Failed to get task list head 'init_task'.\n");
+        goto error_exit;
     }
 
     ret = VMI_SUCCESS;

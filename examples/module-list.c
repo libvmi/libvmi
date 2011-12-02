@@ -98,10 +98,16 @@ int main (int argc, char **argv)
 
         /* Note: the module struct that we are looking at has a string
            directly following the next / prev pointers.  This is why you
-           can just add 8 to get the name.  See include/linux/module.h
-           for mode details */
+           can just add the length of 2 address fields to get the name.
+           See include/linux/module.h for mode details */
         if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-            char *modname = vmi_read_str_va(vmi, next_module + 8, 0);
+            char *modname = NULL;
+            if (VMI_IA32E == vmi_get_page_mode(vmi)){ // 64-bit paging
+                modname = vmi_read_str_va(vmi, next_module + 16, 0);
+            }
+            else{
+                modname = vmi_read_str_va(vmi, next_module + 8, 0);
+            }
             printf("%s\n", modname);
             free(modname);
         }

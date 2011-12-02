@@ -40,16 +40,6 @@
 #include <time.h>
 #include "libvmi.h"
 
-/* other globals */
-#define MAX_ROW_LENGTH 200
-
-/* Three paging modes from Intel Vol3a Section 4.1.1 */
-typedef enum page_mode{
-    LEGACY,  /**< 32-bit paging */
-    PAE,     /**< PAE paging */
-    IA32E    /**< IA-32e paging */
-} page_mode_t;
-
 /**
  * @brief LibVMI Instance.
  *
@@ -167,11 +157,6 @@ status_t valid_ntoskrnl_start (vmi_instance_t instance, addr_t addr);
 status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address);
 uint32_t windows_find_cr3 (vmi_instance_t vmi);
 int find_pname_offset (vmi_instance_t vmi, check_magic_func check);
-
-/*-----------------------------------------
- * symbols.c
- */
-int get_symbol_row (FILE *f, char *row, char *symbol, int position);
 
 /*-----------------------------------------
  * read.c
