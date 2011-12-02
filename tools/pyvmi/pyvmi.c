@@ -1125,6 +1125,30 @@ pyvmi_get_offset(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
+pyvmi_get_page_mode(PyObject *self, PyObject *args) {
+    if (!PyArg_ParseTuple(args, "")){
+        return NULL;
+    }
+
+    page_mode_t mode = vmi_get_page_mode(vmi(self));
+
+    PyObject *rtnval = NULL;
+    if (VMI_LEGACY == mode){
+        rtnval = Py_BuildValue("s", "legacy");
+    }
+    else if (VMI_PAE == mode){
+        rtnval = Py_BuildValue("s", "pae");
+    }
+    else if (VMI_IA32E == mode){
+        rtnval = Py_BuildValue("s", "ia32e");
+    }
+    else{
+        rtnval = Py_BuildValue("s", "unknown");
+    }
+    return rtnval;
+}
+
+static PyObject *
 pyvmi_get_ostype(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "")){
         return NULL;
@@ -1134,13 +1158,13 @@ pyvmi_get_ostype(PyObject *self, PyObject *args) {
 
     PyObject *rtnval = NULL;
     if (VMI_OS_WINDOWS == type){
-        rtnval = Py_BuildValue("s", "Windows");
+        rtnval = Py_BuildValue("s", "windows");
     }
     else if (VMI_OS_LINUX == type){
-        rtnval = Py_BuildValue("s", "Linux");
+        rtnval = Py_BuildValue("s", "linux");
     }
     else{
-        rtnval = Py_BuildValue("s", "Unknown");
+        rtnval = Py_BuildValue("s", "unknown");
     }
     return rtnval;
 }
@@ -1305,6 +1329,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Get the memory size (in bytes) of this memory"},
     {"get_offset", pyvmi_get_offset, METH_VARARGS,
      "Get an offset value by name from the config file"},
+    {"get_page_mode", pyvmi_get_page_mode, METH_VARARGS,
+     "Get the page mode used in the target system"},
     {"get_ostype", pyvmi_get_ostype, METH_VARARGS,
      "Get the OS type of the target system"},
     {"print_hex", pyvmi_print_hex, METH_VARARGS,
