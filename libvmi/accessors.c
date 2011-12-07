@@ -43,6 +43,42 @@ os_t vmi_get_ostype (vmi_instance_t vmi)
     return vmi->os_type;
 }
 
+win_ver_t vmi_get_winver (vmi_instance_t vmi)
+{
+    if (VMI_OS_WINDOWS != vmi->os_type) return VMI_OS_WINDOWS_NONE;
+
+    return vmi->os.windows_instance.version;
+}
+
+const char * vmi_get_winver_str (vmi_instance_t vmi)
+{
+    win_ver_t ver = vmi_get_winver (vmi);
+
+    switch (ver) {
+        case VMI_OS_WINDOWS_NONE:
+            return "VMI_OS_WINDOWS_NONE";
+        case VMI_OS_WINDOWS_UNKNOWN:
+            return "VMI_OS_WINDOWS_UNKNOWN";
+        case VMI_OS_WINDOWS_2000:
+            return "VMI_OS_WINDOWS_2000";
+        case VMI_OS_WINDOWS_XP:
+            return "VMI_OS_WINDOWS_XP";
+        case VMI_OS_WINDOWS_2003:
+            return "VMI_OS_WINDOWS_2003";
+        case VMI_OS_WINDOWS_VISTA:
+            return "VMI_OS_WINDOWS_VISTA";
+        case VMI_OS_WINDOWS_2008:
+            return "VMI_OS_WINDOWS_2008";
+        case VMI_OS_WINDOWS_7:
+            return "VMI_OS_WINDOWS_7";
+        default:
+            return "<Illegal value for Windows version>";
+    } // switch
+}
+
+
+
+
 unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name)
 {
     size_t max_length = 100;

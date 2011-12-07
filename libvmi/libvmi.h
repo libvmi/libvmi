@@ -74,7 +74,8 @@ typedef enum os{
 } os_t;
 
 typedef enum win_ver {
-    VMI_OS_WINDOWS_UNKNOWN,
+    VMI_OS_WINDOWS_NONE,    /**< Not Windows */
+    VMI_OS_WINDOWS_UNKNOWN, /**< Is Windows, not sure which */
     VMI_OS_WINDOWS_2000,
     VMI_OS_WINDOWS_XP,
     VMI_OS_WINDOWS_2003,
@@ -749,6 +750,23 @@ page_mode_t vmi_get_page_mode (vmi_instance_t vmi);
  * @return OS type
  */
 os_t vmi_get_ostype (vmi_instance_t vmi);
+
+/**
+ * Get the version of Windows that LibVMI is currently accessing.  This is the
+ * simple Windows version - no service pack or patch level is provided.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Windows version
+ */
+win_ver_t vmi_get_winver (vmi_instance_t vmi);
+
+/**
+ * Get string represenatation of the version of Windows that LibVMI is currently accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return string description of Windows version [do not free]
+ */
+const char * vmi_get_winver_str (vmi_instance_t vmi);
 
 /**
  * Get the memory offset associated with the given offset_name.

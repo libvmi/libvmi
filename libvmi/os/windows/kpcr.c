@@ -514,7 +514,7 @@ static addr_t find_kdversionblock_address (vmi_instance_t vmi)
     return kdvb_address;
 }
 
-static status_t init_kddebugger_data64 (vmi_instance_t vmi)
+status_t init_kddebugger_data64 (vmi_instance_t vmi)
 {
     addr_t KdVersionBlock = find_kdversionblock_address(vmi);
     addr_t DebuggerDataList, ListPtr;

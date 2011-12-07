@@ -27,6 +27,9 @@
 #include "libvmi.h"
 #include "private.h"
 
+// from kpcr.c - this is slow, but you need it to find the Windows version
+status_t init_kddebugger_data64 (vmi_instance_t vmi);
+
 /* Tries to find the kernel page directory by doing an exhaustive search
  * through the memory space for the System process.  The page directory
  * location is then pulled from this eprocess struct.
@@ -120,6 +123,7 @@ error_exit:
     return VMI_FAILURE;
 }
 
+
 status_t windows_init (vmi_instance_t vmi)
 {
     addr_t sysproc = 0;
@@ -134,6 +138,12 @@ status_t windows_init (vmi_instance_t vmi)
             goto error_exit;
         }
     }
+
+    /* optional -- discover the version of Windows */
+    if (VMI_FAILURE == init_kddebugger_data64 (vmi) ) {
+        errprint ("init_kddebugger_data64 failed\n");
+        /* fall-through */
+    } 
 
     dbprint("**ntoskrnl @ VA 0x%.16llx.\n", vmi->os.windows_instance.ntoskrnl_va);
 
