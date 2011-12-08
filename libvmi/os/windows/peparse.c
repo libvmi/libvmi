@@ -226,7 +226,8 @@ int get_aof_index (
     }
 }
 
-int get_aon_index (vmi_instance_t vmi, char *symbol, struct export_table *et)
+// Finds the index of the exported symbol specified - linear search
+int get_aon_index_linear (vmi_instance_t vmi, char *symbol, struct export_table *et)
 {
     /*TODO implement faster name search alg since names are sorted */
     addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
@@ -251,6 +252,58 @@ int get_aon_index (vmi_instance_t vmi, char *symbol, struct export_table *et)
     /* didn't find anything that matched */
     return -1;
 }
+
+
+// binary search function for get_aon_index_binary()
+static int find_aon_idx_bin (vmi_instance_t vmi, 
+                             char *symbol,
+                             addr_t aon_base_va,
+                             int low,
+                             int high            )
+{
+    int mid, cmp;
+    addr_t str_rva_loc;   // location of curr name's RVA
+    uint32_t str_rva;     // RVA of curr name
+    char * name = 0;      // curr name
+
+    if (high < low) goto not_found;
+
+    // calc the current index ("mid")
+    mid = (low + high) / 2;
+    str_rva_loc = aon_base_va + mid * sizeof(uint32_t);
+
+    vmi_read_32_va (vmi, str_rva_loc, 0, &str_rva);
+
+    if (!str_rva) goto not_found;
+
+    // get the curr string & compare to symbol
+    name = rva_to_string (vmi, (addr_t)str_rva);
+    cmp = strcmp (symbol, name);
+    free (name);
+
+    if (cmp < 0) { // symbol < name ==> try lower region
+        return find_aon_idx_bin (vmi, symbol, aon_base_va, low, mid-1);
+    } else if (cmp > 0) { // symbol > name ==> try higher region
+        return find_aon_idx_bin (vmi, symbol, aon_base_va, mid+1, high);
+    } else { // symbol == name
+        return mid; // found
+    }
+
+not_found:
+    return -1;
+}
+
+// Finds the index of the exported symbol specified - binary search
+int get_aon_index_binary (vmi_instance_t vmi, char *symbol, struct export_table *et)
+{
+    /*TODO implement faster name search alg since names are sorted */
+    addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
+    addr_t aon_base_addr = base_addr + et->address_of_names;
+    int    name_ct  = et->number_of_names;
+
+    return find_aon_idx_bin (vmi, symbol, aon_base_addr, 0, name_ct);
+}
+
 
 status_t get_export_table (vmi_instance_t vmi, struct export_table *et)
 {
@@ -359,7 +412,7 @@ status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, addr_t *rva)
     }
 
     // find AddressOfNames index for export symbol
-    if ((aon_index = get_aon_index(vmi, symbol, &et)) == -1){
+    if ((aon_index = get_aon_index_binary (vmi, symbol, &et)) == -1) {
         dbprint("--PEParse: failed to get aon index\n");
         return VMI_FAILURE;
     }

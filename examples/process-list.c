@@ -41,7 +41,6 @@ int main (int argc, char **argv)
     int pid = 0;
     int tasks_offset, pid_offset, name_offset;
     status_t status;
-    const char *ver;
 
     /* this is the VM or file that we are looking at */
     if (argc != 2) {
@@ -66,9 +65,6 @@ int main (int argc, char **argv)
         pid_offset = vmi_get_offset(vmi, "linux_pid");
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-
-        ver = vmi_get_winver_str (vmi);
-        printf ("Windows version: %s\n", ver);
         tasks_offset = vmi_get_offset(vmi, "win_tasks");
         if (0 == tasks_offset) {
             printf("Failed to find win_tasks\n");
