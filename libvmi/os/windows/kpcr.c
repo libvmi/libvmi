@@ -486,6 +486,8 @@ static void find_windows_version (vmi_instance_t vmi, addr_t KdVersionBlock)
         dbprint("--OS Guess: Unknown (0x%.4x)\n", size);
         vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
     }
+    
+    //printf ("Found Windows version: %s\n", vmi_get_winver_str(vmi));
 }
 
 static addr_t find_kdversionblock_address (vmi_instance_t vmi)
@@ -514,9 +516,47 @@ static addr_t find_kdversionblock_address (vmi_instance_t vmi)
     return kdvb_address;
 }
 
+static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
+{
+    // note the signature cannot cross BLOCK_SIZE boundaries
+    addr_t kdvb_address = 0;
+    addr_t paddr = 0;
+#define BLOCK_SIZE 4096
+    unsigned char buf[BLOCK_SIZE];
+    addr_t memsize = vmi_get_memsize(vmi);
+    int ofs;
+    size_t read;
+ 
+    for (paddr = 0; paddr < memsize; paddr += BLOCK_SIZE) {
+        read = vmi_read_pa (vmi, paddr, buf, BLOCK_SIZE);
+        if (BLOCK_SIZE != read) {
+            dbprint ("--OS Guess: failed to read memory block at PA 0x%.16x\n", paddr);
+            continue;
+        }
+
+        for (ofs = 0; ofs < BLOCK_SIZE; ofs += 4) {
+            if (VMI_IA32E == vmi->page_mode) {
+                if (!memcmp(&buf[ofs], "\x00\xf8\xff\xffKDBG", 8)) {
+                    kdvb_address = paddr +ofs - 0xc;
+                    goto out;
+                }
+            }
+            else {
+                if (!memcmp(&buf[ofs], "\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12)) {
+                    kdvb_address = paddr + ofs - 0x8;
+                    goto out;
+                }
+            }
+        } // for            
+    } // outer for
+
+out:
+    return kdvb_address;
+}
+
 status_t init_kddebugger_data64 (vmi_instance_t vmi)
 {
-    addr_t KdVersionBlock = find_kdversionblock_address(vmi);
+    addr_t KdVersionBlock = find_kdversionblock_address_fast(vmi);
     addr_t DebuggerDataList, ListPtr;
 
     if (0 == KdVersionBlock){

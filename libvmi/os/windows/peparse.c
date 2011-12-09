@@ -374,7 +374,7 @@ status_t get_export_table (vmi_instance_t vmi, struct export_table *et)
     size_t nbytes = 0;
     addr_t base_vaddr = vmi->os.windows_instance.ntoskrnl_va;
 
-#define MAX_HEADER_BYTES 1024
+#define MAX_HEADER_BYTES 1024 // keep under 1 page
     uint8_t image[MAX_HEADER_BYTES];
 
     /* scoop up the headers in a single read */

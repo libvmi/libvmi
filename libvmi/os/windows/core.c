@@ -138,13 +138,13 @@ status_t windows_init (vmi_instance_t vmi)
             goto error_exit;
         }
     }
-#if 0
+//#if 0
     /* optional -- discover the version of Windows */
     if (VMI_FAILURE == init_kddebugger_data64 (vmi) ) {
         errprint ("init_kddebugger_data64 failed\n");
         /* fall-through */
     } 
-#endif // 0
+//#endif // 0
     dbprint("**ntoskrnl @ VA 0x%.16llx.\n", vmi->os.windows_instance.ntoskrnl_va);
 
     vmi->os.windows_instance.ntoskrnl = vmi_translate_kv2p(vmi, vmi->os.windows_instance.ntoskrnl_va);
