@@ -369,6 +369,10 @@ status_t validate_pe_image (const uint8_t * const image, size_t len)
 
 status_t get_export_table (vmi_instance_t vmi, struct export_table *et)
 {
+    // Note: this function assumes a "normal" PE where all the headers are in
+    // the first page of the PE and the field DosHeader.OffsetToPE points to
+    // an address in the first page.
+
     addr_t export_header_rva = 0;
     addr_t export_header_va = 0;
     size_t nbytes = 0;
