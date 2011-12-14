@@ -252,7 +252,6 @@ int get_aof_index (
 // Finds the index of the exported symbol specified - linear search
 int get_aon_index_linear (vmi_instance_t vmi, char *symbol, struct export_table *et)
 {
-    /*TODO implement faster name search alg since names are sorted */
     addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     uint32_t i = 0;
 
@@ -275,7 +274,6 @@ int get_aon_index_linear (vmi_instance_t vmi, char *symbol, struct export_table 
     /* didn't find anything that matched */
     return -1;
 }
-
 
 // binary search function for get_aon_index_binary()
 static int find_aon_idx_bin (vmi_instance_t vmi, 
@@ -326,6 +324,17 @@ int get_aon_index_binary (vmi_instance_t vmi, char *symbol, struct export_table 
     return find_aon_idx_bin (vmi, symbol, aon_base_addr, 0, name_ct-1);
 }
 
+int get_aon_index (vmi_instance_t vmi, char *symbol, struct export_table *et)
+{
+    int index = get_aon_index_binary(vmi, symbol, et);
+    if (-1 == index){
+        dbprint("--PEParse: Falling back to linear search for aon index\n");
+        // This could be useful for malformed PE headers where the list isn't
+        // in alpha order (e.g., malware)
+        index = get_aon_index_linear(vmi, symbol, et);
+    }
+    return index;
+}
 
 status_t validate_pe_image (const uint8_t * const image, size_t len)
 {
@@ -446,7 +455,7 @@ status_t windows_export_to_rva (vmi_instance_t vmi, char *symbol, addr_t *rva)
     }
 
     // find AddressOfNames index for export symbol
-    if ((aon_index = get_aon_index_binary (vmi, symbol, &et)) == -1) {
+    if ((aon_index = get_aon_index(vmi, symbol, &et)) == -1) {
         dbprint("--PEParse: failed to get aon index\n");
         return VMI_FAILURE;
     }
