@@ -28,6 +28,8 @@
 #include "private.h"
 #include "driver/interface.h"
 #include <string.h>
+#include <wchar.h>
+
 
 ///////////////////////////////////////////////////////////
 // Classic read functions for access to memory
@@ -343,6 +345,87 @@ char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
         return vmi_read_str_ma(vmi, paddr);
     }
 }
+
+// TODO: test me //////////////////////////////////////////////////
+wchar_t *vmi_read_win_ustr_va (vmi_instance_t vmi, addr_t vaddr, int pid)
+{
+    addr_t paddr = 0;
+    windows_unicode_string_t us = {0};
+    size_t read = 0;
+    wchar_t * buf = 0;
+
+    // read the UNICODE_STRING struct
+    read = vmi_read_va (vmi, vaddr, pid, &us, sizeof(us));
+    if (sizeof(us) != read) {
+        dbprint("--%s: failed to read UNICODE_STRING at VA 0x%.16x for pid %d\n", vaddr, pid);
+        goto out_error;
+    } // if
+
+    // now read from the string's buffer
+    buf = safe_malloc (us.length + sizeof(wchar_t));
+    if (!buf) {
+        dbprint("--%s: failed to allocate %d bytes for string buffer\n", 
+                us.length+sizeof(wchar_t));
+        goto out_error;
+    } // if
+
+    read = vmi_read_va (vmi, us.buffer, pid, buf, us.length);
+       if (sizeof(us) != read) {
+        dbprint("--%s: failed to read buffer at VA 0x%.16x for pid %d\n", us.buffer, pid);
+        goto out_error;
+    } // if
+
+    // end with NULL
+    buf [us.length] = 0;
+
+    return buf;    
+
+out_error:
+    if (buf) {
+        free(buf);
+    }
+    return 0;
+}
+
+
+static wchar_t * base_str_convert (vmi_instance_t vmi, addr_t vaddr, int pid, iconv_t * ic)
+{
+#define STRIDE_BYTES 128
+char 
+
+
+
+}
+
+
+// TODO: test me //////////////////////////////////////////////////
+wchar_t *vmi_read_utf8_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
+{
+    wchar_t * buf = 0;
+    iconv_t cd;
+
+    // iconv_t iconv_open (const char *tocode, const char *fromcode)
+    cd = iconv_open ("WCHAR_T", "UTF-8");
+    if ((iconv_t)-1 == cd) {
+        if (EINVAL == errno) {
+            dbprint ("--%s: invalid conversion requested\n", __FUNCTION__);
+        } else {
+            dbprint ("--%s: iconv_open(): %s\n", __FUNCTION__, strerror(errno));
+        } // if-else
+
+        return 0;
+    } // if
+
+    buf = base_str_convert (vmi, vaddr, pid, cd);
+
+    if (iconv_close (cd)) {
+        dbprint ("--%s: iconv_close(): %s\n", __FUNCTION__, strerror(errno));
+        // not a reportable error
+    } // if
+
+    return buf;
+} // vmi_read_utf8_str_va
+
 
 ///////////////////////////////////////////////////////////
 // Easy access to memory using kernel symbols

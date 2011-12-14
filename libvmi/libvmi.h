@@ -184,6 +184,14 @@ typedef enum registers{
 /* type def for forward compatibility with 64-bit guests */
 typedef uint64_t addr_t;
 
+// Windows' UNICODE_STRING structure
+typedef struct _windows_unicode_string {
+    uint16_t length;
+    uint16_t maximum_length;
+    // width of buffer could be incorrect depending on VM arch
+    addr_t   buffer; // pointer (VA) to wide character buffer
+} __attribute__((packed)) windows_unicode_string_t;
+
 /**
  * @brief LibVMI Instance.
  *
@@ -367,7 +375,7 @@ status_t vmi_read_64_ksym (vmi_instance_t vmi, char *sym, uint64_t *value);
 status_t vmi_read_addr_ksym (vmi_instance_t vmi, char *sym, addr_t *value);
 
 /**
- * Reads a nul terminated string from memory, starting at
+ * Reads a null-terminated string from memory, starting at
  * the given kernel symbol.  The returned value must be
  * freed by the caller.
  *
@@ -434,7 +442,7 @@ status_t vmi_read_64_va (vmi_instance_t vmi, addr_t vaddr, int pid, uint64_t *va
 status_t vmi_read_addr_va (vmi_instance_t vmi, addr_t vaddr, int pid, addr_t *value);
 
 /**
- * Reads a nul terminated string from memory, starting at
+ * Reads a null terminated string from memory, starting at
  * the given virtual address.  The returned value must be
  * freed by the caller.
  *
@@ -444,6 +452,33 @@ status_t vmi_read_addr_va (vmi_instance_t vmi, addr_t vaddr, int pid, addr_t *va
  * @return String read from memory or NULL on error
  */
 char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
+
+/**
+ * Reads a Windows Unicode string structure from memory, starting at the given
+ * virtual address. The returned value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address of the UNICODE_STRING structure
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @return String read from memory or NULL on error
+ */
+wchar_t *vmi_read_win_ustr_va (vmi_instance_t vmi, addr_t vaddr, int pid);
+
+/**
+ * Reads a UTF-8 string from memory, starting at the given virtual
+ * address. The returned value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address of the UTF-8 string
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @return String read from memory or NULL on error
+ */
+wchar_t *vmi_read_utf8_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
+
+
+
+
+
 
 /**
  * Reads 8 bits from memory, given a physical address.
@@ -764,7 +799,7 @@ win_ver_t vmi_get_winver (vmi_instance_t vmi);
  * Get string represenatation of the version of Windows that LibVMI is currently accessing.
  *
  * @param[in] vmi LibVMI instance
- * @return string description of Windows version [do not free]
+ * @return string description of Windows version (do not free)
  */
 const char * vmi_get_winver_str (vmi_instance_t vmi);
 

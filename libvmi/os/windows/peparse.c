@@ -337,20 +337,20 @@ status_t validate_pe_image (const uint8_t * const image, size_t len)
     //vmi_print_hex (image, MAX_HEADER_BYTES);
 
     if (IMAGE_DOS_HEADER != dos_header->signature) {
-        dprint ("--PEPARSE: DOS header signature not found\n");
+        dbprint ("--PEPARSE: DOS header signature not found\n");
         return VMI_FAILURE;
     }
 
     uint32_t ofs_to_pe = dos_header->offset_to_pe;
 
     if (ofs_to_pe > len - fixed_header_sz) {
-        dprint ("--PEPARSE: DOS header offset to PE value too big\n");
+        dbprint ("--PEPARSE: DOS header offset to PE value too big\n");
         return VMI_FAILURE;
     }
 
     struct pe_header * pe_header = (struct pe_header *) (image + ofs_to_pe);
     if (IMAGE_NT_SIGNATURE != pe_header->signature) {
-        dprint ("--PEPARSE: PE header signature invalid\n");
+        dbprint ("--PEPARSE: PE header signature invalid\n");
         return VMI_FAILURE;
     }
 
@@ -360,7 +360,7 @@ status_t validate_pe_image (const uint8_t * const image, size_t len)
 
     if (IMAGE_PE32_MAGIC      != pe_opt_header->magic &&
         IMAGE_PE32_PLUS_MAGIC != pe_opt_header->magic   ) {
-        dprint ("--PEPARSE: Optional header magic value unknown\n");
+        dbprint ("--PEPARSE: Optional header magic value unknown\n");
         return VMI_FAILURE;
     }
 
@@ -384,11 +384,11 @@ status_t get_export_table (vmi_instance_t vmi, struct export_table *et)
     /* scoop up the headers in a single read */
     nbytes = vmi_read_va (vmi, base_vaddr, 0, image, MAX_HEADER_BYTES);
     if (MAX_HEADER_BYTES != nbytes) {
-        dprint("--PEPARSE: failed to read PE header\n");
+        dbprint("--PEPARSE: failed to read PE header\n");
         return VMI_FAILURE;
     }
     if (VMI_FAILURE == validate_pe_image (image, MAX_HEADER_BYTES)) {
-        dprint("--PEPARSE: failed to validate PE header(s)\n");
+        dbprint("--PEPARSE: failed to validate PE header(s)\n");
         return VMI_FAILURE;
     }
 
