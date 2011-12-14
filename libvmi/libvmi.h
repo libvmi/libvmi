@@ -86,9 +86,10 @@ typedef enum win_ver {
 
 /* Three paging modes from Intel Vol3a Section 4.1.1 */
 typedef enum page_mode{
-    VMI_LEGACY,  /**< 32-bit paging */
-    VMI_PAE,     /**< PAE paging */
-    VMI_IA32E    /**< IA-32e paging */
+    VMI_PM_UNKNOWN, /**< page mode unknown */
+    VMI_PM_LEGACY,  /**< 32-bit paging */
+    VMI_PM_PAE,     /**< PAE paging */
+    VMI_PM_IA32E    /**< IA-32e paging */
 } page_mode_t;
 
 typedef uint64_t reg_t;
@@ -769,8 +770,8 @@ uint32_t vmi_get_access_mode (vmi_instance_t vmi);
 
 /**
  * Gets the current page mode for LibVMI, which tells what 
- * type of address translation is in use (e.g., VMI_LEGACY,
- * VMI_PAE, or VMI_IA32E).
+ * type of address translation is in use (e.g., VMI_PM_LEGACY,
+ * VMI_PM_PAE, or VMI_PM_IA32E).
  *
  * @param[in] vmi LibVMI instance
  * @return Page mode

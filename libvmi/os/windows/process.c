@@ -32,10 +32,10 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-char *windows_get_eprocess_name (vmi_instance_t vmi, uint32_t paddr)
+char *windows_get_eprocess_name (vmi_instance_t vmi, addr_t paddr)
 {
     int name_length = 16; //TODO verify that this is correct for all versions
-    uint32_t name_paddr = paddr + vmi->os.windows_instance.pname_offset;
+    addr_t name_paddr = paddr + vmi->os.windows_instance.pname_offset;
     char *name = (char *) safe_malloc(name_length);
 
     if (name_length == vmi_read_pa(vmi, name_paddr, name, name_length)){
@@ -95,7 +95,7 @@ static check_magic_func get_check_magic_func (vmi_instance_t vmi)
 
 int find_pname_offset (vmi_instance_t vmi, check_magic_func check)
 {
-    uint32_t offset = 0;
+    addr_t offset = 0;
     uint32_t value = 0;
     uint32_t target_val = 0;
 
@@ -131,9 +131,9 @@ int find_pname_offset (vmi_instance_t vmi, check_magic_func check)
     return 0;
 }
 
-uint32_t windows_find_eprocess (vmi_instance_t vmi, char *name)
+addr_t windows_find_eprocess (vmi_instance_t vmi, char *name)
 {
-    uint32_t offset = 0;
+    addr_t offset = 0;
     uint32_t value = 0;
     check_magic_func check = get_check_magic_func(vmi);
 

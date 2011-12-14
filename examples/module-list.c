@@ -102,7 +102,7 @@ int main (int argc, char **argv)
            See include/linux/module.h for mode details */
         if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
             char *modname = NULL;
-            if (VMI_IA32E == vmi_get_page_mode(vmi)){ // 64-bit paging
+            if (VMI_PM_IA32E == vmi_get_page_mode(vmi)){ // 64-bit paging
                 modname = vmi_read_str_va(vmi, next_module + 16, 0);
             }
             else{

@@ -150,11 +150,10 @@ status_t linux_system_map_symbol_to_address (vmi_instance_t instance, char *symb
 typedef int(*check_magic_func)(uint32_t);
 
 status_t windows_init (vmi_instance_t instance);
-addr_t get_ntoskrnl_base (vmi_instance_t instance);
-uint32_t windows_find_eprocess (vmi_instance_t instance, char *name);
+addr_t windows_find_eprocess (vmi_instance_t instance, char *name);
 status_t windows_export_to_rva (vmi_instance_t , char *, addr_t *);
 status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address);
-uint32_t windows_find_cr3 (vmi_instance_t vmi);
+addr_t windows_find_cr3 (vmi_instance_t vmi);
 int find_pname_offset (vmi_instance_t vmi, check_magic_func check);
 
 /*-----------------------------------------

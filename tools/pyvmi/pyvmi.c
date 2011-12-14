@@ -1133,13 +1133,13 @@ pyvmi_get_page_mode(PyObject *self, PyObject *args) {
     page_mode_t mode = vmi_get_page_mode(vmi(self));
 
     PyObject *rtnval = NULL;
-    if (VMI_LEGACY == mode){
+    if (VMI_PM_LEGACY == mode){
         rtnval = Py_BuildValue("s", "legacy");
     }
-    else if (VMI_PAE == mode){
+    else if (VMI_PM_PAE == mode){
         rtnval = Py_BuildValue("s", "pae");
     }
-    else if (VMI_IA32E == mode){
+    else if (VMI_PM_IA32E == mode){
         rtnval = Py_BuildValue("s", "ia32e");
     }
     else{

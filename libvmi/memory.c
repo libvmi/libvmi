@@ -303,7 +303,7 @@ addr_t v2p_nopae(vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
     dbprint("--PTLookup: pgd = 0x%.8x\n", pgd);
         
     if (entry_present(pgd)){
-        if (vmi->pse && page_size_flag(pgd)){
+        if (page_size_flag(pgd)){
             paddr = get_large_paddr(vmi, vaddr, pgd);
             dbprint("--PTLookup: 4MB page\n", pgd);
         }
@@ -426,13 +426,13 @@ addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
     }
 
     /* do the actual page walk in guest memory */
-    if (vmi->page_mode == VMI_LEGACY){
+    if (vmi->page_mode == VMI_PM_LEGACY){
         paddr = v2p_nopae(vmi, dtb, vaddr);
     }
-    else if (vmi->page_mode == VMI_PAE){
+    else if (vmi->page_mode == VMI_PM_PAE){
         paddr = v2p_pae(vmi, dtb, vaddr);
     }
-    else if (vmi->page_mode == VMI_IA32E){
+    else if (vmi->page_mode == VMI_PM_IA32E){
         paddr = v2p_ia32e(vmi, dtb, vaddr);
     }
     else{
