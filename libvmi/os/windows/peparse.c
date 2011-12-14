@@ -319,7 +319,6 @@ not_found:
 // Finds the index of the exported symbol specified - binary search
 int get_aon_index_binary (vmi_instance_t vmi, char *symbol, struct export_table *et)
 {
-    /*TODO implement faster name search alg since names are sorted */
     addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     addr_t aon_base_addr = base_addr + et->address_of_names;
     int    name_ct  = et->number_of_names;
