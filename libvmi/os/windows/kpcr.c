@@ -496,7 +496,7 @@ static addr_t find_kdversionblock_address (vmi_instance_t vmi)
 
     for (paddr = 0; paddr < vmi_get_memsize(vmi); paddr += 4){
         if (12 == vmi_read_pa(vmi, paddr, buf, 12)){
-            if (VMI_IA32E == vmi->page_mode){
+            if (VMI_PM_IA32E == vmi->page_mode){
                 if (memcmp(buf, "\x00\xf8\xff\xffKDBG", 8) == 0){
                     kdvb_address = paddr - 0xc;
                     break;

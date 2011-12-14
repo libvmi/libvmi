@@ -207,15 +207,15 @@ static int get_memory_layout (vmi_instance_t vmi)
     /* now set the paging mode */
     if (!vmi->pae){
         dbprint("**set paging mode to 32-bit paging\n");
-        vmi->page_mode = VMI_LEGACY;
+        vmi->page_mode = VMI_PM_LEGACY;
     }
     else if (vmi->pae && !vmi->lme){
         dbprint("**set paging mode to PAE paging\n");
-        vmi->page_mode = VMI_PAE;
+        vmi->page_mode = VMI_PM_PAE;
     }
     else if (vmi->pae && vmi->lme){
         dbprint("**set paging mode to IA-32e paging\n");
-        vmi->page_mode = VMI_IA32E;
+        vmi->page_mode = VMI_PM_IA32E;
     }
     else{
         dbprint("Invalid paging mode\n");
@@ -240,6 +240,9 @@ backup_plan:
 
     vmi->cr3 = find_cr3(vmi);
     dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
+
+    vmi->page_mode = VMI_PM_UNKNOWN;
+    dbprint("**set paging mode to unknown\n");
     return VMI_SUCCESS;
 
 error_exit:
