@@ -75,14 +75,14 @@ struct vmi_instance{
             int pgd_offset;      /**< mm_struct->pgd */
         } linux_instance;
         struct windows_instance{
-            addr_t ntoskrnl;   /**< base phys address for ntoskrnl image */
+            addr_t ntoskrnl;          /**< base phys address for ntoskrnl image */
             addr_t ntoskrnl_va;       /**< base virt address for ntoskrnl image */
             addr_t kddebugger_data64; /**< kernel virtual address for start of KDDEBUGGER_DATA64 structure */
             int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
             int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */
             int pid_offset;      /**< EPROCESS->UniqueProcessId */
             int pname_offset;    /**< EPROCESS->ImageFileName */
-	    win_ver_t version;   /**< version of Windows */
+            win_ver_t version;   /**< version of Windows */
         } windows_instance;
     } os;
     GHashTable *pid_cache;  /**< hash table to hold the PID cache data */

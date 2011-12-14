@@ -460,32 +460,34 @@ static void find_windows_version (vmi_instance_t vmi, addr_t KdVersionBlock)
 
     if (memcmp(&size, "\x08\x02", 2) == 0){
         dbprint("--OS Guess: Windows 2000\n");
-	vmi->os.windows_instance.version = VMI_OS_WINDOWS_2000;
+        vmi->os.windows_instance.version = VMI_OS_WINDOWS_2000;
     }
     else if (memcmp(&size, "\x90\x02", 2) == 0){
         dbprint("--OS Guess: Windows XP\n");
-	vmi->os.windows_instance.version = VMI_OS_WINDOWS_XP;
+        vmi->os.windows_instance.version = VMI_OS_WINDOWS_XP;
     }
     else if (memcmp(&size, "\x18\x03", 2) == 0){
         dbprint("--OS Guess: Windows 2003\n");
-	vmi->os.windows_instance.version = VMI_OS_WINDOWS_2003;
+        vmi->os.windows_instance.version = VMI_OS_WINDOWS_2003;
     }
     else if (memcmp(&size, "\x28\x03", 2) == 0){
         dbprint("--OS Guess: Windows Vista\n");
-	vmi->os.windows_instance.version = VMI_OS_WINDOWS_VISTA;
+        vmi->os.windows_instance.version = VMI_OS_WINDOWS_VISTA;
     }
     else if (memcmp(&size, "\x30\x03", 2) == 0){
         dbprint("--OS Guess: Windows 2008\n");
-	vmi->os.windows_instance.version = VMI_OS_WINDOWS_2008;
+        vmi->os.windows_instance.version = VMI_OS_WINDOWS_2008;
     }
     else if (memcmp(&size, "\x40\x03", 2) == 0){
         dbprint("--OS Guess: Windows 7\n");
-	vmi->os.windows_instance.version = VMI_OS_WINDOWS_7;
+        vmi->os.windows_instance.version = VMI_OS_WINDOWS_7;
     }
     else{
         dbprint("--OS Guess: Unknown (0x%.4x)\n", size);
-	vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
+        vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
     }
+    
+    printf ("Found Windows version: %s\n", vmi_get_winver_str(vmi));
 }
 
 static addr_t find_kdversionblock_address (vmi_instance_t vmi)
@@ -514,9 +516,57 @@ static addr_t find_kdversionblock_address (vmi_instance_t vmi)
     return kdvb_address;
 }
 
-static status_t init_kddebugger_data64 (vmi_instance_t vmi)
+static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
 {
-    addr_t KdVersionBlock = find_kdversionblock_address(vmi);
+    // Note: this function has several limitations:
+    // -the KD version block signature cannot cross block (frame) boundaries
+    // -reading PA 0 fails; hope the KD version block is not in frame 0
+    // -from manpage: memmem() is "broken in Linux libraries up to and including libc 5.0.9"
+    // 
+    // Todo:
+    // -support matching across frames (can this happen in windows?)
+    
+    addr_t kdvb_address = 0;
+    addr_t block_pa     = 0;
+    addr_t memsize      = vmi_get_memsize(vmi);
+    size_t read         = 0;
+    unsigned char * needle = 0; // unsigned char* so math with haystack is easy
+
+#define BLOCK_SIZE 4096
+    unsigned char haystack[BLOCK_SIZE];
+ 
+    for (block_pa = 0; block_pa < memsize; block_pa += BLOCK_SIZE) {
+        read = vmi_read_pa (vmi, block_pa, haystack, BLOCK_SIZE);
+        if (BLOCK_SIZE != read) {
+            dbprint ("--OS Guess: failed to read memory block at PA 0x%.16x\n", block_pa);
+            continue;
+        }
+
+        if (VMI_PM_IA32E == vmi->page_mode) {
+            needle = (unsigned char*) memmem (haystack, BLOCK_SIZE,
+                                              "\x00\xf8\xff\xffKDBG", 8);
+            if (needle) {
+                kdvb_address = block_pa + (needle - haystack) - 0xc;
+                goto out;
+            }
+        } else {
+            needle = (unsigned char*) memmem (haystack, BLOCK_SIZE,
+                                              "\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12);
+            if (needle) {
+                kdvb_address = block_pa + (needle - haystack) - 8;
+                goto out;
+            }
+        } // else
+    } // outer for
+
+out:
+    printf ("Found KD version block at PA %.16x\n", kdvb_address);
+    return kdvb_address;
+}
+
+status_t init_kddebugger_data64 (vmi_instance_t vmi)
+{
+    addr_t KdVersionBlock = find_kdversionblock_address_fast(vmi);
     addr_t DebuggerDataList, ListPtr;
 
     if (0 == KdVersionBlock){
