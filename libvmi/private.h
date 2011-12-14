@@ -78,6 +78,7 @@ struct vmi_instance{
             addr_t ntoskrnl;          /**< base phys address for ntoskrnl image */
             addr_t ntoskrnl_va;       /**< base virt address for ntoskrnl image */
             addr_t kddebugger_data64; /**< kernel virtual address for start of KDDEBUGGER_DATA64 structure */
+            addr_t kdversion_block;   /**< kernel virtual address for start of KdVersionBlock structure */
             int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
             int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */
             int pid_offset;      /**< EPROCESS->UniqueProcessId */
@@ -155,6 +156,7 @@ status_t windows_export_to_rva (vmi_instance_t , char *, addr_t *);
 status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address);
 addr_t windows_find_cr3 (vmi_instance_t vmi);
 int find_pname_offset (vmi_instance_t vmi, check_magic_func check);
+void find_windows_version (vmi_instance_t vmi);
 
 /*-----------------------------------------
  * read.c

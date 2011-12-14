@@ -49,7 +49,7 @@ typedef struct vmi_config_entry {
             int iba;
             int ph;
             int pname;
-            uint64_t kpcr;
+            uint64_t kdvb;
         } windows_offsets;
     } offsets;
 } vmi_config_entry_t;

@@ -47,6 +47,9 @@ win_ver_t vmi_get_winver (vmi_instance_t vmi)
 {
     if (VMI_OS_WINDOWS != vmi->os_type) return VMI_OS_WINDOWS_NONE;
 
+    if (!vmi->os.windows_instance.version || vmi->os.windows_instance.version == VMI_OS_WINDOWS_UNKNOWN){
+        find_windows_version(vmi);
+    }
     return vmi->os.windows_instance.version;
 }
 
