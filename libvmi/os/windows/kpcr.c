@@ -526,7 +526,6 @@ static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
     // Note: this function has several limitations:
     // -the KD version block signature cannot cross block (frame) boundaries
     // -reading PA 0 fails; hope the KD version block is not in frame 0
-    // -from manpage: memmem() is "broken in Linux libraries up to and including libc 5.0.9"
     // 
     // Todo:
     // -support matching across frames (can this happen in windows?)
@@ -535,9 +534,8 @@ static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
     addr_t block_pa     = 0;
     addr_t memsize      = vmi_get_memsize(vmi);
     size_t read         = 0;
-    unsigned char * needle = 0; // unsigned char* so math with haystack is easy
 
-#define BLOCK_SIZE 4096
+#define BLOCK_SIZE 1024 * 1024 * 1
     unsigned char haystack[BLOCK_SIZE];
  
     for (block_pa = BLOCK_SIZE; block_pa < memsize; block_pa += BLOCK_SIZE) {
@@ -547,25 +545,24 @@ static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
             continue;
         }
 
-        if (VMI_PM_IA32E == vmi->page_mode) {
-            needle = (unsigned char*) memmem (haystack, BLOCK_SIZE,
-                                              "\x00\xf8\xff\xffKDBG", 8);
-            if (needle) {
-                kdvb_address = block_pa + (needle - haystack) - 0xc;
+        if (VMI_PM_IA32E == vmi->page_mode){
+            int match_offset = boyer_moore("\x00\xf8\xff\xffKDBG", 8, haystack, BLOCK_SIZE);
+            if (-1 != match_offset){
+                kdvb_address = block_pa + (unsigned int) match_offset - 0xc;
                 goto out;
             }
-        } else {
-            needle = (unsigned char*) memmem (haystack, BLOCK_SIZE,
-                                              "\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12);
-            if (needle) {
-                kdvb_address = block_pa + (needle - haystack) - 8;
+        }
+        else{
+            int match_offset = boyer_moore("\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12, haystack, BLOCK_SIZE);
+            if (-1 != match_offset){
+                kdvb_address = block_pa + (unsigned int) match_offset - 0x8;
                 goto out;
             }
         } // else
     } // outer for
 
 out:
-    dbprint("Found KD version block at PA %.16x\n", kdvb_address);
+    dbprint("Found KD version block at PA %.16llx\n", kdvb_address);
     return kdvb_address;
 }
 

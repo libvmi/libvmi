@@ -9,6 +9,7 @@ c_sources = \
     memory.c \
     pretty_print.c \
     read.c \
+    strmatch.c \
     write.c \
     driver/file.c \
     driver/interface.c \

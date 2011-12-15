@@ -168,4 +168,9 @@ status_t vmi_read_64_ma (vmi_instance_t vmi, addr_t maddr, uint64_t *value);
 status_t vmi_read_addr_ma (vmi_instance_t vmi, addr_t maddr, addr_t *value);
 char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr);
 
+/*-----------------------------------------
+ * strmatch.c
+ */
+int boyer_moore (unsigned char *x, int m, unsigned char *y, int n);
+
 #endif /* PRIVATE_H */
