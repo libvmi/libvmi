@@ -27,9 +27,6 @@
 #include "libvmi.h"
 #include "private.h"
 
-// from kpcr.c - this is slow, but you need it to find the Windows version
-status_t init_kddebugger_data64 (vmi_instance_t vmi);
-
 static status_t find_page_mode (vmi_instance_t vmi)
 {
     addr_t proc = 0;
