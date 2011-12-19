@@ -185,13 +185,29 @@ typedef enum registers{
 /* type def for forward compatibility with 64-bit guests */
 typedef uint64_t addr_t;
 
-// Windows' UNICODE_STRING structure
-typedef struct _windows_unicode_string {
+// generic representation of Unicode string to be used within libvmi
+typedef struct _ustring {
+    uint16_t length;
+    uint8_t *contents;
+} unicode_string_t;
+
+
+// Windows' UNICODE_STRING structure (x86)
+typedef struct _windows_unicode_string32 {
     uint16_t length;
     uint16_t maximum_length;
-    // width of buffer could be incorrect depending on VM arch
-    addr_t   buffer; // pointer (VA) to wide character buffer
-} __attribute__((packed)) windows_unicode_string_t;
+    uint32_t pBuffer; // pointer to string contents
+} __attribute__((packed)) win32_unicode_string_t;
+
+// Windows' UNICODE_STRING structure (x64)
+typedef struct _windows_unicode_string64 {
+    uint16_t length;
+    uint16_t maximum_length;
+    uint64_t pBuffer; // pointer to string contents
+} __attribute__((packed)) win64_unicode_string_t;
+
+
+
 
 /**
  * @brief LibVMI Instance.
@@ -463,8 +479,10 @@ char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
  * @param[in] pid Pid of the virtual address space (0 for kernel)
  * @return String read from memory or NULL on error
  */
-wchar_t *vmi_read_win_ustr_va (vmi_instance_t vmi, addr_t vaddr, int pid);
+unicode_string_t *vmi_read_win_ustr_va (vmi_instance_t vmi, addr_t vaddr, int pid);
 
+
+#if 0
 /**
  * Reads a UTF-8 string from memory, starting at the given virtual
  * address. The returned value must be freed by the caller.
@@ -475,7 +493,7 @@ wchar_t *vmi_read_win_ustr_va (vmi_instance_t vmi, addr_t vaddr, int pid);
  * @return String read from memory or NULL on error
  */
 wchar_t *vmi_read_utf8_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
-
+#endif //0
 
 
 
