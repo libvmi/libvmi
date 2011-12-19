@@ -78,6 +78,7 @@ struct vmi_instance{
             addr_t ntoskrnl;          /**< base phys address for ntoskrnl image */
             addr_t ntoskrnl_va;       /**< base virt address for ntoskrnl image */
             addr_t kddebugger_data64; /**< kernel virtual address for start of KDDEBUGGER_DATA64 structure */
+            addr_t kdversion_block;   /**< kernel virtual address for start of KdVersionBlock structure */
             int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
             int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */
             int pid_offset;      /**< EPROCESS->UniqueProcessId */
@@ -155,6 +156,7 @@ status_t windows_export_to_rva (vmi_instance_t , char *, addr_t *);
 status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address);
 addr_t windows_find_cr3 (vmi_instance_t vmi);
 int find_pname_offset (vmi_instance_t vmi, check_magic_func check);
+void find_windows_version (vmi_instance_t vmi);
 
 /*-----------------------------------------
  * read.c
@@ -165,5 +167,10 @@ status_t vmi_read_32_ma (vmi_instance_t vmi, addr_t maddr, uint32_t *value);
 status_t vmi_read_64_ma (vmi_instance_t vmi, addr_t maddr, uint64_t *value);
 status_t vmi_read_addr_ma (vmi_instance_t vmi, addr_t maddr, addr_t *value);
 char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr);
+
+/*-----------------------------------------
+ * strmatch.c
+ */
+int boyer_moore (unsigned char *x, int m, unsigned char *y, int n);
 
 #endif /* PRIVATE_H */

@@ -279,7 +279,7 @@ int vmi_parse_config (char *td)
 %token         WIN_IBA
 %token         WIN_PH
 %token         WIN_PNAME
-%token         WIN_KPCR
+%token         WIN_KDVB
 %token         SYSMAPTOK
 %token         OSTYPETOK
 %token<str>    WORD
@@ -342,7 +342,7 @@ assignment:
         |
         win_pname_assignment
         |
-        win_kpcr_assignment
+        win_kdvb_assignment
         ;
 
 linux_tasks_assignment:
@@ -449,11 +449,11 @@ win_pname_assignment:
         }
         ;
 
-win_kpcr_assignment:
-        WIN_KPCR EQUALS NUM
+win_kdvb_assignment:
+        WIN_KDVB EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.kpcr = tmp;
+            tmp_entry.offsets.windows_offsets.kdvb = tmp;
         }
         ;
 

@@ -130,9 +130,9 @@ static int read_config_file (vmi_instance_t vmi)
                 entry->offsets.windows_offsets.pname;
         }
 
-        if(entry->offsets.windows_offsets.kpcr){
-            vmi->os.windows_instance.kddebugger_data64 = 
-                entry->offsets.windows_offsets.kpcr;
+        if(entry->offsets.windows_offsets.kdvb){
+            vmi->os.windows_instance.kdversion_block = 
+                entry->offsets.windows_offsets.kdvb;
         }
     }
 
@@ -158,6 +158,7 @@ error_exit:
 static uint32_t find_cr3 (vmi_instance_t vmi)
 {
     if (VMI_OS_WINDOWS == vmi->os_type){
+        vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
         return windows_find_cr3(vmi);
     }
     else{
