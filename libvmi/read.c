@@ -493,14 +493,11 @@ status_t vmi_convert_string_encoding (const unicode_string_t * in,
 fail:
     if (out->contents) {
         free (out->contents);
-        out->contents = 0;
     }
-    out->encoding = NULL;
+    // make failure really obvious
+    memset (out, 0, sizeof(*out));
     return VMI_FAILURE;
 }
-
-
-
 
 ///////////////////////////////////////////////////////////
 // Easy access to memory using kernel symbols
