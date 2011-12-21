@@ -185,33 +185,21 @@ typedef enum registers{
 /* type def for forward compatibility with 64-bit guests */
 typedef uint64_t addr_t;
 
-// generic representation of Unicode string to be used within libvmi
+/**
+ * Generic representation of Unicode string to be used within libvmi
+ */
 typedef struct _ustring {
-    size_t length;       // byte count of contents
-    uint8_t *contents;
-    const char * encoding; // do not free
+    size_t length;         /**< byte count of contents */
+    uint8_t *contents;     /**< pointer to byte array holding string */
+    const char * encoding; /**< holds iconv-compatible encoding of contents; do not free */
 } unicode_string_t;
 
-// Convenience macro
-#define free_unicode_string(p_us) { \
-        if(p_us->contents) free(p_us->contents); \
-        free(p_us); \
-}
-
-
-// Windows' UNICODE_STRING structure (x86)
-typedef struct _windows_unicode_string32 {
-    uint16_t length;
-    uint16_t maximum_length;
-    uint32_t pBuffer; // pointer to string contents
-} __attribute__((packed)) win32_unicode_string_t;
-
-// Windows' UNICODE_STRING structure (x64)
-typedef struct _windows_unicode_string64 {
-    uint16_t length;
-    uint16_t maximum_length;
-    uint64_t pBuffer; // pointer to string contents
-} __attribute__((packed)) win64_unicode_string_t;
+/**
+ * Convenience function to free a unicode_string_t struct.
+ *
+ * @param[in] p_us Pointer to a unicode_string_t struct
+ */
+void free_unicode_string (unicode_string_t * p_us);
 
 /**
  * @brief LibVMI Instance.
@@ -475,16 +463,18 @@ status_t vmi_read_addr_va (vmi_instance_t vmi, addr_t vaddr, int pid, addr_t *va
 char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
 
 /**
- * Reads a Windows Unicode string structure from memory, starting at the given
- * virtual address. The returned value must be freed by the caller.
+ * Reads a Unicode string from the given address. If the guest is running
+ * Windows, a UNICODE_STRING struct is read. Linux is not yet
+ * supported. The returned value must be freed by the caller.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] vaddr Virtual address of the UNICODE_STRING structure
  * @param[in] pid Pid of the virtual address space (0 for kernel)
- * @return String read from memory or NULL on error
+ * @return String read from memory or NULL on error; this function 
+ *         will set the encoding field.
  */
 unicode_string_t *
-vmi_read_win_unicode_string_va (vmi_instance_t vmi, addr_t vaddr, int pid);
+vmi_read_unicode_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
 
 /**
  * Converts character encoding from that in the input string to another
@@ -492,14 +482,14 @@ vmi_read_win_unicode_string_va (vmi_instance_t vmi, addr_t vaddr, int pid);
  * string to the "UTF-8" encoding and output with printf("%s"); (2) convert a
  * string to the "WCHAR_T" encoding and output with printf("%ls").
  *
- * @param[in] in  unicode_string_t to be converted
+ * @param[in] in  unicode_string_t to be converted; encoding field must be set
  * @param[in] out output unicode_string_t, allocated by caller (this function allocates the contents field)
  * @param[in] outencoding output encoding, must be compatible with the iconv function
  * @return status code
  */
-status_t vmi_convert_string_encoding (const unicode_string_t * in,
-                                      unicode_string_t       * out,
-                                      const char * outencoding    );
+status_t vmi_convert_str_encoding (const unicode_string_t * in,
+                                   unicode_string_t       * out,
+                                   const char * outencoding    );
 
 /**
  * Reads 8 bits from memory, given a physical address.

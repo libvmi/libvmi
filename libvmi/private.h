@@ -94,6 +94,20 @@ struct vmi_instance{
     uint32_t memory_cache_age; /**< max age of memory cache entry */
 };
 
+/** Windows' UNICODE_STRING structure (x86) */
+typedef struct _windows_unicode_string32 {
+    uint16_t length;
+    uint16_t maximum_length;
+    uint32_t pBuffer; // pointer to string contents
+} __attribute__((packed)) win32_unicode_string_t;
+
+/** Windows' UNICODE_STRING structure (x64) */
+typedef struct _windows_unicode_string64 {
+    uint16_t length;
+    uint16_t maximum_length;
+    uint64_t pBuffer; // pointer to string contents
+} __attribute__((packed)) win64_unicode_string_t;
+
 /*----------------------------------------------
  * convenience.c
  */
