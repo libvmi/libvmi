@@ -497,6 +497,7 @@ status_t vmi_convert_str_encoding (const unicode_string_t * in,
 
     // conversion success
     out->length = (size_t) (outcurr - outstart);
+    (void)iconv_close(cd);
     return VMI_SUCCESS;
 
 fail:
@@ -505,6 +506,11 @@ fail:
     }
     // make failure really obvious
     memset (out, 0, sizeof(*out));
+
+    if (-1 != (int)cd) { // init succeeded
+        (void)iconv_close(cd);
+    } // if
+
     return VMI_FAILURE;
 }
 
