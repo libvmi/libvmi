@@ -187,9 +187,16 @@ typedef uint64_t addr_t;
 
 // generic representation of Unicode string to be used within libvmi
 typedef struct _ustring {
-    uint16_t length;
+    size_t length;       // byte count of contents
     uint8_t *contents;
+    const char * encoding; // do not free
 } unicode_string_t;
+
+// Convenience macro
+#define free_unicode_string(p_us) { \
+        if(p_us->contents) free(p_us->contents); \
+        free(p_us); \
+}
 
 
 // Windows' UNICODE_STRING structure (x86)
@@ -205,9 +212,6 @@ typedef struct _windows_unicode_string64 {
     uint16_t maximum_length;
     uint64_t pBuffer; // pointer to string contents
 } __attribute__((packed)) win64_unicode_string_t;
-
-
-
 
 /**
  * @brief LibVMI Instance.
@@ -479,25 +483,23 @@ char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
  * @param[in] pid Pid of the virtual address space (0 for kernel)
  * @return String read from memory or NULL on error
  */
-unicode_string_t *vmi_read_win_ustr_va (vmi_instance_t vmi, addr_t vaddr, int pid);
+unicode_string_t *
+vmi_read_win_unicode_string_va (vmi_instance_t vmi, addr_t vaddr, int pid);
 
-
-#if 0
 /**
- * Reads a UTF-8 string from memory, starting at the given virtual
- * address. The returned value must be freed by the caller.
+ * Converts character encoding from that in the input string to another
+ * specified encoding. Two common ways to use this function are: (1) convert a
+ * string to the "UTF-8" encoding and output with printf("%s"); (2) convert a
+ * string to the "WCHAR_T" encoding and output with printf("%ls").
  *
- * @param[in] vmi LibVMI instance
- * @param[in] vaddr Virtual address of the UTF-8 string
- * @param[in] pid Pid of the virtual address space (0 for kernel)
- * @return String read from memory or NULL on error
+ * @param[in] in  unicode_string_t to be converted
+ * @param[in] out output unicode_string_t, allocated by caller (this function allocates the contents field)
+ * @param[in] outencoding output encoding, must be compatible with the iconv function
+ * @return status code
  */
-wchar_t *vmi_read_utf8_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
-#endif //0
-
-
-
-
+status_t vmi_convert_string_encoding (const unicode_string_t * in,
+                                      unicode_string_t       * out,
+                                      const char * outencoding    );
 
 /**
  * Reads 8 bits from memory, given a physical address.

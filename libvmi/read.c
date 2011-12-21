@@ -29,7 +29,8 @@
 #include "driver/interface.h"
 #include <string.h>
 #include <wchar.h>
-
+#include <iconv.h> // conversion between character sets
+#include <errno.h>
 
 ///////////////////////////////////////////////////////////
 // Classic read functions for access to memory
@@ -346,7 +347,6 @@ char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
     }
 }
 
-// TODO: test me //////////////////////////////////////////////////
 unicode_string_t *
 vmi_read_win_unicode_string_va (vmi_instance_t vmi, addr_t vaddr, int pid)
 {
@@ -369,7 +369,7 @@ vmi_read_win_unicode_string_va (vmi_instance_t vmi, addr_t vaddr, int pid)
         buffer_va  = us64.pBuffer;
         buffer_len = us64.length;
     } else {
-        win64_unicode_string_t us32 = {0};
+        win32_unicode_string_t us32 = {0};
         struct_size = sizeof(us32);
         // read the UNICODE_STRING struct
         read = vmi_read_va (vmi, vaddr, pid, &us32, struct_size);
@@ -408,6 +408,9 @@ vmi_read_win_unicode_string_va (vmi_instance_t vmi, addr_t vaddr, int pid)
     // end with NULL (needed?)
     us->contents [buffer_len]   = 0;
     us->contents [buffer_len+1] = 0;
+
+    us->encoding = "UTF-16";
+
     return us;    
 
 out_error:
@@ -419,6 +422,85 @@ out_error:
     }
     return 0;
 }
+
+
+status_t vmi_convert_string_encoding (const unicode_string_t * in,
+                                      unicode_string_t       * out,
+                                      const char * outencoding    )
+{
+    iconv_t cd = 0;
+    size_t  iconv_val = 0;
+
+    size_t  inlen  = in->length;
+    size_t  outlen = 2 * (inlen+1);
+
+    char * instart = in->contents;
+    char * incurr  = in->contents;
+
+    memset (out, 0, sizeof(*out));
+    out->contents = safe_malloc (outlen);
+    if (!out->contents) {
+        dbprint ("Failed to malloc %d bytes\n", outlen);
+        goto fail;
+    } // if
+    memset (out->contents, 0, outlen);
+
+    char * outstart = out->contents;
+    char * outcurr  = out->contents;
+
+    out->encoding = outencoding;
+
+    cd = iconv_open (out->encoding, in->encoding); // outset, inset
+    if (-1 == (int)cd) { // init failure
+        if (EINVAL == errno) {
+            dbprint("%s: conversion from '%s' to '%s' not supported\n",
+                    __FUNCTION__, in->encoding, out->encoding);
+        } else {
+            dbprint("%s: Initializiation failure: %s\n",
+                    __FUNCTION__, strerror(errno));
+        } // if-else
+        goto fail;
+    } // if
+
+    // init success
+    
+    iconv_val = iconv (cd, &incurr, &inlen, &outcurr, &outlen);
+    if ((size_t)-1 == iconv_val) {
+        dbprint("%s: iconv failed, in string '%s' length %d, "
+                "out string '%s' length %d\n",
+                __FUNCTION__, in->contents, in->length, out->contents, outlen);
+        switch (errno) {
+            case EILSEQ:
+                dbprint("invalid multibyte sequence");
+                break;
+            case EINVAL:
+                dbprint("incomplete multibyte sequence");
+                break;
+            case E2BIG:
+                dbprint("no more room");
+                break;
+            default:
+                dbprint("error: %s\n", strerror(errno));
+                break;
+        } // switch
+        goto fail;
+    } // if failure
+
+    // conversion success
+    out->length = (size_t) (outcurr - outstart);
+    return VMI_SUCCESS;
+
+fail:
+    if (out->contents) {
+        free (out->contents);
+        out->contents = 0;
+    }
+    out->encoding = NULL;
+    return VMI_FAILURE;
+}
+
+
+
 
 ///////////////////////////////////////////////////////////
 // Easy access to memory using kernel symbols

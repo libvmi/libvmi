@@ -31,30 +31,6 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
-#define PAGE_SIZE 1 << 12
-
-/* len and addr should be from a _UNICODE_STRING struct where len is the 
-   'Length' field and addr is the 'Buffer' field */
-void print_unicode_string (vmi_instance_t vmi, uint16_t len, addr_t addr)
-{
-    //below is a total hack to bypass unicode support
-    int i = 0;
-    uint32_t offset = 0;
-    char *tmpname = malloc(len);
-    char *name = malloc(len);
-    if (len == vmi_read_va(vmi, addr, 0, tmpname, len)){
-        memset(name, 0, len);
-        for (i = 0; i < len; i++){
-            if (i%2 == 0){
-                name[i/2] = tmpname[i];
-            }
-        }
-        printf("%s\n", name);
-    }
-    if (name) free(name);
-    if (tmpname) free(tmpname);
-}
-
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
@@ -113,12 +89,18 @@ int main (int argc, char **argv)
         }
         else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
             /*TODO don't use a hard-coded offsets here */
-            /* these offsets work with WinXP SP2 */
-            uint16_t length;
-            addr_t buffer_addr;
-            vmi_read_va(vmi, next_module + 0x2c, 0, &length, 2);
-            vmi_read_va(vmi, next_module + 0x30, 0, &buffer_addr, 4);
-            print_unicode_string(vmi, length, buffer_addr);
+            /* this offset works with WinXP SP2 */
+            unicode_string_t *us = 
+                vmi_read_win_unicode_string_va (vmi, next_module+0x2c, 0);
+            unicode_string_t out = {0};
+//         both of these work
+            if (VMI_SUCCESS == vmi_convert_string_encoding (us, &out, "UTF-8")) {
+                printf ("%s\n", out.contents);
+//            if (VMI_SUCCESS == vmi_convert_string_encoding (us, &out, "WCHAR_T")) {
+//                printf ("%ls\n", out.contents);
+                free (out.contents);
+            } // if
+            free_unicode_string (us);
         }
         next_module = tmp_next;
     }
