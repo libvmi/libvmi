@@ -95,24 +95,24 @@ status_t file_init (vmi_instance_t vmi)
 {
     FILE *fhandle = NULL;
     int fd = -1;
+    file_instance_t * fi = file_get_instance(vmi);
 
     /* open handle to memory file */
-    if ((fhandle = fopen(file_get_instance(vmi)->filename, "rb")) == NULL){
+    if ((fhandle = fopen(fi->filename, "rb")) == NULL){
         errprint("Failed to open file for reading.\n");
-        return VMI_FAILURE;
+        goto fail;
     }
     fd = fileno(fhandle);
 
-    file_get_instance(vmi)->fhandle = fhandle;
-    file_get_instance(vmi)->fd      = fd;
+    fi->fhandle = fhandle;
+    fi->fd      = fd;
     memory_cache_init(vmi, file_get_memory, file_release_memory, ULONG_MAX);
 
 #if USE_MMAP
     /* try memory mapped file I/O */
     unsigned long size;
     if (VMI_FAILURE == file_get_memsize(vmi, &size)) {
-        file_destroy (vmi);
-        return VMI_FAILURE;
+        goto fail;
     } // if
 
     void *map = mmap(NULL,                // addr
@@ -123,18 +123,31 @@ status_t file_init (vmi_instance_t vmi)
                      (off_t) 0);          // offset
     if (MAP_FAILED == map){
         perror("Failed to mmap file");
-        return VMI_FAILURE;
+        goto fail;
     }
-    file_get_instance(vmi)->map = map;
+    fi->map = map;
 #endif  // USE_MMAP
+
+    return VMI_SUCCESS;
+
+fail:
+    file_destroy(vmi);
+    return VMI_FAILURE;
 }
 
 void file_destroy (vmi_instance_t vmi)
 {
+    file_instance_t * fi = file_get_instance(vmi);
 #if USE_MMAP
-    munmap(file_get_instance(vmi)->map, vmi->size);
+    if (fi->map) {
+        munmap(fi->map, vmi->size);
+        fi->map = 0;
+    }
 #endif  // USE_MMAP
-    fclose(file_get_instance(vmi)->fhandle);
+    if (fi->fhandle) {
+        fclose(fi->fhandle);
+        fi->fhandle = 0;
+    }
 }
 
 void file_set_name (vmi_instance_t vmi, char *name)
