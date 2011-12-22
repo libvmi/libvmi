@@ -7,6 +7,7 @@ c_sources = \
     convenience.c \
     core.c \
     memory.c \
+    performance.c \
     pretty_print.c \
     read.c \
     strmatch.c \

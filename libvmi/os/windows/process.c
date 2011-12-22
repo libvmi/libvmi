@@ -95,46 +95,93 @@ static check_magic_func get_check_magic_func (vmi_instance_t vmi)
 
 int find_pname_offset (vmi_instance_t vmi, check_magic_func check)
 {
+    addr_t block_pa = 0;
     addr_t offset = 0;
     uint32_t value = 0;
-    uint32_t target_val = 0;
+    size_t read = 0;
+
+#define BLOCK_SIZE 1024 * 1024 * 1
+    unsigned char block_buffer[BLOCK_SIZE];
 
     if (NULL == check){
         check = get_check_magic_func(vmi);
     }
 
-    while (offset < vmi->size){
-        vmi_read_32_pa(vmi, offset, &value);
+    for (block_pa = 4096; block_pa < vmi->size; block_pa += BLOCK_SIZE){
+        read = vmi_read_pa(vmi, block_pa, block_buffer, BLOCK_SIZE);
+        if (BLOCK_SIZE != read){
+            continue;
+        }
 
-        if (check(value)) { // look for specific magic #
-            dbprint("--%s: found magic value 0x%.8x @ offset 0x%.8x\n", __FUNCTION__, value, offset);
+        for (offset = 0; offset < BLOCK_SIZE; offset += 8){
+            memcpy(&value, block_buffer + offset, 4);
 
-            int i = 0;
-            for ( ; i < 0x500; ++i){
-                char *procname = vmi_read_str_pa(vmi, offset + i);
-                if (NULL == procname){
+            if (check(value)) { // look for specific magic #
+                dbprint("--%s: found magic value 0x%.8x @ offset 0x%.8x\n", __FUNCTION__, value, block_pa + offset);
+
+                unsigned char haystack[0x500];
+                read = vmi_read_pa(vmi, block_pa + offset, haystack, 0x500);
+                if (0x500 != read){
                     continue;
                 }
-                else if (strncmp(procname, "Idle", 4) == 0){
-                    vmi->init_task = offset + vmi->os.windows_instance.tasks_offset;
-                    dbprint("--%s: found Idle process at 0x%.8x + 0x%x\n", __FUNCTION__, offset, i);
-                    free(procname);
-                    return i;
+
+                int i = boyer_moore("Idle", 4, haystack, 0x500);
+                if (-1 == i){
+                    continue;
                 }
                 else{
+                    vmi->init_task = block_pa + offset + vmi->os.windows_instance.tasks_offset;
+                    dbprint("--%s: found Idle process at 0x%.8x + 0x%x\n", __FUNCTION__, block_pa + offset, i);
+                    return i;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static addr_t find_process_by_name (vmi_instance_t vmi, check_magic_func check, addr_t start_address, const char *name)
+{
+    addr_t block_pa = 0;
+    addr_t offset = 0;
+    uint32_t value = 0;
+    size_t read = 0;
+
+#define BLOCK_SIZE 1024 * 1024 * 1
+    unsigned char block_buffer[BLOCK_SIZE];
+
+    if (NULL == check){
+        check = get_check_magic_func(vmi);
+    }
+
+    for (block_pa = start_address; block_pa < vmi->size; block_pa += BLOCK_SIZE){
+        read = vmi_read_pa(vmi, block_pa, block_buffer, BLOCK_SIZE);
+        if (BLOCK_SIZE != read){
+            continue;
+        }
+
+        for (offset = 0; offset < BLOCK_SIZE; offset += 8){
+            memcpy(&value, block_buffer + offset, 4);
+
+            if (check(value)) { // look for specific magic #
+
+                char *procname = windows_get_eprocess_name(vmi, block_pa + offset);
+                if (procname){
+                    if (strncmp(procname, name, 50) == 0){
+                        free(procname);
+                        return block_pa + offset;
+                    }
                     free(procname);
                 }
-            } // for
-        } // if
-        offset += 8;
-    } // while
+            }
+        }
+    }
     return 0;
 }
 
 addr_t windows_find_eprocess (vmi_instance_t vmi, char *name)
 {
-    addr_t offset = 0;
-    uint32_t value = 0;
+    addr_t start_address = 0;
     check_magic_func check = get_check_magic_func(vmi);
 
     if (vmi->os.windows_instance.pname_offset == 0){
@@ -149,22 +196,8 @@ addr_t windows_find_eprocess (vmi_instance_t vmi, char *name)
     }
 
     if (vmi->init_task){
-        offset = vmi->init_task - vmi->os.windows_instance.tasks_offset;
+        start_address = vmi->init_task - vmi->os.windows_instance.tasks_offset;
     }
 
-    while (offset < vmi->size){
-        vmi_read_32_pa(vmi, offset, &value);
-        if (check(value)){ // look for specific magic #
-            char *procname = windows_get_eprocess_name(vmi, offset);
-            if (procname){
-                if (strncmp(procname, name, 50) == 0){
-                    free(procname);
-                    return offset;
-                }
-                free(procname);
-            }
-        }
-        offset += 8;
-    }
-    return 0;
+    return find_process_by_name(vmi, check, start_address, name);
 }

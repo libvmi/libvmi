@@ -157,6 +157,7 @@ status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address)
 addr_t windows_find_cr3 (vmi_instance_t vmi);
 int find_pname_offset (vmi_instance_t vmi, check_magic_func check);
 void find_windows_version (vmi_instance_t vmi);
+status_t validate_pe_image (const uint8_t * const image, size_t len);
 
 /*-----------------------------------------
  * read.c
@@ -172,5 +173,11 @@ char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr);
  * strmatch.c
  */
 int boyer_moore (unsigned char *x, int m, unsigned char *y, int n);
+
+/*-----------------------------------------
+ * performance.c
+ */
+void timer_start ();
+void timer_stop (const char *id);
 
 #endif /* PRIVATE_H */

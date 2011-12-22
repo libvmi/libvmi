@@ -57,7 +57,7 @@ static void check_age (gpointer key, gpointer value, gpointer list)
     time_t now = time(NULL);
     if (now - entry->last_used > 2){
         *listptr = g_slist_prepend(*listptr, key);
-        //dbprint("--MEMORY cache cleanup 0x%.16llx\n", entry->paddr);
+        //dbprint("--MEMORY cache cleanup 0x%llx\n", entry->paddr);
     }
 }
 
@@ -77,6 +77,7 @@ static void remove_entry (gpointer key, gpointer cache)
         free(entry);
     }
     g_hash_table_remove(memory_cache, key);
+    free(key);
 }
 
 static void clean_cache (vmi_instance_t vmi)
@@ -86,14 +87,14 @@ static void clean_cache (vmi_instance_t vmi)
     //g_hash_table_foreach(vmi->memory_cache, list_all, &list);  // effectively one cache entry
     g_slist_foreach(list, remove_entry, vmi->memory_cache);
     g_slist_free(list);
-    //dbprint("--MEMORY cache cleanup round complete\n");
+    //dbprint("--MEMORY cache cleanup round complete (cache size = %u)\n", g_hash_table_size(vmi->memory_cache));
 }
 
 static void *validate_and_return_data (vmi_instance_t vmi, memory_cache_entry_t entry)
 {
     time_t now = time(NULL);
     if (vmi->memory_cache_age && (now - entry->last_updated > vmi->memory_cache_age)){
-        //dbprint("--MEMORY cache refresh 0x%.16llx\n", entry->paddr);
+        //dbprint("--MEMORY cache refresh 0x%llx\n", entry->paddr);
 		release_data_callback(entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
     }
@@ -134,16 +135,17 @@ void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
     memory_cache_entry_t entry = NULL;
     *offset = (uint32_t) (paddr & (vmi->page_size - 1));
     paddr &= ~( ((addr_t) vmi->page_size) - 1);
-    gint64 key = (gint64) paddr;
+    gint64 *key = safe_malloc(sizeof(gint64));
+    *key = paddr;
 
-    if ((entry = g_hash_table_lookup(vmi->memory_cache, &key)) != NULL){
-        //dbprint("--MEMORY cache hit 0x%.16llx\n", paddr);
+    if ((entry = g_hash_table_lookup(vmi->memory_cache, key)) != NULL){
+        //dbprint("--MEMORY cache hit 0x%llx\n", paddr);
         return validate_and_return_data(vmi, entry);
     }
     else{
-        //dbprint("--MEMORY cache set 0x%.16llx\n", paddr);
+        //dbprint("--MEMORY cache set 0x%llx\n", paddr);
         entry = create_new_entry(vmi, paddr, vmi->page_size);
-        g_hash_table_insert(vmi->memory_cache, &key, entry);
+        g_hash_table_insert(vmi->memory_cache, key, entry);
         //dbprint("--MEMORY cache memory at 0x%llx\n", entry->data);
         return entry->data;
     }

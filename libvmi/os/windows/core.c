@@ -27,9 +27,39 @@
 #include "libvmi.h"
 #include "private.h"
 
+addr_t get_ntoskrnl_base (vmi_instance_t vmi)
+{
+#define MAX_HEADER_BYTES 1024
+    uint8_t image[MAX_HEADER_BYTES];
+    size_t nbytes = 0;
+    addr_t paddr = 0;
+    int i = 0;
+
+    while (paddr < vmi_get_memsize(vmi)){
+        nbytes = vmi_read_pa(vmi, paddr, image, MAX_HEADER_BYTES);
+        if (MAX_HEADER_BYTES != nbytes) {
+            continue;
+        }
+        if (VMI_SUCCESS == validate_pe_image(image, MAX_HEADER_BYTES)) {
+            dbprint("--FOUND KERNEL at paddr=0x%llx\n", paddr);
+            goto normal_exit;
+        }
+        paddr += vmi->page_size;
+    }
+
+error_exit:
+    dbprint("--get_ntoskrnl_base failed\n");
+    return 0;
+normal_exit:
+    return paddr;
+}
+
+
 static status_t find_page_mode (vmi_instance_t vmi)
 {
     addr_t proc = 0;
+
+    //get_ntoskrnl_base(vmi);
 
 //TODO This works well for 32-bit snapshots, but it is way too slow for 64-bit.
 

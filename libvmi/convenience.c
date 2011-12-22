@@ -110,5 +110,3 @@ int is_addr_aligned (vmi_instance_t vmi, addr_t addr)
 {
     return (addr == aligned_addr(vmi, addr));
 }
-
-

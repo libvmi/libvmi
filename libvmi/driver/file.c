@@ -50,22 +50,6 @@ static file_instance_t *file_get_instance (vmi_instance_t vmi)
 
 void *file_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
-    /*
-    void *memory = NULL;
-    int fildes = fileno(file_get_instance(vmi)->fhandle);
-
-    if (paddr >= vmi->size){
-        return NULL;
-    }
-
-    memory = mmap(NULL, length, PROT_READ, MAP_SHARED, fildes, paddr);
-    if (MAP_FAILED == memory){
-        errprint("File mmap failed.\n");
-        return NULL;
-    }
-    return memory;
-    */
-
     void *memory = safe_malloc(length);
     int fildes = fileno(file_get_instance(vmi)->fhandle);
 
@@ -79,6 +63,10 @@ void *file_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
     if (length == read(fildes, memory, length)){
         return memory;
     }
+    /*
+    memcpy(memory, ((uint8_t *)file_get_instance(vmi)->map) + paddr, length);
+    return memory;
+    */
 
 error_exit:
     if (memory) free(memory);
@@ -87,9 +75,6 @@ error_exit:
 
 void file_release_memory (void *memory, size_t length)
 {
-    /*
-    if (memory) munmap(memory, length);
-    */
     if (memory) free(memory);
 }
 
@@ -107,10 +92,22 @@ status_t file_init (vmi_instance_t vmi)
     }
     file_get_instance(vmi)->fhandle = fhandle;
     memory_cache_init(vmi, file_get_memory, file_release_memory, ULONG_MAX);
+
+    /* try memory mapped file I/O */
+    /*
+    int filedes = fileno(file_get_instance(vmi)->fhandle);
+    void *map = mmap(NULL, (size_t) vmi->size, PROT_READ, MAP_SHARED, filedes, (off_t) 0);
+    if (MAP_FAILED == map){
+        perror("Failed to mmap file");
+        return VMI_FAILURE;
+    }
+    file_get_instance(vmi)->map = map;
+    */
 }
 
 void file_destroy (vmi_instance_t vmi)
 {
+    //munmap(file_get_instance(vmi)->map, vmi->size);
     fclose(file_get_instance(vmi)->fhandle);
 }
 

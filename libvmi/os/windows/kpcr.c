@@ -538,7 +538,7 @@ static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
 #define BLOCK_SIZE 1024 * 1024 * 1
     unsigned char haystack[BLOCK_SIZE];
  
-    for (block_pa = BLOCK_SIZE; block_pa < memsize; block_pa += BLOCK_SIZE) {
+    for (block_pa = 4096; block_pa < memsize; block_pa += BLOCK_SIZE) {
         read = vmi_read_pa (vmi, block_pa, haystack, BLOCK_SIZE);
         if (BLOCK_SIZE != read) {
             dbprint ("--OS Guess: failed to read memory block at PA 0x%.16x\n", block_pa);
@@ -562,7 +562,7 @@ static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
     } // outer for
 
 out:
-    dbprint("Found KD version block at PA %.16llx\n", kdvb_address);
+    if (kdvb_address) dbprint("Found KD version block at PA %.16llx\n", kdvb_address);
     return kdvb_address;
 }
 
@@ -575,17 +575,16 @@ status_t init_kddebugger_data64 (vmi_instance_t vmi)
     if (!KdVersionBlock){
         KdVersionBlock = find_kdversionblock_address_fast(vmi);
         vmi->os.windows_instance.kdversion_block = KdVersionBlock;
-        printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in /etc/libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
     }
-    if (!KdVersionBlock){
-        KdVersionBlock = find_kdversionblock_address(vmi);
-        vmi->os.windows_instance.kdversion_block = KdVersionBlock;
-        printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in /etc/libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
-    }
+    //if (!KdVersionBlock){
+    //    KdVersionBlock = find_kdversionblock_address(vmi);
+    //    vmi->os.windows_instance.kdversion_block = KdVersionBlock;
+    //}
     if (!KdVersionBlock){
         goto error_exit;
     }
     dbprint("**set KdVersionBlock address=0x%.16llx\n", vmi->os.windows_instance.kdversion_block);
+    printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in /etc/libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
 
     // Use heuristic to find windows version
     find_windows_version(vmi);

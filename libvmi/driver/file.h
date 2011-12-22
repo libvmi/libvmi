@@ -27,6 +27,7 @@
 typedef struct file_instance{
     FILE *fhandle;       /**< handle to the memory image file */
     char *filename;      /**< name of the file being accessed */
+    void *map;           /**< memory mapped file */
 } file_instance_t;
 
 status_t file_init (vmi_instance_t vmi);
