@@ -91,16 +91,18 @@ int main (int argc, char **argv)
             /*TODO don't use a hard-coded offsets here */
             /* this offset works with WinXP SP2 */
             unicode_string_t *us = 
-                vmi_read_win_unicode_string_va (vmi, next_module+0x2c, 0);
+                vmi_read_unicode_str_va (vmi, next_module+0x2c, 0);
             unicode_string_t out = {0};
 //         both of these work
-            if (VMI_SUCCESS == vmi_convert_string_encoding (us, &out, "UTF-8")) {
+            if (us &&
+                VMI_SUCCESS == vmi_convert_str_encoding (us, &out, "UTF-8")) {
                 printf ("%s\n", out.contents);
-//            if (VMI_SUCCESS == vmi_convert_string_encoding (us, &out, "WCHAR_T")) {
+//            if (us && 
+//                VMI_SUCCESS == vmi_convert_string_encoding (us, &out, "WCHAR_T")) {
 //                printf ("%ls\n", out.contents);
                 free (out.contents);
             } // if
-            free_unicode_string (us);
+            if (us) free_unicode_string (us);
         }
         next_module = tmp_next;
     }

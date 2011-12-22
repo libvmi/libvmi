@@ -347,8 +347,17 @@ char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
     }
 }
 
-unicode_string_t *
-vmi_read_win_unicode_string_va (vmi_instance_t vmi, addr_t vaddr, int pid)
+
+
+static unicode_string_t *
+vmi_read_linux_unicode_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
+{
+    // not implemented
+    return 0;
+}
+
+static unicode_string_t *
+vmi_read_win_unicode_struct_va (vmi_instance_t vmi, addr_t vaddr, int pid)
 {
     unicode_string_t * us = 0; // return val
     size_t    struct_size = 0;
@@ -384,19 +393,9 @@ vmi_read_win_unicode_string_va (vmi_instance_t vmi, addr_t vaddr, int pid)
 
     // allocate the return value
     us = safe_malloc (sizeof(unicode_string_t));
-    if (!us) {
-        dbprint("--%s: failed to allocate %d bytes for unicode_string_t struct\n", 
-                __FUNCTION__, sizeof(unicode_string_t));
-        goto out_error;
-    } // if
 
     us->length = buffer_len;
     us->contents = safe_malloc (sizeof(uint8_t) * (buffer_len+2));
-    if (!us->contents) {
-        dbprint("--%s: failed to allocate %d bytes for string buffer\n", 
-                __FUNCTION__, sizeof(uint8_t) * (buffer_len+2));
-        goto out_error;
-    } // if
 
     read = vmi_read_va (vmi, buffer_va, pid, us->contents, us->length);
     if (read != us->length) {
@@ -423,10 +422,24 @@ out_error:
     return 0;
 }
 
+unicode_string_t *
+vmi_read_unicode_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
+{
+    os_t os = vmi_get_ostype (vmi);
 
-status_t vmi_convert_string_encoding (const unicode_string_t * in,
-                                      unicode_string_t       * out,
-                                      const char * outencoding    )
+    if (VMI_OS_LINUX == os) {
+        return vmi_read_linux_unicode_str_va (vmi, vaddr, pid);
+    } else if (VMI_OS_WINDOWS == os) {
+        return vmi_read_win_unicode_struct_va (vmi, vaddr, pid);
+    } else {
+        return 0;
+    }
+}
+
+
+status_t vmi_convert_str_encoding (const unicode_string_t * in,
+                                   unicode_string_t       * out,
+                                   const char * outencoding    )
 {
     iconv_t cd = 0;
     size_t  iconv_val = 0;
@@ -439,10 +452,6 @@ status_t vmi_convert_string_encoding (const unicode_string_t * in,
 
     memset (out, 0, sizeof(*out));
     out->contents = safe_malloc (outlen);
-    if (!out->contents) {
-        dbprint ("Failed to malloc %d bytes\n", outlen);
-        goto fail;
-    } // if
     memset (out->contents, 0, outlen);
 
     char * outstart = out->contents;
@@ -488,19 +497,22 @@ status_t vmi_convert_string_encoding (const unicode_string_t * in,
 
     // conversion success
     out->length = (size_t) (outcurr - outstart);
+    (void)iconv_close(cd);
     return VMI_SUCCESS;
 
 fail:
     if (out->contents) {
         free (out->contents);
-        out->contents = 0;
     }
-    out->encoding = NULL;
+    // make failure really obvious
+    memset (out, 0, sizeof(*out));
+
+    if (-1 != (int)cd) { // init succeeded
+        (void)iconv_close(cd);
+    } // if
+
     return VMI_FAILURE;
 }
-
-
-
 
 ///////////////////////////////////////////////////////////
 // Easy access to memory using kernel symbols

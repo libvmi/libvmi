@@ -252,6 +252,10 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
     unsigned long domainid = 0;
 
     xsh = xs_domain_open();
+    if (XBT_NULL == xsh) { // fail
+        goto error_exit;
+    } // if
+
     domains = xs_directory(xsh, xth, "/local/domain", &size);
     for (i = 0; i < size; ++i){
         /* read in name */

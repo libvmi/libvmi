@@ -184,6 +184,7 @@ status_t driver_init_mode (vmi_instance_t vmi, unsigned long id, char *name)
     /* if we didn't see exactly one system, report error */
     if (count == 0){
         errprint("Could not find a VMM or file to use.\n");
+        errprint("Opening a live VMM requires root access.\n");
         return VMI_FAILURE;
     }
     else if (count > 1){
