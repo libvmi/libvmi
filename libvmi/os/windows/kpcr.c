@@ -574,7 +574,10 @@ status_t init_kddebugger_data64 (vmi_instance_t vmi)
     // If we don't have KdVersionBlock yet, go find it
     if (!KdVersionBlock){
         KdVersionBlock = find_kdversionblock_address_fast(vmi);
-        vmi->os.windows_instance.kdversion_block = KdVersionBlock;
+        if (KdVersionBlock){
+            printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in /etc/libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
+            vmi->os.windows_instance.kdversion_block = KdVersionBlock;
+        }
     }
     //if (!KdVersionBlock){
     //    KdVersionBlock = find_kdversionblock_address(vmi);
@@ -584,7 +587,6 @@ status_t init_kddebugger_data64 (vmi_instance_t vmi)
         goto error_exit;
     }
     dbprint("**set KdVersionBlock address=0x%.16llx\n", vmi->os.windows_instance.kdversion_block);
-    printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in /etc/libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
 
     // Use heuristic to find windows version
     find_windows_version(vmi);
