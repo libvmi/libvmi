@@ -40,6 +40,9 @@
 #include <unistd.h>
 #include <limits.h>
 
+#define USE_MMAP 1
+
+
 //----------------------------------------------------------------------------
 // File-Specific Interface Functions (no direction mapping to driver_*)
 
@@ -50,25 +53,32 @@ static file_instance_t *file_get_instance (vmi_instance_t vmi)
 
 void *file_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
-    void *memory = safe_malloc(length);
-    int fildes = fileno(file_get_instance(vmi)->fhandle);
+    void *memory = 0;
 
-    if (paddr >= vmi->size){
+    if (paddr + length >= vmi->size){
         goto error_exit;
     }
 
-    if (paddr != lseek(fildes, paddr, SEEK_SET)){
-        goto error_exit;
-    }
-    if (length == read(fildes, memory, length)){
-        return memory;
-    }
-    /*
+    memory = safe_malloc(length);
+
+#if USE_MMAP
     memcpy(memory, ((uint8_t *)file_get_instance(vmi)->map) + paddr, length);
+#else
+    if (paddr != lseek(file_get_instance(vmi)->fd, paddr, SEEK_SET)){
+        goto error_exit;
+    }
+    if (length != read(file_get_instance(vmi)->fd, memory, length)){
+        goto error_exit;
+    }
+#endif // USE_MMAP
+
     return memory;
-    */
 
 error_exit:
+    dbprint ("%s: failed to read %d bytes at PA (offset)\n", __FUNCTION__, length);
+    dbprint ("%s: PA requested: 0x%.16llx\n", __FUNCTION__, paddr);
+    dbprint ("%s: VM mem size:  0x%.16llx\n", __FUNCTION__, vmi->size);
+
     if (memory) free(memory);
     return NULL;
 }
@@ -84,31 +94,60 @@ void file_release_memory (void *memory, size_t length)
 status_t file_init (vmi_instance_t vmi)
 {
     FILE *fhandle = NULL;
+    int fd = -1;
+    file_instance_t * fi = file_get_instance(vmi);
 
     /* open handle to memory file */
-    if ((fhandle = fopen(file_get_instance(vmi)->filename, "rb")) == NULL){
+    if ((fhandle = fopen(fi->filename, "rb")) == NULL){
         errprint("Failed to open file for reading.\n");
-        return VMI_FAILURE;
+        goto fail;
     }
-    file_get_instance(vmi)->fhandle = fhandle;
+    fd = fileno(fhandle);
+
+    fi->fhandle = fhandle;
+    fi->fd      = fd;
     memory_cache_init(vmi, file_get_memory, file_release_memory, ULONG_MAX);
 
+#if USE_MMAP
     /* try memory mapped file I/O */
-    /*
-    int filedes = fileno(file_get_instance(vmi)->fhandle);
-    void *map = mmap(NULL, (size_t) vmi->size, PROT_READ, MAP_SHARED, filedes, (off_t) 0);
+    unsigned long size;
+    if (VMI_FAILURE == file_get_memsize(vmi, &size)) {
+        goto fail;
+    } // if
+
+    void *map = mmap(NULL,                // addr
+                     size,                // len
+                     PROT_READ,           // prot
+                     MAP_PRIVATE,         // flags
+                     fd,                  // file descriptor
+                     (off_t) 0);          // offset
     if (MAP_FAILED == map){
         perror("Failed to mmap file");
-        return VMI_FAILURE;
+        goto fail;
     }
-    file_get_instance(vmi)->map = map;
-    */
+    fi->map = map;
+#endif  // USE_MMAP
+
+    return VMI_SUCCESS;
+
+fail:
+    file_destroy(vmi);
+    return VMI_FAILURE;
 }
 
 void file_destroy (vmi_instance_t vmi)
 {
-    //munmap(file_get_instance(vmi)->map, vmi->size);
-    fclose(file_get_instance(vmi)->fhandle);
+    file_instance_t * fi = file_get_instance(vmi);
+#if USE_MMAP
+    if (fi->map) {
+        munmap(fi->map, vmi->size);
+        fi->map = 0;
+    }
+#endif  // USE_MMAP
+    if (fi->fhandle) {
+        fclose(fi->fhandle);
+        fi->fhandle = 0;
+    }
 }
 
 void file_set_name (vmi_instance_t vmi, char *name)
@@ -121,7 +160,7 @@ status_t file_get_memsize (vmi_instance_t vmi, unsigned long *size)
     status_t ret = VMI_FAILURE;
     struct stat s;
 
-    if (fstat(fileno(file_get_instance(vmi)->fhandle), &s) == -1){
+    if (fstat(file_get_instance(vmi)->fd, &s) == -1){
         errprint("Failed to stat file.\n");
         goto error_exit;
     }

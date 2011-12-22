@@ -69,12 +69,14 @@ static status_t find_page_mode (vmi_instance_t vmi)
         goto found_pm;
     }
     v2p_cache_flush(vmi);
+
     dbprint("--trying VMI_PM_PAE\n");
     vmi->page_mode = VMI_PM_PAE;
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
         goto found_pm;
     }
     v2p_cache_flush(vmi);
+
     dbprint("--trying VMI_PM_IA32E\n");
     vmi->page_mode = VMI_PM_IA32E;
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){

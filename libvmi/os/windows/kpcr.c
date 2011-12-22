@@ -567,7 +567,7 @@ out:
 status_t init_kdversion_block (vmi_instance_t vmi)
 {
     addr_t KdVersionBlock = vmi->os.windows_instance.kdversion_block;
-    addr_t DebuggerDataList, ListPtr;
+    addr_t DebuggerDataList = 0, ListPtr = 0;
 
     // If we don't have KdVersionBlock yet, go find it
     if (!KdVersionBlock){
