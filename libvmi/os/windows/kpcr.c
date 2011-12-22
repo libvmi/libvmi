@@ -178,7 +178,7 @@ static status_t kpcr_symbol_resolve (vmi_instance_t vmi, unsigned long offset, a
     uint64_t tmp = 0;
     addr_t symaddr = vmi->os.windows_instance.kdversion_block + offset;
 
-    if (VMI_FAILURE == vmi_read_64_pa(vmi, symaddr, &tmp)){
+    if (VMI_FAILURE == vmi_read_64_va(vmi, symaddr, 0, &tmp)){
         return VMI_FAILURE;
     }
     *address = tmp;
@@ -566,28 +566,31 @@ out:
 
 status_t init_kdversion_block (vmi_instance_t vmi)
 {
-    addr_t KdVersionBlock = vmi->os.windows_instance.kdversion_block;
+    addr_t KdVersionBlock_phys = 0;
     addr_t DebuggerDataList = 0, ListPtr = 0;
 
-    // If we don't have KdVersionBlock yet, go find it
-    if (!KdVersionBlock){
-        KdVersionBlock = find_kdversionblock_address_fast(vmi);
-    }
-    //if (!KdVersionBlock){
-    //    KdVersionBlock = find_kdversionblock_address(vmi);
-    //}
-    if (!KdVersionBlock){
+    KdVersionBlock_phys = find_kdversionblock_address_fast(vmi);
+    //KdVersionBlock_phys = find_kdversionblock_address(vmi);
+    if (!KdVersionBlock_phys){
         goto error_exit;
     }
 
     // Use heuristic to find windows version
-    find_windows_version(vmi, KdVersionBlock);
+    find_windows_version(vmi, KdVersionBlock_phys);
 
-    if (KdVersionBlock && !vmi->os.windows_instance.kdversion_block){
-        vmi->os.windows_instance.kdversion_block = KdVersionBlock;
-        printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
+    // get the virtual address for KdVersionBlock from the physical
+    if (VMI_FAILURE == vmi_read_addr_pa(vmi, KdVersionBlock_phys, &DebuggerDataList)){
+        goto error_exit;
     }
-    dbprint("**set KdVersionBlock address=0x%.16llx\n", vmi->os.windows_instance.kdversion_block);
+    if (VMI_FAILURE == vmi_read_addr_va(vmi, DebuggerDataList, 0, &ListPtr)){
+        goto error_exit;
+    }
+
+    if (ListPtr && !vmi->os.windows_instance.kdversion_block){
+        vmi->os.windows_instance.kdversion_block = ListPtr;
+        printf("LibVMI Suggestion: set win_kdvb=0x%llx in libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
+    }
+    dbprint("**set KdVersionBlock address=0x%llx\n", vmi->os.windows_instance.kdversion_block);
 
     return VMI_SUCCESS;
 error_exit:
