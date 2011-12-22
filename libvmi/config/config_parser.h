@@ -50,6 +50,7 @@ typedef struct vmi_config_entry {
             int ph;
             int pname;
             uint64_t kdvb;
+            uint64_t sysproc;
         } windows_offsets;
     } offsets;
 } vmi_config_entry_t;

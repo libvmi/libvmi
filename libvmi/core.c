@@ -134,6 +134,11 @@ static int read_config_file (vmi_instance_t vmi)
             vmi->os.windows_instance.kdversion_block = 
                 entry->offsets.windows_offsets.kdvb;
         }
+
+        if(entry->offsets.windows_offsets.sysproc){
+            vmi->os.windows_instance.sysproc = 
+                entry->offsets.windows_offsets.sysproc;
+        }
     }
 
 #ifdef VMI_DEBUG

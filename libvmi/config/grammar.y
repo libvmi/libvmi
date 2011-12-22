@@ -280,6 +280,7 @@ int vmi_parse_config (char *td)
 %token         WIN_PH
 %token         WIN_PNAME
 %token         WIN_KDVB
+%token         WIN_SYSPROC
 %token         SYSMAPTOK
 %token         OSTYPETOK
 %token<str>    WORD
@@ -343,6 +344,8 @@ assignment:
         win_pname_assignment
         |
         win_kdvb_assignment
+        |
+        win_sysproc_assignment
         ;
 
 linux_tasks_assignment:
@@ -454,6 +457,14 @@ win_kdvb_assignment:
         {
             uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.kdvb = tmp;
+        }
+        ;
+
+win_sysproc_assignment:
+        WIN_SYSPROC EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            tmp_entry.offsets.windows_offsets.sysproc = tmp;
         }
         ;
 

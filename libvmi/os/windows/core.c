@@ -68,11 +68,13 @@ static status_t find_page_mode (vmi_instance_t vmi)
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
         goto found_pm;
     }
+    v2p_cache_flush(vmi);
     dbprint("--trying VMI_PM_PAE\n");
     vmi->page_mode = VMI_PM_PAE;
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
         goto found_pm;
     }
+    v2p_cache_flush(vmi);
     dbprint("--trying VMI_PM_IA32E\n");
     vmi->page_mode = VMI_PM_IA32E;
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
@@ -85,6 +87,7 @@ static status_t find_page_mode (vmi_instance_t vmi)
 found_pm:
     return VMI_SUCCESS;
 error_exit:
+    v2p_cache_flush(vmi);
     return VMI_FAILURE;
 }
 
@@ -94,12 +97,15 @@ error_exit:
  */
 static status_t get_kpgd_method2 (vmi_instance_t vmi)
 {
-    addr_t sysproc = 0;
+    addr_t sysproc = vmi->os.windows_instance.sysproc;
 
-    /* get address for Idle process */
-    if ((sysproc = windows_find_eprocess(vmi, "Idle")) == 0){
-        dbprint("--failed to find System process.\n");
-        goto error_exit;
+    /* get address for System process */
+    if (!sysproc){
+        if ((sysproc = windows_find_eprocess(vmi, "System")) == 0){
+            dbprint("--failed to find System process.\n");
+            goto error_exit;
+        }
+        printf("LibVMI Suggestion: set win_sysproc=0x%llx in libvmi.conf for faster startup.\n", sysproc);
     }
     dbprint("--got PA to PsInititalSystemProcess (0x%.16llx).\n", sysproc);
 

@@ -176,9 +176,9 @@ typedef struct _KDDEBUGGER_DATA64 KDDEBUGGER_DATA64;
 static status_t kpcr_symbol_resolve (vmi_instance_t vmi, unsigned long offset, addr_t *address)
 {
     uint64_t tmp = 0;
-    addr_t symaddr = vmi->os.windows_instance.kddebugger_data64 + offset;
+    addr_t symaddr = vmi->os.windows_instance.kdversion_block + offset;
 
-    if (VMI_FAILURE == vmi_read_64_va(vmi, symaddr, 0, &tmp)){
+    if (VMI_FAILURE == vmi_read_64_pa(vmi, symaddr, &tmp)){
         return VMI_FAILURE;
     }
     *address = tmp;
@@ -453,7 +453,7 @@ static status_t kpcr_symbol_offset (vmi_instance_t vmi, char *symbol, unsigned l
 }
 
 // Idea from http://gleeda.blogspot.com/2010/12/identifying-memory-images.html
-void find_windows_version (vmi_instance_t vmi)
+void find_windows_version (vmi_instance_t vmi, addr_t KdVersionBlock)
 {
     // no need to repeat this work if we already have the answer
     if (vmi->os.windows_instance.version && vmi->os.windows_instance.version != VMI_OS_WINDOWS_UNKNOWN){
@@ -462,7 +462,6 @@ void find_windows_version (vmi_instance_t vmi)
 
     // go find the answer and store it in vmi
     uint16_t size = 0;
-    addr_t KdVersionBlock = vmi->os.windows_instance.kdversion_block;
     vmi_read_16_pa(vmi, KdVersionBlock + 0x14, &size);
 
     if (memcmp(&size, "\x08\x02", 2) == 0){
@@ -541,7 +540,6 @@ static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
     for (block_pa = 4096; block_pa < memsize; block_pa += BLOCK_SIZE) {
         read = vmi_read_pa (vmi, block_pa, haystack, BLOCK_SIZE);
         if (BLOCK_SIZE != read) {
-            dbprint ("--OS Guess: failed to read memory block at PA 0x%.16x\n", block_pa);
             continue;
         }
 
@@ -562,11 +560,11 @@ static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
     } // outer for
 
 out:
-    if (kdvb_address) dbprint("Found KD version block at PA %.16llx\n", kdvb_address);
+    if (kdvb_address) dbprint("--Found KD version block at PA %.16llx\n", kdvb_address);
     return kdvb_address;
 }
 
-status_t init_kddebugger_data64 (vmi_instance_t vmi)
+status_t init_kdversion_block (vmi_instance_t vmi)
 {
     addr_t KdVersionBlock = vmi->os.windows_instance.kdversion_block;
     addr_t DebuggerDataList, ListPtr;
@@ -574,33 +572,26 @@ status_t init_kddebugger_data64 (vmi_instance_t vmi)
     // If we don't have KdVersionBlock yet, go find it
     if (!KdVersionBlock){
         KdVersionBlock = find_kdversionblock_address_fast(vmi);
-        if (KdVersionBlock){
-            printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in /etc/libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
-            vmi->os.windows_instance.kdversion_block = KdVersionBlock;
-        }
     }
     //if (!KdVersionBlock){
     //    KdVersionBlock = find_kdversionblock_address(vmi);
-    //    vmi->os.windows_instance.kdversion_block = KdVersionBlock;
     //}
     if (!KdVersionBlock){
         goto error_exit;
     }
-    dbprint("**set KdVersionBlock address=0x%.16llx\n", vmi->os.windows_instance.kdversion_block);
 
     // Use heuristic to find windows version
-    find_windows_version(vmi);
+    find_windows_version(vmi, KdVersionBlock);
 
-    if (VMI_FAILURE == vmi_read_addr_pa(vmi, KdVersionBlock, &DebuggerDataList)){
-        goto error_exit;
+    if (KdVersionBlock && !vmi->os.windows_instance.kdversion_block){
+        vmi->os.windows_instance.kdversion_block = KdVersionBlock;
+        printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
     }
-    if (VMI_FAILURE == vmi_read_addr_va(vmi, DebuggerDataList, 0, &ListPtr)){
-        goto error_exit;
-    }
-    vmi->os.windows_instance.kddebugger_data64 = ListPtr;
+    dbprint("**set KdVersionBlock address=0x%.16llx\n", vmi->os.windows_instance.kdversion_block);
 
     return VMI_SUCCESS;
 error_exit:
+    vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
     return VMI_FAILURE;
 }
 
@@ -608,17 +599,16 @@ status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address)
 {
     unsigned long offset = 0;
 
-    if (!vmi->os.windows_instance.kddebugger_data64){
-        if (VMI_FAILURE == init_kddebugger_data64(vmi)){
+    if (!vmi->os.windows_instance.kdversion_block){
+        if (VMI_FAILURE == init_kdversion_block(vmi)){
             goto error_exit;
         }
-        dbprint("**set KDDEBUGGER_DATA64 address=0x%.16llx\n", vmi->os.windows_instance.kddebugger_data64);
     }
     if (VMI_FAILURE == kpcr_symbol_offset(vmi, symbol, &offset)){
         goto error_exit;
     }
     if (VMI_FAILURE == kpcr_symbol_resolve(vmi, offset, address)){
-        return VMI_FAILURE;
+        goto error_exit;
     }
 
     return VMI_SUCCESS;

@@ -38,20 +38,23 @@ status_t windows_symbol_to_address (
     else{
         driver_get_vcpureg(vmi, &cr3, CR3, 0);
     }
+    dbprint("--windows symbol lookup (%s)\n", symbol);
 
     /* check kpcr if we have a cr3 */
     if (cr3 && VMI_SUCCESS == windows_kpcr_lookup(vmi, symbol, address)){
         dbprint("--got symbol from kpcr (%s --> 0x%lx).\n", symbol, *address);
         return VMI_SUCCESS;
     }
+    dbprint("--kpcr lookup failed, trying kernel PE export table\n");
 
     /* check exports */
-    else if (VMI_SUCCESS == windows_export_to_rva(vmi, symbol, address)){
+    if (VMI_SUCCESS == windows_export_to_rva(vmi, symbol, address)){
         addr_t rva = *address;
         *address = vmi->os.windows_instance.ntoskrnl_va + rva;
         dbprint("--got symbol from PE export table (%s --> 0x%.16llx).\n", symbol, *address);
         return VMI_SUCCESS;
     }
+    dbprint("--kernel PE export table failed, nothing left to try\n");
 
     return VMI_FAILURE;
 }

@@ -114,6 +114,12 @@ status_t pid_cache_del (vmi_instance_t vmi, int pid)
     }
 }
 
+void pid_cache_flush (vmi_instance_t vmi)
+{
+    g_hash_table_remove_all(vmi->pid_cache);
+    dbprint("--PID cache flushed\n");
+}
+
 //
 // Symbol --> Virtual address cache implementation
 struct sym_cache_entry{
@@ -181,6 +187,12 @@ status_t sym_cache_del (vmi_instance_t vmi, char *sym)
     else{
         return VMI_FAILURE;
     }
+}
+
+void sym_cache_flush (vmi_instance_t vmi)
+{
+    g_hash_table_remove_all(vmi->sym_cache);
+    dbprint("--SYM cache flushed\n");
 }
 
 //
@@ -295,6 +307,12 @@ status_t v2p_cache_del (vmi_instance_t vmi, addr_t va, addr_t dtb)
         free(key);
         return VMI_FAILURE;
     }
+}
+
+void v2p_cache_flush (vmi_instance_t vmi)
+{
+    g_hash_table_remove_all(vmi->v2p_cache);
+    dbprint("--V2P cache flushed\n");
 }
 
 #else

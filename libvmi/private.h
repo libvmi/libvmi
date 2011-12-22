@@ -77,8 +77,8 @@ struct vmi_instance{
         struct windows_instance{
             addr_t ntoskrnl;          /**< base phys address for ntoskrnl image */
             addr_t ntoskrnl_va;       /**< base virt address for ntoskrnl image */
-            addr_t kddebugger_data64; /**< kernel virtual address for start of KDDEBUGGER_DATA64 structure */
             addr_t kdversion_block;   /**< kernel virtual address for start of KdVersionBlock structure */
+            addr_t sysproc;      /**< physical address for the system process */
             int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
             int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */
             int pid_offset;      /**< EPROCESS->UniqueProcessId */
@@ -134,18 +134,21 @@ void pid_cache_destroy (vmi_instance_t vmi);
 status_t pid_cache_get (vmi_instance_t vmi, int pid, addr_t *dtb);
 void pid_cache_set (vmi_instance_t vmi, int pid, addr_t dtb);
 status_t pid_cache_del (vmi_instance_t vmi, int pid);
+void pid_cache_flush (vmi_instance_t vmi);
 
 void sym_cache_init (vmi_instance_t vmi);
 void sym_cache_destroy (vmi_instance_t vmi);
 status_t sym_cache_get (vmi_instance_t vmi, char *sym, addr_t *va);
 void sym_cache_set (vmi_instance_t vmi, char *sym, addr_t va);
 status_t sym_cache_del (vmi_instance_t vmi, char *sym);
+void sym_cache_flush (vmi_instance_t vmi);
 
 void v2p_cache_init (vmi_instance_t vmi);
 void v2p_cache_destroy (vmi_instance_t vmi);
 status_t v2p_cache_get (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa);
 void v2p_cache_set (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t pa);
 status_t v2p_cache_del (vmi_instance_t vmi, addr_t va, addr_t dtb);
+void v2p_cache_flush (vmi_instance_t vmi);
 
 /*-----------------------------------------
  * memory.c
@@ -170,7 +173,7 @@ status_t windows_export_to_rva (vmi_instance_t , char *, addr_t *);
 status_t windows_kpcr_lookup (vmi_instance_t vmi, char *symbol, addr_t *address);
 addr_t windows_find_cr3 (vmi_instance_t vmi);
 int find_pname_offset (vmi_instance_t vmi, check_magic_func check);
-void find_windows_version (vmi_instance_t vmi);
+void find_windows_version (vmi_instance_t vmi, addr_t KdVersionBlock);
 status_t validate_pe_image (const uint8_t * const image, size_t len);
 
 /*-----------------------------------------
