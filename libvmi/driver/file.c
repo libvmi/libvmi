@@ -69,6 +69,9 @@ void *file_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
     */
 
 error_exit:
+    dbprint ("%s: failed to get %d bytes at PA (file offset) 0x%.16llx\n",
+             __FUNCTION__, length, paddr);
+
     if (memory) free(memory);
     return NULL;
 }

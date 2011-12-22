@@ -569,13 +569,14 @@ out:
 status_t init_kddebugger_data64 (vmi_instance_t vmi)
 {
     addr_t KdVersionBlock = vmi->os.windows_instance.kdversion_block;
-    addr_t DebuggerDataList, ListPtr;
+    addr_t DebuggerDataList = 0, ListPtr = 0;
 
     // If we don't have KdVersionBlock yet, go find it
     if (!KdVersionBlock){
         KdVersionBlock = find_kdversionblock_address_fast(vmi);
         if (KdVersionBlock){
-            printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in /etc/libvmi.conf for faster startup.\n", vmi->os.windows_instance.kdversion_block);
+            printf("LibVMI Suggestion: set win_kdvb=0x%.16llx in /etc/libvmi.conf "
+                   "for faster startup.\n", KdVersionBlock);
             vmi->os.windows_instance.kdversion_block = KdVersionBlock;
         }
     }

@@ -63,24 +63,30 @@ static status_t find_page_mode (vmi_instance_t vmi)
 
 //TODO This works well for 32-bit snapshots, but it is way too slow for 64-bit.
 
-    dbprint("--trying VMI_PM_LEGACY\n");
-    vmi->page_mode = VMI_PM_LEGACY;
-    if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
-        goto found_pm;
-    }
-    dbprint("--trying VMI_PM_PAE\n");
-    vmi->page_mode = VMI_PM_PAE;
-    if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
-        goto found_pm;
-    }
+    vmi->os.windows_instance.kddebugger_data64 = 0;
     dbprint("--trying VMI_PM_IA32E\n");
     vmi->page_mode = VMI_PM_IA32E;
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
         goto found_pm;
     }
-    else{
-        goto error_exit;
+
+    vmi->os.windows_instance.kddebugger_data64 = 0;
+    dbprint("--trying VMI_PM_LEGACY\n");
+    vmi->page_mode = VMI_PM_LEGACY;
+    if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
+        goto found_pm;
     }
+
+    vmi->os.windows_instance.kddebugger_data64 = 0;
+    dbprint("--trying VMI_PM_PAE\n");
+    vmi->page_mode = VMI_PM_PAE;
+    if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
+        goto found_pm;
+    }
+
+
+    // every attempt failed
+    goto error_exit;
 
 found_pm:
     return VMI_SUCCESS;
