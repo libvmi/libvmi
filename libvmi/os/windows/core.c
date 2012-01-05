@@ -82,15 +82,14 @@ static status_t find_page_mode (vmi_instance_t vmi)
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)){
         goto found_pm;
     }
-    else{
-        goto error_exit;
-    }
+
+
+    // KernBase was NOT found ////////////////
+    v2p_cache_flush(vmi);
+    return VMI_FAILURE;
 
 found_pm:
     return VMI_SUCCESS;
-error_exit:
-    v2p_cache_flush(vmi);
-    return VMI_FAILURE;
 }
 
 /* Tries to find the kernel page directory by doing an exhaustive search

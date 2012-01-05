@@ -99,6 +99,10 @@ int find_pname_offset (vmi_instance_t vmi, check_magic_func check)
     addr_t offset = 0;
     uint32_t value = 0;
     size_t read = 0;
+    void *bm = 0;
+
+    bm = boyer_moore_init("Idle", 4);
+
 
 #define BLOCK_SIZE 1024 * 1024 * 1
     unsigned char block_buffer[BLOCK_SIZE];
@@ -125,18 +129,21 @@ int find_pname_offset (vmi_instance_t vmi, check_magic_func check)
                     continue;
                 }
 
-                int i = boyer_moore("Idle", 4, haystack, 0x500);
+                int i = boyer_moore2 (bm, haystack, 0x500);
+
                 if (-1 == i){
                     continue;
                 }
                 else{
                     vmi->init_task = block_pa + offset + vmi->os.windows_instance.tasks_offset;
                     dbprint("--%s: found Idle process at 0x%.8x + 0x%x\n", __FUNCTION__, block_pa + offset, i);
+                    boyer_moore_fini (bm);
                     return i;
                 }
             }
         }
     }
+    boyer_moore_fini (bm);
     return 0;
 }
 

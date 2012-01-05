@@ -32,6 +32,8 @@
 
 #if ENABLE_FILE == 1
 #define _GNU_SOURCE
+#define _BSD_SOURCE // madvise
+
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -39,6 +41,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <limits.h>
+#include <features.h>
 
 #define USE_MMAP 1
 
@@ -55,7 +58,7 @@ void *file_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
     void *memory = 0;
 
-    if (paddr + length >= vmi->size){
+    if (paddr + length >= vmi->size) {
         goto error_exit;
     }
 
@@ -115,10 +118,16 @@ status_t file_init (vmi_instance_t vmi)
         goto fail;
     } // if
 
+    int mmap_flags = (MAP_PRIVATE | MAP_NORESERVE | MAP_POPULATE);
+
+#ifdef MMAP_HUGETLB // since kernel 2.6.32
+    mmap_flags |= MMAP_HUGETLB;
+#endif
+
     void *map = mmap(NULL,                // addr
                      size,                // len
                      PROT_READ,           // prot
-                     MAP_PRIVATE,         // flags
+                     mmap_flags,          // flags
                      fd,                  // file descriptor
                      (off_t) 0);          // offset
     if (MAP_FAILED == map){
@@ -126,6 +135,14 @@ status_t file_init (vmi_instance_t vmi)
         goto fail;
     }
     fi->map = map;
+
+    // Advise the kernel on how this mapping will be used - does this do
+    // anything beyond mmap_flags?
+    int rc = madvise (map, size, MADV_SEQUENTIAL | MADV_WILLNEED);
+    if (rc) {
+        perror("madvise failed [not fatal]");
+    } // if
+
 #endif  // USE_MMAP
 
     return VMI_SUCCESS;
@@ -147,6 +164,7 @@ void file_destroy (vmi_instance_t vmi)
     if (fi->fhandle) {
         fclose(fi->fhandle);
         fi->fhandle = 0;
+        fi->fd = 0;
     }
 }
 

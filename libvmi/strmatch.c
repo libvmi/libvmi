@@ -26,6 +26,8 @@
 
 #include "libvmi.h"
 #include "private.h"
+#include <string.h>
+
 
 // Code below modified from the Handbook of Exact String-Matching Algorithms by
 // Christian Charras and Thierry Lecroq.
@@ -127,5 +129,67 @@ int boyer_moore (unsigned char *x, int m, unsigned char *y, int n){
     }
 
     free(bmGs);
+    return -1;
+}
+
+typedef struct boyer_moore_data {
+    unsigned char *x;
+    int m;
+    int bmBc[ASIZE];
+    int *bmGs;
+} boyer_moore_data_t;
+
+
+void * 
+boyer_moore_init (unsigned char *x, int m)
+{
+    boyer_moore_data_t * bm = safe_malloc (sizeof(boyer_moore_data_t));
+    
+    bm->x = safe_malloc (m * sizeof(*x));
+    memcpy (bm->x, x, m * sizeof(*x));
+
+    bm->m = m;
+
+    bm->bmGs = safe_malloc (m * sizeof(int));
+
+    // Pre-process
+    preBmGs(x, m, bm->bmGs);
+    preBmBc(x, m, bm->bmBc);
+
+    return (void *)bm;
+}
+
+
+void boyer_moore_fini (void * bm)
+{
+    boyer_moore_data_t *_bm = (boyer_moore_data_t *)bm;
+    free (_bm->x);
+    free (_bm->bmGs);
+    free (_bm);
+}
+
+// y - pointer to string to search
+// n - len(y)
+// modified to return location of first match, or -1
+int boyer_moore2 (void *bm, unsigned char *y, int n)
+{
+    int i, j;
+    boyer_moore_data_t *_bm = (boyer_moore_data_t *)bm;
+    int m = _bm->m;
+    unsigned char *x = _bm->x;
+
+    /* Searching */
+    j = 0;
+    while (j <= n - m){
+        for (i = m - 1; i >= 0 && x[i] == y[i + j]; --i);
+        if (i < 0){
+            return j;
+            //j += _bmGs[0]; // just returning the first match
+        }
+        else{
+            j += MAX(_bm->bmGs[i], _bm->bmBc[y[i + j]] - m + 1 + i);
+        }
+    }
+
     return -1;
 }

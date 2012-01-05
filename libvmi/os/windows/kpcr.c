@@ -533,34 +533,35 @@ static addr_t find_kdversionblock_address_fast (vmi_instance_t vmi)
     addr_t block_pa     = 0;
     addr_t memsize      = vmi_get_memsize(vmi);
     size_t read         = 0;
+    void * bm           = 0; // boyer-moore internal state
+    int   find_ofs      = 0;
 
 #define BLOCK_SIZE 1024 * 1024 * 1
     unsigned char haystack[BLOCK_SIZE];
- 
+
+    if (VMI_PM_IA32E == vmi->page_mode) {
+        bm = boyer_moore_init ("\x00\xf8\xff\xffKDBG", 8);
+        find_ofs = 0xc;
+    } else {
+        bm = boyer_moore_init ("\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12);
+        find_ofs = 0x8;
+    } // if-else
+
     for (block_pa = 4096; block_pa < memsize; block_pa += BLOCK_SIZE) {
         read = vmi_read_pa (vmi, block_pa, haystack, BLOCK_SIZE);
         if (BLOCK_SIZE != read) {
             continue;
         }
 
-        if (VMI_PM_IA32E == vmi->page_mode){
-            int match_offset = boyer_moore("\x00\xf8\xff\xffKDBG", 8, haystack, BLOCK_SIZE);
-            if (-1 != match_offset){
-                kdvb_address = block_pa + (unsigned int) match_offset - 0xc;
-                goto out;
-            }
-        }
-        else{
-            int match_offset = boyer_moore("\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12, haystack, BLOCK_SIZE);
-            if (-1 != match_offset){
-                kdvb_address = block_pa + (unsigned int) match_offset - 0x8;
-                goto out;
-            }
-        } // else
+        int match_offset = boyer_moore2 (bm, haystack, BLOCK_SIZE);
+        if (-1 != match_offset) {
+            kdvb_address = block_pa + (unsigned int) match_offset - find_ofs;
+            break;
+        } // if
     } // outer for
 
-out:
     if (kdvb_address) dbprint("--Found KD version block at PA %.16llx\n", kdvb_address);
+    boyer_moore_fini (bm);
     return kdvb_address;
 }
 

@@ -189,7 +189,13 @@ char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr);
 /*-----------------------------------------
  * strmatch.c
  */
+
+void * boyer_moore_init (unsigned char *x, int m);
+int boyer_moore2 (void *bm, unsigned char *y, int n);
+void   boyer_moore_fini (void *bm);
+
 int boyer_moore (unsigned char *x, int m, unsigned char *y, int n);
+
 
 /*-----------------------------------------
  * performance.c
