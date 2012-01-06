@@ -32,8 +32,6 @@
 
 #if ENABLE_FILE == 1
 #define _GNU_SOURCE
-#define _BSD_SOURCE // madvise
-
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -43,6 +41,8 @@
 #include <limits.h>
 #include <features.h>
 
+// Use mmap() if this evaluates to true; otherwise, use a file pointer with
+// seek/read
 #define USE_MMAP 1
 
 
@@ -59,29 +59,31 @@ void *file_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
     void *memory = 0;
 
     if (paddr + length >= vmi->size) {
-        goto error_exit;
-    }
+        dbprint ("--%s: request for PA range [0x%.16x-0x%.16x] reads past end of file\n",
+                 __FUNCTION__, paddr, paddr+length);
+        goto error_noprint;
+    } // if
 
     memory = safe_malloc(length);
 
 #if USE_MMAP
-    memcpy(memory, ((uint8_t *)file_get_instance(vmi)->map) + paddr, length);
+    (void)memcpy(memory, ((uint8_t *)file_get_instance(vmi)->map) + paddr, length);
 #else
     if (paddr != lseek(file_get_instance(vmi)->fd, paddr, SEEK_SET)){
-        goto error_exit;
+        goto error_print;
     }
     if (length != read(file_get_instance(vmi)->fd, memory, length)){
-        goto error_exit;
+        goto error_print;
     }
 #endif // USE_MMAP
 
     return memory;
 
-error_exit:
-    dbprint ("%s: failed to read %d bytes at PA (offset)\n", __FUNCTION__, length);
-    dbprint ("%s: PA requested: 0x%.16llx\n", __FUNCTION__, paddr);
-    dbprint ("%s: VM mem size:  0x%.16llx\n", __FUNCTION__, vmi->size);
-
+error_print:
+    dbprint ("%s: failed to read %d bytes at "
+             "PA (offset) 0x%.16llx [VM size 0x%.16llx]\n",
+             __FUNCTION__, length, paddr, vmi->size);
+error_noprint:
     if (memory) free(memory);
     return NULL;
 }
@@ -122,7 +124,7 @@ status_t file_init (vmi_instance_t vmi)
 
 #ifdef MMAP_HUGETLB // since kernel 2.6.32
     mmap_flags |= MMAP_HUGETLB;
-#endif
+#endif // MMAP_HUGETLB
 
     void *map = mmap(NULL,                // addr
                      size,                // len
@@ -136,12 +138,8 @@ status_t file_init (vmi_instance_t vmi)
     }
     fi->map = map;
 
-    // Advise the kernel on how this mapping will be used - does this do
-    // anything beyond mmap_flags?
-    int rc = madvise (map, size, MADV_SEQUENTIAL | MADV_WILLNEED);
-    if (rc) {
-        perror("madvise failed [not fatal]");
-    } // if
+    // Note: madvise(.., MADV_SEQUENTIAL | MADV_WILLNEED) does not seem to
+    // improve performance
 
 #endif  // USE_MMAP
 
@@ -157,7 +155,7 @@ void file_destroy (vmi_instance_t vmi)
     file_instance_t * fi = file_get_instance(vmi);
 #if USE_MMAP
     if (fi->map) {
-        munmap(fi->map, vmi->size);
+        (void)munmap(fi->map, vmi->size);
         fi->map = 0;
     }
 #endif  // USE_MMAP
