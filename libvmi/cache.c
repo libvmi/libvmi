@@ -321,14 +321,17 @@ void pid_cache_destroy (vmi_instance_t vmi){ return; }
 status_t pid_cache_get (vmi_instance_t vmi, int pid, addr_t *dtb){ return VMI_FAILURE; }
 void pid_cache_set (vmi_instance_t vmi, int pid, addr_t dtb){ return; }
 status_t pid_cache_del (vmi_instance_t vmi, int pid){ return VMI_FAILURE; }
+void pid_cache_flush (vmi_instance_t vmi) { return; }
 void sym_cache_init (vmi_instance_t vmi){ return; }
 void sym_cache_destroy (vmi_instance_t vmi){ return; }
 status_t sym_cache_get (vmi_instance_t vmi, char *sym, addr_t *va){ return VMI_FAILURE; }
 void sym_cache_set (vmi_instance_t vmi, char *sym, addr_t va){ return; }
 status_t sym_cache_del (vmi_instance_t vmi, char *sym){ return VMI_FAILURE; }
+void sym_cache_flush (vmi_instance_t vmi) { return; }
 void v2p_cache_init (vmi_instance_t vmi){ return; }
 void v2p_cache_destroy (vmi_instance_t vmi){ return; }
 status_t v2p_cache_get (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa){ return VMI_FAILURE; }
 void v2p_cache_set (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t pa){ return; }
 status_t v2p_cache_del (vmi_instance_t vmi, addr_t va, addr_t dtb){ return VMI_FAILURE; }
+void v2p_cache_flush (vmi_instance_t vmi) { return; }
 #endif
