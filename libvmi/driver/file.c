@@ -112,6 +112,7 @@ status_t file_init (vmi_instance_t vmi)
     fi->fhandle = fhandle;
     fi->fd      = fd;
     memory_cache_init(vmi, file_get_memory, file_release_memory, ULONG_MAX);
+//    memory_cache_init(vmi, file_get_memory, file_release_memory, 0);
 
 #if USE_MMAP
     /* try memory mapped file I/O */

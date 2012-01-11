@@ -111,7 +111,10 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr, 
     entry->last_updated = time(NULL);
     entry->last_used = entry->last_updated;
     entry->data = get_memory_data(vmi, paddr, length);
-    clean_cache(vmi);
+
+    static int callCt = 0;
+    if (callCt++ % 100 == 0) clean_cache(vmi);
+
     return entry;
 }
 
