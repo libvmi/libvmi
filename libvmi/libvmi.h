@@ -53,7 +53,10 @@
 #define ENABLE_ADDRESS_CACHE 1
 
 /* enable or disable the page cache */
-#define ENABLE_PAGE_CACHE 0
+#define ENABLE_PAGE_CACHE 1
+
+/* max number of pages held in page cache */
+#define MAX_PAGE_CACHE_SIZE 512
 
 #define VMI_AUTO (1 << 0)  /**< libvmi should detect what to monitor or view */
 #define VMI_XEN  (1 << 1)  /**< libvmi is monitoring a Xen VM */

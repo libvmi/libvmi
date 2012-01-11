@@ -41,7 +41,6 @@ struct memory_cache_entry{
 typedef struct memory_cache_entry *memory_cache_entry_t;
 static void *(*get_data_callback)(vmi_instance_t, addr_t, uint32_t) = NULL;
 static void (*release_data_callback)(void *, size_t) = NULL;
-static void (*clean_enumeration_function)(gpointer, gpointer, gpointer) = NULL;
 
 //---------------------------------------------------------
 // Internal implementation functions
@@ -49,23 +48,6 @@ static void (*clean_enumeration_function)(gpointer, gpointer, gpointer) = NULL;
 static void *get_memory_data (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
     return get_data_callback(vmi, paddr, length);
-}
-
-static void check_age (gpointer key, gpointer value, gpointer list)
-{
-    GSList **listptr = (GSList **) list;
-    memory_cache_entry_t entry = value;
-    time_t now = time(NULL);
-    if (now - entry->last_used > 2){
-        *listptr = g_slist_prepend(*listptr, key);
-        //dbprint("--MEMORY cache cleanup 0x%llx\n", entry->paddr);
-    }
-}
-
-static void list_all (gpointer key, gpointer value, gpointer list)
-{
-    GSList **listptr = (GSList **) list;
-    *listptr = g_slist_prepend(*listptr, key);
 }
 
 static void remove_entry (gpointer key, gpointer cache)
@@ -83,20 +65,33 @@ static void remove_entry (gpointer key, gpointer cache)
 
 static void clean_cache (vmi_instance_t vmi)
 {
-    GSList *list = NULL;
-    g_hash_table_foreach(vmi->memory_cache, clean_enumeration_function, &list);
-    g_slist_foreach(list, remove_entry, vmi->memory_cache);
-    g_slist_free(list);
-    //dbprint("--MEMORY cache cleanup round complete (cache size = %u)\n", g_hash_table_size(vmi->memory_cache));
+    GList *list = NULL;
+    while (vmi->memory_cache_size > vmi->memory_cache_size_max / 2){
+        gpointer key = NULL;
+        GList *last = g_list_last(vmi->memory_cache_lru);
+        key = last->data;
+        list = g_list_prepend(list, key);
+        vmi->memory_cache_lru = g_list_remove_link(vmi->memory_cache_lru, last);
+        vmi->memory_cache_size--;
+    }
+    g_list_foreach(list, remove_entry, vmi->memory_cache);
+    g_list_free(list);
+    dbprint("--MEMORY cache cleanup round complete (cache size = %u)\n", g_hash_table_size(vmi->memory_cache));
 }
 
 static void *validate_and_return_data (vmi_instance_t vmi, memory_cache_entry_t entry)
 {
     time_t now = time(NULL);
     if (vmi->memory_cache_age && (now - entry->last_updated > vmi->memory_cache_age)){
-        //dbprint("--MEMORY cache refresh 0x%llx\n", entry->paddr);
+        dbprint("--MEMORY cache refresh 0x%llx\n", entry->paddr);
 		release_data_callback(entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
+        entry->last_updated = now;
+
+        gint64 *key = safe_malloc(sizeof(gint64));
+        *key = entry->paddr;
+        vmi->memory_cache_lru = g_list_remove(vmi->memory_cache_lru, key);
+        vmi->memory_cache_lru = g_list_prepend(vmi->memory_cache_lru, key);
     }
     entry->last_used = now;
     return entry->data;
@@ -112,8 +107,9 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr, 
     entry->last_used = entry->last_updated;
     entry->data = get_memory_data(vmi, paddr, length);
 
-    static int callCt = 0;
-    if (callCt++ % 100 == 0) clean_cache(vmi);
+    if (vmi->memory_cache_size > vmi->memory_cache_size_max){
+        clean_cache(vmi);
+    }
 
     return entry;
 }
@@ -127,14 +123,16 @@ void memory_cache_init (
 		unsigned long age_limit)
 {
     vmi->memory_cache = g_hash_table_new(g_int64_hash, g_int64_equal);
+    vmi->memory_cache_lru = NULL;
     vmi->memory_cache_age = age_limit;
+    vmi->memory_cache_size = 0;
+#if ENABLE_PAGE_CACHE == 1
+    vmi->memory_cache_size_max = MAX_PAGE_CACHE_SIZE;
+#else
+    vmi->memory_cache_size_max = 0;
+#endif
     get_data_callback = get_data;
 	release_data_callback = release_data;
-#if ENABLE_PAGE_CACHE == 1
-    clean_enumeration_function = check_age; // hold cache items for 2 seconds
-#else
-    clean_enumeration_function = list_all;  // effectively one cache entry
-#endif
 }
 
 void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
@@ -146,14 +144,19 @@ void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
     *key = paddr;
 
     if ((entry = g_hash_table_lookup(vmi->memory_cache, key)) != NULL){
-        //dbprint("--MEMORY cache hit 0x%llx\n", paddr);
+        dbprint("--MEMORY cache hit 0x%llx\n", paddr);
         return validate_and_return_data(vmi, entry);
     }
     else{
-        //dbprint("--MEMORY cache set 0x%llx\n", paddr);
+        dbprint("--MEMORY cache set 0x%llx\n", paddr);
         entry = create_new_entry(vmi, paddr, vmi->page_size);
         g_hash_table_insert(vmi->memory_cache, key, entry);
-        //dbprint("--MEMORY cache memory at 0x%llx\n", entry->data);
+
+        gint64 *key2 = safe_malloc(sizeof(gint64));
+        *key2 = paddr;
+        vmi->memory_cache_lru = g_list_prepend(vmi->memory_cache_lru, key2);
+        vmi->memory_cache_size++;
+
         return entry->data;
     }
 }

@@ -90,8 +90,11 @@ struct vmi_instance{
     GHashTable *sym_cache;  /**< hash table to hold the sym cache data */
     GHashTable *v2p_cache;  /**< hash table to hold the v2p cache data */
     void *driver;           /**< driver-specific information */
-    GHashTable *memory_cache;       /**< hash table for memory cache */
+    GHashTable *memory_cache;  /**< hash table for memory cache */
+    GList *memory_cache_lru;  /**< list holding the most recently used pages */
     uint32_t memory_cache_age; /**< max age of memory cache entry */
+    uint32_t memory_cache_size;/**< current size of memory cache */
+    uint32_t memory_cache_size_max;/**< max size of memory cache */
 };
 
 /** Windows' UNICODE_STRING structure (x86) */
