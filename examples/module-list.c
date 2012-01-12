@@ -102,7 +102,7 @@ int main (int argc, char **argv)
 //                printf ("%ls\n", out.contents);
                 free (out.contents);
             } // if
-            if (us) free_unicode_string (us);
+            if (us) vmi_free_unicode_str (us);
         }
         next_module = tmp_next;
     }
