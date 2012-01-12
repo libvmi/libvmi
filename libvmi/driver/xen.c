@@ -735,8 +735,7 @@ error_exit:
 void *xen_read_page (vmi_instance_t vmi, addr_t page)
 {
     addr_t paddr = page << vmi->page_shift;
-    uint32_t offset = 0;
-    return memory_cache_insert(vmi, paddr, &offset);
+    return memory_cache_insert(vmi, paddr);
 }
 
 status_t xen_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length)

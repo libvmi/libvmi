@@ -45,6 +45,20 @@ static void (*release_data_callback)(void *, size_t) = NULL;
 //---------------------------------------------------------
 // Internal implementation functions
 
+static void memory_cache_key_free (gpointer data)
+{
+    if (data) free(data);
+}
+
+static void memory_cache_entry_free (gpointer data)
+{
+    memory_cache_entry_t entry = (memory_cache_entry_t) data;
+    if (entry){
+        release_data_callback(entry->data, entry->length);
+        free(entry);
+    }
+}
+
 static void *get_memory_data (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
     return get_data_callback(vmi, paddr, length);
@@ -52,13 +66,7 @@ static void *get_memory_data (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 
 static void remove_entry (gpointer key, gpointer cache)
 {
-    memory_cache_entry_t entry = NULL;
     GHashTable *memory_cache = cache;
-
-    if ((entry = g_hash_table_lookup(memory_cache, key)) != NULL){
-        release_data_callback(entry->data, entry->length);
-        free(entry);
-    }
     g_hash_table_remove(memory_cache, key);
     free(key);
 }
@@ -107,7 +115,7 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr, 
     entry->last_used = entry->last_updated;
     entry->data = get_memory_data(vmi, paddr, length);
 
-    if (vmi->memory_cache_size > vmi->memory_cache_size_max){
+    if (vmi->memory_cache_size >= vmi->memory_cache_size_max){
         clean_cache(vmi);
     }
 
@@ -122,7 +130,7 @@ void memory_cache_init (
 		void (*release_data)(void *, size_t),
 		unsigned long age_limit)
 {
-    vmi->memory_cache = g_hash_table_new(g_int64_hash, g_int64_equal);
+    vmi->memory_cache = g_hash_table_new_full(g_int64_hash, g_int64_equal, memory_cache_key_free, memory_cache_entry_free);
     vmi->memory_cache_lru = NULL;
     vmi->memory_cache_age = age_limit;
     vmi->memory_cache_size = 0;
@@ -135,16 +143,20 @@ void memory_cache_init (
 	release_data_callback = release_data;
 }
 
-void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
+void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr)
 {
     memory_cache_entry_t entry = NULL;
-    *offset = (uint32_t) (paddr & (vmi->page_size - 1));
-    paddr &= ~( ((addr_t) vmi->page_size) - 1);
+    addr_t paddr_aligned = paddr & ~( ((addr_t) vmi->page_size) - 1);
+    if (paddr != paddr_aligned){
+        errprint("Memory cache request for non-aligned page\n");
+        return NULL;
+    }
+
     gint64 *key = safe_malloc(sizeof(gint64));
     *key = paddr;
-
     if ((entry = g_hash_table_lookup(vmi->memory_cache, key)) != NULL){
         dbprint("--MEMORY cache hit 0x%llx\n", paddr);
+        free(key);
         return validate_and_return_data(vmi, entry);
     }
     else{
@@ -159,4 +171,12 @@ void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr, uint32_t *offset)
 
         return entry->data;
     }
+}
+
+void memory_cache_destroy (vmi_instance_t vmi)
+{
+    uint32_t tmp = vmi->memory_cache_size_max;
+    vmi->memory_cache_size_max = 0;
+    clean_cache(vmi);
+    vmi->memory_cache_size_max = tmp;
 }

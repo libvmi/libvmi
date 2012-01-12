@@ -37,7 +37,7 @@ int main (int argc, char **argv)
     unsigned char *memory = NULL;
     uint32_t offset;
     addr_t next_process, list_head;
-    char *procname = (char *) malloc(256);
+    char *procname = NULL;
     int pid = 0;
     int tasks_offset, pid_offset, name_offset;
     status_t status;

@@ -75,7 +75,7 @@ void pid_cache_init (vmi_instance_t vmi)
 
 void pid_cache_destroy (vmi_instance_t vmi)
 {
-    g_hash_table_unref(vmi->pid_cache);
+    g_hash_table_destroy(vmi->pid_cache);
 }
 
 status_t pid_cache_get (vmi_instance_t vmi, int pid, addr_t *dtb)
@@ -154,7 +154,7 @@ void sym_cache_init (vmi_instance_t vmi)
 
 void sym_cache_destroy (vmi_instance_t vmi)
 {
-    g_hash_table_unref(vmi->sym_cache);
+    g_hash_table_destroy(vmi->sym_cache);
 }
 
 status_t sym_cache_get (vmi_instance_t vmi, char *sym, addr_t *va)
@@ -254,7 +254,7 @@ void v2p_cache_init (vmi_instance_t vmi)
 
 void v2p_cache_destroy (vmi_instance_t vmi)
 {
-    g_hash_table_unref(vmi->v2p_cache);
+    g_hash_table_destroy(vmi->v2p_cache);
 }
 
 status_t v2p_cache_get (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa)
@@ -273,9 +273,11 @@ status_t v2p_cache_get (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa)
         entry->last_used = time(NULL);
         *pa = entry->pa | ((vmi->page_size - 1) & va);
         dbprint("--V2P cache hit 0x%.16llx -- 0x%.16llx (0x%.16llx)\n", va, *pa, *key);
+        free(key);
         return VMI_SUCCESS;
     }
 
+    free(key);
     return VMI_FAILURE;
 }
 

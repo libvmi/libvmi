@@ -72,7 +72,8 @@ static char *exec_qmp_cmd (kvm_instance_t *kvm, char *query)
     int cmd_length = strlen(name) + strlen(query) + 29;
     char *cmd = safe_malloc(cmd_length);
     snprintf(cmd, cmd_length, "virsh qemu-monitor-command %s %s", name, query);
-    //dbprint("--qmp: %s\n", cmd);
+    dbprint("--qmp: %s\n", cmd);
+    free(cmd);
     
     p = popen(cmd, "r");
     if (NULL == p){
@@ -105,14 +106,20 @@ static char *exec_memory_access (kvm_instance_t *kvm)
     sprintf(query, "'{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}'", tmpfile);
     kvm->ds_path = strdup(tmpfile);
     free(tmpfile);
-    return exec_qmp_cmd(kvm, query);
+
+    char *output = exec_qmp_cmd(kvm, query);
+    free(query);
+    return output;
 }
 
 static char *exec_xp (kvm_instance_t *kvm, int numwords, addr_t paddr)
 {
     char *query = (char *) safe_malloc(256);
     sprintf(query, "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%x\"}}'", numwords, paddr);
-    return exec_qmp_cmd(kvm, query);
+
+    char *output = exec_qmp_cmd(kvm, query);
+    free(query);
+    return output;
 }
 
 static reg_t parse_reg_value (char *regname, char *ir_output)
@@ -474,8 +481,7 @@ addr_t kvm_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 void *kvm_read_page (vmi_instance_t vmi, addr_t page)
 {
     addr_t paddr = page << vmi->page_shift;
-    uint32_t offset = 0;
-    return memory_cache_insert(vmi, paddr, &offset);
+    return memory_cache_insert(vmi, paddr);
 }
 
 status_t kvm_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length)

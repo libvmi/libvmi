@@ -27,6 +27,7 @@
 #include "libvmi.h"
 #include "private.h"
 #include "driver/interface.h"
+#include "driver/memory_cache.h"
 #include "config/config_parser.h"
 #include <string.h>
 #include <stdio.h>
@@ -463,6 +464,9 @@ status_t vmi_destroy (vmi_instance_t vmi)
     pid_cache_destroy(vmi);
     sym_cache_destroy(vmi);
     v2p_cache_destroy(vmi);
+    memory_cache_destroy(vmi);
+    if (vmi->sysmap) free(vmi->sysmap);
+    if (vmi->image_type) free(vmi->image_type);
     if (vmi->configstr) free(vmi->configstr);
     if (vmi) free(vmi);
     return VMI_SUCCESS;

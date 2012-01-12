@@ -220,8 +220,7 @@ addr_t file_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 void *file_read_page (vmi_instance_t vmi, addr_t page)
 {
     addr_t paddr = page << vmi->page_shift;
-    uint32_t offset = 0;
-    return memory_cache_insert(vmi, paddr, &offset);
+    return memory_cache_insert(vmi, paddr);
 }
 
 //TODO decide if this functionality makes sense for files
