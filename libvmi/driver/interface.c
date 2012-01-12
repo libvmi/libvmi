@@ -103,7 +103,7 @@ static void driver_file_setup (vmi_instance_t vmi)
     instance->get_id_from_name_ptr = NULL; //TODO add get_id_from_name_ptr
     instance->get_id_ptr = NULL; //TODO add get_id_ptr
     instance->set_id_ptr = NULL; //TODO add set_id_ptr
-    instance->get_name_ptr = NULL; //TODO add get_name_ptr
+    instance->get_name_ptr = &file_get_name;
     instance->set_name_ptr = &file_set_name;
     instance->get_memsize_ptr = &file_get_memsize;
     instance->get_vcpureg_ptr = &file_get_vcpureg;

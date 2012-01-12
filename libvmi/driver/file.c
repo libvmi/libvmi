@@ -167,6 +167,12 @@ void file_destroy (vmi_instance_t vmi)
     }
 }
 
+status_t file_get_name (vmi_instance_t vmi, char **name)
+{
+    *name = strdup(file_get_instance(vmi)->filename);
+    return VMI_SUCCESS;
+}
+
 void file_set_name (vmi_instance_t vmi, char *name)
 {
     file_get_instance(vmi)->filename = strndup(name, 500);
@@ -274,6 +280,7 @@ status_t file_resume_vm (vmi_instance_t vmi)
 
 status_t file_init (vmi_instance_t vmi) {return VMI_FAILURE; }
 void file_destroy (vmi_instance_t vmi) { return; }
+status_t file_get_name (vmi_instance_t vmi, char **name){ return VMI_FAILURE; }
 void file_set_name (vmi_instance_t vmi, char *name) {return; }
 status_t file_get_memsize (vmi_instance_t vmi, unsigned long size) { return VMI_FAILURE; }
 status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }

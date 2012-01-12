@@ -784,6 +784,22 @@ void vmi_print_hex_pa (vmi_instance_t vmi, addr_t paddr, size_t length);
  */
 
 /**
+ * Gets the name of the VM (or file) that LibVMI is accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return VM (or file) name, must be free'd by caller
+ */
+char * vmi_get_name (vmi_instance_t vmi);
+
+/**
+ * Gets the id of the VM that LibVMI is accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return VM id, or zero on error
+ */
+unsigned long vmi_get_vmid (vmi_instance_t vmi);
+
+/**
  * Gets the current access mode for LibVMI, which tells what 
  * resource is being using to access the memory (e.g., VMI_XEN,
  * VMI_KVM, or VMI_FILE).

@@ -35,7 +35,7 @@ page_mode_t vmi_get_page_mode (vmi_instance_t vmi)
 
 uint32_t vmi_get_access_mode (vmi_instance_t vmi)
 {
-    return vmi->flags & 0x0000FFFF;
+    return vmi->mode;
 }
 
 os_t vmi_get_ostype (vmi_instance_t vmi)
@@ -141,4 +141,23 @@ status_t vmi_pause_vm (vmi_instance_t vmi)
 status_t vmi_resume_vm (vmi_instance_t vmi)
 {
     return driver_resume_vm(vmi);
+}
+
+char * vmi_get_name (vmi_instance_t vmi)
+{
+    char *name = safe_malloc(100);
+    if (VMI_FAILURE == driver_get_name(vmi, &name)){
+        return NULL;
+    }
+    else{
+        return name;
+    }
+}
+
+unsigned long vmi_get_vmid (vmi_instance_t vmi)
+{
+    char *name = vmi_get_name(vmi);
+    unsigned long tmp_id = driver_get_id_from_name(vmi, name);
+    free(name);
+    return tmp_id;
 }

@@ -73,16 +73,17 @@ static char *exec_qmp_cmd (kvm_instance_t *kvm, char *query)
     char *cmd = safe_malloc(cmd_length);
     snprintf(cmd, cmd_length, "virsh qemu-monitor-command %s %s", name, query);
     dbprint("--qmp: %s\n", cmd);
-    free(cmd);
     
     p = popen(cmd, "r");
     if (NULL == p){
         dbprint("--failed to run QMP command\n");
+        free(cmd);
         return NULL;
     }
 
     length = fread(output, 1, 20000, p);
     pclose(p);
+    free(cmd);
     
     if (length == 0){
         free(output);
@@ -124,6 +125,10 @@ static char *exec_xp (kvm_instance_t *kvm, int numwords, addr_t paddr)
 
 static reg_t parse_reg_value (char *regname, char *ir_output)
 {
+    if (NULL == ir_output || NULL == regname){
+        return 0;
+    }
+
     char *ptr = strcasestr(ir_output, regname);
     if (NULL != ptr){
         ptr += strlen(regname) + 1;
@@ -136,6 +141,10 @@ static reg_t parse_reg_value (char *regname, char *ir_output)
 
 status_t exec_memory_access_success (char *status)
 {
+    if (NULL == status){
+        return VMI_FAILURE;
+    }
+
     char *ptr = strcasestr(status, "CommandNotFound");
     if (NULL == ptr){
         return VMI_SUCCESS;
