@@ -156,7 +156,6 @@ void v2p_cache_flush (vmi_instance_t vmi);
 /*-----------------------------------------
  * memory.c
  */
-addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid);
 void *vmi_read_page (vmi_instance_t vmi, addr_t frame_num, int is_pfn);
 
 /*-----------------------------------------

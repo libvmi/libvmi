@@ -335,3 +335,11 @@ void v2p_cache_set (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t pa){ retur
 status_t v2p_cache_del (vmi_instance_t vmi, addr_t va, addr_t dtb){ return VMI_FAILURE; }
 void v2p_cache_flush (vmi_instance_t vmi) { return; }
 #endif
+
+// Below are wrapper functions for external API access to the cache
+void vmi_pidcache_add (vmi_instance_t vmi, int pid, addr_t dtb){ return pid_cache_set(vmi, pid, dtb); }
+void vmi_pidcache_flush (vmi_instance_t vmi){ return pid_cache_flush(vmi); }
+void vmi_symcache_add (vmi_instance_t vmi, char *sym, addr_t va){ return sym_cache_set(vmi, sym, va); }
+void vmi_symcache_flush (vmi_instance_t vmi){ return sym_cache_flush(vmi); }
+void vmi_v2pcache_add (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t pa){ return v2p_cache_set(vmi, va, dtb, pa); }
+void vmi_v2pcache_flush (vmi_instance_t vmi){ return v2p_cache_flush(vmi); }

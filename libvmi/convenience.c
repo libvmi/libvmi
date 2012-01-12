@@ -111,7 +111,7 @@ int is_addr_aligned (vmi_instance_t vmi, addr_t addr)
     return (addr == aligned_addr(vmi, addr));
 }
 
-void free_unicode_string (unicode_string_t * p_us) 
+void vmi_free_unicode_str (unicode_string_t * p_us) 
 {
     if (p_us->contents) free(p_us->contents);
     memset (p_us, 0, sizeof(*p_us));

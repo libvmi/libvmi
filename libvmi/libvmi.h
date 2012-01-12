@@ -198,13 +198,6 @@ typedef struct _ustring {
 } unicode_string_t;
 
 /**
- * Convenience function to free a unicode_string_t struct.
- *
- * @param[in] p_us Pointer to a unicode_string_t struct
- */
-void free_unicode_string (unicode_string_t * p_us);
-
-/**
  * @brief LibVMI Instance.
  *
  * This struct holds all of the relavent information for an instance of
@@ -293,6 +286,18 @@ addr_t vmi_translate_uv2p(vmi_instance_t vmi, addr_t vaddr, int pid);
  * @return Virtual address, or zero on error
  */
 addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol);
+
+/**
+ * Given a \a pid, this function returns the virtual address of the
+ * directory table base for this process' address space.  This value
+ * is effectively what would be in the CR3 register while this process
+ * is running.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] pid Desired process id to lookup
+ * @return The directory table base virtual address for \a pid
+ */
+addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid);
 
 /*---------------------------------------------------------
  * Memory access functions from util.c
@@ -493,6 +498,13 @@ vmi_read_unicode_str_va (vmi_instance_t vmi, addr_t vaddr, int pid);
 status_t vmi_convert_str_encoding (const unicode_string_t * in,
                                    unicode_string_t       * out,
                                    const char * outencoding    );
+
+/**
+ * Convenience function to free a unicode_string_t struct.
+ *
+ * @param[in] p_us Pointer to a unicode_string_t struct
+ */
+void vmi_free_unicode_str (unicode_string_t * p_us);
 
 /**
  * Reads 8 bits from memory, given a physical address.
@@ -867,6 +879,64 @@ status_t vmi_pause_vm (vmi_instance_t vmi);
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_resume_vm (vmi_instance_t vmi);
+
+/**
+ * Removes all entries from LibVMI's internal virtual to physical address
+ * cache.  This is generally only useful if you believe that an entry in 
+ * the cache is incorrect, or out of date.
+ *
+ * @param[in] vmi LibVMI instance
+ */
+void vmi_v2pcache_flush (vmi_instance_t vmi);
+
+/**
+ * Adds one entry to LibVMI's internal virtual to physical address
+ * cache.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] va Virtual address
+ * @param[in] dtb Directory table base for \a va
+ * @param[in] pa Physical address
+ */
+void vmi_v2pcache_add (vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t pa);
+
+/**
+ * Removes all entries from LibVMI's internal kernel symbol to virtual address
+ * cache.  This is generally only useful if you believe that an entry in 
+ * the cache is incorrect, or out of date.
+ *
+ * @param[in] vmi LibVMI instance
+ */
+void vmi_symcache_flush (vmi_instance_t vmi);
+
+/**
+ * Adds one entry to LibVMI's internal kernel symbol to virtual address
+ * cache.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] sym Kernel symbol
+ * @param[in] va Virtual address
+ */
+void vmi_symcache_add (vmi_instance_t vmi, char *sym, addr_t va);
+
+/**
+ * Removes all entries from LibVMI's internal pid to directory table base
+ * cache.  This is generally only useful if you believe that an entry in 
+ * the cache is incorrect, or out of date.
+ *
+ * @param[in] vmi LibVMI instance
+ */
+void vmi_pidcache_flush (vmi_instance_t vmi);
+
+/**
+ * Adds one entry to LibVMI's internal pid to directory table base
+ * cache.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] pid Process id
+ * @param[in] dtb Directory table base
+ */
+void vmi_pidcache_add (vmi_instance_t vmi, int pid, addr_t dtb);
 
 #pragma GCC visibility pop
 #endif /* LIBVMI_H */
