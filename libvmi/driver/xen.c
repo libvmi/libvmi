@@ -94,57 +94,6 @@ error_exit:
 //    return kernel;
 //}
 
-static int xen_ishvm (unsigned long domainid)
-{
-    struct xs_handle *xsh = NULL;
-    xs_transaction_t xth = XBT_NULL;
-    char *vmpath = NULL;
-    char *ostype = NULL;
-    char *tmp = NULL;
-    unsigned int len = 0;
-    int ret = 0;
-
-    /* setup initial values */
-    vmpath = xen_get_vmpath(domainid);
-    xsh = xs_domain_open();
-    tmp = safe_malloc(100);
-
-    /* check the value for xen 3.2.x and earlier */
-    memset(tmp, 0, 100);
-    snprintf(tmp, 100, "%s/image/kernel", vmpath);
-    ostype = xs_read(xsh, xth, tmp, &len);
-    if (NULL == ostype){
-        /* no action */
-    }
-    else if (fnmatch("*hvmloader", ostype, 0) == 0){
-        ret = 1;
-        goto exit;
-    }
-
-    /* try again using different path for 3.3.x */
-    if (ostype) free(ostype);
-    memset(tmp, 0, 100);
-    snprintf(tmp, 100, "%s/image/ostype", vmpath);
-    ostype = xs_read(xsh, xth, tmp, &len);
-
-    if (NULL == ostype){
-        /* no action */
-    }
-    else if (fnmatch("*hvm", ostype, 0) == 0){
-        ret = 1;
-        goto exit;
-    }
-
-exit:
-    /* cleanup memory here */
-    if (tmp) free(tmp);
-    if (vmpath) free(vmpath);
-    if (ostype) free(ostype);
-    if (xsh) xs_daemon_close(xsh);
-
-    return ret;
-}
-
 
 //----------------------------------------------------------------------------
 // Xen-Specific Interface Functions (no direct mapping to driver_*)
@@ -323,7 +272,7 @@ status_t xen_init (vmi_instance_t vmi)
     }
 
     /* determine if target is hvm or pv */
-    xen_get_instance(vmi)->hvm = xen_ishvm(xen_get_domainid(vmi));
+    xen_get_instance(vmi)->hvm = xen_get_instance(vmi)->info.hvm;
 #ifdef VMI_DEBUG
     if (xen_get_instance(vmi)->hvm){
         dbprint("**set hvm to true (HVM).\n");
@@ -406,7 +355,8 @@ error_exit:
     return ret;
 }
 
-status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
+static status_t
+xen_get_vcpureg_hvm (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
 {
     status_t ret = VMI_SUCCESS;
     struct hvm_hw_cpu hw_ctxt;
@@ -667,6 +617,288 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
 error_exit:
     return ret;
 }
+
+// see tools/libxc/xc_pagetab.c:xc_translate_foreign_address() for a model to follow here
+static status_t
+xen_get_vcpureg_pv (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
+{
+    status_t ret = VMI_SUCCESS;
+    vcpu_guest_context_any_t ctx = {0};
+
+    if (xc_vcpu_getcontext (xen_get_xchandle(vmi),
+                            xen_get_domainid(vmi),
+                            vcpu, &ctx)             ) {
+        errprint("Failed to get context information (PV domain).\n");
+        ret = VMI_FAILURE;
+        goto error_exit;
+    }
+
+    switch (reg) {
+/*        case RAX:
+            *value = (reg_t) ctx.rax;
+            break;
+        case RBX:
+            *value = (reg_t) ctx.rbx;
+            break;
+        case RCX:
+            *value = (reg_t) ctx.rcx;
+            break;
+        case RDX:
+            *value = (reg_t) ctx.rdx;
+            break;
+        case RBP:
+            *value = (reg_t) ctx.rbx;
+            break;
+        case RSI:
+            *value = (reg_t) ctx.rsi;
+            break;
+        case RDI:
+            *value = (reg_t) ctx.rdi;
+            break;
+        case RSP:
+            *value = (reg_t) ctx.rsp;
+            break;
+        case R8:
+            *value = (reg_t) ctx.r8;
+            break;
+        case R9:
+            *value = (reg_t) ctx.r9;
+            break;
+        case R10:
+            *value = (reg_t) ctx.r10;
+            break;
+        case R11:
+            *value = (reg_t) ctx.r11;
+            break;
+        case R12:
+            *value = (reg_t) ctx.r12;
+            break;
+        case R13:
+            *value = (reg_t) ctx.r13;
+            break;
+        case R14:
+            *value = (reg_t) ctx.r14;
+            break;
+        case R15:
+            *value = (reg_t) ctx.r15;
+            break;
+        case RIP:
+            *value = (reg_t) ctx.rip;
+            break;
+        case RFLAGS:
+            *value = (reg_t) ctx.rflags;
+            break;
+*/
+        case CR0:
+            *value = (reg_t) ctx.x64.ctrlreg[0];
+            break;
+        case CR2:
+            *value = (reg_t) ctx.x64.ctrlreg[2];
+            break;
+        case CR3:
+            *value = (reg_t) ctx.x64.ctrlreg[3];
+            break;
+        case CR4:
+            *value = (reg_t) ctx.x64.ctrlreg[4];
+            break;
+/*
+        case DR0:
+            *value = (reg_t) ctx.dr0;
+            break;
+        case DR1:
+            *value = (reg_t) ctx.dr1;
+            break;
+        case DR2:
+            *value = (reg_t) ctx.dr2;
+            break;
+        case DR3:
+            *value = (reg_t) ctx.dr3;
+            break;
+        case DR6:
+            *value = (reg_t) ctx.dr6;
+            break;
+        case DR7:
+            *value = (reg_t) ctx.dr7;
+            break;
+
+        case CS_SEL:
+            *value = (reg_t) ctx.cs_sel;
+            break;
+        case DS_SEL:
+            *value = (reg_t) ctx.ds_sel;
+            break;
+        case ES_SEL:
+            *value = (reg_t) ctx.es_sel;
+            break;
+        case FS_SEL:
+            *value = (reg_t) ctx.fs_sel;
+            break;
+        case GS_SEL:
+            *value = (reg_t) ctx.gs_sel;
+            break;
+        case SS_SEL:
+            *value = (reg_t) ctx.ss_sel;
+            break;
+        case TR_SEL:
+            *value = (reg_t) ctx.tr_sel;
+            break;
+        case LDTR_SEL:
+            *value = (reg_t) ctx.ldtr_sel;
+            break;
+
+        case CS_LIMIT:
+            *value = (reg_t) ctx.cs_limit;
+            break;
+        case DS_LIMIT:
+            *value = (reg_t) ctx.ds_limit;
+            break;
+        case ES_LIMIT:
+            *value = (reg_t) ctx.es_limit;
+            break;
+        case FS_LIMIT:
+            *value = (reg_t) ctx.fs_limit;
+            break;
+        case GS_LIMIT:
+            *value = (reg_t) ctx.gs_limit;
+            break;
+        case SS_LIMIT:
+            *value = (reg_t) ctx.ss_limit;
+            break;
+        case TR_LIMIT:
+            *value = (reg_t) ctx.tr_limit;
+            break;
+        case LDTR_LIMIT:
+            *value = (reg_t) ctx.ldtr_limit;
+            break;
+        case IDTR_LIMIT:
+            *value = (reg_t) ctx.idtr_limit;
+            break;
+        case GDTR_LIMIT:
+            *value = (reg_t) ctx.gdtr_limit;
+            break;
+
+        case CS_BASE:
+            *value = (reg_t) ctx.cs_base;
+            break;
+        case DS_BASE:
+            *value = (reg_t) ctx.ds_base;
+            break;
+        case ES_BASE:
+            *value = (reg_t) ctx.es_base;
+            break;
+        case FS_BASE:
+            *value = (reg_t) ctx.fs_base;
+            break;
+        case GS_BASE:
+            *value = (reg_t) ctx.gs_base;
+            break;
+        case SS_BASE:
+            *value = (reg_t) ctx.ss_base;
+            break;
+        case TR_BASE:
+            *value = (reg_t) ctx.tr_base;
+            break;
+        case LDTR_BASE:
+            *value = (reg_t) ctx.ldtr_base;
+            break;
+        case IDTR_BASE:
+            *value = (reg_t) ctx.idtr_base;
+            break;
+        case GDTR_BASE:
+            *value = (reg_t) ctx.gdtr_base;
+            break;
+
+        case CS_ARBYTES:
+            *value = (reg_t) ctx.cs_arbytes;
+            break;
+        case DS_ARBYTES:
+            *value = (reg_t) ctx.ds_arbytes;
+            break;
+        case ES_ARBYTES:
+            *value = (reg_t) ctx.es_arbytes;
+            break;
+        case FS_ARBYTES:
+            *value = (reg_t) ctx.fs_arbytes;
+            break;
+        case GS_ARBYTES:
+            *value = (reg_t) ctx.gs_arbytes;
+            break;
+        case SS_ARBYTES:
+            *value = (reg_t) ctx.ss_arbytes;
+            break;
+        case TR_ARBYTES:
+            *value = (reg_t) ctx.tr_arbytes;
+            break;
+        case LDTR_ARBYTES:
+            *value = (reg_t) ctx.ldtr_arbytes;
+            break;
+
+        case SYSENTER_CS:
+            *value = (reg_t) ctx.sysenter_cs;
+            break;
+        case SYSENTER_ESP:
+            *value = (reg_t) ctx.sysenter_esp;
+            break;
+        case SYSENTER_EIP:
+            *value = (reg_t) ctx.sysenter_eip;
+            break;
+        case SHADOW_GS:
+            *value = (reg_t) ctx.shadow_gs;
+            break;
+
+        case MSR_FLAGS:
+            *value = (reg_t) ctx.msr_flags;
+            break;
+        case MSR_LSTAR:
+            *value = (reg_t) ctx.msr_lstar;
+            break;
+        case MSR_CSTAR:
+            *value = (reg_t) ctx.msr_cstar;
+            break;
+        case MSR_SYSCALL_MASK:
+            *value = (reg_t) ctx.msr_syscall_mask;
+            break;
+        case MSR_EFER:
+            *value = (reg_t) ctx.msr_efer;
+            break;
+        case MSR_TSC_AUX:
+            *value = (reg_t) ctx.msr_tsc_aux;
+            break;
+
+        case TSC:
+            *value = (reg_t) ctx.tsc;
+            break;
+*/
+        default:
+            ret = VMI_FAILURE;
+            break;
+    }
+
+error_exit:
+    return ret;
+}
+
+
+
+
+
+
+
+status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
+{
+    status_t ret = VMI_SUCCESS;
+
+    if (xen_get_instance(vmi)->hvm) {
+        return xen_get_vcpureg_hvm (vmi, value, reg, vcpu);
+    } else {
+        return xen_get_vcpureg_pv  (vmi, value, reg, vcpu);
+    }
+}
+
+
+
+
+
 
 addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 {
