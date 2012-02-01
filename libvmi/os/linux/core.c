@@ -52,7 +52,8 @@ status_t linux_init (vmi_instance_t vmi)
         errprint("swapper_pg_dir not found and CR3 not set, exiting\n");
         goto error_exit;
     }
-        vmi->kpgd = vmi->cr3;
+
+    vmi->kpgd = vmi->cr3;
     dbprint("**set vmi->kpgd (0x%.16llx).\n", vmi->kpgd);
 
     addr_t address = vmi_translate_ksym2v(vmi, "init_task");

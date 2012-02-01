@@ -45,56 +45,6 @@
 //----------------------------------------------------------------------------
 // Helper functions
 
-static char *xen_get_vmpath (unsigned long domainid)
-{
-    struct xs_handle *xsh = NULL;
-    xs_transaction_t xth = XBT_NULL;
-    char *tmp = NULL;
-    char *vmpath = NULL;
-
-    /* get the vm path */
-    tmp = safe_malloc(100);
-    memset(tmp, 0, 100);
-    snprintf(tmp, 100, "/local/domain/%d/vm", domainid);
-    xsh = xs_domain_open();
-    vmpath = xs_read(xsh, xth, tmp, NULL);
-
-error_exit:
-    /* cleanup memory here */
-    if (tmp) free(tmp);
-    if (xsh) xs_daemon_close(xsh);
-
-    return vmpath;
-}
-
-// formerly vmi_get_kernel_name
-//char *xen_get_kernel_name (unsigned long domainid)
-//{
-//    struct xs_handle *xsh = NULL;
-//    xs_transaction_t xth = XBT_NULL;
-//    char *vmpath = NULL;
-//    char *kernel = NULL;
-//    char *tmp = NULL;
-//
-//    vmpath = xen_get_vmpath(domainid);
-//
-//    /* get the kernel name */
-//    tmp = safe_malloc(100);
-//    memset(tmp, 0, 100);
-//    snprintf(tmp, 100, "%s/image/kernel", vmpath);
-//    xsh = xs_domain_open();
-//    kernel = xs_read(xsh, xth, tmp, NULL);
-//
-//error_exit:
-//    /* cleanup memory here */
-//    if (tmp) free(tmp);
-//    if (vmpath) free(vmpath);
-//    if (xsh) xs_daemon_close(xsh);
-//
-//    return kernel;
-//}
-
-
 //----------------------------------------------------------------------------
 // Xen-Specific Interface Functions (no direct mapping to driver_*)
 
@@ -369,7 +319,7 @@ xen_get_vcpureg_hvm (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned
             vcpu,
             &hw_ctxt,
             sizeof hw_ctxt) != 0){
-        errprint("Failed to get context information.\n");
+        errprint("Failed to get context information (HVM domain).\n");
         ret = VMI_FAILURE;
         goto error_exit;
     }
@@ -618,77 +568,76 @@ error_exit:
     return ret;
 }
 
-// see tools/libxc/xc_pagetab.c:xc_translate_foreign_address() for a model to follow here
 static status_t
 xen_get_vcpureg_pv (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
 {
     status_t ret = VMI_SUCCESS;
     vcpu_guest_context_any_t ctx = {0};
 
-    if (xc_vcpu_getcontext (xen_get_xchandle(vmi),
-                            xen_get_domainid(vmi),
-                            vcpu, &ctx)             ) {
+    // broken under Xen 4.1.2: getting bad values for CR3
+    if (xc_vcpu_getcontext (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
         errprint("Failed to get context information (PV domain).\n");
         ret = VMI_FAILURE;
         goto error_exit;
     }
 
     switch (reg) {
-/*        case RAX:
-            *value = (reg_t) ctx.rax;
+        case RAX:
+            *value = (reg_t) ctx.x64.user_regs.rax;
             break;
         case RBX:
-            *value = (reg_t) ctx.rbx;
+            *value = (reg_t) ctx.x64.user_regs.rbx;
             break;
         case RCX:
-            *value = (reg_t) ctx.rcx;
+            *value = (reg_t) ctx.x64.user_regs.rcx;
             break;
         case RDX:
-            *value = (reg_t) ctx.rdx;
+            *value = (reg_t) ctx.x64.user_regs.rdx;
             break;
         case RBP:
-            *value = (reg_t) ctx.rbx;
+            *value = (reg_t) ctx.x64.user_regs.rbx;
             break;
         case RSI:
-            *value = (reg_t) ctx.rsi;
+            *value = (reg_t) ctx.x64.user_regs.rsi;
             break;
         case RDI:
-            *value = (reg_t) ctx.rdi;
+            *value = (reg_t) ctx.x64.user_regs.rdi;
             break;
         case RSP:
-            *value = (reg_t) ctx.rsp;
+            *value = (reg_t) ctx.x64.user_regs.rsp;
             break;
         case R8:
-            *value = (reg_t) ctx.r8;
+            *value = (reg_t) ctx.x64.user_regs.r8;
             break;
         case R9:
-            *value = (reg_t) ctx.r9;
+            *value = (reg_t) ctx.x64.user_regs.r9;
             break;
         case R10:
-            *value = (reg_t) ctx.r10;
+            *value = (reg_t) ctx.x64.user_regs.r10;
             break;
         case R11:
-            *value = (reg_t) ctx.r11;
+            *value = (reg_t) ctx.x64.user_regs.r11;
             break;
         case R12:
-            *value = (reg_t) ctx.r12;
+            *value = (reg_t) ctx.x64.user_regs.r12;
             break;
         case R13:
-            *value = (reg_t) ctx.r13;
+            *value = (reg_t) ctx.x64.user_regs.r13;
             break;
         case R14:
-            *value = (reg_t) ctx.r14;
+            *value = (reg_t) ctx.x64.user_regs.r14;
             break;
         case R15:
-            *value = (reg_t) ctx.r15;
+            *value = (reg_t) ctx.x64.user_regs.r15;
             break;
+
         case RIP:
-            *value = (reg_t) ctx.rip;
+            *value = (reg_t) ctx.x64.user_regs.rip;
             break;
         case RFLAGS:
-            *value = (reg_t) ctx.rflags;
+            *value = (reg_t) ctx.x64.user_regs.rflags;
             break;
-*/
+
         case CR0:
             *value = (reg_t) ctx.x64.ctrlreg[0];
             break;
@@ -701,26 +650,27 @@ xen_get_vcpureg_pv (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned 
         case CR4:
             *value = (reg_t) ctx.x64.ctrlreg[4];
             break;
-/*
+
         case DR0:
-            *value = (reg_t) ctx.dr0;
+            *value = (reg_t) ctx.x64.debugreg[0];
             break;
         case DR1:
-            *value = (reg_t) ctx.dr1;
+            *value = (reg_t) ctx.x64.debugreg[1];
             break;
         case DR2:
-            *value = (reg_t) ctx.dr2;
+            *value = (reg_t) ctx.x64.debugreg[2];
             break;
         case DR3:
-            *value = (reg_t) ctx.dr3;
+            *value = (reg_t) ctx.x64.debugreg[3];
             break;
         case DR6:
-            *value = (reg_t) ctx.dr6;
+            *value = (reg_t) ctx.x64.debugreg[6];
             break;
         case DR7:
-            *value = (reg_t) ctx.dr7;
+            *value = (reg_t) ctx.x64.debugreg[7];
             break;
-
+/*
+These values are not readily available from ctx.
         case CS_SEL:
             *value = (reg_t) ctx.cs_sel;
             break;
@@ -786,21 +736,25 @@ xen_get_vcpureg_pv (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned 
         case ES_BASE:
             *value = (reg_t) ctx.es_base;
             break;
+*/
         case FS_BASE:
-            *value = (reg_t) ctx.fs_base;
+            *value = (reg_t) ctx.x64.fs_base;
             break;
-        case GS_BASE:
-            *value = (reg_t) ctx.gs_base;
+        case GS_BASE: // TODO: distinguish between kernel & user
+            *value = (reg_t) ctx.x64.gs_base_kernel;
             break;
+/*
         case SS_BASE:
             *value = (reg_t) ctx.ss_base;
             break;
         case TR_BASE:
             *value = (reg_t) ctx.tr_base;
             break;
+*/
         case LDTR_BASE:
-            *value = (reg_t) ctx.ldtr_base;
+            *value = (reg_t) ctx.x64.ldt_base;
             break;
+/*
         case IDTR_BASE:
             *value = (reg_t) ctx.idtr_base;
             break;
@@ -866,7 +820,7 @@ xen_get_vcpureg_pv (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned 
             break;
 
         case TSC:
-            *value = (reg_t) ctx.tsc;
+            *value = (reg_t) ctx.x64.tsc;
             break;
 */
         default:
@@ -878,16 +832,8 @@ error_exit:
     return ret;
 }
 
-
-
-
-
-
-
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
 {
-    status_t ret = VMI_SUCCESS;
-
     if (xen_get_instance(vmi)->hvm) {
         return xen_get_vcpureg_hvm (vmi, value, reg, vcpu);
     } else {
@@ -895,10 +841,31 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
     }
 }
 
+status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width_in_bytes)
+{
+    xen_domctl_t domctl = {0};
+    domctl.domain = xen_get_instance(vmi)->domainid;
+    domctl.cmd    = XEN_DOMCTL_get_address_size;
+//    domctl.cmd    = XEN_DOMCTL_get_machine_address_size;
 
+    *width_in_bytes = 0;
 
+    // broken under Xen 4.1.2: getting 64 (the host addr width) even with 32-bit domain
+    if (xc_domctl (xen_get_instance(vmi)->xchandle, &domctl)) {
+        return VMI_FAILURE;
+    }
 
+    *width_in_bytes = domctl.u.address_size.size / 8;
 
+    if (4 != *width_in_bytes &&
+        8 != *width_in_bytes   ) {
+        errprint ("Failed to find domain address width, "
+                  "got invalid value %d\n", *width_in_bytes);
+        return VMI_FAILURE;
+    } // if
+
+    return VMI_SUCCESS;
+}
 
 addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 {
@@ -1019,6 +986,7 @@ status_t xen_get_domainname (vmi_instance_t vmi, char **name) { return VMI_FAILU
 void xen_set_domainname (vmi_instance_t vmi, char *name) { return; }
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_FAILURE; }
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
+status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width_in_bytes) {return VMI_FAILURE;}
 unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }
 void *xen_read_page (vmi_instance_t vmi, unsigned long page) { return NULL; }
 status_t xen_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length) { return VMI_FAILURE; }

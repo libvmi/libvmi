@@ -175,85 +175,109 @@ static uint32_t find_cr3 (vmi_instance_t vmi)
 /* check that this vm uses a paging method that we support */
 static int get_memory_layout (vmi_instance_t vmi)
 {
-    int ret = VMI_SUCCESS;
+    int ret = VMI_FAILURE;
+    uint8_t width_in_bytes = 0;
 
     /* pull info from registers, if we can */
     reg_t cr0, cr3, cr4, efer;
+    uint8_t use_efer = 1; // boolean
+
+    vmi->page_mode = VMI_PM_UNKNOWN;
+    dbprint("**set paging mode to unknown\n");
 
     /* get the control register values */
-    if (driver_get_vcpureg(vmi, &cr0, CR0, 0) == VMI_FAILURE){
-        goto backup_plan;
-    }
-    if (driver_get_vcpureg(vmi, &cr3, CR3, 0) == VMI_FAILURE){
-        goto backup_plan;
-    }
-    if (driver_get_vcpureg(vmi, &cr4, CR4, 0) == VMI_FAILURE){
-        goto backup_plan;
-    }
-    if (driver_get_vcpureg(vmi, &efer, MSR_EFER, 0) == VMI_FAILURE){
-        goto backup_plan;
+    if (driver_get_vcpureg(vmi, &cr0, CR0, 0) == VMI_FAILURE) {
+        errprint ("**failed to get CR0\n");
+        goto _exit;
     }
 
-    /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
-    if (!vmi_get_bit(cr0, 31)){
-        errprint("Paging disabled for this VM, not supported.\n");
-        goto error_exit;
+    if (driver_get_vcpureg(vmi, &cr3, CR3, 0) == VMI_FAILURE){
+        errprint ("**failed to get CR3\n");
+        goto _exit;
     }
+    if (cr3 > vmi->size) { // sanity check on CR3
+        errprint ("** cr3 value [0x%llx] exceeds memsize [0x%llx]\n",
+                  cr3, vmi->size);
+        goto _exit;
+    }
+
+    if (driver_get_vcpureg(vmi, &cr4, CR4, 0) == VMI_FAILURE){
+        errprint ("**failed to get CR4\n");
+        goto _exit;
+    }
+
+    ret = driver_get_vcpureg(vmi, &efer, MSR_EFER, 0);
+    if (VMI_FAILURE == ret) {
+        dbprint ("**failed to get MSR_EFER, trying method #2\n");
+        use_efer = 0;
+        ret = driver_get_address_width (vmi, &width_in_bytes);
+        if (VMI_FAILURE == ret) {
+            dbprint ("**Method #2 failed, giving up\n");
+            goto _exit;
+        } // if
+    } // if
+
+    // now we have all the info needed to determine addressing mode
+    /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
+    if (!vmi_get_bit(cr0, 31)) {
+        errprint("Paging disabled for this VM, not supported.\n");
+        goto _exit;
+    }
+
+    // no failures after this point
+    ret = VMI_SUCCESS; 
     /* PAE Flag --> CR4, bit 5 */
     vmi->pae = vmi_get_bit(cr4, 5);
     dbprint("**set pae = %d\n", vmi->pae);
+    if (0 == vmi->pae) {
+        dbprint("**set paging mode to 32-bit paging\n");
+        vmi->page_mode = VMI_PM_LEGACY;
+        vmi->cr3 = cr3 & 0xFFFFF000ull;
+        goto _complete;
+    }
 
+    // PAE == 1; determine IA-32e or PAE
+    if (use_efer) {
+        /* LME Flag --> IA32_EFER, bit 8 */
+        vmi->lme = vmi_get_bit(efer, 8);
+        dbprint("**set lme = %d\n", vmi->lme);
+
+        if (1 == vmi->lme) {
+            dbprint("**set paging mode to IA-32e paging\n");
+            vmi->page_mode = VMI_PM_IA32E;
+        } else {
+            dbprint("**set paging mode to PAE paging\n");
+            vmi->page_mode = VMI_PM_PAE;
+        }
+    } else { // use_efer == 0; use the address width instead
+        if (8 == width_in_bytes) {
+            dbprint("**set paging mode to IA-32e paging\n");
+            vmi->page_mode = VMI_PM_IA32E;
+        } else {
+            dbprint("**set paging mode to PAE paging\n");
+            vmi->page_mode = VMI_PM_PAE;
+        }
+    } // if-else
+
+    // grab physical address of page table
+    if (VMI_PM_PAE == vmi->page_mode) {
+        vmi->cr3 = cr3 & 0xFFFFFFE0;
+    } else { // VMI_PM_IA32E
+        vmi->cr3 = cr3 & 0xFFFFFFFFFFFFF000ull;
+    }
+
+_complete:
     /* PSE Flag --> CR4, bit 4 */
     vmi->pse = vmi_get_bit(cr4, 4);
     dbprint("**set pse = %d\n", vmi->pse);
 
-    /* LME Flag --> IA32_EFER, bit 8 */
-    vmi->lme = vmi_get_bit(efer, 8);
-    dbprint("**set lme = %d\n", vmi->lme);
-
-    /* now set the paging mode */
-    if (!vmi->pae){
-        dbprint("**set paging mode to 32-bit paging\n");
-        vmi->page_mode = VMI_PM_LEGACY;
-    }
-    else if (vmi->pae && !vmi->lme){
-        dbprint("**set paging mode to PAE paging\n");
-        vmi->page_mode = VMI_PM_PAE;
-    }
-    else if (vmi->pae && vmi->lme){
-        dbprint("**set paging mode to IA-32e paging\n");
-        vmi->page_mode = VMI_PM_IA32E;
-    }
-    else{
-        dbprint("Invalid paging mode\n");
-        goto error_exit;
-    }
-
     /* testing to see CR3 value */
-    vmi->cr3 = cr3 & 0xFFFFFFFFFFFFF000ULL;
+
     dbprint("**set cr3 = 0x%.16llx\n", vmi->cr3);
     dbprint("--got memory layout.\n");
-    return VMI_SUCCESS;
 
-backup_plan:
-    vmi->pae = 0;
-    dbprint("**guessed pae = %d\n", vmi->pae);
-
-    vmi->pse = 0;
-    dbprint("**guessed pse = %d\n", vmi->pse);
-
-    vmi->lme = 0;
-    dbprint("**guessed lme = %d\n", vmi->pse);
-
-    vmi->cr3 = find_cr3(vmi);
-    dbprint("**set cr3 = 0x%.8x\n", vmi->cr3);
-
-    vmi->page_mode = VMI_PM_UNKNOWN;
-    dbprint("**set paging mode to unknown\n");
-    return VMI_SUCCESS;
-
-error_exit:
-    return VMI_FAILURE;
+_exit:
+    return ret;
 }
 
 static status_t init_page_offset (vmi_instance_t vmi)
@@ -411,7 +435,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
             errprint("Failed to get memory size.\n");
             goto error_exit;
         }
-        dbprint("**set size = %llu\n", (*vmi)->size);
+        dbprint("**set size = %llu [0x%llx]\n", (*vmi)->size, (*vmi)->size);
 
         /* determine the page sizes and layout for target OS */
         if (VMI_FAILURE == get_memory_layout(*vmi)){
