@@ -28,6 +28,7 @@
 #include "private.h"
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifndef VMI_DEBUG
 /* Nothing */
@@ -114,6 +115,6 @@ int is_addr_aligned (vmi_instance_t vmi, addr_t addr)
 void vmi_free_unicode_str (unicode_string_t * p_us) 
 {
     if (p_us->contents) free(p_us->contents);
-    memset (p_us, 0, sizeof(*p_us));
+    memset ((void*)p_us, 0, sizeof(*p_us));
     free(p_us);
 }
