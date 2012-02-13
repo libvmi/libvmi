@@ -254,6 +254,7 @@ void xen_destroy (vmi_instance_t vmi)
 
 status_t xen_get_domainname (vmi_instance_t vmi, char **name)
 {
+    // note: name also available at location xen_get_instance(vmi)->name
     status_t ret = VMI_FAILURE;
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
@@ -280,6 +281,8 @@ void xen_set_domainname (vmi_instance_t vmi, char *name)
 
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
 {
+    // note: may also available through PAGE_SIZE * xen_get_instance(vmi)->nr_pages
+    // or xen_get_instance(vmi)->max_memkb
     status_t ret = VMI_FAILURE;
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
@@ -571,11 +574,15 @@ error_exit:
 static status_t
 xen_get_vcpureg_pv (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
 {
+    // TODO: dupe this function for 32 bit context
     status_t ret = VMI_SUCCESS;
     vcpu_guest_context_any_t ctx = {0};
+    xen_domctl_t domctl = {0};
 
     // broken under Xen 4.1.2: getting bad values for CR3
-    if (xc_vcpu_getcontext (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
+    if (xc_vcpu_getcontext (xen_get_xchandle(vmi), 
+                            xen_get_domainid(vmi),
+                            vcpu, &ctx)          ) {
         errprint("Failed to get context information (PV domain).\n");
         ret = VMI_FAILURE;
         goto error_exit;
@@ -645,7 +652,21 @@ xen_get_vcpureg_pv (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned 
             *value = (reg_t) ctx.x64.ctrlreg[2];
             break;
         case CR3:
-            *value = (reg_t) ctx.x64.ctrlreg[3];
+            domctl.domain = xen_get_instance(vmi)->domainid;
+            domctl.cmd    = XEN_DOMCTL_get_address_size;
+            if (xc_domctl (xen_get_instance(vmi)->xchandle, &domctl)) {
+                errprint ("Failed to discover domain address width\n");
+                return VMI_FAILURE;
+            }
+            // assumption: size in (32,64)
+            if (64 == domctl.u.address_size.size) {
+                *value = (reg_t) ctx.x64.ctrlreg[3];
+                *value = (reg_t) xen_cr3_to_pfn_x86_64 (*value) << XC_PAGE_SHIFT;
+            } else {
+                *value = (reg_t) ctx.x32.ctrlreg[3];
+                *value = (reg_t) xen_cr3_to_pfn_x86_32 (*value) << XC_PAGE_SHIFT;
+            } // if
+
             break;
         case CR4:
             *value = (reg_t) ctx.x64.ctrlreg[4];
@@ -841,26 +862,22 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
     }
 }
 
-status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width_in_bytes)
+status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width)
 {
     xen_domctl_t domctl = {0};
     domctl.domain = xen_get_instance(vmi)->domainid;
     domctl.cmd    = XEN_DOMCTL_get_address_size;
-//    domctl.cmd    = XEN_DOMCTL_get_machine_address_size;
 
-    *width_in_bytes = 0;
-
-    // broken under Xen 4.1.2: getting 64 (the host addr width) even with 32-bit domain
     if (xc_domctl (xen_get_instance(vmi)->xchandle, &domctl)) {
         return VMI_FAILURE;
     }
 
-    *width_in_bytes = domctl.u.address_size.size / 8;
+    *width = domctl.u.address_size.size;
 
-    if (4 != *width_in_bytes &&
-        8 != *width_in_bytes   ) {
+    if (32 != *width &&
+        64 != *width   ) {
         errprint ("Failed to find domain address width, "
-                  "got invalid value %d\n", *width_in_bytes);
+                  "got invalid value %d\n", *width);
         return VMI_FAILURE;
     } // if
 
@@ -883,6 +900,20 @@ addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
         return pfn;
     }
 
+    addr_t mfn = xc_translate_foreign_address (xen_get_instance(vmi)->xchandle,
+                                               0, 
+//                                               xen_get_instance(vmi)->domainid,
+                                               0, // vcpu
+                                               pfn << XC_PAGE_SHIFT);
+
+    return mfn;
+
+
+
+
+
+
+#if 0
     if (NULL == xen_get_instance(vmi)->live_pfn_to_mfn_table){
         live_shinfo = xen_get_memory_mfn(vmi, xen_get_instance(vmi)->info.shared_info_frame, PROT_READ);
         if (live_shinfo == NULL){
@@ -927,8 +958,9 @@ error_exit:
         xen_release_memory(live_pfn_to_mfn_frame_list_list, XC_PAGE_SIZE);
     if (live_pfn_to_mfn_frame_list)
         xen_release_memory(live_pfn_to_mfn_frame_list, XC_PAGE_SIZE);
-
+#endif
     return ret;
+
 }
 
 void *xen_read_page (vmi_instance_t vmi, addr_t page)
@@ -986,7 +1018,7 @@ status_t xen_get_domainname (vmi_instance_t vmi, char **name) { return VMI_FAILU
 void xen_set_domainname (vmi_instance_t vmi, char *name) { return; }
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_FAILURE; }
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
-status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width_in_bytes) {return VMI_FAILURE;}
+status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width) {return VMI_FAILURE;}
 unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }
 void *xen_read_page (vmi_instance_t vmi, unsigned long page) { return NULL; }
 status_t xen_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length) { return VMI_FAILURE; }

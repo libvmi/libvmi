@@ -41,7 +41,7 @@ struct driver_instance{
     void (*set_name_ptr)(vmi_instance_t, char *);
     status_t (*get_memsize_ptr)(vmi_instance_t, unsigned long *);
     status_t (*get_vcpureg_ptr)(vmi_instance_t, reg_t *, registers_t, unsigned long);
-    status_t (*get_address_width_ptr)(vmi_instance_t vmi, uint8_t * width_in_bytes);
+    status_t (*get_address_width_ptr)(vmi_instance_t vmi, uint8_t * width);
     addr_t (*pfn_to_mfn_ptr)(vmi_instance_t, addr_t);
     void *(*read_page_ptr)(vmi_instance_t, addr_t);
     status_t (*write_ptr)(vmi_instance_t, addr_t, void *, uint32_t);
@@ -309,11 +309,11 @@ status_t driver_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, 
     }
 }
 
-status_t driver_get_address_width (vmi_instance_t vmi, uint8_t * width_in_bytes)
+status_t driver_get_address_width (vmi_instance_t vmi, uint8_t * width)
 {
    driver_instance_t ptrs = driver_get_instance(vmi);
     if (NULL != ptrs && NULL != ptrs->get_address_width_ptr){
-        return ptrs->get_address_width_ptr(vmi, width_in_bytes);
+        return ptrs->get_address_width_ptr(vmi, width);
     }
     else{
         dbprint("WARNING: driver_get_address_width function not implemented.\n");

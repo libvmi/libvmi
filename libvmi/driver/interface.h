@@ -37,6 +37,7 @@ status_t driver_get_name (vmi_instance_t vmi, char **name);
 void driver_set_name (vmi_instance_t vmi, char *name);
 status_t driver_get_memsize (vmi_instance_t vmi, unsigned long *size);
 status_t driver_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);
+status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width);
 addr_t driver_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn);
 void *driver_read_page (vmi_instance_t vmi, addr_t page);
 status_t driver_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length);

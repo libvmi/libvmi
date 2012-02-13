@@ -41,7 +41,7 @@ status_t windows_symbol_to_address (
     dbprint("--windows symbol lookup (%s)\n", symbol);
 
     /* check kpcr if we have a cr3 */
-    if (cr3 && VMI_SUCCESS == windows_kpcr_lookup(vmi, symbol, address)){
+    if (/*cr3 &&*/ VMI_SUCCESS == windows_kpcr_lookup(vmi, symbol, address)){
         dbprint("--got symbol from kpcr (%s --> 0x%lx).\n", symbol, *address);
         return VMI_SUCCESS;
     }

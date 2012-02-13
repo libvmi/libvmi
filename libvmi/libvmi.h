@@ -58,12 +58,16 @@
 /* max number of pages held in page cache */
 #define MAX_PAGE_CACHE_SIZE 512
 
+typedef uint32_t vmi_mode_t;
+
+/* These will be used in conjuction with vmi_mode_t variables */
 #define VMI_AUTO (1 << 0)  /**< libvmi should detect what to monitor or view */
 #define VMI_XEN  (1 << 1)  /**< libvmi is monitoring a Xen VM */
 #define VMI_KVM  (1 << 2)  /**< libvmi is monitoring a KVM VM */
 #define VMI_FILE (1 << 3)  /**< libvmi is viewing a file on disk */
 #define VMI_INIT_PARTIAL  (1 << 16) /**< init enough to view physical addresses */
 #define VMI_INIT_COMPLETE (1 << 17) /**< full initialization */
+
 
 typedef enum status{
     VMI_SUCCESS,  /**< return value indicating success */
