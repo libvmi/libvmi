@@ -39,7 +39,7 @@ typedef struct xen_instance{
     xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
     uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
     int p2m_size;           /**< max size of phys to machine table */
-    xen_pfn_t *live_pfn_to_mfn_table;
+    xen_pfn_t *pfn_to_mfn_table;
     unsigned long nr_pfns;
     char *name;
 } xen_instance_t;
