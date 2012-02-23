@@ -163,7 +163,7 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
         char *nameCandidate = xs_read(xsh, xth, tmp, NULL);
 
         // if name matches, then return number
-        if (strncmp(name, nameCandidate, 100) == 0){
+        if (nameCandidate != NULL && strncmp(name, nameCandidate, 100) == 0){
             int idNum = atoi(idStr);
             domainid = (unsigned long) idNum;
             free(tmp);
