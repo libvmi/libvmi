@@ -183,7 +183,7 @@ static int get_memory_layout (vmi_instance_t vmi)
     //    backend doessn't.
 
     int ret = VMI_FAILURE;
-    uint8_t dom_addr_width = 0; // domain address width (bits)
+    uint8_t dom_addr_width = 0; // domain address width (bytes)
 
     /* pull info from registers, if we can */
     reg_t cr0, cr3, cr4, efer;
@@ -242,8 +242,8 @@ static int get_memory_layout (vmi_instance_t vmi)
             errprint ("Failed to get domain address width. Giving up.\n");
             goto _exit;
         }
-        vmi->lme = (64 == dom_addr_width);
-        dbprint ("**found guest address width is %d bits; assuming IA32_EFER.LME = %d\n",
+        vmi->lme = (8 == dom_addr_width);
+        dbprint ("**found guest address width is %d bytes; assuming IA32_EFER.LME = %d\n",
                  dom_addr_width, vmi->lme);
     } // if
 
@@ -273,16 +273,18 @@ static int get_memory_layout (vmi_instance_t vmi)
 _complete:
     /* testing to see CR3 value */
     if (vmi->cr3 > vmi->size) { // sanity check on CR3
-        errprint ("** cr3 value [0x%llx] exceeds memsize [0x%llx]\n",
-                  vmi->cr3, vmi->size);
-        //goto _exit;
+        dbprint ("** Note cr3 value [0x%llx] exceeds memsize [0x%llx]\n",
+                 vmi->cr3, vmi->size);
     }
 
     dbprint("--got memory layout.\n");
 
 _exit:
     if (VMI_FAILURE == ret) {
-        vmi->cr3 = vmi->pae = vmi->pse = vmi->lme = 0;
+        vmi->page_mode = VMI_PM_UNKNOWN;
+        dbprint("**set paging mode to unknown\n");
+        vmi->pae = vmi->pse = vmi->lme = vmi->cr3 = 0;
+        dbprint("**set paging-related fields to 0\n");
     }
 
     return ret;
@@ -448,14 +450,19 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
 
         /* determine the page sizes and layout for target OS */
         status = get_memory_layout(*vmi);
-        if (VMI_FAILURE == status && VMI_FILE != (*vmi)->mode) { 
-            // failed and not file; alternate: fall back to file method below
-            errprint("Memory layout not supported.\n");
-            goto error_exit;
-        }
+        if (VMI_FAILURE == status) {
+            if (VMI_FILE == (*vmi)->mode) { 
+                // failed and file; alternate: fall back to file method below
+                dbprint("**Failed to get memory layout on memory image file. "
+                        "Trying heuristic method.\n"); 
+                // fall-through
+            } else { // failed on live VM
+                errprint("Memory layout not supported.\n");
+                goto error_exit;
+            } // if-else
+        } // if
 
-        // if we're analyzing a file, do further analysis
-        dbprint("** Register lookup failed. Performing heuristic memory analysis\n");
+        // Heuristic method
         if (!(*vmi)->cr3) {
             (*vmi)->cr3 = find_cr3 ((*vmi));
             dbprint("**set cr3 = 0x%.16llx\n", (*vmi)->cr3);

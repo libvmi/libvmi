@@ -40,7 +40,7 @@
 #include <xs.h>
 #include <xen/hvm/save.h>
 
-#define fpp 1024		/* number of xen_pfn_t that fits on one frame */
+//#define fpp 1024		/* number of xen_pfn_t that fits on one frame */
 
 //----------------------------------------------------------------------------
 // Helper functions
@@ -67,18 +67,17 @@ xen_get_xchandle (vmi_instance_t vmi)
 //TODO assuming length == page size is safe for now, but isn't the most clean approach
 void *xen_get_memory_mfn (vmi_instance_t vmi, addr_t mfn, int prot)
 {
-    void *memory = xc_map_foreign_range(
-        xen_get_xchandle(vmi),
-        xen_get_domainid(vmi),
-        1,
-        prot,
-        mfn
-    );
-    if (MAP_FAILED == memory || NULL == memory){
+    void *memory = xc_map_foreign_range (xen_get_xchandle(vmi),
+                                         xen_get_domainid(vmi),
+                                         XC_PAGE_SIZE,
+                                         prot,
+                                         mfn);
+
+    if (MAP_FAILED == memory || NULL == memory) {
         dbprint("--xen_get_memory_mfn failed on mfn=0x%.16llx\n", mfn);
         return NULL;
     }
-    else{
+    else {
         return memory;
     }
 }
@@ -197,6 +196,7 @@ void xen_set_domainid (vmi_instance_t vmi, unsigned long domainid)
 status_t xen_init (vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
+    xen_domctl_t domctl = {0};
 
     /* open handle to the libxc interface */
 #ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
@@ -214,6 +214,17 @@ status_t xen_init (vmi_instance_t vmi)
     /* initialize other xen-specific values */
     xen_get_instance(vmi)->live_pfn_to_mfn_table = NULL;
     xen_get_instance(vmi)->nr_pfns = 0;
+
+    domctl.domain = xen_get_instance(vmi)->domainid;
+    domctl.cmd    = XEN_DOMCTL_get_address_size;
+
+    if (xc_domctl (xen_get_instance(vmi)->xchandle, &domctl)) {
+        return VMI_FAILURE;
+    }
+    xen_get_instance(vmi)->addr_width = domctl.u.address_size.size / 8;
+
+    xen_get_instance(vmi)->p2m_size = xc_domain_maximum_gpfn (xen_get_instance(vmi)->xchandle,
+                                                              xen_get_domainid(vmi)) + 1;
 
     /* setup the info struct */
     if (xc_domain_getinfo(xchandle, xen_get_domainid(vmi), 1, &(xen_get_instance(vmi)->info)) != 1){
@@ -864,104 +875,156 @@ status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
 
 status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width)
 {
-    xen_domctl_t domctl = {0};
-    domctl.domain = xen_get_instance(vmi)->domainid;
-    domctl.cmd    = XEN_DOMCTL_get_address_size;
-
-    if (xc_domctl (xen_get_instance(vmi)->xchandle, &domctl)) {
-        return VMI_FAILURE;
-    }
-
-    *width = domctl.u.address_size.size;
-
-    if (32 != *width &&
-        64 != *width   ) {
-        errprint ("Failed to find domain address width, "
-                  "got invalid value %d\n", *width);
-        return VMI_FAILURE;
-    } // if
-
+    *width = xen_get_instance(vmi)->addr_width;
     return VMI_SUCCESS;
 }
 
+
 addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 {
-    shared_info_t *live_shinfo = NULL;
-    unsigned long *live_pfn_to_mfn_frame_list_list = NULL;
-    unsigned long *live_pfn_to_mfn_frame_list = NULL;
+    // see xc_domain_save.c:map_and_save_p2m_table for template code
 
-    /* Live mapping of the table mapping each PFN to its current MFN. */
-    unsigned long *live_pfn_to_mfn_table = NULL;
-    uint32_t nr_pfns = 0;
-    uint32_t fll = 0;
-    unsigned long ret = 0;
-
-    if (xen_get_instance(vmi)->hvm){
+    // HVM code
+    if (xen_get_instance(vmi)->hvm) {
         return pfn;
     }
 
-    addr_t mfn = xc_translate_foreign_address (xen_get_instance(vmi)->xchandle,
-                                               0, 
-//                                               xen_get_instance(vmi)->domainid,
-                                               0, // vcpu
-                                               pfn << XC_PAGE_SHIFT);
+    // PV code
 
-    return mfn;
+    shared_info_t *live_shinfo     = 0;
+    uint32_t nr_pfns = 0;
+    uint64_t fll     = 0;
 
+    void *live_p2m_frame_list_list = 0;
+    void *live_p2m_frame_list      = 0;
 
+    xen_pfn_t *p2m_frame_list_list = 0;
+    xen_pfn_t *p2m_frame_list      = 0;
 
+    xen_pfn_t *p2m = 0;
+    addr_t ret = 0; // 0 is value indicating error
 
+    int i;
 
+    if (xen_get_instance(vmi)->live_pfn_to_mfn_table) {
+        return xen_get_instance(vmi)->live_pfn_to_mfn_table[pfn];
+    } // if
 
-#if 0
-    if (NULL == xen_get_instance(vmi)->live_pfn_to_mfn_table){
-        live_shinfo = xen_get_memory_mfn(vmi, xen_get_instance(vmi)->info.shared_info_frame, PROT_READ);
-        if (live_shinfo == NULL){
-            errprint("Failed to init live_shinfo.\n");
-            goto error_exit;
-        }
-        nr_pfns = live_shinfo->arch.max_pfn;
-        fll = live_shinfo->arch.pfn_to_mfn_frame_list_list;
+    // guest width
+#define GW (xen_get_instance(vmi)->addr_width)
 
-        live_pfn_to_mfn_frame_list_list = xen_get_memory_mfn(vmi, fll, PROT_READ);
-        if (live_pfn_to_mfn_frame_list_list == NULL){
-            errprint("Failed to init live_pfn_to_mfn_frame_list_list.\n");
-            goto error_exit;
-        }
+    // based on defns in xen/tools/libxc/xg_private.h
+#define FPP                (XC_PAGE_SIZE/GW)
+#define P2M_FLL_ENTRIES    ((xen_get_instance(vmi)->p2m_size + (FPP * FPP)-1) / (FPP * FPP))
+#define P2M_FL_ENTRIES     (((xen_get_instance(vmi)->p2m_size) + FPP-1) / FPP)
+#define P2M_GUEST_FL_SIZE  (P2M_FLL_ENTRIES * GW)
+#define P2M_TOOLS_FL_SIZE  (P2M_FLL_ENTRIES * MAX(sizeof(xen_pfn_t), GW))
+    
+    dbprint ("GW (guest width):  %d\n", GW               );
+    dbprint ("XC_PAGE_SIZE:      %d\n", XC_PAGE_SIZE     );
+    dbprint ("FPP:               %d\n", FPP              );
+    dbprint ("P2M_FLL_ENTRIES:   %d\n", P2M_FLL_ENTRIES  );
+    dbprint ("P2M_FL_ENTRIES:    %d\n", P2M_FL_ENTRIES   );
+    dbprint ("P2M_GUEST_FL_SIZE: %d\n", P2M_GUEST_FL_SIZE);
+    dbprint ("P2M_TOOLS_FL_SIZE: %d\n", P2M_TOOLS_FL_SIZE);
 
-        live_pfn_to_mfn_frame_list = xc_map_foreign_batch(
-            xen_get_xchandle(vmi), xen_get_domainid(vmi), PROT_READ,
-            live_pfn_to_mfn_frame_list_list,
-            (nr_pfns+(fpp*fpp)-1)/(fpp*fpp) );
-        if (live_pfn_to_mfn_frame_list == NULL){
-            errprint("Failed to init live_pfn_to_mfn_frame_list.\n");
-            goto error_exit;
-        }
-        live_pfn_to_mfn_table = xc_map_foreign_batch(
-            xen_get_xchandle(vmi), xen_get_domainid(vmi), PROT_READ,
-            live_pfn_to_mfn_frame_list, (nr_pfns+fpp-1)/fpp );
-        if (live_pfn_to_mfn_table  == NULL){
-            errprint("Failed to init live_pfn_to_mfn_table.\n");
-            goto error_exit;
-        }
-
-        /* save mappings for later use */
-        xen_get_instance(vmi)->live_pfn_to_mfn_table = live_pfn_to_mfn_table;
-        xen_get_instance(vmi)->nr_pfns = nr_pfns;
+    // init live_pfn_to_mfn_table
+    live_shinfo =
+        xc_map_foreign_range (xen_get_instance(vmi)->xchandle,
+                              xen_get_instance(vmi)->domainid,
+                              XC_PAGE_SIZE,
+                              PROT_READ,
+                              xen_get_instance(vmi)->info.shared_info_frame);
+    if (!live_shinfo) {
+        errprint("Failed to init live_shinfo.\n");
+        perror ("xc_map_foreign_range (0)");
+        goto _done;
     }
 
-    ret = xen_get_instance(vmi)->live_pfn_to_mfn_table[pfn];
+    nr_pfns = live_shinfo->arch.max_pfn;
+    fll = live_shinfo->arch.pfn_to_mfn_frame_list_list;
 
-error_exit:
-    if (live_shinfo) xen_release_memory(live_shinfo, XC_PAGE_SIZE);
-    if (live_pfn_to_mfn_frame_list_list)
-        xen_release_memory(live_pfn_to_mfn_frame_list_list, XC_PAGE_SIZE);
-    if (live_pfn_to_mfn_frame_list)
-        xen_release_memory(live_pfn_to_mfn_frame_list, XC_PAGE_SIZE);
-#endif
+    live_p2m_frame_list_list =
+        xc_map_foreign_range (xen_get_instance(vmi)->xchandle,
+                              xen_get_instance(vmi)->domainid,
+                              XC_PAGE_SIZE, PROT_READ, fll);
+    if (!live_p2m_frame_list_list) {
+        errprint ("Failed to acquire live_p2m_frame_list_list.\n");
+        perror ("xc_map_foreign_range (1)");
+        goto _done;
+    }
+
+    // get local copy
+    p2m_frame_list_list = safe_malloc (XC_PAGE_SIZE);
+    memcpy (p2m_frame_list_list, live_p2m_frame_list_list, XC_PAGE_SIZE);
+    //munmap (live_p2m_frame_list_list, XC_PAGE_SIZE);
+    //live_p2m_frame_list_list = 0;
+
+    // Canonicalize guest's unsigned long vs ours
+    if (GW > sizeof(unsigned long)) {
+        for (i = 0; i < XC_PAGE_SIZE/GW; i++) {
+            if (i < XC_PAGE_SIZE/GW) {
+                p2m_frame_list_list[i] = ((uint64_t *)p2m_frame_list_list)[i];
+            } else {
+                p2m_frame_list_list[i] = 0;
+            } // if-else
+        }
+    } else if (GW < sizeof(unsigned long)) {
+        for (i = XC_PAGE_SIZE/sizeof(unsigned long) - 1; i >= 0; i--) {
+            p2m_frame_list_list[i] = ((uint32_t *)p2m_frame_list_list)[i];
+        }
+    } // if-else
+
+    live_p2m_frame_list =
+        xc_map_foreign_pages (xen_get_instance(vmi)->xchandle,
+                              xen_get_instance(vmi)->domainid,
+                              PROT_READ, p2m_frame_list_list, P2M_FLL_ENTRIES);
+    if (!live_p2m_frame_list) {
+        errprint ("Failed to acquire live_p2m_frame_list.\n");
+        perror ("xc_map_foreign_range (2)");
+        goto _done;
+    }
+
+    // get local copy, note PM2_TOOLS_FL_SIZE >= P2M_GUEST_FL_SIZE
+    p2m_frame_list = safe_malloc (P2M_TOOLS_FL_SIZE);
+    memset (p2m_frame_list, 0, P2M_TOOLS_FL_SIZE);
+    memcpy (p2m_frame_list, live_p2m_frame_list, P2M_GUEST_FL_SIZE);
+    //munmap (live_p2m_frame_list, P2M_FLL_ENTRIES * XC_PAGE_SIZE);
+    //live_p2m_frame_list = 0;
+
+    // Canonicalize guest's unsigned long vs ours
+    if (GW > sizeof(unsigned long)) {
+        for (i = 0; i < P2M_FL_ENTRIES; i++) {
+            p2m_frame_list[i] = ((uint64_t *)p2m_frame_list)[i];
+        }
+    } else if (GW < sizeof(unsigned long)) {
+        for (i = P2M_FL_ENTRIES-1; i >= 0; i--) {
+            p2m_frame_list[i] = ((uint32_t *)p2m_frame_list)[i];
+        }
+    } // if-else
+
+    // fails in IOCTL in this function; errno set to EINVAL
+    p2m = xc_map_foreign_pages (xen_get_instance(vmi)->xchandle,
+                                xen_get_instance(vmi)->domainid,
+                                PROT_READ, p2m_frame_list, P2M_FL_ENTRIES);
+    if (!p2m) {
+        errprint ("Failed to map p2m table.\n");
+        perror ("xc_map_foreign_range (3)");
+        goto _done;
+    }
+
+    // todo: canonicalize PFN to MFN table frame-number list
+
+    xen_get_instance(vmi)->live_pfn_to_mfn_table = p2m;
+    ret = p2m[pfn];
+
+_done:
+    if (live_shinfo)              xen_release_memory (live_shinfo,              XC_PAGE_SIZE);
+    if (live_p2m_frame_list_list) xen_release_memory (live_p2m_frame_list_list, XC_PAGE_SIZE);
+    if (live_p2m_frame_list)      xen_release_memory (live_p2m_frame_list,      XC_PAGE_SIZE);
+
     return ret;
-
-}
+} // xen_pfn_to_mfn
 
 void *xen_read_page (vmi_instance_t vmi, addr_t page)
 {
