@@ -23,6 +23,7 @@
 #
 
 import volatility.addrspace as addrspace
+import urlparse
 import pyvmi
 
 #pylint: disable-msg=C0111
@@ -43,13 +44,21 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
     def __init__(self, base, config, layered = False, **kwargs):
         self.as_assert(base == None or layered, 'Must be first Address Space')
         addrspace.BaseAddressSpace.__init__(self, base, config, **kwargs)
-        self.vmname = config.LOCATION
+        try:
+            (scheme, self.vmname, _, _, _, _) = urlparse.urlparse(config.LOCATION)
+            self.as_assert(scheme == 'vmi', 'Not a LibVMI URN')
+        except:
+            self.as_assert(False, "Malformed location attribute {0}".format(config.LOCATION))
         self.vmi = pyvmi.init(self.vmname, "partial")
         self.as_assert(not self.vmi is None, 'VM must be specified and running')
         self.dtb = self.get_cr3()
 
     def read(self, addr, length):
-        return self.vmi.read_pa(addr, length)
+        try:
+            memory = self.vmi.read_pa(addr, length)
+        except:
+            return None
+        return memory
 
     def is_valid_address(self, addr):
         if addr == None:
@@ -63,4 +72,8 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         return True
 
     def get_cr3(self):
-        return self.vmi.get_vcpureg("cr3", 0);
+        try:
+            cr3 = self.vmi.get_vcpureg("cr3", 0);
+        except:
+            return None
+        return cr3
