@@ -110,6 +110,10 @@ size_t vmi_read_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t
             paddr = vmi_translate_kv2p(vmi, vaddr + buf_offset);
         }
 
+        if (!paddr) {
+            return buf_offset;
+        }
+
         /* access the memory */
         pfn = paddr >> vmi->page_shift;
         offset = (vmi->page_size - 1) & paddr;

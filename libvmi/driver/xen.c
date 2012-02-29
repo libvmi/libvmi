@@ -293,8 +293,8 @@ void xen_set_domainname (vmi_instance_t vmi, char *name)
 
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
 {
-    // note: may also available through PAGE_SIZE * xen_get_instance(vmi)->nr_pages
-    // or xen_get_instance(vmi)->max_memkb
+    // note: may also available through PAGE_SIZE * xen_get_instance(vmi)->info.nr_pages
+    // or xen_get_instance(vmi)->info.max_memkb
     status_t ret = VMI_FAILURE;
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
@@ -904,9 +904,23 @@ addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 
     xen_pfn_t *live_p2m = 0;
     xen_pfn_t *p2m = 0;
-    addr_t ret = 0; // 0 is value indicating error
+    addr_t mfn = 0; // 0 is value indicating error
 
     int i;
+
+    // for VA only
+    mfn = xc_translate_foreign_address (xen_get_instance(vmi)->xchandle,
+                                        xen_get_instance(vmi)->domainid,
+                                        0,
+                                        pfn << 12);
+
+    mfn >>= 12;
+
+    if (!mfn) {
+        errprint ("Failed to find MFN for PFN 0x%llx\n", pfn<<12);
+    }
+
+
 
     if (xen_get_instance(vmi)->pfn_to_mfn_table) {
         return xen_get_instance(vmi)->pfn_to_mfn_table[pfn];
@@ -914,22 +928,39 @@ addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
 
     // guest width - either 4 or 8
 #define GW (xen_get_instance(vmi)->addr_width)
+#define P2M_SIZE (xen_get_instance(vmi)->p2m_size)
+#define GUEST_MEM_BYTES (xen_get_instance(vmi)->info.max_memkb * 1024)
+#define GUEST_MAX_PTES (GUEST_MEM_BYTES / XC_PAGE_SIZE)
+#define GUEST_MAX_P2M_SIZE (4*GUEST_MAX_PTES + \
+                            4*(GUEST_MEM_BYTES / (XC_PAGE_SIZE * XC_PAGE_SIZE)))
 
     // based on defns in xen/tools/libxc/xg_private.h
 #define FPP                (XC_PAGE_SIZE/GW)
-#define P2M_FLL_ENTRIES    ((xen_get_instance(vmi)->p2m_size + (FPP*FPP)-1) / (FPP*FPP))
-#define P2M_FL_ENTRIES     (((xen_get_instance(vmi)->p2m_size) + FPP-1) / FPP)
+#define P2M_FLL_ENTRIES    ((P2M_SIZE + (FPP*FPP)-1) / (FPP*FPP))
+#define P2M_FL_ENTRIES     ((P2M_SIZE + FPP-1) / FPP)
 #define P2M_GUEST_FL_SIZE  (P2M_FL_ENTRIES * GW)
 #define P2M_TOOLS_FL_SIZE  (P2M_FL_ENTRIES * MAX(sizeof(xen_pfn_t), GW))
 
-    dbprint ("GW (guest width):  %d\n", GW               );
-    dbprint ("p2m_size:          %d\n", xen_get_instance(vmi)->p2m_size);
-    dbprint ("XC_PAGE_SIZE:      %d\n", XC_PAGE_SIZE     );
-    dbprint ("FPP:               %d\n", FPP              );
-    dbprint ("P2M_FLL_ENTRIES:   %d\n", P2M_FLL_ENTRIES  );
-    dbprint ("P2M_FL_ENTRIES:    %d\n", P2M_FL_ENTRIES   );
-    dbprint ("P2M_GUEST_FL_SIZE: %d\n", P2M_GUEST_FL_SIZE);
-    dbprint ("P2M_TOOLS_FL_SIZE: %d\n", P2M_TOOLS_FL_SIZE);
+    dbprint ("Guest memory (bytes): 0x%x\n", GUEST_MEM_BYTES);
+    dbprint ("Max PTEs:          0x%x\n", GUEST_MAX_PTES);
+    dbprint ("Max PTE size (bytes): 0x%x\n", GUEST_MAX_PTES * 4);
+    dbprint ("Max PDE/PTE size    : 0x%x\n", GUEST_MAX_P2M_SIZE);
+
+    dbprint ("GW (guest width):  0x%x\n", GW               );
+    dbprint ("P2M_SIZE:          0x%x\n", P2M_SIZE         );
+    dbprint ("XC_PAGE_SIZE:      0x%x\n", XC_PAGE_SIZE     );
+    dbprint ("FPP:               0x%x\n", FPP              );
+    dbprint ("P2M_FLL_ENTRIES:   0x%x\n", P2M_FLL_ENTRIES  );
+    dbprint ("P2M_FL_ENTRIES:    0x%x\n", P2M_FL_ENTRIES   );
+    dbprint ("P2M_GUEST_FL_SIZE: 0x%x\n", P2M_GUEST_FL_SIZE);
+    dbprint ("P2M_TOOLS_FL_SIZE: 0x%x\n", P2M_TOOLS_FL_SIZE);
+
+
+    if (pfn >= P2M_SIZE) {
+        errprint("Requested PFN 0x%x exceeds maximum possible P2M size 0x%llx\n",
+                 pfn, P2M_SIZE);
+        goto _done;
+    } // if
 
     // init live_pfn_to_mfn_table
     live_shinfo =
@@ -1019,14 +1050,25 @@ addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
     // todo: canonicalize PFN to MFN table frame-number list
 
     xen_get_instance(vmi)->pfn_to_mfn_table = p2m;
-    ret = p2m[pfn]; // fails (pfn too big)
+    mfn = p2m[pfn]; // fails (pfn too big)
 
 _done:
     if (live_shinfo)              xen_release_memory (live_shinfo,              XC_PAGE_SIZE);
     if (live_p2m_frame_list_list) xen_release_memory (live_p2m_frame_list_list, XC_PAGE_SIZE);
     if (live_p2m_frame_list)      xen_release_memory (live_p2m_frame_list,      XC_PAGE_SIZE);
     if (live_p2m)                 xen_release_memory (live_p2m,                 P2M_GUEST_FL_SIZE);
-    return ret;
+
+    if (!mfn) { // error - mapping failed so destroy allocated memory too
+        if (p2m_frame_list_list) free (p2m_frame_list_list);
+        if (p2m_frame_list)      free (p2m_frame_list);
+        if (xen_get_instance(vmi)->pfn_to_mfn_table) {
+            free (xen_get_instance(vmi)->pfn_to_mfn_table);
+            xen_get_instance(vmi)->pfn_to_mfn_table = 0;
+        }
+        if (p2m)                 free (p2m);
+    } // if
+
+    return mfn;
 } // xen_pfn_to_mfn
 
 void *xen_read_page (vmi_instance_t vmi, addr_t page)
