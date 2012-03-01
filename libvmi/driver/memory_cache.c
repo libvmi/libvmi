@@ -107,13 +107,22 @@ static void *validate_and_return_data (vmi_instance_t vmi, memory_cache_entry_t 
 
 static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
+/*
+    // sanity check -- is this legit?
+    if (paddr + length >= vmi->size) {
+        errprint ("--requesting PA [0x%llx] beyond memsize [0x%llx]\n",
+                  paddr + length, vmi->size);
+        return 0;
+    }
+*/
     memory_cache_entry_t entry =
         (memory_cache_entry_t) safe_malloc(sizeof(struct memory_cache_entry));
-    entry->paddr = paddr;
-    entry->length = length;
+
+    entry->paddr        = paddr;
+    entry->length       = length;
     entry->last_updated = time(NULL);
-    entry->last_used = entry->last_updated;
-    entry->data = get_memory_data(vmi, paddr, length);
+    entry->last_used    = entry->last_updated;
+    entry->data         = get_memory_data(vmi, paddr, length);
 
     if (vmi->memory_cache_size >= vmi->memory_cache_size_max){
         clean_cache(vmi);
@@ -162,6 +171,11 @@ void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr)
     else{
         dbprint("--MEMORY cache set 0x%llx\n", paddr);
         entry = create_new_entry(vmi, paddr, vmi->page_size);
+        if (!entry) {
+            errprint ("create_new_entry failed\n");
+            return 0;
+        }
+
         g_hash_table_insert(vmi->memory_cache, key, entry);
 
         gint64 *key2 = safe_malloc(sizeof(gint64));
