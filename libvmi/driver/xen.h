@@ -29,11 +29,10 @@
 
 #ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
     typedef xc_interface* libvmi_xenctrl_handle_t;
-#   define XENCTRL_HANDLE_INVALID NULL
+    #define XENCTRL_HANDLE_INVALID NULL
 #else
     typedef int libvmi_xenctrl_handle_t;
-//#   define XENCTRL_HANDLE (int)
-#   define XENCTRL_HANDLE_INVALID (-1)
+    #define XENCTRL_HANDLE_INVALID (-1)
 #endif
 
 typedef struct xen_instance{
