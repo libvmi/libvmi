@@ -71,10 +71,10 @@ void *xen_get_memory_mfn (vmi_instance_t vmi, addr_t mfn, int prot)
                                          xen_get_domainid(vmi),
                                          XC_PAGE_SIZE,
                                          prot,
-                                         mfn);
+                                         (unsigned long) mfn);
 
     if (MAP_FAILED == memory || NULL == memory) {
-        dbprint("--xen_get_memory_mfn failed on mfn=0x%.16llx\n", mfn);
+        dbprint("--xen_get_memory_mfn failed on mfn=0x%llx\n", mfn);
         return NULL;
     }
     else {
