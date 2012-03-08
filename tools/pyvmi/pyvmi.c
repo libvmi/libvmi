@@ -6,7 +6,7 @@
  * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  *
- * Author: Bryan D. Payne (bpayne@sandia.gov)
+ * Author: Bryan D. Payne (bdpayne@acm.org)
  *
  * This file is part of LibVMI.
  *
@@ -159,6 +159,23 @@ pyvmi_translate_ksym2v(PyObject *self, PyObject *args) {
     }
 
     return Py_BuildValue("K", vaddr);
+}
+
+static PyObject *
+pyvmi_pid_to_dtb(PyObject *self, PyObject *args) {
+    int pid;
+
+    if (!PyArg_ParseTuple(args, "i", &pid)){
+        return NULL;
+    }
+
+    addr_t dtb = vmi_pid_to_dtb(vmi(self), pid);
+    if (!dtb){
+        PyErr_SetString(PyExc_ValueError, "DTB lookup failed");
+        return NULL;
+    }
+
+    return Py_BuildValue("K", dtb);
 }
 
 //-------------------------------------------------------------------
@@ -1101,6 +1118,75 @@ pyvmi_get_vcpureg(PyObject *self, PyObject *args)
 }
 
 static PyObject *
+pyvmi_get_name(PyObject *self, PyObject *args) {
+    char *name = NULL;
+
+    if (!PyArg_ParseTuple(args, "")){
+        return NULL;
+    }
+
+    name = vmi_get_name(vmi(self));  //TODO how do we free the memory for name ???
+    return Py_BuildValue("s", name);
+}
+
+static PyObject *
+pyvmi_get_vmid(PyObject *self, PyObject *args) {
+    unsigned long vmid = 0;
+
+    if (!PyArg_ParseTuple(args, "")){
+        return NULL;
+    }
+
+    vmid = vmi_get_vmid(vmi(self));
+    return Py_BuildValue("I", vmid);
+}
+
+static PyObject *
+pyvmi_get_access_mode(PyObject *self, PyObject *args) {
+    uint32_t mode = 0;
+
+    if (!PyArg_ParseTuple(args, "")){
+        return NULL;
+    }
+
+    mode = vmi_get_access_mode(vmi(self));
+
+    PyObject *rtnval = NULL;
+    if (VMI_AUTO == mode){
+        rtnval = Py_BuildValue("s", "auto");
+    }
+    else if (VMI_XEN == mode){
+        rtnval = Py_BuildValue("s", "xen");
+    }
+    else if (VMI_KVM == mode){
+        rtnval = Py_BuildValue("s", "kvm");
+    }
+    else if (VMI_FILE == mode){
+        rtnval = Py_BuildValue("s", "file");
+    }
+    else{
+        rtnval = Py_BuildValue("s", "unknown");
+    }
+    return rtnval;
+}
+
+// Just implementing get_winver_str and not get_winver as I think this
+// makes the most sense for python
+static PyObject *
+pyvmi_get_winver_str(PyObject *self, PyObject *args)
+{
+    const char *version = NULL;
+
+    if (!PyArg_ParseTuple(args, "")){
+        return NULL;
+    }
+
+    version = vmi_get_winver_str(vmi(self));
+    PyObject *rtnval = Py_BuildValue("s", version);
+    return rtnval;
+}
+
+static PyObject *
 pyvmi_get_memsize(PyObject *self, PyObject *args) {
     unsigned long size = 0;
 
@@ -1238,6 +1324,70 @@ pyvmi_resume_vm(PyObject *self, PyObject *args) {
     return Py_BuildValue(""); // return None
 }
 
+static PyObject *
+pyvmi_v2pcache_flush(PyObject *self, PyObject *args)
+{
+    vmi_v2pcache_flush(vmi(self));
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_v2pcache_add(PyObject *self, PyObject *args)
+{
+    addr_t va;
+    addr_t dtb;
+    addr_t pa;
+
+    if (!PyArg_ParseTuple(args, "KKK", &va, &dtb, &pa)){
+        return NULL;
+    }
+
+    vmi_v2pcache_add(vmi(self), va, dtb, pa);
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_symcache_flush(PyObject *self, PyObject *args)
+{
+    vmi_symcache_flush(vmi(self));
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_symcache_add(PyObject *self, PyObject *args)
+{
+    char *sym;
+    addr_t va;
+
+    if (!PyArg_ParseTuple(args, "sK", &sym, &va)){
+        return NULL;
+    }
+
+    vmi_symcache_add(vmi(self), sym, va);
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_pidcache_flush(PyObject *self, PyObject *args)
+{
+    vmi_pidcache_flush(vmi(self));
+    return Py_BuildValue(""); // return None
+}
+
+static PyObject *
+pyvmi_pidcache_add(PyObject *self, PyObject *args)
+{
+    int pid;
+    addr_t dtb;
+
+    if (!PyArg_ParseTuple(args, "iK", &pid, &dtb)){
+        return NULL;
+    }
+
+    vmi_pidcache_add(vmi(self), pid, dtb);
+    return Py_BuildValue(""); // return None
+}
+
 //-------------------------------------------------------------------
 // Python interface
 
@@ -1251,6 +1401,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Translate user virtual address to physical address"},
     {"translate_ksym2v", pyvmi_translate_ksym2v, METH_VARARGS,
      "Translate kernel symbol to virtual address"},
+    {"pid_to_dtb", pyvmi_pid_to_dtb, METH_VARARGS,
+     "Get directory table base value from process id"},
     {"read_pa", pyvmi_read_pa, METH_VARARGS,
      "Read physical memory"},
     {"read_va", pyvmi_read_va, METH_VARARGS,
@@ -1325,6 +1477,14 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Write 8 bytes using a kernel symbol"},
     {"get_vcpureg", pyvmi_get_vcpureg, METH_VARARGS,
      "Get the current value of a vcpu register"},
+    {"get_name", pyvmi_get_name, METH_VARARGS,
+     "Get the name of the VM, or the filename"},
+    {"get_vmid", pyvmi_get_vmid, METH_VARARGS,
+     "Get the VM identifier"},
+    {"get_access_mode", pyvmi_get_access_mode, METH_VARARGS,
+     "Get the resource being used to access memory (e.g., xen, kvm, or file)"},
+    {"get_winver_str", pyvmi_get_winver_str, METH_VARARGS,
+     "Get a string representation of the windows version running in the VM"},
     {"get_memsize", pyvmi_get_memsize, METH_VARARGS,
      "Get the memory size (in bytes) of this memory"},
     {"get_offset", pyvmi_get_offset, METH_VARARGS,
@@ -1345,6 +1505,20 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Pauses the VM to allow for consistent analysis"},
     {"resume_vm", pyvmi_resume_vm, METH_VARARGS,
      "Resumes the VM, called after pause_vm"},
+
+    {"v2pcache_flush", pyvmi_v2pcache_flush, METH_VARARGS,
+     "Remove all entries from the virtual to physical cache"},
+    {"v2pcache_add", pyvmi_v2pcache_add, METH_VARARGS,
+     "Add an entry to the virtual to physical cache"},
+    {"symcache_flush", pyvmi_symcache_flush, METH_VARARGS,
+     "Remove all entries from the symbol to virtual cache"},
+    {"symcache_add", pyvmi_symcache_add, METH_VARARGS,
+     "Add an entry to the symbol to virtual cache"},
+    {"pidcache_flush", pyvmi_pidcache_flush, METH_VARARGS,
+     "Remove all entries from the pid to dtb cache"},
+    {"pidcache_add", pyvmi_pidcache_add, METH_VARARGS,
+     "Add an entry to the pid to dtb cache"},
+
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
