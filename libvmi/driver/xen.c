@@ -891,6 +891,11 @@ addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
     }
 
     // PV code
+    else{
+        return pfn;
+    }
+
+    // PV code -- old, seems to not be needed any more
 
     shared_info_t *live_shinfo     = 0;
     uint32_t nr_pfns = 0;
