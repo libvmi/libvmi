@@ -134,15 +134,12 @@ void memory_cache_init (
     vmi->memory_cache_lru = NULL;
     vmi->memory_cache_age = age_limit;
     vmi->memory_cache_size = 0;
-#if ENABLE_PAGE_CACHE == 1
     vmi->memory_cache_size_max = MAX_PAGE_CACHE_SIZE;
-#else
-    vmi->memory_cache_size_max = 0;
-#endif
     get_data_callback = get_data;
 	release_data_callback = release_data;
 }
 
+#if ENABLE_PAGE_CACHE == 1
 void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr)
 {
     memory_cache_entry_t entry = NULL;
@@ -172,6 +169,12 @@ void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr)
         return entry->data;
     }
 }
+#else
+void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr)
+{
+    return get_memory_data(vmi, paddr, vmi->page_size);
+}
+#endif
 
 void memory_cache_destroy (vmi_instance_t vmi)
 {
