@@ -1,5 +1,14 @@
 LibVMI Authors
 --------------
 
-Lead Developer:
-  Bryan D. Payne (bpayne@sandia.gov)
+Primary Developers:
+  Bryan D. Payne (bdpayne@acm.org)
+  Matt Leinhos (mleinho@sandia.gov)
+
+Other Contributors:
+  Stephan Creutz
+  Brendan Dolan-Gavitt (Geogia Tech)
+  Hajime Inoue (ATC-NY)
+  Tomas Kouba
+  Steve Maresca (Zentific)
+  Chad Spensky (MIT Lincoln Labs)
