@@ -6,7 +6,7 @@
  * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  *
- * Author: Bryan D. Payne (bpayne@sandia.gov)
+ * Author: Bryan D. Payne (bdpayne@acm.org)
  *
  * This file is part of LibVMI.
  *
@@ -397,7 +397,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
     memset(*vmi, 0, sizeof(struct vmi_instance));
 
     /* initialize instance struct to default values */
-    dbprint("LibVMI Version 0.6\n");  //TODO change this with each release
+    dbprint("LibVMI Version 0.8\n");  //TODO change this with each release
 
     /* save the flags and init mode */
     (*vmi)->flags = flags;

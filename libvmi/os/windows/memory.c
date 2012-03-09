@@ -3,7 +3,7 @@
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright (C) 2011 Sandia National Laboratories
- * Author: Bryan D. Payne (bpayne@sandia.gov)
+ * Author: Bryan D. Payne (bdpayne@acm.org)
  *
  * This file is part of LibVMI.
  *

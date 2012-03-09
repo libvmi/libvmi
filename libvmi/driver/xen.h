@@ -6,7 +6,7 @@
  * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  *
- * Author: Bryan D. Payne (bpayne@sandia.gov)
+ * Author: Bryan D. Payne (bdpayne@acm.org)
  *
  * This file is part of LibVMI.
  *
@@ -43,8 +43,8 @@ typedef struct xen_instance{
     xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
     uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
     int p2m_size;           /**< max size of phys to machine table */
-    xen_pfn_t *pfn_to_mfn_table;
-    unsigned long nr_pfns;
+    //xen_pfn_t *pfn_to_mfn_table;
+    //unsigned long nr_pfns;
     char *name;
 } xen_instance_t;
 

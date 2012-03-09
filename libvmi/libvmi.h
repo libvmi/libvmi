@@ -6,7 +6,7 @@
  * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
  * retains certain rights in this software.
  *
- * Author: Bryan D. Payne (bpayne@sandia.gov)
+ * Author: Bryan D. Payne (bdpayne@acm.org)
  *
  * This file is part of LibVMI.
  *
@@ -47,7 +47,7 @@
 #include <errno.h>
 
 /* uncomment this and recompile to enable debug output */
-#define VMI_DEBUG
+//#define VMI_DEBUG
 
 /* enable or disable the address cache (v2p, pid, etc) */
 #define ENABLE_ADDRESS_CACHE 1
