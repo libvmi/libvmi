@@ -107,9 +107,8 @@ status_t xen_put_memory (vmi_instance_t vmi, addr_t paddr, uint32_t count, void 
         /* access the memory */
         phys_address = paddr + buf_offset;
         pfn = phys_address >> vmi->page_shift;
-        mfn = xen_pfn_to_mfn(vmi, pfn);
         offset = (vmi->page_size - 1) & phys_address;
-        memory = xen_get_memory_mfn(vmi, mfn, PROT_WRITE);
+        memory = xen_get_memory_mfn(vmi, pfn, PROT_WRITE);
         if (NULL == memory){
             return VMI_FAILURE;
         }
@@ -879,19 +878,6 @@ status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width)
     return VMI_SUCCESS;
 }
 
-
-addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
-{
-
-    // Works for HVM (tested)
-
-    // Works for PV (the result of vmi_pagetable_lookup matches that of
-    // xc_translate_foreign_address, given the same VA)
-
-    return pfn;
-
-} // xen_pfn_to_mfn
-
 void *xen_read_page (vmi_instance_t vmi, addr_t page)
 {
     addr_t paddr = page << vmi->page_shift;
@@ -948,7 +934,7 @@ void xen_set_domainname (vmi_instance_t vmi, char *name) { return; }
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_FAILURE; }
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
 status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width) {return VMI_FAILURE;}
-unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }
+//unsigned long xen_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }
 void *xen_read_page (vmi_instance_t vmi, unsigned long page) { return NULL; }
 status_t xen_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length) { return VMI_FAILURE; }
 int xen_is_pv (vmi_instance_t vmi) { return 0; }

@@ -156,7 +156,7 @@ void v2p_cache_flush (vmi_instance_t vmi);
 /*-----------------------------------------
  * memory.c
  */
-void *vmi_read_page (vmi_instance_t vmi, addr_t frame_num, int is_pfn);
+void *vmi_read_page (vmi_instance_t vmi, addr_t frame_num);
 
 /*-----------------------------------------
  * os/linux/...
@@ -181,12 +181,14 @@ status_t validate_pe_image (const uint8_t * const image, size_t len);
 /*-----------------------------------------
  * read.c
  */
+/*
 status_t vmi_read_8_ma (vmi_instance_t vmi, addr_t maddr, uint8_t *value);
 status_t vmi_read_16_ma (vmi_instance_t vmi, addr_t maddr, uint16_t *value);
 status_t vmi_read_32_ma (vmi_instance_t vmi, addr_t maddr, uint32_t *value);
 status_t vmi_read_64_ma (vmi_instance_t vmi, addr_t maddr, uint64_t *value);
 status_t vmi_read_addr_ma (vmi_instance_t vmi, addr_t maddr, addr_t *value);
 char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr);
+*/
 
 /*-----------------------------------------
  * strmatch.c

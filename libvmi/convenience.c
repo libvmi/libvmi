@@ -91,9 +91,9 @@ addr_t p2m (vmi_instance_t vmi, addr_t paddr)
 
     addr_t pfn = paddr >> vmi->page_shift;
     addr_t offset = (vmi->page_size - 1) & paddr;
-    addr_t mfn = driver_pfn_to_mfn(vmi, pfn);
+//    addr_t mfn = driver_pfn_to_mfn(vmi, pfn);
 
-    maddr = mfn << vmi->page_shift;
+    maddr = pfn << vmi->page_shift;
     maddr |= offset;
     return maddr;
 }

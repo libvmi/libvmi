@@ -56,7 +56,7 @@ uint64_t get_pml4e (vmi_instance_t vmi, addr_t vaddr, reg_t cr3)
     uint64_t value = 0;
     addr_t pml4e_address = get_bits_51to12(cr3) | get_pml4_index(vaddr);
     dbprint("--PTLookup pml4e_address = 0x%.16llx\n", pml4e_address);
-    vmi_read_64_ma(vmi, pml4e_address, &value);
+    vmi_read_64_pa(vmi, pml4e_address, &value);
     return value;
 }
 
@@ -74,7 +74,7 @@ uint64_t get_pdpi (vmi_instance_t instance, uint32_t vaddr, uint32_t cr3)
     uint64_t value;
     uint32_t pdpi_entry = get_pdptb(cr3) + pdpi_index(vaddr);
     dbprint("--PTLookup: pdpi_entry = 0x%.8x\n", pdpi_entry);
-    vmi_read_64_ma(instance, pdpi_entry, &value);
+    vmi_read_64_pa(instance, pdpi_entry, &value);
     return value;
 }
 
@@ -115,7 +115,7 @@ uint32_t get_pgd_nopae (vmi_instance_t instance, uint32_t vaddr, uint32_t pdpe)
     uint32_t value;
     uint32_t pgd_entry = pdba_base_nopae(pdpe) + pgd_index(instance, vaddr);
     dbprint("--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
-    vmi_read_32_ma(instance, pgd_entry, &value);
+    vmi_read_32_pa(instance, pgd_entry, &value);
     return value;
 }
 
@@ -124,7 +124,7 @@ uint64_t get_pgd_pae (vmi_instance_t instance, uint32_t vaddr, uint64_t pdpe)
     uint64_t value;
     uint32_t pgd_entry = pdba_base_pae(pdpe) + pgd_index(instance, vaddr);
     dbprint("--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
-    vmi_read_64_ma(instance, pgd_entry, &value);
+    vmi_read_64_pa(instance, pgd_entry, &value);
     return value;
 }
 
@@ -164,7 +164,7 @@ uint32_t get_pte_nopae (vmi_instance_t instance, uint32_t vaddr, uint32_t pgd){
     uint32_t value;
     uint32_t pte_entry = ptba_base_nopae(pgd) + pte_index(instance, vaddr);
     dbprint("--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
-    vmi_read_32_ma(instance, pte_entry, &value);
+    vmi_read_32_pa(instance, pte_entry, &value);
     return value;
 }
 
@@ -172,7 +172,7 @@ uint64_t get_pte_pae (vmi_instance_t instance, uint32_t vaddr, uint64_t pgd){
     uint64_t value;
     uint32_t pte_entry = ptba_base_pae(pgd) + pte_index(instance, vaddr);
     dbprint("--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
-    vmi_read_64_ma(instance, pte_entry, &value);
+    vmi_read_64_pa(instance, pte_entry, &value);
     return value;
 }
 
@@ -546,20 +546,12 @@ addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid)
     return dtb;
 }
 
-void *vmi_read_page (vmi_instance_t vmi, addr_t frame_num, int is_pfn)
+void *vmi_read_page (vmi_instance_t vmi, addr_t frame_num)
 {
-    addr_t mfn;
-    if (is_pfn){
-        mfn = driver_pfn_to_mfn(vmi, frame_num);
-    }
-    else{
-        mfn = frame_num;
-    }
-
-    if (!mfn){
+    if (!frame_num) {
         return NULL;
     }
-    else{
-        return driver_read_page(vmi, mfn);
+    else {
+        return driver_read_page(vmi, frame_num);
     }
 }

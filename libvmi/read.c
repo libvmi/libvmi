@@ -34,7 +34,7 @@
 
 ///////////////////////////////////////////////////////////
 // Classic read functions for access to memory
-static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count, int is_p)
+static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
 {
     //TODO not sure how to best handle this with respect to page size.  Is this hypervisor dependent?
     //  For example, the pfn for a given paddr should vary based on the size of the page where the
@@ -54,7 +54,7 @@ static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t 
         phys_address = paddr + buf_offset;
         pfn = phys_address >> vmi->page_shift;
         offset = (vmi->page_size - 1) & phys_address;
-        memory = vmi_read_page(vmi, pfn, is_p);
+        memory = vmi_read_page(vmi, pfn);
         if (NULL == memory){
             return buf_offset;
         }
@@ -78,14 +78,9 @@ static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t 
     return buf_offset;
 }
 
-static size_t vmi_read_ma (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
-{
-    return vmi_read_mpa(vmi, paddr, buf, count, 0);
-}
-
 size_t vmi_read_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
 {
-    return vmi_read_mpa(vmi, paddr, buf, count, 1);
+    return vmi_read_mpa(vmi, paddr, buf, count);
 }
 
 size_t vmi_read_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t count)
@@ -117,7 +112,7 @@ size_t vmi_read_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t
         /* access the memory */
         pfn = paddr >> vmi->page_shift;
         offset = (vmi->page_size - 1) & paddr;
-        memory = vmi_read_page(vmi, pfn, driver_is_pv(vmi));
+        memory = vmi_read_page(vmi, pfn);
         if (NULL == memory){
             return buf_offset;
         }
@@ -154,6 +149,7 @@ size_t vmi_read_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count)
 ///////////////////////////////////////////////////////////
 // Easy access to machine memory
 
+/*
 static status_t vmi_read_X_ma (vmi_instance_t vmi, addr_t maddr, void *value, int size)
 {
     size_t len_read = vmi_read_ma(vmi, maddr, value, size);
@@ -197,7 +193,8 @@ status_t vmi_read_addr_ma (vmi_instance_t vmi, addr_t maddr, addr_t *value)
         return ret;
     }
 }
-
+*/
+/*
 char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr)
 {
     char *rtnval = NULL;
@@ -230,6 +227,7 @@ exit:
     free(buf);
     return rtnval;
 }
+*/
 
 ///////////////////////////////////////////////////////////
 // Easy access to physical memory
@@ -279,7 +277,35 @@ status_t vmi_read_addr_pa (vmi_instance_t vmi, addr_t paddr, addr_t *value)
 
 char *vmi_read_str_pa (vmi_instance_t vmi, addr_t paddr)
 {
-    return vmi_read_str_ma(vmi, p2m(vmi, paddr));
+    char *rtnval = NULL;
+    size_t chunk_size = vmi->page_size - ((vmi->page_size - 1) & paddr);
+    char *buf = (char *) safe_malloc(chunk_size);
+
+    // read in chunk of data
+    if (chunk_size != vmi_read_pa(vmi, paddr, buf, chunk_size)){
+        goto exit;
+    }
+
+    // look for \0 character, expand as needed
+    size_t len = strnlen(buf, chunk_size);
+    size_t buf_size = chunk_size;
+    while (len == buf_size){
+        size_t offset = buf_size;
+        buf_size += chunk_size;
+        buf = realloc(buf, buf_size);
+        if (chunk_size != vmi_read_pa(vmi, paddr + offset, buf + offset, chunk_size)){
+            goto exit;
+        }
+        len = strnlen(buf, buf_size);
+    }
+
+    rtnval = (char *) safe_malloc(len + 1);
+    memcpy(rtnval, buf, len);
+    rtnval[len] = '\0';
+
+exit:
+    free(buf);
+    return rtnval;
 }
 
 ///////////////////////////////////////////////////////////
@@ -343,12 +369,7 @@ char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
         return 0;
     } // if
 
-    if (!driver_is_pv(vmi)){
-        return vmi_read_str_pa(vmi, paddr);
-    }
-    else{
-        return vmi_read_str_ma(vmi, paddr);
-    }
+    return vmi_read_str_pa(vmi, paddr);
 }
 
 
