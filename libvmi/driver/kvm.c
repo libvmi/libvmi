@@ -594,11 +594,6 @@ status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, uns
     return ret;
 }
 
-addr_t kvm_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
-{
-    return pfn;
-}
-
 void *kvm_read_page (vmi_instance_t vmi, addr_t page)
 {
     addr_t paddr = page << vmi->page_shift;
@@ -665,7 +660,6 @@ status_t kvm_get_name (vmi_instance_t vmi, char **name) { return VMI_FAILURE; }
 void kvm_set_name (vmi_instance_t vmi, char *name) { return; }
 status_t kvm_get_memsize (vmi_instance_t vmi, unsigned long *size) { return VMI_FAILURE; }
 status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
-unsigned long kvm_pfn_to_mfn (vmi_instance_t vmi, unsigned long pfn) { return 0; }
 void *kvm_read_page (vmi_instance_t vmi, unsigned long page) { return NULL; }
 status_t kvm_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length) { return VMI_FAILURE; }
 int kvm_is_pv (vmi_instance_t vmi) { return 0; }

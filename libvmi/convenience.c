@@ -85,19 +85,6 @@ int vmi_get_bit (reg_t reg, int bit)
     }
 }
 
-addr_t p2m (vmi_instance_t vmi, addr_t paddr)
-{
-    addr_t maddr = 0;
-
-    addr_t pfn = paddr >> vmi->page_shift;
-    addr_t offset = (vmi->page_size - 1) & paddr;
-//    addr_t mfn = driver_pfn_to_mfn(vmi, pfn);
-
-    maddr = pfn << vmi->page_shift;
-    maddr |= offset;
-    return maddr;
-}
-
 addr_t aligned_addr (vmi_instance_t vmi, addr_t addr)
 {
     addr_t mask = ~((addr_t)vmi->page_size-1);

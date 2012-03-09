@@ -42,9 +42,6 @@ typedef struct xen_instance{
     int hvm;                /**< nonzero if HVM memory image */
     xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
     uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
-    int p2m_size;           /**< max size of phys to machine table */
-    //xen_pfn_t *pfn_to_mfn_table;
-    //unsigned long nr_pfns;
     char *name;
 } xen_instance_t;
 
@@ -65,7 +62,6 @@ void xen_set_domainname (vmi_instance_t vmi, char *name);
 status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size);
 status_t xen_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);
 status_t xen_get_address_width (vmi_instance_t vmi, uint8_t * width_in_bytes);
-addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn);
 void *xen_read_page (vmi_instance_t vmi, addr_t page);
 status_t xen_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length);
 int xen_is_pv (vmi_instance_t vmi);

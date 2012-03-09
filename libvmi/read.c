@@ -34,7 +34,9 @@
 
 ///////////////////////////////////////////////////////////
 // Classic read functions for access to memory
-static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
+
+// Reads memory at a guest's physical address
+size_t vmi_read_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
 {
     //TODO not sure how to best handle this with respect to page size.  Is this hypervisor dependent?
     //  For example, the pfn for a given paddr should vary based on the size of the page where the
@@ -76,11 +78,6 @@ static size_t vmi_read_mpa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t 
     }
 
     return buf_offset;
-}
-
-size_t vmi_read_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
-{
-    return vmi_read_mpa(vmi, paddr, buf, count);
 }
 
 size_t vmi_read_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t count)
@@ -145,89 +142,6 @@ size_t vmi_read_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count)
     }
     return vmi_read_va(vmi, vaddr, 0, buf, count);
 }
-
-///////////////////////////////////////////////////////////
-// Easy access to machine memory
-
-/*
-static status_t vmi_read_X_ma (vmi_instance_t vmi, addr_t maddr, void *value, int size)
-{
-    size_t len_read = vmi_read_ma(vmi, maddr, value, size);
-    if (len_read == size){
-        return VMI_SUCCESS;
-    }
-    else{
-        return VMI_FAILURE;
-    }
-}
-
-status_t vmi_read_8_ma (vmi_instance_t vmi, addr_t maddr, uint8_t *value)
-{
-    return vmi_read_X_ma(vmi, maddr, value, 1);
-}
-
-status_t vmi_read_16_ma (vmi_instance_t vmi, addr_t maddr, uint16_t *value)
-{
-    return vmi_read_X_ma(vmi, maddr, value, 2);
-}
-
-status_t vmi_read_32_ma (vmi_instance_t vmi, addr_t maddr, uint32_t *value)
-{
-    return vmi_read_X_ma(vmi, maddr, value, 4);
-}
-
-status_t vmi_read_64_ma (vmi_instance_t vmi, addr_t maddr, uint64_t *value)
-{
-    return vmi_read_X_ma(vmi, maddr, value, 8);
-}
-
-status_t vmi_read_addr_ma (vmi_instance_t vmi, addr_t maddr, addr_t *value)
-{
-    if (vmi->page_mode == VMI_PM_IA32E){
-        return vmi_read_64_ma(vmi, maddr, value);
-    }
-    else{
-        uint32_t tmp = 0;
-        status_t ret = vmi_read_32_ma(vmi, maddr, &tmp);
-        *value = (uint64_t) tmp;
-        return ret;
-    }
-}
-*/
-/*
-char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr)
-{
-    char *rtnval = NULL;
-    size_t chunk_size = vmi->page_size - ((vmi->page_size - 1) & maddr);
-    char *buf = (char *) safe_malloc(chunk_size);
-
-    // read in chunk of data
-    if (chunk_size != vmi_read_ma(vmi, maddr, buf, chunk_size)){
-        goto exit;
-    }
-
-    // look for \0 character, expand as needed
-    size_t len = strnlen(buf, chunk_size);
-    size_t buf_size = chunk_size;
-    while (len == buf_size){
-        size_t offset = buf_size;
-        buf_size += chunk_size;
-        buf = realloc(buf, buf_size);
-        if (chunk_size != vmi_read_ma(vmi, maddr + offset, buf + offset, chunk_size)){
-            goto exit;
-        }
-        len = strnlen(buf, buf_size);
-    }
-
-    rtnval = (char *) safe_malloc(len + 1);
-    memcpy(rtnval, buf, len);
-    rtnval[len] = '\0';
-
-exit:
-    free(buf);
-    return rtnval;
-}
-*/
 
 ///////////////////////////////////////////////////////////
 // Easy access to physical memory

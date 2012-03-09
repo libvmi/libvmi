@@ -42,7 +42,6 @@ struct driver_instance{
     status_t (*get_memsize_ptr)(vmi_instance_t, unsigned long *);
     status_t (*get_vcpureg_ptr)(vmi_instance_t, reg_t *, registers_t, unsigned long);
     status_t (*get_address_width_ptr)(vmi_instance_t vmi, uint8_t * width);
-//    addr_t (*pfn_to_mfn_ptr)(vmi_instance_t, addr_t);
     void *(*read_page_ptr)(vmi_instance_t, addr_t);
     status_t (*write_ptr)(vmi_instance_t, addr_t, void *, uint32_t);
     int (*is_pv_ptr)(vmi_instance_t);
@@ -69,7 +68,6 @@ static void driver_xen_setup (vmi_instance_t vmi)
     instance->get_memsize_ptr = &xen_get_memsize;
     instance->get_vcpureg_ptr = &xen_get_vcpureg;
     instance->get_address_width_ptr = &xen_get_address_width;
-//    instance->pfn_to_mfn_ptr = &xen_pfn_to_mfn;
     instance->read_page_ptr = &xen_read_page;
     instance->write_ptr = &xen_write;
     instance->is_pv_ptr = &xen_is_pv;
@@ -90,7 +88,6 @@ static void driver_kvm_setup (vmi_instance_t vmi)
     instance->get_memsize_ptr = &kvm_get_memsize;
     instance->get_vcpureg_ptr = &kvm_get_vcpureg;
     instance->get_address_width_ptr = NULL;
-//    instance->pfn_to_mfn_ptr = &kvm_pfn_to_mfn;
     instance->read_page_ptr = &kvm_read_page;
     instance->write_ptr = &kvm_write;
     instance->is_pv_ptr = &kvm_is_pv;
@@ -111,7 +108,6 @@ static void driver_file_setup (vmi_instance_t vmi)
     instance->get_memsize_ptr = &file_get_memsize;
     instance->get_address_width_ptr = NULL;
     instance->get_vcpureg_ptr = &file_get_vcpureg;
-//    instance->pfn_to_mfn_ptr = &file_pfn_to_mfn;
     instance->read_page_ptr = &file_read_page;
     instance->write_ptr = &file_write;
     instance->is_pv_ptr = &file_is_pv;
@@ -132,7 +128,6 @@ static void driver_null_setup (vmi_instance_t vmi)
     instance->get_memsize_ptr = NULL;
     instance->get_address_width_ptr = NULL;
     instance->get_vcpureg_ptr = NULL;
-//    instance->pfn_to_mfn_ptr = NULL;
     instance->read_page_ptr = NULL;
     instance->is_pv_ptr = NULL;
     instance->pause_vm_ptr = NULL;
@@ -320,19 +315,6 @@ status_t driver_get_address_width (vmi_instance_t vmi, uint8_t * width)
         return VMI_FAILURE;
     }
 }
-/*
-addr_t driver_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
-{
-    driver_instance_t ptrs = driver_get_instance(vmi);
-    if (NULL != ptrs && NULL != ptrs->pfn_to_mfn_ptr){
-        return ptrs->pfn_to_mfn_ptr(vmi, pfn);
-    }
-    else{
-        dbprint("WARNING: driver_pfn_to_mfn function not implemented.\n");
-        return 0;
-    }
-}
-*/
 
 void *driver_read_page (vmi_instance_t vmi, addr_t page)
 {

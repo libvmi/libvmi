@@ -125,7 +125,6 @@ void warnprint (char *format, ...);
 void *safe_malloc_ (size_t size, char const *file, int line);
 unsigned long get_reg32 (reg_t r);
 int vmi_get_bit (reg_t reg, int bit);
-addr_t p2m (vmi_instance_t vmi, addr_t paddr);
 addr_t aligned_addr (vmi_instance_t vmi, addr_t addr);
 int is_addr_aligned (vmi_instance_t vmi, addr_t addr);
 
@@ -177,18 +176,6 @@ addr_t windows_find_cr3 (vmi_instance_t vmi);
 int find_pname_offset (vmi_instance_t vmi, check_magic_func check);
 void find_windows_version (vmi_instance_t vmi, addr_t KdVersionBlock);
 status_t validate_pe_image (const uint8_t * const image, size_t len);
-
-/*-----------------------------------------
- * read.c
- */
-/*
-status_t vmi_read_8_ma (vmi_instance_t vmi, addr_t maddr, uint8_t *value);
-status_t vmi_read_16_ma (vmi_instance_t vmi, addr_t maddr, uint16_t *value);
-status_t vmi_read_32_ma (vmi_instance_t vmi, addr_t maddr, uint32_t *value);
-status_t vmi_read_64_ma (vmi_instance_t vmi, addr_t maddr, uint64_t *value);
-status_t vmi_read_addr_ma (vmi_instance_t vmi, addr_t maddr, addr_t *value);
-char *vmi_read_str_ma (vmi_instance_t vmi, addr_t maddr);
-*/
 
 /*-----------------------------------------
  * strmatch.c
