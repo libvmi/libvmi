@@ -33,6 +33,10 @@
 
 size_t vmi_write_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
 {
+    if (NULL == buf){
+        dbprint("--%s: buf passed as NULL, returning without write\n", __FUNCTION__);
+        return 0;
+    }
     if (VMI_SUCCESS == driver_write(vmi, paddr, buf, count)){
         return count;
     }
@@ -44,14 +48,48 @@ size_t vmi_write_pa (vmi_instance_t vmi, addr_t paddr, void *buf, size_t count)
 size_t vmi_write_va (vmi_instance_t vmi, addr_t vaddr, int pid, void *buf, size_t count)
 {
     addr_t paddr = 0;
-    if (pid){
-        paddr = vmi_translate_uv2p(vmi, vaddr, pid);
-    }
-    else{
-        paddr = vmi_translate_kv2p(vmi, vaddr);
+    addr_t pfn = 0;
+    addr_t offset = 0;
+    size_t buf_offset = 0;
+
+    if (NULL == buf){
+        dbprint("--%s: buf passed as NULL, returning without write\n", __FUNCTION__);
+        return 0;
     }
 
-    return vmi_write_pa(vmi, paddr, buf, count);
+    while (count > 0){
+        size_t write_len = 0;
+        if (pid){
+            paddr = vmi_translate_uv2p(vmi, vaddr + buf_offset, pid);
+        }
+        else{
+            paddr = vmi_translate_kv2p(vmi, vaddr + buf_offset);
+        }
+
+        if (!paddr){
+            return buf_offset;
+        }
+
+        /* determine how much we can write to this page */
+        offset = (vmi->page_size - 1) & paddr;
+        if ((offset + count) > vmi->page_size){
+            write_len = vmi->page_size - offset;
+        }
+        else{
+            write_len = count;
+        }
+
+        /* do the write */
+        if (VMI_FAILURE == driver_write(vmi, paddr, ((char *) buf + (addr_t) buf_offset), write_len)){
+            return buf_offset;
+        }
+
+        /* set variables for next loop */
+        count -= write_len;
+        buf_offset += write_len;
+    }
+
+    return buf_offset;
 }
 
 size_t vmi_write_ksym (vmi_instance_t vmi, char *sym, void *buf, size_t count)
