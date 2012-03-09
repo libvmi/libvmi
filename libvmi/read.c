@@ -399,7 +399,7 @@ status_t vmi_convert_str_encoding (const unicode_string_t * in,
     out->encoding = outencoding;
 
     cd = iconv_open (out->encoding, in->encoding); // outset, inset
-    if (-1 == (int)cd) { // init failure
+    if ((iconv_t)(-1) == cd) { // init failure
         if (EINVAL == errno) {
             dbprint("%s: conversion from '%s' to '%s' not supported\n",
                     __FUNCTION__, in->encoding, out->encoding);
@@ -446,7 +446,7 @@ fail:
     // make failure really obvious
     memset (out, 0, sizeof(*out));
 
-    if (-1 != (int)cd) { // init succeeded
+    if ((iconv_t)(-1) != cd) { // init succeeded
         (void)iconv_close(cd);
     } // if
 
