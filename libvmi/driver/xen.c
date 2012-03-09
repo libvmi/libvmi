@@ -58,16 +58,16 @@ xen_get_xchandle (vmi_instance_t vmi)
 }
 
 //TODO assuming length == page size is safe for now, but isn't the most clean approach
-void *xen_get_memory_mfn (vmi_instance_t vmi, addr_t mfn, int prot)
+void *xen_get_memory_pfn (vmi_instance_t vmi, addr_t pfn, int prot)
 {
     void *memory = xc_map_foreign_range (xen_get_xchandle(vmi),
                                          xen_get_domainid(vmi),
                                          XC_PAGE_SIZE,
                                          prot,
-                                         (unsigned long) mfn);
+                                         (unsigned long) pfn);
 
     if (MAP_FAILED == memory || NULL == memory) {
-        dbprint("--xen_get_memory_mfn failed on mfn=0x%llx\n", mfn);
+        dbprint("--xen_get_memory_pfn failed on pfn=0x%llx\n", pfn);
         return NULL;
     }
 
@@ -80,11 +80,11 @@ void *xen_get_memory_mfn (vmi_instance_t vmi, addr_t mfn, int prot)
     return memory;
 }
 
-void *xen_get_memory (vmi_instance_t vmi, addr_t maddr, uint32_t length)
+void *xen_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
-    addr_t mfn = maddr >> vmi->page_shift;
+    addr_t pfn = paddr >> vmi->page_shift;
 //TODO assuming length == page size is safe for now, but isn't the most clean approach
-    return xen_get_memory_mfn(vmi, mfn, PROT_READ);
+    return xen_get_memory_pfn(vmi, pfn, PROT_READ);
 }
 
 void xen_release_memory (void *memory, size_t length)
@@ -97,7 +97,6 @@ status_t xen_put_memory (vmi_instance_t vmi, addr_t paddr, uint32_t count, void 
     unsigned char *memory = NULL;
     addr_t phys_address = 0;
     addr_t pfn = 0;
-    addr_t mfn = 0;
     addr_t offset = 0;
     size_t buf_offset = 0;
 
@@ -108,7 +107,7 @@ status_t xen_put_memory (vmi_instance_t vmi, addr_t paddr, uint32_t count, void 
         phys_address = paddr + buf_offset;
         pfn = phys_address >> vmi->page_shift;
         offset = (vmi->page_size - 1) & phys_address;
-        memory = xen_get_memory_mfn(vmi, pfn, PROT_WRITE);
+        memory = xen_get_memory_pfn(vmi, pfn, PROT_WRITE);
         if (NULL == memory){
             return VMI_FAILURE;
         }
