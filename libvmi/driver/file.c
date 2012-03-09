@@ -160,6 +160,7 @@ void file_destroy (vmi_instance_t vmi)
         fi->map = 0;
     }
 #endif  // USE_MMAP
+    // fi->fhandle refers to fi->fd; closing both would be an error
     if (fi->fhandle) {
         fclose(fi->fhandle);
         fi->fhandle = 0;
