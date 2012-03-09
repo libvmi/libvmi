@@ -144,6 +144,7 @@ status_t file_init (vmi_instance_t vmi)
 
 #endif  // USE_MMAP
 
+    vmi->hvm = 0;
     return VMI_SUCCESS;
 
 fail:

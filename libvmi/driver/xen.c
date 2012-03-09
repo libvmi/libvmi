@@ -234,7 +234,7 @@ status_t xen_init (vmi_instance_t vmi)
     }
 
     /* determine if target is hvm or pv */
-    xen_get_instance(vmi)->hvm = xen_get_instance(vmi)->info.hvm;
+    vmi->hvm = xen_get_instance(vmi)->hvm = xen_get_instance(vmi)->info.hvm;
 #ifdef VMI_DEBUG
     if (xen_get_instance(vmi)->hvm){
         dbprint("**set hvm to true (HVM).\n");

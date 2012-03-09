@@ -67,6 +67,8 @@ struct vmi_instance{
     reg_t cr3;              /**< value in the CR3 register */
     page_mode_t page_mode;  /**< paging mode in use */
     uint64_t size;          /**< total size of target's memory */
+    int hvm;                /**< nonzero if HVM */
+
     union{
         struct linux_instance{
             int tasks_offset;    /**< task_struct->tasks */

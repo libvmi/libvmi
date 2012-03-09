@@ -107,14 +107,22 @@ static void *validate_and_return_data (vmi_instance_t vmi, memory_cache_entry_t 
 
 static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
-/*
-    // sanity check -- is this legit?
-    if (paddr + length >= vmi->size) {
+
+    // sanity check - are we getting memory outside of the physical memory range?
+    // 
+    // This does not work with a Xen PV VM during page table lookups, because
+    // cr3 > [physical memory size]. It *might* not work when examining a PV
+    // snapshot, since we're not sure where the page tables end up. So, we
+    // just do it for a HVM guest.
+    //
+    // TODO: perform other reasonable checks
+
+    if (vmi->hvm && (paddr + length >= vmi->size)) {
         errprint ("--requesting PA [0x%llx] beyond memsize [0x%llx]\n",
                   paddr + length, vmi->size);
         return 0;
     }
-*/
+
     memory_cache_entry_t entry =
         (memory_cache_entry_t) safe_malloc(sizeof(struct memory_cache_entry));
 

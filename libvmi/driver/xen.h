@@ -39,7 +39,7 @@ typedef struct xen_instance{
     libvmi_xenctrl_handle_t xchandle; /**< handle to xenctrl library (libxc) */
     unsigned long domainid; /**< domid that we are accessing */
     int xen_version;        /**< version of Xen libxa is running on */
-    int hvm;                /**< nonzero if HVM memory image */
+    int hvm;                /**< nonzero if HVM */
     xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
     uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
     char *name;

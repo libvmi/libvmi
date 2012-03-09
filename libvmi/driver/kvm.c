@@ -322,6 +322,7 @@ status_t kvm_init (vmi_instance_t vmi)
     kvm_get_instance(vmi)->conn = conn;
     kvm_get_instance(vmi)->dom = dom;
     kvm_get_instance(vmi)->socket_fd = 0;
+    vmi->hvm = 1;
 
     char *status = exec_memory_access(kvm_get_instance(vmi));
     if (VMI_SUCCESS == exec_memory_access_success(status)){
