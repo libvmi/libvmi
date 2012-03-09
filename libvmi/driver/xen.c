@@ -148,7 +148,7 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
 
     xsh = xs_domain_open();
     if (XBT_NULL == xsh) { // fail
-        goto error_exit;
+        goto _bail;
     } // if
 
     domains = xs_directory(xsh, xth, "/local/domain", &size);
@@ -172,7 +172,7 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
         if (nameCandidate) free(nameCandidate);
     }
 
-error_exit:
+_bail:
     if (domains) free(domains);
     if (NULL != xsh){
         xs_daemon_close(xsh);
@@ -205,7 +205,7 @@ status_t xen_init (vmi_instance_t vmi)
 
     if (XENCTRL_HANDLE_INVALID == xchandle) {
         errprint("Failed to open libxc interface.\n");
-        goto error_exit;
+        goto _bail;
     }
     xen_get_instance(vmi)->xchandle = xchandle;
 
@@ -217,18 +217,27 @@ status_t xen_init (vmi_instance_t vmi)
     domctl.cmd    = XEN_DOMCTL_get_address_size;
 
     if (xc_domctl (xen_get_instance(vmi)->xchandle, &domctl)) {
-        return VMI_FAILURE;
-    }
+        errprint ("Failed to get domain address width (#1)\n");
+        goto _bail;
+    } // if
+
+    // translate width to bytes from bits
     xen_get_instance(vmi)->addr_width = domctl.u.address_size.size / 8;
 
+    if (8 != xen_get_instance(vmi)->addr_width &&
+        4 != xen_get_instance(vmi)->addr_width   ) {
+        errprint ("Failed to get domain address width (#2)\n");
+        goto _bail;
+    }
+
     // same setting used in xen/tools/libxc/xc_domain_save.c
-    xen_get_instance(vmi)->p2m_size = xc_domain_maximum_gpfn (xen_get_instance(vmi)->xchandle,
-                                                              xen_get_domainid(vmi)) + 1;
+    //xen_get_instance(vmi)->p2m_size = xc_domain_maximum_gpfn (xen_get_instance(vmi)->xchandle,
+    //                                                          xen_get_domainid(vmi)) + 1;
 
     /* setup the info struct */
     if (xc_domain_getinfo(xchandle, xen_get_domainid(vmi), 1, &(xen_get_instance(vmi)->info)) != 1){
         errprint("Failed to get domain info for Xen.\n");
-        goto error_exit;
+        goto _bail;
     }
 
     /* determine if target is hvm or pv */
@@ -245,7 +254,7 @@ status_t xen_init (vmi_instance_t vmi)
     memory_cache_init(vmi, xen_get_memory, xen_release_memory, 0);
     ret = VMI_SUCCESS;
 
-error_exit:
+_bail:
     return ret;
 }
 
@@ -265,7 +274,6 @@ void xen_destroy (vmi_instance_t vmi)
 
 status_t xen_get_domainname (vmi_instance_t vmi, char **name)
 {
-    // note: name also available at location xen_get_instance(vmi)->name
     status_t ret = VMI_FAILURE;
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
@@ -277,11 +285,11 @@ status_t xen_get_domainname (vmi_instance_t vmi, char **name)
     *name = xs_read(xsh, xth, tmp, NULL);
     if (NULL == name){
         errprint("Domain ID %d is not running.\n", xen_get_domainid(vmi));
-        goto error_exit;
+        goto _bail;
     }
     ret = VMI_SUCCESS;
 
-error_exit:
+_bail:
     return ret;
 }
 
@@ -307,11 +315,11 @@ status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
     *size = strtol(xs_read(xsh, xth, tmp, NULL), NULL, 10) * 1024;
     if (!size){
         errprint("failed to get memory size for Xen domain.\n");
-        goto error_exit;
+        goto _bail;
     }
     ret = VMI_SUCCESS;
 
-error_exit:
+_bail:
     if (NULL != xsh){
         xs_daemon_close(xsh);
     }
@@ -326,16 +334,15 @@ xen_get_vcpureg_hvm (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned
     struct hvm_hw_cpu hw_ctxt;
     memset(&hw_ctxt, 0, sizeof(struct hvm_hw_cpu));
 
-    if (xc_domain_hvm_getcontext_partial(
-            xen_get_xchandle(vmi),
-            xen_get_domainid(vmi),
-            HVM_SAVE_CODE(CPU),
-            vcpu,
-            &hw_ctxt,
-            sizeof hw_ctxt) != 0){
+    if (xc_domain_hvm_getcontext_partial (xen_get_xchandle(vmi),
+                                          xen_get_domainid(vmi),
+                                          HVM_SAVE_CODE(CPU),
+                                          vcpu,
+                                          &hw_ctxt,
+                                          sizeof hw_ctxt) != 0) {
         errprint("Failed to get context information (HVM domain).\n");
         ret = VMI_FAILURE;
-        goto error_exit;
+        goto _bail;
     }
 
     switch (reg){
@@ -578,7 +585,7 @@ xen_get_vcpureg_hvm (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned
             break;
     }
 
-error_exit:
+_bail:
     return ret;
 }
 
@@ -590,13 +597,12 @@ xen_get_vcpureg_pv (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned 
     vcpu_guest_context_any_t ctx = {0};
     xen_domctl_t domctl = {0};
 
-    // broken under Xen 4.1.2: getting bad values for CR3
     if (xc_vcpu_getcontext (xen_get_xchandle(vmi), 
                             xen_get_domainid(vmi),
                             vcpu, &ctx)          ) {
         errprint("Failed to get context information (PV domain).\n");
         ret = VMI_FAILURE;
-        goto error_exit;
+        goto _bail;
     }
 
     switch (reg) {
@@ -663,21 +669,13 @@ xen_get_vcpureg_pv (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned 
             *value = (reg_t) ctx.x64.ctrlreg[2];
             break;
         case CR3:
-            domctl.domain = xen_get_instance(vmi)->domainid;
-            domctl.cmd    = XEN_DOMCTL_get_address_size;
-            if (xc_domctl (xen_get_instance(vmi)->xchandle, &domctl)) {
-                errprint ("Failed to discover domain address width\n");
-                return VMI_FAILURE;
-            }
-            // assumption: size in (32,64)
-            if (64 == domctl.u.address_size.size) {
+            if (8 == xen_get_instance(vmi)->addr_width) {
                 *value = (reg_t) ctx.x64.ctrlreg[3];
                 *value = (reg_t) xen_cr3_to_pfn_x86_64 (*value) << XC_PAGE_SHIFT;
             } else {
                 *value = (reg_t) ctx.x32.ctrlreg[3];
                 *value = (reg_t) xen_cr3_to_pfn_x86_32 (*value) << XC_PAGE_SHIFT;
             } // if
-
             break;
         case CR4:
             *value = (reg_t) ctx.x64.ctrlreg[4];
@@ -860,7 +858,7 @@ These values are not readily available from ctx.
             break;
     }
 
-error_exit:
+_bail:
     return ret;
 }
 
@@ -886,7 +884,7 @@ addr_t xen_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn)
     return pfn;
 
 #if 0
-    // PV code -- broken and seems to not be needed any more
+    // Old PV code -- broken and seems to not be needed any more
     // see xc_domain_save.c:map_and_save_p2m_table for template code
     shared_info_t *live_shinfo     = 0;
     uint32_t nr_pfns = 0;
