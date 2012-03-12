@@ -363,8 +363,7 @@ static status_t
 xen_get_vcpureg_hvm (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
 {
     status_t ret = VMI_SUCCESS;
-    struct hvm_hw_cpu hw_ctxt;
-    memset(&hw_ctxt, 0, sizeof(struct hvm_hw_cpu));
+    struct hvm_hw_cpu hw_ctxt = {0};
 
     if (xc_domain_hvm_getcontext_partial (xen_get_xchandle(vmi),
                                           xen_get_domainid(vmi),

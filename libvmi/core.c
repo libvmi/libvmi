@@ -390,7 +390,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
 {
     uint32_t access_mode = flags & 0x0000FFFF;
     uint32_t init_mode = flags & 0xFFFF0000;
-    status_t status = VMI_SUCCESS;
+    status_t status = VMI_FAILURE;
 
     /* allocate memory for instance structure */
     *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
@@ -400,7 +400,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
     dbprint("LibVMI Version 0.8\n");  //TODO change this with each release
 
     /* save the flags and init mode */
-    (*vmi)->flags = flags;
+    (*vmi)->flags     = flags;
     (*vmi)->init_mode = init_mode;
     (*vmi)->configstr = configstr;
 
@@ -449,17 +449,14 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
         dbprint("**set size = %llu [0x%llx]\n", (*vmi)->size, (*vmi)->size);
 
         /* determine the page sizes and layout for target OS */
+
+        // Find the memory layout. If this fails, then proceed with the
+        // OS-specific heuristic techniques.
         status = get_memory_layout(*vmi);
+
         if (VMI_FAILURE == status) {
-            if (VMI_FILE == (*vmi)->mode) { 
-                // failed and file; alternate: fall back to file method below
-                dbprint("**Failed to get memory layout on memory image file. "
-                        "Trying heuristic method.\n"); 
-                // fall-through
-            } else { // failed on live VM
-                errprint("Memory layout not supported.\n");
-                goto error_exit;
-            } // if-else
+            dbprint("**Failed to get memory layout for VM. Trying heuristic method.\n"); 
+            // fall-through
         } // if
 
         // Heuristic method
@@ -478,7 +475,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
     }
  
 error_exit:
-    return VMI_FAILURE;
+    return status;
 }
 
 char *build_config_str (vmi_instance_t *vmi, char *config)
