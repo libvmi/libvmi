@@ -189,12 +189,72 @@ void xen_set_domainid (vmi_instance_t vmi, unsigned long domainid)
     xen_get_instance(vmi)->domainid = domainid;
 }
 
+static status_t
+xen_discover_guest_addr_width (vmi_instance_t vmi)
+{
+    int rc;
+    status_t ret = VMI_FAILURE;
+    
+    xen_get_instance(vmi)->addr_width = 0;
+    
+    if (xen_get_instance(vmi)->hvm) {        // HVM
+        struct hvm_hw_cpu hw_ctxt = {0};
+
+        rc = xc_domain_hvm_getcontext_partial (xen_get_xchandle(vmi),
+                                               xen_get_domainid(vmi),
+                                               HVM_SAVE_CODE(CPU),
+                                               0, //vcpu,
+                                               &hw_ctxt,
+                                               sizeof (hw_ctxt));
+        if (rc != 0) {
+            errprint("Failed to get context information (HVM domain).\n");
+            ret = VMI_FAILURE;
+            goto _bail;
+        }
+        xen_get_instance(vmi)->addr_width =
+            (vmi_get_bit (hw_ctxt.msr_efer, 8) == 0 ? 4 : 8);
+    } else {        // PV
+        xen_domctl_t domctl = {0};
+        domctl.domain = xen_get_domainid(vmi);
+
+        // TODO: test this on a 32-bit PV guest
+        // Note: it appears that this DOMCTL does not wok on an HVM
+        domctl.cmd    = XEN_DOMCTL_get_address_size;
+
+        // This DOMCTL always returns 0 (Xen 4.1.2)
+        //domctl.cmd    = XEN_DOMCTL_get_machine_address_size;
+
+        rc = xc_domctl (xen_get_instance(vmi)->xchandle, &domctl);
+        if (rc) {
+            errprint ("Failed to get domain address width (#1), value retrieved %d\n",
+                      domctl.u.address_size.size);
+            goto _bail;
+        } // if
+
+        // translate width to bytes from bits
+        xen_get_instance(vmi)->addr_width = domctl.u.address_size.size / 8;
+
+        if (8 != xen_get_instance(vmi)->addr_width &&
+            4 != xen_get_instance(vmi)->addr_width   ) {
+            errprint ("Failed to get domain address width (#2), value retrieved %d\n",
+                      domctl.u.address_size.size);
+            goto _bail;
+        }
+
+        dbprint ("**guest address width is %d bits\n", xen_get_instance(vmi)->addr_width * 8);
+    } // if-else
+
+    ret = VMI_SUCCESS;
+
+_bail:
+    return ret;
+}
+
 status_t xen_init (vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
-    xen_domctl_t domctl = {0};
     libvmi_xenctrl_handle_t xchandle = XENCTRL_HANDLE_INVALID;
-    int rc = 0;
+    int rc = 0; // return codes from xc_* calls
 
     /* open handle to the libxc interface */
     xchandle = xc_interface_open(
@@ -210,33 +270,6 @@ status_t xen_init (vmi_instance_t vmi)
     xen_get_instance(vmi)->xchandle = xchandle;
 
     /* initialize other xen-specific values */
-
-    domctl.domain = xen_get_domainid(vmi);
-
-    // TODO: test this on a 32-bit PV guest
-    domctl.cmd    = XEN_DOMCTL_get_address_size;
-
-    // This DOMCTL always returns 0 (Xen 4.1.2)
-    //domctl.cmd    = XEN_DOMCTL_get_machine_address_size;
-
-    rc = xc_domctl (xen_get_instance(vmi)->xchandle, &domctl);
-    if (rc) {
-        errprint ("Failed to get domain address width (#1), value retrieved %d\n",
-                  domctl.u.address_size.size);
-        goto _bail;
-    } // if
-
-    // translate width to bytes from bits
-    xen_get_instance(vmi)->addr_width = domctl.u.address_size.size / 8;
-
-    if (8 != xen_get_instance(vmi)->addr_width &&
-        4 != xen_get_instance(vmi)->addr_width   ) {
-        errprint ("Failed to get domain address width (#2), value retrieved %d\n",
-                  domctl.u.address_size.size);
-        goto _bail;
-    }
-
-    dbprint ("**guest address width is %d bits\n", xen_get_instance(vmi)->addr_width * 8);
 
     /* setup the info struct */
     rc = xc_domain_getinfo(xchandle, xen_get_domainid(vmi), 1, &(xen_get_instance(vmi)->info));
@@ -257,7 +290,9 @@ status_t xen_init (vmi_instance_t vmi)
 #endif /* VMI_DEBUG */
 
     memory_cache_init(vmi, xen_get_memory, xen_release_memory, 0);
-    ret = VMI_SUCCESS;
+
+    // Determine the guest address width
+    ret = xen_discover_guest_addr_width (vmi);
 
 _bail:
     return ret;
