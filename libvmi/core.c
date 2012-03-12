@@ -270,9 +270,9 @@ static int get_memory_layout (vmi_instance_t vmi)
     } // if-else
     dbprint("**set cr3 = 0x%.16llx\n", vmi->cr3);
 
-_complete:
     /* testing to see CR3 value */
-    if (vmi->cr3 > vmi->size) { // sanity check on CR3
+    if (!driver_is_pv(vmi) &&
+        vmi->cr3 > vmi->size) { // sanity check on CR3
         dbprint ("** Note cr3 value [0x%llx] exceeds memsize [0x%llx]\n",
                  vmi->cr3, vmi->size);
     }
