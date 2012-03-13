@@ -30,7 +30,7 @@
 
 status_t linux_init (vmi_instance_t vmi)
 {
-    int ret = VMI_FAILURE;
+    status_t ret = VMI_FAILURE;
 
     if (vmi->cr3){
         vmi->kpgd = vmi->cr3;
@@ -41,7 +41,7 @@ status_t linux_init (vmi_instance_t vmi)
             vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
             if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE){
                 errprint("Failed to get physical addr for kpgd.\n");
-                goto error_exit;
+                goto _exit;
             }
         }
         else{
@@ -50,7 +50,7 @@ status_t linux_init (vmi_instance_t vmi)
     }
     else{
         errprint("swapper_pg_dir not found and CR3 not set, exiting\n");
-        goto error_exit;
+        goto _exit;
     }
 
     vmi->kpgd = vmi->cr3;
@@ -60,10 +60,10 @@ status_t linux_init (vmi_instance_t vmi)
     address += vmi->os.linux_instance.tasks_offset;
     if (VMI_FAILURE == vmi_read_addr_va(vmi, address, 0, &(vmi->init_task))){
         errprint("Failed to get task list head 'init_task'.\n");
-        goto error_exit;
+        goto _exit;
     }
 
     ret = VMI_SUCCESS;
-error_exit:
+_exit:
     return ret;
 }

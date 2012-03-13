@@ -182,7 +182,7 @@ static int get_memory_layout (vmi_instance_t vmi)
     //    64). Not all backends allow us to read an MSR; in particular, Xen's PV
     //    backend doessn't.
 
-    int ret = VMI_FAILURE;
+    status_t ret = VMI_FAILURE;
     uint8_t dom_addr_width = 0; // domain address width (bytes)
 
     /* pull info from registers, if we can */

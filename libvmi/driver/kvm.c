@@ -64,7 +64,6 @@ struct request{
 static char *exec_qmp_cmd (kvm_instance_t *kvm, char *query)
 {
     FILE *p;
-    int status;
     char *output = safe_malloc(20000);
     size_t length = 0;
 
