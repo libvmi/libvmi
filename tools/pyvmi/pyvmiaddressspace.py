@@ -23,7 +23,7 @@
 #
 
 import volatility.addrspace as addrspace
-import urlparse
+import urllib
 import pyvmi
 
 #pylint: disable-msg=C0111
@@ -42,15 +42,15 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
 
     order = 90
     def __init__(self, base, config, layered = False, **kwargs):
-        self.as_assert(base == None or layered, 'Must be first Address Space')
         addrspace.BaseAddressSpace.__init__(self, base, config, **kwargs)
+        self.as_assert(base == None or layered, "Must be first Address Space")
+        self.as_assert(config.LOCATION.startswith("vmi://"), "Location doesn't start with vmi://")
+        self.name = urllib.url2pathname(config.LOCATION[6:])
         try:
-            (scheme, self.vmname, _, _, _, _) = urlparse.urlparse(config.LOCATION)
-            self.as_assert(scheme == 'vmi', 'Not a LibVMI URN')
+            self.vmi = pyvmi.init(self.name, "partial")
         except:
-            self.as_assert(False, "Malformed location attribute {0}".format(config.LOCATION))
-        self.vmi = pyvmi.init(self.vmname, "partial")
-        self.as_assert(not self.vmi is None, 'VM must be specified and running')
+            self.as_assert(False, "pyvmi init failed")
+        self.as_assert(not self.vmi is None, "VM not found")
         self.dtb = self.get_cr3()
 
     def read(self, addr, length):

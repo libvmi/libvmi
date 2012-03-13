@@ -54,6 +54,7 @@ pyvmi_init(PyObject *self, PyObject *args) {
     object = PyObject_NEW(pyvmi_instance, &pyvmi_instance_Type);    
 
     if (!PyArg_ParseTuple(args, "ss", &vmname, &inittype)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -64,6 +65,7 @@ pyvmi_init(PyObject *self, PyObject *args) {
         flags = VMI_AUTO | VMI_INIT_PARTIAL;
     }
     else{
+        PyErr_SetString(PyExc_ValueError, "Inittype must be 'complete' or 'partial'");
         return NULL;
     }
     
@@ -83,6 +85,7 @@ pyvmi_init_complete(PyObject *self, PyObject *args) {
     char *config = NULL;
     
     if (!PyArg_ParseTuple(args, "s", &config)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -114,6 +117,7 @@ pyvmi_translate_kv2p(PyObject *self, PyObject *args) {
     addr_t vaddr;
 
     if (!PyArg_ParseTuple(args, "K", &vaddr)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -132,6 +136,7 @@ pyvmi_translate_uv2p(PyObject *self, PyObject *args) {
     int pid;
 
     if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -149,6 +154,7 @@ pyvmi_translate_ksym2v(PyObject *self, PyObject *args) {
     char *sym;
 
     if (!PyArg_ParseTuple(args, "s", &sym)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -166,6 +172,7 @@ pyvmi_pid_to_dtb(PyObject *self, PyObject *args) {
     int pid;
 
     if (!PyArg_ParseTuple(args, "i", &pid)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -186,6 +193,7 @@ pyvmi_read_pa(PyObject *self, PyObject *args) {
     uint32_t length;
 
     if (!PyArg_ParseTuple(args, "KI", &paddr, &length)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -210,6 +218,7 @@ pyvmi_read_va(PyObject *self, PyObject *args) {
     uint32_t length;
 
     if (!PyArg_ParseTuple(args, "KiI", &vaddr, &pid, &length)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -233,6 +242,7 @@ pyvmi_read_ksym(PyObject *self, PyObject *args) {
     uint32_t length;
 
     if (!PyArg_ParseTuple(args, "sI", &sym, &length)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -259,6 +269,7 @@ pyvmi_write_pa(PyObject *self, PyObject *args) {
     int count;
 
     if (!PyArg_ParseTuple(args, "Is#", &paddr, &buf, &count)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -279,6 +290,7 @@ pyvmi_write_va(PyObject *self, PyObject *args) {
     int count;
 
     if (!PyArg_ParseTuple(args, "Iis#", &vaddr, &pid, &buf, &count)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -298,6 +310,7 @@ pyvmi_write_ksym(PyObject *self, PyObject *args) {
     int count;
 
     if (!PyArg_ParseTuple(args, "ss#", &sym, &buf, &count)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -319,6 +332,7 @@ pyvmi_read_8_pa (PyObject *self, PyObject *args)
     uint8_t value;
 
     if (!PyArg_ParseTuple(args, "K", &paddr)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -337,6 +351,7 @@ pyvmi_read_16_pa (PyObject *self, PyObject *args)
     uint16_t value;
 
     if (!PyArg_ParseTuple(args, "K", &paddr)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -355,6 +370,7 @@ pyvmi_read_32_pa (PyObject *self, PyObject *args)
     uint32_t value;
 
     if (!PyArg_ParseTuple(args, "K", &paddr)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -373,6 +389,7 @@ pyvmi_read_64_pa (PyObject *self, PyObject *args)
     uint64_t value;
 
     if (!PyArg_ParseTuple(args, "K", &paddr)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -391,6 +408,7 @@ pyvmi_read_addr_pa (PyObject *self, PyObject *args)
     addr_t value;
 
     if (!PyArg_ParseTuple(args, "K", &paddr)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -409,6 +427,7 @@ pyvmi_read_str_pa (PyObject *self, PyObject *args)
     char *str = NULL;
 
     if (!PyArg_ParseTuple(args, "K", &paddr)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -428,6 +447,7 @@ pyvmi_read_8_va (PyObject *self, PyObject *args)
     uint8_t value;
 
     if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -447,6 +467,7 @@ pyvmi_read_16_va (PyObject *self, PyObject *args)
     uint16_t value;
 
     if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -466,6 +487,7 @@ pyvmi_read_32_va (PyObject *self, PyObject *args)
     uint32_t value;
 
     if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -485,6 +507,7 @@ pyvmi_read_64_va (PyObject *self, PyObject *args)
     uint64_t value;
 
     if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -504,6 +527,7 @@ pyvmi_read_addr_va (PyObject *self, PyObject *args)
     addr_t value;
 
     if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -523,6 +547,7 @@ pyvmi_read_str_va (PyObject *self, PyObject *args)
     char *str = NULL;
 
     if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -541,6 +566,7 @@ pyvmi_read_8_ksym (PyObject *self, PyObject *args)
     uint8_t value;
 
     if (!PyArg_ParseTuple(args, "s", &sym)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -559,6 +585,7 @@ pyvmi_read_16_ksym (PyObject *self, PyObject *args)
     uint16_t value;
 
     if (!PyArg_ParseTuple(args, "s", &sym)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -577,6 +604,7 @@ pyvmi_read_32_ksym (PyObject *self, PyObject *args)
     uint32_t value;
 
     if (!PyArg_ParseTuple(args, "s", &sym)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -596,6 +624,7 @@ pyvmi_read_64_ksym (PyObject *self, PyObject *args)
     uint64_t value;
 
     if (!PyArg_ParseTuple(args, "s", &sym)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -614,6 +643,7 @@ pyvmi_read_addr_ksym (PyObject *self, PyObject *args)
     addr_t value;
 
     if (!PyArg_ParseTuple(args, "s", &sym)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -632,6 +662,7 @@ pyvmi_read_str_ksym (PyObject *self, PyObject *args)
     char *str = NULL;
 
     if (!PyArg_ParseTuple(args, "s", &sym)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -652,6 +683,7 @@ pyvmi_write_8_pa (PyObject *self, PyObject *args)
     uint8_t value;
 
     if (!PyArg_ParseTuple(args, "Ic", &paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -670,6 +702,7 @@ pyvmi_write_16_pa (PyObject *self, PyObject *args)
     uint16_t value;
 
     if (!PyArg_ParseTuple(args, "IH", &paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -688,6 +721,7 @@ pyvmi_write_32_pa (PyObject *self, PyObject *args)
     uint32_t value;
 
     if (!PyArg_ParseTuple(args, "II", &paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -706,6 +740,7 @@ pyvmi_write_64_pa (PyObject *self, PyObject *args)
     uint64_t value;
 
     if (!PyArg_ParseTuple(args, "IK", &paddr, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -725,6 +760,7 @@ pyvmi_write_8_va (PyObject *self, PyObject *args)
     uint8_t value;
 
     if (!PyArg_ParseTuple(args, "Iic", &vaddr, &pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -744,6 +780,7 @@ pyvmi_write_16_va (PyObject *self, PyObject *args)
     uint16_t value;
 
     if (!PyArg_ParseTuple(args, "IiH", &vaddr, &pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -763,6 +800,7 @@ pyvmi_write_32_va (PyObject *self, PyObject *args)
     uint32_t value;
 
     if (!PyArg_ParseTuple(args, "IiI", &vaddr, &pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -782,6 +820,7 @@ pyvmi_write_64_va (PyObject *self, PyObject *args)
     uint64_t value;
 
     if (!PyArg_ParseTuple(args, "IiK", &vaddr, &pid, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -800,6 +839,7 @@ pyvmi_write_8_ksym (PyObject *self, PyObject *args)
     uint8_t value;
 
     if (!PyArg_ParseTuple(args, "sc", &sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -818,6 +858,7 @@ pyvmi_write_16_ksym (PyObject *self, PyObject *args)
     uint16_t value;
 
     if (!PyArg_ParseTuple(args, "sH", &sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -836,6 +877,7 @@ pyvmi_write_32_ksym (PyObject *self, PyObject *args)
     uint32_t value;
 
     if (!PyArg_ParseTuple(args, "sI", &sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -854,6 +896,7 @@ pyvmi_write_64_ksym (PyObject *self, PyObject *args)
     uint64_t value;
 
     if (!PyArg_ParseTuple(args, "sK", &sym, &value)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -874,6 +917,7 @@ pyvmi_get_vcpureg(PyObject *self, PyObject *args)
     unsigned long vcpu = 0;
 
     if (!PyArg_ParseTuple(args, "sI", &reg_name, &vcpu)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1122,6 +1166,7 @@ pyvmi_get_name(PyObject *self, PyObject *args) {
     char *name = NULL;
 
     if (!PyArg_ParseTuple(args, "")){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1134,6 +1179,7 @@ pyvmi_get_vmid(PyObject *self, PyObject *args) {
     unsigned long vmid = 0;
 
     if (!PyArg_ParseTuple(args, "")){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1146,6 +1192,7 @@ pyvmi_get_access_mode(PyObject *self, PyObject *args) {
     uint32_t mode = 0;
 
     if (!PyArg_ParseTuple(args, "")){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1178,6 +1225,7 @@ pyvmi_get_winver_str(PyObject *self, PyObject *args)
     const char *version = NULL;
 
     if (!PyArg_ParseTuple(args, "")){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1191,6 +1239,7 @@ pyvmi_get_memsize(PyObject *self, PyObject *args) {
     unsigned long size = 0;
 
     if (!PyArg_ParseTuple(args, "")){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1203,6 +1252,7 @@ pyvmi_get_offset(PyObject *self, PyObject *args) {
     char *name;
 
     if (!PyArg_ParseTuple(args, "s", &name)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1213,6 +1263,7 @@ pyvmi_get_offset(PyObject *self, PyObject *args) {
 static PyObject *
 pyvmi_get_page_mode(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "")){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1237,6 +1288,7 @@ pyvmi_get_page_mode(PyObject *self, PyObject *args) {
 static PyObject *
 pyvmi_get_ostype(PyObject *self, PyObject *args) {
     if (!PyArg_ParseTuple(args, "")){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1261,6 +1313,7 @@ pyvmi_print_hex(PyObject *self, PyObject *args) {
     int length;
 
     if (!PyArg_ParseTuple(args, "s#", &data, &length)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1274,6 +1327,7 @@ pyvmi_print_hex_pa(PyObject *self, PyObject *args) {
     uint32_t length;
 
     if (!PyArg_ParseTuple(args, "KI", &paddr, &length)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1288,6 +1342,7 @@ pyvmi_print_hex_va(PyObject *self, PyObject *args) {
     uint32_t length;
 
     if (!PyArg_ParseTuple(args, "KiI", &vaddr, &pid, &length)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1301,6 +1356,7 @@ pyvmi_print_hex_ksym(PyObject *self, PyObject *args) {
     uint32_t length;
 
     if (!PyArg_ParseTuple(args, "sI", &sym, &length)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1311,6 +1367,7 @@ pyvmi_print_hex_ksym(PyObject *self, PyObject *args) {
 static PyObject *
 pyvmi_pause_vm(PyObject *self, PyObject *args) {
     if (VMI_FAILURE == vmi_pause_vm(vmi(self))){
+        PyErr_SetString(PyExc_OSError, "Failed to pause VM");
         return NULL;
     }
     return Py_BuildValue(""); // return None
@@ -1319,6 +1376,7 @@ pyvmi_pause_vm(PyObject *self, PyObject *args) {
 static PyObject *
 pyvmi_resume_vm(PyObject *self, PyObject *args) {
     if (VMI_FAILURE == vmi_resume_vm(vmi(self))){
+        PyErr_SetString(PyExc_OSError, "Failed to resume VM");
         return NULL;
     }
     return Py_BuildValue(""); // return None
@@ -1339,6 +1397,7 @@ pyvmi_v2pcache_add(PyObject *self, PyObject *args)
     addr_t pa;
 
     if (!PyArg_ParseTuple(args, "KKK", &va, &dtb, &pa)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1360,6 +1419,7 @@ pyvmi_symcache_add(PyObject *self, PyObject *args)
     addr_t va;
 
     if (!PyArg_ParseTuple(args, "sK", &sym, &va)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1381,6 +1441,7 @@ pyvmi_pidcache_add(PyObject *self, PyObject *args)
     addr_t dtb;
 
     if (!PyArg_ParseTuple(args, "iK", &pid, &dtb)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
         return NULL;
     }
 
