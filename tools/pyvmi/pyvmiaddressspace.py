@@ -51,16 +51,7 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         self.dtb = self.get_cr3()
 
     def read(self, addr, length):
-        assert addr < self.vmi.get_memsize(), "addr too big"
-
-        end = addr+length
-
-        if end > self.vmi.get_memsize():
-            memory = None
-        else: # account for holes in physical mem
-            memory = self.vmi.zread_pa(addr, length)
-
-        return memory
+        return self.zread(addr, length)
 
     def zread(self, addr, length):
         assert addr < self.vmi.get_memsize(), "addr too big"
