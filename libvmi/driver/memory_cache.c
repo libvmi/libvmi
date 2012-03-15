@@ -117,9 +117,11 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr, 
     //
     // TODO: perform other reasonable checks
 
-    if (vmi->hvm && (paddr + length >= vmi->size)) {
+    if (vmi->hvm && (paddr + length - 1 > vmi->size)) {
         errprint ("--requesting PA [0x%llx] beyond memsize [0x%llx]\n",
                   paddr + length, vmi->size);
+        errprint ("\tpaddr: %llx, length %llx, vmi->size %llx\n",
+                  paddr, length, vmi->size);
         return 0;
     }
 

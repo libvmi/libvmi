@@ -191,6 +191,9 @@ static PyObject *
 pyvmi_read_pa(PyObject *self, PyObject *args) {
     addr_t paddr;
     uint32_t length;
+    char msg[1024];
+
+#define ll_t unsigned long long
 
     if (!PyArg_ParseTuple(args, "KI", &paddr, &length)){
         PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
@@ -200,13 +203,79 @@ pyvmi_read_pa(PyObject *self, PyObject *args) {
     if (mem(self)){
         free(mem(self));
     }
+
     mem(self) = malloc(length);
+    if (!mem(self)) {
+        PyErr_SetString (PyExc_MemoryError, "malloc failed");
+        return NULL;
+    } // if
 
     size_t nbytes = vmi_read_pa(vmi(self), paddr, mem(self), length);
     if(nbytes != length){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+        snprintf (msg, sizeof(msg), 
+                  "%s was asked to read PA [0x%.16llx-0x%.16llx] (%d bytes), but only read %lld bytes)",
+                  __FUNCTION__, (ll_t)paddr, (ll_t)(paddr+length), length, (ll_t)nbytes);
+        PyErr_SetString(PyExc_ValueError, msg);
         return NULL;
     }
+
+    return Py_BuildValue("s#", mem(self), length);
+}
+
+// Similar to pyvmi_read_pa, but puts zeros in memory holes instead of failing
+static PyObject *
+pyvmi_zread_pa(PyObject *self, PyObject *args) 
+{
+    addr_t paddr;
+    uint32_t length;
+
+#define ll_t unsigned long long
+
+#define PAGE_SIZE 0x1000  // minimal PAGE_SIZE
+#define PAGE_MASK 0xfff
+#define PAGE_SHIFT 12
+
+    if (!PyArg_ParseTuple(args, "KI", &paddr, &length)){
+        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+        return NULL;
+    }
+
+    if (mem(self)){
+        free(mem(self));
+        mem(self) = 0;
+    }
+
+    if (0 == length) {
+        return Py_BuildValue("s#", NULL, 0);
+    }
+
+    mem(self) = malloc(length);
+    if (!mem(self)) {
+        PyErr_SetString (PyExc_MemoryError, "malloc failed");
+        return NULL;
+    } // if
+    memset (mem(self), 0, length);
+
+    size_t remaining = (size_t)length;
+    uint8_t *target = (uint8_t *) (mem(self));
+
+    while (remaining > 0) {
+        // calculate how many bytes to read
+        size_t   count = PAGE_SIZE; 
+        if (paddr & PAGE_MASK) { // an offset was given
+            count = PAGE_SIZE - (paddr & PAGE_MASK); // read to end of PAGE
+        }
+        if (remaining < count) { // don't read more than requested
+            count = remaining;
+        }
+
+        // ignore return value here
+        (void) vmi_read_pa (vmi(self), paddr, target, count);
+
+        remaining -= count;
+        paddr     += count;
+        target    += count;
+    } // while
 
     return Py_BuildValue("s#", mem(self), length);
 }
@@ -225,7 +294,12 @@ pyvmi_read_va(PyObject *self, PyObject *args) {
     if (mem(self)){
         free(mem(self));
     }
+
     mem(self) = malloc(length);
+    if (!mem(self)) {
+        PyErr_SetString (PyExc_MemoryError, "malloc failed");
+        return NULL;
+    } // if
 
     size_t nbytes = vmi_read_va(vmi(self), vaddr, pid, mem(self), length);
     if(nbytes != length){
@@ -249,7 +323,12 @@ pyvmi_read_ksym(PyObject *self, PyObject *args) {
     if (mem(self)){
         free(mem(self));
     }
+
     mem(self) = malloc(length);
+    if (!mem(self)) {
+        PyErr_SetString (PyExc_MemoryError, "malloc failed");
+        return NULL;
+    } // if
 
     size_t nbytes = vmi_read_ksym(vmi(self), sym, mem(self), length);
     if(nbytes != length){
@@ -1466,6 +1545,8 @@ static PyMethodDef pyvmi_instance_methods[] = {
      "Get directory table base value from process id"},
     {"read_pa", pyvmi_read_pa, METH_VARARGS,
      "Read physical memory"},
+    {"zread_pa", pyvmi_zread_pa, METH_VARARGS,
+     "Read physical memory, fill memory holes with zeroes"},
     {"read_va", pyvmi_read_va, METH_VARARGS,
      "Read virtual memory"},
     {"read_ksym", pyvmi_read_ksym, METH_VARARGS,

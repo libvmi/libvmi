@@ -46,24 +46,38 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         self.as_assert(base == None or layered, "Must be first Address Space")
         self.as_assert(config.LOCATION.startswith("vmi://"), "Location doesn't start with vmi://")
         self.name = urllib.url2pathname(config.LOCATION[6:])
-        try:
-            self.vmi = pyvmi.init(self.name, "partial")
-        except:
-            self.as_assert(False, "pyvmi init failed")
+        self.vmi = pyvmi.init(self.name, "partial")
         self.as_assert(not self.vmi is None, "VM not found")
         self.dtb = self.get_cr3()
 
     def read(self, addr, length):
-        try:
-            memory = self.vmi.read_pa(addr, length)
-        except:
-            return None
+        assert addr < self.vmi.get_memsize(), "addr too big"
+
+        end = addr+length
+
+        if end > self.vmi.get_memsize():
+            memory = None
+        else: # account for holes in physical mem
+            memory = self.vmi.zread_pa(addr, length)
+
         return memory
 
+    def zread(self, addr, length):
+        assert addr < self.vmi.get_memsize(), "addr too big"
+
+        end = addr+length
+
+        if end > self.vmi.get_memsize():
+            memory = None
+        else: # account for holes in physical mem
+            memory = self.vmi.zread_pa(addr, length)
+
+        return memory
+    
     def is_valid_address(self, addr):
         if addr == None:
             return False
-        return addr < self.vmi.get_memsize() - 1
+        return 4096 < addr < self.vmi.get_memsize() - 1
 
     def write(self, addr, data):
         nbytes = self.vmi.write_pa(addr, data)
@@ -72,8 +86,11 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         return True
 
     def get_cr3(self):
-        try:
-            cr3 = self.vmi.get_vcpureg("cr3", 0);
-        except:
-            return None
+        cr3 = self.vmi.get_vcpureg("cr3", 0);
         return cr3
+
+    def get_available_addresses(self):
+        yield (4096, self.vmi.get_memsize()-1)
+        return
+
+

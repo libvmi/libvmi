@@ -310,7 +310,7 @@ vmi_read_win_unicode_struct_va (vmi_instance_t vmi, addr_t vaddr, int pid)
         // read the UNICODE_STRING struct
         read = vmi_read_va (vmi, vaddr, pid, &us64, struct_size);
         if (read != struct_size) {
-            dbprint("--%s: failed to read UNICODE_STRING at VA 0x%.16x for pid %d\n",
+            dbprint("--%s: failed to read UNICODE_STRING at VA 0x%.16llx for pid %d\n",
                     vaddr, pid);
             goto out_error;
         } // if
@@ -322,7 +322,7 @@ vmi_read_win_unicode_struct_va (vmi_instance_t vmi, addr_t vaddr, int pid)
         // read the UNICODE_STRING struct
         read = vmi_read_va (vmi, vaddr, pid, &us32, struct_size);
         if (read != struct_size) {
-            dbprint("--%s: failed to read UNICODE_STRING at VA 0x%.16x for pid %d\n",
+            dbprint("--%s: failed to read UNICODE_STRING at VA 0x%.16llx for pid %d\n",
                     vaddr, pid);
             goto out_error;
         } // if
@@ -338,7 +338,7 @@ vmi_read_win_unicode_struct_va (vmi_instance_t vmi, addr_t vaddr, int pid)
 
     read = vmi_read_va (vmi, buffer_va, pid, us->contents, us->length);
     if (read != us->length) {
-           dbprint("--%s: failed to read buffer at VA 0x%.16x for pid %d\n", 
+           dbprint("--%s: failed to read buffer at VA 0x%.16llx for pid %d\n", 
                    __FUNCTION__, buffer_va, pid);
         goto out_error;
     } // if
