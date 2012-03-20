@@ -114,6 +114,9 @@ unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name)
     else if (strncmp(offset_name, "linux_pid", max_length) == 0){
         return vmi->os.linux_instance.pid_offset;
     }
+    else if (strncmp(offset_name, "linux_name", max_length) == 0){
+        return vmi->os.linux_instance.name_offset;
+    }
     else if (strncmp(offset_name, "linux_pgd", max_length) == 0){
         return vmi->os.linux_instance.pgd_offset;
     }
@@ -145,7 +148,8 @@ status_t vmi_resume_vm (vmi_instance_t vmi)
 
 char * vmi_get_name (vmi_instance_t vmi)
 {
-    char *name = safe_malloc(100);
+    /* memory for name is allocated at the driver level */
+    char *name = NULL;
     if (VMI_FAILURE == driver_get_name(vmi, &name)){
         return NULL;
     }

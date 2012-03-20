@@ -44,9 +44,10 @@ static int my_init_module(void)
     unsigned long pidOffset;
     unsigned long pgdOffset;
     unsigned long addrOffset;
-   
-	printk(KERN_ALERT "Module %s loaded.\n\n", MYMODNAME);
+
+    printk(KERN_ALERT "Module %s loaded.\n\n", MYMODNAME);
     p = current;
+
     if (p != NULL){
         commOffset = (unsigned long)(&(p->comm)) - (unsigned long)(p);           
         tasksOffset = (unsigned long)(&(p->tasks)) - (unsigned long)(p);           
@@ -58,7 +59,7 @@ static int my_init_module(void)
         printk(KERN_ALERT "[domain name] {\n");
         printk(KERN_ALERT "    ostype = \"Linux\";\n");           
         printk(KERN_ALERT "    sysmap = \"[insert path here]\";\n");           
-        printk(KERN_ALERT "#    linux_name = 0x%x;\n", (unsigned int) commOffset);           
+        printk(KERN_ALERT "    linux_name = 0x%x;\n", (unsigned int) commOffset);           
         printk(KERN_ALERT "    linux_tasks = 0x%x;\n", (unsigned int) tasksOffset); 
         printk(KERN_ALERT "    linux_mm = 0x%x;\n", (unsigned int) mmOffset); 
         printk(KERN_ALERT "    linux_pid = 0x%x;\n", (unsigned int) pidOffset); 

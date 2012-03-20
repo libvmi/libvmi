@@ -162,6 +162,7 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
         if (nameCandidate != NULL && strncmp(name, nameCandidate, 100) == 0){
             int idNum = atoi(idStr);
             domainid = (unsigned long) idNum;
+            free(nameCandidate);
             free(tmp);
             break;
         }
@@ -322,6 +323,7 @@ status_t xen_get_domainname (vmi_instance_t vmi, char **name)
     ret = VMI_SUCCESS;
 
 _bail:
+    free(tmp);
     return ret;
 }
 
@@ -336,16 +338,26 @@ status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
     // or xen_get_instance(vmi)->info.max_memkb
     status_t ret = VMI_FAILURE;
     struct xs_handle *xsh = NULL;
+    char *tmp = NULL;
     xs_transaction_t xth = XBT_NULL;
 
-    char *tmp = safe_malloc(100);
-    memset(tmp, 0, 100);
+    char *path = safe_malloc(100);
+    memset(path, 0, 100);
+
+    xsh = xs_domain_open();
 
     /* get the memory size from the xenstore */
-    snprintf(tmp, 100, "/local/domain/%d/memory/target", xen_get_domainid(vmi));
-    xsh = xs_domain_open();
-    *size = strtol(xs_read(xsh, xth, tmp, NULL), NULL, 10) * 1024;
-    if (!size){
+    snprintf(path, 100, "/local/domain/%d/memory/target", xen_get_domainid(vmi));
+    tmp = xs_read(xsh, xth, path, NULL);
+
+    if(!tmp){
+        errprint("failed to retrieve memory size for Xen domain from xenstore.\n");
+        goto _bail;
+    }
+
+    *size = strtol(tmp, NULL, 10) * 1024;
+
+    if(errno){
         errprint("failed to get memory size for Xen domain.\n");
         goto _bail;
     }
@@ -356,6 +368,7 @@ _bail:
         xs_daemon_close(xsh);
     }
     free(tmp);
+    free(path);
     return ret;
 }
 
@@ -604,9 +617,21 @@ xen_get_vcpureg_hvm (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned
         case MSR_EFER:
             *value = (reg_t) hw_ctxt.msr_efer;
             break;
+
+#ifdef DECLARE_HVM_SAVE_TYPE_COMPAT
+/* Handle churn in struct hvm_hw_cpu (from xen/hvm/save.h) 
+ * that would prevent otherwise-compatible Xen 4.0 branches
+ * from building.
+ *
+ * Checking this is less than ideal, but seemingly
+ * the cleanest means of accomplishing the necessary check.
+ *
+ * see http://xenbits.xen.org/hg/xen-4.0-testing.hg/rev/57721c697c46
+ */
         case MSR_TSC_AUX:
             *value = (reg_t) hw_ctxt.msr_tsc_aux;
             break;
+#endif  
 
         case TSC:
             *value = (reg_t) hw_ctxt.tsc;

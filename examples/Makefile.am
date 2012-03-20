@@ -4,7 +4,7 @@ SUBDIRS =
 
 INCLUDES = -I$(top_srcdir)
 AM_LDFLAGS = -L$(top_srcdir)/libvmi/.libs/
-LDADD = -lvmi $(LIBS)
+LDADD = -lvmi -lm $(LIBS)
 
 bin_PROGRAMS = module-list process-list map-symbol map-addr dump-memory
 module_list_SOURCES = module-list.c

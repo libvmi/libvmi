@@ -302,6 +302,7 @@ domain_info:
         {
             snprintf(tmp_str, CONFIG_STR_LENGTH,"%s", $1);
             memcpy(tmp_entry.domain_name, tmp_str, CONFIG_STR_LENGTH);
+            free($1);
             entry_done();
         }
         ;
@@ -322,6 +323,8 @@ assignment:
         linux_mm_assignment
         |
         linux_pid_assignment
+        |
+        linux_name_assignment
         |
         linux_pgd_assignment
         |
@@ -353,6 +356,7 @@ linux_tasks_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.tasks = tmp;
+            free($3);
         }
         ;
 
@@ -361,6 +365,7 @@ linux_mm_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.mm = tmp;
+            free($3);
         }
         ;
 
@@ -369,6 +374,15 @@ linux_pid_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.pid = tmp;
+            free($3);
+        }
+        ;
+linux_name_assignment:
+        LINUX_NAME EQUALS NUM
+        {
+            int tmp = strtol($3, NULL, 0);
+            tmp_entry.offsets.linux_offsets.name = tmp;
+            free($3);
         }
         ;
 
@@ -377,6 +391,7 @@ linux_pgd_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.pgd = tmp;
+            free($3);
         }
         ;
 
@@ -385,6 +400,7 @@ linux_addr_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.addr = tmp;
+            free($3);
         }
         ;
 
@@ -393,6 +409,7 @@ win_ntoskrnl_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.ntoskrnl = tmp;
+            free($3);
         }
         ;
 
@@ -401,6 +418,7 @@ win_tasks_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.tasks = tmp;
+            free($3);
         }
         ;
 
@@ -409,6 +427,7 @@ win_pdbase_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.pdbase = tmp;
+            free($3);
         }
         ;
 
@@ -417,6 +436,7 @@ win_pid_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.pid = tmp;
+            free($3);
         }
         ;
 
@@ -425,6 +445,7 @@ win_peb_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.peb = tmp;
+            free($3);
         }
         ;
 
@@ -433,6 +454,7 @@ win_iba_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.iba = tmp;
+            free($3);
         }
         ;
 
@@ -441,6 +463,7 @@ win_ph_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.ph = tmp;
+            free($3);
         }
         ;
 
@@ -449,6 +472,7 @@ win_pname_assignment:
         {
             int tmp = strtol($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.pname = tmp;
+            free($3);
         }
         ;
 
@@ -457,6 +481,7 @@ win_kdvb_assignment:
         {
             uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.kdvb = tmp;
+            free($3);
         }
         ;
 
@@ -465,6 +490,7 @@ win_sysproc_assignment:
         {
             uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.sysproc = tmp;
+            free($3);
         }
         ;
 
@@ -473,6 +499,7 @@ sysmap_assignment:
         {
             snprintf(tmp_str, CONFIG_STR_LENGTH,"%s", $4);
             memcpy(tmp_entry.sysmap, tmp_str, CONFIG_STR_LENGTH);
+            free($4);
         }
         ;
 
@@ -481,6 +508,7 @@ ostype_assignment:
         {
             snprintf(tmp_str, CONFIG_STR_LENGTH,"%s", $4);
             memcpy(tmp_entry.ostype, tmp_str, CONFIG_STR_LENGTH);
+            free($4);
         }
         ;
 %%

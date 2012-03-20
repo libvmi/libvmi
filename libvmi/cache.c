@@ -37,6 +37,8 @@
 #include <time.h>
 #include <string.h>
 
+#include "glib_compat.h"
+
 #if ENABLE_ADDRESS_CACHE == 1
 //
 // PID --> DTB cache implementation

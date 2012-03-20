@@ -31,6 +31,8 @@
 #include <glib.h>
 #include <time.h>
 
+#include "glib_compat.h"
+
 struct memory_cache_entry{
     addr_t paddr;
     uint32_t length;

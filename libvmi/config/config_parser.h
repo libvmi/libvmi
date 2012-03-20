@@ -39,6 +39,7 @@ typedef struct vmi_config_entry {
             int pid;
             int pgd;
             int addr; 
+            int name;
         } linux_offsets;
         struct windows_offsets {
             int ntoskrnl;

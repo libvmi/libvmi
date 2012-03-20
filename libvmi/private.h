@@ -75,6 +75,7 @@ struct vmi_instance{
             int mm_offset;       /**< task_struct->mm */
             int pid_offset;      /**< task_struct->pid */
             int pgd_offset;      /**< mm_struct->pgd */
+            int name_offset;     /**< task_struct->comm */
         } linux_instance;
         struct windows_instance{
             addr_t ntoskrnl;          /**< base phys address for ntoskrnl image */

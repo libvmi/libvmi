@@ -99,6 +99,11 @@ static int read_config_file (vmi_instance_t vmi)
                 entry->offsets.linux_offsets.pid;
         }
 
+        if(entry->offsets.linux_offsets.name){
+            vmi->os.linux_instance.name_offset =
+                entry->offsets.linux_offsets.name;
+        }
+
         if(entry->offsets.linux_offsets.pgd){
             vmi->os.linux_instance.pgd_offset =
                 entry->offsets.linux_offsets.pgd;
