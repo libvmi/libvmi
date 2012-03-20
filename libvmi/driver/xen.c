@@ -144,6 +144,7 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
     unsigned long domainid = 0;
+    char tmp[100];
 
     xsh = xs_domain_open();
     if (XBT_NULL == xsh) { // fail
@@ -153,9 +154,8 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
     domains = xs_directory(xsh, xth, "/local/domain", &size);
     for (i = 0; i < size; ++i){
         /* read in name */
-        char *tmp = safe_malloc(100);
         char *idStr = domains[i];
-        snprintf(tmp, 100, "/local/domain/%s/name", idStr);
+        snprintf(tmp, sizeof(tmp), "/local/domain/%s/name", idStr);
         char *nameCandidate = xs_read(xsh, xth, tmp, NULL);
 
         // if name matches, then return number
@@ -163,12 +163,10 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
             int idNum = atoi(idStr);
             domainid = (unsigned long) idNum;
             free(nameCandidate);
-            free(tmp);
             break;
         }
 
         /* free memory as we go */
-        free(tmp);
         if (nameCandidate) free(nameCandidate);
     }
 
@@ -310,10 +308,9 @@ status_t xen_get_domainname (vmi_instance_t vmi, char **name)
     status_t ret = VMI_FAILURE;
     struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
-    char *tmp = safe_malloc(100);
+    char tmp[100] = {0};
 
-    memset(tmp, 0, 100);
-    snprintf(tmp, 100, "/local/domain/%d/name", xen_get_domainid(vmi));
+    snprintf(tmp, sizeof(tmp), "/local/domain/%d/name", xen_get_domainid(vmi));
     xsh = xs_domain_open();
     *name = xs_read(xsh, xth, tmp, NULL);
     if (NULL == name){
@@ -323,7 +320,6 @@ status_t xen_get_domainname (vmi_instance_t vmi, char **name)
     ret = VMI_SUCCESS;
 
 _bail:
-    free(tmp);
     return ret;
 }
 
@@ -340,14 +336,12 @@ status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
     struct xs_handle *xsh = NULL;
     char *tmp = NULL;
     xs_transaction_t xth = XBT_NULL;
-
-    char *path = safe_malloc(100);
-    memset(path, 0, 100);
+    char path[100] = {0};
 
     xsh = xs_domain_open();
 
     /* get the memory size from the xenstore */
-    snprintf(path, 100, "/local/domain/%d/memory/target", xen_get_domainid(vmi));
+    snprintf(path, sizeof(path), "/local/domain/%d/memory/target", xen_get_domainid(vmi));
     tmp = xs_read(xsh, xth, path, NULL);
 
     if(!tmp){
@@ -367,8 +361,8 @@ _bail:
     if (NULL != xsh){
         xs_daemon_close(xsh);
     }
-    free(tmp);
-    free(path);
+    if (tmp) free(tmp);
+    
     return ret;
 }
 
