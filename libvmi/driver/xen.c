@@ -141,15 +141,12 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
     char **domains = NULL;
     int size = 0;
     int i = 0;
-    struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
     unsigned long domainid = 0;
     char tmp[100];
 
-    xsh = xs_domain_open();
-    if (XBT_NULL == xsh) { // fail
-        goto _bail;
-    } // if
+    struct xs_handle *xsh = OPEN_XS_DAEMON();
+    if (!xsh) goto _bail;
 
     domains = xs_directory(xsh, xth, "/local/domain", &size);
     for (i = 0; i < size; ++i){
@@ -172,9 +169,7 @@ unsigned long xen_get_domainid_from_name (vmi_instance_t vmi, char *name)
 
 _bail:
     if (domains) free(domains);
-    if (NULL != xsh){
-        xs_daemon_close(xsh);
-    }
+    if (xsh)     CLOSE_XS_DAEMON(xsh);
     return domainid;
 }
 
@@ -277,6 +272,12 @@ status_t xen_init (vmi_instance_t vmi)
         goto _bail;
     }
 
+    xen_get_instance(vmi)->xshandle = OPEN_XS_DAEMON();
+    if (!xen_get_instance(vmi)->xshandle) {
+        errprint("xs_domain_open failed\n");
+        goto _bail;
+    }
+
     /* determine if target is hvm or pv */
     vmi->hvm = xen_get_instance(vmi)->hvm = xen_get_instance(vmi)->info.hvm;
 #ifdef VMI_DEBUG
@@ -301,18 +302,18 @@ void xen_destroy (vmi_instance_t vmi)
 {
     xen_get_instance(vmi)->domainid = 0;
     xc_interface_close(xen_get_xchandle(vmi));
+    CLOSE_XS_DAEMON(xen_get_instance(vmi)->xshandle);
 }
 
 status_t xen_get_domainname (vmi_instance_t vmi, char **name)
 {
     status_t ret = VMI_FAILURE;
-    struct xs_handle *xsh = NULL;
     xs_transaction_t xth = XBT_NULL;
     char tmp[100] = {0};
 
     snprintf(tmp, sizeof(tmp), "/local/domain/%d/name", xen_get_domainid(vmi));
-    xsh = xs_domain_open();
-    *name = xs_read(xsh, xth, tmp, NULL);
+
+    *name = xs_read(xen_get_instance(vmi)->xshandle, xth, tmp, NULL);
     if (NULL == name){
         errprint("Domain ID %d is not running.\n", xen_get_domainid(vmi));
         goto _bail;
@@ -333,16 +334,13 @@ status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
     // note: may also available through PAGE_SIZE * xen_get_instance(vmi)->info.nr_pages
     // or xen_get_instance(vmi)->info.max_memkb
     status_t ret = VMI_FAILURE;
-    struct xs_handle *xsh = NULL;
     char *tmp = NULL;
     xs_transaction_t xth = XBT_NULL;
     char path[100] = {0};
 
-    xsh = xs_domain_open();
-
     /* get the memory size from the xenstore */
     snprintf(path, sizeof(path), "/local/domain/%d/memory/target", xen_get_domainid(vmi));
-    tmp = xs_read(xsh, xth, path, NULL);
+    tmp = xs_read(xen_get_instance(vmi)->xshandle, xth, path, NULL);
 
     if(!tmp){
         errprint("failed to retrieve memory size for Xen domain from xenstore.\n");
@@ -358,9 +356,6 @@ status_t xen_get_memsize (vmi_instance_t vmi, unsigned long *size)
     ret = VMI_SUCCESS;
 
 _bail:
-    if (NULL != xsh){
-        xs_daemon_close(xsh);
-    }
     if (tmp) free(tmp);
     
     return ret;
