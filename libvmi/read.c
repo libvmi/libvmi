@@ -270,20 +270,59 @@ status_t vmi_read_addr_va (vmi_instance_t vmi, addr_t vaddr, int pid, addr_t *va
 
 char *vmi_read_str_va (vmi_instance_t vmi, addr_t vaddr, int pid)
 {
+    unsigned char *memory = NULL;
+    char* rtnval = NULL;
     addr_t paddr = 0;
-    if (pid){
-        paddr = vmi_translate_uv2p(vmi, vaddr, pid);
-    }
-    else{
-        paddr = vmi_translate_kv2p(vmi, vaddr);
+    addr_t pfn = 0;
+    addr_t offset = 0;
+    int len = 0;
+    size_t read_len = 0;
+    int read_more = 1;
+ 
+    rtnval = safe_malloc(len + 1);
+    rtnval[0] = '\0';
+
+    while (read_more){
+        if (pid){
+            paddr = vmi_translate_uv2p(vmi, vaddr + len, pid);
+        }
+        else{
+            paddr = vmi_translate_kv2p(vmi, vaddr + len);
+        }
+
+        if (!paddr){
+            return rtnval;
+        }
+
+        /* access the memory */
+        pfn = paddr >> vmi->page_shift;
+        offset = (vmi->page_size - 1) & paddr;
+        memory = vmi_read_page(vmi, pfn);
+        if (NULL == memory){
+            return rtnval;
+        }
+ 
+        /* Count new non-null characters */
+        read_len = 0;
+        while (offset + read_len < vmi->page_size){
+            if (memory[offset + read_len] == '\0'){
+                read_more = 0;
+                break;
+            }
+
+            read_len++;
+        }
+
+        /* Otherwise, realloc, tack on the '\0' in case of errors and
+         * get ready to read the next page.
+         */
+        rtnval = realloc(rtnval, len + 1 + read_len);
+        memcpy(&rtnval[len], &memory[offset], read_len);
+        len += read_len;
+        rtnval[len] = '\0';
     }
 
-    if (0 == paddr) {
-        dbprint("--%s: failed to translate addr 0x%.16llx\n", __FUNCTION__, vaddr);
-        return 0;
-    } // if
-
-    return vmi_read_str_pa(vmi, paddr);
+    return rtnval;
 }
 
 
