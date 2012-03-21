@@ -52,7 +52,21 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
 
     def read(self, addr, length):
         return self.zread(addr, length)
-
+    #    assert addr < self.vmi.get_memsize(), "addr too big"
+    #
+    #    end = addr+length
+    #
+    #    if end > self.vmi.get_memsize():
+    #        memory = None
+    #    else:
+    #        try:
+    #            memory = self.vmi.read_pa(addr, length)
+    #        except:
+    #            memory = None
+    #
+    #    return memory
+        
+    # account for holes in physical mem
     def zread(self, addr, length):
         assert addr < self.vmi.get_memsize(), "addr too big"
 
@@ -60,7 +74,7 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
 
         if end > self.vmi.get_memsize():
             memory = None
-        else: # account for holes in physical mem
+        else:
             memory = self.vmi.zread_pa(addr, length)
 
         return memory
@@ -81,7 +95,7 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         return cr3
 
     def get_available_addresses(self):
-        yield (4096, self.vmi.get_memsize()-1)
+        yield (4096, self.vmi.get_memsize() - 1)
         return
 
 
