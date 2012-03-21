@@ -1,0 +1,87 @@
+Windows Offset Finder Tools README
+by Daniel English and John Maccini
+====================================
+
+This is the README file for the following suite of programs:
+- getGUID.cpp
+- downloadPDB.py
+- dumpPDB.py
+- createConfig.py
+
+DEPENDENCIES: These programs require that the PDBParse library folder be located
+in the programs' working directory. PDBParse can be downloaded from:
+
+http://code.google.com/p/pdbparse/
+
+
+------------------------
+TABLE OF CONTENTS
+------------------------
+1. Tool Descriptions
+2. Inputs and Flags
+3. Usage Examples
+
+------------------------
+TOOL DESCRIPTIONS
+------------------------
+getGUID: A C++ source file that must be compiled and run as a program from
+the command line with a memory image file supplied as the only argument. This 
+program searches through the memory image for the Windows kernel and uses 
+known information about Windows operating system memory layout to obtain the 
+OS's GUID and .pdb filename from the memory dump. Currently, the tool works
+for any 32-bit NT-based OS, XP or newer. Windows 2000 is not known to be 
+compatible because that OS uses an older format of debug file known as a .dbg 
+file. The tool will recognize this and display a message to that effect.
+
+downloadPDB: A Python script that runs from the command line with either piped
+input from getGUID or a supplied filename and GUID. It will access the Microsoft
+Symbol Server and download the .pdb file associated with the GUID and filename.
+Note that since .pdb files downloaded from the server are compressed, downloadPDB
+requires that cabextract be installed in order to function properly. In addition,
+to handle Windows 7 .pdb files, msexpand is required (since these .pdb files use
+a different compression format). This tool uses an open source library called 
+PDBParse which can be found at http://code.google.com/p/pdbparse/ This library 
+currently must be located in the same directory as the downloadPDB and dumpPDB 
+programs. 
+
+dumpPDB: A Python script that runs from the command line with either piped input
+from downloadPDB or with a supplied .pdb filename. This tool uses PDBParse to 
+parse the .pdb file and dumps relevant information into a comma-separated-values
+text file at a supplied output filename.
+
+createConfig: A Python script that build a libvmi.conf config file entry based
+on the output from dumpPDB.
+
+------------------------
+INPUTS AND FLAGS
+------------------------
+Note: using -h with any tool will display a help message with descriptions of 
+available flags.
+
+getGUID: Requires an input filename (memory image). No other options.
+
+downloadPDB: If the command is not piped from getGUID, the -f flag must be 
+supplied with a .pdb filename and the -g flag must be supplied with a GUID.
+The -v option enables verbose output and displays a download progress bar 
+and other status messages.
+
+dumpPDB: Input can be either piped or given as a .pdb file with the -f option.
+The -o flag must be supplied with an output filename in both cases.
+
+createConfig: Input is the filename output from dumpPDB, given with the -f
+option.
+
+------------------------
+USAGE EXAMPLES
+------------------------
+Used separately:
+
+getGUID win7.dd 
+downloadPDB.py -f ntkrnlmp.pdb -g d02a8600a1c64c6fa9377472055c76962
+dumpPDB.py -f ntkrnlmp.pdb -o debugSymbols.txt
+createConfig.py -f debugSymbols.txt
+
+Used in a piped sequence:
+
+getGUID win7.dd | downloadPDB.py | dumpPDB.py -o debugSymbols.txt
+createConfig.py -f debugSymbols.txt
