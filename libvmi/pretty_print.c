@@ -28,7 +28,7 @@
 #include "libvmi.h"
 #include "private.h"
 
-void vmi_print_hex (unsigned char *data, size_t length)
+void vmi_print_hex (unsigned char *data, unsigned long length)
 {
     int i, j, numrows, index;
 
