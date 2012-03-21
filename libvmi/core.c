@@ -402,7 +402,7 @@ static status_t vmi_init_private (vmi_instance_t *vmi, uint32_t flags, unsigned 
     memset(*vmi, 0, sizeof(struct vmi_instance));
 
     /* initialize instance struct to default values */
-    dbprint("LibVMI Version 0.8\n");  //TODO change this with each release
+    dbprint("LibVMI Version 0.9_alpha\n");  //TODO change this with each release
 
     /* save the flags and init mode */
     (*vmi)->flags     = flags;
