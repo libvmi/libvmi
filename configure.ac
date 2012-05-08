@@ -143,6 +143,8 @@ PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16])
 AC_SUBST([GLIB_CFLAGS])
 AC_SUBST([GLIB_LIBS])
 
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
+
 dnl -----------------------------------------------
 dnl Generates Makefile's, configuration files and scripts
 dnl -----------------------------------------------
@@ -152,6 +154,7 @@ AC_CONFIG_FILES(Makefile \
                 libvmi/Makefile \
                 libvmi/config/Makefile \
                 examples/Makefile
+                tests/Makefile
 )
 AC_OUTPUT
 

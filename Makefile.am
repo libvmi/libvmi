@@ -2,7 +2,7 @@
 # Process this file with automake to produce Makefile.in
 
 #Build in these directories:
-SUBDIRS= $(LIBRARY_NAME) examples
+SUBDIRS= $(LIBRARY_NAME) examples tests
 
 #Distribute these directories:
 DIST_SUBDIRS = $(LIBRARY_NAME) examples
