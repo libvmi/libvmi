@@ -38,7 +38,9 @@ int main (int argc, char **argv)
     vmi_instance_t vmi;
     char *filename = NULL;
     FILE *f = NULL;
-    unsigned char *memory = NULL;
+    unsigned char memory[PAGE_SIZE];
+    unsigned char zeros[PAGE_SIZE];
+    memset(zeros, 0, PAGE_SIZE);
     uint32_t offset = 0;
     addr_t address = 0;
 
@@ -70,18 +72,14 @@ int main (int argc, char **argv)
                 printf("failed to write memory to file.\n");
                 goto error_exit;
             }
-            munmap(memory, PAGE_SIZE);
         }
         else{
             /* memory not mapped, write zeros to maintain offset */
-            unsigned char *zeros = malloc(PAGE_SIZE);
-            memset(zeros, 0, PAGE_SIZE);
             size_t written = fwrite(zeros, 1, PAGE_SIZE, f);
             if (written != PAGE_SIZE){
                 printf("failed to write zeros to file.\n");
                 goto error_exit;
             }
-            free(zeros);
         }
 
         /* move on to the next page */
@@ -89,7 +87,6 @@ int main (int argc, char **argv)
     }
 
 error_exit:
-    if (memory) free(memory);
     if (f) fclose(f);
 
     /* cleanup any memory associated with the libvmi instance */
