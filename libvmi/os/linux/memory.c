@@ -29,9 +29,11 @@
 #include <sys/mman.h>
 #include "private.h"
 
-
 /* finds the task struct for a given pid */
-static addr_t linux_get_taskstruct_addr (vmi_instance_t vmi, int pid)
+static addr_t
+linux_get_taskstruct_addr(
+    vmi_instance_t vmi,
+    int pid)
 {
     addr_t list_head = 0, next_process = 0;
     int task_pid = 0;
@@ -42,18 +44,20 @@ static addr_t linux_get_taskstruct_addr (vmi_instance_t vmi, int pid)
     next_process = vmi->init_task;
     list_head = next_process;
 
-    while (1){
+    while (1) {
         addr_t next_process_tmp = 0;
+
         vmi_read_addr_va(vmi, next_process, 0, &next_process_tmp);
 
         /* if we are back at the list head, we are done */
-        if (list_head == next_process_tmp){
+        if (list_head == next_process_tmp) {
             goto error_exit;
         }
 
         /* if pid matches, then we found what we want */
-        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &task_pid);
-        if (task_pid == pid){
+        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0,
+                       &task_pid);
+        if (task_pid == pid) {
             return next_process;
         }
         next_process = next_process_tmp;
@@ -64,7 +68,10 @@ error_exit:
 }
 
 /* finds the address of the page global directory for a given pid */
-addr_t linux_pid_to_pgd (vmi_instance_t vmi, int pid)
+addr_t
+linux_pid_to_pgd(
+    vmi_instance_t vmi,
+    int pid)
 {
     addr_t ts_addr = 0, pgd = 0, ptr = 0;
     int mm_offset = vmi->os.linux_instance.mm_offset;
@@ -73,7 +80,7 @@ addr_t linux_pid_to_pgd (vmi_instance_t vmi, int pid)
 
     /* first we need a pointer to this pid's task_struct */
     ts_addr = linux_get_taskstruct_addr(vmi, pid);
-    if (!ts_addr){
+    if (!ts_addr) {
         errprint("Could not find task struct for pid = %d.\n", pid);
         goto error_exit;
     }

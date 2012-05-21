@@ -37,39 +37,43 @@
 staticforward PyTypeObject pyvmi_instance_Type;
 
 typedef struct {
-    PyObject_HEAD
-    vmi_instance_t vmi;    // LibVMI instance
+    PyObject_HEAD vmi_instance_t vmi;   // LibVMI instance
     void *memory;
     char *name;
 } pyvmi_instance;
 
 // Constructor & Destructor
 static PyObject *
-pyvmi_init(PyObject *self, PyObject *args) {
+pyvmi_init(
+    PyObject * self,
+    PyObject * args)
+{
     char *vmname;
     char *inittype;
     uint32_t flags = 0;
     pyvmi_instance *object = NULL;
-    
-    object = PyObject_NEW(pyvmi_instance, &pyvmi_instance_Type);    
 
-    if (!PyArg_ParseTuple(args, "ss", &vmname, &inittype)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    object = PyObject_NEW(pyvmi_instance, &pyvmi_instance_Type);
+
+    if (!PyArg_ParseTuple(args, "ss", &vmname, &inittype)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (strcmp("complete", inittype) == 0){
+    if (strcmp("complete", inittype) == 0) {
         flags = VMI_AUTO | VMI_INIT_COMPLETE;
     }
-    else if (strcmp("partial", inittype) == 0){
+    else if (strcmp("partial", inittype) == 0) {
         flags = VMI_AUTO | VMI_INIT_PARTIAL;
     }
-    else{
-        PyErr_SetString(PyExc_ValueError, "Inittype must be 'complete' or 'partial'");
+    else {
+        PyErr_SetString(PyExc_ValueError,
+                        "Inittype must be 'complete' or 'partial'");
         return NULL;
     }
-    
-    if (VMI_FAILURE == vmi_init(&(vmi(object)), flags, vmname)){
+
+    if (VMI_FAILURE == vmi_init(&(vmi(object)), flags, vmname)) {
         PyErr_SetString(PyExc_ValueError, "Init failed");
         return NULL;
     }
@@ -81,30 +85,35 @@ pyvmi_init(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-pyvmi_init_complete(PyObject *self, PyObject *args) {
+pyvmi_init_complete(
+    PyObject * self,
+    PyObject * args)
+{
     char *config = NULL;
-    
-    if (!PyArg_ParseTuple(args, "s", &config)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+
+    if (!PyArg_ParseTuple(args, "s", &config)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_init_complete(&(vmi(self)), config)){
+    if (VMI_FAILURE == vmi_init_complete(&(vmi(self)), config)) {
         PyErr_SetString(PyExc_ValueError, "Init complete failed");
         return NULL;
     }
 
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
-
 static void
-pyvmi_instance_dealloc(PyObject *self) {
+pyvmi_instance_dealloc(
+    PyObject * self)
+{
     vmi_destroy(vmi(self));
-    if (mem(self)){
+    if (mem(self)) {
         free(mem(self));
     }
-    if (name(self)){
+    if (name(self)) {
         free(name(self));
     }
     PyObject_DEL(self);
@@ -113,16 +122,21 @@ pyvmi_instance_dealloc(PyObject *self) {
 //-------------------------------------------------------------------
 // Translate functions
 static PyObject *
-pyvmi_translate_kv2p(PyObject *self, PyObject *args) {
+pyvmi_translate_kv2p(
+    PyObject * self,
+    PyObject * args)
+{
     addr_t vaddr;
 
-    if (!PyArg_ParseTuple(args, "K", &vaddr)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "K", &vaddr)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     addr_t paddr = vmi_translate_kv2p(vmi(self), vaddr);
-    if(!paddr){
+
+    if (!paddr) {
         PyErr_SetString(PyExc_ValueError, "Address translation failed");
         return NULL;
     }
@@ -131,17 +145,22 @@ pyvmi_translate_kv2p(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-pyvmi_translate_uv2p(PyObject *self, PyObject *args) {
+pyvmi_translate_uv2p(
+    PyObject * self,
+    PyObject * args)
+{
     addr_t vaddr;
     int pid;
 
-    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     addr_t paddr = vmi_translate_uv2p(vmi(self), vaddr, pid);
-    if(!paddr){
+
+    if (!paddr) {
         PyErr_SetString(PyExc_ValueError, "Address translation failed");
         return NULL;
     }
@@ -150,16 +169,21 @@ pyvmi_translate_uv2p(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-pyvmi_translate_ksym2v(PyObject *self, PyObject *args) {
+pyvmi_translate_ksym2v(
+    PyObject * self,
+    PyObject * args)
+{
     char *sym;
 
-    if (!PyArg_ParseTuple(args, "s", &sym)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "s", &sym)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     addr_t vaddr = vmi_translate_ksym2v(vmi(self), sym);
-    if(!vaddr){
+
+    if (!vaddr) {
         PyErr_SetString(PyExc_ValueError, "Symbol lookup failed");
         return NULL;
     }
@@ -168,16 +192,21 @@ pyvmi_translate_ksym2v(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-pyvmi_pid_to_dtb(PyObject *self, PyObject *args) {
+pyvmi_pid_to_dtb(
+    PyObject * self,
+    PyObject * args)
+{
     int pid;
 
-    if (!PyArg_ParseTuple(args, "i", &pid)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "i", &pid)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     addr_t dtb = vmi_pid_to_dtb(vmi(self), pid);
-    if (!dtb){
+
+    if (!dtb) {
         PyErr_SetString(PyExc_ValueError, "DTB lookup failed");
         return NULL;
     }
@@ -188,33 +217,39 @@ pyvmi_pid_to_dtb(PyObject *self, PyObject *args) {
 //-------------------------------------------------------------------
 // Primary read functions
 static PyObject *
-pyvmi_read_pa(PyObject *self, PyObject *args) {
+pyvmi_read_pa(
+    PyObject * self,
+    PyObject * args)
+{
     addr_t paddr;
     uint32_t length;
     char msg[1024];
 
 #define ll_t unsigned long long
 
-    if (!PyArg_ParseTuple(args, "KI", &paddr, &length)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "KI", &paddr, &length)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (mem(self)){
+    if (mem(self)) {
         free(mem(self));
     }
 
     mem(self) = malloc(length);
     if (!mem(self)) {
-        PyErr_SetString (PyExc_MemoryError, "malloc failed");
+        PyErr_SetString(PyExc_MemoryError, "malloc failed");
         return NULL;
-    } // if
+    }   // if
 
     size_t nbytes = vmi_read_pa(vmi(self), paddr, mem(self), length);
-    if(nbytes != length){
-        snprintf (msg, sizeof(msg), 
-                  "%s was asked to read PA [0x%.16llx-0x%.16llx] (%d bytes), but only read %lld bytes)",
-                  __FUNCTION__, (ll_t)paddr, (ll_t)(paddr+length), length, (ll_t)nbytes);
+
+    if (nbytes != length) {
+        snprintf(msg, sizeof(msg),
+                 "%s was asked to read PA [0x%.16llx-0x%.16llx] (%d bytes), but only read %lld bytes)",
+                 __FUNCTION__, (ll_t) paddr, (ll_t) (paddr + length),
+                 length, (ll_t) nbytes);
         PyErr_SetString(PyExc_ValueError, msg);
         return NULL;
     }
@@ -224,23 +259,26 @@ pyvmi_read_pa(PyObject *self, PyObject *args) {
 
 // Similar to pyvmi_read_pa, but puts zeros in memory holes instead of failing
 static PyObject *
-pyvmi_zread_pa(PyObject *self, PyObject *args) 
+pyvmi_zread_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     uint32_t length;
 
 #define ll_t unsigned long long
 
-#define PAGE_SIZE 0x1000  // minimal PAGE_SIZE
+#define PAGE_SIZE 0x1000    // minimal PAGE_SIZE
 #define PAGE_MASK 0xfff
 #define PAGE_SHIFT 12
 
-    if (!PyArg_ParseTuple(args, "KI", &paddr, &length)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "KI", &paddr, &length)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (mem(self)){
+    if (mem(self)) {
         free(mem(self));
         mem(self) = 0;
     }
@@ -251,59 +289,66 @@ pyvmi_zread_pa(PyObject *self, PyObject *args)
 
     mem(self) = malloc(length);
     if (!mem(self)) {
-        PyErr_SetString (PyExc_MemoryError, "malloc failed");
+        PyErr_SetString(PyExc_MemoryError, "malloc failed");
         return NULL;
-    } // if
-    memset (mem(self), 0, length);
+    }   // if
+    memset(mem(self), 0, length);
 
-    size_t remaining = (size_t)length;
+    size_t remaining = (size_t) length;
     uint8_t *target = (uint8_t *) (mem(self));
 
     while (remaining > 0) {
         // calculate how many bytes to read
-        size_t   count = PAGE_SIZE; 
-        if (paddr & PAGE_MASK) { // an offset was given
-            count = PAGE_SIZE - (paddr & PAGE_MASK); // read to end of PAGE
+        size_t count = PAGE_SIZE;
+
+        if (paddr & PAGE_MASK) {    // an offset was given
+            count = PAGE_SIZE - (paddr & PAGE_MASK);    // read to end of PAGE
         }
-        if (remaining < count) { // don't read more than requested
+        if (remaining < count) {    // don't read more than requested
             count = remaining;
         }
 
         // ignore return value here
-        (void) vmi_read_pa (vmi(self), paddr, target, count);
+        (void) vmi_read_pa(vmi(self), paddr, target, count);
 
         remaining -= count;
-        paddr     += count;
-        target    += count;
-    } // while
+        paddr += count;
+        target += count;
+    }   // while
 
     return Py_BuildValue("s#", mem(self), length);
 }
 
 static PyObject *
-pyvmi_read_va(PyObject *self, PyObject *args) {
+pyvmi_read_va(
+    PyObject * self,
+    PyObject * args)
+{
     addr_t vaddr;
     int pid;
     uint32_t length;
 
-    if (!PyArg_ParseTuple(args, "KiI", &vaddr, &pid, &length)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "KiI", &vaddr, &pid, &length)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (mem(self)){
+    if (mem(self)) {
         free(mem(self));
     }
 
     mem(self) = malloc(length);
     if (!mem(self)) {
-        PyErr_SetString (PyExc_MemoryError, "malloc failed");
+        PyErr_SetString(PyExc_MemoryError, "malloc failed");
         return NULL;
-    } // if
+    }   // if
 
-    size_t nbytes = vmi_read_va(vmi(self), vaddr, pid, mem(self), length);
-    if(nbytes != length){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    size_t nbytes =
+        vmi_read_va(vmi(self), vaddr, pid, mem(self), length);
+    if (nbytes != length) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -311,28 +356,34 @@ pyvmi_read_va(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-pyvmi_read_ksym(PyObject *self, PyObject *args) {
+pyvmi_read_ksym(
+    PyObject * self,
+    PyObject * args)
+{
     char *sym;
     uint32_t length;
 
-    if (!PyArg_ParseTuple(args, "sI", &sym, &length)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "sI", &sym, &length)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (mem(self)){
+    if (mem(self)) {
         free(mem(self));
     }
 
     mem(self) = malloc(length);
     if (!mem(self)) {
-        PyErr_SetString (PyExc_MemoryError, "malloc failed");
+        PyErr_SetString(PyExc_MemoryError, "malloc failed");
         return NULL;
-    } // if
+    }   // if
 
     size_t nbytes = vmi_read_ksym(vmi(self), sym, mem(self), length);
-    if(nbytes != length){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+
+    if (nbytes != length) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -342,19 +393,25 @@ pyvmi_read_ksym(PyObject *self, PyObject *args) {
 //-------------------------------------------------------------------
 // Primary write functions
 static PyObject *
-pyvmi_write_pa(PyObject *self, PyObject *args) {
+pyvmi_write_pa(
+    PyObject * self,
+    PyObject * args)
+{
     addr_t paddr;
     void *buf;
     int count;
 
-    if (!PyArg_ParseTuple(args, "Is#", &paddr, &buf, &count)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Is#", &paddr, &buf, &count)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     size_t nbytes = vmi_write_pa(vmi(self), paddr, buf, (size_t) count);
-    if(nbytes != count){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+
+    if (nbytes != count) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -362,20 +419,26 @@ pyvmi_write_pa(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-pyvmi_write_va(PyObject *self, PyObject *args) {
+pyvmi_write_va(
+    PyObject * self,
+    PyObject * args)
+{
     addr_t vaddr;
     int pid;
     void *buf;
     int count;
 
-    if (!PyArg_ParseTuple(args, "Iis#", &vaddr, &pid, &buf, &count)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Iis#", &vaddr, &pid, &buf, &count)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    size_t nbytes = vmi_write_va(vmi(self), vaddr, pid, buf, (size_t) count);
-    if(nbytes != count){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    size_t nbytes =
+        vmi_write_va(vmi(self), vaddr, pid, buf, (size_t) count);
+    if (nbytes != count) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -383,19 +446,25 @@ pyvmi_write_va(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-pyvmi_write_ksym(PyObject *self, PyObject *args) {
+pyvmi_write_ksym(
+    PyObject * self,
+    PyObject * args)
+{
     char *sym;
     void *buf;
     int count;
 
-    if (!PyArg_ParseTuple(args, "ss#", &sym, &buf, &count)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "ss#", &sym, &buf, &count)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     size_t nbytes = vmi_write_ksym(vmi(self), sym, buf, (size_t) count);
-    if(nbytes != count){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+
+    if (nbytes != count) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -405,18 +474,22 @@ pyvmi_write_ksym(PyObject *self, PyObject *args) {
 //-------------------------------------------------------------------
 // Utility read functions
 static PyObject *
-pyvmi_read_8_pa (PyObject *self, PyObject *args)
+pyvmi_read_8_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "K", &paddr)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "K", &paddr)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_8_pa(vmi(self), paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_8_pa(vmi(self), paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -424,18 +497,22 @@ pyvmi_read_8_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_16_pa (PyObject *self, PyObject *args)
+pyvmi_read_16_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     uint16_t value;
 
-    if (!PyArg_ParseTuple(args, "K", &paddr)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "K", &paddr)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_16_pa(vmi(self), paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_16_pa(vmi(self), paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -443,18 +520,22 @@ pyvmi_read_16_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_32_pa (PyObject *self, PyObject *args)
+pyvmi_read_32_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     uint32_t value;
 
-    if (!PyArg_ParseTuple(args, "K", &paddr)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "K", &paddr)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_32_pa(vmi(self), paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_32_pa(vmi(self), paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -462,18 +543,22 @@ pyvmi_read_32_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_64_pa (PyObject *self, PyObject *args)
+pyvmi_read_64_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     uint64_t value;
 
-    if (!PyArg_ParseTuple(args, "K", &paddr)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "K", &paddr)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_64_pa(vmi(self), paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_64_pa(vmi(self), paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -481,18 +566,22 @@ pyvmi_read_64_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_addr_pa (PyObject *self, PyObject *args)
+pyvmi_read_addr_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     addr_t value;
 
-    if (!PyArg_ParseTuple(args, "K", &paddr)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "K", &paddr)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_addr_pa(vmi(self), paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_addr_pa(vmi(self), paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -500,18 +589,22 @@ pyvmi_read_addr_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_str_pa (PyObject *self, PyObject *args)
+pyvmi_read_str_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     char *str = NULL;
 
-    if (!PyArg_ParseTuple(args, "K", &paddr)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "K", &paddr)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if ((str = vmi_read_str_pa(vmi(self), paddr)) == NULL){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if ((str = vmi_read_str_pa(vmi(self), paddr)) == NULL) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -519,19 +612,23 @@ pyvmi_read_str_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_8_va (PyObject *self, PyObject *args)
+pyvmi_read_8_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_8_va(vmi(self), vaddr, pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_8_va(vmi(self), vaddr, pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -539,19 +636,23 @@ pyvmi_read_8_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_16_va (PyObject *self, PyObject *args)
+pyvmi_read_16_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     uint16_t value;
 
-    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_16_va(vmi(self), vaddr, pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_16_va(vmi(self), vaddr, pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -559,19 +660,23 @@ pyvmi_read_16_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_32_va (PyObject *self, PyObject *args)
+pyvmi_read_32_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     uint32_t value;
 
-    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_32_va(vmi(self), vaddr, pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_32_va(vmi(self), vaddr, pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -579,19 +684,23 @@ pyvmi_read_32_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_64_va (PyObject *self, PyObject *args)
+pyvmi_read_64_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     uint64_t value;
 
-    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_64_va(vmi(self), vaddr, pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_64_va(vmi(self), vaddr, pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -599,19 +708,23 @@ pyvmi_read_64_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_addr_va (PyObject *self, PyObject *args)
+pyvmi_read_addr_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     addr_t value;
 
-    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_addr_va(vmi(self), vaddr, pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_addr_va(vmi(self), vaddr, pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -619,19 +732,23 @@ pyvmi_read_addr_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_str_va (PyObject *self, PyObject *args)
+pyvmi_read_str_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     char *str = NULL;
 
-    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Ki", &vaddr, &pid)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if ((str = vmi_read_str_va(vmi(self), vaddr, pid)) == NULL){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if ((str = vmi_read_str_va(vmi(self), vaddr, pid)) == NULL) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -639,18 +756,22 @@ pyvmi_read_str_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_8_ksym (PyObject *self, PyObject *args)
+pyvmi_read_8_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "s", &sym)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "s", &sym)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_8_ksym(vmi(self), sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_8_ksym(vmi(self), sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -658,18 +779,22 @@ pyvmi_read_8_ksym (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_16_ksym (PyObject *self, PyObject *args)
+pyvmi_read_16_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     uint16_t value;
 
-    if (!PyArg_ParseTuple(args, "s", &sym)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "s", &sym)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_16_ksym(vmi(self), sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_16_ksym(vmi(self), sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -677,18 +802,22 @@ pyvmi_read_16_ksym (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_32_ksym (PyObject *self, PyObject *args)
+pyvmi_read_32_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     uint32_t value;
 
-    if (!PyArg_ParseTuple(args, "s", &sym)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "s", &sym)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_32_ksym(vmi(self), sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_32_ksym(vmi(self), sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -697,18 +826,22 @@ pyvmi_read_32_ksym (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_64_ksym (PyObject *self, PyObject *args)
+pyvmi_read_64_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     uint64_t value;
 
-    if (!PyArg_ParseTuple(args, "s", &sym)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "s", &sym)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_64_ksym(vmi(self), sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_64_ksym(vmi(self), sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -716,18 +849,22 @@ pyvmi_read_64_ksym (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_addr_ksym (PyObject *self, PyObject *args)
+pyvmi_read_addr_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     addr_t value;
 
-    if (!PyArg_ParseTuple(args, "s", &sym)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "s", &sym)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_read_addr_ksym(vmi(self), sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if (VMI_FAILURE == vmi_read_addr_ksym(vmi(self), sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -735,18 +872,22 @@ pyvmi_read_addr_ksym (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_read_str_ksym (PyObject *self, PyObject *args)
+pyvmi_read_str_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     char *str = NULL;
 
-    if (!PyArg_ParseTuple(args, "s", &sym)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "s", &sym)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if ((str = vmi_read_str_ksym(vmi(self), sym)) == NULL){
-        PyErr_SetString(PyExc_ValueError, "Unable to read memory at specified address");
+    if ((str = vmi_read_str_ksym(vmi(self), sym)) == NULL) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to read memory at specified address");
         return NULL;
     }
 
@@ -756,18 +897,22 @@ pyvmi_read_str_ksym (PyObject *self, PyObject *args)
 //-------------------------------------------------------------------
 // Utility write functions
 static PyObject *
-pyvmi_write_8_pa (PyObject *self, PyObject *args)
+pyvmi_write_8_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "Ic", &paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Ic", &paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_8_pa(vmi(self), paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_8_pa(vmi(self), paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -775,18 +920,22 @@ pyvmi_write_8_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_16_pa (PyObject *self, PyObject *args)
+pyvmi_write_16_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     uint16_t value;
 
-    if (!PyArg_ParseTuple(args, "IH", &paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "IH", &paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_16_pa(vmi(self), paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_16_pa(vmi(self), paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -794,18 +943,22 @@ pyvmi_write_16_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_32_pa (PyObject *self, PyObject *args)
+pyvmi_write_32_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     uint32_t value;
 
-    if (!PyArg_ParseTuple(args, "II", &paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "II", &paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_32_pa(vmi(self), paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_32_pa(vmi(self), paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -813,18 +966,22 @@ pyvmi_write_32_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_64_pa (PyObject *self, PyObject *args)
+pyvmi_write_64_pa(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t paddr;
     uint64_t value;
 
-    if (!PyArg_ParseTuple(args, "IK", &paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "IK", &paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_64_pa(vmi(self), paddr, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_64_pa(vmi(self), paddr, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -832,19 +989,23 @@ pyvmi_write_64_pa (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_8_va (PyObject *self, PyObject *args)
+pyvmi_write_8_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "Iic", &vaddr, &pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "Iic", &vaddr, &pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_8_va(vmi(self), vaddr, pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_8_va(vmi(self), vaddr, pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -852,19 +1013,23 @@ pyvmi_write_8_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_16_va (PyObject *self, PyObject *args)
+pyvmi_write_16_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     uint16_t value;
 
-    if (!PyArg_ParseTuple(args, "IiH", &vaddr, &pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "IiH", &vaddr, &pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_16_va(vmi(self), vaddr, pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_16_va(vmi(self), vaddr, pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -872,19 +1037,23 @@ pyvmi_write_16_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_32_va (PyObject *self, PyObject *args)
+pyvmi_write_32_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     uint32_t value;
 
-    if (!PyArg_ParseTuple(args, "IiI", &vaddr, &pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "IiI", &vaddr, &pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_32_va(vmi(self), vaddr, pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_32_va(vmi(self), vaddr, pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -892,19 +1061,23 @@ pyvmi_write_32_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_64_va (PyObject *self, PyObject *args)
+pyvmi_write_64_va(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t vaddr;
     int pid;
     uint64_t value;
 
-    if (!PyArg_ParseTuple(args, "IiK", &vaddr, &pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "IiK", &vaddr, &pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_64_va(vmi(self), vaddr, pid, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_64_va(vmi(self), vaddr, pid, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -912,18 +1085,22 @@ pyvmi_write_64_va (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_8_ksym (PyObject *self, PyObject *args)
+pyvmi_write_8_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "sc", &sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "sc", &sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_8_ksym(vmi(self), sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_8_ksym(vmi(self), sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -931,18 +1108,22 @@ pyvmi_write_8_ksym (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_16_ksym (PyObject *self, PyObject *args)
+pyvmi_write_16_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     uint16_t value;
 
-    if (!PyArg_ParseTuple(args, "sH", &sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "sH", &sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_16_ksym(vmi(self), sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_16_ksym(vmi(self), sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -950,18 +1131,22 @@ pyvmi_write_16_ksym (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_32_ksym (PyObject *self, PyObject *args)
+pyvmi_write_32_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     uint32_t value;
 
-    if (!PyArg_ParseTuple(args, "sI", &sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "sI", &sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_32_ksym(vmi(self), sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_32_ksym(vmi(self), sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -969,18 +1154,22 @@ pyvmi_write_32_ksym (PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_write_64_ksym (PyObject *self, PyObject *args)
+pyvmi_write_64_ksym(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     uint64_t value;
 
-    if (!PyArg_ParseTuple(args, "sK", &sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "sK", &sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_write_64_ksym(vmi(self), sym, &value)){
-        PyErr_SetString(PyExc_ValueError, "Unable to write memory at specified address");
+    if (VMI_FAILURE == vmi_write_64_ksym(vmi(self), sym, &value)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to write memory at specified address");
         return NULL;
     }
 
@@ -990,250 +1179,327 @@ pyvmi_write_64_ksym (PyObject *self, PyObject *args)
 //-------------------------------------------------------------------
 // Accessor and other utility functions
 static PyObject *
-pyvmi_get_vcpureg(PyObject *self, PyObject *args)
+pyvmi_get_vcpureg(
+    PyObject * self,
+    PyObject * args)
 {
     char *reg_name = NULL;
     unsigned long vcpu = 0;
 
-    if (!PyArg_ParseTuple(args, "sI", &reg_name, &vcpu)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "sI", &reg_name, &vcpu)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     reg_t value;
     registers_t reg;
-    if (strcmp(reg_name, "RAX") == 0 || strcmp(reg_name, "rax") == 0){
+
+    if (strcmp(reg_name, "RAX") == 0 || strcmp(reg_name, "rax") == 0) {
         reg = RAX;
     }
-    else if (strcmp(reg_name, "RBX") == 0 || strcmp(reg_name, "rbx") == 0){
+    else if (strcmp(reg_name, "RBX") == 0 ||
+             strcmp(reg_name, "rbx") == 0) {
         reg = RBX;
     }
-    else if (strcmp(reg_name, "RCX") == 0 || strcmp(reg_name, "rcx") == 0){
+    else if (strcmp(reg_name, "RCX") == 0 ||
+             strcmp(reg_name, "rcx") == 0) {
         reg = RCX;
     }
-    else if (strcmp(reg_name, "RDX") == 0 || strcmp(reg_name, "rdx") == 0){
+    else if (strcmp(reg_name, "RDX") == 0 ||
+             strcmp(reg_name, "rdx") == 0) {
         reg = RDX;
     }
-    else if (strcmp(reg_name, "RBP") == 0 || strcmp(reg_name, "rbp") == 0){
+    else if (strcmp(reg_name, "RBP") == 0 ||
+             strcmp(reg_name, "rbp") == 0) {
         reg = RBP;
     }
-    else if (strcmp(reg_name, "RSI") == 0 || strcmp(reg_name, "rsi") == 0){
+    else if (strcmp(reg_name, "RSI") == 0 ||
+             strcmp(reg_name, "rsi") == 0) {
         reg = RSI;
     }
-    else if (strcmp(reg_name, "RDI") == 0 || strcmp(reg_name, "rdi") == 0){
+    else if (strcmp(reg_name, "RDI") == 0 ||
+             strcmp(reg_name, "rdi") == 0) {
         reg = RDI;
     }
-    else if (strcmp(reg_name, "RSP") == 0 || strcmp(reg_name, "rsp") == 0){
+    else if (strcmp(reg_name, "RSP") == 0 ||
+             strcmp(reg_name, "rsp") == 0) {
         reg = RSP;
     }
-    else if (strcmp(reg_name, "R8") == 0 || strcmp(reg_name, "r8") == 0){
+    else if (strcmp(reg_name, "R8") == 0 || strcmp(reg_name, "r8") == 0) {
         reg = R8;
     }
-    else if (strcmp(reg_name, "R9") == 0 || strcmp(reg_name, "r9") == 0){
+    else if (strcmp(reg_name, "R9") == 0 || strcmp(reg_name, "r9") == 0) {
         reg = R9;
     }
-    else if (strcmp(reg_name, "R10") == 0 || strcmp(reg_name, "r10") == 0){
+    else if (strcmp(reg_name, "R10") == 0 ||
+             strcmp(reg_name, "r10") == 0) {
         reg = R10;
     }
-    else if (strcmp(reg_name, "R11") == 0 || strcmp(reg_name, "r11") == 0){
+    else if (strcmp(reg_name, "R11") == 0 ||
+             strcmp(reg_name, "r11") == 0) {
         reg = R11;
     }
-    else if (strcmp(reg_name, "R12") == 0 || strcmp(reg_name, "r12") == 0){
+    else if (strcmp(reg_name, "R12") == 0 ||
+             strcmp(reg_name, "r12") == 0) {
         reg = R12;
     }
-    else if (strcmp(reg_name, "R13") == 0 || strcmp(reg_name, "r13") == 0){
+    else if (strcmp(reg_name, "R13") == 0 ||
+             strcmp(reg_name, "r13") == 0) {
         reg = R13;
     }
-    else if (strcmp(reg_name, "R14") == 0 || strcmp(reg_name, "r14") == 0){
+    else if (strcmp(reg_name, "R14") == 0 ||
+             strcmp(reg_name, "r14") == 0) {
         reg = R14;
     }
-    else if (strcmp(reg_name, "R15") == 0 || strcmp(reg_name, "r15") == 0){
+    else if (strcmp(reg_name, "R15") == 0 ||
+             strcmp(reg_name, "r15") == 0) {
         reg = R15;
     }
-    else if (strcmp(reg_name, "RIP") == 0 || strcmp(reg_name, "rip") == 0){
+    else if (strcmp(reg_name, "RIP") == 0 ||
+             strcmp(reg_name, "rip") == 0) {
         reg = RIP;
     }
-    else if (strcmp(reg_name, "RFLAGS") == 0 || strcmp(reg_name, "rflags") == 0){
+    else if (strcmp(reg_name, "RFLAGS") == 0 ||
+             strcmp(reg_name, "rflags") == 0) {
         reg = RFLAGS;
     }
-    else if (strcmp(reg_name, "CR0") == 0 || strcmp(reg_name, "cr0") == 0){
+    else if (strcmp(reg_name, "CR0") == 0 ||
+             strcmp(reg_name, "cr0") == 0) {
         reg = CR0;
     }
-    else if (strcmp(reg_name, "CR2") == 0 || strcmp(reg_name, "cr2") == 0){
+    else if (strcmp(reg_name, "CR2") == 0 ||
+             strcmp(reg_name, "cr2") == 0) {
         reg = CR2;
     }
-    else if (strcmp(reg_name, "CR3") == 0 || strcmp(reg_name, "cr3") == 0){
+    else if (strcmp(reg_name, "CR3") == 0 ||
+             strcmp(reg_name, "cr3") == 0) {
         reg = CR3;
     }
-    else if (strcmp(reg_name, "CR4") == 0 || strcmp(reg_name, "cr4") == 0){
+    else if (strcmp(reg_name, "CR4") == 0 ||
+             strcmp(reg_name, "cr4") == 0) {
         reg = CR4;
     }
-    else if (strcmp(reg_name, "DR0") == 0 || strcmp(reg_name, "dr0") == 0){
+    else if (strcmp(reg_name, "DR0") == 0 ||
+             strcmp(reg_name, "dr0") == 0) {
         reg = DR0;
     }
-    else if (strcmp(reg_name, "DR1") == 0 || strcmp(reg_name, "dr1") == 0){
+    else if (strcmp(reg_name, "DR1") == 0 ||
+             strcmp(reg_name, "dr1") == 0) {
         reg = DR1;
     }
-    else if (strcmp(reg_name, "DR2") == 0 || strcmp(reg_name, "dr2") == 0){
+    else if (strcmp(reg_name, "DR2") == 0 ||
+             strcmp(reg_name, "dr2") == 0) {
         reg = DR2;
     }
-    else if (strcmp(reg_name, "DR3") == 0 || strcmp(reg_name, "dr3") == 0){
+    else if (strcmp(reg_name, "DR3") == 0 ||
+             strcmp(reg_name, "dr3") == 0) {
         reg = DR3;
     }
-    else if (strcmp(reg_name, "DR6") == 0 || strcmp(reg_name, "dr6") == 0){
+    else if (strcmp(reg_name, "DR6") == 0 ||
+             strcmp(reg_name, "dr6") == 0) {
         reg = DR6;
     }
-    else if (strcmp(reg_name, "DR7") == 0 || strcmp(reg_name, "dr7") == 0){
+    else if (strcmp(reg_name, "DR7") == 0 ||
+             strcmp(reg_name, "dr7") == 0) {
         reg = DR7;
     }
-    else if (strcmp(reg_name, "CS_SEL") == 0 || strcmp(reg_name, "cs_sel") == 0){
+    else if (strcmp(reg_name, "CS_SEL") == 0 ||
+             strcmp(reg_name, "cs_sel") == 0) {
         reg = CS_SEL;
     }
-    else if (strcmp(reg_name, "DS_SEL") == 0 || strcmp(reg_name, "ds_sel") == 0){
+    else if (strcmp(reg_name, "DS_SEL") == 0 ||
+             strcmp(reg_name, "ds_sel") == 0) {
         reg = DS_SEL;
     }
-    else if (strcmp(reg_name, "ES_SEL") == 0 || strcmp(reg_name, "es_sel") == 0){
+    else if (strcmp(reg_name, "ES_SEL") == 0 ||
+             strcmp(reg_name, "es_sel") == 0) {
         reg = ES_SEL;
     }
-    else if (strcmp(reg_name, "FS_SEL") == 0 || strcmp(reg_name, "fs_sel") == 0){
+    else if (strcmp(reg_name, "FS_SEL") == 0 ||
+             strcmp(reg_name, "fs_sel") == 0) {
         reg = FS_SEL;
     }
-    else if (strcmp(reg_name, "GS_SEL") == 0 || strcmp(reg_name, "gs_sel") == 0){
+    else if (strcmp(reg_name, "GS_SEL") == 0 ||
+             strcmp(reg_name, "gs_sel") == 0) {
         reg = GS_SEL;
     }
-    else if (strcmp(reg_name, "SS_SEL") == 0 || strcmp(reg_name, "ss_sel") == 0){
+    else if (strcmp(reg_name, "SS_SEL") == 0 ||
+             strcmp(reg_name, "ss_sel") == 0) {
         reg = SS_SEL;
     }
-    else if (strcmp(reg_name, "TR_SEL") == 0 || strcmp(reg_name, "tr_sel") == 0){
+    else if (strcmp(reg_name, "TR_SEL") == 0 ||
+             strcmp(reg_name, "tr_sel") == 0) {
         reg = TR_SEL;
     }
-    else if (strcmp(reg_name, "LDTR_SEL") == 0 || strcmp(reg_name, "ldtr_sel") == 0){
+    else if (strcmp(reg_name, "LDTR_SEL") == 0 ||
+             strcmp(reg_name, "ldtr_sel") == 0) {
         reg = LDTR_SEL;
     }
-    else if (strcmp(reg_name, "CS_LIMIT") == 0 || strcmp(reg_name, "cs_limit") == 0){
+    else if (strcmp(reg_name, "CS_LIMIT") == 0 ||
+             strcmp(reg_name, "cs_limit") == 0) {
         reg = CS_LIMIT;
     }
-    else if (strcmp(reg_name, "DS_LIMIT") == 0 || strcmp(reg_name, "ds_limit") == 0){
+    else if (strcmp(reg_name, "DS_LIMIT") == 0 ||
+             strcmp(reg_name, "ds_limit") == 0) {
         reg = DS_LIMIT;
     }
-    else if (strcmp(reg_name, "ES_LIMIT") == 0 || strcmp(reg_name, "es_limit") == 0){
+    else if (strcmp(reg_name, "ES_LIMIT") == 0 ||
+             strcmp(reg_name, "es_limit") == 0) {
         reg = ES_LIMIT;
     }
-    else if (strcmp(reg_name, "FS_LIMIT") == 0 || strcmp(reg_name, "fs_limit") == 0){
+    else if (strcmp(reg_name, "FS_LIMIT") == 0 ||
+             strcmp(reg_name, "fs_limit") == 0) {
         reg = FS_LIMIT;
     }
-    else if (strcmp(reg_name, "GS_LIMIT") == 0 || strcmp(reg_name, "gs_limit") == 0){
+    else if (strcmp(reg_name, "GS_LIMIT") == 0 ||
+             strcmp(reg_name, "gs_limit") == 0) {
         reg = GS_LIMIT;
     }
-    else if (strcmp(reg_name, "SS_LIMIT") == 0 || strcmp(reg_name, "ss_limit") == 0){
+    else if (strcmp(reg_name, "SS_LIMIT") == 0 ||
+             strcmp(reg_name, "ss_limit") == 0) {
         reg = SS_LIMIT;
     }
-    else if (strcmp(reg_name, "TR_LIMIT") == 0 || strcmp(reg_name, "tr_limit") == 0){
+    else if (strcmp(reg_name, "TR_LIMIT") == 0 ||
+             strcmp(reg_name, "tr_limit") == 0) {
         reg = TR_LIMIT;
     }
-    else if (strcmp(reg_name, "LDTR_LIMIT") == 0 || strcmp(reg_name, "ldtr_limit") == 0){
+    else if (strcmp(reg_name, "LDTR_LIMIT") == 0 ||
+             strcmp(reg_name, "ldtr_limit") == 0) {
         reg = LDTR_LIMIT;
     }
-    else if (strcmp(reg_name, "IDTR_LIMIT") == 0 || strcmp(reg_name, "idtr_limit") == 0){
+    else if (strcmp(reg_name, "IDTR_LIMIT") == 0 ||
+             strcmp(reg_name, "idtr_limit") == 0) {
         reg = IDTR_LIMIT;
     }
-    else if (strcmp(reg_name, "GDTR_LIMIT") == 0 || strcmp(reg_name, "gdtr_limit") == 0){
+    else if (strcmp(reg_name, "GDTR_LIMIT") == 0 ||
+             strcmp(reg_name, "gdtr_limit") == 0) {
         reg = GDTR_LIMIT;
     }
-    else if (strcmp(reg_name, "CS_BASE") == 0 || strcmp(reg_name, "cs_base") == 0){
+    else if (strcmp(reg_name, "CS_BASE") == 0 ||
+             strcmp(reg_name, "cs_base") == 0) {
         reg = CS_BASE;
     }
-    else if (strcmp(reg_name, "DS_BASE") == 0 || strcmp(reg_name, "ds_base") == 0){
+    else if (strcmp(reg_name, "DS_BASE") == 0 ||
+             strcmp(reg_name, "ds_base") == 0) {
         reg = DS_BASE;
     }
-    else if (strcmp(reg_name, "ES_BASE") == 0 || strcmp(reg_name, "es_base") == 0){
+    else if (strcmp(reg_name, "ES_BASE") == 0 ||
+             strcmp(reg_name, "es_base") == 0) {
         reg = ES_BASE;
     }
-    else if (strcmp(reg_name, "FS_BASE") == 0 || strcmp(reg_name, "fs_base") == 0){
+    else if (strcmp(reg_name, "FS_BASE") == 0 ||
+             strcmp(reg_name, "fs_base") == 0) {
         reg = FS_BASE;
     }
-    else if (strcmp(reg_name, "GS_BASE") == 0 || strcmp(reg_name, "gs_base") == 0){
+    else if (strcmp(reg_name, "GS_BASE") == 0 ||
+             strcmp(reg_name, "gs_base") == 0) {
         reg = GS_BASE;
     }
-    else if (strcmp(reg_name, "SS_BASE") == 0 || strcmp(reg_name, "ss_base") == 0){
+    else if (strcmp(reg_name, "SS_BASE") == 0 ||
+             strcmp(reg_name, "ss_base") == 0) {
         reg = SS_BASE;
     }
-    else if (strcmp(reg_name, "TR_BASE") == 0 || strcmp(reg_name, "tr_base") == 0){
+    else if (strcmp(reg_name, "TR_BASE") == 0 ||
+             strcmp(reg_name, "tr_base") == 0) {
         reg = TR_BASE;
     }
-    else if (strcmp(reg_name, "LDTR_BASE") == 0 || strcmp(reg_name, "ldtr_base") == 0){
+    else if (strcmp(reg_name, "LDTR_BASE") == 0 ||
+             strcmp(reg_name, "ldtr_base") == 0) {
         reg = LDTR_BASE;
     }
-    else if (strcmp(reg_name, "IDTR_BASE") == 0 || strcmp(reg_name, "idtr_base") == 0){
+    else if (strcmp(reg_name, "IDTR_BASE") == 0 ||
+             strcmp(reg_name, "idtr_base") == 0) {
         reg = IDTR_BASE;
     }
-    else if (strcmp(reg_name, "GDTR_BASE") == 0 || strcmp(reg_name, "gdtr_base") == 0){
+    else if (strcmp(reg_name, "GDTR_BASE") == 0 ||
+             strcmp(reg_name, "gdtr_base") == 0) {
         reg = GDTR_BASE;
     }
-    else if (strcmp(reg_name, "CS_ARBYTES") == 0 || strcmp(reg_name, "cs_arbytes") == 0){
+    else if (strcmp(reg_name, "CS_ARBYTES") == 0 ||
+             strcmp(reg_name, "cs_arbytes") == 0) {
         reg = CS_ARBYTES;
     }
-    else if (strcmp(reg_name, "DS_ARBYTES") == 0 || strcmp(reg_name, "ds_arbytes") == 0){
+    else if (strcmp(reg_name, "DS_ARBYTES") == 0 ||
+             strcmp(reg_name, "ds_arbytes") == 0) {
         reg = DS_ARBYTES;
     }
-    else if (strcmp(reg_name, "ES_ARBYTES") == 0 || strcmp(reg_name, "es_arbytes") == 0){
+    else if (strcmp(reg_name, "ES_ARBYTES") == 0 ||
+             strcmp(reg_name, "es_arbytes") == 0) {
         reg = ES_ARBYTES;
     }
-    else if (strcmp(reg_name, "FS_ARBYTES") == 0 || strcmp(reg_name, "fs_arbytes") == 0){
+    else if (strcmp(reg_name, "FS_ARBYTES") == 0 ||
+             strcmp(reg_name, "fs_arbytes") == 0) {
         reg = FS_ARBYTES;
     }
-    else if (strcmp(reg_name, "GS_ARBYTES") == 0 || strcmp(reg_name, "gs_arbytes") == 0){
+    else if (strcmp(reg_name, "GS_ARBYTES") == 0 ||
+             strcmp(reg_name, "gs_arbytes") == 0) {
         reg = GS_ARBYTES;
     }
-    else if (strcmp(reg_name, "SS_ARBYTES") == 0 || strcmp(reg_name, "ss_arbytes") == 0){
+    else if (strcmp(reg_name, "SS_ARBYTES") == 0 ||
+             strcmp(reg_name, "ss_arbytes") == 0) {
         reg = SS_ARBYTES;
     }
-    else if (strcmp(reg_name, "TR_ARBYTES") == 0 || strcmp(reg_name, "tr_arbytes") == 0){
+    else if (strcmp(reg_name, "TR_ARBYTES") == 0 ||
+             strcmp(reg_name, "tr_arbytes") == 0) {
         reg = TR_ARBYTES;
     }
-    else if (strcmp(reg_name, "LDTR_ARBYTES") == 0 || strcmp(reg_name, "ldtr_arbytes") == 0){
+    else if (strcmp(reg_name, "LDTR_ARBYTES") == 0 ||
+             strcmp(reg_name, "ldtr_arbytes") == 0) {
         reg = LDTR_ARBYTES;
     }
-    else if (strcmp(reg_name, "SYSENTER_CS") == 0 || strcmp(reg_name, "sysenter_cs") == 0){
+    else if (strcmp(reg_name, "SYSENTER_CS") == 0 ||
+             strcmp(reg_name, "sysenter_cs") == 0) {
         reg = SYSENTER_CS;
     }
-    else if (strcmp(reg_name, "SYSENTER_ESP") == 0 || strcmp(reg_name, "sysenter_esp") == 0){
+    else if (strcmp(reg_name, "SYSENTER_ESP") == 0 ||
+             strcmp(reg_name, "sysenter_esp") == 0) {
         reg = SYSENTER_ESP;
     }
-    else if (strcmp(reg_name, "SYSENTER_EIP") == 0 || strcmp(reg_name, "sysenter_eip") == 0){
+    else if (strcmp(reg_name, "SYSENTER_EIP") == 0 ||
+             strcmp(reg_name, "sysenter_eip") == 0) {
         reg = SYSENTER_EIP;
     }
-    else if (strcmp(reg_name, "SHADOW_GS") == 0 || strcmp(reg_name, "shadow_gs") == 0){
+    else if (strcmp(reg_name, "SHADOW_GS") == 0 ||
+             strcmp(reg_name, "shadow_gs") == 0) {
         reg = SHADOW_GS;
     }
-    else if (strcmp(reg_name, "MSR_FLAGS") == 0 || strcmp(reg_name, "msr_flags") == 0){
+    else if (strcmp(reg_name, "MSR_FLAGS") == 0 ||
+             strcmp(reg_name, "msr_flags") == 0) {
         reg = MSR_FLAGS;
     }
-    else if (strcmp(reg_name, "MSR_LSTAR") == 0 || strcmp(reg_name, "msr_lstar") == 0){
+    else if (strcmp(reg_name, "MSR_LSTAR") == 0 ||
+             strcmp(reg_name, "msr_lstar") == 0) {
         reg = MSR_LSTAR;
     }
-    else if (strcmp(reg_name, "MSR_CSTAR") == 0 || strcmp(reg_name, "msr_cstar") == 0){
+    else if (strcmp(reg_name, "MSR_CSTAR") == 0 ||
+             strcmp(reg_name, "msr_cstar") == 0) {
         reg = MSR_CSTAR;
     }
-    else if (strcmp(reg_name, "MSR_SYSCALL_MASK") == 0 || strcmp(reg_name, "msr_syscall_mask") == 0){
+    else if (strcmp(reg_name, "MSR_SYSCALL_MASK") == 0 ||
+             strcmp(reg_name, "msr_syscall_mask") == 0) {
         reg = MSR_SYSCALL_MASK;
     }
-    else if (strcmp(reg_name, "MSR_EFER") == 0 || strcmp(reg_name, "msr_efer") == 0){
+    else if (strcmp(reg_name, "MSR_EFER") == 0 ||
+             strcmp(reg_name, "msr_efer") == 0) {
         reg = MSR_EFER;
     }
-    else if (strcmp(reg_name, "MSR_TSC_AUX") == 0 || strcmp(reg_name, "msr_tsc_aux") == 0){
+    else if (strcmp(reg_name, "MSR_TSC_AUX") == 0 ||
+             strcmp(reg_name, "msr_tsc_aux") == 0) {
         reg = MSR_TSC_AUX;
     }
-    else if (strcmp(reg_name, "TSC") == 0 || strcmp(reg_name, "tsc") == 0){
+    else if (strcmp(reg_name, "TSC") == 0 ||
+             strcmp(reg_name, "tsc") == 0) {
         reg = TSC;
     }
-    else{
+    else {
         PyErr_SetString(PyExc_ValueError, "Bad register name");
         return NULL;
     }
 
-    if (VMI_FAILURE == vmi_get_vcpureg(vmi(self), &value, reg, vcpu)){
-        PyErr_SetString(PyExc_ValueError, "Unable to get register value");
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi(self), &value, reg, vcpu)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unable to get register value");
         return NULL;
     }
 
@@ -1241,24 +1507,32 @@ pyvmi_get_vcpureg(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-pyvmi_get_name(PyObject *self, PyObject *args) {
+pyvmi_get_name(
+    PyObject * self,
+    PyObject * args)
+{
     char *name = NULL;
 
-    if (!PyArg_ParseTuple(args, "")){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "")) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
-    name = vmi_get_name(vmi(self));  //TODO how do we free the memory for name ???
+    name = vmi_get_name(vmi(self)); //TODO how do we free the memory for name ???
     return Py_BuildValue("s", name);
 }
 
 static PyObject *
-pyvmi_get_vmid(PyObject *self, PyObject *args) {
+pyvmi_get_vmid(
+    PyObject * self,
+    PyObject * args)
+{
     unsigned long vmid = 0;
 
-    if (!PyArg_ParseTuple(args, "")){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "")) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1267,30 +1541,35 @@ pyvmi_get_vmid(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-pyvmi_get_access_mode(PyObject *self, PyObject *args) {
+pyvmi_get_access_mode(
+    PyObject * self,
+    PyObject * args)
+{
     uint32_t mode = 0;
 
-    if (!PyArg_ParseTuple(args, "")){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "")) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     mode = vmi_get_access_mode(vmi(self));
 
     PyObject *rtnval = NULL;
-    if (VMI_AUTO == mode){
+
+    if (VMI_AUTO == mode) {
         rtnval = Py_BuildValue("s", "auto");
     }
-    else if (VMI_XEN == mode){
+    else if (VMI_XEN == mode) {
         rtnval = Py_BuildValue("s", "xen");
     }
-    else if (VMI_KVM == mode){
+    else if (VMI_KVM == mode) {
         rtnval = Py_BuildValue("s", "kvm");
     }
-    else if (VMI_FILE == mode){
+    else if (VMI_FILE == mode) {
         rtnval = Py_BuildValue("s", "file");
     }
-    else{
+    else {
         rtnval = Py_BuildValue("s", "unknown");
     }
     return rtnval;
@@ -1299,26 +1578,34 @@ pyvmi_get_access_mode(PyObject *self, PyObject *args) {
 // Just implementing get_winver_str and not get_winver as I think this
 // makes the most sense for python
 static PyObject *
-pyvmi_get_winver_str(PyObject *self, PyObject *args)
+pyvmi_get_winver_str(
+    PyObject * self,
+    PyObject * args)
 {
     const char *version = NULL;
 
-    if (!PyArg_ParseTuple(args, "")){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "")) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     version = vmi_get_winver_str(vmi(self));
     PyObject *rtnval = Py_BuildValue("s", version);
+
     return rtnval;
 }
 
 static PyObject *
-pyvmi_get_memsize(PyObject *self, PyObject *args) {
+pyvmi_get_memsize(
+    PyObject * self,
+    PyObject * args)
+{
     unsigned long size = 0;
 
-    if (!PyArg_ParseTuple(args, "")){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "")) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
@@ -1327,205 +1614,257 @@ pyvmi_get_memsize(PyObject *self, PyObject *args) {
 }
 
 static PyObject *
-pyvmi_get_offset(PyObject *self, PyObject *args) {
+pyvmi_get_offset(
+    PyObject * self,
+    PyObject * args)
+{
     char *name;
 
-    if (!PyArg_ParseTuple(args, "s", &name)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "s", &name)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     unsigned long offset = vmi_get_offset(vmi(self), name);
+
     return Py_BuildValue("I", offset);
 }
 
 static PyObject *
-pyvmi_get_page_mode(PyObject *self, PyObject *args) {
-    if (!PyArg_ParseTuple(args, "")){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+pyvmi_get_page_mode(
+    PyObject * self,
+    PyObject * args)
+{
+    if (!PyArg_ParseTuple(args, "")) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     page_mode_t mode = vmi_get_page_mode(vmi(self));
 
     PyObject *rtnval = NULL;
-    if (VMI_PM_LEGACY == mode){
+
+    if (VMI_PM_LEGACY == mode) {
         rtnval = Py_BuildValue("s", "legacy");
     }
-    else if (VMI_PM_PAE == mode){
+    else if (VMI_PM_PAE == mode) {
         rtnval = Py_BuildValue("s", "pae");
     }
-    else if (VMI_PM_IA32E == mode){
+    else if (VMI_PM_IA32E == mode) {
         rtnval = Py_BuildValue("s", "ia32e");
     }
-    else{
+    else {
         rtnval = Py_BuildValue("s", "unknown");
     }
     return rtnval;
 }
 
 static PyObject *
-pyvmi_get_ostype(PyObject *self, PyObject *args) {
-    if (!PyArg_ParseTuple(args, "")){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+pyvmi_get_ostype(
+    PyObject * self,
+    PyObject * args)
+{
+    if (!PyArg_ParseTuple(args, "")) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     os_t type = vmi_get_ostype(vmi(self));
 
     PyObject *rtnval = NULL;
-    if (VMI_OS_WINDOWS == type){
+
+    if (VMI_OS_WINDOWS == type) {
         rtnval = Py_BuildValue("s", "windows");
     }
-    else if (VMI_OS_LINUX == type){
+    else if (VMI_OS_LINUX == type) {
         rtnval = Py_BuildValue("s", "linux");
     }
-    else{
+    else {
         rtnval = Py_BuildValue("s", "unknown");
     }
     return rtnval;
 }
 
 static PyObject *
-pyvmi_print_hex(PyObject *self, PyObject *args) {
+pyvmi_print_hex(
+    PyObject * self,
+    PyObject * args)
+{
     unsigned char *data;
     int length;
 
-    if (!PyArg_ParseTuple(args, "s#", &data, &length)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "s#", &data, &length)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     vmi_print_hex(data, (uint32_t) length);
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_print_hex_pa(PyObject *self, PyObject *args) {
+pyvmi_print_hex_pa(
+    PyObject * self,
+    PyObject * args)
+{
     addr_t paddr;
     uint32_t length;
 
-    if (!PyArg_ParseTuple(args, "KI", &paddr, &length)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "KI", &paddr, &length)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     vmi_print_hex_pa(vmi(self), paddr, length);
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_print_hex_va(PyObject *self, PyObject *args) {
+pyvmi_print_hex_va(
+    PyObject * self,
+    PyObject * args)
+{
     addr_t vaddr;
     int pid;
     uint32_t length;
 
-    if (!PyArg_ParseTuple(args, "KiI", &vaddr, &pid, &length)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "KiI", &vaddr, &pid, &length)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     vmi_print_hex_va(vmi(self), vaddr, pid, length);
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_print_hex_ksym(PyObject *self, PyObject *args) {
+pyvmi_print_hex_ksym(
+    PyObject * self,
+    PyObject * args)
+{
     char *sym;
     uint32_t length;
 
-    if (!PyArg_ParseTuple(args, "sI", &sym, &length)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "sI", &sym, &length)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     vmi_print_hex_ksym(vmi(self), sym, length);
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_pause_vm(PyObject *self, PyObject *args) {
-    if (VMI_FAILURE == vmi_pause_vm(vmi(self))){
+pyvmi_pause_vm(
+    PyObject * self,
+    PyObject * args)
+{
+    if (VMI_FAILURE == vmi_pause_vm(vmi(self))) {
         PyErr_SetString(PyExc_OSError, "Failed to pause VM");
         return NULL;
     }
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_resume_vm(PyObject *self, PyObject *args) {
-    if (VMI_FAILURE == vmi_resume_vm(vmi(self))){
+pyvmi_resume_vm(
+    PyObject * self,
+    PyObject * args)
+{
+    if (VMI_FAILURE == vmi_resume_vm(vmi(self))) {
         PyErr_SetString(PyExc_OSError, "Failed to resume VM");
         return NULL;
     }
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_v2pcache_flush(PyObject *self, PyObject *args)
+pyvmi_v2pcache_flush(
+    PyObject * self,
+    PyObject * args)
 {
     vmi_v2pcache_flush(vmi(self));
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_v2pcache_add(PyObject *self, PyObject *args)
+pyvmi_v2pcache_add(
+    PyObject * self,
+    PyObject * args)
 {
     addr_t va;
     addr_t dtb;
     addr_t pa;
 
-    if (!PyArg_ParseTuple(args, "KKK", &va, &dtb, &pa)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "KKK", &va, &dtb, &pa)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     vmi_v2pcache_add(vmi(self), va, dtb, pa);
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_symcache_flush(PyObject *self, PyObject *args)
+pyvmi_symcache_flush(
+    PyObject * self,
+    PyObject * args)
 {
     vmi_symcache_flush(vmi(self));
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_symcache_add(PyObject *self, PyObject *args)
+pyvmi_symcache_add(
+    PyObject * self,
+    PyObject * args)
 {
     char *sym;
     addr_t va;
 
-    if (!PyArg_ParseTuple(args, "sK", &sym, &va)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "sK", &sym, &va)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     vmi_symcache_add(vmi(self), sym, va);
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_pidcache_flush(PyObject *self, PyObject *args)
+pyvmi_pidcache_flush(
+    PyObject * self,
+    PyObject * args)
 {
     vmi_pidcache_flush(vmi(self));
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 static PyObject *
-pyvmi_pidcache_add(PyObject *self, PyObject *args)
+pyvmi_pidcache_add(
+    PyObject * self,
+    PyObject * args)
 {
     int pid;
     addr_t dtb;
 
-    if (!PyArg_ParseTuple(args, "iK", &pid, &dtb)){
-        PyErr_SetString(PyExc_ValueError, "Invalid argument(s) to function");
+    if (!PyArg_ParseTuple(args, "iK", &pid, &dtb)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
         return NULL;
     }
 
     vmi_pidcache_add(vmi(self), pid, dtb);
-    return Py_BuildValue(""); // return None
+    return Py_BuildValue("");   // return None
 }
 
 //-------------------------------------------------------------------
@@ -1661,18 +2000,24 @@ static PyMethodDef pyvmi_instance_methods[] = {
     {"pidcache_add", pyvmi_pidcache_add, METH_VARARGS,
      "Add an entry to the pid to dtb cache"},
 
-    {NULL, NULL, 0, NULL}        /* Sentinel */
+    {NULL, NULL, 0, NULL}   /* Sentinel */
 };
 
 // python callbacks
 static PyObject *
-pyvmi_instance_getattr(PyObject *self, char *attrname) {
+pyvmi_instance_getattr(
+    PyObject * self,
+    char *attrname)
+{
     return Py_FindMethod(pyvmi_instance_methods, self, attrname);
 }
 
 static PyObject *
-pyvmi_instance_repr(PyObject *self) {
+pyvmi_instance_repr(
+    PyObject * self)
+{
     char buf[100];
+
     snprintf(buf, 100, "<pyvmi_instance for %s>", name(self));
     return PyString_FromString(buf);
 }
@@ -1680,22 +2025,22 @@ pyvmi_instance_repr(PyObject *self) {
 // Type object itself
 static PyTypeObject pyvmi_instance_Type = {
     PyObject_HEAD_INIT(&PyType_Type)
-    0,
-    "pyvmi_instance",          /* char *tp_name; */
-    sizeof(pyvmi_instance),    /* int tp_basicsize; */
-    0,                        /* int tp_itemsize;        not used much */
+        0,
+    "pyvmi_instance",   /* char *tp_name; */
+    sizeof(pyvmi_instance), /* int tp_basicsize; */
+    0,  /* int tp_itemsize;        not used much */
     (destructor) pyvmi_instance_dealloc,    /* destructor tp_dealloc; */
-    0,                        /* printfunc  tp_print;   */
-    (getattrfunc) pyvmi_instance_getattr,    /* getattrfunc  tp_getattr;  __getattr__ */
-    0,    /* setattrfunc  tp_setattr;  __setattr__ */
-    0,                        /* cmpfunc  tp_compare;  __cmp__ */
-    (reprfunc) pyvmi_instance_repr,       /* reprfunc  tp_repr;    __repr__ */
-    0,                        /* PyNumberMethods *tp_as_number; */
-    0,                        /* PySequenceMethods *tp_as_sequence; */
-    0,                        /* PyMappingMethods *tp_as_mapping; */
-    0,                        /* hashfunc tp_hash;     __hash__ */
-    0,                        /* ternaryfunc tp_call;  __call__ */
-    0,                        /* reprfunc tp_str;      __str__ */
+    0,  /* printfunc  tp_print;   */
+    (getattrfunc) pyvmi_instance_getattr,   /* getattrfunc  tp_getattr;  __getattr__ */
+    0,  /* setattrfunc  tp_setattr;  __setattr__ */
+    0,  /* cmpfunc  tp_compare;  __cmp__ */
+    (reprfunc) pyvmi_instance_repr, /* reprfunc  tp_repr;    __repr__ */
+    0,  /* PyNumberMethods *tp_as_number; */
+    0,  /* PySequenceMethods *tp_as_sequence; */
+    0,  /* PyMappingMethods *tp_as_mapping; */
+    0,  /* hashfunc tp_hash;     __hash__ */
+    0,  /* ternaryfunc tp_call;  __call__ */
+    0,  /* reprfunc tp_str;      __str__ */
 };
 
 // module method table
@@ -1706,11 +2051,17 @@ static PyMethodDef PyVmiMethods[] = {
 };
 
 PyMODINIT_FUNC
-initpyvmi(void) {
+initpyvmi(
+    void)
+{
     (void) Py_InitModule("pyvmi", PyVmiMethods);
 }
 
-int main(int argc, char *argv[]) {
+int
+main(
+    int argc,
+    char *argv[])
+{
     /* Pass argv[0] to the Python interpreter */
     Py_SetProgramName(argv[0]);
 

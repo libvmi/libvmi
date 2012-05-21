@@ -33,13 +33,17 @@
 
 #define PAGE_SIZE 1 << 12
 
-int main (int argc, char **argv)
+int
+main(
+    int argc,
+    char **argv)
 {
     vmi_instance_t vmi;
     char *filename = NULL;
     FILE *f = NULL;
     unsigned char memory[PAGE_SIZE];
     unsigned char zeros[PAGE_SIZE];
+
     memset(zeros, 0, PAGE_SIZE);
     uint32_t offset = 0;
     addr_t address = 0;
@@ -51,32 +55,35 @@ int main (int argc, char **argv)
     filename = strndup(argv[2], 50);
 
     /* initialize the libvmi library */
-    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) == VMI_FAILURE){
+    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) ==
+        VMI_FAILURE) {
         printf("Failed to init LibVMI library.\n");
         goto error_exit;
     }
 
     /* open the file for writing */
-    if ((f = fopen(filename, "w+")) == NULL){
+    if ((f = fopen(filename, "w+")) == NULL) {
         printf("failed to open file for writing.\n");
         goto error_exit;
     }
 
-    while (address < vmi_get_memsize(vmi)){
+    while (address < vmi_get_memsize(vmi)) {
 
         /* write memory to file */
-        if (PAGE_SIZE == vmi_read_pa(vmi, address, memory, PAGE_SIZE)){
+        if (PAGE_SIZE == vmi_read_pa(vmi, address, memory, PAGE_SIZE)) {
             /* memory mapped, just write to file */
             size_t written = fwrite(memory, 1, PAGE_SIZE, f);
-            if (written != PAGE_SIZE){
+
+            if (written != PAGE_SIZE) {
                 printf("failed to write memory to file.\n");
                 goto error_exit;
             }
         }
-        else{
+        else {
             /* memory not mapped, write zeros to maintain offset */
             size_t written = fwrite(zeros, 1, PAGE_SIZE, f);
-            if (written != PAGE_SIZE){
+
+            if (written != PAGE_SIZE) {
                 printf("failed to write zeros to file.\n");
                 goto error_exit;
             }
@@ -87,7 +94,8 @@ int main (int argc, char **argv)
     }
 
 error_exit:
-    if (f) fclose(f);
+    if (f)
+        fclose(f);
 
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);

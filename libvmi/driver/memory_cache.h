@@ -27,13 +27,18 @@
 #include "libvmi.h"
 #include "private.h"
 
-void memory_cache_init (
-        vmi_instance_t vmi,
-        void *(*get_data)(vmi_instance_t, addr_t, uint32_t),
-        void (*release_data)(void *, size_t),
-        unsigned long age_limit
-);
+void memory_cache_init(
+    vmi_instance_t vmi,
+    void *(*get_data) (vmi_instance_t,
+                       addr_t,
+                       uint32_t),
+    void (*release_data) (void *,
+                          size_t),
+    unsigned long age_limit);
 
-void *memory_cache_insert (vmi_instance_t vmi, addr_t paddr);
+void *memory_cache_insert(
+    vmi_instance_t vmi,
+    addr_t paddr);
 
-void memory_cache_destroy (vmi_instance_t vmi);
+void memory_cache_destroy(
+    vmi_instance_t vmi);

@@ -40,14 +40,19 @@
  *  functions related to GHashTable initialization and manipulation, so we cannot
  *  employ any other (more pleasant) tricks that rely upon the pre-processor.
  */
-static guint g_int64_hash (gconstpointer v)
+static guint
+g_int64_hash(
+    gconstpointer v)
 {
-   return (guint) *(const gint64*) v;
+    return (guint) * (const gint64 *) v;
 }
 
-static gboolean g_int64_equal (gconstpointer v1, gconstpointer v2)
+static gboolean
+g_int64_equal(
+    gconstpointer v1,
+    gconstpointer v2)
 {
-   return *((const gint64*) v1) == *((const gint64*) v2);
+    return *((const gint64 *) v1) == *((const gint64 *) v2);
 }
 
 #endif

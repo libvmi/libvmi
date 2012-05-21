@@ -45,34 +45,42 @@
 // seek/read
 #define USE_MMAP 1
 
-
 //----------------------------------------------------------------------------
 // File-Specific Interface Functions (no direction mapping to driver_*)
 
-static file_instance_t *file_get_instance (vmi_instance_t vmi)
+static file_instance_t *
+file_get_instance(
+    vmi_instance_t vmi)
 {
     return ((file_instance_t *) vmi->driver);
 }
 
-void *file_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
+void *
+file_get_memory(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    uint32_t length)
 {
     void *memory = 0;
 
     if (paddr + length >= vmi->size) {
-        dbprint ("--%s: request for PA range [0x%.16x-0x%.16x] reads past end of file\n",
-                 __FUNCTION__, paddr, paddr+length);
+        dbprint
+            ("--%s: request for PA range [0x%.16x-0x%.16x] reads past end of file\n",
+             __FUNCTION__, paddr, paddr + length);
         goto error_noprint;
-    } // if
+    }   // if
 
     memory = safe_malloc(length);
 
 #if USE_MMAP
-    (void)memcpy(memory, ((uint8_t *)file_get_instance(vmi)->map) + paddr, length);
+    (void) memcpy(memory,
+                  ((uint8_t *) file_get_instance(vmi)->map) + paddr,
+                  length);
 #else
-    if (paddr != lseek(file_get_instance(vmi)->fd, paddr, SEEK_SET)){
+    if (paddr != lseek(file_get_instance(vmi)->fd, paddr, SEEK_SET)) {
         goto error_print;
     }
-    if (length != read(file_get_instance(vmi)->fd, memory, length)){
+    if (length != read(file_get_instance(vmi)->fd, memory, length)) {
         goto error_print;
     }
 #endif // USE_MMAP
@@ -80,46 +88,55 @@ void *file_get_memory (vmi_instance_t vmi, addr_t paddr, uint32_t length)
     return memory;
 
 error_print:
-    dbprint ("%s: failed to read %d bytes at "
-             "PA (offset) 0x%.16llx [VM size 0x%.16llx]\n",
-             __FUNCTION__, length, paddr, vmi->size);
+    dbprint("%s: failed to read %d bytes at "
+            "PA (offset) 0x%.16llx [VM size 0x%.16llx]\n", __FUNCTION__,
+            length, paddr, vmi->size);
 error_noprint:
-    if (memory) free(memory);
+    if (memory)
+        free(memory);
     return NULL;
 }
 
-void file_release_memory (void *memory, size_t length)
+void
+file_release_memory(
+    void *memory,
+    size_t length)
 {
-    if (memory) free(memory);
+    if (memory)
+        free(memory);
 }
 
 //----------------------------------------------------------------------------
 // General Interface Functions (1-1 mapping to driver_* function)
 
-status_t file_init (vmi_instance_t vmi)
+status_t
+file_init(
+    vmi_instance_t vmi)
 {
     FILE *fhandle = NULL;
     int fd = -1;
-    file_instance_t * fi = file_get_instance(vmi);
+    file_instance_t *fi = file_get_instance(vmi);
 
     /* open handle to memory file */
-    if ((fhandle = fopen(fi->filename, "rb")) == NULL){
+    if ((fhandle = fopen(fi->filename, "rb")) == NULL) {
         errprint("Failed to open file for reading.\n");
         goto fail;
     }
     fd = fileno(fhandle);
 
     fi->fhandle = fhandle;
-    fi->fd      = fd;
-    memory_cache_init(vmi, file_get_memory, file_release_memory, ULONG_MAX);
-//    memory_cache_init(vmi, file_get_memory, file_release_memory, 0);
+    fi->fd = fd;
+    memory_cache_init(vmi, file_get_memory, file_release_memory,
+                      ULONG_MAX);
+    //    memory_cache_init(vmi, file_get_memory, file_release_memory, 0);
 
 #if USE_MMAP
     /* try memory mapped file I/O */
     unsigned long size;
+
     if (VMI_FAILURE == file_get_memsize(vmi, &size)) {
         goto fail;
-    } // if
+    }   // if
 
     int mmap_flags = (MAP_PRIVATE | MAP_NORESERVE | MAP_POPULATE);
 
@@ -127,13 +144,14 @@ status_t file_init (vmi_instance_t vmi)
     mmap_flags |= MMAP_HUGETLB;
 #endif // MMAP_HUGETLB
 
-    void *map = mmap(NULL,                // addr
-                     size,                // len
-                     PROT_READ,           // prot
-                     mmap_flags,          // flags
-                     fd,                  // file descriptor
-                     (off_t) 0);          // offset
-    if (MAP_FAILED == map){
+    void *map = mmap(NULL,  // addr
+                     size,  // len
+                     PROT_READ, // prot
+                     mmap_flags,    // flags
+                     fd,    // file descriptor
+                     (off_t) 0);    // offset
+
+    if (MAP_FAILED == map) {
         perror("Failed to mmap file");
         goto fail;
     }
@@ -142,7 +160,7 @@ status_t file_init (vmi_instance_t vmi)
     // Note: madvise(.., MADV_SEQUENTIAL | MADV_WILLNEED) does not seem to
     // improve performance
 
-#endif  // USE_MMAP
+#endif // USE_MMAP
 
     vmi->hvm = 0;
     return VMI_SUCCESS;
@@ -152,15 +170,18 @@ fail:
     return VMI_FAILURE;
 }
 
-void file_destroy (vmi_instance_t vmi)
+void
+file_destroy(
+    vmi_instance_t vmi)
 {
-    file_instance_t * fi = file_get_instance(vmi);
+    file_instance_t *fi = file_get_instance(vmi);
+
 #if USE_MMAP
     if (fi->map) {
-        (void)munmap(fi->map, vmi->size);
+        (void) munmap(fi->map, vmi->size);
         fi->map = 0;
     }
-#endif  // USE_MMAP
+#endif // USE_MMAP
     // fi->fhandle refers to fi->fd; closing both would be an error
     if (fi->fhandle) {
         fclose(fi->fhandle);
@@ -169,23 +190,32 @@ void file_destroy (vmi_instance_t vmi)
     }
 }
 
-status_t file_get_name (vmi_instance_t vmi, char **name)
+status_t
+file_get_name(
+    vmi_instance_t vmi,
+    char **name)
 {
     *name = strdup(file_get_instance(vmi)->filename);
     return VMI_SUCCESS;
 }
 
-void file_set_name (vmi_instance_t vmi, char *name)
+void
+file_set_name(
+    vmi_instance_t vmi,
+    char *name)
 {
     file_get_instance(vmi)->filename = strndup(name, 500);
 }
 
-status_t file_get_memsize (vmi_instance_t vmi, unsigned long *size)
+status_t
+file_get_memsize(
+    vmi_instance_t vmi,
+    unsigned long *size)
 {
     status_t ret = VMI_FAILURE;
     struct stat s;
 
-    if (fstat(file_get_instance(vmi)->fd, &s) == -1){
+    if (fstat(file_get_instance(vmi)->fd, &s) == -1) {
         errprint("Failed to stat file.\n");
         goto error_exit;
     }
@@ -196,23 +226,28 @@ error_exit:
     return ret;
 }
 
-status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
+status_t
+file_get_vcpureg(
+    vmi_instance_t vmi,
+    reg_t *value,
+    registers_t reg,
+    unsigned long vcpu)
 {
-    switch (reg){
-        case CR3:
-            if (vmi->kpgd){
-                *value = vmi->kpgd;
-            }
-            else if (vmi->cr3){
-                *value = vmi->cr3;
-            }
-            else{
-                goto error_exit;
-            }
-            break;
-        default:
+    switch (reg) {
+    case CR3:
+        if (vmi->kpgd) {
+            *value = vmi->kpgd;
+        }
+        else if (vmi->cr3) {
+            *value = vmi->cr3;
+        }
+        else {
             goto error_exit;
-            break;
+        }
+        break;
+    default:
+        goto error_exit;
+        break;
     }
 
     return VMI_SUCCESS;
@@ -220,54 +255,73 @@ error_exit:
     return VMI_FAILURE;
 }
 
-void *file_read_page (vmi_instance_t vmi, addr_t page)
+void *
+file_read_page(
+    vmi_instance_t vmi,
+    addr_t page)
 {
     addr_t paddr = page << vmi->page_shift;
+
     return memory_cache_insert(vmi, paddr);
 }
 
 //TODO decide if this functionality makes sense for files
-status_t file_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length)
+status_t
+file_write(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void *buf,
+    uint32_t length)
 {
     return VMI_FAILURE;
 }
 
-int file_is_pv (vmi_instance_t vmi)
+int
+file_is_pv(
+    vmi_instance_t vmi)
 {
     return 0;
 }
 
-status_t file_test (unsigned long id, char *name)
+status_t
+file_test(
+    unsigned long id,
+    char *name)
 {
     status_t ret = VMI_FAILURE;
     FILE *f = NULL;
     struct stat s;
 
-    if (NULL == name){
+    if (NULL == name) {
         goto error_exit;
     }
-    if ((f = fopen(name, "rb")) == NULL){
+    if ((f = fopen(name, "rb")) == NULL) {
         goto error_exit;
     }
-    if (fstat(fileno(f), &s) == -1){
+    if (fstat(fileno(f), &s) == -1) {
         goto error_exit;
     }
-    if (!s.st_size){
+    if (!s.st_size) {
         goto error_exit;
     }
     ret = VMI_SUCCESS;
 
 error_exit:
-    if (f) fclose(f);
+    if (f)
+        fclose(f);
     return ret;
 }
 
-status_t file_pause_vm (vmi_instance_t vmi)
+status_t
+file_pause_vm(
+    vmi_instance_t vmi)
 {
     return VMI_SUCCESS;
 }
 
-status_t file_resume_vm (vmi_instance_t vmi)
+status_t
+file_resume_vm(
+    vmi_instance_t vmi)
 {
     return VMI_SUCCESS;
 }
@@ -275,17 +329,99 @@ status_t file_resume_vm (vmi_instance_t vmi)
 //////////////////////////////////////////////////////////////////////
 #else
 
-status_t file_init (vmi_instance_t vmi) {return VMI_FAILURE; }
-void file_destroy (vmi_instance_t vmi) { return; }
-status_t file_get_name (vmi_instance_t vmi, char **name){ return VMI_FAILURE; }
-void file_set_name (vmi_instance_t vmi, char *name) {return; }
-status_t file_get_memsize (vmi_instance_t vmi, unsigned long size) { return VMI_FAILURE; }
-status_t file_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu) { return VMI_FAILURE; }
-void *file_read_page (vmi_instance_t vmi, unsigned long page) { return NULL; }
-status_t file_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length) { return VMI_FAILURE; }
-int file_is_pv (vmi_instance_t vmi) { return 0; }
-status_t file_test (unsigned long id, char *name) { return VMI_FAILURE; }
-status_t file_pause_vm (vmi_instance_t vmi) { return VMI_FAILURE; }
-status_t file_resume_vm (vmi_instance_t vmi) { return VMI_FAILURE; }
+status_t
+file_init(
+    vmi_instance_t vmi)
+{
+    return VMI_FAILURE;
+}
+
+void
+file_destroy(
+    vmi_instance_t vmi)
+{
+    return;
+}
+
+status_t
+file_get_name(
+    vmi_instance_t vmi,
+    char **name)
+{
+    return VMI_FAILURE;
+}
+
+void
+file_set_name(
+    vmi_instance_t vmi,
+    char *name)
+{
+    return;
+}
+
+status_t
+file_get_memsize(
+    vmi_instance_t vmi,
+    unsigned long size)
+{
+    return VMI_FAILURE;
+}
+
+status_t
+file_get_vcpureg(
+    vmi_instance_t vmi,
+    reg_t *value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    return VMI_FAILURE;
+}
+
+void *
+file_read_page(
+    vmi_instance_t vmi,
+    unsigned long page)
+{
+    return NULL;
+}
+
+status_t
+file_write(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void *buf,
+    uint32_t length)
+{
+    return VMI_FAILURE;
+}
+
+int
+file_is_pv(
+    vmi_instance_t vmi)
+{
+    return 0;
+}
+
+status_t
+file_test(
+    unsigned long id,
+    char *name)
+{
+    return VMI_FAILURE;
+}
+
+status_t
+file_pause_vm(
+    vmi_instance_t vmi)
+{
+    return VMI_FAILURE;
+}
+
+status_t
+file_resume_vm(
+    vmi_instance_t vmi)
+{
+    return VMI_FAILURE;
+}
 
 #endif /* ENABLE_FILE */

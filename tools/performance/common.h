@@ -22,14 +22,19 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
- */
+ */  
 #ifndef COMMON_H
 #define COMMON_H
-
+    
 #include <stdio.h>
 #include <sys/time.h>
+void print_measurement(
+    struct timeval ktv_start,
+    struct timeval ktv_end,
+    long int *diff);
+void avg_measurement(
+    long int *data,
+    int loops);
 
-void print_measurement(struct timeval ktv_start, struct timeval ktv_end, long int *diff);
-void avg_measurement(long int *data, int loops);
-
-#endif /* COMMON_H */
+ 
+#endif  /* COMMON_H */

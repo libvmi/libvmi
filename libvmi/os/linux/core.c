@@ -28,27 +28,33 @@
 #include "private.h"
 #include "driver/interface.h"
 
-status_t linux_init (vmi_instance_t vmi)
+status_t
+linux_init(
+    vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
 
-    if (vmi->cr3){
+    if (vmi->cr3) {
         vmi->kpgd = vmi->cr3;
     }
-    else if (VMI_SUCCESS == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", &vmi->kpgd)){
-        dbprint("--got vaddr for swapper_pg_dir (0x%.16llx).\n", vmi->kpgd);
-        if (driver_is_pv(vmi)){
+    else if (VMI_SUCCESS ==
+             linux_system_map_symbol_to_address(vmi, "swapper_pg_dir",
+                                                &vmi->kpgd)) {
+        dbprint("--got vaddr for swapper_pg_dir (0x%.16llx).\n",
+                vmi->kpgd);
+        if (driver_is_pv(vmi)) {
             vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
-            if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE){
+            if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd)) ==
+                VMI_FAILURE) {
                 errprint("Failed to get physical addr for kpgd.\n");
                 goto _exit;
             }
         }
-        else{
+        else {
             vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
         }
     }
-    else{
+    else {
         errprint("swapper_pg_dir not found and CR3 not set, exiting\n");
         goto _exit;
     }
@@ -57,8 +63,10 @@ status_t linux_init (vmi_instance_t vmi)
     dbprint("**set vmi->kpgd (0x%.16llx).\n", vmi->kpgd);
 
     addr_t address = vmi_translate_ksym2v(vmi, "init_task");
+
     address += vmi->os.linux_instance.tasks_offset;
-    if (VMI_FAILURE == vmi_read_addr_va(vmi, address, 0, &(vmi->init_task))){
+    if (VMI_FAILURE ==
+        vmi_read_addr_va(vmi, address, 0, &(vmi->init_task))) {
         errprint("Failed to get task list head 'init_task'.\n");
         goto _exit;
     }

@@ -32,19 +32,25 @@
 
 #define MAX_ROW_LENGTH 500
 
-static int get_symbol_row (FILE *f, char *row, char *symbol, int position)
+static int
+get_symbol_row(
+    FILE * f,
+    char *row,
+    char *symbol,
+    int position)
 {
     int ret = VMI_FAILURE;
 
-    while (fgets(row, MAX_ROW_LENGTH, f) != NULL){
+    while (fgets(row, MAX_ROW_LENGTH, f) != NULL) {
         char *token = NULL;
 
         /* find the correct token to check */
         int curpos = 0;
         int position_copy = position;
-        while (position_copy > 0 && curpos < MAX_ROW_LENGTH){
-            if (isspace(row[curpos])){
-                while (isspace(row[curpos])){
+
+        while (position_copy > 0 && curpos < MAX_ROW_LENGTH) {
+            if (isspace(row[curpos])) {
+                while (isspace(row[curpos])) {
                     row[curpos] = '\0';
                     ++curpos;
                 }
@@ -53,53 +59,59 @@ static int get_symbol_row (FILE *f, char *row, char *symbol, int position)
             }
             ++curpos;
         }
-        if (position_copy == 0){
+        if (position_copy == 0) {
             token = row + curpos;
-            while (curpos < MAX_ROW_LENGTH){
-                if (isspace(row[curpos])){
+            while (curpos < MAX_ROW_LENGTH) {
+                if (isspace(row[curpos])) {
                     row[curpos] = '\0';
                     break;
                 }
                 ++curpos;
             }
         }
-        else{ /* some went wrong in the loop above */
+        else {  /* some went wrong in the loop above */
             goto error_exit;
         }
 
         /* check the token */
-        if (strncmp(token, symbol, MAX_ROW_LENGTH) == 0){
+        if (strncmp(token, symbol, MAX_ROW_LENGTH) == 0) {
             ret = VMI_SUCCESS;
             break;
         }
     }
 
 error_exit:
-    if (ret == VMI_FAILURE){
+    if (ret == VMI_FAILURE) {
         memset(row, 0, MAX_ROW_LENGTH);
     }
     return ret;
 }
 
-status_t linux_system_map_symbol_to_address (vmi_instance_t vmi, char *symbol, addr_t *address)
+status_t
+linux_system_map_symbol_to_address(
+    vmi_instance_t vmi,
+    char *symbol,
+    addr_t *address)
 {
     FILE *f = NULL;
     char *row = NULL;
     int ret = VMI_SUCCESS;
 
-    if ((NULL == vmi->sysmap) || (strlen(vmi->sysmap) == 0)){
+    if ((NULL == vmi->sysmap) || (strlen(vmi->sysmap) == 0)) {
         vmi->sysmap = strndup("unknown", 10);
     }
 
     row = safe_malloc(MAX_ROW_LENGTH);
-    if ((f = fopen(vmi->sysmap, "r")) == NULL){
-        fprintf(stderr, "ERROR: could not find System.map file after checking:\n");
+    if ((f = fopen(vmi->sysmap, "r")) == NULL) {
+        fprintf(stderr,
+                "ERROR: could not find System.map file after checking:\n");
         fprintf(stderr, "\t%s\n", vmi->sysmap);
-        fprintf(stderr, "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
+        fprintf(stderr,
+                "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
         ret = VMI_FAILURE;
         goto error_exit;
     }
-    if (get_symbol_row(f, row, symbol, 2) == VMI_FAILURE){
+    if (get_symbol_row(f, row, symbol, 2) == VMI_FAILURE) {
         ret = VMI_FAILURE;
         goto error_exit;
     }
@@ -107,7 +119,9 @@ status_t linux_system_map_symbol_to_address (vmi_instance_t vmi, char *symbol, a
     *address = (addr_t) strtoull(row, NULL, 16);
 
 error_exit:
-    if (row) free(row);
-    if (f) fclose(f);
+    if (row)
+        free(row);
+    if (f)
+        fclose(f);
     return ret;
 }

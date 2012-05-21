@@ -33,8 +33,13 @@
 #ifndef VMI_DEBUG
 /* Nothing */
 #else
-void dbprint(char* format, ...) {
+void
+dbprint(
+    char *format,
+    ...)
+{
     va_list args;
+
     va_start(args, format);
     vfprintf(stdout, format, args);
     va_end(args);
@@ -42,8 +47,13 @@ void dbprint(char* format, ...) {
 #endif
 
 /* prints an error message to stderr */
-void errprint (char* format, ...){
+void
+errprint(
+    char *format,
+    ...)
+{
     va_list args;
+
     fprintf(stderr, "VMI_ERROR: ");
     va_start(args, format);
     vfprintf(stderr, format, args);
@@ -51,57 +61,84 @@ void errprint (char* format, ...){
 }
 
 /* prints a warning message to stderr */
-void warnprint (char* format, ...){
+void
+warnprint(
+    char *format,
+    ...)
+{
     va_list args;
+
     fprintf(stderr, "VMI_WARNING: ");
     va_start(args, format);
     vfprintf(stderr, format, args);
     va_end(args);
 }
 
-void *safe_malloc_ (size_t size, char const *file, int line)
+void *
+safe_malloc_(
+    size_t size,
+    char const *file,
+    int line)
 {
     void *p = malloc(size);
-    if (NULL == p){
-        errprint("malloc %lu bytes failed at %s:%d\n", (unsigned long)size, file, line);
+
+    if (NULL == p) {
+        errprint("malloc %lu bytes failed at %s:%d\n",
+                 (unsigned long) size, file, line);
         exit(EXIT_FAILURE);
-   }
-   return p;
+    }
+    return p;
 }
 
-unsigned long get_reg32 (reg_t r)
+unsigned long
+get_reg32(
+    reg_t r)
 {
     return (unsigned long) r;
 }
 
-int vmi_get_bit (reg_t reg, int bit)
+int
+vmi_get_bit(
+    reg_t reg,
+    int bit)
 {
     reg_t mask = 1 << bit;
-    if (reg & mask){
+
+    if (reg & mask) {
         return 1;
     }
-    else{
+    else {
         return 0;
     }
 }
 
-addr_t aligned_addr (vmi_instance_t vmi, addr_t addr)
+addr_t
+aligned_addr(
+    vmi_instance_t vmi,
+    addr_t addr)
 {
-    addr_t mask = ~((addr_t)vmi->page_size-1);
-    addr_t aligned = (addr_t)addr & (addr_t)mask;
-//    printf ("%llx & %llx = %llx\n", addr, mask, aligned);
+    addr_t mask = ~((addr_t) vmi->page_size - 1);
+    addr_t aligned = (addr_t) addr & (addr_t) mask;
+
+    //    printf ("%llx & %llx = %llx\n", addr, mask, aligned);
     return aligned;
 
 }
 
-int is_addr_aligned (vmi_instance_t vmi, addr_t addr)
+int
+is_addr_aligned(
+    vmi_instance_t vmi,
+    addr_t addr)
 {
     return (addr == aligned_addr(vmi, addr));
 }
 
-void vmi_free_unicode_str (unicode_string_t * p_us) 
+void
+vmi_free_unicode_str(
+    unicode_string_t *p_us)
 {
-    if (p_us->contents) free(p_us->contents);
-    memset ((void*)p_us, 0, sizeof(*p_us));
+    if (p_us->contents)
+        free(p_us->contents);
+    memset((void *) p_us, 0, sizeof(*p_us));
     free(p_us);
 }

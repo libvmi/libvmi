@@ -28,7 +28,7 @@
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
 
-typedef struct kvm_instance{
+typedef struct kvm_instance {
     virConnectPtr conn;
     virDomainPtr dom;
     unsigned long id;
@@ -39,24 +39,54 @@ typedef struct kvm_instance{
 
 #else
 
-typedef struct kvm_instance{
+typedef struct kvm_instance {
 } kvm_instance_t;
 
 #endif /* ENABLE_KVM */
 
-status_t kvm_init (vmi_instance_t vmi);
-void kvm_destroy (vmi_instance_t vmi);
-unsigned long kvm_get_id_from_name (vmi_instance_t vmi, char *name);
-unsigned long kvm_get_id (vmi_instance_t vmi);
-void kvm_set_id (vmi_instance_t vmi, unsigned long id);
-status_t kvm_get_name (vmi_instance_t vmi, char **name);
-void kvm_set_name (vmi_instance_t vmi, char *name);
-status_t kvm_get_memsize (vmi_instance_t vmi, unsigned long *size);
-status_t kvm_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu);
-addr_t kvm_pfn_to_mfn (vmi_instance_t vmi, addr_t pfn);
-void *kvm_read_page (vmi_instance_t vmi, addr_t page);
-status_t kvm_write (vmi_instance_t vmi, addr_t paddr, void *buf, uint32_t length);
-int kvm_is_pv (vmi_instance_t vmi);
-status_t kvm_test (unsigned long id, char *name);
-status_t kvm_pause_vm (vmi_instance_t vmi);
-status_t kvm_resume_vm (vmi_instance_t vmi);
+status_t kvm_init(
+    vmi_instance_t vmi);
+void kvm_destroy(
+    vmi_instance_t vmi);
+unsigned long kvm_get_id_from_name(
+    vmi_instance_t vmi,
+    char *name);
+unsigned long kvm_get_id(
+    vmi_instance_t vmi);
+void kvm_set_id(
+    vmi_instance_t vmi,
+    unsigned long id);
+status_t kvm_get_name(
+    vmi_instance_t vmi,
+    char **name);
+void kvm_set_name(
+    vmi_instance_t vmi,
+    char *name);
+status_t kvm_get_memsize(
+    vmi_instance_t vmi,
+    unsigned long *size);
+status_t kvm_get_vcpureg(
+    vmi_instance_t vmi,
+    reg_t *value,
+    registers_t reg,
+    unsigned long vcpu);
+addr_t kvm_pfn_to_mfn(
+    vmi_instance_t vmi,
+    addr_t pfn);
+void *kvm_read_page(
+    vmi_instance_t vmi,
+    addr_t page);
+status_t kvm_write(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void *buf,
+    uint32_t length);
+int kvm_is_pv(
+    vmi_instance_t vmi);
+status_t kvm_test(
+    unsigned long id,
+    char *name);
+status_t kvm_pause_vm(
+    vmi_instance_t vmi);
+status_t kvm_resume_vm(
+    vmi_instance_t vmi);

@@ -31,7 +31,10 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
-int main (int argc, char **argv)
+int
+main(
+    int argc,
+    char **argv)
 {
     vmi_instance_t vmi;
     unsigned char *memory = NULL;
@@ -44,30 +47,31 @@ int main (int argc, char **argv)
 
     /* this is the VM or file that we are looking at */
     if (argc != 2) {
-        printf ("Usage: %s <vmname>\n", argv[0]);
+        printf("Usage: %s <vmname>\n", argv[0]);
         return 1;
-    } // if
+    }   // if
 
     char *name = argv[1];
 
     /* initialize the libvmi library */
-    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) == VMI_FAILURE){
+    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) ==
+        VMI_FAILURE) {
         printf("Failed to init LibVMI library.\n");
         goto error_exit;
     }
 
     /* init the offset values */
-    if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
+    if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
         tasks_offset = vmi_get_offset(vmi, "linux_tasks");
         name_offset = vmi_get_offset(vmi, "linux_name");
         pid_offset = vmi_get_offset(vmi, "linux_pid");
-	
+
         /* NOTE: 
          *  name_offset is no longer hard-coded. Rather, it is now set 
          *  via libvmi.conf.
          */
     }
-    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
+    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         tasks_offset = vmi_get_offset(vmi, "win_tasks");
         if (0 == tasks_offset) {
             printf("Failed to find win_tasks\n");
@@ -89,43 +93,48 @@ int main (int argc, char **argv)
     if (vmi_pause_vm(vmi) != VMI_SUCCESS) {
         printf("Failed to pause VM\n");
         goto error_exit;
-    } // if
+    }   // if
 
     /* demonstrate name and id accessors */
     char *name2 = vmi_get_name(vmi);
-    if (VMI_FILE != vmi_get_access_mode(vmi)){
+
+    if (VMI_FILE != vmi_get_access_mode(vmi)) {
         unsigned long id = vmi_get_vmid(vmi);
+
         printf("Process listing for VM %s (id=%lu)\n", name2, id);
     }
-    else{
+    else {
         printf("Process listing for file %s\n", name2);
     }
     free(name2);
 
     /* get the head of the list */
-    if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
+    if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
         addr_t init_task_va = vmi_translate_ksym2v(vmi, "init_task");
-        vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0, &next_process);
+
+        vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0,
+                         &next_process);
     }
-    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
+    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
 
         uint32_t pdbase = 0;
 
         // find PEPROCESS PsInitialSystemProcess
-        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head); 
-        
-        vmi_read_addr_va(vmi, list_head + tasks_offset, 0, &next_process);
+        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head);
+
+        vmi_read_addr_va(vmi, list_head + tasks_offset, 0,
+                         &next_process);
         vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
 
         vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
         procname = vmi_read_str_va(vmi, list_head + name_offset, 0);
         if (!procname) {
-            printf ("Failed to find first procname\n");
+            printf("Failed to find first procname\n");
             goto error_exit;
         }
 
         printf("[%5d] %s\n", pid, procname);
-        if (procname){
+        if (procname) {
             free(procname);
             procname = NULL;
         }
@@ -134,40 +143,45 @@ int main (int argc, char **argv)
     list_head = next_process;
 
     /* walk the task list */
-    while (1){
+    while (1) {
 
         /* follow the next pointer */
         addr_t tmp_next = 0;
+
         vmi_read_addr_va(vmi, next_process, 0, &tmp_next);
 
         /* if we are back at the list head, we are done */
-        if (list_head == tmp_next){
+        if (list_head == tmp_next) {
             break;
         }
 
         /* print out the process name */
 
         /* Note: the task_struct that we are looking at has a lot of
-           information.  However, the process name and id are burried
-           nice and deep.  Instead of doing something sane like mapping
-           this data to a task_struct, I'm just jumping to the location
-           with the info that I want.  This helps to make the example
-           code cleaner, if not more fragile.  In a real app, you'd
-           want to do this a little more robust :-)  See
-           include/linux/sched.h for mode details */
-        procname = vmi_read_str_va(vmi, next_process + name_offset - tasks_offset, 0);
+         * information.  However, the process name and id are burried
+         * nice and deep.  Instead of doing something sane like mapping
+         * this data to a task_struct, I'm just jumping to the location
+         * with the info that I want.  This helps to make the example
+         * code cleaner, if not more fragile.  In a real app, you'd
+         * want to do this a little more robust :-)  See
+         * include/linux/sched.h for mode details */
+        procname =
+            vmi_read_str_va(vmi,
+                            next_process + name_offset - tasks_offset,
+                            0);
 
         if (!procname) {
-            printf ("Failed to find procname\n");
-        } // if
+            printf("Failed to find procname\n");
+        }   // if
 
-        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
+        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0,
+                       &pid);
 
         /* trivial sanity check on data */
-        if (pid >= 0 && procname){
+        if (pid >= 0 && procname) {
             printf("[%5d] %s\n", pid, procname);
         }
-        if (procname){
+        if (procname) {
             free(procname);
             procname = NULL;
         }
@@ -175,7 +189,8 @@ int main (int argc, char **argv)
     }
 
 error_exit:
-    if (procname) free(procname);
+    if (procname)
+        free(procname);
 
     /* resume the vm */
     vmi_resume_vm(vmi);

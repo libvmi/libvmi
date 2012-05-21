@@ -33,7 +33,10 @@
 
 #define PAGE_SIZE 1 << 12
 
-int main (int argc, char **argv)
+int
+main(
+    int argc,
+    char **argv)
 {
     vmi_instance_t vmi;
     char *memory = (char *) malloc(PAGE_SIZE);
@@ -46,20 +49,22 @@ int main (int argc, char **argv)
     addr_t addr = (addr_t) strtoul(addr_str, NULL, 16);
 
     /* initialize the libvmi library */
-    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) == VMI_FAILURE){
+    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) ==
+        VMI_FAILURE) {
         printf("Failed to init LibVMI library.\n");
         goto error_exit;
     }
 
     /* get the symbol's memory page */
-    if (PAGE_SIZE != vmi_read_va(vmi, addr, 0, memory, PAGE_SIZE)){
+    if (PAGE_SIZE != vmi_read_va(vmi, addr, 0, memory, PAGE_SIZE)) {
         printf("failed to map memory.\n");
         goto error_exit;
     }
     vmi_print_hex(memory, PAGE_SIZE);
 
 error_exit:
-    if (memory) free(memory);
+    if (memory)
+        free(memory);
 
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);

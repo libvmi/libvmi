@@ -28,140 +28,172 @@
 #include "private.h"
 #include "driver/interface.h"
 
-page_mode_t vmi_get_page_mode (vmi_instance_t vmi)
+page_mode_t
+vmi_get_page_mode(
+    vmi_instance_t vmi)
 {
     return vmi->page_mode;
 }
 
-uint32_t vmi_get_access_mode (vmi_instance_t vmi)
+uint32_t
+vmi_get_access_mode(
+    vmi_instance_t vmi)
 {
     return vmi->mode;
 }
 
-os_t vmi_get_ostype (vmi_instance_t vmi)
+os_t
+vmi_get_ostype(
+    vmi_instance_t vmi)
 {
     return vmi->os_type;
 }
 
-win_ver_t vmi_get_winver (vmi_instance_t vmi)
+win_ver_t
+vmi_get_winver(
+    vmi_instance_t vmi)
 {
-    if (VMI_OS_WINDOWS != vmi->os_type) return VMI_OS_WINDOWS_NONE;
+    if (VMI_OS_WINDOWS != vmi->os_type)
+        return VMI_OS_WINDOWS_NONE;
 
-    if (!vmi->os.windows_instance.version || vmi->os.windows_instance.version == VMI_OS_WINDOWS_UNKNOWN){
-        find_windows_version(vmi, vmi->os.windows_instance.kdversion_block);
+    if (!vmi->os.windows_instance.version ||
+        vmi->os.windows_instance.version == VMI_OS_WINDOWS_UNKNOWN) {
+        find_windows_version(vmi,
+                             vmi->os.windows_instance.kdversion_block);
     }
     return vmi->os.windows_instance.version;
 }
 
-const char * vmi_get_winver_str (vmi_instance_t vmi)
+const char *
+vmi_get_winver_str(
+    vmi_instance_t vmi)
 {
-    win_ver_t ver = vmi_get_winver (vmi);
+    win_ver_t ver = vmi_get_winver(vmi);
 
     switch (ver) {
-        case VMI_OS_WINDOWS_NONE:
-            return "VMI_OS_WINDOWS_NONE";
-        case VMI_OS_WINDOWS_UNKNOWN:
-            return "VMI_OS_WINDOWS_UNKNOWN";
-        case VMI_OS_WINDOWS_2000:
-            return "VMI_OS_WINDOWS_2000";
-        case VMI_OS_WINDOWS_XP:
-            return "VMI_OS_WINDOWS_XP";
-        case VMI_OS_WINDOWS_2003:
-            return "VMI_OS_WINDOWS_2003";
-        case VMI_OS_WINDOWS_VISTA:
-            return "VMI_OS_WINDOWS_VISTA";
-        case VMI_OS_WINDOWS_2008:
-            return "VMI_OS_WINDOWS_2008";
-        case VMI_OS_WINDOWS_7:
-            return "VMI_OS_WINDOWS_7";
-        default:
-            return "<Illegal value for Windows version>";
-    } // switch
+    case VMI_OS_WINDOWS_NONE:
+        return "VMI_OS_WINDOWS_NONE";
+    case VMI_OS_WINDOWS_UNKNOWN:
+        return "VMI_OS_WINDOWS_UNKNOWN";
+    case VMI_OS_WINDOWS_2000:
+        return "VMI_OS_WINDOWS_2000";
+    case VMI_OS_WINDOWS_XP:
+        return "VMI_OS_WINDOWS_XP";
+    case VMI_OS_WINDOWS_2003:
+        return "VMI_OS_WINDOWS_2003";
+    case VMI_OS_WINDOWS_VISTA:
+        return "VMI_OS_WINDOWS_VISTA";
+    case VMI_OS_WINDOWS_2008:
+        return "VMI_OS_WINDOWS_2008";
+    case VMI_OS_WINDOWS_7:
+        return "VMI_OS_WINDOWS_7";
+    default:
+        return "<Illegal value for Windows version>";
+    }   // switch
 }
 
-
-
-
-unsigned long vmi_get_offset (vmi_instance_t vmi, char *offset_name)
+unsigned long
+vmi_get_offset(
+    vmi_instance_t vmi,
+    char *offset_name)
 {
     size_t max_length = 100;
 
-    if (strncmp(offset_name, "win_tasks", max_length) == 0){
+    if (strncmp(offset_name, "win_tasks", max_length) == 0) {
         return vmi->os.windows_instance.tasks_offset;
     }
-    else if (strncmp(offset_name, "win_pdbase", max_length) == 0){
+    else if (strncmp(offset_name, "win_pdbase", max_length) == 0) {
         return vmi->os.windows_instance.pdbase_offset;
     }
-    else if (strncmp(offset_name, "win_pid", max_length) == 0){
+    else if (strncmp(offset_name, "win_pid", max_length) == 0) {
         return vmi->os.windows_instance.pid_offset;
     }
-    else if (strncmp(offset_name, "win_pname", max_length) == 0){
-        if (vmi->os.windows_instance.pname_offset == 0){
-            vmi->os.windows_instance.pname_offset = find_pname_offset(vmi, NULL);
-            if (vmi->os.windows_instance.pname_offset == 0){
+    else if (strncmp(offset_name, "win_pname", max_length) == 0) {
+        if (vmi->os.windows_instance.pname_offset == 0) {
+            vmi->os.windows_instance.pname_offset =
+                find_pname_offset(vmi, NULL);
+            if (vmi->os.windows_instance.pname_offset == 0) {
                 dbprint("--failed to find pname_offset\n");
                 return 0;
             }
         }
         return vmi->os.windows_instance.pname_offset;
     }
-    else if (strncmp(offset_name, "linux_tasks", max_length) == 0){
+    else if (strncmp(offset_name, "linux_tasks", max_length) == 0) {
         return vmi->os.linux_instance.tasks_offset;
     }
-    else if (strncmp(offset_name, "linux_mm", max_length) == 0){
+    else if (strncmp(offset_name, "linux_mm", max_length) == 0) {
         return vmi->os.linux_instance.mm_offset;
     }
-    else if (strncmp(offset_name, "linux_pid", max_length) == 0){
+    else if (strncmp(offset_name, "linux_pid", max_length) == 0) {
         return vmi->os.linux_instance.pid_offset;
     }
-    else if (strncmp(offset_name, "linux_name", max_length) == 0){
+    else if (strncmp(offset_name, "linux_name", max_length) == 0) {
         return vmi->os.linux_instance.name_offset;
     }
-    else if (strncmp(offset_name, "linux_pgd", max_length) == 0){
+    else if (strncmp(offset_name, "linux_pgd", max_length) == 0) {
         return vmi->os.linux_instance.pgd_offset;
     }
-    else{
-        warnprint("Invalid offset name in vmi_get_offset (%s).\n", offset_name);
+    else {
+        warnprint("Invalid offset name in vmi_get_offset (%s).\n",
+                  offset_name);
         return 0;
     }
 }
 
-unsigned long vmi_get_memsize (vmi_instance_t vmi)
+unsigned long
+vmi_get_memsize(
+    vmi_instance_t vmi)
 {
     return vmi->size;
 }
 
-status_t vmi_get_vcpureg (vmi_instance_t vmi, reg_t *value, registers_t reg, unsigned long vcpu)
+status_t
+vmi_get_vcpureg(
+    vmi_instance_t vmi,
+    reg_t *value,
+    registers_t reg,
+    unsigned long vcpu)
 {
     return driver_get_vcpureg(vmi, value, reg, vcpu);
 }
 
-status_t vmi_pause_vm (vmi_instance_t vmi)
+status_t
+vmi_pause_vm(
+    vmi_instance_t vmi)
 {
     return driver_pause_vm(vmi);
 }
 
-status_t vmi_resume_vm (vmi_instance_t vmi)
+status_t
+vmi_resume_vm(
+    vmi_instance_t vmi)
 {
     return driver_resume_vm(vmi);
 }
 
-char * vmi_get_name (vmi_instance_t vmi)
+char *
+vmi_get_name(
+    vmi_instance_t vmi)
 {
     /* memory for name is allocated at the driver level */
     char *name = NULL;
-    if (VMI_FAILURE == driver_get_name(vmi, &name)){
+
+    if (VMI_FAILURE == driver_get_name(vmi, &name)) {
         return NULL;
     }
-    else{
+    else {
         return name;
     }
 }
 
-unsigned long vmi_get_vmid (vmi_instance_t vmi)
+unsigned long
+vmi_get_vmid(
+    vmi_instance_t vmi)
 {
     char *name = vmi_get_name(vmi);
     unsigned long tmp_id = driver_get_id_from_name(vmi, name);
+
     free(name);
     return tmp_id;
 }

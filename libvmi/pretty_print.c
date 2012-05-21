@@ -28,48 +28,51 @@
 #include "libvmi.h"
 #include "private.h"
 
-void vmi_print_hex (unsigned char *data, unsigned long length)
+void
+vmi_print_hex(
+    unsigned char *data,
+    unsigned long length)
 {
     int i, j, numrows, index;
 
-    numrows = (length+15)>>4;
-    
-    for (i = 0; i < numrows; ++i){
+    numrows = (length + 15) >> 4;
+
+    for (i = 0; i < numrows; ++i) {
         /* print the byte count */
-        printf("%.8x|  ", i*16);
+        printf("%.8x|  ", i * 16);
 
         /* print the first 8 hex values */
-        for (j = 0; j < 8; ++j){
-            index = i*16+j;
-            if (index < length){
+        for (j = 0; j < 8; ++j) {
+            index = i * 16 + j;
+            if (index < length) {
                 printf("%.2x ", data[index]);
             }
-            else{
+            else {
                 printf("   ");
             }
         }
         printf(" ");
 
         /* print the second 8 hex values */
-        for ( ; j < 16; ++j){
-            index = i*16+j;
-            if (index < length){
+        for (; j < 16; ++j) {
+            index = i * 16 + j;
+            if (index < length) {
                 printf("%.2x ", data[index]);
             }
-            else{
+            else {
                 printf("   ");
             }
         }
         printf("  ");
 
         /* print the ascii values */
-        for (j = 0; j < 16; ++j){
-            index = i*16+j;
-            if (index < length){
-                if (isprint((int)data[index])){
+        for (j = 0; j < 16; ++j) {
+            index = i * 16 + j;
+            if (index < length) {
+                if (isprint((int) data[index])) {
                     printf("%c", data[index]);
                 }
-                else{
+                else {
                     printf(".");
                 }
             }
@@ -78,30 +81,45 @@ void vmi_print_hex (unsigned char *data, unsigned long length)
     }
 }
 
-void vmi_print_hex_pa (vmi_instance_t vmi, addr_t paddr, size_t length)
+void
+vmi_print_hex_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    size_t length)
 {
     unsigned char *buf = safe_malloc(length);
+
     vmi_read_pa(vmi, paddr, buf, length);
     vmi_print_hex(buf, length);
     free(buf);
 }
 
-void vmi_print_hex_va (vmi_instance_t vmi, addr_t vaddr, int pid, size_t length)
+void
+vmi_print_hex_va(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    int pid,
+    size_t length)
 {
     addr_t paddr = 0;
 
-    if (!pid){
+    if (!pid) {
         paddr = vmi_translate_kv2p(vmi, vaddr);
     }
-    else{
+    else {
         paddr = vmi_translate_uv2p(vmi, vaddr, pid);
     }
 
     vmi_print_hex_pa(vmi, paddr, length);
 }
 
-void vmi_print_hex_ksym (vmi_instance_t vmi, char *sym, size_t length)
+void
+vmi_print_hex_ksym(
+    vmi_instance_t vmi,
+    char *sym,
+    size_t length)
 {
     addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
+
     vmi_print_hex_va(vmi, vaddr, 0, length);
 }
