@@ -15,18 +15,17 @@
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-# General Public License for more details. 
+# General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #
 
 import volatility.addrspace as addrspace
 import urllib
 import pyvmi
 
-#pylint: disable-msg=C0111
 
 class PyVmiAddressSpace(addrspace.BaseAddressSpace):
     """
@@ -41,44 +40,44 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
     """
 
     order = 90
-    def __init__(self, base, config, layered = False, **kwargs):
+
+    def __init__(self, base, config, layered=False, **kwargs):
         addrspace.BaseAddressSpace.__init__(self, base, config, **kwargs)
         self.as_assert(base == None or layered, "Must be first Address Space")
-        self.as_assert(config.LOCATION.startswith("vmi://"), "Location doesn't start with vmi://")
+        self.as_assert(
+                config.LOCATION.startswith("vmi://"),
+                "Location doesn't start with vmi://")
         self.name = urllib.url2pathname(config.LOCATION[6:])
         self.vmi = pyvmi.init(self.name, "partial")
         self.as_assert(not self.vmi is None, "VM not found")
         self.dtb = self.get_cr3()
 
-    def read(self, addr, length):
-        return self.zread(addr, length)
-    #    assert addr < self.vmi.get_memsize(), "addr too big"
-    #
-    #    end = addr+length
-    #
-    #    if end > self.vmi.get_memsize():
-    #        memory = None
-    #    else:
-    #        try:
-    #            memory = self.vmi.read_pa(addr, length)
-    #        except:
-    #            memory = None
-    #
-    #    return memory
-        
-    # account for holes in physical mem
-    def zread(self, addr, length):
-        assert addr < self.vmi.get_memsize(), "addr too big"
+    def __read_bytes(self, addr, length, pad):
+        if addr > self.vmi.get_memsize():
+            return ''
 
-        end = addr+length
-
+        end = addr + length
         if end > self.vmi.get_memsize():
-            memory = None
+            memory = ''
         else:
-            memory = self.vmi.zread_pa(addr, length)
-
+            try:
+                if pad:
+                    memory = self.vmi.zread_pa(addr, length)
+                else:
+                    memory = self.vmi.read_pa(addr, length)
+            except:
+                memory = ''
         return memory
-    
+
+    def read(self, addr, length):
+        # This should be pad=False, but for some reason
+        # that isn't working with Volatility.  This does
+        # work, so I will leave it like this for now.
+        return self.__read_bytes(addr, length, pad=True)
+
+    def zread(self, addr, length):
+        return self.__read_bytes(addr, length, pad=True)
+
     def is_valid_address(self, addr):
         if addr == None:
             return False
@@ -91,11 +90,9 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         return True
 
     def get_cr3(self):
-        cr3 = self.vmi.get_vcpureg("cr3", 0);
+        cr3 = self.vmi.get_vcpureg("cr3", 0)
         return cr3
 
     def get_available_addresses(self):
         yield (4096, self.vmi.get_memsize() - 1)
         return
-
-
