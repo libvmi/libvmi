@@ -46,15 +46,18 @@ open_config_file(
 {
     FILE *f = NULL;
     char location[100];
+    char *sudo_user = NULL;
     struct passwd *pw_entry = NULL;
 
     /* first check home directory of sudo user */
-    if ((pw_entry = getpwnam(getenv("SUDO_USER"))) != NULL) {
-        snprintf(location, 100, "%s/etc/libvmi.conf\0",
-                 pw_entry->pw_dir);
-        dbprint("--looking for config file at %s\n", location);
-        if ((f = fopen(location, "r")) != NULL) {
-            goto success;
+    if ((sudo_user = getenv("SUDO_USER")) != NULL) {
+        if ((pw_entry = getpwnam(sudo_user)) != NULL) {
+            snprintf(location, 100, "%s/etc/libvmi.conf\0",
+                     pw_entry->pw_dir);
+            dbprint("--looking for config file at %s\n", location);
+            if ((f = fopen(location, "r")) != NULL) {
+                goto success;
+            }
         }
     }
 
