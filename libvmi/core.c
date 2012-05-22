@@ -35,8 +35,48 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <fnmatch.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 extern FILE *yyin;
+
+static FILE *
+open_config_file(
+    )
+{
+    FILE *f = NULL;
+    char location[100];
+    struct passwd *pw_entry = NULL;
+
+    /* first check home directory of sudo user */
+    if ((pw_entry = getpwnam(getenv("SUDO_USER"))) != NULL) {
+        snprintf(location, 100, "%s/etc/libvmi.conf\0",
+                 pw_entry->pw_dir);
+        dbprint("--looking for config file at %s\n", location);
+        if ((f = fopen(location, "r")) != NULL) {
+            goto success;
+        }
+    }
+
+    /* next check home directory for current user */
+    snprintf(location, 100, "%s/etc/libvmi.conf\0", getenv("HOME"));
+    dbprint("--looking for config file at %s\n", location);
+    if ((f = fopen(location, "r")) != NULL) {
+        goto success;
+    }
+
+    /* finally check in /etc */
+    snprintf(location, 100, "/etc/libvmi.conf\0");
+    dbprint("--looking for config file at %s\n", location);
+    if ((f = fopen(location, "r")) != NULL) {
+        goto success;
+    }
+
+    return NULL;
+success:
+    dbprint("**Using config file at %s\n", location);
+    return f;
+}
 
 static int
 read_config_file(
@@ -53,10 +93,9 @@ read_config_file(
     }
 
     if (NULL == yyin) {
-        yyin = fopen("/etc/libvmi.conf", "r");
+        yyin = open_config_file();
         if (NULL == yyin) {
-            fprintf(stderr,
-                    "ERROR: config file not found at /etc/libvmi.conf\n");
+            fprintf(stderr, "ERROR: config file not found.\n");
             ret = VMI_FAILURE;
             goto error_exit;
         }
