@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-The LibVMI Library is an introspection library that simplifies access to 
-memory in a target virtual machine or in a file containing a dump of 
+The LibVMI Library is an introspection library that simplifies access to
+memory in a target virtual machine or in a file containing a dump of
 a system's physical memory.  LibVMI is based on the XenAccess Library.
 
 Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -25,47 +25,34 @@ License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
 """
-
 import pyvmi
-import struct
 import sys
 
-def val_int (value):
-    return struct.unpack("i", value)[0]
 
-def val_uint (value):
-    return struct.unpack("I", value)[0]
-
-def val_uint64 (value):
-    return struct.unpack("Q", value)[0]
-
-def process_list(vmi):
+def get_processes(vmi):
     tasks_offset = vmi.get_offset("win_tasks")
-    name_offset = vmi.get_offset("win_pname")
-    pid_offset = vmi.get_offset("win_pid")
+    name_offset = vmi.get_offset("win_pname") - tasks_offset
+    pid_offset = vmi.get_offset("win_pid") - tasks_offset
 
-    list_head = val_uint64(vmi.read_addr_ksym("PsInitialSystemProcess"))
-    next_process = val_uint64(vmi.read_addr_va(list_head + tasks_offset, 0))
-    pid = val_int(vmi.read_32_va(list_head + pid_offset, 0))
-    procname = vmi.read_str_va(list_head + name_offset, 0)
-    print "[%5d] %s" % (pid, procname)
-
+    list_head = vmi.read_addr_ksym("PsInitialSystemProcess")
+    next_process = vmi.read_addr_va(list_head + tasks_offset, 0)
     list_head = next_process
-    while 1:
-        tmp_next = val_uint64(vmi.read_addr_va(next_process, 0))
-        if (list_head == tmp_next):
+
+    while True:
+        procname = vmi.read_str_va(next_process + name_offset, 0)
+        pid = vmi.read_32_va(next_process + pid_offset, 0)
+        next_process = vmi.read_addr_va(next_process, 0)
+
+        if (pid < 1<<16):
+            yield pid, procname
+        if (list_head == next_process):
             break
-        procname = vmi.read_str_va(next_process + name_offset - tasks_offset, 0)
-        pid = val_int(vmi.read_32_va(next_process + pid_offset - tasks_offset, 0))
 
-        if (pid >= 0):
-            print "[%5d] %s" % (pid, procname)
-        next_process = tmp_next
 
-def main (argv):
+def main(argv):
     vmi = pyvmi.init(argv[1], "complete")
-    process_list(vmi)
+    for pid, procname in get_processes(vmi):
+        print "[%5d] %s" % (pid, procname)
 
 if __name__ == "__main__":
     main(sys.argv)
-

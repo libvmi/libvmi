@@ -493,7 +493,7 @@ pyvmi_read_8_pa(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 1);
+    return Py_BuildValue("B", value);
 }
 
 static PyObject *
@@ -516,7 +516,7 @@ pyvmi_read_16_pa(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 2);
+    return Py_BuildValue("H", value);
 }
 
 static PyObject *
@@ -539,7 +539,7 @@ pyvmi_read_32_pa(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 4);
+    return Py_BuildValue("I", value);
 }
 
 static PyObject *
@@ -562,7 +562,7 @@ pyvmi_read_64_pa(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 8);
+    return Py_BuildValue("K", value);
 }
 
 static PyObject *
@@ -585,7 +585,7 @@ pyvmi_read_addr_pa(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 8);
+    return Py_BuildValue("B", value);
 }
 
 static PyObject *
@@ -632,7 +632,7 @@ pyvmi_read_8_va(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 1);
+    return Py_BuildValue("B", value);
 }
 
 static PyObject *
@@ -656,7 +656,7 @@ pyvmi_read_16_va(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 2);
+    return Py_BuildValue("H", value);
 }
 
 static PyObject *
@@ -680,7 +680,7 @@ pyvmi_read_32_va(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 4);
+    return Py_BuildValue("I", value);
 }
 
 static PyObject *
@@ -704,7 +704,7 @@ pyvmi_read_64_va(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 8);
+    return Py_BuildValue("K", value);
 }
 
 static PyObject *
@@ -728,7 +728,7 @@ pyvmi_read_addr_va(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 8);
+    return Py_BuildValue("K", value);
 }
 
 static PyObject *
@@ -775,7 +775,7 @@ pyvmi_read_8_ksym(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 1);
+    return Py_BuildValue("B", value);
 }
 
 static PyObject *
@@ -798,7 +798,7 @@ pyvmi_read_16_ksym(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 2);
+    return Py_BuildValue("H", value);
 }
 
 static PyObject *
@@ -821,8 +821,7 @@ pyvmi_read_32_ksym(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 4);
-
+    return Py_BuildValue("I", value);
 }
 
 static PyObject *
@@ -845,7 +844,7 @@ pyvmi_read_64_ksym(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 8);
+    return Py_BuildValue("K", value);
 }
 
 static PyObject *
@@ -868,7 +867,7 @@ pyvmi_read_addr_ksym(
         return NULL;
     }
 
-    return Py_BuildValue("s#", &value, 8);
+    return Py_BuildValue("K", value);
 }
 
 static PyObject *
