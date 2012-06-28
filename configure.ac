@@ -2,15 +2,16 @@ dnl --------------------------------
 dnl Initialization macros.
 dnl --------------------------------
 
-AC_INIT([libvmi], [0.6.0])
+AC_INIT([libvmi], [0.9.0])
 AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_CONFIG_SRCDIR(libvmi/core.c)
+AC_CONFIG_MACRO_DIR([m4])
 AM_CONFIG_HEADER(config.h)
 
 LIBRARY_NAME=libvmi
 MAJOR_VERSION=0
-MINOR_VERSION=6
+MINOR_VERSION=9
 MICRO_VERSION=0
 VERSION=$MAJOR_VERSION.$MINOR_VERSION.$MICRO_VERSION
 RELEASE=$MAJOR_VERSION.$MINOR_VERSION
@@ -143,6 +144,8 @@ PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16])
 AC_SUBST([GLIB_CFLAGS])
 AC_SUBST([GLIB_LIBS])
 
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
+
 dnl -----------------------------------------------
 dnl Generates Makefile's, configuration files and scripts
 dnl -----------------------------------------------
@@ -152,6 +155,7 @@ AC_CONFIG_FILES(Makefile \
                 libvmi/Makefile \
                 libvmi/config/Makefile \
                 examples/Makefile
+                tests/Makefile
 )
 AC_OUTPUT
 
