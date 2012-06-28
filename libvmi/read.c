@@ -371,9 +371,8 @@ vmi_read_str_va(
     int len = 0;
     size_t read_len = 0;
     int read_more = 1;
-
-    rtnval = safe_malloc(len + 1);
-    rtnval[0] = '\0';
+ 
+    rtnval = NULL;
 
     while (read_more) {
         if (pid) {
