@@ -55,14 +55,6 @@ static void (
 // Internal implementation functions
 
 static void
-memory_cache_key_free(
-    gpointer data)
-{
-    if (data)
-        free(data);
-}
-
-static void
 memory_cache_entry_free(
     gpointer data)
 {
@@ -130,23 +122,18 @@ validate_and_return_data(
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
         entry->last_updated = now;
 
-        gint64 *key = safe_malloc(sizeof(gint64));
-
-        *key = entry->paddr;
-        vmi->memory_cache_lru =
-            g_list_remove(vmi->memory_cache_lru, key);
-        vmi->memory_cache_lru =
-            g_list_prepend(vmi->memory_cache_lru, key);
+        GList* lru_entry = g_list_find_custom(vmi->memory_cache_lru,
+                &entry->paddr, g_int64_equal);
+        gint64* key = lru_entry->data;
+        vmi->memory_cache_lru = g_list_remove(vmi->memory_cache_lru, key);
+        vmi->memory_cache_lru = g_list_prepend(vmi->memory_cache_lru, key);
     }
     entry->last_used = now;
     return entry->data;
 }
 
-static memory_cache_entry_t
-create_new_entry(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    uint32_t length)
+static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
+        uint32_t length)
 {
 
     // sanity check - are we getting memory outside of the physical memory range?
@@ -160,9 +147,9 @@ create_new_entry(
 
     if (vmi->hvm && (paddr + length - 1 > vmi->size)) {
         errprint("--requesting PA [0x%llx] beyond memsize [0x%llx]\n",
-                 paddr + length, vmi->size);
-        errprint("\tpaddr: %llx, length %llx, vmi->size %llx\n", paddr,
-                 length, vmi->size);
+                paddr + length, vmi->size);
+        errprint("\tpaddr: %llx, length %llx, vmi->size %llx\n", paddr, length,
+                vmi->size);
         return 0;
     }
 
@@ -197,7 +184,7 @@ memory_cache_init(
 {
     vmi->memory_cache =
         g_hash_table_new_full(g_int64_hash, g_int64_equal,
-                              memory_cache_key_free,
+                              g_free,
                               memory_cache_entry_free);
     vmi->memory_cache_lru = NULL;
     vmi->memory_cache_age = age_limit;
@@ -221,22 +208,22 @@ memory_cache_insert(
         return NULL;
     }
 
-    gint64 *key = safe_malloc(sizeof(gint64));
-
-    *key = paddr;
+    gint64 *key = &paddr;
     if ((entry = g_hash_table_lookup(vmi->memory_cache, key)) != NULL) {
         dbprint("--MEMORY cache hit 0x%llx\n", paddr);
-        free(key);
         return validate_and_return_data(vmi, entry);
     }
     else {
         dbprint("--MEMORY cache set 0x%llx\n", paddr);
+
         entry = create_new_entry(vmi, paddr, vmi->page_size);
         if (!entry) {
             errprint("create_new_entry failed\n");
             return 0;
         }
 
+        key = safe_malloc(sizeof(gint64));
+        *key = paddr;
         g_hash_table_insert(vmi->memory_cache, key, entry);
 
         gint64 *key2 = safe_malloc(sizeof(gint64));

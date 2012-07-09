@@ -258,48 +258,20 @@ sym_cache_flush(
     dbprint("--SYM cache flushed\n");
 }
 
+struct v2p_cache_key{
+    addr_t va;
+    addr_t dtb;
+};
+typedef struct v2p_cache_key *v2p_cache_key_t;
+
+
 //
 // Virtual address --> Physical address cache implementation
 struct v2p_cache_entry {
-    addr_t va;
-    addr_t dtb;
     addr_t pa;
-    time_t last_used;
+    addr_t last_used;
 };
 typedef struct v2p_cache_entry *v2p_cache_entry_t;
-
-static void
-v2p_cache_key_free(
-    gpointer data)
-{
-    if (data)
-        free(data);
-}
-
-static void
-v2p_cache_entry_free(
-    gpointer data)
-{
-    v2p_cache_entry_t entry = (v2p_cache_entry_t) data;
-
-    if (entry)
-        free(entry);
-}
-
-static v2p_cache_entry_t
-v2p_cache_entry_create(
-    addr_t va,
-    addr_t dtb,
-    addr_t pa)
-{
-    v2p_cache_entry_t entry =
-        (v2p_cache_entry_t) safe_malloc(sizeof(struct v2p_cache_entry));
-    entry->va = va;
-    entry->dtb = dtb;
-    entry->pa = pa;
-    entry->last_used = time(NULL);
-    return entry;
-}
 
 // This function borrowed from cityhash-1.0.3
 static uint64_t
@@ -319,26 +291,52 @@ hash128to64(
     return b;
 }
 
-static gint64 *
-v2p_build_key(
-    vmi_instance_t vmi,
-    addr_t va,
-    addr_t dtb)
-{
-    uint64_t *key = (uint64_t *) safe_malloc(sizeof(uint64_t));
 
+static v2p_cache_entry_t v2p_cache_entry_create (vmi_instance_t vmi, addr_t pa)
+{
+    v2p_cache_entry_t entry = (v2p_cache_entry_t) safe_malloc(sizeof(struct v2p_cache_entry));
+    pa &= ~(vmi->page_size - 1);
+    entry->pa = pa;
+    entry->last_used = time(NULL);
+    return entry;
+}
+
+
+static gint64 v2p_cache_hash(gconstpointer key){
+    const v2p_cache_key_t cache_key = key;
+    return hash128to64(cache_key->dtb, cache_key->va);
+}
+
+static gboolean v2p_cache_equals(gconstpointer key1, gconstpointer key2){
+    const v2p_cache_key_t cache_key1 = key1;
+    const v2p_cache_key_t cache_key2 = key2;
+    return cache_key1->dtb == cache_key2->dtb && cache_key1->va == cache_key2->va;
+}
+
+/*
+ * Initialize an already allocated cache entry with the given physical address.
+ *
+ * This is for performance!
+ */
+static void v2p_cache_key_init(vmi_instance_t vmi, v2p_cache_key_t key, addr_t va, addr_t dtb)
+{
     va = (va & ~(vmi->page_size - 1));
-    *key = hash128to64(dtb, va);
-    return (gint64 *) key;
+    key->va = va;
+    key->dtb = dtb;
+}
+
+static v2p_cache_key_t v2p_build_key (vmi_instance_t vmi, addr_t va, addr_t dtb)
+{
+    v2p_cache_key_t key = (v2p_cache_key_t) safe_malloc(sizeof(struct v2p_cache_key));
+    v2p_cache_key_init(vmi, key, va, dtb);
+    return key;
 }
 
 void
 v2p_cache_init(
     vmi_instance_t vmi)
 {
-    vmi->v2p_cache =
-        g_hash_table_new_full(g_int64_hash, g_int64_equal,
-                              v2p_cache_key_free, v2p_cache_entry_free);
+    vmi->v2p_cache = g_hash_table_new_full(v2p_cache_hash, v2p_cache_equals, g_free, g_free);
 }
 
 void
@@ -356,26 +354,19 @@ v2p_cache_get(
     addr_t *pa)
 {
     v2p_cache_entry_t entry = NULL;
-    gint64 *key = v2p_build_key(vmi, va, dtb);
+    struct v2p_cache_key local_key;
+    v2p_cache_key_t key = &local_key;
+
+    v2p_cache_key_init(vmi, key, va, dtb);
 
     if ((entry = g_hash_table_lookup(vmi->v2p_cache, key)) != NULL) {
 
-        // make sure we don't have a key collision
-        if ((entry->va & ~(vmi->page_size - 1)) !=
-            (va & ~(vmi->page_size - 1)) || entry->dtb != dtb) {
-            dbprint("--V2P cache collision\n");
-            return VMI_FAILURE;
-        }
-
         entry->last_used = time(NULL);
         *pa = entry->pa | ((vmi->page_size - 1) & va);
-        dbprint("--V2P cache hit 0x%.16llx -- 0x%.16llx (0x%.16llx)\n",
-                va, *pa, *key);
-        free(key);
+        dbprint("--V2P cache hit 0x%.16llx -- 0x%.16llx (0x%.16llx)\n", va, *pa, *key);
         return VMI_SUCCESS;
     }
 
-    free(key);
     return VMI_FAILURE;
 }
 
@@ -389,11 +380,8 @@ v2p_cache_set(
     if (!va || !dtb || !pa) {
         return;
     }
-    gint64 *key = v2p_build_key(vmi, va, dtb);
-
-    pa &= ~(vmi->page_size - 1);
-    v2p_cache_entry_t entry = v2p_cache_entry_create(va, dtb, pa);
-
+    v2p_cache_key_t key = v2p_build_key(vmi, va, dtb);
+    v2p_cache_entry_t entry = v2p_cache_entry_create(vmi, pa);
     g_hash_table_insert(vmi->v2p_cache, key, entry);
     dbprint("--V2P cache set 0x%.16llx -- 0x%.16llx (0x%.16llx)\n", va,
             pa, *key);
@@ -405,19 +393,18 @@ v2p_cache_del(
     addr_t va,
     addr_t dtb)
 {
-    gint64 *key = v2p_build_key(vmi, va, dtb);
-
+    struct v2p_cache_key local_key;
+    v2p_cache_key_t key = &local_key;
+    v2p_cache_key_init(vmi, key, va, dtb);
     dbprint("--V2P cache del 0x%.16llx (0x%.16llx)\n", va, *key);
 
     // key collision doesn't really matter here because worst case
     // scenario we incur an small performance hit
 
-    if (TRUE == g_hash_table_remove(vmi->v2p_cache, key)) {
-        free(key);
+    if (TRUE == g_hash_table_remove(vmi->v2p_cache, key)){
         return VMI_SUCCESS;
     }
-    else {
-        free(key);
+    else{
         return VMI_FAILURE;
     }
 }
