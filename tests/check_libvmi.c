@@ -95,7 +95,7 @@ libvmi_suite (void)
     TCase *tc_init = tcase_create("LibVMI Init");
     tcase_add_test(tc_init, test_libvmi_init1);
     tcase_add_test(tc_init, test_libvmi_init2);
-    tcase_add_test(tc_init, test_libvmi_init3);
+    //tcase_add_test(tc_init, test_libvmi_init3);
     suite_add_tcase(s, tc_init);
 
     return s;
