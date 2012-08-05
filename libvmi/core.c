@@ -251,6 +251,11 @@ get_memory_layout(
     vmi->pae = vmi->pse = vmi->lme = vmi->cr3 = 0;
     dbprint("**set paging-related fields to 0\n");
 
+    /* skip all of this for files */
+    if (VMI_FILE == vmi->mode) {
+        goto _exit;
+    }
+
     /* get the control register values */
     if (driver_get_vcpureg(vmi, &cr0, CR0, 0) == VMI_FAILURE) {
         errprint("**failed to get CR0\n");
