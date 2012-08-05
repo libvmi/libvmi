@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# exit on error
+set -e
+
 export LIBVMI_CHECK_TESTVM=$1
 
 # unit tests
