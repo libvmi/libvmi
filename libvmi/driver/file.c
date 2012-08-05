@@ -362,7 +362,7 @@ file_set_name(
 status_t
 file_get_memsize(
     vmi_instance_t vmi,
-    unsigned long size)
+    unsigned long *size)
 {
     return VMI_FAILURE;
 }
