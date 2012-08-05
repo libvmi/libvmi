@@ -62,6 +62,8 @@ struct vmi_instance {
 
     char *image_type;       /**< image type that we are accessing */
 
+    char *image_type_complete;  /**< full path for file images */
+
     uint32_t page_offset;   /**< page offset for this instance */
 
     uint32_t page_shift;    /**< page shift for last mapped page */

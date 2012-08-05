@@ -408,7 +408,8 @@ set_image_type_for_file(
     else {
         ptr++;
     }
-    vmi->image_type = strndup(ptr, 100);
+    vmi->image_type = strndup(ptr, 500);
+    vmi->image_type_complete = strndup(name, 500);
 }
 
 static status_t
@@ -588,7 +589,7 @@ vmi_init_complete(
     char *config)
 {
     uint32_t flags = VMI_INIT_COMPLETE | (*vmi)->mode;
-    char *name = strdup((*vmi)->image_type);
+    char *name = strdup((*vmi)->image_type_complete);
     char *configstr = NULL;
 
     if (config) {
