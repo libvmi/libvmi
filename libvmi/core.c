@@ -594,8 +594,15 @@ vmi_init_complete(
     char *config)
 {
     uint32_t flags = VMI_INIT_COMPLETE | (*vmi)->mode;
-    char *name = strdup((*vmi)->image_type_complete);
+    char *name = NULL;
     char *configstr = NULL;
+
+    if (VMI_FILE == (*vmi)->mode) {
+        name = strdup((*vmi)->image_type_complete);
+    }
+    else {
+        name = strdup((*vmi)->image_type);
+    }
 
     if (config) {
         configstr = build_config_str(vmi, config);
