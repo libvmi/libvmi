@@ -24,34 +24,115 @@
 
 #include <check.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <pwd.h>
 #include "../libvmi/libvmi.h"
 
 /* VM name to test against */
 char *testvm = NULL;
 
+/* test vmi_translate_ksym2v */
+START_TEST (test_libvmi_ksym2v)
+{
+    vmi_instance_t vmi = NULL;
+    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, testvm);
+    addr_t va = 0;
+    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
+        va = vmi_translate_ksym2v(vmi, "PsInitialSystemProcess");
+    }
+    else if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
+        va = vmi_translate_ksym2v(vmi, "init_task");
+    }
+    else{
+        fail_unless(0, "vmi set to invalid os type");
+    }
+    fail_unless(va != 0, "ksym2v translation failed");
+    vmi_destroy(vmi);
+}
+END_TEST
+
 /* test init_complete with passed config */
 START_TEST (test_libvmi_init3)
 {
-    char config[1024];
+    FILE *f = NULL;
+    char location[100];
+    char *sudo_user = NULL;
+    struct passwd *pw_entry = NULL;
     vmi_instance_t vmi = NULL;
     status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_PARTIAL, testvm);
     
-    //TODO make this work for arbitrary VMs
-    strcat(config, "{");
-    strcat(config, " sysmap = \"/boot/vm/System.map-3.2.0-23-generic\";");
-    strcat(config, " ostype = \"Linux\";");
-    strcat(config, " linux_name = 0x460;");
-    strcat(config, " linux_tasks = 0x238;");
-    strcat(config, " linux_mm = 0x270;");
-    strcat(config, " linux_pid = 0x2ac;");
-    strcat(config, " linux_pgd = 0x50;");
-    strcat(config, " linux_addr = 0xf0;");
-    strcat(config, "}");
+    /* read the config entry from the config file */
+
+    /* first check home directory of sudo user */
+    if ((sudo_user = getenv("SUDO_USER")) != NULL) {
+        if ((pw_entry = getpwnam(sudo_user)) != NULL) {
+            snprintf(location, 100, "%s/etc/libvmi.conf\0",
+                     pw_entry->pw_dir);
+            if ((f = fopen(location, "r")) != NULL) {
+                goto success;
+            }
+        }
+    }
+
+    /* next check home directory for current user */
+    snprintf(location, 100, "%s/etc/libvmi.conf\0", getenv("HOME"));
+    if ((f = fopen(location, "r")) != NULL) {
+        goto success;
+    }
+
+    /* finally check in /etc */
+    snprintf(location, 100, "/etc/libvmi.conf\0");
+    if ((f = fopen(location, "r")) != NULL) {
+        goto success;
+    }
+
+    fail_unless(0, "failed to find config file");
+success:
+    /* check file size */
+    fseek(f, 0L, SEEK_END);
+    long sz = ftell(f);
+    fseek(f, 0L, SEEK_SET);
+
+    /* read entry in from file */
+    char *buf = malloc(sz);
+    fread(buf, sz, 1, f);
+    long pos = 0;
+    size_t max_len = strnlen(testvm, 100);
+    int found = 0;
+    for (pos = 0; pos < sz; ++pos){
+        if (strncmp(buf + pos, testvm, max_len) == 0){
+            found = 1;
+            break;
+        }
+    }
+    if (!found){
+        fail_unless(0, "failed to find config entry");
+    }
+    long start = pos + max_len;
+    found = 0;
+    for ( ; pos < sz; ++pos){
+        if (buf[pos] == '}'){
+            found = 1;
+            break;
+        }
+    }
+    if (!found){
+        fail_unless(0, "failed to find end of config entry");
+    }
+    long end = pos + 1;
+    long entry_length = end - start;
+    char *config = malloc(entry_length);
+    memcpy(config, buf + start, entry_length);
+    free(buf);
+
+    /* complete the init */
     ret = vmi_init_complete(&vmi, config);
+    free(config);
     fail_unless(ret == VMI_SUCCESS,
                 "vmi_init_complete failed");
     fail_unless(vmi != NULL,
                 "vmi_init_complete failed to initialize vmi instance struct");
+    vmi_destroy(vmi);
 }
 END_TEST
 
@@ -95,8 +176,16 @@ libvmi_suite (void)
     TCase *tc_init = tcase_create("LibVMI Init");
     tcase_add_test(tc_init, test_libvmi_init1);
     tcase_add_test(tc_init, test_libvmi_init2);
-    //tcase_add_test(tc_init, test_libvmi_init3);
+    tcase_add_test(tc_init, test_libvmi_init3);
     suite_add_tcase(s, tc_init);
+
+    /* translate test cases */
+    TCase *tc_translate = tcase_create("LibVMI Translate");
+    tcase_add_test(tc_translate, test_libvmi_ksym2v);
+    // uv2p
+    // kv2p
+    // pid_to_dtb
+    suite_add_tcase(s, tc_translate);
 
     return s;
 }
