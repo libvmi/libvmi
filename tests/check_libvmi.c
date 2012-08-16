@@ -24,6 +24,7 @@
 
 #include <check.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <pwd.h>
 #include "../libvmi/libvmi.h"
@@ -55,6 +56,7 @@ END_TEST
 START_TEST (test_libvmi_init3)
 {
     FILE *f = NULL;
+    char *ptr = NULL;
     char location[100];
     char *sudo_user = NULL;
     struct passwd *pw_entry = NULL;
@@ -88,6 +90,15 @@ START_TEST (test_libvmi_init3)
 
     fail_unless(0, "failed to find config file");
 success:
+
+    /* strip path for memory image files */
+    if ((ptr = strrchr(testvm, '/')) == NULL) {
+        ptr = testvm;
+    }
+    else {
+        ptr++;
+    }
+
     /* check file size */
     fseek(f, 0L, SEEK_END);
     long sz = ftell(f);
@@ -97,10 +108,10 @@ success:
     char *buf = malloc(sz);
     fread(buf, sz, 1, f);
     long pos = 0;
-    size_t max_len = strnlen(testvm, 100);
+    size_t max_len = strnlen(ptr, 100);
     int found = 0;
     for (pos = 0; pos < sz; ++pos){
-        if (strncmp(buf + pos, testvm, max_len) == 0){
+        if (strncmp(buf + pos, ptr, max_len) == 0){
             found = 1;
             break;
         }
