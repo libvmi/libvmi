@@ -39,7 +39,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <limits.h>
-#include <features.h>
 
 // Use mmap() if this evaluates to true; otherwise, use a file pointer with
 // seek/read
