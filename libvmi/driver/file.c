@@ -44,6 +44,11 @@
 // seek/read
 #define USE_MMAP 1
 
+// Avoid errors on systems that don't have MAP_POPULATE defined
+#ifndef MAP_POPULATE
+#define MAP_POPULATE 0
+#endif
+
 //----------------------------------------------------------------------------
 // File-Specific Interface Functions (no direction mapping to driver_*)
 
