@@ -1094,7 +1094,7 @@ xen_get_address_width(
 void *
 xen_read_page(
     vmi_instance_t vmi,
-    unsigned long page)
+    addr_t page)
 {
     return NULL;
 }
