@@ -303,6 +303,8 @@ typedef struct _windows_unicode_string32 {
     const uint8_t * const image,
     size_t len);
 
+    addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, int pid);
+
 /*-----------------------------------------
  * strmatch.c
  */
