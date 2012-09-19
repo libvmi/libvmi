@@ -28,29 +28,8 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include "../libvmi/libvmi.h"
+#include "check_tests.h"
 
-/* VM name to test against */
-char *testvm = NULL;
-
-/* test vmi_translate_ksym2v */
-START_TEST (test_libvmi_ksym2v)
-{
-    vmi_instance_t vmi = NULL;
-    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, testvm);
-    addr_t va = 0;
-    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        va = vmi_translate_ksym2v(vmi, "PsInitialSystemProcess");
-    }
-    else if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
-        va = vmi_translate_ksym2v(vmi, "init_task");
-    }
-    else{
-        fail_unless(0, "vmi set to invalid os type");
-    }
-    fail_unless(va != 0, "ksym2v translation failed");
-    vmi_destroy(vmi);
-}
-END_TEST
 
 /* test init_complete with passed config */
 START_TEST (test_libvmi_init3)
@@ -61,7 +40,7 @@ START_TEST (test_libvmi_init3)
     char *sudo_user = NULL;
     struct passwd *pw_entry = NULL;
     vmi_instance_t vmi = NULL;
-    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_PARTIAL, testvm);
+    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_PARTIAL, get_testvm());
     
     /* read the config entry from the config file */
 
@@ -92,8 +71,8 @@ START_TEST (test_libvmi_init3)
 success:
 
     /* strip path for memory image files */
-    if ((ptr = strrchr(testvm, '/')) == NULL) {
-        ptr = testvm;
+    if ((ptr = strrchr(get_testvm(), '/')) == NULL) {
+        ptr = get_testvm();
     }
     else {
         ptr++;
@@ -151,7 +130,7 @@ END_TEST
 START_TEST (test_libvmi_init2)
 {
     vmi_instance_t vmi = NULL;
-    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_PARTIAL, testvm);
+    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_PARTIAL, get_testvm());
     fail_unless(ret == VMI_SUCCESS,
                 "vmi_init failed with AUTO | PARTIAL");
     fail_unless(vmi != NULL,
@@ -169,7 +148,7 @@ END_TEST
 START_TEST (test_libvmi_init1)
 {
     vmi_instance_t vmi = NULL;
-    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, testvm);
+    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
     fail_unless(ret == VMI_SUCCESS,
                 "vmi_init failed with AUTO | COMPLETE");
     fail_unless(vmi != NULL,
@@ -178,51 +157,12 @@ START_TEST (test_libvmi_init1)
 }
 END_TEST
 
-Suite *
-libvmi_suite (void)
+/* init test cases */
+TCase *init_tcase (void)
 {
-    Suite *s = suite_create("LibVMI");
-
-    /* init test cases */
     TCase *tc_init = tcase_create("LibVMI Init");
     tcase_add_test(tc_init, test_libvmi_init1);
     tcase_add_test(tc_init, test_libvmi_init2);
     tcase_add_test(tc_init, test_libvmi_init3);
-    suite_add_tcase(s, tc_init);
-
-    /* translate test cases */
-    TCase *tc_translate = tcase_create("LibVMI Translate");
-    tcase_add_test(tc_translate, test_libvmi_ksym2v);
-    // uv2p
-    // kv2p
-    // pid_to_dtb
-    suite_add_tcase(s, tc_translate);
-
-    return s;
-}
-
-int
-main (void)
-{
-    /* get the vm name to test against */
-    //TODO allow a list of names in this variable
-    testvm = getenv("LIBVMI_CHECK_TESTVM");
-    if (NULL == testvm) {
-        printf("!! Check requires VM name to test against.\n");
-        printf("!! Store name in env variable 'LIBVMI_CHECK_TESTVM'.\n");
-        return 1;
-    }
-
-    int number_failed = 0;
-    Suite *s = libvmi_suite();
-    SRunner *sr = srunner_create(s);
-    srunner_run_all(sr, CK_NORMAL);
-    number_failed = srunner_ntests_failed(sr);
-    srunner_free(sr);
-    if (number_failed == 0) {
-        return EXIT_SUCCESS;
-    }
-    else {
-        return EXIT_FAILURE;
-    }
+    return tc_init;
 }
