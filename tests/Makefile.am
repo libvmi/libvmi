@@ -6,6 +6,7 @@ check_libvmi_SOURCES = \
     check_runner.c \
     check_tests.h \
     test_init.c \
+    test_read.c \
     test_translate.c \
     $(top_builddir)/libvmi/libvmi.h
 

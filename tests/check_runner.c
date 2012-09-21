@@ -53,6 +53,7 @@ main (void)
     /* add test cases */
     suite_add_tcase(s, init_tcase());
     suite_add_tcase(s, translate_tcase());
+    suite_add_tcase(s, read_tcase());
 
     /* run the tests */
     SRunner *sr = srunner_create(s);
