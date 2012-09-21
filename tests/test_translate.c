@@ -23,19 +23,90 @@
  */
 
 #include <check.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <pwd.h>
 #include "../libvmi/libvmi.h"
 #include "check_tests.h"
 
+
+/* test vmi_pid_to_dtb */
+START_TEST (test_libvmi_piddtb)
+{
+    vmi_instance_t vmi = NULL;
+    addr_t next_process, list_head;
+    int pid = 0;
+    int tasks_offset, pid_offset, name_offset;
+
+    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
+        tasks_offset = vmi_get_offset(vmi, "linux_tasks");
+        name_offset = vmi_get_offset(vmi, "linux_name");
+        pid_offset = vmi_get_offset(vmi, "linux_pid");
+
+        addr_t init_task_va = vmi_translate_ksym2v(vmi, "init_task");
+        vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0, &next_process);
+    }
+    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
+        tasks_offset = vmi_get_offset(vmi, "win_tasks");
+        name_offset = vmi_get_offset(vmi, "win_pname");
+        pid_offset = vmi_get_offset(vmi, "win_pid");
+
+        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head);
+        vmi_read_addr_va(vmi, list_head + tasks_offset, 0, &next_process);
+    }
+
+    list_head = next_process;
+    while (1) {
+        addr_t tmp_next = 0;
+        vmi_read_addr_va(vmi, next_process, 0, &tmp_next);
+        if (list_head == tmp_next) {
+            break;
+        }
+        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
+        if ((VMI_OS_LINUX == vmi_get_ostype(vmi) && pid >= 500) ||
+            (VMI_OS_WINDOWS == vmi_get_ostype(vmi) && pid > 0)) {
+            addr_t dtb = vmi_pid_to_dtb(vmi, pid);
+            fail_unless(dtb != 0, "pid_to_dtb failed");
+        }
+        next_process = tmp_next;
+    }
+
+    vmi_destroy(vmi);
+}
+END_TEST
+
+/* test vmi_translate_kv2p */
+START_TEST (test_libvmi_kv2p)
+{
+    vmi_instance_t vmi = NULL;
+    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    addr_t va = 0;
+    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
+        va = vmi_translate_ksym2v(vmi, "PsInitialSystemProcess");
+    }
+    else if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
+        va = vmi_translate_ksym2v(vmi, "init_task");
+    }
+    else{
+        fail_unless(0, "vmi set to invalid os type");
+    }
+    addr_t pa = vmi_translate_kv2p(vmi, va);
+    fail_unless(pa != 0, "kv2p translation failed");
+    vmi_destroy(vmi);
+}
+END_TEST
+
+/* test vmi_translate_uv2p */
+//TODO figure out how to test this
+//START_TEST (test_libvmi_uv2p)
+//{
+//    vmi_translate_uv2p(vmi, vaddr, pid)
+//}
+//END_TEST
 
 /* test vmi_translate_ksym2v */
 START_TEST (test_libvmi_ksym2v)
 {
     vmi_instance_t vmi = NULL;
-    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
     addr_t va = 0;
     if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
         va = vmi_translate_ksym2v(vmi, "PsInitialSystemProcess");
@@ -57,7 +128,7 @@ TCase *translate_tcase (void)
     TCase *tc_translate = tcase_create("LibVMI Translate");
     tcase_add_test(tc_translate, test_libvmi_ksym2v);
     // uv2p
-    // kv2p
-    // pid_to_dtb
+    tcase_add_test(tc_translate, test_libvmi_kv2p);
+    tcase_add_test(tc_translate, test_libvmi_piddtb);
     return tc_translate;
 }
