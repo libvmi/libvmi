@@ -299,7 +299,7 @@ eprocess_list_search(
     vmi_read_addr_va(vmi, list_head + tasks_offset, 0, &next_process);
     vmi_read_va(vmi, list_head + offset, 0, buf, len);
     if (memcmp(buf, value, len) == 0) {
-        rtnval = list_head;
+        rtnval = list_head + tasks_offset;
         goto exit;
     }
     list_head = next_process;
