@@ -94,15 +94,13 @@ struct driver_instance {
 typedef struct driver_instance *driver_instance_t;
 
 static driver_instance_t instance = NULL;
-static xen_instance_t xeninst;
-static kvm_instance_t kvminst;
-static file_instance_t fileinst;
 
 static void
 driver_xen_setup(
     vmi_instance_t vmi)
 {
-    vmi->driver = &xeninst;
+    vmi->driver = safe_malloc(sizeof(xen_instance_t));
+    memset(vmi->driver, 0, sizeof(xen_instance_t));
     instance->init_ptr = &xen_init;
     instance->destroy_ptr = &xen_destroy;
     instance->get_id_from_name_ptr = &xen_get_domainid_from_name;
@@ -124,7 +122,8 @@ static void
 driver_kvm_setup(
     vmi_instance_t vmi)
 {
-    vmi->driver = &kvminst;
+    vmi->driver = safe_malloc(sizeof(kvm_instance_t));
+    memset(vmi->driver, 0, sizeof(kvm_instance_t));
     instance->init_ptr = &kvm_init;
     instance->destroy_ptr = &kvm_destroy;
     instance->get_id_from_name_ptr = &kvm_get_id_from_name;
@@ -146,7 +145,8 @@ static void
 driver_file_setup(
     vmi_instance_t vmi)
 {
-    vmi->driver = &fileinst;
+    vmi->driver = safe_malloc(sizeof(file_instance_t));
+    memset(vmi->driver, 0, sizeof(file_instance_t));
     instance->init_ptr = &file_init;
     instance->destroy_ptr = &file_destroy;
     instance->get_id_from_name_ptr = NULL;  //TODO add get_id_from_name_ptr
@@ -278,7 +278,9 @@ driver_destroy(
     driver_instance_t ptrs = driver_get_instance(vmi);
 
     if (NULL != ptrs && NULL != ptrs->destroy_ptr) {
-        return ptrs->destroy_ptr(vmi);
+        ptrs->destroy_ptr(vmi);
+        free(vmi->driver);
+        return;
     }
     else {
         dbprint("WARNING: driver_destroy function not implemented.\n");
