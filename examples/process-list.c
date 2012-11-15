@@ -31,31 +31,29 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
-int
-main(
-    int argc,
-    char **argv)
+int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
     unsigned char *memory = NULL;
     uint32_t offset;
-    addr_t next_process, list_head;
+    addr_t list_head = 0, current_list_entry = 0, next_list_entry = 0;
+    addr_t current_process = 0;
+    addr_t tmp_next = 0;
     char *procname = NULL;
     int pid = 0;
-    int tasks_offset, pid_offset, name_offset;
+    unsigned long tasks_offset, pid_offset, name_offset;
     status_t status;
 
     /* this is the VM or file that we are looking at */
     if (argc != 2) {
         printf("Usage: %s <vmname>\n", argv[0]);
         return 1;
-    }   // if
+    } // if
 
     char *name = argv[1];
 
     /* initialize the libvmi library */
-    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) ==
-        VMI_FAILURE) {
+    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) == VMI_FAILURE) {
         printf("Failed to init LibVMI library.\n");
         goto error_exit;
     }
@@ -93,7 +91,7 @@ main(
     if (vmi_pause_vm(vmi) != VMI_SUCCESS) {
         printf("Failed to pause VM\n");
         goto error_exit;
-    }   // if
+    } // if
 
     /* demonstrate name and id accessors */
     char *name2 = vmi_get_name(vmi);
@@ -112,51 +110,31 @@ main(
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
         addr_t init_task_va = vmi_translate_ksym2v(vmi, "init_task");
 
-        vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0,
-                         &next_process);
+        vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0, &current_process);
+
+        /* FIXME: Skip the init_task on Linux? */
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
 
-        uint32_t pdbase = 0;
-
         // find PEPROCESS PsInitialSystemProcess
-        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head);
+        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &current_process);
 
-        vmi_read_addr_va(vmi, list_head + tasks_offset, 0,
-                         &next_process);
-        vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
-
-        vmi_read_32_va(vmi, list_head + pid_offset, 0, &pid);
-        procname = vmi_read_str_va(vmi, list_head + name_offset, 0);
-        if (!procname) {
-            printf("Failed to find first procname\n");
-            goto error_exit;
-        }
-
-        printf("[%5d] %s\n", pid, procname);
-        if (procname) {
-            free(procname);
-            procname = NULL;
-        }
     }
 
-    list_head = next_process;
-
     /* walk the task list */
-    while (1) {
+    list_head = current_process + tasks_offset;
+    current_list_entry = list_head;
 
-        /* follow the next pointer */
-        addr_t tmp_next = 0;
+    status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
+    if (status == VMI_FAILURE) {
+        printf("Failed to read next pointer at 0x%lx before entering loop\n",
+                current_list_entry);
+        goto error_exit;
+    }
 
-        vmi_read_addr_va(vmi, next_process, 0, &tmp_next);
+    printf("Next list entry is at: %lx\n", next_list_entry);
 
-        /* if we are back at the list head, we are done */
-        if (list_head == tmp_next) {
-            break;
-        }
-
-        /* print out the process name */
-
+    do {
         /* Note: the task_struct that we are looking at has a lot of
          * information.  However, the process name and id are burried
          * nice and deep.  Instead of doing something sane like mapping
@@ -165,31 +143,39 @@ main(
          * code cleaner, if not more fragile.  In a real app, you'd
          * want to do this a little more robust :-)  See
          * include/linux/sched.h for mode details */
-        procname =
-            vmi_read_str_va(vmi,
-                            next_process + name_offset - tasks_offset,
-                            0);
+
+        /* NOTE: _EPROCESS.UniqueProcessId is a really VOID*, but is never > 32 bits,
+         * so this is safe enough for x64 Windows for example purposes */
+        vmi_read_32_va(vmi, current_process + pid_offset, 0, &pid);
+
+        procname = vmi_read_str_va(vmi, current_process + name_offset, 0);
 
         if (!procname) {
             printf("Failed to find procname\n");
-        }   // if
-
-        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0,
-                       &pid);
-
-        /* trivial sanity check on data */
-        if (pid >= 0 && procname) {
-            printf("[%5d] %s\n", pid, procname);
+            goto error_exit;
         }
+
+        /* print out the process name */
+        printf("[%5d] %s (struct addr:%lx)\n", pid, procname, current_process);
         if (procname) {
             free(procname);
             procname = NULL;
         }
-        next_process = tmp_next;
-    }
 
-error_exit:
-    if (procname)
+        current_list_entry = next_list_entry;
+        current_process = current_list_entry - tasks_offset;
+
+        /* follow the next pointer */
+
+        status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
+        if (status == VMI_FAILURE) {
+            printf("Failed to read next pointer in loop at %lx\n", current_list_entry);
+            goto error_exit;
+        }
+
+    } while (next_list_entry != list_head);
+
+    error_exit: if (procname)
         free(procname);
 
     /* resume the vm */
