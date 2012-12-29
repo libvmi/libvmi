@@ -76,12 +76,12 @@ int main (int argc, char **argv)
             goto error_exit;
         }
         name_offset = vmi_get_offset(vmi, "win_pname");
-        if (0 == tasks_offset) {
+        if (0 == name_offset) {
             printf("Failed to find win_pname\n");
             goto error_exit;
         }
         pid_offset = vmi_get_offset(vmi, "win_pid");
-        if (0 == tasks_offset) {
+        if (0 == pid_offset) {
             printf("Failed to find win_pid\n");
             goto error_exit;
         }
