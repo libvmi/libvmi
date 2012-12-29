@@ -63,7 +63,7 @@ ostype                  { BeginToken(yytext); return OSTYPETOK; }
     yylval.str = strdup(yytext);
     return NUM;
     }
-[a-zA-Z][a-zA-Z0-9._-]+      {
+[a-zA-Z0-9][a-zA-Z0-9._-]+      {
     BeginToken(yytext);
     yylval.str = strdup(yytext);
     return WORD;
