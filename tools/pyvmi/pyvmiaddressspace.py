@@ -57,7 +57,7 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
             return ''
 
         # This should not happen but in case it does
-	# pad the end of the read
+        # pad the end of the read
         end = addr + length
         if end > self.vmi.get_memsize():
 	    pad = True
