@@ -94,5 +94,5 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         return cr3
 
     def get_available_addresses(self):
-        yield (4096, self.vmi.get_memsize() - 1)
+        yield (4096, self.vmi.get_memsize() - 4096)
         return
