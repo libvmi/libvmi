@@ -93,9 +93,16 @@ void xen_destroy(
 unsigned long xen_get_domainid_from_name(
     vmi_instance_t vmi,
     char *name);
+status_t xen_get_name_from_domainid(
+    vmi_instance_t vmi,
+    unsigned long domid,
+    char **name);
 unsigned long xen_get_domainid(
     vmi_instance_t vmi);
 void xen_set_domainid(
+    vmi_instance_t vmi,
+    unsigned long domainid);
+status_t xen_check_domainid(
     vmi_instance_t vmi,
     unsigned long domainid);
 status_t xen_get_domainname(

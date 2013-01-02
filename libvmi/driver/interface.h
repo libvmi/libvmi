@@ -38,9 +38,16 @@ void driver_destroy(
 unsigned long driver_get_id_from_name(
     vmi_instance_t vmi,
     char *name);
+status_t driver_get_name_from_id(
+    vmi_instance_t vmi,
+    unsigned long domid,
+    char **name);
 unsigned long driver_get_id(
     vmi_instance_t vmi);
 void driver_set_id(
+    vmi_instance_t vmi,
+    unsigned long id);
+status_t driver_check_id(
     vmi_instance_t vmi,
     unsigned long id);
 status_t driver_get_name(

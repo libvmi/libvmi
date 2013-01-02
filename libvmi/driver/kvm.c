@@ -474,6 +474,39 @@ kvm_get_id_from_name(
     return id;
 }
 
+status_t
+kvm_get_name_from_id(
+    vmi_instance_t vmi,
+    unsigned long domid,
+    char **name)
+{
+    virConnectPtr conn = NULL;
+    virDomainPtr dom = NULL;
+
+    conn =
+        virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
+                           0);
+    if (NULL == conn) {
+        dbprint("--no connection to kvm hypervisor\n");
+        return VMI_FAILURE;
+    }
+
+    dom = virDomainLookupByID(conn, domid);
+    if (NULL == dom) {
+        dbprint("--failed to find kvm domain\n");
+        return VMI_FAILURE;
+    }
+
+    *name = virDomainGetName(dom);
+
+    if (dom)
+        virDomainFree(dom);
+    if (conn)
+        virConnectClose(conn);
+
+    return VMI_SUCCESS;
+}
+
 unsigned long
 kvm_get_id(
     vmi_instance_t vmi)
@@ -487,6 +520,36 @@ kvm_set_id(
     unsigned long id)
 {
     kvm_get_instance(vmi)->id = id;
+}
+
+status_t
+kvm_check_id(
+    vmi_instance_t vmi,
+    unsigned long id)
+{
+    virConnectPtr conn = NULL;
+    virDomainPtr dom = NULL;
+
+    conn =
+        virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
+                           0);
+    if (NULL == conn) {
+        dbprint("--no connection to kvm hypervisor\n");
+        return VMI_FAILURE;
+    }
+
+    dom = virDomainLookupByID(conn, id);
+    if (NULL == dom) {
+        dbprint("--failed to find kvm domain\n");
+        return VMI_FAILURE;
+    }
+
+    if (dom)
+        virDomainFree(dom);
+    if (conn)
+        virConnectClose(conn);
+
+    return VMI_SUCCESS;
 }
 
 status_t
@@ -756,14 +819,6 @@ kvm_test(
         return VMI_FAILURE;
     }
 
-    dom = virDomainLookupByName(conn, name);
-    if (NULL == dom) {
-        dbprint("--failed to find kvm domain\n");
-        return VMI_FAILURE;
-    }
-
-    if (dom)
-        virDomainFree(dom);
     if (conn)
         virConnectClose(conn);
     return VMI_SUCCESS;
@@ -814,6 +869,15 @@ kvm_get_id_from_name(
     return 0;
 }
 
+status_t
+kvm_get_name_from_id(
+    vmi_instance_t vmi,
+    unsigned long domid,
+    char **name)
+{
+    return VMI_FAILURE;
+}
+
 unsigned long
 kvm_get_id(
     vmi_instance_t vmi)
@@ -827,6 +891,14 @@ kvm_set_id(
     unsigned long id)
 {
     return;
+}
+
+status_t
+kvm_check_id(
+    vmi_instance_t vmi,
+    unsigned long id)
+{
+    return VMI_FAILURE;
 }
 
 status_t
