@@ -42,7 +42,9 @@ def configfromdump(filename):
                     base = "    win_pdbase  = "+ lineSplit[2]+ ';\n'
                 elif lineSplit[0] == "_EPROCESS"  and lineSplit[1] == "UniqueProcessId":
                     pid = "    win_pid     = "+ lineSplit[2]+';\n'
-    config += tasks + base + pid
+                elif lineSplit[0] == "_EPROCESS"  and lineSplit[1] == "ImageFileName":
+                    pname = "    win_pname   = "+ lineSplit[2]+';\n'
+    config += tasks + base + pid + pname
     config += "}"
     print config
 
