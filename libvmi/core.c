@@ -81,18 +81,19 @@ success:
     return f;
 }
 
-static int
+status_t
 read_config_file(
     vmi_instance_t vmi)
 {
-    int ret = VMI_SUCCESS;
+    status_t ret = VMI_SUCCESS;
     vmi_config_entry_t *entry;
+    char *configstr = (char *)vmi->config;
     char *tmp = NULL;
 
     yyin = NULL;
 
-    if (vmi->configstr) {
-        yyin = fmemopen(vmi->configstr, strlen(vmi->configstr), "r");
+    if (configstr) {
+        yyin = fmemopen(configstr, strlen(configstr), "r");
     }
 
     if (NULL == yyin) {
@@ -211,6 +212,121 @@ error_exit:
         free(tmp);
     if (yyin)
         fclose(yyin);
+    return ret;
+}
+
+void
+read_config_ghashtable_entries(
+    char* key,
+    gpointer value,
+    vmi_instance_t vmi)
+{
+    if(strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0 || strncmp(key, "os_type", CONFIG_STR_LENGTH) == 0) {
+        if(strncmp((char *)value, "Linux", CONFIG_STR_LENGTH) == 0) {
+            vmi->os_type = VMI_OS_LINUX;
+        } else if(strncmp((char *)value, "Windows", CONFIG_STR_LENGTH) == 0) {
+            vmi->os_type = VMI_OS_WINDOWS;
+        }
+        goto _done;
+    }
+
+    if(strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
+        vmi->sysmap = strdup((char *)value);
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_tasks", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.linux_instance.tasks_offset =
+            *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_mm", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.linux_instance.mm_offset =
+            *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_pid", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.linux_instance.pid_offset =
+            *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_name", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.linux_instance.name_offset =
+            *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_pgd", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.linux_instance.pgd_offset =
+            *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_ntoskrnl", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.windows_instance.ntoskrnl =
+            *(addr_t *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_tasks", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.windows_instance.tasks_offset =
+            *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_pdbase", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.windows_instance.pdbase_offset =
+            *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_pid", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.windows_instance.pid_offset =
+            *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_pname", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.windows_instance.pname_offset =
+            *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_kdvb", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.windows_instance.kdversion_block =
+            *(addr_t *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_sysproc", CONFIG_STR_LENGTH) == 0) {
+        vmi->os.windows_instance.sysproc =
+            *(addr_t *)value;
+        goto _done;
+    }
+
+_done:
+    return;
+}
+
+status_t
+read_config_ghashtable(
+    vmi_instance_t vmi)
+{
+    status_t ret = VMI_FAILURE;
+    GHashTable *configtbl = (GHashTable *)vmi->config;
+    vmi->os_type = VMI_OS_UNKNOWN;
+
+    g_hash_table_foreach(configtbl, (GHFunc)read_config_ghashtable_entries, vmi);
+
+    if(vmi->os_type != VMI_OS_UNKNOWN) {
+        ret = VMI_SUCCESS;
+    } else {
+        errprint("Unknown or undefined OS type!\n");
+    }
+
     return ret;
 }
 
@@ -473,10 +589,11 @@ vmi_init_private(
     uint32_t flags,
     unsigned long id,
     char *name,
-    char *configstr)
+    vmi_config_t *config)
 {
     uint32_t access_mode = flags & 0x0000FFFF;
-    uint32_t init_mode = flags & 0xFFFF0000;
+    uint32_t init_mode = flags & 0x00FF0000;
+    uint32_t config_mode = flags & 0xFF000000;
     status_t status = VMI_FAILURE;
 
     /* allocate memory for instance structure */
@@ -489,7 +606,8 @@ vmi_init_private(
     /* save the flags and init mode */
     (*vmi)->flags = flags;
     (*vmi)->init_mode = init_mode;
-    (*vmi)->configstr = configstr;
+    (*vmi)->config = config;
+    (*vmi)->config_mode = config_mode;
 
     /* setup the caches */
     pid_cache_init(*vmi);
@@ -518,8 +636,20 @@ vmi_init_private(
         return VMI_SUCCESS;
     }
     else if (VMI_INIT_COMPLETE == init_mode) {
+
+        /* init_complete requires configuration */
+        if(VMI_CONFIG_NONE == (*vmi)->config_mode) {
+            goto error_exit;
+        }
         /* read and parse the config file */
-        if (VMI_FAILURE == read_config_file(*vmi)) {
+        else if ( (VMI_CONFIG_STRING == (*vmi)->config_mode || VMI_CONFIG_GLOBAL_FILE_ENTRY == (*vmi)->config_mode)
+                 && VMI_FAILURE == read_config_file(*vmi)) {
+            goto error_exit;
+        }
+        /* read and parse the ghashtable */
+        else if (VMI_CONFIG_GHASHTABLE == (*vmi)->config_mode
+                 && VMI_FAILURE == read_config_ghashtable(*vmi)) {
+            dbprint("--failed to parse ghashtable\n");
             goto error_exit;
         }
 
@@ -585,7 +715,68 @@ vmi_init(
     uint32_t flags,
     char *name)
 {
-    return vmi_init_private(vmi, flags, 0, name, NULL);
+    return vmi_init_private(vmi, flags | VMI_CONFIG_GLOBAL_FILE_ENTRY, 0, name, NULL);
+}
+
+status_t
+vmi_init_custom(
+    vmi_instance_t *vmi,
+    uint32_t flags,
+    vmi_config_t  config)
+{
+    status_t ret = VMI_FAILURE;
+    uint32_t config_mode = flags & 0xFF000000;
+
+    if (VMI_CONFIG_GLOBAL_FILE_ENTRY == config_mode) {
+
+        ret = vmi_init(vmi, flags, (char *)config);
+        goto _done;
+
+    } else if (VMI_CONFIG_STRING == config_mode) {
+
+           char *name = NULL;
+           char *configstr = NULL;
+
+        if (VMI_FILE == (*vmi)->mode) {
+            name = strdup((*vmi)->image_type_complete);
+        }
+        else {
+            name = strdup((*vmi)->image_type);
+        }
+
+        configstr = build_config_str(vmi, (char *)config);
+        ret = vmi_init_private(vmi,flags, 0, name, (vmi_config_t)configstr);
+
+    } else if (VMI_CONFIG_GHASHTABLE == config_mode) {
+
+        char *name = NULL;
+        unsigned long domid = 0;
+        GHashTable *configtbl = (GHashTable *)config;
+
+        name = (char *)g_hash_table_lookup(configtbl, "name");
+        gpointer idptr;
+        if(g_hash_table_lookup_extended(configtbl, "domid", NULL, &idptr)) {
+            domid = *(unsigned long *)idptr;
+        }
+
+        if (name != NULL && domid != 0) {
+            errprint("--specifying both the name and domid is not supported\n");
+        } else if (name != NULL) {
+            ret = vmi_init_private(vmi, flags, 0, name, config);
+        } else if (domid != 0) {
+            ret = vmi_init_private(vmi, flags, domid, NULL, config);
+        } else {
+            errprint("--you need to specify either the name or the domid\n");
+        }
+
+        goto _done;
+
+    } else {
+        errprint("Custom configuration input type not defined!\n");
+    }
+
+_done:
+    return ret;
 }
 
 status_t
@@ -607,8 +798,30 @@ vmi_init_complete(
     if (config) {
         configstr = build_config_str(vmi, config);
     }
+
+    if(configstr) {
+        flags |= VMI_CONFIG_STRING;
+    } else {
+        flags |= VMI_CONFIG_NONE;
+    }
+
     vmi_destroy(*vmi);
-    return vmi_init_private(vmi, flags, 0, name, configstr);
+    return vmi_init_private(vmi,
+                            flags,
+                            0,
+                            name,
+                            (vmi_config_t)configstr);
+}
+
+status_t
+vmi_init_complete_custom(
+    vmi_instance_t *vmi,
+    uint32_t flags,
+    vmi_config_t config)
+{
+    flags |= VMI_INIT_COMPLETE | (*vmi)->mode;
+    vmi_destroy(*vmi);
+    return vmi_init_custom(vmi, flags, config);
 }
 
 status_t
@@ -624,8 +837,6 @@ vmi_destroy(
         free(vmi->sysmap);
     if (vmi->image_type)
         free(vmi->image_type);
-    if (vmi->configstr)
-        free(vmi->configstr);
     if (vmi)
         free(vmi);
     return VMI_SUCCESS;
