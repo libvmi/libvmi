@@ -56,24 +56,24 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         if addr > self.vmi.get_memsize():
             return ''
 
+        # This should not happen but in case it does
+	# pad the end of the read
         end = addr + length
         if end > self.vmi.get_memsize():
+	    pad = True
+        
+        try:
+            if pad:
+                memory = self.vmi.zread_pa(addr, length)
+            else:
+                memory = self.vmi.read_pa(addr, length)
+        except:
             memory = ''
-        else:
-            try:
-                if pad:
-                    memory = self.vmi.zread_pa(addr, length)
-                else:
-                    memory = self.vmi.read_pa(addr, length)
-            except:
-                memory = ''
+
         return memory
 
     def read(self, addr, length):
-        # This should be pad=False, but for some reason
-        # that isn't working with Volatility.  This does
-        # work, so I will leave it like this for now.
-        return self.__read_bytes(addr, length, pad=True)
+        return self.__read_bytes(addr, length, pad=False)
 
     def zread(self, addr, length):
         return self.__read_bytes(addr, length, pad=True)
