@@ -42,7 +42,7 @@ get_ntoskrnl_base(
         if (MAX_HEADER_BYTES != nbytes) {
             continue;
         }
-        if (VMI_SUCCESS == validate_pe_image(image, MAX_HEADER_BYTES)) {
+        if (VMI_SUCCESS == peparse_validate_pe_image(image, MAX_HEADER_BYTES)) {
             dbprint("--FOUND KERNEL at paddr=0x%llx\n", paddr);
             goto normal_exit;
         }
