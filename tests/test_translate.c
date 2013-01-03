@@ -34,6 +34,7 @@ START_TEST (test_libvmi_piddtb)
     addr_t next_process, list_head;
     int pid = 0;
     int tasks_offset, pid_offset, name_offset;
+    int failed = 1;
 
     vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
@@ -64,12 +65,16 @@ START_TEST (test_libvmi_piddtb)
         if ((VMI_OS_LINUX == vmi_get_ostype(vmi) && pid >= 500) ||
             (VMI_OS_WINDOWS == vmi_get_ostype(vmi) && pid > 0)) {
             addr_t dtb = vmi_pid_to_dtb(vmi, pid);
-            fail_unless(dtb != 0, "pid_to_dtb failed");
+            if (dtb) {
+                failed = 0;
+                break;
+            }
         }
         next_process = tmp_next;
     }
 
     vmi_destroy(vmi);
+    fail_unless(!failed, "pid_to_dtb failed");
 }
 END_TEST
 
