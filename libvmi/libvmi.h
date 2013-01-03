@@ -32,6 +32,11 @@
  */
 #ifndef LIBVMI_H
 #define LIBVMI_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #pragma GCC visibility push(default)
 
 #ifdef HAVE_CONFIG_H
@@ -1159,4 +1164,9 @@ void vmi_pidcache_add(
     addr_t dtb);
 
 #pragma GCC visibility pop
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* LIBVMI_H */
