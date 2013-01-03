@@ -108,11 +108,11 @@ int main (int argc, char **argv)
 
     /* get the head of the list */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
-        addr_t init_task_va = vmi_translate_ksym2v(vmi, "init_task");
-
-        vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0, &current_process);
-
-        /* FIXME: Skip the init_task on Linux? */
+        /* Begin at PID 0, the 'swapper' task. It's not typically shown by OS
+         *  utilities, but it is indeed part of the task list and useful to
+         *  display as such.
+         */
+        current_process = vmi_translate_ksym2v(vmi, "init_task");
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
 
