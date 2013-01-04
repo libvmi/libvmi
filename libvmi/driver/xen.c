@@ -322,6 +322,9 @@ xen_init(
         goto _bail;
     }
 
+    /* record the count of VCPUs used by this instance */
+    vmi->num_vcpus = xen_get_instance(vmi)->info.max_vcpu_id + 1;
+
     /* determine if target is hvm or pv */
     vmi->hvm = xen_get_instance(vmi)->hvm =
         xen_get_instance(vmi)->info.hvm;
