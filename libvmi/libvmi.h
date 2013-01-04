@@ -342,6 +342,20 @@ addr_t vmi_pid_to_dtb(
     vmi_instance_t vmi,
     int pid);
 
+/**
+ * Translates a virtual address to a physical address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] dtb address of the relevant page directory base
+ * @param[in] vaddr virtual address to translate via dtb 
+ * @return Physical address, or zero on error
+ */
+
+addr_t vmi_pagetable_lookup (
+    vmi_instance_t vmi,
+    addr_t dtb,
+    addr_t vaddr);
+
 /*---------------------------------------------------------
  * Memory access functions from util.c
  */
