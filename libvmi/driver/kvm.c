@@ -369,6 +369,7 @@ kvm_init(
 {
     virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
+    virDomainInfo info;
 
     conn =
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
@@ -397,6 +398,13 @@ kvm_init(
     kvm_get_instance(vmi)->dom = dom;
     kvm_get_instance(vmi)->socket_fd = 0;
     vmi->hvm = 1;
+
+    //get the VCPU count from virDomainInfo structure
+    if (-1 == virDomainGetInfo(kvm_get_instance(vmi)->dom, &info)) {
+        dbprint("--failed to get vm info\n");
+        return VMI_FAILURE;
+    }
+    vmi->num_vcpus = info.nrVirtCpu;
 
     char *status = exec_memory_access(kvm_get_instance(vmi));
 

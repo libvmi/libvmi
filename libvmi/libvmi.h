@@ -1065,6 +1065,16 @@ unsigned long vmi_get_memsize(
     vmi_instance_t vmi);
 
 /**
+ * Gets the memory size of the guest that LibVMI is accessing.
+ * This information is required for any interaction with of VCPU registers.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Number of VCPUs
+ */
+unsigned int vmi_get_num_vcpus (
+    vmi_instance_t vmi);
+
+/**
  * Gets the current value of a VCPU register.  This currently only
  * supports control registers.  When LibVMI is accessing a raw
  * memory file, this function will fail.
