@@ -148,6 +148,13 @@ vmi_get_memsize(
     return vmi->size;
 }
 
+unsigned int
+vmi_get_num_vcpus(
+    vmi_instance_t vmi)
+{
+    return vmi->num_vcpus;
+}
+
 status_t
 vmi_get_vcpureg(
     vmi_instance_t vmi,

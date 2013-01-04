@@ -142,6 +142,8 @@ struct vmi_instance {
     uint32_t memory_cache_size;/**< current size of memory cache */
 
     uint32_t memory_cache_size_max;/**< max size of memory cache */
+
+    unsigned int num_vcpus; /**< number of VCPUs used by this instance */
 };
 
 /** Windows' UNICODE_STRING structure (x86) */
