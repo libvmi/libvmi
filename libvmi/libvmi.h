@@ -87,6 +87,8 @@ typedef uint32_t vmi_mode_t;
 
 #define VMI_CONFIG_GHASHTABLE (1 << 27) /**< config GHashTable provided */
 
+#define VMI_INVALID_DOMID ~0 /**< invalid domain id */
+
 typedef enum status {
 
     VMI_SUCCESS,  /**< return value indicating success */
