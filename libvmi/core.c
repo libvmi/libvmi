@@ -514,6 +514,7 @@ vmi_init_private(
 
     if (VMI_INIT_PARTIAL == init_mode) {
         init_page_offset(*vmi);
+        get_memory_layout(*vmi);
         driver_get_memsize(*vmi, &(*vmi)->size);
         return VMI_SUCCESS;
     }
