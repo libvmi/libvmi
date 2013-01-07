@@ -192,8 +192,7 @@ peparse_validate_pe_image(
 status_t
 peparse_get_export_table(
     vmi_instance_t vmi,
-    addr_t base_vaddr,
-    uint32_t pid,
+    addr_t base_paddr,
     struct export_table *et);
 
 #pragma GCC visibility pop

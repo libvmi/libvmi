@@ -273,8 +273,7 @@ peparse_validate_pe_image(
 status_t
 peparse_get_export_table(
     vmi_instance_t vmi,
-    addr_t base_vaddr,
-    uint32_t pid,
+    addr_t base_paddr,
     struct export_table *et)
 {
     // Note: this function assumes a "normal" PE where all the headers are in
@@ -282,14 +281,14 @@ peparse_get_export_table(
     // an address in the first page.
 
     addr_t export_header_rva = 0;
-    addr_t export_header_va = 0;
+    addr_t export_header_pa = 0;
     size_t nbytes = 0;
 
 #define MAX_HEADER_BYTES 1024   // keep under 1 page
     uint8_t image[MAX_HEADER_BYTES];
 
     /* scoop up the headers in a single read */
-    nbytes = vmi_read_va(vmi, base_vaddr, pid, image, MAX_HEADER_BYTES);
+    nbytes = vmi_read_pa(vmi, base_paddr, image, MAX_HEADER_BYTES);
     if (MAX_HEADER_BYTES != nbytes) {
         dbprint("--PEPARSE: failed to read PE header\n");
         return VMI_FAILURE;
@@ -328,13 +327,13 @@ peparse_get_export_table(
     }
 
     /* Find & read the export header; assume a different page than the headers */
-    export_header_va = base_vaddr + export_header_rva;
+    export_header_pa = base_paddr + export_header_rva;
     dbprint
-        ("--PEParse: found export table at [VA] 0x%.16llx = 0x%.16llx + 0x%x\n",
-         export_header_va, vmi->os.windows_instance.ntoskrnl_va,
+        ("--PEParse: found export table at [PA] 0x%.16llx = 0x%.16llx + 0x%x\n",
+         export_header_pa, base_paddr,
          export_header_rva);
 
-    nbytes = vmi_read_va(vmi, export_header_va, pid, et, sizeof(*et));
+    nbytes = vmi_read_pa(vmi, export_header_pa, et, sizeof(*et));
     if (nbytes != sizeof(struct export_table)) {
         dbprint("--PEParse: failed to map export header\n");
         return VMI_FAILURE;
@@ -359,10 +358,10 @@ windows_export_to_rva(
     struct export_table et;
     int aon_index = -1;
     int aof_index = -1;
-    addr_t base_vaddr = vmi->os.windows_instance.ntoskrnl_va;
+    addr_t base_paddr = vmi->os.windows_instance.ntoskrnl;
 
     // get export table structure
-    if (peparse_get_export_table(vmi, base_vaddr, 0, &et) != VMI_SUCCESS) {
+    if (peparse_get_export_table(vmi, base_paddr, &et) != VMI_SUCCESS) {
         dbprint("--PEParse: failed to get export table\n");
         return VMI_FAILURE;
     }
