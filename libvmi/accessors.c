@@ -181,6 +181,16 @@ vmi_get_vcpureg(
 }
 
 status_t
+vmi_set_vcpureg(
+    vmi_instance_t vmi,
+    reg_t value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    return driver_set_vcpureg(vmi, value, reg, vcpu);
+}
+
+status_t
 vmi_pause_vm(
     vmi_instance_t vmi)
 {

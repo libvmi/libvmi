@@ -817,6 +817,338 @@ _bail:
 }
 
 static status_t
+xen_set_vcpureg_hvm(
+    vmi_instance_t vmi,
+    reg_t value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    uint32_t size = 0;
+    uint32_t off = 0;
+    uint8_t *buf = NULL;
+    status_t ret = VMI_SUCCESS;
+    HVM_SAVE_TYPE(CPU) *cpu = NULL;
+    struct hvm_save_descriptor *desc = NULL;
+
+    /* calling with no arguments --> return is the size of buffer required
+     *	for storing the HVM context
+     */
+    size = xc_domain_hvm_getcontext
+           (xen_get_xchandle(vmi), xen_get_domainid(vmi), 0, 0);
+
+    if (size <= 0) {
+        errprint("Failed to fetch HVM context buffer size.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    buf = malloc(size);
+    if (buf == NULL) {
+        errprint("Failed to allocate HVM context buffer.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    /* Locate runtime CPU registers in the context record, using the full  
+     *	version of xc_domain_hvm_getcontext rather than the partial
+     *  variant, because there is no equivalent setcontext_partial.
+     * NOTE: to avoid inducing race conditions/errors, run while VM is paused.
+     */
+    if (xc_domain_hvm_getcontext
+           (xen_get_xchandle(vmi), xen_get_domainid(vmi), buf, size) < 0) {
+
+        errprint("Failed to fetch HVM context buffer.\n");
+        ret = VMI_FAILURE;
+	goto _bail;
+    }
+
+    off = 0;
+    while (off < size) {
+        desc = (struct hvm_save_descriptor *)(buf + off);
+
+        off += sizeof (struct hvm_save_descriptor);
+
+        if (desc->typecode == HVM_SAVE_CODE(CPU) && desc->instance == vcpu) {
+            cpu = (HVM_SAVE_TYPE(CPU) *)(buf + off);
+            break;
+	}
+
+        off += desc->length;
+    }
+
+    if(cpu == NULL){
+        errprint("Failed to locate HVM cpu context.\n");
+        ret = VMI_FAILURE;
+	goto _bail;
+    }
+
+    switch (reg) {
+    case RAX:
+        cpu->rax = value;
+        break;
+    case RBX:
+        cpu->rbx = value;
+        break;
+    case RCX:
+        cpu->rcx = value;
+        break;
+    case RDX:
+        cpu->rdx = value;
+        break;
+    case RBP:
+        cpu->rbp = value;
+        break;
+    case RSI:
+        cpu->rsi = value;
+        break;
+    case RDI:
+        cpu->rdi = value;
+        break;
+    case RSP:
+        cpu->rsp = value;
+        break;
+    case R8:
+        cpu->r8 = value;
+        break;
+    case R9:
+        cpu->r9 = value;
+        break;
+    case R10:
+        cpu->r10 = value;
+        break;
+    case R11:
+        cpu->r11 = value;
+        break;
+    case R12:
+        cpu->r12 = value;
+        break;
+    case R13:
+        cpu->r13 = value;
+        break;
+    case R14:
+        cpu->r14 = value;
+        break;
+    case R15:
+        cpu->r15 = value;
+        break;
+    case RIP:
+        cpu->rip = value;
+        break;
+    case RFLAGS:
+        cpu->rflags = value;
+        break;
+
+    case CR0:
+        cpu->cr0 = value;
+        break;
+    case CR2:
+        cpu->cr2 = value;
+        break;
+    case CR3:
+        cpu->cr3 = value;
+        break;
+    case CR4:
+        cpu->cr4 = value;
+        break;
+
+    case DR0:
+        cpu->dr0 = value;
+        break;
+    case DR1:
+        cpu->dr1 = value;
+        break;
+    case DR2:
+        cpu->dr2 = value;
+        break;
+    case DR3:
+        cpu->dr3 = value;
+        break;
+    case DR6:
+        cpu->dr6 = value;
+        break;
+    case DR7:
+        cpu->dr7 = value;
+        break;
+
+    case CS_SEL:
+        cpu->cs_sel = value;
+        break;
+    case DS_SEL:
+        cpu->ds_sel = value;
+        break;
+    case ES_SEL:
+        cpu->es_sel = value;
+        break;
+    case FS_SEL:
+        cpu->fs_sel = value;
+        break;
+    case GS_SEL:
+        cpu->gs_sel = value;
+        break;
+    case SS_SEL:
+        cpu->ss_sel = value;
+        break;
+    case TR_SEL:
+        cpu->tr_sel = value;
+        break;
+    case LDTR_SEL:
+        cpu->ldtr_sel = value;
+        break;
+
+    case CS_LIMIT:
+        cpu->cs_limit = value;
+        break;
+    case DS_LIMIT:
+        cpu->ds_limit = value;
+        break;
+    case ES_LIMIT:
+        cpu->es_limit = value;
+        break;
+    case FS_LIMIT:
+        cpu->fs_limit = value;
+        break;
+    case GS_LIMIT:
+        cpu->gs_limit = value;
+        break;
+    case SS_LIMIT:
+        cpu->ss_limit = value;
+        break;
+    case TR_LIMIT:
+        cpu->tr_limit = value;
+        break;
+    case LDTR_LIMIT:
+        cpu->ldtr_limit = value;
+        break;
+    case IDTR_LIMIT:
+        cpu->idtr_limit = value;
+        break;
+    case GDTR_LIMIT:
+        cpu->gdtr_limit = value;
+        break;
+
+    case CS_BASE:
+        cpu->cs_base = value;
+        break;
+    case DS_BASE:
+        cpu->ds_base = value;
+        break;
+    case ES_BASE:
+        cpu->es_base = value;
+        break;
+    case FS_BASE:
+        cpu->fs_base = value;
+        break;
+    case GS_BASE:
+        cpu->gs_base = value;
+        break;
+    case SS_BASE:
+        cpu->ss_base = value;
+        break;
+    case TR_BASE:
+        cpu->tr_base = value;
+        break;
+    case LDTR_BASE:
+        cpu->ldtr_base = value;
+        break;
+    case IDTR_BASE:
+        cpu->idtr_base = value;
+        break;
+    case GDTR_BASE:
+        cpu->gdtr_base = value;
+        break;
+
+    case CS_ARBYTES:
+        cpu->cs_arbytes = value;
+        break;
+    case DS_ARBYTES:
+        cpu->ds_arbytes = value;
+        break;
+    case ES_ARBYTES:
+        cpu->es_arbytes = value;
+        break;
+    case FS_ARBYTES:
+        cpu->fs_arbytes = value;
+        break;
+    case GS_ARBYTES:
+        cpu->gs_arbytes = value;
+        break;
+    case SS_ARBYTES:
+        cpu->ss_arbytes = value;
+        break;
+    case TR_ARBYTES:
+        cpu->tr_arbytes = value;
+        break;
+    case LDTR_ARBYTES:
+        cpu->ldtr_arbytes = value;
+        break;
+
+    case SYSENTER_CS:
+        cpu->sysenter_cs = value;
+        break;
+    case SYSENTER_ESP:
+        cpu->sysenter_esp = value;
+        break;
+    case SYSENTER_EIP:
+        cpu->sysenter_eip = value;
+        break;
+    case SHADOW_GS:
+        cpu->shadow_gs = value;
+        break;
+
+    case MSR_FLAGS:
+        cpu->msr_flags = value;
+        break;
+    case MSR_LSTAR:
+        cpu->msr_lstar = value;
+        break;
+    case MSR_CSTAR:
+        cpu->msr_cstar = value;
+        break;
+    case MSR_SYSCALL_MASK:
+        cpu->msr_syscall_mask = value;
+        break;
+    case MSR_EFER:
+        cpu->msr_efer = value;
+        break;
+
+#ifdef DECLARE_HVM_SAVE_TYPE_COMPAT
+        /* Handle churn in struct hvm_hw_cpu (from xen/hvm/save.h) 
+         * that would prevent otherwise-compatible Xen 4.0 branches
+         * from building.
+         *
+         * Checking this is less than ideal, but seemingly
+         * the cleanest means of accomplishing the necessary check.
+         *
+         * see http://xenbits.xen.org/hg/xen-4.0-testing.hg/rev/57721c697c46
+         */
+    case MSR_TSC_AUX:
+        cpu->msr_tsc_aux = value;
+        break;
+#endif
+
+    case TSC:
+        cpu->tsc = value;
+        break;
+    default:
+        ret = VMI_FAILURE;
+        break;
+    }
+
+    if(xc_domain_hvm_setcontext(
+        xen_get_xchandle(vmi), xen_get_domainid(vmi), buf, size)){
+        errprint("Failed to set context information (HVM domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+_bail:
+
+    free(buf);
+
+    return ret;
+}
+
+static status_t
 xen_get_vcpureg_pv64(
     vmi_instance_t vmi,
     reg_t *value,
@@ -942,6 +1274,140 @@ _bail:
 }
 
 static status_t
+xen_set_vcpureg_pv64(
+    vmi_instance_t vmi,
+    reg_t value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    status_t ret = VMI_SUCCESS;
+    vcpu_guest_context_any_t ctx = {0};
+    xen_domctl_t domctl = {0};
+
+    if (xc_vcpu_getcontext (xen_get_xchandle(vmi),
+                            xen_get_domainid(vmi),
+                            vcpu, &ctx)          ) {
+        errprint("Failed to get context information (PV domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    switch (reg) {
+    case RAX:
+        ctx.x64.user_regs.rax = value;
+        break;
+    case RBX:
+        ctx.x64.user_regs.rbx = value;
+        break;
+    case RCX:
+        ctx.x64.user_regs.rcx = value;
+        break;
+    case RDX:
+        ctx.x64.user_regs.rdx = value;
+        break;
+    case RBP:
+        ctx.x64.user_regs.rbp = value;
+        break;
+    case RSI:
+        ctx.x64.user_regs.rsi = value;
+        break;
+    case RDI:
+        ctx.x64.user_regs.rdi = value;
+        break;
+    case RSP:
+        ctx.x64.user_regs.rsp = value;
+        break;
+    case R8:
+        ctx.x64.user_regs.r8 = value;
+        break;
+    case R9:
+        ctx.x64.user_regs.r9 = value;
+        break;
+    case R10:
+        ctx.x64.user_regs.r10 = value;
+        break;
+    case R11:
+        ctx.x64.user_regs.r11 = value;
+        break;
+    case R12:
+        ctx.x64.user_regs.r12 = value;
+        break;
+    case R13:
+        ctx.x64.user_regs.r13 = value;
+        break;
+    case R14:
+        ctx.x64.user_regs.r14 = value;
+        break;
+    case R15:
+        ctx.x64.user_regs.r15 = value;
+        break;
+
+    case RIP:
+        ctx.x64.user_regs.rip = value;
+        break;
+    case RFLAGS:
+        ctx.x64.user_regs.rflags = value;
+        break;
+
+    case CR0:
+        ctx.x64.ctrlreg[0] = value;
+        break;
+    case CR2:
+        ctx.x64.ctrlreg[2] = value;
+        break;
+    case CR3:
+        value = xen_pfn_to_cr3_x86_64(value >> XC_PAGE_SHIFT);
+        ctx.x64.ctrlreg[3] = value;
+        break;
+    case CR4:
+        ctx.x64.ctrlreg[4] = value;
+        break;
+
+    case DR0:
+        ctx.x64.debugreg[0] = value;
+        break;
+    case DR1:
+        ctx.x64.debugreg[1] = value;
+        break;
+    case DR2:
+        ctx.x64.debugreg[2] = value;
+        break;
+    case DR3:
+        ctx.x64.debugreg[3] = value;
+        break;
+    case DR6:
+        ctx.x64.debugreg[6] = value;
+        break;
+    case DR7:
+        ctx.x64.debugreg[7] = value;
+        break;
+    case FS_BASE:
+        ctx.x64.fs_base = value;
+        break;
+    case GS_BASE: // TODO: distinguish between kernel & user
+        ctx.x64.gs_base_kernel = value;
+        break;
+    case LDTR_BASE:
+        ctx.x64.ldt_base = value;
+        break;
+    default:
+        ret = VMI_FAILURE;
+        goto _bail;
+        break;
+    }
+
+    if (xc_vcpu_setcontext
+        (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
+        errprint("Failed to set context information (PV domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+_bail:
+    return ret;
+}
+
+static status_t
 xen_get_vcpureg_pv32(
     vmi_instance_t vmi,
     reg_t *value,
@@ -1036,6 +1502,101 @@ _bail:
     return ret;
 }
 
+static status_t
+xen_set_vcpureg_pv32(
+    vmi_instance_t vmi,
+    reg_t value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    status_t ret = VMI_SUCCESS;
+    vcpu_guest_context_any_t ctx = { 0 };
+    xen_domctl_t domctl = { 0 };
+
+    if (xc_vcpu_getcontext
+        (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
+        errprint("Failed to get context information (PV domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    switch (reg) {
+    case RAX:
+        ctx.x32.user_regs.eax = value;
+        break;
+    case RBX:
+        ctx.x32.user_regs.ebx = value;
+        break;
+    case RCX:
+        ctx.x32.user_regs.ecx = value;
+        break;
+    case RDX:
+        ctx.x32.user_regs.edx = value;
+        break;
+    case RBP:
+        ctx.x32.user_regs.ebp = value;
+        break;
+    case RSI:
+        ctx.x32.user_regs.esi = value;
+        break;
+    case RDI:
+        ctx.x32.user_regs.edi = value;
+        break;
+    case RSP:
+        ctx.x32.user_regs.esp = value;
+        break;
+
+    case RIP:
+        ctx.x32.user_regs.eip = value;
+        break;
+    case RFLAGS:
+        ctx.x32.user_regs.eflags = value;
+        break;
+
+    case CR0:
+        ctx.x32.ctrlreg[0] = value;
+        break;
+    case CR2:
+        ctx.x32.ctrlreg[2] = value;
+        break;
+    case CR3:
+        value = xen_pfn_to_cr3_x86_32(value >> XC_PAGE_SHIFT);
+        ctx.x32.ctrlreg[3] = value;
+        break;
+    case CR4:
+        ctx.x32.ctrlreg[4] = value;
+        break;
+
+    case DR0:
+        ctx.x32.debugreg[0] = value;
+        break;
+    case DR1:
+        ctx.x32.debugreg[1] = value;
+        break;
+    case DR2:
+        ctx.x32.debugreg[2] = value;
+        break;
+    case DR3:
+        ctx.x32.debugreg[3] = value;
+        break;
+    case DR6:
+        ctx.x32.debugreg[6] = value;
+        break;
+    case DR7:
+        ctx.x32.debugreg[7] = value;
+        break;
+    case LDTR_BASE:
+        ctx.x32.ldt_base = value;
+        break;
+    default:
+        ret = VMI_FAILURE;
+        break;
+    }
+
+_bail:
+    return ret;
+}
+
 status_t
 xen_get_vcpureg(
     vmi_instance_t vmi,
@@ -1043,17 +1604,34 @@ xen_get_vcpureg(
     registers_t reg,
     unsigned long vcpu)
 {
-    if (xen_get_instance(vmi)->hvm) {
-        return xen_get_vcpureg_hvm(vmi, value, reg, vcpu);
-    }
-    else {
+    if (!xen_get_instance(vmi)->hvm) {
         if (8 == xen_get_instance(vmi)->addr_width) {
             return xen_get_vcpureg_pv64(vmi, value, reg, vcpu);
         }
         else {
             return xen_get_vcpureg_pv32(vmi, value, reg, vcpu);
-        }   // if-else
-    }   // if-else
+        }
+    }
+
+    return xen_get_vcpureg_hvm(vmi, value, reg, vcpu);
+}
+
+status_t
+xen_set_vcpureg(
+    vmi_instance_t vmi,
+    reg_t value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    if (!xen_get_instance(vmi)->hvm) {
+        if (8 == xen_get_instance(vmi)->addr_width) {
+            return xen_set_vcpureg_pv64(vmi, value, reg, vcpu);
+        } else {
+            return xen_set_vcpureg_pv32(vmi, value, reg, vcpu);
+        }
+    }
+
+    return xen_set_vcpureg_hvm (vmi, value, reg, vcpu);
 }
 
 status_t
@@ -1211,6 +1789,16 @@ status_t
 xen_get_vcpureg(
     vmi_instance_t vmi,
     reg_t *value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    return VMI_FAILURE;
+}
+
+status_t
+xen_set_vcpureg(
+    vmi_instance_t vmi,
+    reg_t value,
     registers_t reg,
     unsigned long vcpu)
 {
