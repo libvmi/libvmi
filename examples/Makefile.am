@@ -2,7 +2,7 @@
 
 SUBDIRS = 
 
-INCLUDES = -I$(top_srcdir)
+AM_CPPFLAGS = -I$(top_srcdir)
 AM_LDFLAGS = -L$(top_srcdir)/libvmi/.libs/
 LDADD = -lvmi -lm $(LIBS)
 
