@@ -7,7 +7,7 @@ AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_CONFIG_SRCDIR(libvmi/core.c)
 AC_CONFIG_MACRO_DIR([m4])
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS(config.h)
 
 LIBRARY_NAME=libvmi
 MAJOR_VERSION=0
