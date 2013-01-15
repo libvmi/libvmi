@@ -32,5 +32,9 @@ char *get_testvm();
 TCase *init_tcase (void);
 TCase *translate_tcase (void);
 TCase *read_tcase (void);
+TCase *write_tcase (void);
+TCase *print_tcase (void);
+TCase *accessor_tcase (void);
+TCase *util_tcase (void);
 
 #endif /* CHECK_TESTS_H */

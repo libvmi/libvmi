@@ -639,7 +639,8 @@ vmi_init_private(
 
         /* init_complete requires configuration */
         if(VMI_CONFIG_NONE == (*vmi)->config_mode) {
-            goto error_exit;
+            /* if we get to here, then no config was given and we should fall back to file */
+            (*vmi)->config_mode = VMI_CONFIG_GLOBAL_FILE_ENTRY;
         }
         /* read and parse the config file */
         else if ( (VMI_CONFIG_STRING == (*vmi)->config_mode || VMI_CONFIG_GLOBAL_FILE_ENTRY == (*vmi)->config_mode)
