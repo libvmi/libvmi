@@ -56,7 +56,9 @@ struct vmi_instance {
 
     uint32_t init_mode;     /**< VMI_INIT_PARTIAL or VMI_INIT_COMPLETE */
 
-    char *configstr;        /**< string holding config info */
+    vmi_config_t config;    /**< configuration */
+
+    uint32_t config_mode;     /**< VMI_CONFIG_NONE/FILE/STRING/GHASHTABLE */
 
     char *sysmap;           /**< system map file for domain's running kernel */
 
