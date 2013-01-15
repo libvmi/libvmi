@@ -79,6 +79,14 @@ typedef uint32_t vmi_mode_t;
 
 #define VMI_INIT_COMPLETE (1 << 17) /**< full initialization */
 
+#define VMI_CONFIG_NONE (1 << 24) /**< no config provided */
+
+#define VMI_CONFIG_GLOBAL_FILE_ENTRY (1 << 25) /**< config in file provided */
+
+#define VMI_CONFIG_STRING (1 << 26) /**< config string provided */
+
+#define VMI_CONFIG_GHASHTABLE (1 << 27) /**< config GHashTable provided */
+
 typedef enum status {
 
     VMI_SUCCESS,  /**< return value indicating success */
@@ -225,6 +233,9 @@ typedef struct _ustring {
     const char *encoding;  /**< holds iconv-compatible encoding of contents; do not free */
 } unicode_string_t;
 
+/* custom config input source */
+typedef void* vmi_config_t;
+
 /**
  * @brief LibVMI Instance.
  *
@@ -259,6 +270,26 @@ status_t vmi_init(
     char *name);
 
 /**
+ * Initializes access to a specific VM with a custom configuration source.  All
+ * calls to vmi_init_custom must eventually call vmi_destroy.
+ *
+ * This is a costly funtion in terms of the time needed to execute.
+ * You should call this function only once per VM or file, and then use the
+ * resulting instance when calling any of the other library functions.
+ *
+ * @param[out] vmi Struct that holds instance information
+ * @param[in] flags VMI_AUTO, VMI_XEN, VMI_KVM, or VMI_FILE plus
+ *  VMI_INIT_PARTIAL or VMI_INIT_COMPLETE plus
+ *  VMI_CONFIG_FILE/STRING/GHASHTABLE
+ * @param[in] config Pointer to the specified configuration structure
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_init_custom(
+    vmi_instance_t *vmi,
+    uint32_t flags,
+    vmi_config_t config);
+
+/**
  * Completes initialization.  Call this after calling vmi_init with 
  * VMI_INIT_PARTIAL.  Calling this at any other time results in undefined
  * behavior.  The partial init provides physical memory access only.  So 
@@ -277,6 +308,26 @@ status_t vmi_init(
 status_t vmi_init_complete(
     vmi_instance_t *vmi,
     char *config);
+
+/**
+ * Completes initialization.  Call this after calling vmi_init or vmi_init_custom 
+ * with VMI_INIT_PARTIAL.  Calling this at any other time results in undefined
+ * behavior.  The partial init provides physical memory access only.  So 
+ * the purpose of this function is to allow for a staged init of LibVMI.
+ * You can gain physical memory access, run some heuristics to obtain
+ * the necessary offsets, and then complete the init.
+ *
+ * @param[in,out] vmi Struct that holds the instance information and was
+ *  passed to vmi_init with a VMI_INIT_PARTIAL flag
+ * @param[in] flags VMI_CONFIG_FILE/STRING/GHASHTABLE
+ * @param[in] config Pointer to a structure containing the config entries for
+ *  this domain.
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_init_complete_custom(
+    vmi_instance_t *vmi,
+    uint32_t flags,
+    vmi_config_t config);
 
 /**
  * Destroys an instance by freeing memory and closing any open handles.
