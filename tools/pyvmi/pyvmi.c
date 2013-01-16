@@ -27,20 +27,80 @@
 #include <Python.h>
 #include <string.h>
 #include <stdio.h>
+#include <glib.h>
 #include <libvmi/libvmi.h>
 
 #define vmi(v)  (((pyvmi_instance *)(v))->vmi)
 #define mem(v)  (((pyvmi_instance *)(v))->memory)
-#define name(v)  (((pyvmi_instance *)(v))->name)
+#define desc(v)  (((pyvmi_instance *)(v))->desc)
+#define conf(v)  (((pyvmi_instance *)(v))->config)
+
+#define MAX_CONFIG_BUFFER 20
 
 // PyVmi instance type fwdref
 staticforward PyTypeObject pyvmi_instance_Type;
 
 typedef struct {
+    addr_t buffer[MAX_CONFIG_BUFFER];
+    uint32_t num_entries;
+    GHashTable *table;
+} pyvmi_config;
+
+typedef struct {
     PyObject_HEAD vmi_instance_t vmi;   // LibVMI instance
     void *memory;
-    char *name;
+    char *desc;
+    pyvmi_config *config;
 } pyvmi_instance;
+
+status_t
+pyvmi_add_to_config(
+    pyvmi_config *config,
+    PyObject * pykey,
+    PyObject * pyvalue
+    )
+{
+    status_t ret=VMI_FAILURE;
+
+    if(PyString_Check(pykey)) {
+
+        char *key = PyString_AS_STRING(pykey);
+
+        if(PyString_Check(pyvalue)) {
+
+            // We can insert the string pointers directly to the ghashtable
+            // as Python gave us a pointer and it has the data (we don't need to dup the string here).
+            char *svalue=PyString_AS_STRING(pyvalue);
+            g_hash_table_insert(config->table, key, svalue);
+
+            ret=VMI_SUCCESS;
+
+        } else if(PyInt_Check(pyvalue)) {
+
+            // Numeric values are given by value by Python, so these have to be buffered
+            if(config->num_entries < MAX_CONFIG_BUFFER) {
+
+                config->buffer[config->num_entries] = PyInt_AsUnsignedLongMask(pyvalue);
+                g_hash_table_insert(config->table, key, &(config->buffer[config->num_entries]));
+                config->num_entries++;
+                ret=VMI_SUCCESS;
+
+            } else {
+                PyErr_SetString(PyExc_ValueError,
+                        "Not enough space in config buffer.");
+            }
+
+        } else {
+            PyErr_SetString(PyExc_ValueError,
+                        "Value has to be either String or Int");
+        }
+    } else {
+        PyErr_SetString(PyExc_ValueError,
+                    "Key has to be a String");
+    }
+
+    return ret;
+}
 
 // Constructor & Destructor
 static PyObject *
@@ -48,40 +108,89 @@ pyvmi_init(
     PyObject * self,
     PyObject * args)
 {
-    char *vmname;
-    char *inittype;
-    uint32_t flags = 0;
     pyvmi_instance *object = NULL;
-
     object = PyObject_NEW(pyvmi_instance, &pyvmi_instance_Type);
+    mem(object)  = NULL;
+    desc(object) = NULL;
+    conf(object) = NULL;
 
-    if (!PyArg_ParseTuple(args, "ss", &vmname, &inittype)) {
-        PyErr_SetString(PyExc_ValueError,
-                        "Invalid argument(s) to function");
-        return NULL;
+    char *vmname=NULL, *inittype=NULL;
+    uint32_t flags = 0;
+    PyObject *dict = NULL;
+    vmi_config_t vmiconfig = NULL;
+
+    if (PyArg_ParseTuple(args, "ss", &vmname, &inittype)) {
+        flags |= VMI_CONFIG_GLOBAL_FILE_ENTRY;
+        vmiconfig = (vmi_config_t)vmname;
+    }
+    else if(PyArg_ParseTuple(args, "O!", &PyDict_Type, &dict)) {
+        flags |= VMI_CONFIG_GHASHTABLE;
+
+        // convert dict to GHashTable
+        conf(object) = malloc(sizeof(pyvmi_config));
+        conf(object)->num_entries = 0;
+        conf(object)->table = g_hash_table_new(g_str_hash, g_str_equal);
+        vmiconfig = (vmi_config_t)(conf(object)->table);
+
+        PyObject *pykey, *pyvalue;
+        Py_ssize_t pos = 0;
+
+        while (PyDict_Next(dict, &pos, &pykey, &pyvalue)) {
+            if(VMI_FAILURE==pyvmi_add_to_config(conf(object), pykey, pyvalue)) {
+                goto init_fail;
+            }
+        }
+
+        inittype = g_hash_table_lookup(conf(object)->table, "inittype");
+        if(inittype == NULL) {
+            goto init_fail;
+        }
+    } else {
+        PyErr_SetString(PyExc_ValueError, "Unknown input types received!");
+        goto init_fail;
     }
 
     if (strcmp("complete", inittype) == 0) {
-        flags = VMI_AUTO | VMI_INIT_COMPLETE;
+        flags |= VMI_AUTO | VMI_INIT_COMPLETE;
     }
     else if (strcmp("partial", inittype) == 0) {
-        flags = VMI_AUTO | VMI_INIT_PARTIAL;
+        flags |= VMI_AUTO | VMI_INIT_PARTIAL;
     }
     else {
         PyErr_SetString(PyExc_ValueError,
                         "Inittype must be 'complete' or 'partial'");
-        return NULL;
+        goto init_fail;
     }
 
-    if (VMI_FAILURE == vmi_init(&(vmi(object)), flags, vmname)) {
+    if (VMI_FAILURE == vmi_init_custom(&(vmi(object)), flags, vmiconfig)) {
         PyErr_SetString(PyExc_ValueError, "Init failed");
-        return NULL;
+        goto init_fail;
     }
 
-    mem(object) = NULL;
-    name(object) = strdup(vmname);
+    // Once libvmi inits we don't need to keep the config anymore
+    if(flags & VMI_CONFIG_GHASHTABLE) {
+        g_hash_table_destroy(conf(object)->table);
+        free(conf(object));
+    }
 
-    return (PyObject *) object;
+    vmname = vmi_get_name(vmi(object));
+    if(vmname) {
+        desc(object)=vmname;
+    } else {
+        uint32_t domid = vmi_get_vmid(vmi(object));
+        char *domidstring = malloc(snprintf(NULL, 0, "domid-%u", domid)+1);
+        sprintf(domidstring, "domid-%u", domid);
+        desc(object)=domidstring;
+    }
+
+    return (PyObject *)object;
+
+init_fail:
+    if(flags & VMI_CONFIG_GHASHTABLE) {
+        g_hash_table_destroy(conf(object)->table);
+        free(conf(object));
+    }
+    return NULL;
 }
 
 static PyObject *
@@ -113,8 +222,8 @@ pyvmi_instance_dealloc(
     if (mem(self)) {
         free(mem(self));
     }
-    if (name(self)) {
-        free(name(self));
+    if (desc(self)) {
+        free(desc(self));
     }
     PyObject_DEL(self);
 }
@@ -2017,7 +2126,7 @@ pyvmi_instance_repr(
 {
     char buf[100];
 
-    snprintf(buf, 100, "<pyvmi_instance for %s>", name(self));
+    snprintf(buf, 100, "<pyvmi_instance for %s>", desc(self));
     return PyString_FromString(buf);
 }
 
