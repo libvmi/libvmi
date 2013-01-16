@@ -552,7 +552,7 @@ set_id_and_name(
     }
     else {
         /* resolve and set id and name */
-        if (!id) {
+        if (VMI_INVALID_DOMID == id) {
             if (name) {
                 id = driver_get_id_from_name(vmi, name);
                 dbprint("--got id from name (%s --> %d)\n", name, id);
@@ -717,7 +717,7 @@ vmi_init(
     uint32_t flags,
     char *name)
 {
-    return vmi_init_private(vmi, flags | VMI_CONFIG_GLOBAL_FILE_ENTRY, 0, name, NULL);
+    return vmi_init_private(vmi, flags | VMI_CONFIG_GLOBAL_FILE_ENTRY, VMI_INVALID_DOMID, name, NULL);
 }
 
 status_t
@@ -751,12 +751,12 @@ vmi_init_custom(
         }
 
         configstr = build_config_str(vmi, (char *)config);
-        ret = vmi_init_private(vmi,flags, 0, name, (vmi_config_t)configstr);
+        ret = vmi_init_private(vmi,flags, VMI_INVALID_DOMID, name, (vmi_config_t)configstr);
 
     } else if (VMI_CONFIG_GHASHTABLE == config_mode) {
 
         char *name = NULL;
-        unsigned long domid = 0;
+        unsigned long domid = VMI_INVALID_DOMID;
         GHashTable *configtbl = (GHashTable *)config;
 
         name = (char *)g_hash_table_lookup(configtbl, "name");
@@ -765,11 +765,11 @@ vmi_init_custom(
             domid = *(unsigned long *)idptr;
         }
 
-        if (name != NULL && domid != 0) {
+        if (name != NULL && domid != VMI_INVALID_DOMID) {
             errprint("--specifying both the name and domid is not supported\n");
         } else if (name != NULL) {
-            ret = vmi_init_private(vmi, flags, 0, name, config);
-        } else if (domid != 0) {
+            ret = vmi_init_private(vmi, flags, VMI_INVALID_DOMID, name, config);
+        } else if (domid != VMI_INVALID_DOMID) {
             ret = vmi_init_private(vmi, flags, domid, NULL, config);
         } else {
             errprint("--you need to specify either the name or the domid\n");
@@ -817,7 +817,7 @@ vmi_init_complete(
     vmi_destroy(*vmi);
     return vmi_init_private(vmi,
                             flags,
-                            0,
+                            VMI_INVALID_DOMID,
                             name,
                             (vmi_config_t)configstr);
 }
