@@ -6,6 +6,7 @@ c_sources = \
     cache.c \
     convenience.c \
     core.c \
+    events.c \
     memory.c \
     performance.c \
     pretty_print.c \
@@ -17,6 +18,7 @@ c_sources = \
     driver/kvm.c \
     driver/memory_cache.c \
     driver/xen.c \
+    driver/xen_events.c \
     os/linux/core.c \
     os/linux/memory.c \
     os/linux/symbols.c \
