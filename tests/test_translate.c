@@ -131,6 +131,7 @@ END_TEST
 TCase *translate_tcase (void)
 {
     TCase *tc_translate = tcase_create("LibVMI Translate");
+    tcase_set_timeout(tc_translate, 30);
     tcase_add_test(tc_translate, test_libvmi_ksym2v);
     // uv2p
     tcase_add_test(tc_translate, test_libvmi_kv2p);
