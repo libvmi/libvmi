@@ -50,6 +50,7 @@ extern "C" {
 #include <stdio.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <string.h>
 
 /* uncomment this and recompile to enable debug output */
 //#define VMI_DEBUG
