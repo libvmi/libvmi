@@ -44,6 +44,13 @@ AC_ARG_ENABLE([file],
       [enable_file=yes])
 AM_CONDITIONAL([FILE], [test x$enable_file = xyes])
 
+AC_ARG_ENABLE([vmifs],
+      [AS_HELP_STRING([--disable-vmifs],
+         [Build VMIFS tool: maps memory to a file through FUSE])],
+      [enable_vmifs=$enableval],
+      [enable_vmifs=yes])
+AM_CONDITIONAL([VMIFS], [test x$enable_vmifs = xyes])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -152,6 +159,29 @@ file_space=' '
     have_file='yes'
 [fi]
 
+have_vmifs='no'
+vmifs_space=' '
+[if test "$enable_vmifs" = "yes"]
+[then]
+    vmifs_space=''
+    PKG_CHECK_MODULES([FUSE], [fuse >= 2.2], [], [missing="yes"])
+    [if test "$missing" = "yes"]
+    [then]
+        AC_DEFINE([ENABLE_VMIFS], [0], [Define to 1 to build VMIFS.])
+        have_vmifs='FUSE library missing (libfuse-dev)'
+        enable_vmifs='no'
+        vmifs_space=' '
+    [else]
+        AC_DEFINE([ENABLE_VMIFS], [1], [Define to 1 to build VMIFS.])
+        AC_SUBST([FUSE_CFLAGS])
+        AC_SUBST([FUSE_LIBS])
+        vmifs_dir="tools/vmifs"
+        AC_SUBST(vmifs_dir)
+        have_vmifs='yes'
+        AC_CONFIG_FILES(tools/vmifs/Makefile)
+    [fi]
+[fi]
+
 AC_CHECK_PROGS(YACC,bison yacc byacc,[no],[path = $PATH])
 [if test "$YACC" = "no"]
 [then]
@@ -190,9 +220,10 @@ AC_CONFIG_FILES(Makefile \
                 libvmi.pc \
                 libvmi/Makefile \
                 libvmi/config/Makefile \
-                examples/Makefile
+                examples/Makefile \
                 tests/Makefile
 )
+
 AC_OUTPUT
 
 dnl -----------------------------------------------
@@ -212,7 +243,12 @@ Feature      | Option             | Reason
 Xen Support  | --enable-xen=$enable_xen$xen_space   | $have_xen
 KVM Support  | --enable-kvm=$enable_kvm$kvm_space   | $have_kvm
 File Support | --enable-file=$enable_file$file_space  | $have_file
+-------------|--------------------|-----------------------
 
+Tools        | Option             | Reason
+-------------|--------------------|-----------------------
+VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space | $have_vmifs
+ 
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.
 ])
