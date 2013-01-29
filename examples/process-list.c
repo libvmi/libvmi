@@ -40,7 +40,7 @@ int main (int argc, char **argv)
     addr_t current_process = 0;
     addr_t tmp_next = 0;
     char *procname = NULL;
-    int pid = 0;
+    uint32_t pid = 0;
     unsigned long tasks_offset, pid_offset, name_offset;
     status_t status;
 
