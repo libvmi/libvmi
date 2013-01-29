@@ -184,11 +184,104 @@ struct export_table {
     uint32_t address_of_name_ordinals;
 } __attribute__ ((packed));
 
+/**
+ * Validate a PE image by checking for the DOS header, NT signature,
+ * and the optional header type.
+ *
+ * @param[in] image, the image to be validated
+ * @param[in] len, length of the image
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
 status_t
 peparse_validate_pe_image(
     const uint8_t * const image,
     size_t len);
 
+/**
+ * Read a physical address and return a valid PE image if one was found
+ * continuously allocated at the address.
+ *
+ * @param[in] vmi, the vmi instance
+ * @param[in] base_paddr, the physicall address to read from
+ * @param[in] len, length to read
+ * @param[out] image, address to store the data at
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t
+peparse_get_image_phys(
+    vmi_instance_t vmi,
+    addr_t base_paddr,
+    size_t len,
+    const uint8_t * const image);
+
+/**
+ * Read a virtual address and return a valid PE image if one was found
+ * at the address.
+ *
+ * @param[in] vmi, the vmi instance
+ * @param[in] base_vaddr, the virtual address to read from
+ * @param[in] pid, PID of the process
+ * @param[in] len, length to read
+ * @param[out] image, address to store the data at
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t
+peparse_get_image_virt(
+    vmi_instance_t vmi,
+    addr_t base_vaddr,
+    uint32_t pid,
+    size_t len,
+    const uint8_t * const image);
+
+/**
+ * Assign PE headers to an image.
+ *
+ * @param[in] image, the image to be validated
+ * @param[out] dos_header, (Optional) Pointer to store the dos_header at
+ * @param[out] pe_header,(Optional) Pointer to store the pe_header at
+ * @param[out] optional_header_type, (Optional) Pointer to store the optional header type at
+ * @param[out] optional_pe_header, (Optional) Pointer to store an unclassified optional header
+ * @param[out] oh_pe32, (Optional) Pointer to store the PE32 type optional header
+ * @param[out] oh_pe32plus, (Optional), Pointer to store the PE32_PLUS type optional header
+ */
+void
+peparse_assign_headers(
+    const uint8_t * const image,
+    struct dos_header **dos_header,
+    struct pe_header **pe_header,
+    uint16_t *optional_header_type,
+    void **optional_pe_header,
+    struct optional_header_pe32 **oh_pe32,
+    struct optional_header_pe32plus **oh_pe32plus);
+
+/**
+ * Get an RVA value from the PE image data directory (idd).
+ * This function can take either the optional_header_type and the
+ * unclassified optional_header
+ * or one of the oh_pe32 and oh_pe32plus pointers as input.
+ *
+ * @param[in] entry_id, Image directory entry ID to get
+ * @param[in] optional_header_type, (Optional, requires optional_header) Type of the optional header
+ * @param[in] optional_header, (Optional, requires optional_header_type) Unclassified pointer to the optional header
+ * @param[in] oh_pe32, (Optional) PE32 type pointer to the optional header
+ * @param[in] oh_pe32plus, (Optional) PE32_PLUS type pointer to the optional header
+ */
+addr_t
+peparse_get_idd_rva(
+    uint32_t entry_id,
+    uint16_t *optional_header_type,
+    void *optional_header,
+    struct optional_header_pe32 *oh_pe32,
+    struct optional_header_pe32plus *oh_pe32plus);
+
+/**
+ * Get an RVA value from the PE image data directory (idd).
+ *
+ * @param[in] vmi, the libvmi instance
+ * @param[in] base_vaddr, the base virtual address of the PE image
+ * @param[in] pid, the PID of the program (or 0 for kernel)
+ * @param[out] et, the address of the export_table to save data into
+ */
 status_t
 peparse_get_export_table(
     vmi_instance_t vmi,

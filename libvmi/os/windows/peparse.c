@@ -271,6 +271,145 @@ peparse_validate_pe_image(
 }
 
 status_t
+peparse_get_image_phys(
+    vmi_instance_t vmi,
+    addr_t base_paddr,
+    size_t len,
+    const uint8_t * const image)
+{
+
+    uint32_t nbytes = vmi_read_pa(vmi, base_paddr, (void *)image, len);
+
+    if(nbytes != len) {
+        dbprint("--PEPARSE: failed to read a continuous PE header\n");
+        return VMI_FAILURE;
+    }
+
+    if(VMI_SUCCESS != peparse_validate_pe_image(image, len)) {
+        dbprint("--PEPARSE: failed to validate a continuous PE header\n");
+        if(vmi->init_mode & VMI_INIT_COMPLETE) {
+            dbprint("--PEPARSE: You might want to use peparse_get_image_virt here!\n");
+        }
+
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t
+peparse_get_image_virt(
+    vmi_instance_t vmi,
+    addr_t base_vaddr,
+    uint32_t pid,
+    size_t len,
+    const uint8_t * const image)
+{
+
+    uint32_t nbytes = vmi_read_va(vmi, base_vaddr, pid, (void *)image, len);
+
+    if(nbytes != len) {
+        dbprint("--PEPARSE: failed to read PE header\n");
+        return VMI_FAILURE;
+    }
+
+    if(VMI_SUCCESS != peparse_validate_pe_image(image, len)) {
+        dbprint("--PEPARSE: failed to validate PE header(s)\n");
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+void
+peparse_assign_headers(
+    const uint8_t * const image,
+    struct dos_header **dos_header,
+    struct pe_header **pe_header,
+    uint16_t *optional_header_type,
+    void **optional_pe_header,
+    struct optional_header_pe32 **oh_pe32,
+    struct optional_header_pe32plus **oh_pe32plus)
+{
+
+    struct dos_header *dos_h_t = (struct dos_header *) image;
+    if(dos_header != NULL) {
+        *dos_header=dos_h_t;
+    }
+
+    struct pe_header *pe_h_t = (struct pe_header *) (image + dos_h_t->offset_to_pe);
+    if(pe_header != NULL) {
+        *pe_header=pe_h_t;
+    }
+
+    void *op_h_t = (void *) ((uint8_t *) pe_h_t + sizeof(struct pe_header));
+    if(optional_pe_header != NULL) {
+        *optional_pe_header = op_h_t;
+    }
+
+    uint16_t magic = *((uint16_t *) op_h_t);
+    if(optional_header_type != NULL) {
+        *optional_header_type = magic;
+    }
+
+    dbprint("--PEParse: magic is 0x%x\n", magic);
+
+    if(magic == IMAGE_PE32_MAGIC && oh_pe32 != NULL) {
+        *oh_pe32 = (struct optional_header_pe32 *) op_h_t;
+    } else
+    if(magic == IMAGE_PE32_PLUS_MAGIC && oh_pe32plus != NULL) {
+        *oh_pe32plus = (struct optional_header_pe32plus *) op_h_t;
+    }
+}
+
+addr_t
+peparse_get_idd_rva(
+    uint32_t entry_id,
+    uint16_t *optional_header_type,
+    void *optional_header,
+    struct optional_header_pe32 *oh_pe32,
+    struct optional_header_pe32plus *oh_pe32plus)
+{
+
+    addr_t rva = 0;
+
+    if(optional_header_type == NULL) {
+
+        if(oh_pe32 != NULL) {
+            rva = oh_pe32->idd[entry_id].virtual_address;
+            goto done;
+        }
+
+        if(oh_pe32plus != NULL) {
+            rva = oh_pe32plus->idd[entry_id].virtual_address;
+            goto done;
+        }
+    } else
+    if(optional_header != NULL) {
+
+        if(*optional_header_type == IMAGE_PE32_MAGIC) {
+            struct optional_header_pe32 *oh_pe32_t = (struct optional_header_pe32 *)optional_header;
+            rva = oh_pe32_t->idd[entry_id].virtual_address;
+            goto done;
+        }
+
+        if(*optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
+            struct optional_header_pe32plus *oh_pe32plus_t = (struct optional_header_pe32plus *)optional_header;
+            rva = oh_pe32plus_t->idd[entry_id].virtual_address;
+            goto done;
+        }
+    }
+
+done:
+    if(rva == 0) {
+        // Could this be legit? If not, we might want to switch this to a status_t function
+        dbprint("--PEParse: Image data directory RVA is 0\n");
+    }
+
+    return rva;
+}
+
+status_t
 peparse_get_export_table(
     vmi_instance_t vmi,
     addr_t base_vaddr,
@@ -288,44 +427,15 @@ peparse_get_export_table(
 #define MAX_HEADER_BYTES 1024   // keep under 1 page
     uint8_t image[MAX_HEADER_BYTES];
 
-    /* scoop up the headers in a single read */
-    nbytes = vmi_read_va(vmi, base_vaddr, pid, image, MAX_HEADER_BYTES);
-    if (MAX_HEADER_BYTES != nbytes) {
-        dbprint("--PEPARSE: failed to read PE header\n");
-        return VMI_FAILURE;
-    }
-    if (VMI_FAILURE == peparse_validate_pe_image(image, MAX_HEADER_BYTES)) {
-        dbprint("--PEPARSE: failed to validate PE header(s)\n");
+    if(VMI_FAILURE == peparse_get_image_virt(vmi, base_vaddr, pid, MAX_HEADER_BYTES, image)) {
         return VMI_FAILURE;
     }
 
-    /* Get basic data from the headers */
-    struct dos_header *dos_header = (struct dos_header *) image;
-    struct pe_header *pe_header =
-        (struct pe_header *) (image + dos_header->offset_to_pe);
+    void *optional_header = NULL;
+    uint16_t magic = 0;
 
-    /* read ahead to the ext pe header signature */
-    void *pv_optional_pe_header =
-        (void *) ((uint8_t *) pe_header + sizeof(struct pe_header));
-
-    uint16_t magic = *((uint16_t *) pv_optional_pe_header);
-
-    dbprint("--PEParse: magic is 0x%x\n", magic);
-
-    if (IMAGE_PE32_MAGIC == magic) {
-        struct optional_header_pe32 *oh =
-            (struct optional_header_pe32 *) pv_optional_pe_header;
-        export_header_rva =
-            (addr_t) oh->idd[IMAGE_DIRECTORY_ENTRY_EXPORT].
-            virtual_address;
-    }
-    else {  // must be IMAGE_PE32_PLUS_MAGIC -- see validate_pe_image()
-        struct optional_header_pe32plus *oh =
-            (struct optional_header_pe32plus *) pv_optional_pe_header;
-        export_header_rva =
-            (addr_t) oh->idd[IMAGE_DIRECTORY_ENTRY_EXPORT].
-            virtual_address;
-    }
+    peparse_assign_headers(image, NULL, NULL, &magic, &optional_header, NULL, NULL);
+    export_header_rva = peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &magic, optional_header, NULL, NULL);
 
     /* Find & read the export header; assume a different page than the headers */
     export_header_va = base_vaddr + export_header_rva;
