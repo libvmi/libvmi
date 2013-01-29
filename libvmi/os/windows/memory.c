@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
+#include "driver/interface.h"
 
 status_t
 windows_symbol_to_address(
