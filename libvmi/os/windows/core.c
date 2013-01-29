@@ -26,6 +26,7 @@
 
 #include "libvmi.h"
 #include "private.h"
+#include "peparse.h"
 
 addr_t
 get_ntoskrnl_base(
