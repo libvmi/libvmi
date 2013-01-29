@@ -12,6 +12,7 @@ check_libvmi_SOURCES = \
     test_translate.c \
     test_util.c \
     test_write.c \
+    test_peparse.c \
     $(top_builddir)/libvmi/libvmi.h
 
 check_libvmi_CFLAGS = @CHECK_CFLAGS@
