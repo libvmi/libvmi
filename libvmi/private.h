@@ -308,6 +308,9 @@ typedef struct _windows_unicode_string32 {
     status_t validate_pe_image(
     const uint8_t * const image,
     size_t len);
+    addr_t windows_pid_to_pgd(
+    vmi_instance_t vmi,
+    int pid);
 
     addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, int pid);
 
