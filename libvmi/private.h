@@ -146,6 +146,8 @@ struct vmi_instance {
     uint32_t memory_cache_size_max;/**< max size of memory cache */
 
     unsigned int num_vcpus; /**< number of VCPUs used by this instance */
+
+    GHashTable *event_handlers; /**< event->functions mapping for events */
 };
 
 /** Windows' UNICODE_STRING structure (x86) */
@@ -337,4 +339,26 @@ typedef struct _windows_unicode_string32 {
     void timer_stop(
     const char *id);
 
+/*----------------------------------------------
+ * events.c
+ */
+    void events_init(
+        vmi_instance_t vmi);
+    void events_destroy(
+        vmi_instance_t vmi);
+    void event_handler_set(
+        vmi_instance_t vmi,
+        vmi_event_t event,
+        event_callback_t cb);
+    status_t event_handler_del(
+        vmi_instance_t vmi,
+        gpointer key);
+    void event_handler_clear(
+        vmi_instance_t vmi);
+
+    typedef GHashTableIter event_iter_t;
+    #define for_each_event(vmi, iter, key, val) \
+        g_hash_table_iter_init(&iter, vmi->event_handlers); \
+        while(g_hash_table_iter_next(&iter,(void**)&key,(void**)&val))
+    
 #endif /* PRIVATE_H */

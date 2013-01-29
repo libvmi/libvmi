@@ -27,6 +27,8 @@
 #include "libvmi.h"
 #include "private.h"
 #include "driver/xen.h"
+#include "driver/xen_private.h"
+#include "driver/xen_events.h"
 #include "driver/interface.h"
 #include "driver/memory_cache.h"
 
@@ -46,14 +48,14 @@
 //----------------------------------------------------------------------------
 // Xen-Specific Interface Functions (no direct mapping to driver_*)
 
-static xen_instance_t *
+xen_instance_t *
 xen_get_instance(
     vmi_instance_t vmi)
 {
     return ((xen_instance_t *) vmi->driver);
 }
 
-static libvmi_xenctrl_handle_t
+libvmi_xenctrl_handle_t
 xen_get_xchandle(
     vmi_instance_t vmi)
 {
@@ -337,6 +339,14 @@ xen_init(
     }
 #endif /* VMI_DEBUG */
 
+    /* Only enable events for hvm and IFF(mode & VMI_INIT_EVENTS) */
+    if(xen_get_instance(vmi)->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
+        if(xen_events_init(vmi)==VMI_FAILURE){
+            errprint("Failed to initialize xen events.\n");
+            goto _bail;
+        }
+    }
+
     memory_cache_init(vmi, xen_get_memory, xen_release_memory, 0);
 
     // Determine the guest address width
@@ -350,6 +360,9 @@ void
 xen_destroy(
     vmi_instance_t vmi)
 {
+    if(xen_get_instance(vmi)->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
+        xen_events_destroy(vmi);
+    }
     xen_get_instance(vmi)->domainid = 0;
     xc_interface_close(xen_get_xchandle(vmi));
     CLOSE_XS_DAEMON(xen_get_instance(vmi)->xshandle);
@@ -673,7 +686,7 @@ xen_get_vcpureg_hvm(
         break;
 
 #ifdef DECLARE_HVM_SAVE_TYPE_COMPAT
-        /* Handle churn in struct hvm_hw_cpu (from xen/hvm/save.h) 
+        /* Handle churn in struct hvm_hw_cpu (from xen/hvm/save.h)
          * that would prevent otherwise-compatible Xen 4.0 branches
          * from building.
          *

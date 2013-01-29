@@ -90,6 +90,18 @@ struct driver_instance {
     status_t (
     *resume_vm_ptr) (
     vmi_instance_t);
+    status_t (
+    *events_listen_ptr)(
+    vmi_instance_t,
+    uint32_t);
+    status_t (
+    *set_reg_access_ptr)(
+    vmi_instance_t,
+    reg_event_t);
+    status_t (
+    *set_mem_access_ptr)(
+    vmi_instance_t,
+    mem_event_t);
 };
 typedef struct driver_instance *driver_instance_t;
 
@@ -116,6 +128,9 @@ driver_xen_setup(
     instance->is_pv_ptr = &xen_is_pv;
     instance->pause_vm_ptr = &xen_pause_vm;
     instance->resume_vm_ptr = &xen_resume_vm;
+    instance->events_listen_ptr = &xen_events_listen;
+    instance->set_reg_access_ptr = &xen_set_reg_access;
+    instance->set_mem_access_ptr = &xen_set_mem_access;
 }
 
 static void
@@ -139,6 +154,9 @@ driver_kvm_setup(
     instance->is_pv_ptr = &kvm_is_pv;
     instance->pause_vm_ptr = &kvm_pause_vm;
     instance->resume_vm_ptr = &kvm_resume_vm;
+    instance->events_listen_ptr = NULL;
+    instance->set_reg_access_ptr = NULL;
+    instance->set_mem_access_ptr = NULL;
 }
 
 static void
@@ -162,6 +180,9 @@ driver_file_setup(
     instance->is_pv_ptr = &file_is_pv;
     instance->pause_vm_ptr = &file_pause_vm;
     instance->resume_vm_ptr = &file_resume_vm;
+    instance->events_listen_ptr = NULL;
+    instance->set_reg_access_ptr = NULL;
+    instance->set_mem_access_ptr = NULL;
 }
 
 static void
@@ -183,6 +204,9 @@ driver_null_setup(
     instance->is_pv_ptr = NULL;
     instance->pause_vm_ptr = NULL;
     instance->resume_vm_ptr = NULL;
+    instance->events_listen_ptr = NULL;
+    instance->set_reg_access_ptr = NULL;
+    instance->set_mem_access_ptr = NULL;
 }
 
 static driver_instance_t
@@ -498,6 +522,48 @@ driver_resume_vm(
     else {
         dbprint
             ("WARNING: driver_resume_vm function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t driver_events_listen(
+    vmi_instance_t vmi,
+    uint32_t timeout)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->events_listen_ptr){
+        return ptrs->events_listen_ptr(vmi, timeout);
+    }
+    else{
+        dbprint("WARNING: driver_events_listen function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t driver_set_reg_access(
+    vmi_instance_t vmi,
+    reg_event_t event)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->set_reg_access_ptr){
+        return ptrs->set_reg_access_ptr(vmi, event);
+    }
+    else{
+        dbprint("WARNING: driver_set_reg_w_access function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t driver_set_mem_access(
+    vmi_instance_t vmi,
+    mem_event_t event)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->set_mem_access_ptr){
+        return ptrs->set_mem_access_ptr(vmi, event);
+    }
+    else{
+        dbprint("WARNING: driver_set_mem_access function not implemented.\n");
         return VMI_FAILURE;
     }
 }

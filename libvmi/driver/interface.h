@@ -74,3 +74,15 @@ status_t driver_pause_vm(
     vmi_instance_t vmi);
 status_t driver_resume_vm(
     vmi_instance_t vmi);
+status_t driver_events_listen(
+    vmi_instance_t vmi,
+    uint32_t timeout);
+status_t driver_set_reg_w_access(
+    vmi_instance_t vmi,
+    registers_t reg,
+    int enable);
+status_t driver_set_mem_access(
+    vmi_instance_t vmi,
+    vmi_mem_access_t access,
+    addr_t start,
+    uint64_t count);

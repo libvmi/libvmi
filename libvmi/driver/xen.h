@@ -24,6 +24,8 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "driver/xen_events.h"
+
 #if ENABLE_XEN == 1
 #include <xenctrl.h>
 
@@ -73,6 +75,8 @@ typedef struct xen_instance {
 
     struct xs_handle *xshandle;  /**< handle to xenstore daemon */
     char *name;
+
+    xen_events_t *events; /**< handle to events data */
 } xen_instance_t;
 
 #else
