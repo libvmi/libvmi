@@ -630,12 +630,12 @@ vmi_init_private(
     }
     dbprint("--completed driver init.\n");
 
-    if (VMI_INIT_PARTIAL == init_mode) {
+    if (init_mode & VMI_INIT_PARTIAL) {
         init_page_offset(*vmi);
         driver_get_memsize(*vmi, &(*vmi)->size);
         return VMI_SUCCESS;
     }
-    else if (VMI_INIT_COMPLETE == init_mode) {
+    else if (init_mode & VMI_INIT_COMPLETE) {
 
         /* init_complete requires configuration */
         if(VMI_CONFIG_NONE & (*vmi)->config_mode) {
@@ -685,6 +685,12 @@ vmi_init_private(
             (*vmi)->cr3 = find_cr3((*vmi));
             dbprint("**set cr3 = 0x%.16llx\n", (*vmi)->cr3);
         }   // if
+
+
+        /* Enable event handlers */
+        if(init_mode & VMI_INIT_EVENTS){
+            events_init(*vmi);
+        }
 
         /* setup OS specific stuff */
         if (VMI_OS_LINUX == (*vmi)->os_type) {
@@ -837,6 +843,9 @@ status_t
 vmi_destroy(
     vmi_instance_t vmi)
 {
+    if(vmi->init_mode & VMI_INIT_EVENTS){
+        events_destroy(vmi);
+    }
     driver_destroy(vmi);
     pid_cache_destroy(vmi);
     sym_cache_destroy(vmi);

@@ -79,6 +79,8 @@ typedef uint32_t vmi_mode_t;
 
 #define VMI_INIT_COMPLETE (1 << 17) /**< full initialization */
 
+#define VMI_INIT_EVENTS (1 << 18) /**< init support for memory events */
+
 #define VMI_CONFIG_NONE (1 << 24) /**< no config provided */
 
 #define VMI_CONFIG_GLOBAL_FILE_ENTRY (1 << 25) /**< config in file provided */
@@ -1239,6 +1241,106 @@ void vmi_pidcache_add(
     vmi_instance_t vmi,
     int pid,
     addr_t dtb);
+
+/*---------------------------------------------------------
+ * Event management
+ */
+
+typedef enum {
+    VMI_REG_N,
+    VMI_REG_R,
+    VMI_REG_W,
+    VMI_REG_RW
+} vmi_reg_access_t;
+
+typedef enum {
+    VMI_MEM_N,
+    VMI_MEM_R,
+    VMI_MEM_W,
+    VMI_MEM_X,
+    VMI_MEM_RW,
+    VMI_MEM_RX,
+    VMI_MEM_WX,
+    VMI_MEM_RWX,
+    VMI_MEM_X_ON_WRITE
+} vmi_mem_access_t;
+
+typedef enum {
+    VMI_MEMORY_EVENT,
+    VMI_REGISTER_EVENT
+} vmi_event_type_t;
+
+typedef struct {
+    // IN
+    registers_t reg; 
+    reg_t equal;  // Unused at the moment
+    reg_t mask;   // Unused at the moment
+    int async:1;
+    int onchange:1;
+    vmi_reg_access_t in_access;
+    // OUT
+    reg_t value;
+    vmi_reg_access_t out_access;
+} reg_event_t;
+
+typedef struct {
+    // IN
+    addr_t page;
+    uint64_t npages;
+    vmi_mem_access_t in_access;
+    // OUT
+    addr_t gla;
+    addr_t gfn;
+    uint64_t offset;
+    vmi_mem_access_t out_access;
+} mem_event_t;
+
+typedef struct vmi_event {
+    vmi_event_type_t type;
+    union {
+        reg_event_t reg_event;
+        mem_event_t mem_event;
+    };
+    unsigned long vcpu_id;
+    void * data;  // Maybe allow some arbitrary data to follow the event?
+} vmi_event_t;
+
+typedef void (*event_callback_t)(vmi_instance_t vmi, vmi_event_t event);
+
+/**
+ * Register to handle the event specified by the vmi_event object.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] event Definition of event to monitor
+ * @param[in] callback Function to call when the register is read
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_handle_event(
+    vmi_instance_t vmi,
+    vmi_event_t event,
+    event_callback_t callback);
+
+/**
+ * Clear the event specified by the vmi_event object.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] event Definition of event to clear
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_clear_event(
+    vmi_instance_t vmi,
+    vmi_event_t event);
+
+/**
+ * Listen for events until one occurs or a timeout.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] timeout Number of ms.
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_events_listen(
+    vmi_instance_t vmi,
+    uint32_t timeout);
 
 #pragma GCC visibility pop
 
