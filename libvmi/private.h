@@ -175,14 +175,14 @@ typedef struct _windows_unicode_string32 {
 #else
     void dbprint(
     char *format,
-    ...);
+    ...) __attribute__((format(printf,1,2)));
 #endif
     void errprint(
     char *format,
-    ...);
+    ...) __attribute__((format(printf,1,2)));
     void warnprint(
     char *format,
-    ...);
+    ...) __attribute__((format(printf,1,2)));
 
 #define safe_malloc(size) safe_malloc_ (size, __FILE__, __LINE__)
     void *safe_malloc_(
