@@ -600,7 +600,7 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event)
 
     dbprint("--Setting memaccess for domain %d on page: %llx npages: %llu\n",
         dom, event.page, npages);
-    if(rc = xc_hvm_set_mem_access(xch, dom, access, event.page, npages)){
+    if((rc = xc_hvm_set_mem_access(xch, dom, access, event.page, npages))){
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
