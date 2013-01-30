@@ -93,3 +93,7 @@ status_t driver_set_mem_access(
     vmi_mem_access_t access,
     addr_t start,
     uint64_t count);
+status_t
+driver_get_address_width(
+    vmi_instance_t vmi,
+    uint8_t * width);
