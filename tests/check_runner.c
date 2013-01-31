@@ -58,6 +58,7 @@ main (void)
     suite_add_tcase(s, print_tcase());
     suite_add_tcase(s, accessor_tcase());
     suite_add_tcase(s, util_tcase());
+    suite_add_tcase(s, peparse_tcase());
 
     /* run the tests */
     SRunner *sr = srunner_create(s);
