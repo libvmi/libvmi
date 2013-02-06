@@ -47,8 +47,17 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         self.as_assert(
                 config.LOCATION.startswith("vmi://"),
                 "Location doesn't start with vmi://")
-        self.name = urllib.url2pathname(config.LOCATION[6:])
-        self.vmi = pyvmi.init(self.name, "partial")
+        self.config = dict(inittype="partial")
+        if config.LOCATION.find("domid/") == 6:
+            self.domid = int(urllib.url2pathname(config.LOCATION[12:]))
+            self.config['domid']=self.domid
+        elif config.LOCATION.find("name/") == 6:
+            self.name = urllib.url2pathname(config.LOCATION[11:])
+            self.config['name'] = self.name
+        else:
+            self.name = urllib.url2pathname(config.LOCATION[6:])
+            self.config['name'] = self.name
+        self.vmi = pyvmi.init(self.config)
         self.as_assert(not self.vmi is None, "VM not found")
         self.dtb = self.get_cr3()
 
