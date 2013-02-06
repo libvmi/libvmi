@@ -198,9 +198,12 @@ unsigned long
 vmi_get_vmid(
     vmi_instance_t vmi)
 {
-    char *name = vmi_get_name(vmi);
-    unsigned long tmp_id = driver_get_id_from_name(vmi, name);
+    unsigned long domid = VMI_INVALID_DOMID;
+    if(VMI_INVALID_DOMID == (domid = driver_get_id(vmi))) {
+        char *name = vmi_get_name(vmi);
+        domid = driver_get_id_from_name(vmi, name);
+        free(name);
+    }
 
-    free(name);
-    return tmp_id;
+    return domid;
 }

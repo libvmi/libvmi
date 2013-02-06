@@ -554,9 +554,13 @@ set_id_and_name(
         /* resolve and set id and name */
         if (VMI_INVALID_DOMID == id) {
             if (name) {
-                id = driver_get_id_from_name(vmi, name);
-                dbprint("--got id from name (%s --> %d)\n", name, id);
-                driver_set_id(vmi, id);
+                if (VMI_INVALID_DOMID != (id = driver_get_id_from_name(vmi, name)) ) {
+                    dbprint("--got id from name (%s --> %lu)\n", name, id);
+                    driver_set_id(vmi, id);
+                } else {
+                    errprint("Failed to get domain id from name.\n");
+                    return VMI_FAILURE;
+                }
             }
             else {
                 errprint("Must specifiy either id or name.\n");
@@ -564,20 +568,40 @@ set_id_and_name(
             }
         }
         else {
-            driver_set_id(vmi, id);
             if (name) {
                 errprint("Specifying both id and name is undefined.\n");
                 return VMI_FAILURE;
             }
-            else {
-                if (VMI_FAILURE == driver_get_name(vmi, &name)) {
-                    errprint("Invalid id.\n");
+
+            if(VMI_FAILURE == driver_check_id(vmi,id)) {
+                errprint("Invalid id.\n");
+                return VMI_FAILURE;
+            }
+
+            driver_set_id(vmi, id);
+
+            if (VMI_FAILURE != driver_get_name_from_id(vmi, id, &name)) {
+                dbprint("--got name from id (%lu --> %s)\n", id, name);
+            } else {
+                dbprint("--failed to get domain name from id!\n");
+
+                // Only under Xen this is OK
+                if(vmi->mode != VMI_XEN) {
                     return VMI_FAILURE;
                 }
             }
         }
-        vmi->image_type = strndup(name, 100);
-        driver_set_name(vmi, name);
+
+       if(name != NULL) {
+               vmi->image_type = strndup(name, 100);
+               driver_set_name(vmi, name);
+       } else {
+               // create placeholder for image_type
+               char *idstring = malloc(snprintf(NULL, 0, "domid-%lu", id) + 1);
+               sprintf(idstring, "domid-%lu", id);
+               vmi->image_type = idstring;
+       }
+
     }
     dbprint("**set image_type = %s\n", vmi->image_type);
     return VMI_SUCCESS;

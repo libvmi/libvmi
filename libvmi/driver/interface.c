@@ -42,11 +42,20 @@ struct driver_instance {
     *get_id_from_name_ptr) (
     vmi_instance_t,
     char *);
+    status_t (
+    *get_name_from_id_ptr) (
+    vmi_instance_t,
+    unsigned long,
+    char **);
     unsigned long (
     *get_id_ptr) (
     vmi_instance_t);
     void (
     *set_id_ptr) (
+    vmi_instance_t,
+    unsigned long);
+    status_t (
+    *check_id_ptr) (
     vmi_instance_t,
     unsigned long);
     status_t (
@@ -116,8 +125,10 @@ driver_xen_setup(
     instance->init_ptr = &xen_init;
     instance->destroy_ptr = &xen_destroy;
     instance->get_id_from_name_ptr = &xen_get_domainid_from_name;
+    instance->get_name_from_id_ptr = &xen_get_name_from_domainid;
     instance->get_id_ptr = &xen_get_domainid;
     instance->set_id_ptr = &xen_set_domainid;
+    instance->check_id_ptr = &xen_check_domainid;
     instance->get_name_ptr = &xen_get_domainname;
     instance->set_name_ptr = &xen_set_domainname;
     instance->get_memsize_ptr = &xen_get_memsize;
@@ -142,8 +153,10 @@ driver_kvm_setup(
     instance->init_ptr = &kvm_init;
     instance->destroy_ptr = &kvm_destroy;
     instance->get_id_from_name_ptr = &kvm_get_id_from_name;
+    instance->get_name_from_id_ptr = &kvm_get_name_from_id;
     instance->get_id_ptr = &kvm_get_id;
     instance->set_id_ptr = &kvm_set_id;
+    instance->check_id_ptr = &kvm_check_id;
     instance->get_name_ptr = &kvm_get_name;
     instance->set_name_ptr = &kvm_set_name;
     instance->get_memsize_ptr = &kvm_get_memsize;
@@ -168,8 +181,10 @@ driver_file_setup(
     instance->init_ptr = &file_init;
     instance->destroy_ptr = &file_destroy;
     instance->get_id_from_name_ptr = NULL;  //TODO add get_id_from_name_ptr
+    instance->get_name_from_id_ptr = NULL;  //TODO add get_name_from_id_ptr
     instance->get_id_ptr = NULL;    //TODO add get_id_ptr
     instance->set_id_ptr = NULL;    //TODO add set_id_ptr
+    instance->check_id_ptr = NULL;     //TODO add check_id_ptr
     instance->get_name_ptr = &file_get_name;
     instance->set_name_ptr = &file_set_name;
     instance->get_memsize_ptr = &file_get_memsize;
@@ -193,8 +208,10 @@ driver_null_setup(
     instance->init_ptr = NULL;
     instance->destroy_ptr = NULL;
     instance->get_id_from_name_ptr = NULL;
+    instance->get_name_from_id_ptr = NULL;
     instance->get_id_ptr = NULL;
     instance->set_id_ptr = NULL;
+    instance->check_id_ptr = NULL;
     instance->get_name_ptr = NULL;
     instance->set_name_ptr = NULL;
     instance->get_memsize_ptr = NULL;
@@ -329,6 +346,24 @@ driver_get_id_from_name(
     }
 }
 
+status_t
+driver_get_name_from_id(
+    vmi_instance_t vmi,
+    unsigned long domid,
+    char **name)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+
+    if (NULL != ptrs && NULL != ptrs->get_name_from_id_ptr) {
+        return ptrs->get_name_from_id_ptr(vmi, domid, name);
+    }
+    else {
+        dbprint
+            ("WARNING: driver_get_name_from_id function not implemented.\n");
+        return 0;
+    }
+}
+
 unsigned long
 driver_get_id(
     vmi_instance_t vmi)
@@ -356,6 +391,22 @@ driver_set_id(
     }
     else {
         dbprint("WARNING: driver_set_id function not implemented.\n");
+        return;
+    }
+}
+
+void
+driver_check_id(
+    vmi_instance_t vmi,
+    unsigned long id)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+
+    if (NULL != ptrs && NULL != ptrs->check_id_ptr) {
+        return ptrs->check_id_ptr(vmi, id);
+    }
+    else {
+        dbprint("WARNING: driver_check_id function not implemented.\n");
         return;
     }
 }
