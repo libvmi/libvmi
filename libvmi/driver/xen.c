@@ -164,12 +164,17 @@ xen_get_domainid_from_name(
     vmi_instance_t vmi,
     char *name)
 {
+
+    if (name == NULL) {
+        return VMI_INVALID_DOMID;
+    }
+
     char **domains = NULL;
     int size = 0;
     int i = 0;
     xs_transaction_t xth = XBT_NULL;
-    unsigned long domainid = 0;
-    char tmp[100];
+    unsigned long domainid = VMI_INVALID_DOMID;
+    char *tmp;
 
     struct xs_handle *xsh = OPEN_XS_DAEMON();
 
@@ -181,8 +186,10 @@ xen_get_domainid_from_name(
         /* read in name */
         char *idStr = domains[i];
 
-        snprintf(tmp, sizeof(tmp), "/local/domain/%s/name", idStr);
+        tmp = malloc(snprintf(NULL, 0, "/local/domain/%s/name", idStr)+1);
+        sprintf(tmp, "/local/domain/%s/name", idStr);
         char *nameCandidate = xs_read(xsh, xth, tmp, NULL);
+        free(tmp);
 
         // if name matches, then return number
         if (nameCandidate != NULL &&
@@ -197,6 +204,7 @@ xen_get_domainid_from_name(
         /* free memory as we go */
         if (nameCandidate)
             free(nameCandidate);
+
     }
 
 _bail:
@@ -205,6 +213,45 @@ _bail:
     if (xsh)
         CLOSE_XS_DAEMON(xsh);
     return domainid;
+}
+
+status_t
+xen_get_name_from_domainid(
+    vmi_instance_t vmi,
+    unsigned long domid,
+    char **name)
+{
+    status_t ret = VMI_FAILURE;
+    if (domid == VMI_INVALID_DOMID) {
+        return ret;
+    }
+
+    char **domains = NULL;
+    int size = 0;
+    int i = 0;
+    xs_transaction_t xth = XBT_NULL;
+    unsigned long domainid = VMI_INVALID_DOMID;
+
+    struct xs_handle *xsh = OPEN_XS_DAEMON();
+
+    if (!xsh)
+        goto _bail;
+
+    char *tmp = malloc(snprintf(NULL, 0, "/local/domain/%lu/name", domid)+1);
+    sprintf(tmp, "/local/domain/%lu/name", domid);
+    char *nameCandidate = xs_read(xsh, xth, tmp, NULL);
+    free(tmp);
+
+    if (nameCandidate != NULL) {
+        *name = nameCandidate;
+        ret = VMI_SUCCESS;
+    }
+
+_bail:
+    if (xsh)
+        CLOSE_XS_DAEMON(xsh);
+    return ret;
+
 }
 
 unsigned long
@@ -220,6 +267,39 @@ xen_set_domainid(
     unsigned long domainid)
 {
     xen_get_instance(vmi)->domainid = domainid;
+}
+
+status_t
+xen_check_domainid(
+    vmi_instance_t vmi,
+    unsigned long domainid) {
+
+    status_t ret = VMI_FAILURE;
+    libvmi_xenctrl_handle_t xchandle = XENCTRL_HANDLE_INVALID;
+
+    /* open handle to the libxc interface */
+    xchandle = xc_interface_open(
+#ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
+                                    NULL, NULL, 0
+#endif
+        );
+
+    if (XENCTRL_HANDLE_INVALID == xchandle) {
+       goto _done;
+    }
+
+    xc_dominfo_t info;
+    int rc = xc_domain_getinfo(xchandle, domainid, 1,
+                           &info);
+
+    if(rc>0) {
+        ret = VMI_SUCCESS;
+    }
+
+    xc_interface_close(xchandle);
+
+_done:
+    return ret;
 }
 
 static status_t
@@ -363,9 +443,17 @@ xen_destroy(
     if(xen_get_instance(vmi)->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
         xen_events_destroy(vmi);
     }
-    xen_get_instance(vmi)->domainid = 0;
-    xc_interface_close(xen_get_xchandle(vmi));
-    CLOSE_XS_DAEMON(xen_get_instance(vmi)->xshandle);
+
+    xen_get_instance(vmi)->domainid = VMI_INVALID_DOMID;
+
+    libvmi_xenctrl_handle_t xchandle = xen_get_xchandle(vmi);
+    if(xchandle != XENCTRL_HANDLE_INVALID) {
+        xc_interface_close(xchandle);
+    }
+
+    if(xen_get_instance(vmi)->xshandle) {
+        CLOSE_XS_DAEMON(xen_get_instance(vmi)->xshandle);
+    }
 }
 
 status_t
@@ -375,14 +463,19 @@ xen_get_domainname(
 {
     status_t ret = VMI_FAILURE;
     xs_transaction_t xth = XBT_NULL;
-    char tmp[100] = { 0 };
 
-    snprintf(tmp, sizeof(tmp), "/local/domain/%d/name",
-             xen_get_domainid(vmi));
+    if (!xen_get_instance(vmi)->xshandle) {
+        errprint("Couldn't get Xenstore handle!\n");
+        goto _bail;
+    }
 
+    char *tmp = malloc(snprintf(NULL, 0, "/local/domain/%lu/name", xen_get_domainid(vmi))+1);
+    sprintf(tmp, "/local/domain/%lu/name", xen_get_domainid(vmi));
     *name = xs_read(xen_get_instance(vmi)->xshandle, xth, tmp, NULL);
+    free(tmp);
+
     if (NULL == name) {
-        errprint("Domain ID %d is not running.\n",
+        errprint("Couldn't get name of domain %lu from Xenstore %lu\n",
                  xen_get_domainid(vmi));
         goto _bail;
     }
@@ -405,35 +498,14 @@ xen_get_memsize(
     vmi_instance_t vmi,
     unsigned long *size)
 {
-    // note: may also available through PAGE_SIZE * xen_get_instance(vmi)->info.nr_pages
-    // or xen_get_instance(vmi)->info.max_memkb
+    // note: may also available through xen_get_instance(vmi)->info.max_memkb
+    // or xenstore /local/domain/%d/memory/target
     status_t ret = VMI_FAILURE;
-    char *tmp = NULL;
-    xs_transaction_t xth = XBT_NULL;
-    char path[100] = { 0 };
 
-    /* get the memory size from the xenstore */
-    snprintf(path, sizeof(path), "/local/domain/%d/memory/target",
-             xen_get_domainid(vmi));
-    tmp = xs_read(xen_get_instance(vmi)->xshandle, xth, path, NULL);
-
-    if (!tmp) {
-        errprint
-            ("failed to retrieve memory size for Xen domain from xenstore.\n");
-        goto _bail;
+    if(xen_get_instance(vmi)->info.nr_pages > 0) {
+        *size = XC_PAGE_SIZE * xen_get_instance(vmi)->info.nr_pages;
+        ret = VMI_SUCCESS;
     }
-
-    *size = strtol(tmp, NULL, 10) * 1024;
-
-    if (errno) {
-        errprint("failed to get memory size for Xen domain.\n");
-        goto _bail;
-    }
-    ret = VMI_SUCCESS;
-
-_bail:
-    if (tmp)
-        free(tmp);
 
     return ret;
 }
@@ -993,13 +1065,10 @@ xen_test(
     unsigned long id,
     char *name)
 {
-    id = xen_get_domainid_from_name(NULL, name);
-    if (!id) {
-        return VMI_FAILURE;
-    }
-    else {
-        return VMI_SUCCESS;
-    }
+    // Only way this could fail on Xen is when LibVMI is running in a domU
+    // and the XSM policy doesn't allow the getdomaininfo hypercall.
+    // Default Xen allows this without XSM for _all_ domains.
+    return xen_check_domainid(NULL, 0);
 }
 
 status_t
@@ -1050,6 +1119,15 @@ xen_get_domainid_from_name(
     return 0;
 }
 
+status_t
+xen_get_name_from_domainid(
+    vmi_instance_t vmi,
+    unsigned long domid,
+    char **name)
+{
+    return VMI_FAILURE;
+}
+
 unsigned long
 xen_get_domainid(
     vmi_instance_t vmi)
@@ -1063,6 +1141,14 @@ xen_set_domainid(
     unsigned long domainid)
 {
     return;
+}
+
+status_t
+xen_check_domainid(
+    vmi_instance_t vmi,
+    unsigned long domainid)
+{
+    return VMI_FAILURE;
 }
 
 status_t
