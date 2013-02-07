@@ -23,6 +23,8 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef XEN_PRIVATE_H
+#define XEN_PRIVATE_H
 
 #include "libvmi.h"
 
@@ -34,3 +36,5 @@ xc_interface *
 int
 #endif
 xen_get_xchandle (vmi_instance_t vmi);
+
+#endif

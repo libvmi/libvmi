@@ -57,6 +57,8 @@
 #include "driver/xen_private.h"
 #include "driver/xen_events.h"
 
+#include <string.h>
+
 //----------------------------------------------------------------------------
 // Helper functions
 
@@ -306,8 +308,22 @@ void xen_events_destroy(vmi_instance_t vmi)
         return;
 
     // Turn off mem events
-    munmap(xe->mem_event.ring_page, getpagesize());
+#ifdef XENEVENT42
     rc = xc_mem_access_disable(xch, dom);
+    munmap(xe->mem_event.ring_page, getpagesize());
+#elif XENEVENT41
+    rc = xc_mem_event_disable(xch, dom);
+
+    if (xe->mem_event.ring_page != NULL) {
+        munlock(xe->mem_event.ring_page, getpagesize());
+        free(xe->mem_event.ring_page);
+    }
+
+    if (xe->mem_event.shared_page != NULL) {
+        munlock(xe->mem_event.shared_page, getpagesize());
+        free(xe->mem_event.shared_page);
+    }
+#endif
 
     if ( rc != 0 )
     {
@@ -358,6 +374,7 @@ status_t xen_events_init(vmi_instance_t vmi)
     // Initialise lock
     xen_event_ring_lock_init(&xe->mem_event);
 
+#ifdef XENEVENT42
     // Initialise shared page
     xc_get_hvm_param(xch, dom, HVM_PARAM_ACCESS_RING_PFN, &ring_pfn);
     mmap_pfn = ring_pfn;
@@ -386,11 +403,57 @@ status_t xen_events_init(vmi_instance_t vmi)
         }
     }
 
-    /* TODO MARESCA: xen 4.2/4.1 incompatibility expected here.
-     *  ifdef hackery needed
-     */
+    /* Now that the ring is set, remove it from the guest's physmap */
+    if ( xc_domain_decrease_reservation_exact(xch,
+                    dom, 1, 0, &ring_pfn) )
+        errprint("Failed to remove ring from guest physmap");
+
+#elif XENEVENT41
+
+    rc = posix_memalign(&xe->mem_event.ring_page, getpagesize(), getpagesize());
+    if (rc != 0 ) {
+        errprint("Could not allocate the ring page!\n");
+        goto err;
+    }
+
+    rc = mlock(xe->mem_event.ring_page, getpagesize());
+    if (rc != 0 ) {
+        errprint("Could not lock the ring page!\n");
+        free(xe->mem_event.ring_page);
+        xe->mem_event.ring_page = NULL;
+        goto err;
+    }
+
+    rc = posix_memalign(&xe->mem_event.shared_page, getpagesize(), getpagesize());
+    if (rc != 0 ) {
+        errprint("Could not allocate the shared page!\n");
+        goto err;
+    }
+
+    rc = mlock(xe->mem_event.shared_page, getpagesize());
+    if (rc != 0 ) {
+        errprint("Could not lock the shared page!\n");
+        free(xe->mem_event.shared_page);
+        xe->mem_event.shared_page = NULL;
+        goto err;
+    }
+
+#endif
+
+    // Initialise ring
+    SHARED_RING_INIT((mem_event_sring_t *)xe->mem_event.ring_page);
+    BACK_RING_INIT(&xe->mem_event.back_ring,
+                   (mem_event_sring_t *)xe->mem_event.ring_page,
+                   getpagesize());
+
+#ifdef XENEVENT42
     // Initialise Xen
     rc = xc_mem_access_enable(xch, dom, &(xe->mem_event.evtchn_port));
+#elif XENEVENT41
+    rc = xc_mem_event_enable(xch, dom, xe->mem_event.shared_page,
+                                 xe->mem_event.ring_page);
+
+#endif
 
     if ( rc != 0 )
     {
@@ -402,7 +465,7 @@ status_t xen_events_init(vmi_instance_t vmi)
                 errprint("EPT not supported for this guest\n");
                 break;
             default:
-                errprint("Error initialising shared page: %s\n", strerror(errno));
+                errprint("Error initialising memory events: %s\n", strerror(errno));
                 break;
         }
         goto err;
@@ -417,8 +480,13 @@ status_t xen_events_init(vmi_instance_t vmi)
     }
 
     // Bind event notification
+#ifdef XENEVENT42
     rc = xc_evtchn_bind_interdomain(
           xe->mem_event.xce_handle, dom, xe->mem_event.evtchn_port);
+#elif XENEVENT41
+    rc = xc_evtchn_bind_interdomain(
+          xe->mem_event.xce_handle, dom, xe->mem_event.shared_page->port);
+#endif
 
     if ( rc < 0 )
     {
@@ -428,17 +496,6 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     xe->mem_event.port = rc;
     dbprint("Bound to event channel on port == %d\n", xe->mem_event.port);
-
-    // Initialise ring
-    SHARED_RING_INIT((mem_event_sring_t *)xe->mem_event.ring_page);
-    BACK_RING_INIT(&xe->mem_event.back_ring,
-                   (mem_event_sring_t *)xe->mem_event.ring_page,
-                   getpagesize());
-
-    /* Now that the ring is set, remove it from the guest's physmap */
-    if ( xc_domain_decrease_reservation_exact(xch,
-                    dom, 1, 0, &ring_pfn) )
-        errprint("Failed to remove ring from guest physmap");
 
     // Get domaininfo
     /* TODO MARESCA non allocated would work fine here via &dominfo below */
