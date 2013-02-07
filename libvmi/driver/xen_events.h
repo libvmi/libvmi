@@ -68,10 +68,12 @@ typedef struct {
     xc_evtchn *xce_handle;
     int port;
     mem_event_back_ring_t back_ring;
-#ifdef XENEVENT41
-    mem_event_shared_page_t *shared_page;
-#elif XENEVENT42    
+#ifdef XENEVENT42
     uint32_t evtchn_port;
+#elif XENEVENT41
+    mem_event_shared_page_t *shared_page;
+#else
+#error "Unsupported Xen version for events"
 #endif
     void *ring_page;
     spinlock_t ring_lock;
