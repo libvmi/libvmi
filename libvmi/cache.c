@@ -295,7 +295,7 @@ hash128to64(
 static v2p_cache_entry_t v2p_cache_entry_create (vmi_instance_t vmi, addr_t pa)
 {
     v2p_cache_entry_t entry = (v2p_cache_entry_t) safe_malloc(sizeof(struct v2p_cache_entry));
-    pa &= ~(vmi->page_size - 1);
+    pa &= ~((addr_t)vmi->page_size - 1);
     entry->pa = pa;
     entry->last_used = time(NULL);
     return entry;
@@ -320,7 +320,7 @@ static gboolean v2p_cache_equals(gconstpointer key1, gconstpointer key2){
  */
 static void v2p_cache_key_init(vmi_instance_t vmi, v2p_cache_key_t key, addr_t va, addr_t dtb)
 {
-    va = (va & ~(vmi->page_size - 1));
+    va = (va & ~((addr_t)vmi->page_size - 1));
     key->va = va;
     key->dtb = dtb;
 }
@@ -363,7 +363,8 @@ v2p_cache_get(
 
         entry->last_used = time(NULL);
         *pa = entry->pa | ((vmi->page_size - 1) & va);
-        dbprint("--V2P cache hit 0x%.16llx -- 0x%.16llx (0x%.16llx)\n", va, *pa, *key);
+        dbprint("--V2P cache hit 0x%.16llx -- 0x%.16llx (0x%.16llx/0x%.16llx)\n",
+                va, *pa, key->dtb, key->va);
         return VMI_SUCCESS;
     }
 
@@ -383,8 +384,8 @@ v2p_cache_set(
     v2p_cache_key_t key = v2p_build_key(vmi, va, dtb);
     v2p_cache_entry_t entry = v2p_cache_entry_create(vmi, pa);
     g_hash_table_insert(vmi->v2p_cache, key, entry);
-    dbprint("--V2P cache set 0x%.16llx -- 0x%.16llx (0x%.16llx)\n", va,
-            pa, *key);
+    dbprint("--V2P cache set 0x%.16llx -- 0x%.16llx (0x%.16llx/0x%.16llx)\n", va,
+            pa, key->dtb, key->va);
 }
 
 status_t
@@ -396,7 +397,8 @@ v2p_cache_del(
     struct v2p_cache_key local_key;
     v2p_cache_key_t key = &local_key;
     v2p_cache_key_init(vmi, key, va, dtb);
-    dbprint("--V2P cache del 0x%.16llx (0x%.16llx)\n", va, *key);
+    dbprint("--V2P cache del 0x%.16llx (0x%.16llx/0x%.16llx)\n", va, key->dtb,
+            key->va);
 
     // key collision doesn't really matter here because worst case
     // scenario we incur an small performance hit
