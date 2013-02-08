@@ -55,7 +55,7 @@ int main (int argc, char **argv)
     /* initialize the libvmi library */
     if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) == VMI_FAILURE) {
         printf("Failed to init LibVMI library.\n");
-        goto error_exit;
+        return 1;
     }
 
     /* init the offset values */

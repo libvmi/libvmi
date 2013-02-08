@@ -47,7 +47,7 @@ main(
     if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) ==
         VMI_FAILURE) {
         printf("Failed to init LibVMI library.\n");
-        goto error_exit;
+        return 1;
     }
 
     /* pause the vm for consistent memory access */
