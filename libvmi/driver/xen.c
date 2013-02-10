@@ -39,7 +39,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <xs.h>
+#if HAVE_XENSTORE_H
+  #include <xenstore.h>
+#else
+  #include <xs.h>
+#endif
 #include <xen/hvm/save.h>
 
 //----------------------------------------------------------------------------
