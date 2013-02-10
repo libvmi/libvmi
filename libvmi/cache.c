@@ -303,13 +303,13 @@ static v2p_cache_entry_t v2p_cache_entry_create (vmi_instance_t vmi, addr_t pa)
 
 
 static gint64 v2p_cache_hash(gconstpointer key){
-    const v2p_cache_key_t cache_key = key;
+    const v2p_cache_key_t cache_key = (const v2p_cache_key_t) key;
     return hash128to64(cache_key->dtb, cache_key->va);
 }
 
 static gboolean v2p_cache_equals(gconstpointer key1, gconstpointer key2){
-    const v2p_cache_key_t cache_key1 = key1;
-    const v2p_cache_key_t cache_key2 = key2;
+    const v2p_cache_key_t cache_key1 = (const v2p_cache_key_t) key1;
+    const v2p_cache_key_t cache_key2 = (const v2p_cache_key_t) key2;
     return cache_key1->dtb == cache_key2->dtb && cache_key1->va == cache_key2->va;
 }
 
@@ -336,7 +336,7 @@ void
 v2p_cache_init(
     vmi_instance_t vmi)
 {
-    vmi->v2p_cache = g_hash_table_new_full(v2p_cache_hash, v2p_cache_equals, g_free, g_free);
+    vmi->v2p_cache = g_hash_table_new_full((GHashFunc) v2p_cache_hash, v2p_cache_equals, g_free, g_free);
 }
 
 void

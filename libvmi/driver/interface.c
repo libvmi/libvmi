@@ -30,6 +30,7 @@
 #include "driver/kvm.h"
 #include "driver/file.h"
 #include <stdlib.h>
+#include <string.h>
 
 struct driver_instance {
     status_t (
@@ -403,7 +404,8 @@ driver_check_id(
     driver_instance_t ptrs = driver_get_instance(vmi);
 
     if (NULL != ptrs && NULL != ptrs->check_id_ptr) {
-        return ptrs->check_id_ptr(vmi, id);
+        ptrs->check_id_ptr(vmi, id);
+        return;
     }
     else {
         dbprint("WARNING: driver_check_id function not implemented.\n");

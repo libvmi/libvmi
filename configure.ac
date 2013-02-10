@@ -86,6 +86,7 @@ xen_space=' '
             AC_DEFINE([ENABLE_XEN], [1], [Define to 1 to enable Xen support.])
             have_xen='yes'
 
+            AC_CHECK_HEADERS([xenstore.h])
             AC_CHECK_LIB(xenctrl, [xc_mem_event_enable], [AC_DEFINE(XENEVENT41, 1, "Xen memory event 4.1 style")])
             AC_CHECK_LIB(xenctrl, [xc_mem_access_enable], [AC_DEFINE(XENEVENT42, 1, "Xen memory event 4.2 style")])
         [fi]
