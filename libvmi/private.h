@@ -302,7 +302,7 @@ typedef struct _windows_unicode_string32 {
     int find_pname_offset(
     vmi_instance_t vmi,
     check_magic_func check);
-    void find_windows_version(
+    win_ver_t find_windows_version(
     vmi_instance_t vmi,
     addr_t KdVersionBlock);
     status_t validate_pe_image(
