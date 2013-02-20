@@ -718,7 +718,7 @@ find_windows_version(
     // go find the answer and store it in vmi
     uint16_t size = 0;
 
-    vmi_read_16_pa(vmi, KdVersionBlock + 0x14, &size);
+    vmi_read_16_va(vmi, KdVersionBlock + 0x14, 0, &size);
 
     if (memcmp(&size, "\x08\x02", 2) == 0) {
         dbprint("--OS Guess: Windows 2000\n");
@@ -846,9 +846,6 @@ init_kdversion_block(
         goto error_exit;
     }
 
-    // Use heuristic to find windows version
-    find_windows_version(vmi, KdVersionBlock_phys);
-
     // get the virtual address for KdVersionBlock from the physical
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi, KdVersionBlock_phys, &DebuggerDataList)) {
@@ -869,8 +866,8 @@ init_kdversion_block(
             vmi->os.windows_instance.kdversion_block);
 
     return VMI_SUCCESS;
+
 error_exit:
-    vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
     return VMI_FAILURE;
 }
 
@@ -887,6 +884,10 @@ windows_kpcr_lookup(
             goto error_exit;
         }
     }
+
+    // Use heuristic to find windows version
+    find_windows_version(vmi, vmi->os.windows_instance.kdversion_block);
+
     if (VMI_FAILURE == kpcr_symbol_offset(vmi, symbol, &offset)) {
         goto error_exit;
     }
