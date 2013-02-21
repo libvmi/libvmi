@@ -343,10 +343,18 @@ find_cr3(
     }
 }
 
-/* check that this vm uses a paging method that we support */
-static int
+/*
+ * check that this vm uses a paging method that we support
+ * and set pm/cr3/pae/pse/lme flags optionally on the given pointers
+ */
+status_t
 get_memory_layout(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    page_mode_t *set_pm,
+    reg_t *set_cr3,
+    int *set_pae,
+    int *set_pse,
+    int *set_lme)
 {
     // To get the paging layout, the following bits are needed:
     // 1. CR0.PG
@@ -356,16 +364,13 @@ get_memory_layout(
     //    backend doessn't.
 
     status_t ret = VMI_FAILURE;
+    page_mode_t pm = VMI_PM_UNKNOWN;
     uint8_t dom_addr_width = 0; // domain address width (bytes)
 
     /* pull info from registers, if we can */
     reg_t cr0, cr3, cr4, efer;
+    int pae, pse, lme;
     uint8_t msr_efer_lme = 0;   // LME bit in MSR_EFER
-
-    vmi->page_mode = VMI_PM_UNKNOWN;
-    dbprint("**set paging mode to unknown\n");
-    vmi->pae = vmi->pse = vmi->lme = vmi->cr3 = 0;
-    dbprint("**set paging-related fields to 0\n");
 
     /* skip all of this for files */
     if (VMI_FILE == vmi->mode) {
@@ -399,17 +404,17 @@ get_memory_layout(
     }
 
     /* PSE Flag --> CR4, bit 5 */
-    vmi->pae = vmi_get_bit(cr4, 5);
-    dbprint("**set pae = %d\n", vmi->pae);
+    pae = vmi_get_bit(cr4, 5);
+    dbprint("**set pae = %d\n", pae);
 
     /* PSE Flag --> CR4, bit 4 */
-    vmi->pse = vmi_get_bit(cr4, 4);
-    dbprint("**set pse = %d\n", vmi->pse);
+    pse = vmi_get_bit(cr4, 4);
+    dbprint("**set pse = %d\n", pse);
 
     ret = driver_get_vcpureg(vmi, &efer, MSR_EFER, 0);
     if (VMI_SUCCESS == ret) {
-        vmi->lme = vmi_get_bit(efer, 8);
-        dbprint("**set lme = %d\n", vmi->lme);
+        lme = vmi_get_bit(efer, 8);
+        dbprint("**set lme = %d\n", lme);
     }
     else {
         dbprint("**failed to get MSR_EFER, trying method #2\n");
@@ -421,52 +426,55 @@ get_memory_layout(
                 ("Failed to get domain address width. Giving up.\n");
             goto _exit;
         }
-        vmi->lme = (8 == dom_addr_width);
+        lme = (8 == dom_addr_width);
         dbprint
             ("**found guest address width is %d bytes; assuming IA32_EFER.LME = %d\n",
-             dom_addr_width, vmi->lme);
+             dom_addr_width, lme);
     }   // if
 
+
     // now determine addressing mode
-
-    // no failures after this point
-    ret = VMI_SUCCESS;
-
-    if (0 == vmi->pae) {
-        dbprint("**set paging mode to 32-bit paging\n");
-        vmi->page_mode = VMI_PM_LEGACY;
-        vmi->cr3 = cr3 & 0xFFFFF000ull;
+    if (0 == pae) {
+        dbprint("**32-bit paging\n");
+        pm = VMI_PM_LEGACY;
+        cr3 &= 0xFFFFF000ull;
     }
-
     // PAE == 1; determine IA-32e or PAE
-    else if (vmi->lme) {    // PAE == 1, LME == 1 
-        dbprint("**set paging mode to IA-32e paging\n");
-        vmi->page_mode = VMI_PM_IA32E;
-        vmi->cr3 = cr3 & 0xFFFFFFFFFFFFF000ull;
+    else if (lme) {    // PAE == 1, LME == 1
+        dbprint("**IA-32e paging\n");
+        pm = VMI_PM_IA32E;
+        cr3 &= 0xFFFFFFFFFFFFF000ull;
     }
     else {  // PAE == 1, LME == 0
-        dbprint("**set paging mode to PAE paging\n");
-        vmi->page_mode = VMI_PM_PAE;
-        vmi->cr3 = cr3 & 0xFFFFFFE0;
+        dbprint("**PAE paging\n");
+        pm = VMI_PM_PAE;
+        cr3 &= 0xFFFFFFE0;
     }   // if-else
     dbprint("**set cr3 = 0x%.16llx\n", vmi->cr3);
 
     /* testing to see CR3 value */
-    if (!driver_is_pv(vmi) && vmi->cr3 > vmi->size) {   // sanity check on CR3
+    if (!driver_is_pv(vmi) && cr3 > vmi->size) {   // sanity check on CR3
         dbprint("** Note cr3 value [0x%llx] exceeds memsize [0x%llx]\n",
-                vmi->cr3, vmi->size);
+                cr3, vmi->size);
     }
 
-    dbprint("--got memory layout.\n");
+    if(set_pm != NULL) {
+        *set_pm=pm;
+    }
+    if(set_cr3 != NULL) {
+        *set_cr3=cr3;
+    }
+    if(set_pae != NULL) {
+        *set_pae=pae;
+    }
+    if(set_pse != NULL) {
+        *set_pse=pse;
+    }
+    if(set_lme != NULL) {
+         *set_lme=lme;
+    }
 
 _exit:
-    if (VMI_FAILURE == ret) {
-        vmi->page_mode = VMI_PM_UNKNOWN;
-        dbprint("**set paging mode to unknown\n");
-        vmi->pae = vmi->pse = vmi->lme = vmi->cr3 = 0;
-        dbprint("**set paging-related fields to 0\n");
-    }
-
     return ret;
 }
 
@@ -696,7 +704,15 @@ vmi_init_private(
 
         // Find the memory layout. If this fails, then proceed with the
         // OS-specific heuristic techniques.
-        status = get_memory_layout(*vmi);
+        (*vmi)->pae = (*vmi)->pse = (*vmi)->lme = (*vmi)->cr3 = 0;
+        (*vmi)->page_mode = VMI_PM_UNKNOWN;
+
+        status = get_memory_layout(*vmi,
+                                        &((*vmi)->page_mode),
+                                        &((*vmi)->cr3),
+                                        &((*vmi)->pae),
+                                        &((*vmi)->pse),
+                                        &((*vmi)->lme));
 
         if (VMI_FAILURE == status) {
             dbprint
