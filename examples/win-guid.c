@@ -29,8 +29,6 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "win-guid.h"
-
 #define PAGE_SIZE           0x1000
 #define MAX_HEADER_SIZE     1024
 #define MAX_SEARCH_SIZE     536715264 //512MB

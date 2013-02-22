@@ -51,6 +51,24 @@
 #define IMAGE_DIRECTORY_ENTRY_CLR_RUNTIME 14
 #define IMAGE_DIRECTORY_ENTRY_RESERVED 15
 
+#define NB09 0x3930424e // 90BN
+#define NB10 0x3031424e // 01BN
+#define NB11 0x3131424e // 11BN
+#define RSDS 0x53445352 // SDSR
+
+#define IMAGE_DEBUG_TYPE_UNKNOWN          0
+#define IMAGE_DEBUG_TYPE_COFF             1
+#define IMAGE_DEBUG_TYPE_CODEVIEW         2
+#define IMAGE_DEBUG_TYPE_FPO              3
+#define IMAGE_DEBUG_TYPE_MISC             4
+#define IMAGE_DEBUG_TYPE_EXCEPTION        5
+#define IMAGE_DEBUG_TYPE_FIXUP            6
+#define IMAGE_DEBUG_TYPE_OMAP_TO_SRC      7
+#define IMAGE_DEBUG_TYPE_OMAP_FROM_SRC    8
+#define IMAGE_DEBUG_TYPE_BORLAND          9
+#define IMAGE_DEBUG_TYPE_RESERVED10       10
+#define IMAGE_DEBUG_TYPE_CLSID            11
+
 struct image_data_directory {
     uint32_t virtual_address;
     uint32_t size;
@@ -182,6 +200,31 @@ struct export_table {
     uint32_t address_of_functions;
     uint32_t address_of_names;
     uint32_t address_of_name_ordinals;
+} __attribute__ ((packed));
+
+struct guid {
+    uint32_t data1;
+    uint16_t data2;
+    uint16_t data3;
+    uint8_t  data4[8];
+} __attribute__ ((packed));
+
+struct cv_info_pdb70 {
+  uint32_t      cv_signature;
+  struct guid   signature;
+  uint32_t      age;
+  uint8_t       pdb_file_name[];
+} __attribute__ ((packed));
+
+struct image_debug_directory {
+    uint32_t   characteristics;
+    uint32_t   time_date_stamp;
+    uint16_t   major_version;
+    uint16_t   minor_version;
+    uint32_t   type;
+    uint32_t   size_of_data;
+    uint32_t   address_of_raw_data;
+    uint32_t   pointer_to_raw_data;
 } __attribute__ ((packed));
 
 /**
