@@ -59,12 +59,13 @@ win_ver_t
 vmi_get_winver(
     vmi_instance_t vmi)
 {
-    if (VMI_OS_WINDOWS != vmi->os_type)
+
+    if (VMI_OS_WINDOWS != vmi->os_type || VMI_INIT_PARTIAL & vmi->init_mode)
         return VMI_OS_WINDOWS_NONE;
 
     if (!vmi->os.windows_instance.version ||
         vmi->os.windows_instance.version == VMI_OS_WINDOWS_UNKNOWN) {
-        find_windows_version(vmi,
+        vmi->os.windows_instance.version = find_windows_version(vmi,
                              vmi->os.windows_instance.kdversion_block);
     }
     return vmi->os.windows_instance.version;
@@ -96,6 +97,14 @@ vmi_get_winver_str(
     default:
         return "<Illegal value for Windows version>";
     }   // switch
+}
+
+win_ver_t
+vmi_get_winver_manual(
+    vmi_instance_t vmi,
+    addr_t kdvb_pa)
+{
+    return find_windows_version(vmi, kdvb_pa);
 }
 
 unsigned long
