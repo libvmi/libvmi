@@ -1102,6 +1102,21 @@ const char *vmi_get_winver_str(
     vmi_instance_t vmi);
 
 /**
+ * Get the version of Windows based on the provided KDVB address.  This is the
+ * simple Windows version - no service pack or patch level is provided.
+ *
+ * This function is intended to be used during partial init as an aid to elevate
+ * to full init.
+ *
+ * @param[in] vmi       LibVMI instance
+ * @param[in] kdvb_pa   The physical address of the KDVB
+ * @return Windows version
+ */
+win_ver_t vmi_get_winver_manual(
+    vmi_instance_t vmi,
+    addr_t kdvb_pa);
+
+/**
  * Get the memory offset associated with the given offset_name.
  * Valid names include everything in the /etc/libvmi.conf file.
  *
