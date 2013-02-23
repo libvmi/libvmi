@@ -289,6 +289,9 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t instance,
     char *symbol,
     addr_t *address);
+    addr_t linux_pid_to_pgd(
+    vmi_instance_t vmi,
+    int pid);
 
 /*-----------------------------------------
  * os/windows/...
