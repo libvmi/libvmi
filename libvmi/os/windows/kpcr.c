@@ -712,7 +712,7 @@ find_windows_version(
     // no need to repeat this work if we already have the answer
     if (vmi->os.windows_instance.version &&
         vmi->os.windows_instance.version != VMI_OS_WINDOWS_UNKNOWN) {
-        return;
+        return vmi->os.windows_instance.version;
     }
 
     uint16_t size = 0;
