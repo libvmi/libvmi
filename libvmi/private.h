@@ -262,6 +262,18 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t vmi);
 
 /*-----------------------------------------
+ * core.c
+ */
+    status_t
+    get_memory_layout(
+    vmi_instance_t vmi,
+    page_mode_t *set_pm,
+    reg_t *set_cr3,
+    int *set_pae,
+    int *set_pse,
+    int *set_lme);
+
+/*-----------------------------------------
  * memory.c
  */
     void *vmi_read_page(
