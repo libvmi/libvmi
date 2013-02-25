@@ -174,7 +174,7 @@ xen_get_domainid_from_name(
     }
 
     char **domains = NULL;
-    int size = 0;
+    unsigned int size = 0;
     int i = 0;
     xs_transaction_t xth = XBT_NULL;
     unsigned long domainid = VMI_INVALID_DOMID;
