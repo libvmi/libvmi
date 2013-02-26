@@ -338,9 +338,10 @@ find_cr3(
         vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
         return windows_find_cr3(vmi);
     }
-    else {
-        errprint("find_kpgd not implemented for this target OS\n");
-    }
+
+    errprint("find_kpgd not implemented for this target OS\n");
+
+    return 0;
 }
 
 /*
