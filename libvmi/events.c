@@ -138,7 +138,7 @@ status_t vmi_handle_event (vmi_instance_t vmi,
             rc = driver_set_reg_access(vmi, event.reg_event);
             break;
         case VMI_MEMORY_EVENT:
-            dbprint("Enabling memory event on pages: %llx + %d\n",
+            dbprint("Enabling memory event on pages: %"PRIu64" + %"PRIu64"\n",
                 event.mem_event.page, event.mem_event.npages);
             rc = driver_set_mem_access(vmi, event.mem_event);
             break;
@@ -180,7 +180,7 @@ status_t vmi_clear_event (vmi_instance_t vmi,
                 case VMI_MEMORY_EVENT:
                     if(stored_event->type == VMI_MEMORY_EVENT){
                         if(stored_event->mem_event.page == event.mem_event.page){
-                            dbprint("Disabling memory event on page: %llu\n",
+                            dbprint("Disabling memory event on page: %"PRIu64"\n",
                                     event.mem_event.page);
                             todelete = stored_event;
                             todelete->mem_event.in_access = VMI_MEM_N;

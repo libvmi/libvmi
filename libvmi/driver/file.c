@@ -69,7 +69,7 @@ file_get_memory(
 
     if (paddr + length >= vmi->size) {
         dbprint
-            ("--%s: request for PA range [0x%.16x-0x%.16x] reads past end of file\n",
+            ("--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of file\n",
              __FUNCTION__, paddr, paddr + length);
         goto error_noprint;
     }   // if
@@ -93,7 +93,7 @@ file_get_memory(
 
 error_print:
     dbprint("%s: failed to read %d bytes at "
-            "PA (offset) 0x%.16llx [VM size 0x%.16llx]\n", __FUNCTION__,
+            "PA (offset) 0x%.16"PRIx64" [VM size 0x%.16"PRIx64"]\n", __FUNCTION__,
             length, paddr, vmi->size);
 error_noprint:
     if (memory)

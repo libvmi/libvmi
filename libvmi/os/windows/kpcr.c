@@ -826,7 +826,7 @@ find_kdversionblock_address_fast(
     }   // outer for
 
     if (kdvb_address)
-        dbprint("--Found KD version block at PA %.16llx\n",
+        dbprint("--Found KD version block at PA %.16"PRIx64"\n",
                 kdvb_address);
     boyer_moore_fini(bm);
     return kdvb_address;
@@ -858,10 +858,10 @@ init_kdversion_block(
     if (ListPtr && !vmi->os.windows_instance.kdversion_block) {
         vmi->os.windows_instance.kdversion_block = ListPtr;
         printf
-            ("LibVMI Suggestion: set win_kdvb=0x%llx in libvmi.conf for faster startup.\n",
+            ("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              vmi->os.windows_instance.kdversion_block);
     }
-    dbprint("**set KdVersionBlock address=0x%llx\n",
+    dbprint("**set KdVersionBlock address=0x%"PRIx64"\n",
             vmi->os.windows_instance.kdversion_block);
 
     return VMI_SUCCESS;

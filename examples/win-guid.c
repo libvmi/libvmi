@@ -256,7 +256,7 @@ int main(int argc, char **argv) {
         if(VMI_SUCCESS == peparse_get_image_phys(vmi, i, MAX_HEADER_SIZE, pe)) {
             if(VMI_SUCCESS == is_WINDOWS_KERNEL(vmi, i, pe)) {
 
-                printf("Windows Kernel found @ 0x%lx\n", i);
+                printf("Windows Kernel found @ 0x%"PRIx32"\n", i);
                 print_os_version(vmi, i, pe);
                 print_guid(vmi, i, pe);
                 print_pe_header(vmi, i, pe);

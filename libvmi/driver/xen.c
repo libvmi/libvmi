@@ -80,7 +80,7 @@ xen_get_memory_pfn(
                                         (unsigned long) pfn);
 
     if (MAP_FAILED == memory || NULL == memory) {
-        dbprint("--xen_get_memory_pfn failed on pfn=0x%llx\n", pfn);
+        dbprint("--xen_get_memory_pfn failed on pfn=0x%"PRIx64"\n", pfn);
         return NULL;
     }
 
@@ -479,7 +479,7 @@ xen_get_domainname(
     free(tmp);
 
     if (NULL == name) {
-        errprint("Couldn't get name of domain %lu from Xenstore %lu\n",
+        errprint("Couldn't get name of domain %lu from Xenstore\n",
                  xen_get_domainid(vmi));
         goto _bail;
     }

@@ -117,7 +117,7 @@ validate_and_return_data(
 
     if (vmi->memory_cache_age &&
         (now - entry->last_updated > vmi->memory_cache_age)) {
-        dbprint("--MEMORY cache refresh 0x%llx\n", entry->paddr);
+        dbprint("--MEMORY cache refresh 0x%"PRIx64"\n", entry->paddr);
         release_data_callback(entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
         entry->last_updated = now;
@@ -146,9 +146,9 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
     // TODO: perform other reasonable checks
 
     if (vmi->hvm && (paddr + length - 1 > vmi->size)) {
-        errprint("--requesting PA [0x%llx] beyond memsize [0x%llx]\n",
+        errprint("--requesting PA [0x%"PRIx64"] beyond memsize [0x%"PRIx64"]\n",
                 paddr + length, vmi->size);
-        errprint("\tpaddr: %llx, length %llx, vmi->size %llx\n", paddr, length,
+        errprint("\tpaddr: %"PRIx64", length %"PRIx32", vmi->size %"PRIx64"\n", paddr, length,
                 vmi->size);
         return 0;
     }
@@ -210,11 +210,11 @@ memory_cache_insert(
 
     gint64 *key = &paddr;
     if ((entry = g_hash_table_lookup(vmi->memory_cache, key)) != NULL) {
-        dbprint("--MEMORY cache hit 0x%llx\n", paddr);
+        dbprint("--MEMORY cache hit 0x%"PRIx64"\n", paddr);
         return validate_and_return_data(vmi, entry);
     }
     else {
-        dbprint("--MEMORY cache set 0x%llx\n", paddr);
+        dbprint("--MEMORY cache set 0x%"PRIx64"\n", paddr);
 
         entry = create_new_entry(vmi, paddr, vmi->page_size);
         if (!entry) {
