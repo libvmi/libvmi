@@ -67,7 +67,7 @@ dump_exports(
                                &ordinal);
                 vmi_read_32_va(vmi, base3 + ordinal + sizeof(uint32_t),
                                0, &loc);
-                printf("%s:%d:0x%x\n", str, ordinal, loc);
+                printf("%s:%d:0x%"PRIx32"\n", str, ordinal, loc);
                 free(str);
             }
         }
@@ -352,7 +352,7 @@ peparse_assign_headers(
         *optional_header_type = magic;
     }
 
-    dbprint("--PEParse: magic is 0x%x\n", magic);
+    dbprint("--PEParse: magic is 0x%"PRIx16"\n", magic);
 
     if(magic == IMAGE_PE32_MAGIC && oh_pe32 != NULL) {
         *oh_pe32 = (struct optional_header_pe32 *) op_h_t;
@@ -440,7 +440,7 @@ peparse_get_export_table(
     /* Find & read the export header; assume a different page than the headers */
     export_header_va = base_vaddr + export_header_rva;
     dbprint
-        ("--PEParse: found export table at [VA] 0x%.16llx = 0x%.16llx + 0x%x\n",
+        ("--PEParse: found export table at [VA] 0x%.16"PRIx64" = 0x%.16"PRIx64" + 0x%"PRIx64"\n",
          export_header_va, vmi->os.windows_instance.ntoskrnl_va,
          export_header_rva);
 

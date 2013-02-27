@@ -338,9 +338,10 @@ find_cr3(
         vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
         return windows_find_cr3(vmi);
     }
-    else {
-        errprint("find_kpgd not implemented for this target OS\n");
-    }
+
+    errprint("find_kpgd not implemented for this target OS\n");
+
+    return 0;
 }
 
 /*
@@ -450,11 +451,11 @@ get_memory_layout(
         pm = VMI_PM_PAE;
         cr3 &= 0xFFFFFFE0;
     }   // if-else
-    dbprint("**set cr3 = 0x%.16llx\n", vmi->cr3);
+    dbprint("**set cr3 = 0x%.16"PRIx64"\n", vmi->cr3);
 
     /* testing to see CR3 value */
     if (!driver_is_pv(vmi) && cr3 > vmi->size) {   // sanity check on CR3
-        dbprint("** Note cr3 value [0x%llx] exceeds memsize [0x%llx]\n",
+        dbprint("** Note cr3 value [0x%"PRIx64"] exceeds memsize [0x%"PRIx64"]\n",
                 cr3, vmi->size);
     }
 
@@ -697,7 +698,7 @@ vmi_init_private(
             errprint("Failed to get memory size.\n");
             goto error_exit;
         }
-        dbprint("**set size = %llu [0x%llx]\n", (*vmi)->size,
+        dbprint("**set size = %"PRIu64" [0x%"PRIx64"]\n", (*vmi)->size,
                 (*vmi)->size);
 
         /* determine the page sizes and layout for target OS */
@@ -723,7 +724,7 @@ vmi_init_private(
         // Heuristic method
         if (!(*vmi)->cr3) {
             (*vmi)->cr3 = find_cr3((*vmi));
-            dbprint("**set cr3 = 0x%.16llx\n", (*vmi)->cr3);
+            dbprint("**set cr3 = 0x%.16"PRIx64"\n", (*vmi)->cr3);
         }   // if
 
 

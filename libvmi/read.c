@@ -446,8 +446,8 @@ vmi_read_win_unicode_struct_va(
         read = vmi_read_va(vmi, vaddr, pid, &us64, struct_size);
         if (read != struct_size) {
             dbprint
-                ("--%s: failed to read UNICODE_STRING at VA 0x%.16llx for pid %d\n",
-                 vaddr, pid);
+                ("--%s: failed to read UNICODE_STRING at VA 0x%.16"PRIx64" for pid %d\n",
+                 __FUNCTION__, vaddr, pid);
             goto out_error;
         }   // if
         buffer_va = us64.pBuffer;
@@ -460,8 +460,8 @@ vmi_read_win_unicode_struct_va(
         read = vmi_read_va(vmi, vaddr, pid, &us32, struct_size);
         if (read != struct_size) {
             dbprint
-                ("--%s: failed to read UNICODE_STRING at VA 0x%.16llx for pid %d\n",
-                 vaddr, pid);
+                ("--%s: failed to read UNICODE_STRING at VA 0x%.16"PRIx64" for pid %d\n",
+                 __FUNCTION__, vaddr, pid);
             goto out_error;
         }   // if
         buffer_va = us32.pBuffer;
@@ -477,7 +477,7 @@ vmi_read_win_unicode_struct_va(
     read = vmi_read_va(vmi, buffer_va, pid, us->contents, us->length);
     if (read != us->length) {
         dbprint
-            ("--%s: failed to read buffer at VA 0x%.16llx for pid %d\n",
+            ("--%s: failed to read buffer at VA 0x%.16"PRIx64" for pid %d\n",
              __FUNCTION__, buffer_va, pid);
         goto out_error;
     }   // if
@@ -560,8 +560,8 @@ vmi_convert_str_encoding(
 
     iconv_val = iconv(cd, &incurr, &inlen, &outcurr, &outlen);
     if ((size_t) - 1 == iconv_val) {
-        dbprint("%s: iconv failed, in string '%s' length %d, "
-                "out string '%s' length %d\n", __FUNCTION__,
+        dbprint("%s: iconv failed, in string '%s' length %zu, "
+                "out string '%s' length %zu\n", __FUNCTION__,
                 in->contents, in->length, out->contents, outlen);
         switch (errno) {
         case EILSEQ:

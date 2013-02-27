@@ -80,7 +80,7 @@ xen_get_memory_pfn(
                                         (unsigned long) pfn);
 
     if (MAP_FAILED == memory || NULL == memory) {
-        dbprint("--xen_get_memory_pfn failed on pfn=0x%llx\n", pfn);
+        dbprint("--xen_get_memory_pfn failed on pfn=0x%"PRIx64"\n", pfn);
         return NULL;
     }
 
@@ -174,7 +174,7 @@ xen_get_domainid_from_name(
     }
 
     char **domains = NULL;
-    int size = 0;
+    unsigned int size = 0;
     int i = 0;
     xs_transaction_t xth = XBT_NULL;
     unsigned long domainid = VMI_INVALID_DOMID;
@@ -479,7 +479,7 @@ xen_get_domainname(
     free(tmp);
 
     if (NULL == name) {
-        errprint("Couldn't get name of domain %lu from Xenstore %lu\n",
+        errprint("Couldn't get name of domain %lu from Xenstore\n",
                  xen_get_domainid(vmi));
         goto _bail;
     }

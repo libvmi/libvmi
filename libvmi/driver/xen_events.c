@@ -598,13 +598,13 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event)
         case VMI_MEM_X_ON_WRITE: access = HVMMEM_access_rx2rw; break;
     }
 
-    dbprint("--Setting memaccess for domain %d on page: %llx npages: %llu\n",
+    dbprint("--Setting memaccess for domain %lu on page: %"PRIu64" npages: %"PRIu64"\n",
         dom, event.page, npages);
-    if(rc = xc_hvm_set_mem_access(xch, dom, access, event.page, npages)){
+    if((rc = xc_hvm_set_mem_access(xch, dom, access, event.page, npages))){
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
-    dbprint("--Done Setting memaccess on page: %llu\n", event.page);
+    dbprint("--Done Setting memaccess on page: %"PRIu64"\n", event.page);
     return VMI_SUCCESS;
 }
 
@@ -648,7 +648,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     }
 
 
-    dbprint("--Waiting for xen events...(%lu ms)\n", timeout);
+    dbprint("--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
     rc = wait_for_event_or_timeout(xch, xe->mem_event.xce_handle, timeout);
     if ( rc < -1 ) {
         errprint("Error while waiting for event.\n");

@@ -56,6 +56,7 @@
 #define XEN_EVENTS_H
 
 #include <sys/poll.h>
+#include <unistd.h>
 
 #if ENABLE_XEN == 1
 #include <xenctrl.h>
