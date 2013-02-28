@@ -109,7 +109,7 @@ pid_cache_get(
     if ((entry = g_hash_table_lookup(vmi->pid_cache, &key)) != NULL) {
         entry->last_used = time(NULL);
         *dtb = entry->dtb;
-        dbprint("--PID cache hit %d -- 0x%.16llx\n", pid, *dtb);
+        dbprint("--PID cache hit %d -- 0x%.16"PRIx64"\n", pid, *dtb);
         return VMI_SUCCESS;
     }
 
@@ -128,7 +128,7 @@ pid_cache_set(
     pid_cache_entry_t entry = pid_cache_entry_create(pid, dtb);
 
     g_hash_table_insert(vmi->pid_cache, key, entry);
-    dbprint("--PID cache set %d -- 0x%.16llx\n", pid, dtb);
+    dbprint("--PID cache set %d -- 0x%.16"PRIx64"\n", pid, dtb);
 }
 
 status_t
@@ -217,7 +217,7 @@ sym_cache_get(
     if ((entry = g_hash_table_lookup(vmi->sym_cache, sym)) != NULL) {
         entry->last_used = time(NULL);
         *va = entry->va;
-        dbprint("--SYM cache hit %s -- 0x%.16llx\n", sym, *va);
+        dbprint("--SYM cache hit %s -- 0x%.16"PRIx64"\n", sym, *va);
         return VMI_SUCCESS;
     }
 
@@ -233,7 +233,7 @@ sym_cache_set(
     sym_cache_entry_t entry = sym_cache_entry_create(sym, va);
 
     g_hash_table_insert(vmi->sym_cache, sym, entry);
-    dbprint("--SYM cache set %s -- 0x%.16llx\n", sym, va);
+    dbprint("--SYM cache set %s -- 0x%.16"PRIx64"\n", sym, va);
 }
 
 status_t
@@ -363,7 +363,7 @@ v2p_cache_get(
 
         entry->last_used = time(NULL);
         *pa = entry->pa | ((vmi->page_size - 1) & va);
-        dbprint("--V2P cache hit 0x%.16llx -- 0x%.16llx (0x%.16llx/0x%.16llx)\n",
+        dbprint("--V2P cache hit 0x%.16"PRIx64" -- 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n",
                 va, *pa, key->dtb, key->va);
         return VMI_SUCCESS;
     }
@@ -384,7 +384,7 @@ v2p_cache_set(
     v2p_cache_key_t key = v2p_build_key(vmi, va, dtb);
     v2p_cache_entry_t entry = v2p_cache_entry_create(vmi, pa);
     g_hash_table_insert(vmi->v2p_cache, key, entry);
-    dbprint("--V2P cache set 0x%.16llx -- 0x%.16llx (0x%.16llx/0x%.16llx)\n", va,
+    dbprint("--V2P cache set 0x%.16"PRIx64" -- 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va,
             pa, key->dtb, key->va);
 }
 
@@ -397,7 +397,7 @@ v2p_cache_del(
     struct v2p_cache_key local_key;
     v2p_cache_key_t key = &local_key;
     v2p_cache_key_init(vmi, key, va, dtb);
-    dbprint("--V2P cache del 0x%.16llx (0x%.16llx/0x%.16llx)\n", va, key->dtb,
+    dbprint("--V2P cache del 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va, key->dtb,
             key->va);
 
     // key collision doesn't really matter here because worst case

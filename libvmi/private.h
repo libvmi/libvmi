@@ -38,6 +38,7 @@
 #include <math.h>
 #include <ctype.h>
 #include <time.h>
+#include <inttypes.h>
 #include "libvmi.h"
 
 /**
@@ -174,14 +175,14 @@ typedef struct _windows_unicode_string32 {
 #else
     void dbprint(
     char *format,
-    ...);
+    ...) __attribute__((format(printf,1,2)));
 #endif
     void errprint(
     char *format,
-    ...);
+    ...) __attribute__((format(printf,1,2)));
     void warnprint(
     char *format,
-    ...);
+    ...) __attribute__((format(printf,1,2)));
 
 #define safe_malloc(size) safe_malloc_ (size, __FILE__, __LINE__)
     void *safe_malloc_(
@@ -261,6 +262,18 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t vmi);
 
 /*-----------------------------------------
+ * core.c
+ */
+    status_t
+    get_memory_layout(
+    vmi_instance_t vmi,
+    page_mode_t *set_pm,
+    reg_t *set_cr3,
+    int *set_pae,
+    int *set_pse,
+    int *set_lme);
+
+/*-----------------------------------------
  * memory.c
  */
     void *vmi_read_page(
@@ -276,6 +289,9 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t instance,
     char *symbol,
     addr_t *address);
+    addr_t linux_pid_to_pgd(
+    vmi_instance_t vmi,
+    int pid);
 
 /*-----------------------------------------
  * os/windows/...
@@ -308,6 +324,14 @@ typedef struct _windows_unicode_string32 {
     status_t validate_pe_image(
     const uint8_t * const image,
     size_t len);
+    addr_t windows_pid_to_pgd(
+    vmi_instance_t vmi,
+    int pid);
+    status_t
+    windows_symbol_to_address(
+    vmi_instance_t vmi,
+    char *symbol,
+    addr_t *address);
 
     addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, int pid);
 

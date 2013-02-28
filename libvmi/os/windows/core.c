@@ -26,6 +26,7 @@
 
 #include "libvmi.h"
 #include "private.h"
+#include "peparse.h"
 
 addr_t
 get_ntoskrnl_base(
@@ -43,7 +44,7 @@ get_ntoskrnl_base(
             continue;
         }
         if (VMI_SUCCESS == peparse_validate_pe_image(image, MAX_HEADER_BYTES)) {
-            dbprint("--FOUND KERNEL at paddr=0x%llx\n", paddr);
+            dbprint("--FOUND KERNEL at paddr=0x%"PRIx64"\n", paddr);
             goto normal_exit;
         }
         paddr += vmi->page_size;
@@ -111,10 +112,10 @@ get_kpgd_method2(
             goto error_exit;
         }
         printf
-            ("LibVMI Suggestion: set win_sysproc=0x%llx in libvmi.conf for faster startup.\n",
+            ("LibVMI Suggestion: set win_sysproc=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              sysproc);
     }
-    dbprint("--got PA to PsInititalSystemProcess (0x%.16llx).\n",
+    dbprint("--got PA to PsInititalSystemProcess (0x%.16"PRIx64").\n",
             sysproc);
 
     /* get address for page directory (from system process) */
@@ -131,12 +132,12 @@ get_kpgd_method2(
         dbprint("--kpgd was zero\n");
         goto error_exit;
     }
-    dbprint("**set kpgd (0x%.16llx).\n", vmi->kpgd);
+    dbprint("**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     vmi_read_addr_pa(vmi,
                      sysproc + vmi->os.windows_instance.tasks_offset,
                      &vmi->init_task);
-    dbprint("**set init_task (0x%.16llx).\n", vmi->init_task);
+    dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
 error_exit:
@@ -168,7 +169,7 @@ get_kpgd_method1(
         goto error_exit;
     }
     sysproc = vmi_translate_kv2p(vmi, sysproc);
-    dbprint("--got PA to PsInititalSystemProcess (0x%.16llx).\n",
+    dbprint("--got PA to PsInititalSystemProcess (0x%.16"PRIx64").\n",
             sysproc);
 
     if (VMI_FAILURE ==
@@ -184,12 +185,12 @@ get_kpgd_method1(
         dbprint("--kpgd was zero\n");
         goto error_exit;
     }
-    dbprint("**set kpgd (0x%.16llx).\n", vmi->kpgd);
+    dbprint("**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     vmi_read_addr_pa(vmi,
                      sysproc + vmi->os.windows_instance.tasks_offset,
                      &vmi->init_task);
-    dbprint("**set init_task (0x%.16llx).\n", vmi->init_task);
+    dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
 error_exit:
@@ -216,7 +217,7 @@ get_kpgd_method0(
         vmi_translate_kv2p(vmi,
                            sysproc) -
         vmi->os.windows_instance.tasks_offset;
-    dbprint("--got PA to PsActiveProcessHead (0x%.16llx).\n", sysproc);
+    dbprint("--got PA to PsActiveProcessHead (0x%.16"PRIx64").\n", sysproc);
 
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi,
@@ -231,12 +232,12 @@ get_kpgd_method0(
         dbprint("--kpgd was zero\n");
         goto error_exit;
     }
-    dbprint("**set kpgd (0x%.16llx).\n", vmi->kpgd);
+    dbprint("**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     vmi_read_addr_pa(vmi,
                      sysproc + vmi->os.windows_instance.tasks_offset,
                      &vmi->init_task);
-    dbprint("**set init_task (0x%.16llx).\n", vmi->init_task);
+    dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
     return VMI_SUCCESS;
 error_exit:
     return VMI_FAILURE;
@@ -262,12 +263,12 @@ windows_init(
         goto error_exit;
     }
 
-    dbprint("**ntoskrnl @ VA 0x%.16llx.\n",
+    dbprint("**ntoskrnl @ VA 0x%.16"PRIx64".\n",
             vmi->os.windows_instance.ntoskrnl_va);
 
     vmi->os.windows_instance.ntoskrnl =
         vmi_translate_kv2p(vmi, vmi->os.windows_instance.ntoskrnl_va);
-    dbprint("**set ntoskrnl (0x%.16llx).\n",
+    dbprint("**set ntoskrnl (0x%.16"PRIx64").\n",
             vmi->os.windows_instance.ntoskrnl);
 
     /* get the kernel page directory location */

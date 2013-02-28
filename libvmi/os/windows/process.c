@@ -172,7 +172,7 @@ find_pname_offset(
 
             if (check(value)) { // look for specific magic #
                 dbprint
-                    ("--%s: found magic value 0x%.8x @ offset 0x%.8x\n",
+                    ("--%s: found magic value 0x%.8"PRIx32" @ offset 0x%.8"PRIx64"\n",
                      __FUNCTION__, value, block_pa + offset);
 
                 unsigned char haystack[0x500];
@@ -194,7 +194,7 @@ find_pname_offset(
                         block_pa + offset +
                         vmi->os.windows_instance.tasks_offset;
                     dbprint
-                        ("--%s: found Idle process at 0x%.8x + 0x%x\n",
+                        ("--%s: found Idle process at 0x%.8"PRIx64" + 0x%x\n",
                          __FUNCTION__, block_pa + offset, i);
                     boyer_moore_fini(bm);
                     return i;

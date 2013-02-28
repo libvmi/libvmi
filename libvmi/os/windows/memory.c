@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
+#include "driver/interface.h"
 
 status_t
 windows_symbol_to_address(
@@ -47,7 +48,7 @@ windows_symbol_to_address(
     /* check kpcr if we have a cr3 */
     if ( /*cr3 && */ VMI_SUCCESS ==
         windows_kpcr_lookup(vmi, symbol, address)) {
-        dbprint("--got symbol from kpcr (%s --> 0x%lx).\n", symbol,
+        dbprint("--got symbol from kpcr (%s --> 0x%"PRIx64").\n", symbol,
                 *address);
         return VMI_SUCCESS;
     }
@@ -59,7 +60,7 @@ windows_symbol_to_address(
 
         *address = vmi->os.windows_instance.ntoskrnl_va + rva;
         dbprint
-            ("--got symbol from PE export table (%s --> 0x%.16llx).\n",
+            ("--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
              symbol, *address);
         return VMI_SUCCESS;
     }
