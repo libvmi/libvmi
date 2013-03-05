@@ -423,6 +423,7 @@ xen_init(
     }
 #endif /* VMI_DEBUG */
 
+#if ENABLE_XEN_EVENTS==1
     /* Only enable events for hvm and IFF(mode & VMI_INIT_EVENTS) */
     if(xen_get_instance(vmi)->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
         if(xen_events_init(vmi)==VMI_FAILURE){
@@ -430,6 +431,7 @@ xen_init(
             goto _bail;
         }
     }
+#endif
 
     memory_cache_init(vmi, xen_get_memory, xen_release_memory, 0);
 
@@ -444,9 +446,11 @@ void
 xen_destroy(
     vmi_instance_t vmi)
 {
+#if ENABLE_XEN_EVENTS==1
     if(xen_get_instance(vmi)->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
         xen_events_destroy(vmi);
     }
+#endif
 
     xen_get_instance(vmi)->domainid = VMI_INVALID_DOMID;
 

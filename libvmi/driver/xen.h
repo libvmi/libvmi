@@ -76,7 +76,9 @@ typedef struct xen_instance {
     struct xs_handle *xshandle;  /**< handle to xenstore daemon */
     char *name;
 
+#if ENABLE_XEN_EVENTS==1
     xen_events_t *events; /**< handle to events data */
+#endif
 } xen_instance_t;
 
 #else
