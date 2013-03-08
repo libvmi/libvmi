@@ -58,15 +58,24 @@
 #include <sys/poll.h>
 #include <unistd.h>
 
-#if ENABLE_XEN == 1
+#if ENABLE_XEN == 1 && ENABLE_XEN_EVENTS==1
 #include <xenctrl.h>
 #include <xen/mem_event.h>
 #include <xen/hvm/save.h>
 
 typedef int spinlock_t;
+#ifdef XENCTRL_HAS_XC_INTERFACE 
+#if XENCTRL_HAS_XC_INTERFACE==1
+typedef xc_evtchn* xc_evtchn_t;
+#else
+#error Unknown libxenctrl interface version! This constitutes a bug and requires an update to the LibVMI Xen driver.
+#endif
+#else 
+typedef int xc_evtchn_t;
+#endif
 
 typedef struct {
-    xc_evtchn *xce_handle;
+    xc_evtchn_t xce_handle;
     int port;
     mem_event_back_ring_t back_ring;
 #ifdef XENEVENT42
@@ -83,9 +92,8 @@ typedef struct {
 #else
 typedef struct {
 } xen_mem_event_t;
+
 #endif /* ENABLE_XEN */
-
-
 typedef struct xen_events {
     xen_mem_event_t mem_event;
 } xen_events_t;
