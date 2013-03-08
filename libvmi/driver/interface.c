@@ -140,9 +140,11 @@ driver_xen_setup(
     instance->is_pv_ptr = &xen_is_pv;
     instance->pause_vm_ptr = &xen_pause_vm;
     instance->resume_vm_ptr = &xen_resume_vm;
+#if ENABLE_XEN_EVENTS==1
     instance->events_listen_ptr = &xen_events_listen;
     instance->set_reg_access_ptr = &xen_set_reg_access;
     instance->set_mem_access_ptr = &xen_set_mem_access;
+#endif
 }
 
 static void

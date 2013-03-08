@@ -21,6 +21,27 @@ AC_SUBST(VERSION)
 AC_SUBST(RELEASE)
 
 dnl -----------------------------------------------
+dnl Helper function to check presence of a define
+dnl -----------------------------------------------
+AC_DEFUN([AC_CHECK_DEFINE],[dnl
+    AC_CACHE_CHECK(for $1 in $2, ac_cv_define_$1,
+        AC_EGREP_CPP([YES_IS_DEFINED], [
+#include <$2>
+#ifdef $1
+YES_IS_DEFINED
+#endif
+        ], ac_cv_define_$1=yes, ac_cv_define_$1=no)
+    )
+    if test "$ac_cv_define_$1" = "yes" ; then
+        AC_DEFINE([HAVE_$1],[],[Added by AC_CHECK_DEFINE])
+        have_$1="yes"
+    else
+        have_$1="no"
+    fi
+])dnl
+AC_DEFINE([HAVE_$1],[],[Added by AC_CHECK_DEFINE])
+
+dnl -----------------------------------------------
 dnl Check package options
 dnl -----------------------------------------------
 AC_ARG_ENABLE([xen],
@@ -29,6 +50,13 @@ AC_ARG_ENABLE([xen],
       [enable_xen=$enableval],
       [enable_xen=yes])
 AM_CONDITIONAL([XEN], [test x$enable_xen = xyes])
+
+AC_ARG_ENABLE([xen_events],
+      [AS_HELP_STRING([--enable-xen-events],
+         [Support use of Xen memory events (default is no)])],
+      [enable_xen_events=$enableval],
+      [enable_xen_events=no])
+AM_CONDITIONAL([XEN], [test x$enable_xen_events = xyes])
 
 AC_ARG_ENABLE([kvm],
       [AS_HELP_STRING([--disable-kvm],
@@ -61,17 +89,17 @@ AM_PROG_LIBTOOL
 AM_SANITY_CHECK
 
 have_xen='no'
-xen_space=' '
+xen_space='      '
+have_xen_events='no'
+xen_event_space=' '
 [if test "$enable_xen" = "yes"]
 [then]
-    xen_space=''
     AC_CHECK_LIB(xenstore, xs_read, [], [missing="yes"])
     [if test "$missing" = "yes"]
     [then]
         AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
         missing='no'
         enable_xen='no'
-        xen_space=' '
         have_xen='missing xenstore'
     [else]
         AC_CHECK_LIB(xenctrl, xc_interface_open, [], [missing="yes"])
@@ -80,27 +108,45 @@ xen_space=' '
             AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
             missing='no'
             enable_xen='no'
-            xen_space=' '
             have_xen='missing xenctrl'
         [else]
             AC_DEFINE([ENABLE_XEN], [1], [Define to 1 to enable Xen support.])
             have_xen='yes'
+            xen_space='     '
 
             AC_CHECK_HEADERS([xenstore.h])
-            AC_CHECK_LIB(xenctrl, [xc_mem_event_enable], [AC_DEFINE(XENEVENT41, 1, "Xen memory event 4.1 style")])
-            AC_CHECK_LIB(xenctrl, [xc_mem_access_enable], [AC_DEFINE(XENEVENT42, 1, "Xen memory event 4.2 style")])
+
+            [if test "$enable_xen_events" = "yes"]
+            [then]
+                # Check for xen events capability (only relevant if Xen is enabled).
+                AC_CHECK_LIB(xenctrl, [xc_mem_event_enable], [AC_DEFINE([XENEVENT41], [1], "Xen memory event 4.1 style")], [no41events="1"])
+                AC_CHECK_LIB(xenctrl, [xc_mem_access_enable], [AC_DEFINE([XENEVENT42], [1], "Xen memory event 4.2 style")], [no42events="1"])
+                AC_CHECK_DEFINE(XENCTRL_HAS_XC_INTERFACE, xenctrl.h) 
+
+                #validate that Xen events are in fact possible
+                [if (test "x$no41events" = "x1" || test "x$no42events" = "x1") && (test "$have_XENCTRL_HAS_XC_INTERFACE" = "yes") ]
+                [then]
+                    have_xen_events='yes'
+                    xen_event_space=''
+                    AC_DEFINE([ENABLE_XEN_EVENTS], [1], [Define to 1 to enable Xen mem events support.])
+                [else]
+                    AC_MSG_WARN([Xen event support not detected and has been disabled.])
+                    have_xen_events='missing event support'
+                    enable_xen_events='no'
+                [fi]
+            [fi]
         [fi]
     [fi]
 
     AC_CHECK_TYPE(
         [vcpu_guest_context_any_t],
-        AC_DEFINE([HAVE_CONTEXT_ANY], [1], [Checks existance of vcpu_guest_context_any_t to know how to check cpu context on this libxc version.]),
+        AC_DEFINE([HAVE_CONTEXT_ANY], [1], [Checks existence of vcpu_guest_context_any_t to know how to check cpu context on this libxc version.]),
         [],
         [#include "xenctrl.h"])
 [fi]
 
 have_kvm='no'
-kvm_space=' '
+kvm_space='      '
 [if test "$enable_kvm" = "yes"]
 [then]
     AC_PATH_PROG(GREP, grep)
@@ -109,7 +155,6 @@ kvm_space=' '
         AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
         missing='no'
         enable_kvm='no'
-        kvm_space=' '
         have_kvm='grep missing'
     [fi]
 
@@ -119,7 +164,6 @@ kvm_space=' '
         AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
         missing='no'
         enable_kvm='no'
-        kvm_space=' '
         have_kvm='lsmod missing'
     [fi]
     
@@ -134,34 +178,32 @@ kvm_space=' '
                 AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
                 missing='no'
                 enable_kvm='no'
-                kvm_space=' '
                 have_kvm='libvirt missing'
             [else]
                 AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
                 have_kvm='yes'
-                kvm_space=''
+                kvm_space='     '
             [fi]
         [else]
             AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
             missing='no'
             enable_kvm='no'
-            kvm_space=' '
             have_kvm='kernel module is not loaded'
         [fi]
     [fi]
 [fi]
 
 have_file='no'
-file_space=' '
+file_space='      '
 [if test "$enable_file" = "yes"]
 [then]
     AC_DEFINE([ENABLE_FILE], [1], [Define to 1 to enable file support.])
-    file_space=''
+    file_space='     '
     have_file='yes'
 [fi]
 
 have_vmifs='no'
-vmifs_space=' '
+vmifs_space='      '
 [if test "$enable_vmifs" = "yes"]
 [then]
     vmifs_space=''
@@ -171,7 +213,6 @@ vmifs_space=' '
         AC_DEFINE([ENABLE_VMIFS], [0], [Define to 1 to build VMIFS.])
         have_vmifs='FUSE library missing (libfuse-dev)'
         enable_vmifs='no'
-        vmifs_space=' '
     [else]
         AC_DEFINE([ENABLE_VMIFS], [1], [Define to 1 to build VMIFS.])
         AC_SUBST([FUSE_CFLAGS])
@@ -179,6 +220,7 @@ vmifs_space=' '
         vmifs_dir="tools/vmifs"
         AC_SUBST(vmifs_dir)
         have_vmifs='yes'
+        vmifs_space='     '
         AC_CONFIG_FILES(tools/vmifs/Makefile)
     [fi]
 [fi]
@@ -239,15 +281,16 @@ Host system type: $host
 Build system type: $build
 Installation prefix: $prefix
 
-Feature      | Option             | Reason
--------------|--------------------|-----------------------
+Feature      | Option                  | Reason
+-------------|-------------------------|----------------------------
 Xen Support  | --enable-xen=$enable_xen$xen_space   | $have_xen
+Xen Events   | --enable-xen-events=$enable_xen_events$xen_event_space | $have_xen_events
 KVM Support  | --enable-kvm=$enable_kvm$kvm_space   | $have_kvm
 File Support | --enable-file=$enable_file$file_space  | $have_file
--------------|--------------------|-----------------------
+-------------|-------------------------|----------------------------
 
-Tools        | Option             | Reason
--------------|--------------------|-----------------------
+Tools        | Option                  | Reason
+-------------|-------------------------|----------------------------
 VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space | $have_vmifs
  
 If everything is correct, you can now run 'make' and (optionally)

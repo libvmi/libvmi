@@ -59,10 +59,19 @@
 
 #include <string.h>
 
-//----------------------------------------------------------------------------
-// Helper functions
+/*----------------------------------------------------------------------------
+ * Helper functions
+ */
 
-#if ENABLE_XEN==1
+/* Only build if Xen and Xen memory events are explicitly enabled by the 
+ *  configure script.
+ *
+ * Use the xenctrl interface version defined (from xenctrl.h) to validate
+ *  that all the features we expect are present. This avoids build failures
+ *  on 4.0.x which had some memory event functions defined, yet lacked
+ *  all of the features LibVMI needs.
+ */
+#if ENABLE_XEN==1 && ENABLE_XEN_EVENTS==1 && XENCTRL_HAS_XC_INTERFACE
 static xen_events_t *xen_get_events(vmi_instance_t vmi) 
 {
     return xen_get_instance(vmi)->events;
@@ -723,5 +732,10 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event){
 
 status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event){
 	return VMI_FAILURE;
+}
+status_t xen_events_init(vmi_instance_t vmi){
+	return VMI_FAILURE;
+}
+void xen_events_destroy(vmi_instance_t vmi){
 }
 #endif /* ENABLE_XEN */
