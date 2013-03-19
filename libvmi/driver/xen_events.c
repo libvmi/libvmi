@@ -412,11 +412,6 @@ status_t xen_events_init(vmi_instance_t vmi)
         }
     }
 
-    /* Now that the ring is set, remove it from the guest's physmap */
-    if ( xc_domain_decrease_reservation_exact(xch,
-                    dom, 1, 0, &ring_pfn) )
-        errprint("Failed to remove ring from guest physmap");
-
 #elif XENEVENT41
 
     rc = posix_memalign(&xe->mem_event.ring_page, getpagesize(), getpagesize());
@@ -448,12 +443,6 @@ status_t xen_events_init(vmi_instance_t vmi)
     }
 
 #endif
-
-    // Initialise ring
-    SHARED_RING_INIT((mem_event_sring_t *)xe->mem_event.ring_page);
-    BACK_RING_INIT(&xe->mem_event.back_ring,
-                   (mem_event_sring_t *)xe->mem_event.ring_page,
-                   getpagesize());
 
 #ifdef XENEVENT42
     // Initialise Xen
@@ -505,6 +494,17 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     xe->mem_event.port = rc;
     dbprint("Bound to event channel on port == %d\n", xe->mem_event.port);
+
+    // Initialise ring
+    SHARED_RING_INIT((mem_event_sring_t *)xe->mem_event.ring_page);
+    BACK_RING_INIT(&xe->mem_event.back_ring,
+                   (mem_event_sring_t *)xe->mem_event.ring_page,
+                   getpagesize());
+
+    /* Now that the ring is set, remove it from the guest's physmap */
+    if ( xc_domain_decrease_reservation_exact(xch,
+                    dom, 1, 0, &ring_pfn) )
+        errprint("Failed to remove ring from guest physmap");
 
     // Get domaininfo
     /* TODO MARESCA non allocated would work fine here via &dominfo below */
