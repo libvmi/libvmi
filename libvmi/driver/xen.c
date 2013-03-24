@@ -41,7 +41,7 @@
 #include <stdint.h>
 #if HAVE_XENSTORE_H
   #include <xenstore.h>
-#else
+#elif HAVE_XS_H
   #include <xs.h>
 #endif
 #include <xen/hvm/save.h>
@@ -169,6 +169,11 @@ xen_get_domainid_from_name(
     char *name)
 {
 
+// This function is only usable with xenstore
+#ifndef HAVE_LIBXENSTORE
+    return VMI_INVALID_DOMID;
+#else
+
     if (name == NULL) {
         return VMI_INVALID_DOMID;
     }
@@ -217,6 +222,7 @@ _bail:
     if (xsh)
         CLOSE_XS_DAEMON(xsh);
     return domainid;
+#endif
 }
 
 status_t
@@ -225,6 +231,12 @@ xen_get_name_from_domainid(
     unsigned long domid,
     char **name)
 {
+
+// This function is only usable with xenstore
+#ifndef HAVE_LIBXENSTORE
+    return VMI_FAILURE;
+#else
+
     status_t ret = VMI_FAILURE;
     if (domid == VMI_INVALID_DOMID) {
         return ret;
@@ -255,7 +267,7 @@ _bail:
     if (xsh)
         CLOSE_XS_DAEMON(xsh);
     return ret;
-
+#endif
 }
 
 unsigned long
@@ -402,11 +414,13 @@ xen_init(
         goto _bail;
     }
 
+#ifdef HAVE_LIBXENSTORE
     xen_get_instance(vmi)->xshandle = OPEN_XS_DAEMON();
     if (!xen_get_instance(vmi)->xshandle) {
         errprint("xs_domain_open failed\n");
         goto _bail;
     }
+#endif
 
     /* record the count of VCPUs used by this instance */
     vmi->num_vcpus = xen_get_instance(vmi)->info.max_vcpu_id + 1;
@@ -459,9 +473,12 @@ xen_destroy(
         xc_interface_close(xchandle);
     }
 
+#ifdef HAVE_LIBXENSTORE
     if(xen_get_instance(vmi)->xshandle) {
         CLOSE_XS_DAEMON(xen_get_instance(vmi)->xshandle);
     }
+#endif
+
 }
 
 status_t
@@ -469,6 +486,12 @@ xen_get_domainname(
     vmi_instance_t vmi,
     char **name)
 {
+
+// This function is only usable with Xenstore
+#ifndef HAVE_LIBXENSTORE
+    return VMI_FAILURE;
+#else
+
     status_t ret = VMI_FAILURE;
     xs_transaction_t xth = XBT_NULL;
 
@@ -491,6 +514,7 @@ xen_get_domainname(
 
 _bail:
     return ret;
+#endif
 }
 
 void

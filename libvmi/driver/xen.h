@@ -47,16 +47,20 @@ typedef xc_interface *libvmi_xenctrl_handle_t;
 #define XENCTRL_HANDLE_INVALID NULL
 
     // new way to open/close XS daemon
+#ifdef HAVE_LIBXENSTORE
 #define OPEN_XS_DAEMON()    xs_open(0)
 #define CLOSE_XS_DAEMON(h)  xs_close(h)
+#endif
 #else
 typedef int libvmi_xenctrl_handle_t;
 
 #define XENCTRL_HANDLE_INVALID (-1)
 
+#ifdef HAVE_LIBXENSTORE
     // these are supported, but deprecated in xen 4.1
 #define OPEN_XS_DAEMON()     xs_daemon_open()
 #define CLOSE_XS_DAEMON(h)   xs_daemon_close(h)
+#endif
 #endif
 
 typedef struct xen_instance {
@@ -73,7 +77,10 @@ typedef struct xen_instance {
 
     uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
 
+#ifdef HAVE_LIBXENSTORE
     struct xs_handle *xshandle;  /**< handle to xenstore daemon */
+#endif
+
     char *name;
 
 #if ENABLE_XEN_EVENTS==1
