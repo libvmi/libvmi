@@ -20,10 +20,10 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define NB09                0x4e423039
-#define NB10                0x4e423130
-#define NB11                0x4e423131
-#define RSDS                0x52534453
+#define NB09 0x3930424e // 90BN
+#define NB10 0x3031424e // 01BN
+#define NB11 0x3131424e // 11BN
+#define RSDS 0x53445352 // SDSR
 
 #define IMAGE_DEBUG_TYPE_UNKNOWN          0
 #define IMAGE_DEBUG_TYPE_COFF             1
