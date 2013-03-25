@@ -79,6 +79,13 @@ AC_ARG_ENABLE([vmifs],
       [enable_vmifs=yes])
 AM_CONDITIONAL([VMIFS], [test x$enable_vmifs = xyes])
 
+AC_ARG_WITH([xenstore],
+      [AS_HELP_STRING([--without-xenstore],
+         [Build LibVMI without Xenstore])],
+      [with_xenstore=$withval],
+      [with_xenstore=yes])
+AM_CONDITIONAL([XENSTORE], [test x$with_xenstore = xyes])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -94,8 +101,15 @@ have_xen_events='no'
 xen_event_space=' '
 [if test "$enable_xen" = "yes"]
 [then]
-    AC_CHECK_LIB(xenstore, xs_read, [], [missing="yes"])
-    [if test "$missing" = "yes"]
+
+    [if test "$with_xenstore" = "yes"]
+    [then]
+        AC_CHECK_LIB(xenstore, xs_read, [], [missing="yes"])
+        AC_CHECK_HEADERS([xenstore.h])
+        AC_CHECK_HEADERS([xs.h])
+    [fi]
+
+    [if test "$with_xenstore" = "yes" -a "$missing" = "yes"]
     [then]
         AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
         missing='no'
@@ -113,8 +127,6 @@ xen_event_space=' '
             AC_DEFINE([ENABLE_XEN], [1], [Define to 1 to enable Xen support.])
             have_xen='yes'
             xen_space='     '
-
-            AC_CHECK_HEADERS([xenstore.h])
 
             [if test "$enable_xen_events" = "yes"]
             [then]
