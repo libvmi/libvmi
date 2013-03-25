@@ -196,7 +196,7 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
 
     // The PDB header has to be PDB 7.0
     // http://www.debuginfo.com/articles/debuginfomatch.html
-    if(pdb_header->cv_signature == RSDS) {
+    if(pdb_header->cv_signature != RSDS) {
        printf("The CodeView debug information has to be in PDB 7.0 for the kernel!\n");
        return VMI_FAILURE;
     }

@@ -53,10 +53,12 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_p, uint8_t *pe) {
 
         char *name = vmi_read_str_pa(vmi, base_p + et.name);
 
-        if(strcmp("ntoskrnl.exe", name)==0)
-            ret = VMI_SUCCESS;
+        if(name) {
+            if(strcmp("ntoskrnl.exe", name)==0)
+                ret = VMI_SUCCESS;
 
-        free(name);
+            free(name);
+        }
     }
 
     return ret;
@@ -81,7 +83,6 @@ void print_os_version(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
         minor_os_version=oh32->minor_os_version;
 
         printf("32-bit");
-
     } else
     if(optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
 
@@ -89,7 +90,6 @@ void print_os_version(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
         minor_os_version=oh32plus->minor_os_version;
 
         printf("64-bit");
-
     }
 
     if(major_os_version == 3) {
@@ -115,7 +115,7 @@ void print_os_version(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
         if (minor_os_version == 1)
                 printf(" Windows 7");
         if (minor_os_version == 2)
-                printf(" Windows 8?");
+                printf(" Windows 8");
     } else {
             printf("OS version unknown or not Windows\n");
     }
@@ -176,7 +176,7 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
 
     // The PDB header has to be PDB 7.0
     // http://www.debuginfo.com/articles/debuginfomatch.html
-    if(pdb_header->cv_signature == RSDS) {
+    if(pdb_header->cv_signature != RSDS) {
        printf("The CodeView debug information has to be in PDB 7.0 for the kernel!\n");
        return;
     }
