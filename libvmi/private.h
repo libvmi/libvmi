@@ -308,6 +308,8 @@ typedef struct _windows_unicode_string32 {
     status_t windows_export_to_rva(
     vmi_instance_t,
     char *,
+    addr_t,
+    uint32_t,
     addr_t *);
     status_t windows_kpcr_lookup(
     vmi_instance_t vmi,

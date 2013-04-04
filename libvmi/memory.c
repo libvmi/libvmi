@@ -560,6 +560,28 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
     return ret;
 }
 
+/* convert a symbol into an address */
+addr_t vmi_translate_usym2v (vmi_instance_t vmi, addr_t base_vaddr, uint32_t pid, char *symbol)
+{
+    addr_t ret = 0;
+
+    // TODO: caching
+
+        if (VMI_OS_LINUX == vmi->os_type) {
+            // TODO
+            return VMI_FAILURE;
+        }
+        else if (VMI_OS_WINDOWS == vmi->os_type) {
+            if (VMI_FAILURE == windows_export_to_rva(vmi, symbol, base_vaddr, pid, &ret)) {
+                ret = 0;
+            } else {
+                ret += base_vaddr;
+            }
+        }
+
+    return ret;
+}
+
 /* finds the address of the page global directory for a given pid */
 addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid)
 {

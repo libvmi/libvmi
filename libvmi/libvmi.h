@@ -385,6 +385,23 @@ addr_t vmi_translate_ksym2v(
     char *symbol);
 
 /**
+ * Performs the translation from a symbol to a virtual address.
+ * On Windows this function walks the PE export table.
+ * Linux is unimplemented at this time.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] base_vaddr Base virtual address (beginning of PE header in Windows)
+ * @param[in] pid PID
+ * @param[in] symbol Desired symbol to translate
+ * @return Virtual address, or zero on error
+ */
+addr_t vmi_translate_usym2v(
+    vmi_instance_t vmi,
+    addr_t base_vaddr,
+    uint32_t pid,
+    char *symbol);
+
+/**
  * Given a \a pid, this function returns the virtual address of the
  * directory table base for this process' address space.  This value
  * is effectively what would be in the CR3 register while this process

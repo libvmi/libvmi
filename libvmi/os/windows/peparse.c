@@ -34,19 +34,22 @@
 char *
 rva_to_string(
     vmi_instance_t vmi,
-    addr_t rva)
+    addr_t rva,
+    addr_t base_addr,
+    uint32_t pid)
 {
-    addr_t vaddr = vmi->os.windows_instance.ntoskrnl_va + rva;
+    addr_t vaddr = base_addr + rva;
 
-    return vmi_read_str_va(vmi, vaddr, 0);
+    return vmi_read_str_va(vmi, vaddr, pid);
 }
 
 void
 dump_exports(
     vmi_instance_t vmi,
-    struct export_table *et)
+    struct export_table *et,
+    addr_t base_addr,
+    uint32_t pid)
 {
-    uint32_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     addr_t base1 = base_addr + et->address_of_names;
     addr_t base2 = base_addr + et->address_of_name_ordinals;
     addr_t base3 = base_addr + et->address_of_functions;
@@ -59,9 +62,9 @@ dump_exports(
         uint32_t loc = 0;
         char *str = NULL;
 
-        vmi_read_32_va(vmi, base1 + i * sizeof(uint32_t), 0, &rva);
+        vmi_read_32_va(vmi, base1 + i * sizeof(uint32_t), pid, &rva);
         if (rva) {
-            str = rva_to_string(vmi, (addr_t) rva);
+            str = rva_to_string(vmi, (addr_t) rva, base_addr, pid);
             if (str) {
                 vmi_read_16_va(vmi, base2 + i * sizeof(uint16_t), 0,
                                &ordinal);
@@ -79,15 +82,16 @@ get_export_rva(
     vmi_instance_t vmi,
     addr_t *rva,
     int aof_index,
-    struct export_table *et)
+    struct export_table *et,
+    addr_t base_addr,
+    uint32_t pid)
 {
-    addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     addr_t rva_loc =
         base_addr + et->address_of_functions +
         aof_index * sizeof(uint32_t);
 
     uint32_t tmp = 0;
-    status_t ret = vmi_read_32_va(vmi, rva_loc, 0, &tmp);
+    status_t ret = vmi_read_32_va(vmi, rva_loc, pid, &tmp);
 
     *rva = (addr_t) tmp;
     return ret;
@@ -97,17 +101,19 @@ int
 get_aof_index(
     vmi_instance_t vmi,
     int aon_index,
-    struct export_table *et)
+    struct export_table *et,
+    addr_t base_addr,
+    uint32_t pid)
 {
-    addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     addr_t aof_index_loc =
         base_addr + et->address_of_name_ordinals +
         aon_index * sizeof(uint16_t);
-    uint32_t aof_index = 0;
 
-    if (vmi_read_32_va(vmi, aof_index_loc, 0, &aof_index) ==
+    uint16_t aof_index = 0;
+
+    if (vmi_read_16_va(vmi, aof_index_loc, pid, &aof_index) ==
         VMI_SUCCESS) {
-        return (int) (aof_index & 0xffff);
+        return (int) aof_index;
     }
     else {
         return -1;
@@ -119,9 +125,10 @@ int
 get_aon_index_linear(
     vmi_instance_t vmi,
     char *symbol,
-    struct export_table *et)
+    struct export_table *et,
+    addr_t base_addr,
+    uint32_t pid)
 {
-    addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     uint32_t i = 0;
 
     for (; i < et->number_of_names; ++i) {
@@ -129,9 +136,9 @@ get_aon_index_linear(
             base_addr + et->address_of_names + i * sizeof(uint32_t);
         uint32_t str_rva = 0;
 
-        vmi_read_32_va(vmi, str_rva_loc, 0, &str_rva);
+        vmi_read_32_va(vmi, str_rva_loc, pid, &str_rva);
         if (str_rva) {
-            char *rva = rva_to_string(vmi, (addr_t) str_rva);
+            char *rva = rva_to_string(vmi, (addr_t) str_rva, base_addr, pid);
 
             if (NULL != rva) {
                 if (strncmp(rva, symbol, strlen(rva)) == 0) {
@@ -154,7 +161,9 @@ find_aon_idx_bin(
     char *symbol,
     addr_t aon_base_va,
     int low,
-    int high)
+    int high,
+    addr_t base_addr,
+    uint32_t pid)
 {
     int mid, cmp;
     addr_t str_rva_loc; // location of curr name's RVA
@@ -168,22 +177,21 @@ find_aon_idx_bin(
     mid = (low + high) / 2;
     str_rva_loc = aon_base_va + mid * sizeof(uint32_t);
 
-    vmi_read_32_va(vmi, str_rva_loc, 0, &str_rva);
+    vmi_read_32_va(vmi, str_rva_loc, pid, &str_rva);
 
     if (!str_rva)
         goto not_found;
 
     // get the curr string & compare to symbol
-    name = rva_to_string(vmi, (addr_t) str_rva);
+    name = rva_to_string(vmi, (addr_t) str_rva, base_addr, pid);
     cmp = strcmp(symbol, name);
     free(name);
 
     if (cmp < 0) {  // symbol < name ==> try lower region
-        return find_aon_idx_bin(vmi, symbol, aon_base_va, low, mid - 1);
+        return find_aon_idx_bin(vmi, symbol, aon_base_va, low, mid - 1, base_addr, pid);
     }
     else if (cmp > 0) { // symbol > name ==> try higher region
-        return find_aon_idx_bin(vmi, symbol, aon_base_va, mid + 1,
-                                high);
+        return find_aon_idx_bin(vmi, symbol, aon_base_va, mid + 1, high, base_addr, pid);
     }
     else {  // symbol == name
         return mid; // found
@@ -198,29 +206,32 @@ int
 get_aon_index_binary(
     vmi_instance_t vmi,
     char *symbol,
-    struct export_table *et)
+    struct export_table *et,
+    addr_t base_addr,
+    uint32_t pid)
 {
-    addr_t base_addr = vmi->os.windows_instance.ntoskrnl_va;
     addr_t aon_base_addr = base_addr + et->address_of_names;
     int name_ct = et->number_of_names;
 
-    return find_aon_idx_bin(vmi, symbol, aon_base_addr, 0, name_ct - 1);
+    return find_aon_idx_bin(vmi, symbol, aon_base_addr, 0, name_ct - 1, base_addr, pid);
 }
 
 int
 get_aon_index(
     vmi_instance_t vmi,
     char *symbol,
-    struct export_table *et)
+    struct export_table *et,
+    addr_t base_addr,
+    uint32_t pid)
 {
-    int index = get_aon_index_binary(vmi, symbol, et);
+    int index = get_aon_index_binary(vmi, symbol, et, base_addr, pid);
 
     if (-1 == index) {
         dbprint
             ("--PEParse: Falling back to linear search for aon index\n");
         // This could be useful for malformed PE headers where the list isn't
         // in alpha order (e.g., malware)
-        index = get_aon_index_linear(vmi, symbol, et);
+        index = get_aon_index_linear(vmi, symbol, et, base_addr, pid);
     }
     return index;
 }
@@ -464,31 +475,32 @@ status_t
 windows_export_to_rva(
     vmi_instance_t vmi,
     char *symbol,
+    addr_t base_vaddr,
+    uint32_t pid,
     addr_t *rva)
 {
     struct export_table et;
     int aon_index = -1;
     int aof_index = -1;
-    addr_t base_vaddr = vmi->os.windows_instance.ntoskrnl_va;
 
     // get export table structure
-    if (peparse_get_export_table(vmi, base_vaddr, 0, &et) != VMI_SUCCESS) {
+    if (peparse_get_export_table(vmi, base_vaddr, pid, &et) != VMI_SUCCESS) {
         dbprint("--PEParse: failed to get export table\n");
         return VMI_FAILURE;
     }
 
     // find AddressOfNames index for export symbol
-    if ((aon_index = get_aon_index(vmi, symbol, &et)) == -1) {
+    if ((aon_index = get_aon_index(vmi, symbol, &et, base_vaddr, pid)) == -1) {
         dbprint("--PEParse: failed to get aon index\n");
         return VMI_FAILURE;
     }
 
     // find AddressOfFunctions index for export symbol
-    if ((aof_index = get_aof_index(vmi, aon_index, &et)) == -1) {
+    if ((aof_index = get_aof_index(vmi, aon_index, &et, base_vaddr, pid)) == -1) {
         dbprint("--PEParse: failed to get aof index\n");
         return VMI_FAILURE;
     }
 
     // find RVA value for export symbol
-    return get_export_rva(vmi, rva, aof_index, &et);
+    return get_export_rva(vmi, rva, aof_index, &et, base_vaddr, pid);
 }
