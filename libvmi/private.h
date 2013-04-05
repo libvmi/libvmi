@@ -228,14 +228,20 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t vmi);
     status_t sym_cache_get(
     vmi_instance_t vmi,
+    addr_t base_addr,
+    uint32_t pid,
     char *sym,
     addr_t *va);
     void sym_cache_set(
     vmi_instance_t vmi,
+    addr_t base_addr,
+    uint32_t pid,
     char *sym,
     addr_t va);
     status_t sym_cache_del(
     vmi_instance_t vmi,
+    addr_t base_addr,
+    uint32_t pid,
     char *sym);
     void sym_cache_flush(
     vmi_instance_t vmi);
