@@ -275,19 +275,43 @@ peparse_get_idd_rva(
     struct optional_header_pe32plus *oh_pe32plus);
 
 /**
+ * Get the size from the PE image data directory (idd).
+ * This function can take either the optional_header_type and the
+ * unclassified optional_header
+ * or one of the oh_pe32 and oh_pe32plus pointers as input.
+ *
+ * @param[in] entry_id, Image directory entry ID to get
+ * @param[in] optional_header_type, (Optional, requires optional_header) Type of the optional header
+ * @param[in] optional_header, (Optional, requires optional_header_type) Unclassified pointer to the optional header
+ * @param[in] oh_pe32, (Optional) PE32 type pointer to the optional header
+ * @param[in] oh_pe32plus, (Optional) PE32_PLUS type pointer to the optional header
+ */
+size_t
+peparse_get_idd_size(
+    uint32_t entry_id,
+    uint16_t *optional_header_type,
+    void *optional_header,
+    struct optional_header_pe32 *oh_pe32,
+    struct optional_header_pe32plus *oh_pe32plus);
+
+/**
  * Get an RVA value from the PE image data directory (idd).
  *
  * @param[in] vmi, the libvmi instance
  * @param[in] base_vaddr, the base virtual address of the PE image
  * @param[in] pid, the PID of the program (or 0 for kernel)
  * @param[out] et, the address of the export_table to save data into
+ * @param[out] (optional) export_table_rva, the rva of the export table as given in the IDD
+ * @param[out] (optional) export_table_size, the size of the export table as given in the IDD
  */
 status_t
 peparse_get_export_table(
     vmi_instance_t vmi,
     addr_t base_vaddr,
     uint32_t pid,
-    struct export_table *et);
+    struct export_table *et,
+    addr_t *export_table_rva,
+    size_t *export_table_size);
 
 #pragma GCC visibility pop
 #endif /* PEPARSE_H */

@@ -420,12 +420,56 @@ done:
     return rva;
 }
 
+size_t
+peparse_get_idd_size(
+    uint32_t entry_id,
+    uint16_t *optional_header_type,
+    void *optional_header,
+    struct optional_header_pe32 *oh_pe32,
+    struct optional_header_pe32plus *oh_pe32plus)
+{
+
+    size_t size = 0;
+
+    if(optional_header_type == NULL) {
+
+        if(oh_pe32 != NULL) {
+            size = oh_pe32->idd[entry_id].size;
+            goto done;
+        }
+
+        if(oh_pe32plus != NULL) {
+            size = oh_pe32plus->idd[entry_id].size;
+            goto done;
+        }
+    } else
+    if(optional_header != NULL) {
+
+        if(*optional_header_type == IMAGE_PE32_MAGIC) {
+            struct optional_header_pe32 *oh_pe32_t = (struct optional_header_pe32 *)optional_header;
+            size = oh_pe32_t->idd[entry_id].size;
+            goto done;
+        }
+
+        if(*optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
+            struct optional_header_pe32plus *oh_pe32plus_t = (struct optional_header_pe32plus *)optional_header;
+            size = oh_pe32plus_t->idd[entry_id].size;
+            goto done;
+        }
+    }
+
+done:
+    return size;
+}
+
 status_t
 peparse_get_export_table(
     vmi_instance_t vmi,
     addr_t base_vaddr,
     uint32_t pid,
-    struct export_table *et)
+    struct export_table *et,
+    addr_t *export_table_rva,
+    size_t *export_table_size)
 {
     // Note: this function assumes a "normal" PE where all the headers are in
     // the first page of the PE and the field DosHeader.OffsetToPE points to
@@ -433,6 +477,7 @@ peparse_get_export_table(
 
     addr_t export_header_rva = 0;
     addr_t export_header_va = 0;
+    size_t export_header_size = 0;
     size_t nbytes = 0;
 
 #define MAX_HEADER_BYTES 1024   // keep under 1 page
@@ -447,9 +492,19 @@ peparse_get_export_table(
 
     peparse_assign_headers(image, NULL, NULL, &magic, &optional_header, NULL, NULL);
     export_header_rva = peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &magic, optional_header, NULL, NULL);
+    export_header_size = peparse_get_idd_size(IMAGE_DIRECTORY_ENTRY_EXPORT, &magic, optional_header, NULL, NULL);
+
+    if(export_table_rva) {
+        *export_table_rva=export_header_rva;
+    }
+
+    if(export_table_size) {
+        *export_table_size=export_header_size;
+    }
 
     /* Find & read the export header; assume a different page than the headers */
     export_header_va = base_vaddr + export_header_rva;
+
     dbprint
         ("--PEParse: found export table at [VA] 0x%.16"PRIx64" = 0x%.16"PRIx64" + 0x%"PRIx64"\n",
          export_header_va, vmi->os.windows_instance.ntoskrnl_va,
@@ -470,7 +525,7 @@ peparse_get_export_table(
     return VMI_SUCCESS;
 }
 
-/* returns the rva value for a windows kernel export */
+/* returns the rva value for a windows PE export */
 status_t
 windows_export_to_rva(
     vmi_instance_t vmi,
@@ -480,11 +535,13 @@ windows_export_to_rva(
     addr_t *rva)
 {
     struct export_table et;
+    addr_t et_rva;
+    size_t et_size;
     int aon_index = -1;
     int aof_index = -1;
 
     // get export table structure
-    if (peparse_get_export_table(vmi, base_vaddr, pid, &et) != VMI_SUCCESS) {
+    if (peparse_get_export_table(vmi, base_vaddr, pid, &et, &et_rva, &et_size) != VMI_SUCCESS) {
         dbprint("--PEParse: failed to get export table\n");
         return VMI_FAILURE;
     }
@@ -502,5 +559,18 @@ windows_export_to_rva(
     }
 
     // find RVA value for export symbol
-    return get_export_rva(vmi, rva, aof_index, &et, base_vaddr, pid);
+    if(VMI_SUCCESS==get_export_rva(vmi, rva, aof_index, &et, base_vaddr, pid)) {
+
+        // handle forwarded functions
+        // If the function's RVA is inside the exports section (as given by the
+        // VirtualAddress and Size fields in the idd), the symbol is forwarded.
+        if(*rva>=et_rva && *rva < et_rva+et_size) {
+            dbprint("--PEParse: %s @ %u:0x%"PRIx64" is forwarded\n", symbol, pid, base_vaddr);
+            return VMI_FAILURE;
+        } else {
+            return VMI_SUCCESS;
+        }
+    } else {
+        return VMI_FAILURE;
+    }
 }

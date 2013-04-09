@@ -59,7 +59,7 @@ windows_symbol_to_address(
         addr_t rva = *address;
 
         *address = vmi->os.windows_instance.ntoskrnl_va + rva;
-            ("--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
+        dbprint("--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
              symbol, *address);
         return VMI_SUCCESS;
     }
