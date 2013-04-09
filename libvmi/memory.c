@@ -539,7 +539,12 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
 {
     addr_t ret = 0;
 
-    if (VMI_FAILURE == sym_cache_get(vmi, symbol, &ret)) {
+    addr_t base_vaddr = 0;
+    if (VMI_OS_WINDOWS == vmi->os_type) {
+        base_vaddr = vmi->os.windows_instance.ntoskrnl_va;
+    }
+
+    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, 0, symbol, &ret)) {
         if (VMI_OS_LINUX == vmi->os_type) {
             if (VMI_FAILURE
                     == linux_system_map_symbol_to_address(vmi, symbol, &ret)) {
@@ -553,7 +558,34 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
         }
 
         if (ret) {
-            sym_cache_set(vmi, symbol, ret);
+            sym_cache_set(vmi, base_vaddr, 0, symbol, ret);
+        }
+    }
+
+    return ret;
+}
+
+/* convert a symbol into an address */
+addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, uint32_t pid, char *symbol)
+{
+    addr_t ret = 0;
+
+    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, pid, symbol, &ret)) {
+
+        if (VMI_OS_LINUX == vmi->os_type) {
+            // TODO
+            return VMI_FAILURE;
+        }
+        else if (VMI_OS_WINDOWS == vmi->os_type) {
+            if (VMI_FAILURE == windows_export_to_rva(vmi, symbol, base_vaddr, pid, &ret)) {
+                ret = 0;
+            } else {
+                ret += base_vaddr;
+            }
+        }
+
+        if (ret) {
+            sym_cache_set(vmi, base_vaddr, pid, symbol, ret);
         }
     }
 

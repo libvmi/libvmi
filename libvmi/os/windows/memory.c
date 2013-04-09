@@ -55,12 +55,11 @@ windows_symbol_to_address(
     dbprint("--kpcr lookup failed, trying kernel PE export table\n");
 
     /* check exports */
-    if (VMI_SUCCESS == windows_export_to_rva(vmi, symbol, address)) {
+    if (VMI_SUCCESS == windows_export_to_rva(vmi, symbol, vmi->os.windows_instance.ntoskrnl_va, 0, address)) {
         addr_t rva = *address;
 
         *address = vmi->os.windows_instance.ntoskrnl_va + rva;
-        dbprint
-            ("--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
+        dbprint("--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
              symbol, *address);
         return VMI_SUCCESS;
     }
