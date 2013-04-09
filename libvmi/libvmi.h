@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -295,9 +295,9 @@ status_t vmi_init_custom(
     vmi_config_t config);
 
 /**
- * Completes initialization.  Call this after calling vmi_init with 
+ * Completes initialization.  Call this after calling vmi_init with
  * VMI_INIT_PARTIAL.  Calling this at any other time results in undefined
- * behavior.  The partial init provides physical memory access only.  So 
+ * behavior.  The partial init provides physical memory access only.  So
  * the purpose of this function is to allow for a staged init of LibVMI.
  * You can gain physical memory access, run some heuristics to obtain
  * the necessary offsets, and then complete the init.
@@ -315,9 +315,9 @@ status_t vmi_init_complete(
     char *config);
 
 /**
- * Completes initialization.  Call this after calling vmi_init or vmi_init_custom 
+ * Completes initialization.  Call this after calling vmi_init or vmi_init_custom
  * with VMI_INIT_PARTIAL.  Calling this at any other time results in undefined
- * behavior.  The partial init provides physical memory access only.  So 
+ * behavior.  The partial init provides physical memory access only.  So
  * the purpose of this function is to allow for a staged init of LibVMI.
  * You can gain physical memory access, run some heuristics to obtain
  * the necessary offsets, and then complete the init.
@@ -385,6 +385,23 @@ addr_t vmi_translate_ksym2v(
     char *symbol);
 
 /**
+ * Performs the translation from a symbol to a virtual address.
+ * On Windows this function walks the PE export table.
+ * Linux is unimplemented at this time.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] base_vaddr Base virtual address (beginning of PE header in Windows)
+ * @param[in] pid PID
+ * @param[in] symbol Desired symbol to translate
+ * @return Virtual address, or zero on error
+ */
+addr_t vmi_translate_sym2v(
+    vmi_instance_t vmi,
+    addr_t base_vaddr,
+    uint32_t pid,
+    char *symbol);
+
+/**
  * Given a \a pid, this function returns the virtual address of the
  * directory table base for this process' address space.  This value
  * is effectively what would be in the CR3 register while this process
@@ -403,7 +420,7 @@ addr_t vmi_pid_to_dtb(
  *
  * @param[in] vmi LibVMI instance
  * @param[in] dtb address of the relevant page directory base
- * @param[in] vaddr virtual address to translate via dtb 
+ * @param[in] vaddr virtual address to translate via dtb
  * @return Physical address, or zero on error
  */
 
@@ -644,7 +661,7 @@ char *vmi_read_str_va(
  * @param[in] vmi LibVMI instance
  * @param[in] vaddr Virtual address of the UNICODE_STRING structure
  * @param[in] pid Pid of the virtual address space (0 for kernel)
- * @return String read from memory or NULL on error; this function 
+ * @return String read from memory or NULL on error; this function
  *         will set the encoding field.
  */
 unicode_string_t *vmi_read_unicode_str_va(
@@ -1052,7 +1069,7 @@ unsigned long vmi_get_vmid(
     vmi_instance_t vmi);
 
 /**
- * Gets the current access mode for LibVMI, which tells what 
+ * Gets the current access mode for LibVMI, which tells what
  * resource is being using to access the memory (e.g., VMI_XEN,
  * VMI_KVM, or VMI_FILE).
  *
@@ -1063,7 +1080,7 @@ uint32_t vmi_get_access_mode(
     vmi_instance_t vmi);
 
 /**
- * Gets the current page mode for LibVMI, which tells what 
+ * Gets the current page mode for LibVMI, which tells what
  * type of address translation is in use (e.g., VMI_PM_LEGACY,
  * VMI_PM_PAE, or VMI_PM_IA32E).
  *
@@ -1189,7 +1206,7 @@ status_t vmi_resume_vm(
 
 /**
  * Removes all entries from LibVMI's internal virtual to physical address
- * cache.  This is generally only useful if you believe that an entry in 
+ * cache.  This is generally only useful if you believe that an entry in
  * the cache is incorrect, or out of date.
  *
  * @param[in] vmi LibVMI instance
@@ -1214,7 +1231,7 @@ void vmi_v2pcache_add(
 
 /**
  * Removes all entries from LibVMI's internal kernel symbol to virtual address
- * cache.  This is generally only useful if you believe that an entry in 
+ * cache.  This is generally only useful if you believe that an entry in
  * the cache is incorrect, or out of date.
  *
  * @param[in] vmi LibVMI instance
@@ -1227,17 +1244,21 @@ void vmi_symcache_flush(
  * cache.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] sym Kernel symbol
+ * @param[in] sym Symbol
  * @param[in] va Virtual address
+ * @param[in] base_addr Base address
+ * @param[in] pid PID
  */
 void vmi_symcache_add(
     vmi_instance_t vmi,
+    addr_t base_addr,
+    uint32_t pid,
     char *sym,
     addr_t va);
 
 /**
  * Removes all entries from LibVMI's internal pid to directory table base
- * cache.  This is generally only useful if you believe that an entry in 
+ * cache.  This is generally only useful if you believe that an entry in
  * the cache is incorrect, or out of date.
  *
  * @param[in] vmi LibVMI instance
@@ -1288,7 +1309,7 @@ typedef enum {
 
 typedef struct {
     // IN
-    registers_t reg; 
+    registers_t reg;
     reg_t equal;  // Unused at the moment
     reg_t mask;   // Unused at the moment
     int async:1;
