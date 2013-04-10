@@ -295,7 +295,7 @@ peparse_get_idd_size(
     struct optional_header_pe32plus *oh_pe32plus);
 
 /**
- * Get an RVA value from the PE image data directory (idd).
+ * Get the export table from a PE image.
  *
  * @param[in] vmi, the libvmi instance
  * @param[in] base_vaddr, the base virtual address of the PE image
