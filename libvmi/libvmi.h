@@ -402,7 +402,7 @@ addr_t vmi_translate_sym2v(
     char *symbol);
 
 /**
- * Given a \a pid, this function returns the virtual address of the
+ * Given a pid, this function returns the virtual address of the
  * directory table base for this process' address space.  This value
  * is effectively what would be in the CR3 register while this process
  * is running.
@@ -1244,10 +1244,10 @@ void vmi_symcache_flush(
  * cache.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] sym Symbol
- * @param[in] va Virtual address
  * @param[in] base_addr Base address
  * @param[in] pid PID
+ * @param[in] sym Symbol
+ * @param[in] va Virtual address
  */
 void vmi_symcache_add(
     vmi_instance_t vmi,
