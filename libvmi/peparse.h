@@ -26,6 +26,11 @@
 
 #ifndef PEPARSE_H
 #define PEPARSE_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #pragma GCC visibility push(default)
 
 #define IMAGE_DOS_HEADER 0x5A4D // ZM
@@ -314,5 +319,9 @@ peparse_get_export_table(
     size_t *export_table_size);
 
 #pragma GCC visibility pop
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* PEPARSE_H */
 
