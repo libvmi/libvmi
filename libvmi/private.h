@@ -132,6 +132,8 @@ struct vmi_instance {
 
     GHashTable *sym_cache;  /**< hash table to hold the sym cache data */
 
+    GHashTable *rva_cache;  /**< hash table to hold the rva cache data */
+
     GHashTable *v2p_cache;  /**< hash table to hold the v2p cache data */
 
     void *driver;           /**< driver-specific information */

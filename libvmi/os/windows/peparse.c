@@ -66,10 +66,10 @@ dump_exports(
         if (rva) {
             str = rva_to_string(vmi, (addr_t) rva, base_addr, pid);
             if (str) {
-                vmi_read_16_va(vmi, base2 + i * sizeof(uint16_t), 0,
+                vmi_read_16_va(vmi, base2 + i * sizeof(uint16_t), pid,
                                &ordinal);
                 vmi_read_32_va(vmi, base3 + ordinal + sizeof(uint32_t),
-                               0, &loc);
+                               pid, &loc);
                 printf("%s:%d:0x%"PRIx32"\n", str, ordinal, loc);
                 free(str);
             }
@@ -574,3 +574,62 @@ windows_export_to_rva(
         return VMI_FAILURE;
     }
 }
+
+/* returns a windows PE export from an RVA*/
+status_t
+windows_rva_to_export(
+    vmi_instance_t vmi,
+    addr_t rva,
+    addr_t base_vaddr,
+    uint32_t pid,
+    char **sym)
+{
+    struct export_table et;
+    addr_t et_rva;
+    size_t et_size;
+    int aon_index = -1;
+    int aof_index = -1;
+
+    // get export table structure
+    if (peparse_get_export_table(vmi, base_vaddr, pid, &et, &et_rva, &et_size) != VMI_SUCCESS) {
+        dbprint("--PEParse: failed to get export table\n");
+        return VMI_FAILURE;
+    }
+
+    if(rva>=et_rva && rva < et_rva+et_size) {
+        dbprint("--PEParse: symbol @ %u:0x%"PRIx64" is forwarded\n", pid, base_vaddr+rva);
+        return VMI_FAILURE;
+    }
+
+
+    addr_t base1 = base_vaddr + et.address_of_names;
+    addr_t base2 = base_vaddr + et.address_of_name_ordinals;
+    addr_t base3 = base_vaddr + et.address_of_functions;
+    uint32_t i = 0;
+
+    for (; i < et.number_of_functions; ++i) {
+        uint32_t name_rva = 0;
+        uint16_t ordinal = 0;
+        uint32_t loc = 0;
+
+        if(VMI_FAILURE==vmi_read_16_va(vmi, base2 + i * sizeof(uint16_t), pid, &ordinal))
+            continue;
+        if(VMI_FAILURE==vmi_read_32_va(vmi, base3 + ordinal + sizeof(uint32_t), pid, &loc))
+            continue;
+
+        if(loc==rva) {
+
+            if(i < et.number_of_names && VMI_SUCCESS==vmi_read_32_va(vmi, base1 + i * sizeof(uint32_t), pid, &name_rva) && name_rva) {
+                if(NULL != (*sym = rva_to_string(vmi, (addr_t) name_rva, base_vaddr, pid)))
+                    return VMI_SUCCESS;
+            }
+
+            dbprint("--PEParse: symbol @ %u:0x%"PRIx64" is exported by ordinal only\n", pid, base_vaddr+rva);
+            break;
+        }
+    }
+
+    return VMI_FAILURE;
+}
+
+

@@ -591,6 +591,28 @@ addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, uint32_t pid,
 
     return ret;
 }
+/* convert an RVA into a symbol */
+const char* vmi_translate_v2sym(vmi_instance_t vmi, addr_t base_vaddr, uint32_t pid, addr_t rva)
+{
+    char *ret = NULL;
+
+    if (VMI_FAILURE == rva_cache_get(vmi, base_vaddr, pid, rva, &ret)) {
+
+        if (VMI_OS_LINUX == vmi->os_type) {
+            // TODO
+            return VMI_FAILURE;
+        }
+        else if (VMI_OS_WINDOWS == vmi->os_type) {
+            windows_rva_to_export(vmi, rva, base_vaddr, pid, &ret);
+        }
+
+        if (ret) {
+            rva_cache_set(vmi, base_vaddr, pid, rva, ret);
+        }
+    }
+
+    return ret;
+}
 
 /* finds the address of the page global directory for a given pid */
 addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid)

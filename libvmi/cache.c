@@ -362,6 +362,116 @@ sym_cache_flush(
     dbprint("--SYM cache flushed\n");
 }
 
+void
+rva_cache_init(
+    vmi_instance_t vmi)
+{
+    vmi->rva_cache =
+        g_hash_table_new_full((GHashFunc)key_128_hash, key_128_equals, g_free,
+                              (GDestroyNotify)g_hash_table_destroy);
+}
+
+void
+rva_cache_destroy(
+    vmi_instance_t vmi)
+{
+    g_hash_table_destroy(vmi->rva_cache);
+}
+
+status_t
+rva_cache_get(
+    vmi_instance_t vmi,
+    addr_t base_addr,
+    uint32_t pid,
+    addr_t rva,
+    char **sym)
+{
+    status_t ret=VMI_FAILURE;
+
+    GHashTable *rva_table = NULL;
+    sym_cache_entry_t entry = NULL;
+
+    struct key_128 local_key;
+    key_128_t key = &local_key;
+    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)pid);
+
+    if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
+        return ret;
+    }
+
+    if ((entry = g_hash_table_lookup(rva_table, GUINT_TO_POINTER(rva))) != NULL) {
+        entry->last_used = time(NULL);
+        *sym = entry->sym;
+        dbprint("--RVA cache hit %u:0x%.16"PRIx64":%s -- 0x%.16"PRIx64"\n", pid, base_addr, *sym, rva);
+        ret=VMI_SUCCESS;
+    }
+
+    return ret;
+}
+
+void
+rva_cache_set(
+    vmi_instance_t vmi,
+    addr_t base_addr,
+    uint32_t pid,
+    addr_t rva,
+    char *sym)
+{
+    GHashTable *rva_table = NULL;
+    sym_cache_entry_t entry = sym_cache_entry_create(sym, rva, base_addr, pid);
+
+    key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)pid);
+
+    if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
+        rva_table = g_hash_table_new_full(g_int_hash, g_int_equal, NULL,
+                              sym_cache_entry_free);
+        g_hash_table_insert(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table);
+    } else {
+        free(key);
+    }
+
+    g_hash_table_insert(rva_table, GUINT_TO_POINTER(rva), entry);
+    dbprint("--RVA cache set %s -- 0x%.16"PRIx64"\n", key, va);
+}
+
+status_t
+rva_cache_del(
+    vmi_instance_t vmi,
+    addr_t base_addr,
+    uint32_t pid,
+    addr_t rva)
+{
+    status_t ret=VMI_FAILURE;
+    GHashTable *rva_table=NULL;
+    struct key_128 local_key;
+    key_128_t key = &local_key;
+    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)pid);
+
+    if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
+        return ret;
+    }
+
+    dbprint("--RVA cache del %u:0x%.16"PRIx64":%s\n", pid, base_addr, rva);
+
+    if (TRUE == g_hash_table_remove(rva_table, GUINT_TO_POINTER(rva))) {
+        ret=VMI_SUCCESS;
+
+        if(!g_hash_table_size(rva_table)) {
+            g_hash_table_remove(vmi->rva_cache, key);
+        }
+    }
+
+    return ret;
+}
+
+void
+rva_cache_flush(
+    vmi_instance_t vmi)
+{
+    g_hash_table_remove_all(vmi->rva_cache);
+    dbprint("--RVA cache flushed\n");
+}
+
 //
 // Virtual address --> Physical address cache implementation
 struct v2p_cache_entry {
@@ -556,6 +666,53 @@ sym_cache_del(
 
 void
 sym_cache_flush(
+    vmi_instance_t vmi)
+{
+    return;
+}
+
+void
+rva_cache_init(
+    vmi_instance_t vmi)
+{
+    return;
+}
+
+void
+rva_cache_destroy(
+    vmi_instance_t vmi)
+{
+    return;
+}
+
+status_t
+rva_cache_get(
+    vmi_instance_t vmi,
+    char *sym,
+    addr_t *va)
+{
+    return VMI_FAILURE;
+}
+
+void
+rva_cache_set(
+    vmi_instance_t vmi,
+    char *sym,
+    addr_t va)
+{
+    return;
+}
+
+status_t
+rva_cache_del(
+    vmi_instance_t vmi,
+    char *sym)
+{
+    return VMI_FAILURE;
+}
+
+void
+rva_cache_flush(
     vmi_instance_t vmi)
 {
     return;
