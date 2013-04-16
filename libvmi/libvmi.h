@@ -402,6 +402,23 @@ addr_t vmi_translate_sym2v(
     char *symbol);
 
 /**
+ * Performs the translation from an RVA to a symbol
+ * On Windows this function walks the PE export table.
+ * Linux is unimplemented at this time.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] base_vaddr Base virtual address (beginning of PE header in Windows)
+ * @param[in] pid PID
+ * @param[in] rva RVA to translate
+ * @return Symbol, or NULL on error
+ */
+const char* vmi_translate_v2sym(
+    vmi_instance_t vmi,
+    addr_t base_vaddr,
+    uint32_t pid,
+    addr_t rva);
+
+/**
  * Given a pid, this function returns the virtual address of the
  * directory table base for this process' address space.  This value
  * is effectively what would be in the CR3 register while this process

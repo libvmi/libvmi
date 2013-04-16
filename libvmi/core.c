@@ -645,6 +645,7 @@ vmi_init_private(
     /* setup the caches */
     pid_cache_init(*vmi);
     sym_cache_init(*vmi);
+    rva_cache_init(*vmi);
     v2p_cache_init(*vmi);
 
     /* connecting to xen, kvm, file, etc */
@@ -890,6 +891,7 @@ vmi_destroy(
     driver_destroy(vmi);
     pid_cache_destroy(vmi);
     sym_cache_destroy(vmi);
+    rva_cache_destroy(vmi);
     v2p_cache_destroy(vmi);
     memory_cache_destroy(vmi);
     if (vmi->sysmap)
