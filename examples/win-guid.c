@@ -28,6 +28,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <glib.h>
 
 #include "win-guid.h"
 
@@ -156,14 +157,10 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
     struct image_debug_directory debug_directory;
     vmi_read_pa(vmi, kernel_base_p + debug_offset, (uint8_t *)&debug_directory, sizeof(struct image_debug_directory));
 
+    printf("\tPE GUID: %.8x%.5x\n",pe_header->time_date_stamp,size_of_image);
+
     if(debug_directory.type == IMAGE_DEBUG_TYPE_MISC) {
         printf("This operating system uses .dbg instead of .pdb\n");
-
-        if(major_os_version == 5 && minor_os_version == 0)
-        {
-            printf("GUID: %.8x%.8x\n",pe_header->time_date_stamp,size_of_image);
-        }
-
         return;
     } else
     if(debug_directory.type != IMAGE_DEBUG_TYPE_CODEVIEW) {
@@ -181,7 +178,7 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
        return;
     }
 
-     printf("\tGUID: ");
+     printf("\tPDB GUID: ");
      printf("%.8x", pdb_header->signature.data1);
      printf("%.4x", pdb_header->signature.data2);
      printf("%.4x", pdb_header->signature.data3);
@@ -192,6 +189,19 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
      printf("%.1x", pdb_header->age & 0xf);
      printf("\n");
      printf("\tKernel filename: %s\n", pdb_header->pdb_file_name);
+
+     if(!strcmp("ntoskrnl.pdb", pdb_header->pdb_file_name)) {
+        printf("\tSingle-processor without PAE\n");
+     } else
+     if(!strcmp("ntkrnlmp.pdb", pdb_header->pdb_file_name)) {
+        printf("\tMulti-processor without PAE\n");
+     } else
+     if(!strcmp("ntkrnlpa.pdb", pdb_header->pdb_file_name)) {
+        printf("\tSingle-processor with PAE (version 5.0 and higher)\n");
+     } else
+     if(!strcmp("ntkrpamp.pdb", pdb_header->pdb_file_name)) {
+        printf("\tMulti-processor with PAE (version 5.0 and higher)\n");
+     }
 
      free(pdb_header);
 }
@@ -235,16 +245,32 @@ int main(int argc, char **argv) {
     vmi_instance_t vmi;
 
     /* this is the VM that we are looking at */
-    if (argc != 2) {
-        printf("Usage: %s <domain name>\n", argv[0]);
+    if (argc != 3) {
+        printf("Usage: %s name|domid <domain name|domain id>\n", argv[0]);
         return 1;
     }   // if
 
-    /* partialy initialize the libvmi library */
-    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_PARTIAL, argv[1]) == VMI_FAILURE) {
-        printf("Failed to init LibVMI library.\n");
+    uint32_t domid = VMI_INVALID_DOMID;
+    GHashTable *config = g_hash_table_new(g_str_hash, g_str_equal);
+
+    if(strcmp(argv[1],"name")==0) {
+        g_hash_table_insert(config, "name", argv[2]);
+    } else
+    if(strcmp(argv[1],"domid")==0) {
+        domid = atoi(argv[2]);
+        g_hash_table_insert(config, "domid", &domid);
+    } else {
+        printf("You have to specify either name or domid!\n");
         return 1;
     }
+
+    /* partialy initialize the libvmi library */
+    if (vmi_init_custom(&vmi, VMI_AUTO | VMI_INIT_PARTIAL | VMI_CONFIG_GHASHTABLE, config) == VMI_FAILURE) {
+        printf("Failed to init LibVMI library.\n");
+        g_hash_table_destroy(config);
+        return 1;
+    }
+    g_hash_table_destroy(config);
 
     /* the nice thing about the windows kernel is that it's page aligned */
     uint32_t i;
