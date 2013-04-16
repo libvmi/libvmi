@@ -2,9 +2,9 @@
 
 SUBDIRS = 
 
-AM_CPPFLAGS = -I$(top_srcdir)
+AM_CPPFLAGS = -I$(top_srcdir) $(GLIB_CFLAGS)
 AM_LDFLAGS = -L$(top_srcdir)/libvmi/.libs/
-LDADD = -lvmi -lm $(LIBS)
+LDADD = -lvmi -lm $(LIBS) $(GLIB_LIBS)
 
 bin_PROGRAMS = module-list process-list map-symbol map-addr dump-memory win-guid event-example
 module_list_SOURCES = module-list.c
