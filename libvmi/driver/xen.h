@@ -128,6 +128,12 @@ status_t xen_get_vcpureg(
     reg_t *value,
     registers_t reg,
     unsigned long vcpu);
+status_t
+xen_set_vcpureg(
+    vmi_instance_t vmi,
+    reg_t value,
+    registers_t reg,
+    unsigned long vcpu);
 status_t xen_get_address_width(
     vmi_instance_t vmi,
     uint8_t * width_in_bytes);

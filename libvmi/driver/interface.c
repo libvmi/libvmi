@@ -77,6 +77,12 @@ struct driver_instance {
     reg_t *,
     registers_t,
     unsigned long);
+    status_t(
+    *set_vcpureg_ptr) (
+    vmi_instance_t,
+    reg_t,
+    registers_t,
+    unsigned long);
     status_t (
     *get_address_width_ptr) (
     vmi_instance_t vmi,
@@ -134,6 +140,7 @@ driver_xen_setup(
     instance->set_name_ptr = &xen_set_domainname;
     instance->get_memsize_ptr = &xen_get_memsize;
     instance->get_vcpureg_ptr = &xen_get_vcpureg;
+    instance->set_vcpureg_ptr = &xen_set_vcpureg;
     instance->get_address_width_ptr = &xen_get_address_width;
     instance->read_page_ptr = &xen_read_page;
     instance->write_ptr = &xen_write;
@@ -164,6 +171,7 @@ driver_kvm_setup(
     instance->set_name_ptr = &kvm_set_name;
     instance->get_memsize_ptr = &kvm_get_memsize;
     instance->get_vcpureg_ptr = &kvm_get_vcpureg;
+    instance->set_vcpureg_ptr = NULL;
     instance->get_address_width_ptr = NULL;
     instance->read_page_ptr = &kvm_read_page;
     instance->write_ptr = &kvm_write;
@@ -193,6 +201,7 @@ driver_file_setup(
     instance->get_memsize_ptr = &file_get_memsize;
     instance->get_address_width_ptr = NULL;
     instance->get_vcpureg_ptr = &file_get_vcpureg;
+    instance->set_vcpureg_ptr = NULL;
     instance->read_page_ptr = &file_read_page;
     instance->write_ptr = &file_write;
     instance->is_pv_ptr = &file_is_pv;
@@ -220,6 +229,7 @@ driver_null_setup(
     instance->get_memsize_ptr = NULL;
     instance->get_address_width_ptr = NULL;
     instance->get_vcpureg_ptr = NULL;
+    instance->set_vcpureg_ptr = NULL;
     instance->read_page_ptr = NULL;
     instance->is_pv_ptr = NULL;
     instance->pause_vm_ptr = NULL;
@@ -479,6 +489,23 @@ driver_get_vcpureg(
     else {
         dbprint
             ("WARNING: driver_get_vcpureg function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t
+driver_set_vcpureg(
+    vmi_instance_t vmi,
+    reg_t value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->set_vcpureg_ptr){
+        return ptrs->set_vcpureg_ptr(vmi, value, reg, vcpu);
+    }
+    else{
+        dbprint("WARNING: driver_set_vcpureg function not implemented.\n");
         return VMI_FAILURE;
     }
 }

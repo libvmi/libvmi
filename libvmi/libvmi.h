@@ -1202,6 +1202,24 @@ status_t vmi_get_vcpureg(
     unsigned long vcpu);
 
 /**
+ * Sets the current value of a VCPU register.  This currently only
+ * supports control registers.  When LibVMI is accessing a raw
+ * memory file, this function will fail. Operating upon an unpaused
+ * VM with this function is likely to have unexpected results.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] value Value to assign to the register
+ * @param[in] reg The register to access
+ * @param[in] vcpu The index of the VCPU to access, use 0 for single VCPU systems
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_set_vcpureg(
+    vmi_instance_t vmi,
+    reg_t value,
+    registers_t reg,
+    unsigned long vcpu);
+
+/**
  * Pauses the VM.  Use vmi_resume_vm to resume the VM after pausing
  * it.  If accessing a memory file, this has no effect.
  *
