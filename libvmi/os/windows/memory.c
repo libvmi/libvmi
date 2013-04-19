@@ -93,3 +93,29 @@ windows_pid_to_pgd(
 error_exit:
     return pgd;
 }
+
+int
+windows_pgd_to_pid(
+    vmi_instance_t vmi,
+    addr_t pgd)
+{
+    int pid = -1;
+    addr_t eprocess = 0;
+    int pdbase_offset = vmi->os.windows_instance.pdbase_offset;
+    int tasks_offset = vmi->os.windows_instance.tasks_offset;
+    int pid_offset = vmi->os.windows_instance.pid_offset;
+
+    /* first we need a pointer to this pgd's EPROCESS struct */
+    eprocess = windows_find_eprocess_list_pgd(vmi, pgd);
+    if (!eprocess) {
+        errprint("Could not find EPROCESS struct for pgd = 0x%"PRIx64".\n", pgd);
+        goto error_exit;
+    }
+
+    /* now follow the pointer to the memory descriptor and grab the pgd value */
+    vmi_read_32_va(vmi, eprocess + pid_offset - tasks_offset, 0,
+                     &pid);
+
+error_exit:
+    return pid;
+}

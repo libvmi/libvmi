@@ -300,6 +300,9 @@ typedef struct _windows_unicode_string32 {
     addr_t linux_pid_to_pgd(
     vmi_instance_t vmi,
     int pid);
+    int linux_pgd_to_pid(
+    vmi_instance_t vmi,
+    addr_t pgd);
 
 /*-----------------------------------------
  * os/windows/...
@@ -337,6 +340,9 @@ typedef struct _windows_unicode_string32 {
     addr_t windows_pid_to_pgd(
     vmi_instance_t vmi,
     int pid);
+    int windows_pgd_to_pid(
+    vmi_instance_t vmi,
+    addr_t pgd);
     status_t
     windows_symbol_to_address(
     vmi_instance_t vmi,
@@ -344,6 +350,7 @@ typedef struct _windows_unicode_string32 {
     addr_t *address);
 
     addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, int pid);
+    addr_t windows_find_eprocess_list_pgd(vmi_instance_t vmi, addr_t pgd);
 
 /*-----------------------------------------
  * strmatch.c
