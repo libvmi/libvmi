@@ -1275,7 +1275,7 @@ void vmi_symcache_flush(
     vmi_instance_t vmi);
 
 /**
- * Adds one entry to LibVMI's internal kernel symbol to virtual address
+ * Adds one entry to LibVMI's internal symbol to virtual address
  * cache.
  *
  * @param[in] vmi LibVMI instance
@@ -1290,6 +1290,33 @@ void vmi_symcache_add(
     uint32_t pid,
     char *sym,
     addr_t va);
+
+/**
+ * Removes all entries from LibVMI's internal RVA to symbol
+ * cache.  This is generally only useful if you believe that an entry in
+ * the cache is incorrect, or out of date.
+ *
+ * @param[in] vmi LibVMI instance
+ */
+void vmi_rvacache_flush(
+    vmi_instance_t vmi);
+
+/**
+ * Adds one entry to LibVMI's internal RVA to symbol
+ * cache.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] base_addr Base address
+ * @param[in] pid PID
+ * @param[in] rva Relative virtual address
+ * @param[in] sym Symbol
+ */
+void vmi_rvacache_add(
+    vmi_instance_t vmi,
+    addr_t base_addr,
+    uint32_t pid,
+    addr_t rva,
+    char *sym);
 
 /**
  * Removes all entries from LibVMI's internal pid to directory table base
