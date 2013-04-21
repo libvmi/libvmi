@@ -600,7 +600,7 @@ const char* vmi_translate_v2sym(vmi_instance_t vmi, addr_t base_vaddr, uint32_t 
 
         if (VMI_OS_LINUX == vmi->os_type) {
             // TODO
-            return VMI_FAILURE;
+            return ret;
         }
         else if (VMI_OS_WINDOWS == vmi->os_type) {
             windows_rva_to_export(vmi, rva, base_vaddr, pid, &ret);

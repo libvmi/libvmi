@@ -431,7 +431,7 @@ rva_cache_set(
     }
 
     g_hash_table_insert(rva_table, GUINT_TO_POINTER(rva), entry);
-    dbprint("--RVA cache set %s -- 0x%.16"PRIx64"\n", key, va);
+    dbprint("--RVA cache set %s -- 0x%.16"PRIx64"\n", key, rva);
 }
 
 status_t
@@ -802,6 +802,24 @@ vmi_symcache_flush(
     vmi_instance_t vmi)
 {
     return sym_cache_flush(vmi);
+}
+
+void
+vmi_rvacache_add(
+    vmi_instance_t vmi,
+    addr_t base_addr,
+    uint32_t pid,
+    addr_t rva,
+    char *sym)
+{
+    return rva_cache_set(vmi, base_addr, pid, rva, sym);
+}
+
+void
+vmi_rvacache_flush(
+    vmi_instance_t vmi)
+{
+    return rva_cache_flush(vmi);
 }
 
 void
