@@ -431,7 +431,7 @@ rva_cache_set(
     }
 
     g_hash_table_insert(rva_table, GUINT_TO_POINTER(rva), entry);
-    dbprint("--RVA cache set %s -- 0x%.16"PRIx64"\n", key, va);
+    dbprint("--RVA cache set %s -- 0x%.16"PRIx64"\n", key, rva);
 }
 
 status_t
