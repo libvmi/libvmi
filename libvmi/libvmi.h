@@ -433,6 +433,19 @@ addr_t vmi_pid_to_dtb(
     int pid);
 
 /**
+ * Given a dtb, this function returns the PID corresponding to the
+ * virtual address of the directory table base.
+ * This function does NOT implement caching as to avoid false mappings.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] dtb Desired dtb to lookup
+ * @return The PID corresponding to the dtb
+ */
+int vmi_dtb_to_pid(
+    vmi_instance_t vmi,
+    addr_t dtb);
+
+/**
  * Translates a virtual address to a physical address.
  *
  * @param[in] vmi LibVMI instance

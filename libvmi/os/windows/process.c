@@ -290,7 +290,7 @@ eprocess_list_search(
 {
     addr_t next_process, list_head;
     int tasks_offset;
-    void *buf = malloc(len);
+    void *buf = alloca(len);
     addr_t rtnval = 0;
 
     tasks_offset = vmi_get_offset(vmi, "win_tasks");
@@ -319,9 +319,8 @@ eprocess_list_search(
     }
 
 exit:
-    free(buf);
     return rtnval;
-}   
+}
 
 addr_t
 windows_find_eprocess_list_pid(
@@ -331,5 +330,20 @@ windows_find_eprocess_list_pid(
     int pid_offset = vmi->os.windows_instance.pid_offset;
     size_t len = sizeof(int);
     return eprocess_list_search(vmi, pid_offset, len, &pid);
+}
+
+addr_t
+windows_find_eprocess_list_pgd(
+        vmi_instance_t vmi,
+        addr_t pgd)
+{
+    int pdbase_offset = vmi->os.windows_instance.pdbase_offset;
+    size_t len;
+    if(vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE)
+        len = sizeof(uint32_t);
+    else
+        len = sizeof(addr_t);
+
+    return eprocess_list_search(vmi, pdbase_offset, len, &pgd);
 }
 

@@ -635,6 +635,22 @@ addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid)
     return dtb;
 }
 
+/* finds the pid for a given dtb */
+int vmi_dtb_to_pid (vmi_instance_t vmi, addr_t dtb)
+{
+
+    int pid = -1;
+
+    if (VMI_OS_LINUX == vmi->os_type) {
+        pid = linux_pgd_to_pid(vmi, dtb);
+    }
+    else if (VMI_OS_WINDOWS == vmi->os_type) {
+        pid = windows_pgd_to_pid(vmi, dtb);
+    }
+
+    return pid;
+}
+
 void *
 vmi_read_page (vmi_instance_t vmi, addr_t frame_num)
 {
