@@ -667,6 +667,12 @@ vmi_init_private(
     if (init_mode & VMI_INIT_PARTIAL) {
         init_page_offset(*vmi);
         driver_get_memsize(*vmi, &(*vmi)->size);
+
+        /* Enable event handlers */
+        if(init_mode & VMI_INIT_EVENTS){
+            events_init(*vmi);
+        }
+
         return VMI_SUCCESS;
     }
     else if (init_mode & VMI_INIT_COMPLETE) {
