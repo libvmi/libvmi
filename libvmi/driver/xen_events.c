@@ -237,6 +237,10 @@ status_t process_register(vmi_instance_t vmi,
             event->reg_event.value = req.gfn;
             event->vcpu_id = req.vcpu_id;
 
+            /* Special case: indicate which MSR is being written */
+            if(event->reg_event.reg == MSR_ALL)
+                event->reg_event.context = req.gla;
+            
             /* TODO MARESCA: note that vmi_event_t lacks a flags member
              *   so we have no req.flags equivalent. might need to add
              *   e.g !!(req.flags & MEM_EVENT_FLAG_VCPU_PAUSED)  would be nice
@@ -554,11 +558,11 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
             value = HVMPME_mode_sync;
             if(event.async)
                 value = HVMPME_mode_async;
+
+            /* NOTE: this is completely ignored within Xen for MSR events */
             if(event.onchange)
-                /* MARESCA note bugfix was applied here
-                 *  Previously, was value = HVMPME_onchangeonly;
-                 */
                 value |= HVMPME_onchangeonly;
+
             break;
         case VMI_REG_R:
         case VMI_REG_RW:
@@ -579,6 +583,9 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
             break;
         case CR4:
             hvm_param = HVM_PARAM_MEMORY_EVENT_CR4;
+            break;
+        case MSR_ALL:
+            hvm_param = HVM_PARAM_MEMORY_EVENT_MSR;
             break;
         default:
             errprint("Tried to register for unsupported register event.\n");
@@ -708,6 +715,10 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
                     dbprint("--Caught CR3 event!\n");
                     vrc = process_register(vmi, CR3, req);
                 }
+                break;
+            case MEM_EVENT_REASON_MSR:
+                dbprint("--Caught MSR event!\n");
+                vrc = process_register(vmi, MSR_ALL, req);
                 break;
             case MEM_EVENT_REASON_CR4:
                 if(!vmi->shutting_down) {
