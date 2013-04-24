@@ -1,0 +1,81 @@
+List (incomplete) of MSRs available at : xen-4.3-unstable.git/xen/include/asm/msr-index.h
+
+Note: order of writes appears to shift slightly (e.g. MSR=40000000 Value=177ff000  happened first on one centos6 x86_64 boot). May be an artifact of multiple CPUs being used and some tasks occuring without strict ordering requirements.
+
+Centos6 x86_64
+    MSR write happened: MSR=c0000080 Value=100
+    MSR write happened: MSR=c0000102 Value=3
+    MSR write happened: MSR=c0000080 Value=0
+    MSR write happened: MSR=40000000 Value=177ff000
+    MSR write happened: MSR=c0000080 Value=100
+    MSR write happened: MSR=c0000080 Value=d01
+    MSR write happened: MSR=2ff Value=0
+    MSR write happened: MSR=2ff Value=c06
+    MSR write happened: MSR=40000000 Value=1001000
+    MSR write happened: MSR=c0000081 Value=23001000000000
+    MSR write happened: MSR=c0000082 Value=ffffffff8100b060
+    MSR write happened: MSR=c0000083 Value=ffffffff81500b40
+    MSR write happened: MSR=c0000083 Value=ffffffff8104a9c0
+    MSR write happened: MSR=c0000084 Value=3700
+    MSR write happened: MSR=c0000102 Value=0
+    MSR write happened: MSR=400 Value=ffffffffffffffff
+    MSR write happened: MSR=401 Value=0
+    MSR write happened: MSR=404 Value=ffffffffffffffff
+    MSR write happened: MSR=405 Value=0
+    MSR write happened: MSR=c0000080 Value=100
+    MSR write happened: MSR=c0000080 Value=d01
+    MSR write happened: MSR=c0000081 Value=23001000000000
+    MSR write happened: MSR=c0000082 Value=ffffffff8100b060
+    MSR write happened: MSR=c0000083 Value=ffffffff81500b40
+    MSR write happened: MSR=c0000083 Value=ffffffff8104a9c0
+    MSR write happened: MSR=c0000084 Value=3700
+    MSR write happened: MSR=c0000102 Value=0
+    MSR write happened: MSR=400 Value=ffffffffffffffff
+    MSR write happened: MSR=401 Value=0
+    MSR write happened: MSR=404 Value=ffffffffffffffff
+    MSR write happened: MSR=405 Value=0
+    MSR write happened: MSR=2ff Value=0
+    MSR write happened: MSR=2ff Value=c06
+    MSR write happened: MSR=2ff Value=0
+    MSR write happened: MSR=2ff Value=c06
+
+    #Shutdown:
+    MSR write happened: MSR=400 Value=0
+    MSR write happened: MSR=404 Value=0
+    MSR write happened: MSR=400 Value=0
+    MSR write happened: MSR=404 Value=0
+
+
+Centos6 i386
+    MSR write happened: MSR=c0000080 Value=100
+    MSR write happened: MSR=c0000102 Value=3
+    MSR write happened: MSR=c0000080 Value=0
+    MSR write happened: MSR=40000000 Value=1f7ff000
+    MSR write happened: MSR=c0000080 Value=800
+    MSR write happened: MSR=2ff Value=0
+    MSR write happened: MSR=2ff Value=c06
+    MSR write happened: MSR=c0000080 Value=800
+    MSR write happened: MSR=40000000 Value=402000
+    MSR write happened: MSR=400 Value=ffffffffffffffff
+    MSR write happened: MSR=401 Value=0
+    MSR write happened: MSR=404 Value=ffffffffffffffff
+    MSR write happened: MSR=405 Value=0
+    MSR write happened: MSR=2ff Value=0
+    MSR write happened: MSR=2ff Value=c06
+
+    #Shutdown:
+    MSR write happened: MSR=400 Value=0
+    MSR write happened: MSR=404 Value=0
+
+
+Winxp sp3
+    MSR write happened: MSR=8b Value=0
+    MSR write happened: MSR=c0000080 Value=800
+    MSR write happened: MSR=10 Value=0
+    MSR write happened: MSR=400 Value=ffffffffffffffff
+    MSR write happened: MSR=404 Value=ffffffffffffffff
+    MSR write happened: MSR=8b Value=0
+    MSR write happened: MSR=8b Value=0
+    MSR write happened: MSR=8b Value=0
+    MSR write happened: MSR=8b Value=0
+
