@@ -150,7 +150,11 @@ struct vmi_instance {
 
     unsigned int num_vcpus; /**< number of VCPUs used by this instance */
 
-    GHashTable *event_handlers; /**< event->functions mapping for events */
+    GHashTable *mem_events; /**< mem event to functions mapping (key: reg) */
+
+    GHashTable *reg_events; /**< reg event to functions mapping (key: page) */
+
+    gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
 };
 
 /** Windows' UNICODE_STRING structure (x86) */
@@ -387,19 +391,9 @@ typedef struct _windows_unicode_string32 {
         vmi_instance_t vmi);
     void events_destroy(
         vmi_instance_t vmi);
-    void event_handler_set(
-        vmi_instance_t vmi,
-        vmi_event_t event,
-        event_callback_t cb);
-    status_t event_handler_del(
-        vmi_instance_t vmi,
-        gpointer key);
-    void event_handler_clear(
-        vmi_instance_t vmi);
+    gboolean event_entry_free (
+        gpointer key,
+        gpointer value,
+        gpointer data);
 
-    typedef GHashTableIter event_iter_t;
-    #define for_each_event(vmi, iter, key, val) \
-        g_hash_table_iter_init(&iter, vmi->event_handlers); \
-        while(g_hash_table_iter_next(&iter,(void**)&key,(void**)&val))
-    
 #endif /* PRIVATE_H */
