@@ -131,9 +131,12 @@ void syscall_lm_cb(vmi_instance_t vmi, vmi_event_t event){
 }
 
 void cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t event){
-printf("one_task callback\n");
+
+    int pid = vmi_dtb_to_pid(vmi, event.reg_event.value);
+
+    printf("one_task callback\n");
     if(event.reg_event.value == cr3){
-        printf("My process is executing on vcpu %lu\n", event.vcpu_id);
+        printf("My process (PID %i) is executing on vcpu %lu\n", pid, event.vcpu_id);
         
         msr_syscall_sysenter_event.mem_event.in_access = VMI_MEM_X;
         kernel_sysenter_target_event.mem_event.in_access = VMI_MEM_X;
@@ -147,13 +150,14 @@ printf("one_task callback\n");
             fprintf(stderr, "Could not install sysenter syscall handler.\n");
     }
     else{
-        printf("My process is not executing.\n");
+        printf("PID %i is executing, not my process!\n", pid);
         vmi_clear_event(vmi, msr_syscall_sysenter_event);
     }
 }
 
 void cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t event){
-	printf("My process with CR3=%lx executing on vcpu %lu.\n", event.reg_event.value, event.vcpu_id);
+    int pid = vmi_dtb_to_pid(vmi, event.reg_event.value);
+    printf("PID %i with CR3=%lx executing on vcpu %lu.\n", pid, event.reg_event.value, event.vcpu_id);
 
 	msr_syscall_sysenter_event.mem_event.in_access = VMI_MEM_X;
 
@@ -161,9 +165,6 @@ void cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t event){
 	    fprintf(stderr, "Could not install sysenter syscall handler.\n");
 	vmi_clear_event(vmi, msr_syscall_sysenter_event);
 }
-
-
-
 
 int main (int argc, char **argv)
 {
