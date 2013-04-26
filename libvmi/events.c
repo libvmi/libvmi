@@ -58,8 +58,12 @@ void events_init (vmi_instance_t vmi)
         return;
     }
 
+    /* FIX: the 2nd argument is the  GEqualFunc who will compare two gpoints
+    * g_int_equal will take the value of gint type pointed by the gpoint as a argument,
+    * g_direct_equal will take the value of gpoint itself 
+    */
     vmi->event_handlers = g_hash_table_new_full(
-            g_int_hash, g_int_equal, event_entry_free, NULL);
+            g_int_hash, g_direct_equal, event_entry_free, NULL);
 }
 
 void event_handler_clear (vmi_instance_t vmi)
