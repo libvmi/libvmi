@@ -1377,33 +1377,35 @@ void vmi_pidcache_add(
 /* max number of vcpus we can set single step on at one time for a domain */
 #define MAX_SINGLESTEP_VCPUS 32
 
-#define VMI_REGACCESS_N (1 << 0)
-#define VMI_REGACCESS_R (1 << 1)
-#define VMI_REGACCESS_W (1 << 2)
-#define VMI_REGACCESS_RW (VMI_REGACCESS_R | VMI_REGACCESS_W)
-
-typedef uint8_t vmi_reg_access_t;
-
-#define VMI_MEMACCESS_INVALID     0
-#define VMI_MEMACCESS_N           (1 << 0)
-#define VMI_MEMACCESS_R           (1 << 1)
-#define VMI_MEMACCESS_W           (1 << 2)
-#define VMI_MEMACCESS_X           (1 << 3)
-#define VMI_MEMACCESS_RW          (VMI_MEMACCESS_R | VMI_MEMACCESS_W)
-#define VMI_MEMACCESS_RX          (VMI_MEMACCESS_R | VMI_MEMACCESS_X)
-#define VMI_MEMACCESS_WX          (VMI_MEMACCESS_W | VMI_MEMACCESS_X)
-#define VMI_MEMACCESS_RWX         (VMI_MEMACCESS_R | VMI_MEMACCESS_W | VMI_MEMACCESS_X)
-#define VMI_MEMACCESS_X_ON_WRITE  (1 << 4)
-
-typedef uint8_t vmi_mem_access_t;
+typedef enum {
+    VMI_REGACCESS_INVALID = 0,
+    VMI_REGACCESS_N = (1 << 0),
+    VMI_REGACCESS_R = (1 << 1),
+    VMI_REGACCESS_W = (1 << 2),
+    VMI_REGACCESS_RW = (VMI_REGACCESS_R | VMI_REGACCESS_W),
+} vmi_reg_access_t;
 
 typedef enum {
-    VMI_MEMEVENT_PAGE,
-    VMI_MEMEVENT_BYTE
-} vmi_memevent_level_t;
+    VMI_MEMACCESS_INVALID    = 0,
+    VMI_MEMACCESS_N          = (1 << 0),
+    VMI_MEMACCESS_R          = (1 << 1),
+    VMI_MEMACCESS_W          = (1 << 2),
+    VMI_MEMACCESS_X          = (1 << 3),
+    VMI_MEMACCESS_RW         = (VMI_MEMACCESS_R | VMI_MEMACCESS_W),
+    VMI_MEMACCESS_RX         = (VMI_MEMACCESS_R | VMI_MEMACCESS_X),
+    VMI_MEMACCESS_WX         = (VMI_MEMACCESS_W | VMI_MEMACCESS_X),
+    VMI_MEMACCESS_RWX        = (VMI_MEMACCESS_R | VMI_MEMACCESS_W | VMI_MEMACCESS_X),
+    VMI_MEMACCESS_X_ON_WRITE = (1 << 4)
+} vmi_mem_access_t;
 
 typedef enum {
-    VMI_EVENT_NONE,
+    VMI_MEMEVENT_INVALID,
+    VMI_MEMEVENT_BYTE,
+    VMI_MEMEVENT_PAGE
+} vmi_memevent_granularity_t;
+
+typedef enum {
+    VMI_EVENT_INVALID,
     VMI_EVENT_MEMORY,
     VMI_EVENT_REGISTER,
     VMI_EVENT_SINGLESTEP
@@ -1425,10 +1427,11 @@ typedef struct {
 
 typedef struct {
     // IN
-    vmi_memevent_level_t level;
-    addr_t pa;
-    uint64_t npages; // Unsupported at the moment
-    vmi_mem_access_t in_access;
+    vmi_memevent_granularity_t granularity; // VMI_MEMEVENT_BYTE/PAGE
+    addr_t physical_address;                // Physical address to set event on.
+                                            // With VMI_MEMEVENT_PAGE it can be any byte on the target page.
+    uint64_t npages;                        // Unsupported at the moment
+    vmi_mem_access_t in_access;             // VMI_MEMACCESS_*
     // OUT
     addr_t gla;
     addr_t gfn;
@@ -1507,12 +1510,14 @@ vmi_event_t *vmi_get_reg_event(
  * Return the pointer to the vmi_event_t if one is set on the given page.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] page Page to check
+ * @param[in] physical_address Physical address of byte/page to check
+ * @param[in] granularity VMI_MEMEVENT_BYTE or VMI_MEMEVENT_PAGE
  * @return vmi_event_t* or NULL if none found
  */
 vmi_event_t *vmi_get_mem_event(
     vmi_instance_t vmi,
-    addr_t page);
+    addr_t physical_address,
+    vmi_memevent_granularity_t granularity);
 
 /**
  * Listen for events until one occurs or a timeout.

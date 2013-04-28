@@ -49,7 +49,7 @@ vmi_event_t kernel_sysenter_target_event;
 
 void print_event(vmi_event_t event){
     printf("PAGE %lx ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %lu)\n",
-        event.mem_event.pa,
+        event.mem_event.physical_address,
         (event.mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
         (event.mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
         (event.mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
@@ -268,16 +268,11 @@ int main (int argc, char **argv)
 
 
     // Get only the page that the handler starts.
-    phys_lstar >>= 12;
-    printf("LSTAR Physical PFN == %llx\n", (unsigned long long)phys_lstar);
-    phys_cstar >>= 12;
-    printf("CSTAR Physical PFN == %llx\n", (unsigned long long)phys_cstar);
-    phys_sysenter_ip >>= 12;
-    printf("SYSENTER_IP Physical PFN == %llx\n", (unsigned long long)phys_sysenter_ip);
-    phys_vsyscall >>= 12;
-    printf("phys_vsyscall Physical PFN == %llx\n", (unsigned long long)phys_vsyscall);
-    phys_ia32_sysenter_target >>= 12;
-    printf("phys_ia32_sysenter_target Physical PFN == %llx\n", (unsigned long long)phys_ia32_sysenter_target);
+    printf("LSTAR Physical PFN == %llx\n", (unsigned long long)(phys_lstar >> 12));
+    printf("CSTAR Physical PFN == %llx\n", (unsigned long long)(phys_cstar >> 12));
+    printf("SYSENTER_IP Physical PFN == %llx\n", (unsigned long long)(phys_sysenter_ip >> 12));
+    printf("phys_vsyscall Physical PFN == %llx\n", (unsigned long long)(phys_vsyscall >> 12));
+    printf("phys_ia32_sysenter_target Physical PFN == %llx\n", (unsigned long long)(phys_ia32_sysenter_target >> 12));
 
     /* Configure an event to track when the process is running.
      * (The CR3 register is updated on task context switch, allowing
@@ -290,7 +285,7 @@ int main (int argc, char **argv)
     /* Observe only write events to the given register. 
      *   NOTE: read events are unsupported at this time.
      */
-    cr3_event.reg_event.in_access = VMI_REG_W;
+    cr3_event.reg_event.in_access = VMI_REGACCESS_W;
 
     /* Optional (default = 0): Trigger on change 
      *  Causes events to be delivered by the hypervisor to this monitoring
@@ -322,21 +317,21 @@ int main (int argc, char **argv)
     // But don't install it; that will be done by the cr3 handler.
     memset(&msr_syscall_sysenter_event, 0, sizeof(vmi_event_t));
     msr_syscall_sysenter_event.type = VMI_EVENT_MEMORY;
-    msr_syscall_sysenter_event.mem_event.pa = phys_sysenter_ip;
+    msr_syscall_sysenter_event.mem_event.physical_address = phys_sysenter_ip;
     msr_syscall_sysenter_event.mem_event.npages = 1;
-    msr_syscall_sysenter_event.mem_event.level=VMI_MEMEVENT_PAGE;
+    msr_syscall_sysenter_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
 
     memset(&kernel_sysenter_target_event, 0, sizeof(vmi_event_t));
     kernel_sysenter_target_event.type = VMI_EVENT_MEMORY;
-    kernel_sysenter_target_event.mem_event.pa = phys_ia32_sysenter_target;
+    kernel_sysenter_target_event.mem_event.physical_address = phys_ia32_sysenter_target;
     kernel_sysenter_target_event.mem_event.npages = 1;
-    kernel_sysenter_target_event.mem_event.level=VMI_MEMEVENT_PAGE;
+    kernel_sysenter_target_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
 
     memset(&kernel_vsyscall_event, 0, sizeof(vmi_event_t));
     kernel_vsyscall_event.type = VMI_EVENT_MEMORY;
-    kernel_vsyscall_event.mem_event.pa = phys_vsyscall;
+    kernel_vsyscall_event.mem_event.physical_address = phys_vsyscall;
     kernel_vsyscall_event.mem_event.npages = 1;
-    kernel_vsyscall_event.mem_event.level=VMI_MEMEVENT_PAGE;
+    kernel_vsyscall_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
 
     while(!interrupted){
         printf("Waiting for events...\n");
