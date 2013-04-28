@@ -159,6 +159,15 @@ struct vmi_instance {
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
 };
 
+typedef struct memevent_page {
+
+    vmi_mem_access_t access_flag; /**< page access flag */
+    vmi_event_t *event; /**< page event registered */
+
+    GHashTable  *byte_events; /**< byte events */
+
+} memevent_page_t;
+
 /** Windows' UNICODE_STRING structure (x86) */
 typedef struct _windows_unicode_string32 {
     uint16_t length;

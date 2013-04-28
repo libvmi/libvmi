@@ -1377,24 +1377,30 @@ void vmi_pidcache_add(
 /* max number of vcpus we can set single step on at one time for a domain */
 #define MAX_SINGLESTEP_VCPUS 32
 
-typedef enum {
-    VMI_REG_N,
-    VMI_REG_R,
-    VMI_REG_W,
-    VMI_REG_RW
-} vmi_reg_access_t;
+#define VMI_REGACCESS_N (1 << 0)
+#define VMI_REGACCESS_R (1 << 1)
+#define VMI_REGACCESS_W (1 << 2)
+#define VMI_REGACCESS_RW (VMI_REGACCESS_R | VMI_REGACCESS_W)
+
+typedef uint8_t vmi_reg_access_t;
+
+#define VMI_MEMACCESS_INVALID     0
+#define VMI_MEMACCESS_N           (1 << 0)
+#define VMI_MEMACCESS_R           (1 << 1)
+#define VMI_MEMACCESS_W           (1 << 2)
+#define VMI_MEMACCESS_X           (1 << 3)
+#define VMI_MEMACCESS_RW          (VMI_MEMACCESS_R | VMI_MEMACCESS_W)
+#define VMI_MEMACCESS_RX          (VMI_MEMACCESS_R | VMI_MEMACCESS_X)
+#define VMI_MEMACCESS_WX          (VMI_MEMACCESS_W | VMI_MEMACCESS_X)
+#define VMI_MEMACCESS_RWX         (VMI_MEMACCESS_R | VMI_MEMACCESS_W | VMI_MEMACCESS_X)
+#define VMI_MEMACCESS_X_ON_WRITE  (1 << 4)
+
+typedef uint8_t vmi_mem_access_t;
 
 typedef enum {
-    VMI_MEM_N,
-    VMI_MEM_R,
-    VMI_MEM_W,
-    VMI_MEM_X,
-    VMI_MEM_RW,
-    VMI_MEM_RX,
-    VMI_MEM_WX,
-    VMI_MEM_RWX,
-    VMI_MEM_X_ON_WRITE
-} vmi_mem_access_t;
+    VMI_MEMEVENT_PAGE,
+    VMI_MEMEVENT_BYTE
+} vmi_memevent_level_t;
 
 typedef enum {
     VMI_EVENT_NONE,
@@ -1419,7 +1425,8 @@ typedef struct {
 
 typedef struct {
     // IN
-    addr_t page;
+    vmi_memevent_level_t level;
+    addr_t pa;
     uint64_t npages; // Unsupported at the moment
     vmi_mem_access_t in_access;
     // OUT

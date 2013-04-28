@@ -33,6 +33,26 @@
 #define _GNU_SOURCE
 #include <glib.h>
 
+vmi_mem_access_t combine_mem_access(vmi_mem_access_t base, vmi_mem_access_t add) {
+
+    if(add == base)
+        return base;
+
+    if(add  == VMI_MEMACCESS_N)
+        return base;
+    if(base == VMI_MEMACCESS_N)
+        return add;
+
+    // Can't combine rights with X_ON_WRITE
+    if(add  == VMI_MEMACCESS_X_ON_WRITE)
+        return VMI_MEMACCESS_INVALID;
+    if(base == VMI_MEMACCESS_X_ON_WRITE)
+        return VMI_MEMACCESS_INVALID;
+
+    return (base | add);
+
+};
+
 //----------------------------------------------------------------------------
 //  General event callback management.
 
@@ -119,15 +139,15 @@ status_t vmi_register_event (vmi_instance_t vmi,
 
             break;
         case VMI_EVENT_MEMORY:
-            if(NULL!=g_hash_table_lookup(vmi->mem_events, &(event->mem_event.page))) {
+            if(NULL!=g_hash_table_lookup(vmi->mem_events, &(event->mem_event.pa))) {
                 dbprint("An event is already registered on this page: %"PRIu64"\n",
-                    event->mem_event.page);
+                    event->mem_event.pa);
             } else {
                 if(VMI_SUCCESS == driver_set_mem_access(vmi, event->mem_event)){
-                    g_hash_table_insert(vmi->mem_events, &(event->mem_event.page), event);
+                    g_hash_table_insert(vmi->mem_events, &(event->mem_event.pa), event);
 
                     dbprint("Enabling memory event on pages: %"PRIu64" + %"PRIu64"\n",
-                        event->mem_event.page, event->mem_event.npages);
+                        event->mem_event.pa, event->mem_event.npages);
                     rc = VMI_SUCCESS;
                 }
             }
@@ -184,7 +204,7 @@ status_t vmi_clear_event (vmi_instance_t vmi,
             if(NULL!=g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg))) {
                 dbprint("Disabling register event on reg: %d\n",
                     event->reg_event.reg);
-                event->reg_event.in_access = VMI_REG_N;
+                event->reg_event.in_access = VMI_REGACCESS_N;
                 rc = driver_set_reg_access(vmi, event->reg_event);
                 if(!vmi->shutting_down && rc==VMI_SUCCESS) {
                     g_hash_table_remove(vmi->reg_events, &(event->reg_event.reg));
@@ -192,10 +212,10 @@ status_t vmi_clear_event (vmi_instance_t vmi,
             }
             break;
         case VMI_EVENT_MEMORY:
-            if(NULL!=g_hash_table_lookup(vmi->mem_events, &(event->mem_event.page))) {
+            if(NULL!=g_hash_table_lookup(vmi->mem_events, &(event->mem_event.pa))) {
                 dbprint("Disabling memory event on page: %"PRIu64"\n",
-                    event->mem_event.page);
-                event->mem_event.in_access = VMI_MEM_N;
+                    event->mem_event.pa);
+                event->mem_event.in_access = VMI_MEMACCESS_N;
                 rc = driver_set_mem_access(vmi, event->mem_event);
                 if(!vmi->shutting_down && rc==VMI_SUCCESS) {
                     g_hash_table_remove(vmi->mem_events, &(event->mem_event.page));

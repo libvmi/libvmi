@@ -278,9 +278,9 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
         event->mem_event.offset = req.offset;
         event->vcpu_id = req.vcpu_id;
 
-        if(req.access_r) event->mem_event.out_access = VMI_MEM_R;
-        else if(req.access_w) event->mem_event.out_access = VMI_MEM_W;
-        else if(req.access_x) event->mem_event.out_access = VMI_MEM_X;
+        if(req.access_r) event->mem_event.out_access = VMI_MEMACCESS_R;
+        else if(req.access_w) event->mem_event.out_access = VMI_MEMACCESS_W;
+        else if(req.access_x) event->mem_event.out_access = VMI_MEMACCESS_X;
 
         /* TODO MARESCA: decide whether it's worthwhile to emulate xen-access here and call the following
          *    note: the 'access' variable is basically discarded in that spot. perhaps it's really only called
@@ -579,8 +579,8 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
     int hvm_param;
 
     switch(event.in_access){
-        case VMI_REG_N: break;
-        case VMI_REG_W:
+        case VMI_REGACCESS_N: break;
+        case VMI_REGACCESS_W:
             value = HVMPME_mode_sync;
             if(event.async)
                 value = HVMPME_mode_async;
@@ -590,8 +590,8 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
                 value |= HVMPME_onchangeonly;
 
             break;
-        case VMI_REG_R:
-        case VMI_REG_RW:
+        case VMI_REGACCESS_R:
+        case VMI_REGACCESS_RW:
             errprint("Register read events are unavailable in Xen.\n");
             return VMI_FAILURE;
             break;
@@ -637,20 +637,20 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event)
     // Convert betwen vmi_mem_access_t and hvmmem_access_t
     // Xen does them backwards....
     switch(event.in_access){
-        case VMI_MEM_N: access = HVMMEM_access_rwx; break;
-        case VMI_MEM_R: access = HVMMEM_access_wx; break;
-        case VMI_MEM_W: access = HVMMEM_access_rx; break;
-        case VMI_MEM_X: access = HVMMEM_access_rw; break;
-        case VMI_MEM_RW: access = HVMMEM_access_x; break;
-        case VMI_MEM_RX: access = HVMMEM_access_w; break;
-        case VMI_MEM_WX: access = HVMMEM_access_r; break;
-        case VMI_MEM_RWX: access = HVMMEM_access_n; break;
-        case VMI_MEM_X_ON_WRITE: access = HVMMEM_access_rx2rw; break;
+        case VMI_MEMACCESS_N: access = HVMMEM_access_rwx; break;
+        case VMI_MEMACCESS_R: access = HVMMEM_access_wx; break;
+        case VMI_MEMACCESS_W: access = HVMMEM_access_rx; break;
+        case VMI_MEMACCESS_X: access = HVMMEM_access_rw; break;
+        case VMI_MEMACCESS_RW: access = HVMMEM_access_x; break;
+        case VMI_MEMACCESS_RX: access = HVMMEM_access_w; break;
+        case VMI_MEMACCESS_WX: access = HVMMEM_access_r; break;
+        case VMI_MEMACCESS_RWX: access = HVMMEM_access_n; break;
+        case VMI_MEMACCESS_X_ON_WRITE: access = HVMMEM_access_rx2rw; break;
     }
 
     dbprint("--Setting memaccess for domain %lu on page: %"PRIu64" npages: %"PRIu64"\n",
         dom, event.page, npages);
-    if((rc = xc_hvm_set_mem_access(xch, dom, access, event.page, npages))){
+    if((rc = xc_hvm_set_mem_access(xch, dom, access, event.pa, npages))){
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
