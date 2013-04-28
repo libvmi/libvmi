@@ -885,6 +885,7 @@ status_t
 vmi_destroy(
     vmi_instance_t vmi)
 {
+    vmi->shutting_down = TRUE;
     if(vmi->init_mode & VMI_INIT_EVENTS){
         events_destroy(vmi);
     }

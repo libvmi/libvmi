@@ -479,6 +479,8 @@ xen_destroy(
     }
 #endif
 
+    free(xen_get_instance(vmi)->name);
+
 }
 
 status_t
