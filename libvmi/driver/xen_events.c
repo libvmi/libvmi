@@ -224,37 +224,33 @@ status_t process_register(vmi_instance_t vmi,
                           registers_t reg,
                           mem_event_request_t req)
 {
-    event_iter_t i;
-    vmi_event_t event, *eptr;
-    event_callback_t callback;
 
-    for_each_event(vmi, i, eptr, callback){
-        if(eptr->type==VMI_REGISTER_EVENT && eptr->reg_event.reg == reg){
-            /* reg_event.equal allows you to set a reg event for 
-             *  a specific VALUE of the register (passed in req.gfn) 
+    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &reg);
+
+    if(event) {
+            /* reg_event.equal allows you to set a reg event for
+             *  a specific VALUE of the register (passed in req.gfn)
              */
-            if(eptr->reg_event.equal && eptr->reg_event.equal != req.gfn)
+            if(event->reg_event.equal && event->reg_event.equal != req.gfn)
                 return VMI_SUCCESS;
-            event = *eptr;
-            event.reg_event.value = req.gfn;
-            event.vcpu_id = req.vcpu_id;
-            
+
+            event->reg_event.value = req.gfn;
+            event->vcpu_id = req.vcpu_id;
+
             /* TODO MARESCA: note that vmi_event_t lacks a flags member
              *   so we have no req.flags equivalent. might need to add
              *   e.g !!(req.flags & MEM_EVENT_FLAG_VCPU_PAUSED)  would be nice
              */
-            callback(vmi, event);
+            event->callback(vmi, event);
+
             return VMI_SUCCESS;
-        }
     }
+
     return VMI_FAILURE;
 }
 
 status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
 {
-    event_iter_t i;
-    vmi_event_t event, *eptr;
-    event_callback_t callback;
     addr_t page;
     uint64_t npages;
 
@@ -268,32 +264,27 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
     xc_domain_hvm_getcontext_partial(xch, dom,
          HVM_SAVE_CODE(CPU), req.vcpu_id, &ctx, sizeof(ctx));
 
-    for_each_event(vmi, i, eptr, callback){
-        if(eptr->type==VMI_MEMORY_EVENT){
-            page = eptr->mem_event.page;
-            npages = eptr->mem_event.npages;
-            if(req.gfn >= page && req.gfn <= (page+(getpagesize()*npages))){
-                event = *eptr;
-                event.mem_event.gla = req.gla;
-                event.mem_event.gfn = req.gfn;
-                event.mem_event.offset = req.offset;
-                event.vcpu_id = req.vcpu_id;
+    vmi_event_t * event = g_hash_table_lookup(vmi->mem_events, &req.gfn);
 
-                if(req.access_r) event.mem_event.out_access = VMI_MEM_R;
-                else if(req.access_w) event.mem_event.out_access = VMI_MEM_W;
-                else if(req.access_x) event.mem_event.out_access = VMI_MEM_X;
+    if(event) {
+        event->mem_event.gla = req.gla;
+        event->mem_event.gfn = req.gfn;
+        event->mem_event.offset = req.offset;
+        event->vcpu_id = req.vcpu_id;
 
-                /* TODO MARESCA: decide whether it's worthwhile to emulate xen-access here and call the following
-                 *    note: the 'access' variable is basically discarded in that spot. perhaps it's really only called
-                 *    to validate that the event is accessible (maybe that it's not consumed elsewhere??)
-                 * hvmmem_access_t access;
-                 * rc = xc_hvm_get_mem_access(xch, domain_id, event.mem_event.gfn, &access);
-                 */
-                callback(vmi, event);
+        if(req.access_r) event->mem_event.out_access = VMI_MEM_R;
+        else if(req.access_w) event->mem_event.out_access = VMI_MEM_W;
+        else if(req.access_x) event->mem_event.out_access = VMI_MEM_X;
 
-                return VMI_SUCCESS;
-            }
-        }
+        /* TODO MARESCA: decide whether it's worthwhile to emulate xen-access here and call the following
+         *    note: the 'access' variable is basically discarded in that spot. perhaps it's really only called
+         *    to validate that the event is accessible (maybe that it's not consumed elsewhere??)
+         * hvmmem_access_t access;
+         * rc = xc_hvm_get_mem_access(xch, domain_id, event.mem_event.gfn, &access);
+         */
+        event->callback(vmi, event);
+
+        return VMI_SUCCESS;
     }
     return VMI_FAILURE;
 }
@@ -316,12 +307,25 @@ void xen_events_destroy(vmi_instance_t vmi)
     if ( xe == NULL )
         return;
 
+    /* Unregister for all events */
+    rc = xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, ~0ull, 0);
+    rc = xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, 0, xe->mem_event.max_pages);
+    rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_INT3, HVMPME_mode_disabled);
+    rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR0, HVMPME_mode_disabled);
+    rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR3, HVMPME_mode_disabled);
+    rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR4, HVMPME_mode_disabled);
+#ifdef HVM_PARAM_MEMORY_EVENT_MSR
+    rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_MSR, HVMPME_mode_disabled);
+#endif
+    rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_SINGLE_STEP, HVMPME_mode_disabled);
+
+    xen_events_listen(vmi, 0);
+
     // Turn off mem events
 #ifdef XENEVENT42
-    rc = xc_mem_access_disable(xch, dom);
     munmap(xe->mem_event.ring_page, getpagesize());
+    rc = xc_mem_access_disable(xch, dom);
 #elif XENEVENT41
-    rc = xc_mem_event_disable(xch, dom);
 
     if (xe->mem_event.ring_page != NULL) {
         munlock(xe->mem_event.ring_page, getpagesize());
@@ -332,6 +336,8 @@ void xen_events_destroy(vmi_instance_t vmi)
         munlock(xe->mem_event.shared_page, getpagesize());
         free(xe->mem_event.shared_page);
     }
+
+    rc = xc_mem_event_disable(xch, dom);
 #endif
 
     if ( rc != 0 )
@@ -348,7 +354,7 @@ void xen_events_destroy(vmi_instance_t vmi)
     {
         errprint("Error unbinding event port\n");
     }
-    xe->mem_event.port = -1;
+    //xe->mem_event.port = -1;
 
     // Close event channel
     rc = xc_evtchn_close(xe->mem_event.xce_handle);
@@ -356,7 +362,7 @@ void xen_events_destroy(vmi_instance_t vmi)
     {
         errprint("Error closing event channel\n");
     }
-    xe->mem_event.xce_handle = NULL;
+    //xe->mem_event.xce_handle = NULL;
 
     free(xe);
 }
@@ -656,12 +662,13 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
         errprint("Error %d setting mem_access listener required\n", rc);
     }
 
-
-    dbprint("--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
-    rc = wait_for_event_or_timeout(xch, xe->mem_event.xce_handle, timeout);
-    if ( rc < -1 ) {
-        errprint("Error while waiting for event.\n");
-        return VMI_FAILURE;
+    if(!vmi->shutting_down && timeout > 0) {
+        dbprint("--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
+        rc = wait_for_event_or_timeout(xch, xe->mem_event.xce_handle, timeout);
+        if ( rc < -1 ) {
+            errprint("Error while waiting for event.\n");
+            return VMI_FAILURE;
+        }
     }
 
     while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->mem_event.back_ring) ) {
@@ -680,7 +687,10 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
                 dbprint("--Caught mem event!\n");
                 rsp.gfn = req.gfn;
                 rsp.p2mt = req.p2mt;
-                vrc = process_mem(vmi, req);
+
+                if(!vmi->shutting_down) {
+                    vrc = process_mem(vmi, req);
+                }
 
                 /*MARESCA do we need logic here to reset flags on a page? see xen-access.c
                  *    specifically regarding write/exec/int3 inspection and the code surrounding
@@ -689,14 +699,20 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 
                 break;
             case MEM_EVENT_REASON_CR0:
-                vrc = process_register(vmi, CR0, req);
+                if(!vmi->shutting_down) {
+                    vrc = process_register(vmi, CR0, req);
+                }
                 break;
             case MEM_EVENT_REASON_CR3:
-                dbprint("--Caught CR3 event!\n");
-                vrc = process_register(vmi, CR3, req);
+                if(!vmi->shutting_down) {
+                    dbprint("--Caught CR3 event!\n");
+                    vrc = process_register(vmi, CR3, req);
+                }
                 break;
             case MEM_EVENT_REASON_CR4:
-                vrc = process_register(vmi, CR4, req);
+                if(!vmi->shutting_down) {
+                    vrc = process_register(vmi, CR4, req);
+                }
                 break;
             case MEM_EVENT_REASON_INT3:
                 /* TODO MARESCA need to handle this;

@@ -1378,15 +1378,16 @@ typedef enum {
 } vmi_mem_access_t;
 
 typedef enum {
-    VMI_MEMORY_EVENT,
-    VMI_REGISTER_EVENT
+    VMI_EVENT_NONE,
+    VMI_EVENT_MEMORY,
+    VMI_EVENT_REGISTER
 } vmi_event_type_t;
 
 typedef struct {
     // IN
     registers_t reg;
-    reg_t equal;  // Unused at the moment
-    reg_t mask;   // Unused at the moment
+    reg_t equal;  /* Event filter: callback triggers if register==value */
+    reg_t mask;   /* Unused at the moment */
     int async:1;
     int onchange:1;
     vmi_reg_access_t in_access;
@@ -1398,7 +1399,7 @@ typedef struct {
 typedef struct {
     // IN
     addr_t page;
-    uint64_t npages;
+    uint64_t npages; // Unsupported at the moment
     vmi_mem_access_t in_access;
     // OUT
     addr_t gla;
@@ -1407,17 +1408,19 @@ typedef struct {
     vmi_mem_access_t out_access;
 } mem_event_t;
 
-typedef struct vmi_event {
+struct vmi_event;
+typedef struct vmi_event vmi_event_t;
+typedef void (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *event);
+struct vmi_event {
     vmi_event_type_t type;
     union {
         reg_event_t reg_event;
         mem_event_t mem_event;
     };
     unsigned long vcpu_id;
-    void * data;  // Maybe allow some arbitrary data to follow the event?
-} vmi_event_t;
-
-typedef void (*event_callback_t)(vmi_instance_t vmi, vmi_event_t event);
+    void * data;  /* Provide mechanism for user to tie other data to the event */
+    event_callback_t callback;
+};
 
 /**
  * Register to handle the event specified by the vmi_event object.
@@ -1427,10 +1430,9 @@ typedef void (*event_callback_t)(vmi_instance_t vmi, vmi_event_t event);
  * @param[in] callback Function to call when the register is read
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_handle_event(
+status_t vmi_register_event(
     vmi_instance_t vmi,
-    vmi_event_t event,
-    event_callback_t callback);
+    vmi_event_t *event);
 
 /**
  * Clear the event specified by the vmi_event object.
@@ -1441,10 +1443,34 @@ status_t vmi_handle_event(
  */
 status_t vmi_clear_event(
     vmi_instance_t vmi,
-    vmi_event_t event);
+    vmi_event_t *event);
+
+/**
+ * Return the pointer to the vmi_event_t if one is set on the given register.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] reg Register to check
+ * @return vmi_event_t* or NULL if none found
+ */
+vmi_event_t *vmi_get_reg_event(
+    vmi_instance_t vmi,
+    registers_t reg);
+
+/**
+ * Return the pointer to the vmi_event_t if one is set on the given page.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] page Page to check
+ * @return vmi_event_t* or NULL if none found
+ */
+vmi_event_t *vmi_get_mem_event(
+    vmi_instance_t vmi,
+    addr_t page);
 
 /**
  * Listen for events until one occurs or a timeout.
+ * If the timeout is given as 0, it will process leftover events
+ * in the ring-buffer (if there are any).
  *
  * @param[in] vmi LibVMI instance
  * @param[in] timeout Number of ms.
