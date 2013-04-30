@@ -667,6 +667,12 @@ vmi_init_private(
     if (init_mode & VMI_INIT_PARTIAL) {
         init_page_offset(*vmi);
         driver_get_memsize(*vmi, &(*vmi)->size);
+
+        /* Enable event handlers */
+        if(init_mode & VMI_INIT_EVENTS){
+            events_init(*vmi);
+        }
+
         return VMI_SUCCESS;
     }
     else if (init_mode & VMI_INIT_COMPLETE) {
@@ -728,19 +734,20 @@ vmi_init_private(
             dbprint("**set cr3 = 0x%.16"PRIx64"\n", (*vmi)->cr3);
         }   // if
 
+        /* setup OS specific stuff */
+        if (VMI_OS_LINUX == (*vmi)->os_type) {
+            status = linux_init(*vmi);
+        }
+        else if (VMI_OS_WINDOWS == (*vmi)->os_type) {
+            status = windows_init(*vmi);
+        }
 
-        /* Enable event handlers */
-        if(init_mode & VMI_INIT_EVENTS){
+        /* Enable event handlers only if we're in a consistent state */
+        if((status == VMI_SUCCESS) && (init_mode & VMI_INIT_EVENTS)){
             events_init(*vmi);
         }
 
-        /* setup OS specific stuff */
-        if (VMI_OS_LINUX == (*vmi)->os_type) {
-            return linux_init(*vmi);
-        }
-        else if (VMI_OS_WINDOWS == (*vmi)->os_type) {
-            return windows_init(*vmi);
-        }
+        return status;
     }
 
 error_exit:

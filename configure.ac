@@ -134,6 +134,9 @@ xen_event_space=' '
                 AC_CHECK_LIB(xenctrl, [xc_mem_event_enable], [AC_DEFINE([XENEVENT41], [1], "Xen memory event 4.1 style")], [no41events="1"])
                 AC_CHECK_LIB(xenctrl, [xc_mem_access_enable], [AC_DEFINE([XENEVENT42], [1], "Xen memory event 4.2 style")], [no42events="1"])
                 AC_CHECK_DEFINE(XENCTRL_HAS_XC_INTERFACE, xenctrl.h) 
+                
+                # MSR events are only available in Xen 4.3+
+                AC_CHECK_DEFINE(MEM_EVENT_REASON_MSR, xen/mem_event.h) 
 
                 #validate that Xen events are in fact possible
                 [if (test "x$no41events" = "x1" || test "x$no42events" = "x1") && (test "$have_XENCTRL_HAS_XC_INTERFACE" = "yes") ]
