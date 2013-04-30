@@ -219,6 +219,12 @@ typedef enum registers {
     MSR_SYSCALL_MASK,
     MSR_EFER,
     MSR_TSC_AUX,
+    
+    /* special generic case for handling MSRs, given their understandably
+     *  generic treatment for events in Xen and elsewhere. Not relevant for 
+     *  vCPU get/set of register data.
+     */
+    MSR_ALL,
 
     TSC
 } registers_t;
@@ -1392,6 +1398,7 @@ typedef struct {
     int onchange:1;
     vmi_reg_access_t in_access;
     // OUT
+    reg_t context;
     reg_t value;
     vmi_reg_access_t out_access;
 } reg_event_t;
