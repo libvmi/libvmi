@@ -308,7 +308,7 @@ xen_check_domainid(
     int rc = xc_domain_getinfo(xchandle, domainid, 1,
                            &info);
 
-    if(rc==1 && info.domid==domainid) {
+    if(rc==1 && info.domid==(uint32_t)domainid) {
         ret = VMI_SUCCESS;
     }
 
