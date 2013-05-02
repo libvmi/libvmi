@@ -664,18 +664,9 @@ vmi_init_private(
     }
     dbprint("--completed driver init.\n");
 
-    if (init_mode & VMI_INIT_PARTIAL) {
-        init_page_offset(*vmi);
-        driver_get_memsize(*vmi, &(*vmi)->size);
-
-        /* Enable event handlers */
-        if(init_mode & VMI_INIT_EVENTS){
-            events_init(*vmi);
-        }
-
-        return VMI_SUCCESS;
-    }
-    else if (init_mode & VMI_INIT_COMPLETE) {
+    /* we check VMI_INIT_COMPLETE first as
+       VMI_INIT_PARTIAL is not exclusive */
+    if (init_mode & VMI_INIT_COMPLETE) {
 
         /* init_complete requires configuration */
         if(VMI_CONFIG_NONE & (*vmi)->config_mode) {
@@ -748,6 +739,16 @@ vmi_init_private(
         }
 
         return status;
+    } else if (init_mode & VMI_INIT_PARTIAL) {
+        init_page_offset(*vmi);
+        driver_get_memsize(*vmi, &(*vmi)->size);
+
+        /* Enable event handlers */
+        if(init_mode & VMI_INIT_EVENTS){
+            events_init(*vmi);
+        }
+
+        return VMI_SUCCESS;
     }
 
 error_exit:
