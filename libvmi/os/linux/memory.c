@@ -144,7 +144,7 @@ linux_pgd_to_pid(
     int pid = -1;
     addr_t ts_addr = 0;
     int tasks_offset = vmi->os.linux_instance.tasks_offset;
-    int pid_offset = vmi->os.linux_instance.pgd_offset;
+    int pid_offset = vmi->os.linux_instance.pid_offset;
 
     /* first we need a pointer to this pid's task_struct */
     ts_addr = linux_get_taskstruct_addr_from_pgd(vmi, pgd);
@@ -153,7 +153,7 @@ linux_pgd_to_pid(
         goto error_exit;
     }
 
-    /* now follow the pointer to the memory descriptor and grab the pgd value */
+    /* now follow the pointer to the memory descriptor and grab the pid value */
     vmi_read_32_va(vmi, ts_addr + pid_offset - tasks_offset, 0, &pid);
 
 error_exit:
