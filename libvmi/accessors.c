@@ -41,6 +41,16 @@ vmi_get_page_mode(
     }
 }
 
+uint8_t vmi_get_address_width(
+    vmi_instance_t vmi)
+{
+    uint8_t width = 0;
+
+    driver_get_address_width(vmi, &width);
+
+    return width;
+}
+
 uint32_t
 vmi_get_access_mode(
     vmi_instance_t vmi)
