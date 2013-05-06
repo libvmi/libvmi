@@ -40,28 +40,25 @@ linux_get_taskstruct_addr_from_pid(
     int pid_offset = vmi->os.linux_instance.pid_offset;
     int tasks_offset = vmi->os.linux_instance.tasks_offset;
 
-    /* first we need a pointer to this pid's task_struct */
+    /* First we need a pointer to the initial entry in the tasks list.
+     * Note that this is task_struct->tasks, not the base addr
+     *  of task_struct: task_struct base = $entry - tasks_offset.
+     */
     next_process = vmi->init_task;
     list_head = next_process;
 
-    while (1) {
-        addr_t next_process_tmp = 0;
-
-        vmi_read_addr_va(vmi, next_process, 0, &next_process_tmp);
-
-        /* if we are back at the list head, we are done */
-        if (list_head == next_process_tmp) {
-            goto error_exit;
-        }
-
-        /* if pid matches, then we found what we want */
+    do {
         vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &task_pid);
 
+        /* if pid matches, then we found what we want */
         if (task_pid == pid) {
-            return next_process;
+            return next_process - tasks_offset;
         }
-        next_process = next_process_tmp;
-    }
+
+        vmi_read_addr_va(vmi, next_process, 0, &next_process);
+
+        /* if we are back at the list head, we are done */
+    } while(list_head != next_process); 
 
 error_exit:
     return 0;
@@ -78,30 +75,27 @@ linux_get_taskstruct_addr_from_pgd(
     int mm_offset = vmi->os.linux_instance.mm_offset;
     int pgd_offset = vmi->os.linux_instance.pgd_offset;
 
-    /* first we need a pointer to this pid's task_struct */
+    /* First we need a pointer to the initial entry in the tasks list.
+     * Note that this is task_struct->tasks, not the base addr
+     *  of task_struct: task_struct base = $entry - tasks_offset. 
+     */
     next_process = vmi->init_task;
     list_head = next_process;
 
-    while (1) {
-        addr_t next_process_tmp = 0;
-
-        vmi_read_addr_va(vmi, next_process, 0, &next_process_tmp);
-
-        /* if we are back at the list head, we are done */
-        if (list_head == next_process_tmp) {
-            goto error_exit;
-        }
-
+    do {
         addr_t ptr = 0;
         vmi_read_addr_va(vmi, next_process + mm_offset - tasks_offset, 0, &ptr);
         vmi_read_addr_va(vmi, ptr + pgd_offset, 0, &task_pgd);
         task_pgd = vmi_translate_kv2p(vmi, task_pgd);
 
         if (task_pgd == pgd) {
-            return next_process;
+            return next_process - tasks_offset;
         }
-        next_process = next_process_tmp;
-    }
+
+        vmi_read_addr_va(vmi, next_process, 0, &next_process);
+        
+        /* if we are back at the list head, we are done */
+    } while (list_head != next_process);
 
 error_exit:
     return 0;
@@ -115,7 +109,6 @@ linux_pid_to_pgd(
 {
     addr_t ts_addr = 0, pgd = 0, ptr = 0;
     int mm_offset = vmi->os.linux_instance.mm_offset;
-    int tasks_offset = vmi->os.linux_instance.tasks_offset;
     int pgd_offset = vmi->os.linux_instance.pgd_offset;
 
     /* first we need a pointer to this pid's task_struct */
@@ -126,7 +119,7 @@ linux_pid_to_pgd(
     }
 
     /* now follow the pointer to the memory descriptor and grab the pgd value */
-    vmi_read_addr_va(vmi, ts_addr + mm_offset - tasks_offset, 0, &ptr);
+    vmi_read_addr_va(vmi, ts_addr + mm_offset, 0, &ptr);
     vmi_read_addr_va(vmi, ptr + pgd_offset, 0, &pgd);
 
     /* convert pgd into a machine address */
@@ -143,7 +136,6 @@ linux_pgd_to_pid(
 {
     int pid = -1;
     addr_t ts_addr = 0;
-    int tasks_offset = vmi->os.linux_instance.tasks_offset;
     int pid_offset = vmi->os.linux_instance.pid_offset;
 
     /* first we need a pointer to this pid's task_struct */
@@ -154,7 +146,7 @@ linux_pgd_to_pid(
     }
 
     /* now follow the pointer to the memory descriptor and grab the pid value */
-    vmi_read_32_va(vmi, ts_addr + pid_offset - tasks_offset, 0, &pid);
+    vmi_read_32_va(vmi, ts_addr + pid_offset, 0, &pid);
 
 error_exit:
     return pid;
