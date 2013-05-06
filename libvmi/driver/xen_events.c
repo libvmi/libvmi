@@ -237,9 +237,11 @@ status_t process_register(vmi_instance_t vmi,
             event->reg_event.value = req.gfn;
             event->vcpu_id = req.vcpu_id;
 
+#ifdef HVM_PARAM_MEMORY_EVENT_MSR
             /* Special case: indicate which MSR is being written */
             if(event->reg_event.reg == MSR_ALL)
                 event->reg_event.context = req.gla;
+#endif
             
             /* TODO MARESCA: note that vmi_event_t lacks a flags member
              *   so we have no req.flags equivalent. might need to add
@@ -584,8 +586,10 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
         case CR4:
             hvm_param = HVM_PARAM_MEMORY_EVENT_CR4;
             break;
+#ifdef HVM_PARAM_MEMORY_EVENT_MSR
         case MSR_ALL:
             hvm_param = HVM_PARAM_MEMORY_EVENT_MSR;
+#endif
             break;
         default:
             errprint("Tried to register for unsupported register event.\n");
@@ -716,10 +720,12 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
                     vrc = process_register(vmi, CR3, req);
                 }
                 break;
+#ifdef HVM_PARAM_MEMORY_EVENT_MSR
             case MEM_EVENT_REASON_MSR:
                 dbprint("--Caught MSR event!\n");
                 vrc = process_register(vmi, MSR_ALL, req);
                 break;
+#endif
             case MEM_EVENT_REASON_CR4:
                 if(!vmi->shutting_down) {
                     vrc = process_register(vmi, CR4, req);
