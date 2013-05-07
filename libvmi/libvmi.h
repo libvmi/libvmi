@@ -1127,6 +1127,16 @@ page_mode_t vmi_get_page_mode(
     vmi_instance_t vmi);
 
 /**
+ * Gets the current address width for the given vmi_instance_t
+ * Note: relative to the OS mode, not that of a process. 
+ *
+ * @param[in] vmi LibVMI instance
+ * @return address size in bytes
+ */
+uint8_t vmi_get_address_width(
+    vmi_instance_t vmi);
+
+/**
  * Get the OS type that LibVMI is currently accessing.  This is
  * simple windows or linux (no version information).
  *
