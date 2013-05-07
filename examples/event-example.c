@@ -48,7 +48,7 @@ vmi_event_t kernel_vsyscall_event;
 vmi_event_t kernel_sysenter_target_event;
 
 void print_event(vmi_event_t event){
-    printf("PAGE %lx ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %lu)\n",
+    printf("PAGE %lx ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %u)\n",
         event.mem_event.page,
         (event.mem_event.out_access == VMI_MEM_R) ? 'r' : '-',
         (event.mem_event.out_access == VMI_MEM_W) ? 'w' : '-',
@@ -138,7 +138,7 @@ void cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
 
     printf("one_task callback\n");
     if(event->reg_event.value == cr3){
-        printf("My process (PID %i) is executing on vcpu %lu\n", pid, event->vcpu_id);
+        printf("My process (PID %i) is executing on vcpu %u\n", pid, event->vcpu_id);
         msr_syscall_sysenter_event.mem_event.in_access = VMI_MEM_X;
         msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
         kernel_sysenter_target_event.mem_event.in_access = VMI_MEM_X;
@@ -161,7 +161,7 @@ void cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
 
 void cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event){
     int pid = vmi_dtb_to_pid(vmi, event->reg_event.value);
-    printf("PID %i with CR3=%lx executing on vcpu %lu.\n", pid, event->reg_event.value, event->vcpu_id);
+    printf("PID %i with CR3=%lx executing on vcpu %u.\n", pid, event->reg_event.value, event->vcpu_id);
 
 	msr_syscall_sysenter_event.mem_event.in_access = VMI_MEM_X;
 	msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;

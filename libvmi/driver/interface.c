@@ -118,6 +118,17 @@ struct driver_instance {
     *set_mem_access_ptr)(
     vmi_instance_t,
     mem_event_t);
+    status_t (
+    *start_single_step_ptr)(
+    vmi_instance_t,
+    single_step_event_t);
+    status_t (
+    *stop_single_step_ptr)(
+    vmi_instance_t,
+    uint32_t);
+    status_t (
+    *shutdown_single_step_ptr)(
+    vmi_instance_t);
 };
 typedef struct driver_instance *driver_instance_t;
 
@@ -151,6 +162,9 @@ driver_xen_setup(
     instance->events_listen_ptr = &xen_events_listen;
     instance->set_reg_access_ptr = &xen_set_reg_access;
     instance->set_mem_access_ptr = &xen_set_mem_access;
+    instance->start_single_step_ptr = &xen_start_single_step;
+    instance->stop_single_step_ptr = &xen_stop_single_step;
+    instance->shutdown_single_step_ptr = &xen_shutdown_single_step;
 #endif
 }
 
@@ -181,6 +195,9 @@ driver_kvm_setup(
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
     instance->set_mem_access_ptr = NULL;
+    instance->start_single_step_ptr = NULL;
+    instance->stop_single_step_ptr = NULL;
+    instance->shutdown_single_step_ptr = NULL;
 }
 
 static void
@@ -210,6 +227,9 @@ driver_file_setup(
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
     instance->set_mem_access_ptr = NULL;
+    instance->start_single_step_ptr = NULL;
+    instance->stop_single_step_ptr = NULL;
+    instance->shutdown_single_step_ptr = NULL;
 }
 
 static void
@@ -237,6 +257,9 @@ driver_null_setup(
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
     instance->set_mem_access_ptr = NULL;
+    instance->start_single_step_ptr = NULL;
+    instance->stop_single_step_ptr = NULL;
+    instance->shutdown_single_step_ptr = NULL;
 }
 
 static driver_instance_t
@@ -646,6 +669,47 @@ status_t driver_set_mem_access(
     }
     else{
         dbprint("WARNING: driver_set_mem_access function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t driver_start_single_step(
+    vmi_instance_t vmi, 
+    single_step_event_t event)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->start_single_step_ptr){
+        return ptrs->start_single_step_ptr(vmi, event);
+    }
+    else{
+        dbprint("WARNING: driver_start_single_step function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t driver_stop_single_step(
+    vmi_instance_t vmi, 
+    unsigned long vcpu)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->stop_single_step_ptr){
+        return ptrs->stop_single_step_ptr(vmi, vcpu);
+    }
+    else{
+        dbprint("WARNING: driver_stop_single_step function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t driver_shutdown_single_step(
+    vmi_instance_t vmi)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->shutdown_single_step_ptr){
+        return ptrs->shutdown_single_step_ptr(vmi);
+    }
+    else{
+        dbprint("WARNING: driver_shutdown_single_step function not implemented.\n");
         return VMI_FAILURE;
     }
 }

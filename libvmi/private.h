@@ -153,6 +153,8 @@ struct vmi_instance {
     GHashTable *mem_events; /**< mem event to functions mapping (key: reg) */
 
     GHashTable *reg_events; /**< reg event to functions mapping (key: page) */
+    
+    GHashTable *ss_events; /**< single step event to functions mapping (key: vcpu_id) */
 
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
 };
