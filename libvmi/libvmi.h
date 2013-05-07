@@ -1363,6 +1363,9 @@ void vmi_pidcache_add(
 /*---------------------------------------------------------
  * Event management
  */
+ 
+/* max number of vcpus we can set single step on at one time for a domain */
+#define MAX_SINGLESTEP_VCPUS 32
 
 typedef enum {
     VMI_REG_N,
@@ -1386,7 +1389,8 @@ typedef enum {
 typedef enum {
     VMI_EVENT_NONE,
     VMI_EVENT_MEMORY,
-    VMI_EVENT_REGISTER
+    VMI_EVENT_REGISTER,
+    VMI_EVENT_SINGLESTEP
 } vmi_event_type_t;
 
 typedef struct {
@@ -1415,6 +1419,12 @@ typedef struct {
     vmi_mem_access_t out_access;
 } mem_event_t;
 
+typedef struct {
+    addr_t gla;
+    addr_t gfn;
+    uint32_t vcpus;  
+} single_step_event_t;
+
 struct vmi_event;
 typedef struct vmi_event vmi_event_t;
 typedef void (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *event);
@@ -1423,11 +1433,24 @@ struct vmi_event {
     union {
         reg_event_t reg_event;
         mem_event_t mem_event;
+        single_step_event_t ss_event;
     };
-    unsigned long vcpu_id;
+    uint32_t vcpu_id;
     void * data;  /* Provide mechanism for user to tie other data to the event */
     event_callback_t callback;
 };
+
+/* Enables the correct bit for the given vcpu number x */
+#define SET_VCPU_SINGLESTEP(ss_event, x) \
+        ss_event.vcpus |= (1 << x)
+        
+/* Disables the correct bit for a given vcpu number x */ 
+#define UNSET_VCPU_SINGLESTEP(ss_event, x) \
+        ss_event.vcpus &= ~(1 << x)
+        
+/* Check to see if a vcpu number has single step enabled */
+#define CHECK_VCPU_SINGLESTEP(ss_event, x) \
+        (ss_event.vcpus) & (1 << x)
 
 /**
  * Register to handle the event specified by the vmi_event object.
@@ -1486,6 +1509,42 @@ vmi_event_t *vmi_get_mem_event(
 status_t vmi_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout);
+
+/**
+ * Return the pointer to the vmi_event_t if one is set on the given vcpu.
+ * 
+ * @param[in] vmi LibVMI instance
+ * @param[in] vcpu the vcpu to check
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+vmi_event_t *vmi_get_singlestep_event (vmi_instance_t vmi, 
+    uint32_t vcpu);
+
+/**
+ * Disables the MTF single step flag from a vcpu as well as the
+ * libvmi event object's bitfield position.
+ * This does not disable single step for the whole domain.
+ * 
+ * @param[in] vmi LibVMI instance
+ * @param[in] event the event to disable the vcpu on
+ * @param[in] vcpu the vcpu to stop single stepping on
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_stop_single_step_vcpu(
+    vmi_instance_t vmi,
+    vmi_event_t* event,
+    uint32_t vcpu);
+    
+/**
+ * Cleans up any domain wide single step settings.
+ * This should be called when the caller is completely
+ * finished with single step
+ * 
+ * @param[in] vmi LibVMI instance
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_shutdown_single_step(
+    vmi_instance_t);
 
 #pragma GCC visibility pop
 

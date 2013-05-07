@@ -159,6 +159,8 @@ xen_put_memory(
     return VMI_SUCCESS;
 }
 
+
+
 //----------------------------------------------------------------------------
 // General Interface Functions (1-1 mapping to driver_* function)
 
@@ -1706,6 +1708,25 @@ xen_resume_vm(
     return VMI_SUCCESS;
 }
 
+status_t
+xen_set_domain_debug_control(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    int enable)
+{
+    status_t ret = VMI_FAILURE;
+    int rc = -1;
+    
+    uint32_t op = (enable) ? 
+        XEN_DOMCTL_DEBUG_OP_SINGLE_STEP_ON : XEN_DOMCTL_DEBUG_OP_SINGLE_STEP_OFF;
+
+    ret = xc_domain_debug_control(
+        xen_get_xchandle(vmi), xen_get_domainid(vmi), 
+        op, vcpu);
+
+    return ret;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 #else
 
@@ -1858,6 +1879,15 @@ xen_pause_vm(
 status_t
 xen_resume_vm(
     vmi_instance_t vmi)
+{
+    return VMI_FAILURE;
+}
+
+status_t
+xen_set_domain_debug_control(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    int enable)
 {
     return VMI_FAILURE;
 }

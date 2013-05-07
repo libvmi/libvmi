@@ -154,3 +154,7 @@ status_t xen_pause_vm(
     vmi_instance_t vmi);
 status_t xen_resume_vm(
     vmi_instance_t vmi);
+status_t xen_set_domain_debug_control(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    int enable);

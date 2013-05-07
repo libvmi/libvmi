@@ -52,6 +52,7 @@ void events_init (vmi_instance_t vmi)
 
     vmi->mem_events = g_hash_table_new(g_int64_hash, g_int64_equal);
     vmi->reg_events = g_hash_table_new(g_int_hash, g_int_equal);
+    vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);
 }
 
 void events_destroy (vmi_instance_t vmi)
@@ -62,9 +63,11 @@ void events_destroy (vmi_instance_t vmi)
 
     g_hash_table_foreach_steal(vmi->mem_events, event_entry_free, vmi);
     g_hash_table_foreach_steal(vmi->reg_events, event_entry_free, vmi);
+    g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
 
     g_hash_table_destroy(vmi->mem_events);
     g_hash_table_destroy(vmi->reg_events);
+    g_hash_table_destroy(vmi->ss_events);
 }
 
 //----------------------------------------------------------------------------
@@ -84,6 +87,8 @@ status_t vmi_register_event (vmi_instance_t vmi,
                            vmi_event_t* event)
 {
     status_t rc = VMI_FAILURE;
+    uint32_t vcpu = 0;
+    uint32_t* vcpu_i = NULL;
 
     if(!(vmi->init_mode & VMI_INIT_EVENTS)){
         dbprint("LibVMI wasn't initialized with events!\n");
@@ -128,6 +133,24 @@ status_t vmi_register_event (vmi_instance_t vmi,
             }
 
             break;
+        case VMI_EVENT_SINGLESTEP:
+            for(;vcpu<vmi->num_vcpus;vcpu++) {
+                if(CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu)) {
+                    if(NULL!=g_hash_table_lookup(vmi->ss_events, &vcpu)) {
+                        dbprint("An event is already registered on this vcpu: %u\n", vcpu);
+                    } else {
+                        if(VMI_SUCCESS == driver_start_single_step(vmi, event->ss_event)){
+                            vcpu_i = malloc(sizeof(uint32_t));
+                            *vcpu_i = vcpu;
+                            g_hash_table_insert(vmi->ss_events, vcpu_i, event);
+                            dbprint("Enabling single step\n");
+                            rc = VMI_SUCCESS;
+                        } 
+                    }
+                }
+            }
+
+            break;
         default:
             errprint("Unknown event type: %d\n", event->type);
     }
@@ -139,12 +162,24 @@ status_t vmi_clear_event (vmi_instance_t vmi,
                           vmi_event_t* event)
 {
     status_t rc = VMI_FAILURE;
+    uint32_t vcpu = 0;
 
     if(!(vmi->init_mode & VMI_INIT_EVENTS)){
         return VMI_FAILURE;
     }
 
     switch(event->type) {
+       case VMI_EVENT_SINGLESTEP:
+            for(;vcpu<vmi->num_vcpus;vcpu++) {
+                if(CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu)) {
+                    dbprint("Disabling single step on vcpu: %u\n", vcpu);
+                    rc = driver_stop_single_step(vmi, vcpu);
+                    if(!vmi->shutting_down && rc==VMI_SUCCESS) {
+                        g_hash_table_remove(vmi->ss_events, &(vcpu));
+                    }
+                }
+            }
+            break;
         case VMI_EVENT_REGISTER:
             if(NULL!=g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg))) {
                 dbprint("Disabling register event on reg: %d\n",
@@ -182,4 +217,37 @@ status_t vmi_events_listen(vmi_instance_t vmi, uint32_t timeout){
     }
 
     return driver_events_listen(vmi, timeout);
+}
+
+vmi_event_t *vmi_get_singlestep_event (vmi_instance_t vmi, 
+    uint32_t vcpu) {
+    return g_hash_table_lookup(vmi->ss_events, &vcpu);
+}
+
+status_t vmi_stop_single_step_vcpu(vmi_instance_t vmi, vmi_event_t* event, 
+    uint32_t vcpu)
+{
+    
+    if(!(vmi->init_mode & VMI_INIT_EVENTS)){
+        return VMI_FAILURE;
+    }
+    
+    UNSET_VCPU_SINGLESTEP(event->ss_event, vcpu);
+    g_hash_table_remove(vmi->ss_events, &vcpu);
+    
+    return driver_stop_single_step(vmi, vcpu);
+}
+
+status_t vmi_shutdown_single_step(vmi_instance_t vmi){
+
+    if(!(vmi->init_mode & VMI_INIT_EVENTS)){
+        return VMI_FAILURE;
+    }
+    
+    if(VMI_SUCCESS == driver_shutdown_single_step(vmi)){
+        g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
+        return VMI_SUCCESS;
+    } else {
+        return VMI_FAILURE;
+    }
 }
