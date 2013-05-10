@@ -91,7 +91,8 @@ status_t driver_events_listen(
     uint32_t timeout);
 status_t driver_set_mem_access(
     vmi_instance_t vmi,
-    mem_event_t event);
+    mem_event_t event,
+    vmi_mem_access_t page_access_flag);
 status_t driver_set_reg_access(
     vmi_instance_t vmi,
     reg_event_t event);

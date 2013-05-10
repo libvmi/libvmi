@@ -159,6 +159,16 @@ struct vmi_instance {
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
 };
 
+typedef struct memevent_page {
+
+    vmi_mem_access_t access_flag; /**< page access flag */
+    vmi_event_t *event; /**< page event registered */
+    addr_t key;
+
+    GHashTable  *byte_events; /**< byte events */
+
+} memevent_page_t;
+
 /** Windows' UNICODE_STRING structure (x86) */
 typedef struct _windows_unicode_string32 {
     uint16_t length;
@@ -397,5 +407,9 @@ typedef struct _windows_unicode_string32 {
         gpointer key,
         gpointer value,
         gpointer data);
+    typedef GHashTableIter event_iter_t;
+    #define for_each_event(vmi, iter, table, key, val) \
+        g_hash_table_iter_init(&iter, table); \
+        while(g_hash_table_iter_next(&iter,(void**)key,(void**)val))
 
 #endif /* PRIVATE_H */
