@@ -76,8 +76,6 @@ my_init_module(
                (unsigned int) pidOffset);
         printk(KERN_ALERT "    linux_pgd = 0x%x;\n",
                (unsigned int) pgdOffset);
-        printk(KERN_ALERT "    linux_addr = 0x%x;\n",
-               (unsigned int) addrOffset);
         printk(KERN_ALERT "}\n");
     }
     else {
