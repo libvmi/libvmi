@@ -48,11 +48,11 @@ vmi_event_t kernel_vsyscall_event;
 vmi_event_t kernel_sysenter_target_event;
 
 void print_event(vmi_event_t event){
-    printf("PAGE %lx ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %u)\n",
-        event.mem_event.page,
-        (event.mem_event.out_access == VMI_MEM_R) ? 'r' : '-',
-        (event.mem_event.out_access == VMI_MEM_W) ? 'w' : '-',
-        (event.mem_event.out_access == VMI_MEM_X) ? 'x' : '-',
+    printf("PAGE %lx ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %lu)\n",
+        event.mem_event.physical_address,
+        (event.mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
+        (event.mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
+        (event.mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
         event.mem_event.gfn,
         event.mem_event.offset,
         event.mem_event.gla,
@@ -138,12 +138,12 @@ void cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
 
     printf("one_task callback\n");
     if(event->reg_event.value == cr3){
-        printf("My process (PID %i) is executing on vcpu %u\n", pid, event->vcpu_id);
-        msr_syscall_sysenter_event.mem_event.in_access = VMI_MEM_X;
+        printf("My process (PID %i) is executing on vcpu %lu\n", pid, event->vcpu_id);
+        msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
         msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
-        kernel_sysenter_target_event.mem_event.in_access = VMI_MEM_X;
+        kernel_sysenter_target_event.mem_event.in_access = VMI_MEMACCESS_X;
         kernel_sysenter_target_event.callback=ia32_sysenter_target_cb;
-        kernel_vsyscall_event.mem_event.in_access = VMI_MEM_X;
+        kernel_vsyscall_event.mem_event.in_access = VMI_MEMACCESS_X;
         kernel_vsyscall_event.callback=vsyscall_cb;
 
         if(vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
@@ -163,7 +163,7 @@ void cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event){
     int pid = vmi_dtb_to_pid(vmi, event->reg_event.value);
     printf("PID %i with CR3=%lx executing on vcpu %u.\n", pid, event->reg_event.value, event->vcpu_id);
 
-	msr_syscall_sysenter_event.mem_event.in_access = VMI_MEM_X;
+	msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
 	msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
 
 	if(vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
@@ -268,16 +268,11 @@ int main (int argc, char **argv)
 
 
     // Get only the page that the handler starts.
-    phys_lstar >>= 12;
-    printf("LSTAR Physical PFN == %llx\n", (unsigned long long)phys_lstar);
-    phys_cstar >>= 12;
-    printf("CSTAR Physical PFN == %llx\n", (unsigned long long)phys_cstar);
-    phys_sysenter_ip >>= 12;
-    printf("SYSENTER_IP Physical PFN == %llx\n", (unsigned long long)phys_sysenter_ip);
-    phys_vsyscall >>= 12;
-    printf("phys_vsyscall Physical PFN == %llx\n", (unsigned long long)phys_vsyscall);
-    phys_ia32_sysenter_target >>= 12;
-    printf("phys_ia32_sysenter_target Physical PFN == %llx\n", (unsigned long long)phys_ia32_sysenter_target);
+    printf("LSTAR Physical PFN == %llx\n", (unsigned long long)(phys_lstar >> 12));
+    printf("CSTAR Physical PFN == %llx\n", (unsigned long long)(phys_cstar >> 12));
+    printf("SYSENTER_IP Physical PFN == %llx\n", (unsigned long long)(phys_sysenter_ip >> 12));
+    printf("phys_vsyscall Physical PFN == %llx\n", (unsigned long long)(phys_vsyscall >> 12));
+    printf("phys_ia32_sysenter_target Physical PFN == %llx\n", (unsigned long long)(phys_ia32_sysenter_target >> 12));
 
     /* Configure an event to track when the process is running.
      * (The CR3 register is updated on task context switch, allowing
@@ -290,7 +285,7 @@ int main (int argc, char **argv)
     /* Observe only write events to the given register. 
      *   NOTE: read events are unsupported at this time.
      */
-    cr3_event.reg_event.in_access = VMI_REG_W;
+    cr3_event.reg_event.in_access = VMI_REGACCESS_W;
 
     /* Optional (default = 0): Trigger on change 
      *  Causes events to be delivered by the hypervisor to this monitoring
@@ -322,18 +317,21 @@ int main (int argc, char **argv)
     // But don't install it; that will be done by the cr3 handler.
     memset(&msr_syscall_sysenter_event, 0, sizeof(vmi_event_t));
     msr_syscall_sysenter_event.type = VMI_EVENT_MEMORY;
-    msr_syscall_sysenter_event.mem_event.page = phys_sysenter_ip;
+    msr_syscall_sysenter_event.mem_event.physical_address = phys_sysenter_ip;
     msr_syscall_sysenter_event.mem_event.npages = 1;
+    msr_syscall_sysenter_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
 
     memset(&kernel_sysenter_target_event, 0, sizeof(vmi_event_t));
     kernel_sysenter_target_event.type = VMI_EVENT_MEMORY;
-    kernel_sysenter_target_event.mem_event.page = phys_ia32_sysenter_target;
+    kernel_sysenter_target_event.mem_event.physical_address = phys_ia32_sysenter_target;
     kernel_sysenter_target_event.mem_event.npages = 1;
+    kernel_sysenter_target_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
 
     memset(&kernel_vsyscall_event, 0, sizeof(vmi_event_t));
     kernel_vsyscall_event.type = VMI_EVENT_MEMORY;
-    kernel_vsyscall_event.mem_event.page = phys_vsyscall;
+    kernel_vsyscall_event.mem_event.physical_address = phys_vsyscall;
     kernel_vsyscall_event.mem_event.npages = 1;
+    kernel_vsyscall_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
 
     while(!interrupted){
         printf("Waiting for events...\n");

@@ -117,7 +117,8 @@ struct driver_instance {
     status_t (
     *set_mem_access_ptr)(
     vmi_instance_t,
-    mem_event_t);
+    mem_event_t,
+    vmi_mem_access_t);
     status_t (
     *start_single_step_ptr)(
     vmi_instance_t,
@@ -661,11 +662,12 @@ status_t driver_set_reg_access(
 
 status_t driver_set_mem_access(
     vmi_instance_t vmi,
-    mem_event_t event)
+    mem_event_t event,
+    vmi_mem_access_t page_access_flag)
 {
     driver_instance_t ptrs = driver_get_instance(vmi);
     if (NULL != ptrs && NULL != ptrs->set_mem_access_ptr){
-        return ptrs->set_mem_access_ptr(vmi, event);
+        return ptrs->set_mem_access_ptr(vmi, event, page_access_flag);
     }
     else{
         dbprint("WARNING: driver_set_mem_access function not implemented.\n");
