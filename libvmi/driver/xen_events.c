@@ -209,6 +209,19 @@ static int resume_domain(vmi_instance_t vmi, mem_event_response_t *rsp)
     dom = xen_get_domainid(vmi);
     xe = xen_get_events(vmi);
 
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return -1;
+    }
+    if ( !xe ) {
+        errprint("%s error: invalid xen_event_t handle\n", __FUNCTION__);
+        return -1;
+    }
+    if ( dom == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return -1;
+    }
+
     // Put the page info on the ring
     ret = put_mem_response(&xe->mem_event, rsp);
     if ( ret != 0 )
@@ -263,6 +276,15 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
     unsigned long dom;
     xch = xen_get_xchandle(vmi);
     dom = xen_get_domainid(vmi);
+
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
 
     /* TODO, cleanup: ctx is unused here */
     xc_domain_hvm_getcontext_partial(xch, dom,
@@ -331,6 +353,15 @@ status_t process_single_step_event(vmi_instance_t vmi, mem_event_request_t req)
     xch = xen_get_xchandle(vmi);
     dom = xen_get_domainid(vmi);
 
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
     vmi_event_t * event = g_hash_table_lookup(vmi->ss_events, &req.vcpu_id);
 
     if (event)
@@ -361,8 +392,18 @@ void xen_events_destroy(vmi_instance_t vmi)
     dom = xen_get_domainid(vmi);
     xe = xen_get_events(vmi);
 
-    if ( xe == NULL )
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return;
+    }
+    if ( !xe ) {
+        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
+        return;
+    }
+    if ( dom == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return;
+    }
     
     //A precaution to not leave vcpus stuck in single step
     xen_shutdown_single_step(vmi);
@@ -436,14 +477,35 @@ status_t xen_events_init(vmi_instance_t vmi)
     unsigned long ring_pfn, mmap_pfn;
     int rc;
 
-    // Allocate memory
-    xe = malloc(sizeof(xen_events_t));
-    memset(xe, 0, sizeof(xen_events_t));
+    /* Xen (as of 4.3) only supports events for HVM domains 
+     *  This is likely to expand to PV in the future, but
+     *  until such time, enforce this restriction
+     */
+    if(!xen_get_instance(vmi)->hvm){
+        errprint("Xen events: only HVM domains are supported.\n");
+        return VMI_FAILURE;
+    }
 
     // Get xen handle and domain.
     xch = xen_get_xchandle(vmi);
     dom = xen_get_domainid(vmi);
 
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return;
+    }
+    if ( dom == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return;
+    }
+
+    // Allocate memory
+    xe = calloc(1, sizeof(xen_events_t));
+    if ( !xe ) {
+        errprint("%s error: allocation for xen_events_t failed\n", __FUNCTION__);
+        return;
+    }
+    
     dbprint("Init xen events with xch == %llx\n", (unsigned long long)xch);
 
     // Initialise lock
@@ -570,7 +632,7 @@ status_t xen_events_init(vmi_instance_t vmi)
     /* Now that the ring is set, remove it from the guest's physmap */
     if ( xc_domain_decrease_reservation_exact(xch,
                     dom, 1, 0, &ring_pfn) )
-        errprint("Failed to remove ring from guest physmap");
+        errprint("Failed to remove ring from guest physmap\n");
 
     // Get domaininfo
     /* TODO MARESCA non allocated would work fine here via &dominfo below */
@@ -597,6 +659,7 @@ status_t xen_events_init(vmi_instance_t vmi)
     return VMI_SUCCESS;
 
  err:
+    errprint("Failed initialize xen events.\n");
     xen_events_destroy(vmi);
     return VMI_FAILURE;
 }
@@ -607,6 +670,15 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
     unsigned long dom = xen_get_domainid(vmi);
     int value = HVMPME_mode_disabled;
     int hvm_param;
+
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    } 
 
     switch(event.in_access){
         case VMI_REGACCESS_N: break;
@@ -662,6 +734,19 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
     xen_events_t * xe = xen_get_events(vmi);
     unsigned long dom = xen_get_domainid(vmi);
 
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !xe ) {
+        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+ 
     addr_t page_key = event.physical_address >> 12;
 
     uint64_t npages = page_key + event.npages > xe->mem_event.max_pages
@@ -797,6 +882,19 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     dom = xen_get_domainid(vmi);
     xe = xen_get_events(vmi);
 
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !xe ) {
+        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
     // Set whether the access listener is required
     rc = xc_domain_set_access_required(xch, dom, required);
     if ( rc < 0 ) {
@@ -891,15 +989,15 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 }
 #else
 status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout){
-	return VMI_FAILURE;
+    return VMI_FAILURE;
 }
 
 status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event){
-	return VMI_FAILURE;
+    return VMI_FAILURE;
 }
 
 status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_access_t page_access_flag){
-	return VMI_FAILURE;
+return VMI_FAILURE;
 }
 status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event){
     return VMI_FAILURE;
@@ -911,7 +1009,7 @@ status_t xen_shutdown_single_step(vmi_instance_t vmi){
     return VMI_FAILURE;
 }
 status_t xen_events_init(vmi_instance_t vmi){
-	return VMI_FAILURE;
+    return VMI_FAILURE;
 }
 void xen_events_destroy(vmi_instance_t vmi){
 }
