@@ -440,8 +440,10 @@ xen_init(
 #endif /* VMI_DEBUG */
 
 #if ENABLE_XEN_EVENTS==1
-    /* Only enable events for hvm and IFF(mode & VMI_INIT_EVENTS) */
-    if(xen_get_instance(vmi)->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
+    /* Only enable events IFF(mode & VMI_INIT_EVENTS) 
+     * Additional checks performed within xen_events_init
+     */
+    if(vmi->init_mode & VMI_INIT_EVENTS){
         if(xen_events_init(vmi)==VMI_FAILURE){
             errprint("Failed to initialize xen events.\n");
             goto _bail;
