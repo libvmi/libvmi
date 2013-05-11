@@ -1,7 +1,7 @@
 LibVMI Events
 Author: Steven Maresca <steve@zentific.com>
-Document: version 1.0, 2013-05-18
-Relevant LibVMI release: 0.10
+Document: version 1.1, 2013-09-10
+Relevant LibVMI release: 0.11
 
 Overview:
 --------------------------------------------------------------------------------
@@ -18,6 +18,7 @@ provide the requisite features:
     Register events to observe read and write access to specific VCPU
      registers, including CR0, CR3, CR4, and MSR registers.
     Single-step events for each instruction executed upon a VCPU/set of VCPUs.
+    Interrupt events (e.g., INT3)
 
 This new set of features is made possible by the flexibility of modern
 hypervisors, which provide rich access to their internal facilities. In
@@ -164,7 +165,7 @@ Limitations:
 
 1) General support of hypervisors
 
-As of 0.10, only the Xen driver provides event capabilities; regrettably, such
+For 0.10+, only the Xen driver provides event capabilities; regrettably, such
 events are not available in a useable fashion for KVM. However, if upstream KVM
 and QEMU developers provide the ability to do so, LibVMI developers will add
 support as soon as possible. (NOTE: KVM by design does make this type of event
@@ -178,11 +179,27 @@ implement this feature for KVM.)
 
 MSR register events are only available for Xen version 4.3 and newer.
 
+3) Interrupt event support
+
+INT3 events for Xen version 4.1.x and newer. Best supported by 4.2.3 and newer.
+
+INT3 events are reported via the event facilities of Xen for only the
+1-byte 0xCC variant of the operation.  The 2-byte 0xCD imm8 variant which takes
+the interrupt vector as an operand (i.e., 0xCD03) is NOT reported in the
+same fashion (Note: This observation is valid at time of writing for Xen 4.3
+and earlier.) Because only 0xCC is in play for this class of event, the
+instruction length involved is always one byte.
+
+Warning: For INT3 to be handled correctly by the VM kernel and subsequently
+passed on to the debugger within a VM (via OS-specified signalling mechanism),
+the trap must be re-injected. Failure to do so may constitute a serious error.
+
 3) Xen version capabilities
 
 Xen memory events in general are only supported for Xen 4.1.2 and newer.
 
 4) Documentation bias
+
 At the time this document was first written, Xen was the only hypervisor
 with an events framework supported by LibVMI. As such, some of the behavior
 described may be Xen-specific; however, it is expected that similar or identical

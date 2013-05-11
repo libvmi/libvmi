@@ -121,6 +121,10 @@ struct driver_instance {
     vmi_instance_t,
     reg_event_t);
     status_t (
+    *set_intr_access_ptr)(
+    vmi_instance_t,
+    interrupt_event_t);
+    status_t (
     *set_mem_access_ptr)(
     vmi_instance_t,
     mem_event_t,
@@ -175,6 +179,7 @@ driver_xen_setup(
 #if ENABLE_XEN_EVENTS==1
     instance->events_listen_ptr = &xen_events_listen;
     instance->set_reg_access_ptr = &xen_set_reg_access;
+    instance->set_intr_access_ptr = &xen_set_intr_access;
     instance->set_mem_access_ptr = &xen_set_mem_access;
     instance->start_single_step_ptr = &xen_start_single_step;
     instance->stop_single_step_ptr = &xen_stop_single_step;
@@ -215,6 +220,7 @@ driver_kvm_setup(
 #endif
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
+    instance->set_intr_access_ptr = NULL;
     instance->set_mem_access_ptr = NULL;
     instance->start_single_step_ptr = NULL;
     instance->stop_single_step_ptr = NULL;
@@ -247,6 +253,7 @@ driver_file_setup(
     instance->resume_vm_ptr = &file_resume_vm;
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
+    instance->set_intr_access_ptr = NULL;
     instance->set_mem_access_ptr = NULL;
     instance->start_single_step_ptr = NULL;
     instance->stop_single_step_ptr = NULL;
@@ -277,6 +284,7 @@ driver_null_setup(
     instance->resume_vm_ptr = NULL;
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
+    instance->set_intr_access_ptr = NULL;
     instance->set_mem_access_ptr = NULL;
     instance->start_single_step_ptr = NULL;
     instance->stop_single_step_ptr = NULL;
@@ -706,6 +714,20 @@ status_t driver_set_reg_access(
     }
     else{
         dbprint("WARNING: driver_set_reg_w_access function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t driver_set_intr_access(
+    vmi_instance_t vmi,
+    interrupt_event_t event)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->set_intr_access_ptr){
+        return ptrs->set_intr_access_ptr(vmi, event);
+    }
+    else{
+        dbprint("WARNING: driver_set_intr_access function not implemented.\n");
         return VMI_FAILURE;
     }
 }

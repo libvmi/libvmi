@@ -1435,7 +1435,8 @@ typedef enum {
     VMI_EVENT_INVALID,
     VMI_EVENT_MEMORY,    /* Read/write/execute on a region of memory */
     VMI_EVENT_REGISTER,  /* Read/write of a specific register */
-    VMI_EVENT_SINGLESTEP /* Instructions being executed on a set of VCPUs */
+    VMI_EVENT_SINGLESTEP,/* Instructions being executed on a set of VCPUs */
+    VMI_EVENT_INTERRUPT  /* Interrupts being delivered */
 } vmi_event_type_t;
 
 /* max number of vcpus we can set single step on at one time for a domain */
@@ -1566,6 +1567,19 @@ typedef struct {
                                              */
 } mem_event_t;
 
+typedef enum {
+    INT_INVALID,
+    INT3                /* The only one supported today by the only capable-driver */
+} interrupts_t;
+
+typedef struct {
+    addr_t gla;         /* (Global Linear Address) == RIP of the trapped instruction */
+    addr_t gfn;         /* (Guest Frame Number) == 'physical' page where trap occurred */
+    interrupts_t intr;  /* Specific interrupt intended to trigger the event */
+    int reinject:1;     /* Toggle, controls whether interrupt is re-injected after callback */ 
+    int enabled:1;      /* Toggle */ 
+} interrupt_event_t;
+
 typedef struct {
     addr_t gla;      /* The IP of the current instruction */
     addr_t gfn;      /* The physical page of the current instruction */
@@ -1601,6 +1615,7 @@ struct vmi_event {
         reg_event_t reg_event;
         mem_event_t mem_event;
         single_step_event_t ss_event;
+        interrupt_event_t interrupt_event;
     };
 
     uint32_t vcpu_id; /* The VCPU relative to which the event occurred. */
