@@ -48,7 +48,7 @@ vmi_event_t kernel_vsyscall_event;
 vmi_event_t kernel_sysenter_target_event;
 
 void print_event(vmi_event_t event){
-    printf("PAGE %lx ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %lu)\n",
+    printf("PAGE %lx ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %ud)\n",
         event.mem_event.physical_address,
         (event.mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
         (event.mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
@@ -138,7 +138,7 @@ void cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
 
     printf("one_task callback\n");
     if(event->reg_event.value == cr3){
-        printf("My process (PID %i) is executing on vcpu %lu\n", pid, event->vcpu_id);
+        printf("My process (PID %i) is executing on vcpu %ud\n", pid, event->vcpu_id);
         msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
         msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
         kernel_sysenter_target_event.mem_event.in_access = VMI_MEMACCESS_X;
@@ -178,21 +178,22 @@ static void close_handler(int sig){
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi;
+    vmi_instance_t vmi = NULL;
+    status_t status = VMI_SUCCESS;
 
     struct sigaction act;
 
-    reg_t lstar;
-    addr_t phys_lstar;
-    reg_t cstar;
-    addr_t phys_cstar;
-    reg_t sysenter_ip;
-    addr_t phys_sysenter_ip;
+    reg_t lstar = 0;
+    addr_t phys_lstar = 0;
+    reg_t cstar = 0;
+    addr_t phys_cstar = 0;
+    reg_t sysenter_ip = 0;
+    addr_t phys_sysenter_ip = 0;
 
-    addr_t ia32_sysenter_target;
-    addr_t phys_ia32_sysenter_target;
-    addr_t vsyscall;
-    addr_t phys_vsyscall;
+    addr_t ia32_sysenter_target = 0;
+    addr_t phys_ia32_sysenter_target = 0;
+    addr_t vsyscall = 0;
+    addr_t phys_vsyscall = 0;
 
     char *name = NULL;
     int pid=-1;
@@ -221,6 +222,9 @@ int main (int argc, char **argv)
     // Initialize the libvmi library.
     if (vmi_init(&vmi, VMI_XEN | VMI_INIT_COMPLETE | VMI_INIT_EVENTS, name) == VMI_FAILURE){
         printf("Failed to init LibVMI library.\n");
+        if (vmi != NULL ) {
+            vmi_destroy(vmi);
+        }
         return 1;
     }
     else{
@@ -335,7 +339,11 @@ int main (int argc, char **argv)
 
     while(!interrupted){
         printf("Waiting for events...\n");
-        vmi_events_listen(vmi,500);
+        status = vmi_events_listen(vmi,500);
+        if (status != VMI_SUCCESS) {
+            printf("Error waiting for events, quitting...\n");
+            interrupted = -1;
+        }
     }
     printf("Finished with test.\n");
 

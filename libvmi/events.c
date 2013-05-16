@@ -290,12 +290,16 @@ status_t clear_reg_event(vmi_instance_t vmi, vmi_event_t *event)
 {
 
     status_t rc = VMI_FAILURE;
+    vmi_reg_access_t original_in_access = VMI_REGACCESS_N;
 
     if (NULL != g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg)))
     {
         dbprint("Disabling register event on reg: %d\n", event->reg_event.reg);
+        original_in_access = event->reg_event.in_access;
         event->reg_event.in_access = VMI_REGACCESS_N;
         rc = driver_set_reg_access(vmi, event->reg_event);
+        event->reg_event.in_access = original_in_access;
+
         if (!vmi->shutting_down && rc == VMI_SUCCESS)
         {
             g_hash_table_remove(vmi->reg_events, &(event->reg_event.reg));
