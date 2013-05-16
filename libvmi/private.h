@@ -150,20 +150,21 @@ struct vmi_instance {
 
     unsigned int num_vcpus; /**< number of VCPUs used by this instance */
 
-    GHashTable *mem_events; /**< mem event to functions mapping (key: reg) */
+    GHashTable *mem_events; /**< mem event to functions mapping (key: physical address) */
 
-    GHashTable *reg_events; /**< reg event to functions mapping (key: page) */
-    
+    GHashTable *reg_events; /**< reg event to functions mapping (key: reg) */
+
     GHashTable *ss_events; /**< single step event to functions mapping (key: vcpu_id) */
 
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
 };
 
+/** Page-level memevent struct to also hold byte-level events in the embedded hashtable */
 typedef struct memevent_page {
 
-    vmi_mem_access_t access_flag; /**< page access flag */
+    vmi_mem_access_t access_flag; /**< combined page access flag */
     vmi_event_t *event; /**< page event registered */
-    addr_t key;
+    addr_t key; /**< page # */
 
     GHashTable  *byte_events; /**< byte events */
 
