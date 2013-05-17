@@ -110,13 +110,24 @@ void events_destroy(vmi_instance_t vmi)
         return;
     }
 
-    g_hash_table_foreach_remove(vmi->mem_events, memevent_page_clean, vmi);
-    g_hash_table_foreach_steal(vmi->reg_events, event_entry_free, vmi);
-    g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
+    if (vmi->mem_events)
+    {
+        g_hash_table_foreach_remove(vmi->mem_events, memevent_page_clean, vmi);
+        g_hash_table_destroy(vmi->mem_events);
+    }
 
-    g_hash_table_destroy(vmi->mem_events);
-    g_hash_table_destroy(vmi->reg_events);
-    g_hash_table_destroy(vmi->ss_events);
+    if (vmi->reg_events)
+    {
+        g_hash_table_foreach_steal(vmi->reg_events, event_entry_free, vmi);
+        g_hash_table_destroy(vmi->reg_events);
+    }
+    
+    if (vmi->ss_events)
+    {
+        g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
+        g_hash_table_destroy(vmi->ss_events);
+    }
+    
 }
 
 status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
@@ -593,7 +604,7 @@ vmi_event_t *vmi_get_singlestep_event(vmi_instance_t vmi, uint32_t vcpu)
 }
 
 status_t vmi_stop_single_step_vcpu(vmi_instance_t vmi, vmi_event_t* event,
-        uint32_t vcpu)
+    uint32_t vcpu)
 {
 
     if (!(vmi->init_mode & VMI_INIT_EVENTS))
@@ -615,9 +626,15 @@ status_t vmi_shutdown_single_step(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
-    if (VMI_SUCCESS == driver_shutdown_single_step(vmi))
+    if(VMI_SUCCESS == driver_shutdown_single_step(vmi))
     {
-        g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
+        /* Safe to destroy here because the driver has disabled single-step
+         *  for all VCPUs. Library user still manages event allocation at this 
+         *  stage.
+         * Recreate hash table for possible future use.
+         */
+        g_hash_table_destroy(vmi->ss_events);
+        vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);
         return VMI_SUCCESS;
     }
     else
