@@ -110,13 +110,24 @@ void events_destroy(vmi_instance_t vmi)
         return;
     }
 
-    g_hash_table_foreach_remove(vmi->mem_events, memevent_page_clean, vmi);
-    g_hash_table_foreach_steal(vmi->reg_events, event_entry_free, vmi);
-    g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
+    if (vmi->mem_events)
+    {
+        g_hash_table_foreach_remove(vmi->mem_events, memevent_page_clean, vmi);
+        g_hash_table_destroy(vmi->mem_events);
+    }
 
-    g_hash_table_destroy(vmi->mem_events);
-    g_hash_table_destroy(vmi->reg_events);
-    g_hash_table_destroy(vmi->ss_events);
+    if (vmi->reg_events)
+    {
+        g_hash_table_foreach_steal(vmi->reg_events, event_entry_free, vmi);
+        g_hash_table_destroy(vmi->reg_events);
+    }
+    
+    if (vmi->ss_events)
+    {
+        g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
+        g_hash_table_destroy(vmi->ss_events);
+    }
+    
 }
 
 status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
