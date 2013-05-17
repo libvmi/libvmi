@@ -53,7 +53,6 @@ vmi_mem_access_t combine_mem_access(vmi_mem_access_t base, vmi_mem_access_t add)
     return (base | add);
 
 }
-;
 
 //----------------------------------------------------------------------------
 //  General event callback management.
