@@ -870,6 +870,10 @@ vmi_init_complete(
         flags |= VMI_CONFIG_NONE;
     }
 
+    if (((*vmi)->flags) & VMI_INIT_EVENTS) {
+        flags |= VMI_INIT_EVENTS;
+    }
+
     vmi_destroy(*vmi);
     return vmi_init_private(vmi,
                             flags,

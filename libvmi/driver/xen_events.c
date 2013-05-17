@@ -427,6 +427,18 @@ void xen_events_destroy(vmi_instance_t vmi)
     munmap(xe->mem_event.ring_page, getpagesize());
     rc = xc_mem_access_disable(xch, dom);
 #elif XENEVENT41
+    // FIXME: Force this here until logic in event listen for "required"
+    // is figured out.
+    rc = xc_domain_set_access_required(xch, dom, 0);
+    if (rc < 0) {
+#ifdef XENEVENT41
+        // FIXME41: Xen 4.1.2 apparently mostly returns -1 for any call to this,
+        // so just suppress the error for now
+        dbprint("Error %d setting mem_access listener required to not required\n", rc);
+#else
+        errprint("Error %d setting mem_access listener not required\n", rc);
+#endif
+    }
 
     if (xe->mem_event.ring_page != NULL) {
         munlock(xe->mem_event.ring_page, getpagesize());
@@ -470,12 +482,13 @@ void xen_events_destroy(vmi_instance_t vmi)
 
 status_t xen_events_init(vmi_instance_t vmi)
 {
-    xen_events_t * xe;
-    xc_interface * xch;
-    xc_domaininfo_t * dom_info;
-    unsigned long dom;
-    unsigned long ring_pfn, mmap_pfn;
-    int rc;
+    xen_events_t * xe = NULL;
+    xc_interface * xch = NULL;
+    xc_domaininfo_t * dom_info = NULL;
+    unsigned long dom = 0;
+    unsigned long ring_pfn = 0;
+    unsigned long mmap_pfn = 0;
+    int rc = 0;
 
     /* Xen (as of 4.3) only supports events for HVM domains 
      *  This is likely to expand to PV in the future, but
@@ -511,6 +524,7 @@ status_t xen_events_init(vmi_instance_t vmi)
     // Initialise lock
     xen_event_ring_lock_init(&xe->mem_event);
 
+    /* Initialize the shared pages and enable mem events */
 #ifdef XENEVENT42
     // Initialise shared page
     xc_get_hvm_param(xch, dom, HVM_PARAM_ACCESS_RING_PFN, &ring_pfn);
@@ -540,9 +554,10 @@ status_t xen_events_init(vmi_instance_t vmi)
         }
     }
 
+    rc = xc_mem_access_enable(xch, dom, &(xe->mem_event.evtchn_port));
 #elif XENEVENT41
-
-    rc = posix_memalign(&xe->mem_event.ring_page, getpagesize(), getpagesize());
+    rc = posix_memalign((void**)&xe->mem_event.ring_page, getpagesize(),
+            getpagesize());
     if (rc != 0 ) {
         errprint("Could not allocate the ring page!\n");
         goto err;
@@ -556,7 +571,8 @@ status_t xen_events_init(vmi_instance_t vmi)
         goto err;
     }
 
-    rc = posix_memalign(&xe->mem_event.shared_page, getpagesize(), getpagesize());
+    rc = posix_memalign((void**)&xe->mem_event.shared_page, getpagesize(),
+            getpagesize());
     if (rc != 0 ) {
         errprint("Could not allocate the shared page!\n");
         goto err;
@@ -570,15 +586,8 @@ status_t xen_events_init(vmi_instance_t vmi)
         goto err;
     }
 
-#endif
-
-#ifdef XENEVENT42
-    // Initialise Xen
-    rc = xc_mem_access_enable(xch, dom, &(xe->mem_event.evtchn_port));
-#elif XENEVENT41
     rc = xc_mem_event_enable(xch, dom, xe->mem_event.shared_page,
                                  xe->mem_event.ring_page);
-
 #endif
 
     if ( rc != 0 )
@@ -629,10 +638,13 @@ status_t xen_events_init(vmi_instance_t vmi)
                    (mem_event_sring_t *)xe->mem_event.ring_page,
                    getpagesize());
 
+    /* This causes errors when going from VMI_PARTIAL->VMI_COMPLETE on Xen 4.1.2 */
+#ifndef XENEVENT41
     /* Now that the ring is set, remove it from the guest's physmap */
     if ( xc_domain_decrease_reservation_exact(xch,
                     dom, 1, 0, &ring_pfn) )
         errprint("Failed to remove ring from guest physmap\n");
+#endif
 
     // Get domaininfo
     /* TODO MARESCA non allocated would work fine here via &dominfo below */
@@ -721,7 +733,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
             errprint("Tried to register for unsupported register event.\n");
             return VMI_FAILURE;
     }
-    if(xc_set_hvm_param(xch, dom, hvm_param, value))
+    if (xc_set_hvm_param(xch, dom, hvm_param, value))
         return VMI_FAILURE;
     return VMI_SUCCESS;
 }
@@ -767,13 +779,13 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
         case VMI_MEMACCESS_X_ON_WRITE: access = HVMMEM_access_rx2rw; break;
     }
 
-    dbprint("--Setting memaccess for domain %lu on page: %"PRIu64" npages: %"PRIu64"\n",
-        dom, event.page, npages);
+    dbprint("--Setting memaccess for domain %lu on physical address: %"PRIu64" npages: %"PRIu64"\n",
+        dom, event.physical_address, npages);
     if((rc = xc_hvm_set_mem_access(xch, dom, access, page_key, npages))){
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
-    dbprint("--Done Setting memaccess on page: %"PRIu64"\n", event.page);
+    dbprint("--Done Setting memaccess on physical address: %"PRIu64"\n", event.physical_address);
     return VMI_SUCCESS;
 }
 
@@ -869,7 +881,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     unsigned long dom;
 
     int rc = -1;
-    status_t vrc = VMI_FAILURE;
+    status_t vrc = VMI_SUCCESS;
 
     /* TODO determine whether we should force the required=1 for
      *   singlestep and int3, for which that is a necessity.
@@ -898,7 +910,13 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     // Set whether the access listener is required
     rc = xc_domain_set_access_required(xch, dom, required);
     if ( rc < 0 ) {
-        errprint("Error %d setting mem_access listener required\n", rc);
+#ifdef XENEVENT41
+        // FIXME41: Xen 4.1.2 apparently mostly returns -1 for any call to this,
+        // so just suppress the error for now
+        dbprint("Error %d setting mem_access listener required to %d\n", rc, required);
+#else
+        errprint("Error %d setting mem_access listener required to %d\n", rc, required);
+#endif
     }
 
     if(!vmi->shutting_down && timeout > 0) {
@@ -938,13 +956,14 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 
                 break;
             case MEM_EVENT_REASON_CR0:
+                dbprint("--Caught CR0 event!\n");
                 if(!vmi->shutting_down) {
                     vrc = process_register(vmi, CR0, req);
                 }
                 break;
             case MEM_EVENT_REASON_CR3:
+                dbprint("--Caught CR3 event!\n");
                 if(!vmi->shutting_down) {
-                    dbprint("--Caught CR3 event!\n");
                     vrc = process_register(vmi, CR3, req);
                 }
                 break;
@@ -957,13 +976,14 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
                 break;
 #endif
             case MEM_EVENT_REASON_CR4:
+                dbprint("--Caught CR4 event!\n");
                 if(!vmi->shutting_down) {
                     vrc = process_register(vmi, CR4, req);
                 }
                 break;
             case MEM_EVENT_REASON_SINGLESTEP:
+                dbprint("--Caught single step event!\n");
                 if(!vmi->shutting_down) {
-                    dbprint("--Caught single step event!\n");
                     vrc = process_single_step_event(vmi, req);
                 }
                 break;
