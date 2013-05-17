@@ -191,8 +191,7 @@ find_pname_offset(
                 }
                 else {
                     vmi->init_task =
-                        block_pa + offset +
-                        vmi->os.windows_instance.tasks_offset;
+                        block_pa + offset;
                     dbprint
                         ("--%s: found Idle process at 0x%.8"PRIx64" + 0x%x\n",
                          __FUNCTION__, block_pa + offset, i);
@@ -275,7 +274,7 @@ windows_find_eprocess(
 
     if (vmi->init_task) {
         start_address =
-            vmi->init_task - vmi->os.windows_instance.tasks_offset;
+            vmi->init_task;
     }
 
     return find_process_by_name(vmi, check, start_address, name);
