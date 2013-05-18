@@ -48,14 +48,15 @@ linux_get_taskstruct_addr_from_pid(
     list_head = next_process;
 
     do {
-        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &task_pid);
+        vmi_read_32_va(vmi, next_process + pid_offset, 0, &task_pid);
 
         /* if pid matches, then we found what we want */
         if (task_pid == pid) {
-            return next_process - tasks_offset;
+            return next_process;
         }
 
-        vmi_read_addr_va(vmi, next_process, 0, &next_process);
+        vmi_read_addr_va(vmi, next_process + tasks_offset, 0, &next_process);
+        next_process -= tasks_offset;
 
         /* if we are back at the list head, we are done */
     } while(list_head != next_process); 
@@ -91,7 +92,7 @@ linux_get_taskstruct_addr_from_pgd(
 
     do {
         addr_t ptr = 0;
-        vmi_read_addr_va(vmi, next_process + mm_offset - tasks_offset, 0, &ptr);
+        vmi_read_addr_va(vmi, next_process + mm_offset, 0, &ptr);
 
         /* task_struct->mm is NULL when Linux is executing on the behalf
          * of a task, or if the task represents a kthread. In this context, 
@@ -100,15 +101,16 @@ linux_get_taskstruct_addr_from_pgd(
          * at task_struct->mm + 1 pointer width
          */
         if(!ptr && width)
-            vmi_read_addr_va(vmi, next_process + mm_offset - tasks_offset + width, 0, &ptr);
+            vmi_read_addr_va(vmi, next_process + mm_offset + width, 0, &ptr);
         vmi_read_addr_va(vmi, ptr + pgd_offset, 0, &task_pgd);
         task_pgd = vmi_translate_kv2p(vmi, task_pgd);
 
         if (task_pgd == pgd) {
-            return next_process - tasks_offset;
+            return next_process;
         }
 
-        vmi_read_addr_va(vmi, next_process, 0, &next_process);
+        vmi_read_addr_va(vmi, next_process + tasks_offset, 0, &next_process);
+        next_process-=tasks_offset;
         
         /* if we are back at the list head, we are done */
     } while (list_head != next_process);

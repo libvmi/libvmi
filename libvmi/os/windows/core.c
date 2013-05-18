@@ -134,12 +134,18 @@ get_kpgd_method2(
     }
     dbprint("**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
-    vmi_read_addr_pa(vmi,
+    if (VMI_FAILURE == 
+        vmi_read_addr_pa(vmi,
                      sysproc + vmi->os.windows_instance.tasks_offset,
-                     &vmi->init_task);
+                     &vmi->init_task)) {
+        dbprint("--failed to resolve address of Idle process\n");
+        goto error_exit;
+    }
+    vmi->init_task -= vmi->os.windows_instance.tasks_offset;
     dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
+
 error_exit:
     return VMI_FAILURE;
 }
@@ -187,12 +193,18 @@ get_kpgd_method1(
     }
     dbprint("**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
-    vmi_read_addr_pa(vmi,
+    if (VMI_FAILURE == 
+        vmi_read_addr_pa(vmi,
                      sysproc + vmi->os.windows_instance.tasks_offset,
-                     &vmi->init_task);
+                     &vmi->init_task)) {
+        dbprint("--failed to resolve address of Idle process\n");
+        goto error_exit;
+    }
+    vmi->init_task -= vmi->os.windows_instance.tasks_offset;
     dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
+
 error_exit:
     return VMI_FAILURE;
 }
@@ -234,11 +246,18 @@ get_kpgd_method0(
     }
     dbprint("**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
-    vmi_read_addr_pa(vmi,
+    if (VMI_FAILURE == 
+        vmi_read_addr_pa(vmi,
                      sysproc + vmi->os.windows_instance.tasks_offset,
-                     &vmi->init_task);
+                     &vmi->init_task)){
+        dbprint("--failed to resolve address of Idle process\n");
+        goto error_exit;
+    }
+    vmi->init_task -= vmi->os.windows_instance.tasks_offset;
     dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
+
     return VMI_SUCCESS;
+
 error_exit:
     return VMI_FAILURE;
 }

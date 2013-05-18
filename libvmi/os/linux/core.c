@@ -62,16 +62,10 @@ linux_init(
     vmi->kpgd = vmi->cr3;
     dbprint("**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
-    addr_t address = vmi_translate_ksym2v(vmi, "init_task");
-
-    address += vmi->os.linux_instance.tasks_offset;
-    if (VMI_FAILURE ==
-        vmi_read_addr_va(vmi, address, 0, &(vmi->init_task))) {
-        errprint("Failed to get task list head 'init_task'.\n");
-        goto _exit;
-    }
+    vmi->init_task = vmi_translate_ksym2v(vmi, "init_task");
 
     ret = VMI_SUCCESS;
+
 _exit:
     return ret;
 }
