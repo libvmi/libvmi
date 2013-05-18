@@ -1,0 +1,86 @@
+Release 0.10 
+    Build system improvements:
+        Compiling on OS X now possible
+        Improved Xen and KVM detection
+        Ability to build Xen driver without necessity for libxenstore
+        Test suite for manual use and continuous integration 
+    API enhancements:
+        Exposure of number of VM VCPUs if known 
+        Exposure of VM address width if known
+        Windows user-space symbol to virtual address lookup
+        Custom initialization functions accepting a hashtable rather than 
+          relying upon libvmi.conf
+        Page table lookup helper function now exposed in public headers
+        VCPU register modification capabilities 
+          Note: currently only available for Xen VMs
+        Support for Xen Events (Requires CPU with Intel EPT and Xen version 
+            4.1.2+)
+          Page-granular memory events
+          Byte-granular physical address memory events
+          VCPU single-stepping via the Monitor Trap Flag
+          MSR write events
+            Note: requires Xen 4.3
+          CR0, CR3, CR4 write events 
+            Note: Xen 4.2.0 experienced a regression preventing CR3/CR4 events 
+                from working. Xen 4.2.1+, and Xen 4.1.2 do not suffer from this
+                issue. 
+        Exposing peparse.h as part of LibVMI to aid in Windows PE validation,
+            gaining access to the PE headers and the Image Data Directories entries
+            (the export table is natively supported)
+        Page mode can now be accessed in partial init
+        Windows version can be determined in partial init provided a physical
+             address is given to the kernel
+    Hypervisor support:
+        Xen improvements tracking 4.1.x, 4.2.x, and 4.3.x 
+        Qemu 1.2.0 patch for KVM integration
+    Bugfixes:
+        Volatility integration via Pyvmiaddressspace
+        Small Linux offset finder updates
+        Linux PID to PGD/PGD to PID lookups
+        Windows PID to PGD lookup
+        Proper behavior on systems lacking MAP_POPULATE
+        Compile failures when caching was disabled
+        Improved Xen domain ID validation
+        Windows EPROCESS list search offset corrected
+        Virtual address translation for Windows VMs with small amounts of RAM
+        Many compile warnings, etc.
+    Other features:
+        Several new pieces of example code
+        Basic C++ support (header improvements)
+        Improved Python bindings for LibVMI
+        Alternative Fuse integration in C (exposes VM memory as a pseudofile)
+
+Release 0.8 - 2012-03-21 
+    Support for 64-bit guests
+    Linux process name offset no-longer hard-coded, added to config file
+    Improved glib version compatibility
+    Improved Xen version compatibility
+    Many new registers that you can access
+    Improved Volatility integration
+    Exposed some cache handling to users
+    Improved page cache performance
+    Many bug fixes 
+
+Release 0.6 - 2011-10-20
+    Debut of LibVMI, the successor to XenAccess
+    Continues to work with Xen and physical memory snapshots
+    Provides initial support for KVM
+    Variety of changes to the API and internals
+    LibVMI is released under the LGPL license (compared to the GPL of XenAccess) 
+
+    To transition to LibVMI from XenAccess, please see the transition
+     documentation:
+     http://code.google.com/p/vmitools/wiki/TransitionFromXenAccess
+
+
+--------------------------------------------------------------------------------
+LibVMI supersedes XenAccess. Above this line is exclusively LibVMI.
+--------------------------------------------------------------------------------
+
+Release 0.5 - 2009-01-05
+    Greatly improved support for Windows domains
+    Support for newer versions of Xen
+    Support for viewing raw memory files
+    New tools directory with adapters for Python and Volatility
+    Updated documentation
+    Many bug fixes
