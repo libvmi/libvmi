@@ -1,0 +1,175 @@
+Overview:
+--------------------------------------------------------------------------------
+Beginning in release 0.10, LibVMI offers event monitoring for live virtual
+machines: the delivery of as-it-happens data and the ability to execute
+user-provided code upon receipt of an event.  This capability should greatly
+improve long-term guest observation by reducing the necessity to poll
+continuously to detect change of state.
+
+In particular, LibVMI now supports the following for hypervisor drivers which
+provide the requisite features:
+    Memory events to observe read, write, and/or execute operations on specific
+     regions of memory.
+    Register events to observe read and write access to specific VCPU
+     registers, including CR0, CR3, CR4, and MSR registers.
+    Single-step events for each instruction executed upon a VCPU/set of VCPUs.
+
+This new set of features is made possible by the flexibility of modern
+hypervisors, which provide rich access to their internal facilities. In
+general, as a consequence of their intended use, all provide the
+mechanisms necessary to offer some variety of event observation and
+interposition. In many ways, these hypervisor facilities mirror their analogues
+in operating systems: both provide virtual addressing, memory paging,
+etc. to provide separation between processes and, equivalently, between VMs.
+These operate upon the same principles: page faults, interrupts, and the like.
+
+In a somewhat unique context for hypervisors, to achieve virtualization on
+platforms like x86, some sensitive or protected instructions must be trapped
+or emulated (see also Popek and Goldberg's "Formal Requirements for
+Virtualizable Third Generation Architectures"). In the case of x86, this is
+called a VMEXIT - an interruption of execution to provide a hypervisor an
+opportunity to handle the protected or sensitive instruction. If a hypervisor
+reports the type of event causing the VMEXIT or page fault, all necessities
+for event reporting for introspection are satisfied.
+
+                                    ---
+
+Specifics:
+--------------------------------------------------------------------------------
+In the case of Xen, a ring buffer is provided to hold VM events for consumption
+by an external service which accesses this buffer from an observation VM. 
+
+Within its Xen driver, LibVMI enables event delivery when the initialization
+mode has the VMI_INIT_EVENTS mode set:
+
+    vmi_init(&vmi, VMI_XEN | VMI_INIT_PARTIAL | VMI_INIT_EVENTS, vm_name)
+
+It is possible to use events in both VMI_INIT_PARTIAL and VMI_INIT_COMPLETE 
+modes; some event types (e.g. MSR register writes) are likely best observed 
+when VMI_INIT_PARTIAL is the only option.
+
+Using LibVMI events is possible in four general steps:
+    1) The allocation of an event structure to configure delivery of
+        events (frequency, synchronous vs asynchronous, access mode, callback).
+        Specific options for configuration are event-specific.
+    2) The registration of this event with LibVMI via vmi_register_event().
+        Upon receipt of an event matching one configured via vmi_event_t,
+        it is passed to the configured callback.
+    3) Invocation of the LibVMI function vmi_events_listen() which checks for
+        incoming events and, if found, passes each to the appropriate callback.
+        The event passed to its registered callback is augmented with
+        information aiding in its interpretation (e.g., the page upon which
+        a write operation was invoked, the VCPU used to execute an
+        instruction, and/or the relevant instruction pointer.
+
+Three event types are currently possible to use in the API, defined in the
+enum vmi_event_type_t:
+
+    VMI_EVENT_MEMORY        /* Read/write/execute on a region of memory */
+    VMI_EVENT_REGISTER      /* Read/write of a specific register */
+    VMI_EVENT_SINGLESTEP    /* Instructions being executed on a set of VCPUs */ 
+
+An example vmi_event_t allocation and subsequent configuration is shown below.
+For full demonstrations, please consult the examples/ directory within the
+LibVMI source tree.
+
+    vmi_event_t *cr3_write_event = calloc(1, sizeof(vmi_event_t));
+    cr3_write_event->type = VMI_EVENT_REGISTER;
+    cr3_write_event->reg_event.reg = CR3;
+    cr3_write_event->reg_event.in_access = VMI_REGACCESS_W;
+    cr3_write_event->callback = cr3_change_cb;
+
+  Where cr3_change_cb is a pointer to a function with the prototype:
+    void callback_name(vmi_instance_t vmi, vmi_event_t *event)
+  All event callbacks must use this prototype; its return is not inspected
+    by the vmi_events_listen() after invocation.
+
+After creation, an event must be registered:
+
+    vmi_register_event(vmi, cr3_write_event);
+
+Next, the library user must await event delivery (exiting if interrupted
+by a signal or other error/exit condition):
+
+    while(!interrupted){
+        vmi_events_listen(vmi, 1000);
+    }
+
+Finally, the library user MUST call vmi_destroy(vmi) upon exit. While this
+action will cleanly unregister for all events, it is also recommended that
+the library user call vmi_clear_event for each event structure when event
+listening has concluded. This operation will unregister for the given event
+type and remove the pointer to the event from tracking structures within
+LibVMI.  For some event types, vmi_event_clear may be required within the
+callback to ensure VM execution continues (though the same event structure
+can be re-used and re-registered as needed).
+
+NOTE: 
+   All memory management of vmi_event_t structures is the responsibility
+   of the library user - LibVMI only tracks pointers to these structures.
+
+                                    ---
+
+Warnings:
+--------------------------------------------------------------------------------
+
+1) Ensure VM consistency
+Use of events, especially synchronous events (which are the default) will by
+definition and design suspend the execution of the originating virtual machine.
+This is effected by pausing the specific VCPU that specifically caused
+the related page fault or VMEXIT.
+
+This provides a consistent state for an event callback to inspect. Without 
+pausing the VCPU, the callback might not have an opportunity to gather
+requisite information to determine the conditions that caused the event. In
+other terms using an example, without this pause, it could become impossible to
+determine which process wrote a byte to a particular page or register (this
+information would be lost as the VM continues to execute).
+
+If extreme care is not taken to ensure a consistent VM, it is possible
+to cause a VM to crash, suspend indefinitely, become corrupted, or enter an
+otherwise unrecoverable state. Example scenario: a segmentation fault within
+user code causes vmi_destroy() not to be invoked while events are pending and
+unacknowledged; VCPUs have been paused by the event delivery, and the unclean
+exit of the process leaves the VM in an invalid state.
+
+2) Memory event delivery and page permissions
+If a memory event has been registered, page permissions have been necessarily
+modified to ensure event delivery from the hypervisor memory management layer.
+Upon receipt of a related event, it is necessary that the page permissions be
+modified so that the action (write, execute, and/or read) may complete; 
+otherwise, the action will continue to be attempted and will never succeed.
+This would effectively halt execution of the VM in perpetuity.
+
+3) Performance
+Some event types, such as single stepping, have extreme performance impact
+and should be used sparingly. The transition from VM to hypervisor at VMEXIT
+is normally infrequent, but use of single-step events causes it every
+instruction. As this subsequently causes execution to halt until an event
+acknowledgement unpauses the VCPU, execution speed can and will drop to
+a fraction of native performance.
+
+                                    ---
+
+Limitations:
+--------------------------------------------------------------------------------
+
+1) General support of hypervisors
+
+As of 0.10, only the Xen driver provides event capabilities; regrettably, such
+events are not available in a useable fashion for KVM. However, if upstream KVM
+and QEMU developers provide the ability to do so, LibVMI developers will add
+support as soon as possible. (NOTE: KVM by design does make this type of event
+observable; however, access to this information is limited to the 'owner' of a
+virtual machine handle. This ultimately means that only QEMU - the process that
+launched the virtual machine - is able to access this information. Lacking
+a mechanism to provide access to this data outside of QEMU, LibVMI is unable to
+implement this feature for KVM.)
+
+2) Register event support
+
+MSR register events are only available for Xen version 4.3 and newer.
+
+3) Xen version capabilities
+
+Xen memory events in general are only supported for Xen 4.1.2 and newer.
