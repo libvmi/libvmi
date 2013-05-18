@@ -505,18 +505,18 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return;
+        return VMI_FAILURE;
     }
     if ( dom == VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
-        return;
+        return VMI_FAILURE;
     }
 
     // Allocate memory
     xe = calloc(1, sizeof(xen_events_t));
     if ( !xe ) {
         errprint("%s error: allocation for xen_events_t failed\n", __FUNCTION__);
-        return;
+        return VMI_FAILURE;
     }
     
     dbprint("Init xen events with xch == %llx\n", (unsigned long long)xch);
