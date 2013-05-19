@@ -25,8 +25,8 @@ Release 0.10
                 from working. Xen 4.2.1+, and Xen 4.1.2 do not suffer from this
                 issue. 
         Exposing peparse.h as part of LibVMI to aid in Windows PE validation,
-            gaining access to the PE headers and the Image Data Directories entries
-            (the export table is natively supported)
+            gaining access to the PE headers and the Image Data Directories
+            entries (the export table is natively supported)
         Page mode can now be accessed in partial init
         Windows version can be determined in partial init provided a physical
              address is given to the kernel
