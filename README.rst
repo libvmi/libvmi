@@ -6,6 +6,11 @@ for accessing this memory using physical or virtual addresses and kernel
 symbols.  LibVMI also supports accessing memory from a physical memory snapshot,
 which is helpful for debugging or forensic analysis.
 
+In addition to memory access, LibVMI supports memory events.  Events provide 
+notifications when registered regions of memory are executed, written to, or
+read.  Memory events require hypervisor support and are currently only 
+available with Xen.
+
 LibVMI is designed to run on Linux (file, Xen, or KVM access) or Mac OS X
 (file access only).  The most used platform is Linux + Xen, but the 
 others are well tested and worth exploring as well.  LibVMI can provide access
