@@ -7,11 +7,13 @@ compile
 config.guess
 config.h
 config.h.in
+config.h.in~
 config.log
 config.status
 config.sub
 configure
 depcomp
+doc/html/
 examples/.deps/
 examples/.libs/
 examples/Makefile
@@ -26,8 +28,12 @@ examples/map-symbol
 examples/map-symbol.o
 examples/module-list
 examples/module-list.o
+examples/msr-event-example
+examples/msr-event-example.o
 examples/process-list
 examples/process-list.o
+examples/singlestep-event-example
+examples/singlestep-event-example.o
 examples/win-guid
 examples/win-guid.o
 install-sh
