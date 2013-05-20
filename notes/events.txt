@@ -1,3 +1,8 @@
+LibVMI Events
+Author: Steven Maresca <steve@zentific.com>
+Document: version 1.0, 2013-05-18
+Relevant LibVMI release: 0.10
+
 Overview:
 --------------------------------------------------------------------------------
 Beginning in release 0.10, LibVMI offers event monitoring for live virtual
@@ -37,15 +42,15 @@ for event reporting for introspection are satisfied.
 Specifics:
 --------------------------------------------------------------------------------
 In the case of Xen, a ring buffer is provided to hold VM events for consumption
-by an external service which accesses this buffer from an observation VM. 
+by an external service which accesses this buffer from an observation VM.
 
 Within its Xen driver, LibVMI enables event delivery when the initialization
 mode has the VMI_INIT_EVENTS mode set:
 
     vmi_init(&vmi, VMI_XEN | VMI_INIT_PARTIAL | VMI_INIT_EVENTS, vm_name)
 
-It is possible to use events in both VMI_INIT_PARTIAL and VMI_INIT_COMPLETE 
-modes; some event types (e.g. MSR register writes) are likely best observed 
+It is possible to use events in both VMI_INIT_PARTIAL and VMI_INIT_COMPLETE
+modes; some event types (e.g. MSR register writes) are likely best observed
 when VMI_INIT_PARTIAL is the only option.
 
 Using LibVMI events is possible in four general steps:
@@ -61,13 +66,16 @@ Using LibVMI events is possible in four general steps:
         information aiding in its interpretation (e.g., the page upon which
         a write operation was invoked, the VCPU used to execute an
         instruction, and/or the relevant instruction pointer.
+    4) When use of the events subsystem has completed, unregistration of
+        an individual event must be performed via vmi_clear_event or
+        implicitly via vmi_destroy at program exit.
 
 Three event types are currently possible to use in the API, defined in the
 enum vmi_event_type_t:
 
     VMI_EVENT_MEMORY        /* Read/write/execute on a region of memory */
     VMI_EVENT_REGISTER      /* Read/write of a specific register */
-    VMI_EVENT_SINGLESTEP    /* Instructions being executed on a set of VCPUs */ 
+    VMI_EVENT_SINGLESTEP    /* Instructions being executed on a set of VCPUs */
 
 An example vmi_event_t allocation and subsequent configuration is shown below.
 For full demonstrations, please consult the examples/ directory within the
@@ -104,7 +112,7 @@ LibVMI.  For some event types, vmi_event_clear may be required within the
 callback to ensure VM execution continues (though the same event structure
 can be re-used and re-registered as needed).
 
-NOTE: 
+NOTE:
    All memory management of vmi_event_t structures is the responsibility
    of the library user - LibVMI only tracks pointers to these structures.
 
@@ -116,10 +124,10 @@ Warnings:
 1) Ensure VM consistency
 Use of events, especially synchronous events (which are the default) will by
 definition and design suspend the execution of the originating virtual machine.
-This is effected by pausing the specific VCPU that specifically caused
-the related page fault or VMEXIT.
+This operation is performed by the hypervisor itself and effected by pausing the
+specific VCPU related to the page fault or VMEXIT.
 
-This provides a consistent state for an event callback to inspect. Without 
+This provides a consistent state for an event callback to inspect. Without
 pausing the VCPU, the callback might not have an opportunity to gather
 requisite information to determine the conditions that caused the event. In
 other terms using an example, without this pause, it could become impossible to
@@ -137,7 +145,7 @@ exit of the process leaves the VM in an invalid state.
 If a memory event has been registered, page permissions have been necessarily
 modified to ensure event delivery from the hypervisor memory management layer.
 Upon receipt of a related event, it is necessary that the page permissions be
-modified so that the action (write, execute, and/or read) may complete; 
+modified so that the action (write, execute, and/or read) may complete;
 otherwise, the action will continue to be attempted and will never succeed.
 This would effectively halt execution of the VM in perpetuity.
 
@@ -173,3 +181,9 @@ MSR register events are only available for Xen version 4.3 and newer.
 3) Xen version capabilities
 
 Xen memory events in general are only supported for Xen 4.1.2 and newer.
+
+4) Documentation bias
+At the time this document was first written, Xen was the only hypervisor
+with an events framework supported by LibVMI. As such, some of the behavior
+described may be Xen-specific; however, it is expected that similar or identical
+operations will be provided by all such hypervisors.
