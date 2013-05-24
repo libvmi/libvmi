@@ -1937,14 +1937,16 @@ pyvmi_symcache_add(
 {
     char *sym;
     addr_t va;
+    addr_t base_addr;
+    uint32_t pid;
 
-    if (!PyArg_ParseTuple(args, "sK", &sym, &va)) {
+    if (!PyArg_ParseTuple(args, "KKsK", &base_addr, &pid, &sym, &va)) {
         PyErr_SetString(PyExc_ValueError,
                         "Invalid argument(s) to function");
         return NULL;
     }
 
-    vmi_symcache_add(vmi(self), sym, va);
+    vmi_symcache_add(vmi(self), base_addr, pid, sym, va);
     return Py_BuildValue("");   // return None
 }
 
