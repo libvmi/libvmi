@@ -2,7 +2,7 @@ dnl --------------------------------
 dnl Initialization macros.
 dnl --------------------------------
 
-AC_INIT([libvmi], [0.10.1])
+AC_INIT([libvmi], [0.11.0])
 AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_CONFIG_SRCDIR(libvmi/core.c)
