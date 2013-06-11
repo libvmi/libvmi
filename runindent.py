@@ -48,7 +48,7 @@ def check_files(blob):
     status = True
     problems = {}
 
-    files = run_cmd("find . -iname '{}' -print".format(blob))
+    files = run_cmd("find . -iname '{0}' -print".format(blob))
     for filename in files.split('\n'):
         if filename not in EXCLUSIONS:
             tmp_status, output = run_indent_check(filename)
@@ -67,7 +67,7 @@ if success:
     sys.exit(0)
 else:
     for item in issues.keys():
-        print '---------- {} ----------'.format(item)
+        print '---------- {0} ----------'.format(item)
         print issues[item]
         print
     sys.exit(1)
