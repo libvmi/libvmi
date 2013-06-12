@@ -196,7 +196,7 @@ int main (int argc, char **argv)
     addr_t phys_vsyscall = 0;
 
     char *name = NULL;
-    int pid=-1;
+    int pid = -1;
 
     if(argc < 2){
         fprintf(stderr, "Usage: events_example <name of VM> <PID of process to track {optional}>\n");

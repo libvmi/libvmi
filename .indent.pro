@@ -3,35 +3,37 @@
 //
 // Author: Bryan D. Payne (bdpayne@acm.org)
 
+// Base this on K&R, below we just have our deviations from this style
+--k-and-r-style
+
 // blank lines
---blank-lines-after-declarations
---blank-lines-after-procedures
---blank-lines-before-block-comments
---swallow-optional-blank-lines
+--blank-lines-before-block-comments // bbb
 
 // comments
---format-first-column-comments
---start-left-side-of-comments
---comment-indentation4
---declaration-comment-column4
---else-endif-column4
+--format-first-column-comments // fc1
+--start-left-side-of-comments // sc
+--comment-indentation4 // cn
+--declaration-comment-column4 // cdn
+--else-endif-column4 // cpn
 
 // statements
---braces-on-if-line
---dont-cuddle-else
---cuddle-do-while
---case-indentation0
---space-special-semicolon
---no-space-after-function-call-names
---space-after-cast
+--cuddle-do-while // cdw
+--space-special-semicolon // ss
 
 // declarations
---declaration-indentation1
---no-blank-lines-after-commas
---break-function-decl-args-end
---procnames-start-lines
---braces-on-struct-decl-line
---braces-after-func-def-line
+--procnames-start-lines // psl
+--braces-after-func-def-line // blf
+
+// indentation
+--parameter-indentation4 // ipn
+--indent-label0 // iln
+
+// breaking long lines
+--line-length78 // ln
+--break-after-boolean-operator // nbbo
+
+// other
+--no-tabs // nut
 
 // typedef declarations
 -T pid_cache_entry_t
@@ -60,18 +62,3 @@
 -T win64_unicode_string_t
 -T boyer_moore_data_t
 
-// indentation
---indent-level4
---continuation-indentation4
---continue-at-parentheses
---tab-size4
---parameter-indentation4
---indent-label0
-
-// breaking long lines
---line-length72
---break-after-boolean-operator
---ignore-newlines
-
-// other
---no-tabs
