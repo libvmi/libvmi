@@ -1938,9 +1938,9 @@ pyvmi_symcache_add(
     char *sym;
     addr_t va;
     addr_t base_addr;
-    uint32_t pid;
+    int pid;
 
-    if (!PyArg_ParseTuple(args, "KKsK", &base_addr, &pid, &sym, &va)) {
+    if (!PyArg_ParseTuple(args, "KisK", &base_addr, &pid, &sym, &va)) {
         PyErr_SetString(PyExc_ValueError,
                         "Invalid argument(s) to function");
         return NULL;

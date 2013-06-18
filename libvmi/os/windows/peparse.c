@@ -36,7 +36,7 @@ rva_to_string(
     vmi_instance_t vmi,
     addr_t rva,
     addr_t base_addr,
-    uint32_t pid)
+    vmi_pid_t pid)
 {
     addr_t vaddr = base_addr + rva;
 
@@ -48,7 +48,7 @@ dump_exports(
     vmi_instance_t vmi,
     struct export_table *et,
     addr_t base_addr,
-    uint32_t pid)
+    vmi_pid_t pid)
 {
     addr_t base1 = base_addr + et->address_of_names;
     addr_t base2 = base_addr + et->address_of_name_ordinals;
@@ -84,7 +84,7 @@ get_export_rva(
     int aof_index,
     struct export_table *et,
     addr_t base_addr,
-    uint32_t pid)
+    vmi_pid_t pid)
 {
     addr_t rva_loc =
         base_addr + et->address_of_functions +
@@ -103,7 +103,7 @@ get_aof_index(
     int aon_index,
     struct export_table *et,
     addr_t base_addr,
-    uint32_t pid)
+    vmi_pid_t pid)
 {
     addr_t aof_index_loc =
         base_addr + et->address_of_name_ordinals +
@@ -127,7 +127,7 @@ get_aon_index_linear(
     char *symbol,
     struct export_table *et,
     addr_t base_addr,
-    uint32_t pid)
+    vmi_pid_t pid)
 {
     uint32_t i = 0;
 
@@ -163,7 +163,7 @@ find_aon_idx_bin(
     int low,
     int high,
     addr_t base_addr,
-    uint32_t pid)
+    vmi_pid_t pid)
 {
     int mid, cmp;
     addr_t str_rva_loc; // location of curr name's RVA
@@ -208,7 +208,7 @@ get_aon_index_binary(
     char *symbol,
     struct export_table *et,
     addr_t base_addr,
-    uint32_t pid)
+    vmi_pid_t pid)
 {
     addr_t aon_base_addr = base_addr + et->address_of_names;
     int name_ct = et->number_of_names;
@@ -222,7 +222,7 @@ get_aon_index(
     char *symbol,
     struct export_table *et,
     addr_t base_addr,
-    uint32_t pid)
+    vmi_pid_t pid)
 {
     int index = get_aon_index_binary(vmi, symbol, et, base_addr, pid);
 
@@ -312,7 +312,7 @@ status_t
 peparse_get_image_virt(
     vmi_instance_t vmi,
     addr_t base_vaddr,
-    uint32_t pid,
+    vmi_pid_t pid,
     size_t len,
     const uint8_t * const image)
 {
@@ -466,7 +466,7 @@ status_t
 peparse_get_export_table(
     vmi_instance_t vmi,
     addr_t base_vaddr,
-    uint32_t pid,
+    vmi_pid_t pid,
     struct export_table *et,
     addr_t *export_table_rva,
     size_t *export_table_size)
@@ -531,7 +531,7 @@ windows_export_to_rva(
     vmi_instance_t vmi,
     char *symbol,
     addr_t base_vaddr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t *rva)
 {
     struct export_table et;
@@ -581,7 +581,7 @@ windows_rva_to_export(
     vmi_instance_t vmi,
     addr_t rva,
     addr_t base_vaddr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char **sym)
 {
     struct export_table et;

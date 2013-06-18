@@ -33,10 +33,10 @@
 static addr_t
 linux_get_taskstruct_addr_from_pid(
     vmi_instance_t vmi,
-    int pid)
+    vmi_pid_t pid)
 {
     addr_t list_head = 0, next_process = 0;
-    int task_pid = -1;
+    vmi_pid_t task_pid = -1;
     int pid_offset = vmi->os.linux_instance.pid_offset;
     int tasks_offset = vmi->os.linux_instance.tasks_offset;
 
@@ -123,7 +123,7 @@ error_exit:
 addr_t
 linux_pid_to_pgd(
     vmi_instance_t vmi,
-    int pid)
+    vmi_pid_t pid)
 {
     addr_t ts_addr = 0, pgd = 0, ptr = 0;
     uint8_t width = 0;
@@ -168,7 +168,7 @@ linux_pgd_to_pid(
     vmi_instance_t vmi,
     addr_t pgd)
 {
-    int pid = -1;
+    vmi_pid_t pid = -1;
     addr_t ts_addr = 0;
     int pid_offset = vmi->os.linux_instance.pid_offset;
 

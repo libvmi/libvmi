@@ -90,7 +90,7 @@ size_t
 vmi_read_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     void *buf,
     size_t count)
 {
@@ -284,7 +284,7 @@ static status_t
 vmi_read_X_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     void *value,
     int size)
 {
@@ -302,7 +302,7 @@ status_t
 vmi_read_8_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint8_t * value)
 {
     return vmi_read_X_va(vmi, vaddr, pid, value, 1);
@@ -312,7 +312,7 @@ status_t
 vmi_read_16_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint16_t * value)
 {
     return vmi_read_X_va(vmi, vaddr, pid, value, 2);
@@ -322,7 +322,7 @@ status_t
 vmi_read_32_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint32_t * value)
 {
     return vmi_read_X_va(vmi, vaddr, pid, value, 4);
@@ -332,7 +332,7 @@ status_t
 vmi_read_64_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint64_t * value)
 {
     return vmi_read_X_va(vmi, vaddr, pid, value, 8);
@@ -342,7 +342,7 @@ status_t
 vmi_read_addr_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     addr_t *value)
 {
     if (vmi->page_mode == VMI_PM_IA32E) {
@@ -361,7 +361,7 @@ char *
 vmi_read_str_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid)
+    vmi_pid_t pid)
 {
     unsigned char *memory = NULL;
     char *rtnval = NULL;
@@ -421,7 +421,7 @@ static unicode_string_t *
 vmi_read_linux_unicode_str_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid)
+    vmi_pid_t pid)
 {
     // not implemented
     return 0;
@@ -431,7 +431,7 @@ static unicode_string_t *
 vmi_read_win_unicode_struct_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid)
+    vmi_pid_t pid)
 {
     unicode_string_t *us = 0;   // return val
     size_t struct_size = 0;
@@ -504,7 +504,7 @@ unicode_string_t *
 vmi_read_unicode_str_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid)
+    vmi_pid_t pid)
 {
     os_t os = vmi_get_ostype(vmi);
 

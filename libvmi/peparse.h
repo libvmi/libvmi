@@ -234,7 +234,7 @@ status_t
 peparse_get_image_virt(
     vmi_instance_t vmi,
     addr_t base_vaddr,
-    uint32_t pid,
+    vmi_pid_t pid,
     size_t len,
     const uint8_t * const image);
 
@@ -313,7 +313,7 @@ status_t
 peparse_get_export_table(
     vmi_instance_t vmi,
     addr_t base_vaddr,
-    uint32_t pid,
+    vmi_pid_t pid,
     struct export_table *et,
     addr_t *export_table_rva,
     size_t *export_table_size);
