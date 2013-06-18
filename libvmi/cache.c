@@ -99,7 +99,7 @@ static key_128_t key_128_build (vmi_instance_t vmi, uint64_t low, uint64_t high)
 // PID --> DTB cache implementation
 // Note: DTB is a physical address
 struct pid_cache_entry {
-    int pid;
+    vmi_pid_t pid;
     addr_t dtb;
     time_t last_used;
 };
@@ -123,9 +123,8 @@ pid_cache_entry_free(
         free(entry);
 }
 
-static pid_cache_entry_t
-pid_cache_entry_create(
-    int pid,
+static pid_cache_entry_t pid_cache_entry_create(
+    vmi_pid_t pid,
     addr_t dtb)
 {
     pid_cache_entry_t entry =
@@ -155,7 +154,7 @@ pid_cache_destroy(
 status_t
 pid_cache_get(
     vmi_instance_t vmi,
-    int pid,
+    vmi_pid_t pid,
     addr_t *dtb)
 {
     pid_cache_entry_t entry = NULL;
@@ -174,7 +173,7 @@ pid_cache_get(
 void
 pid_cache_set(
     vmi_instance_t vmi,
-    int pid,
+    vmi_pid_t pid,
     addr_t dtb)
 {
     gint *key = (gint *) safe_malloc(sizeof(gint));
@@ -189,7 +188,7 @@ pid_cache_set(
 status_t
 pid_cache_del(
     vmi_instance_t vmi,
-    int pid)
+    vmi_pid_t pid)
 {
     gint key = (gint) pid;
 
@@ -217,7 +216,7 @@ struct sym_cache_entry {
     addr_t va;
     time_t last_used;
     addr_t base_addr;
-    uint32_t pid;
+    vmi_pid_t pid;
 };
 typedef struct sym_cache_entry *sym_cache_entry_t;
 
@@ -239,14 +238,14 @@ sym_cache_entry_create(
     char *sym,
     addr_t va,
     addr_t base_addr,
-    uint32_t pid)
+    vmi_pid_t pid)
 {
     sym_cache_entry_t entry =
         (sym_cache_entry_t) safe_malloc(sizeof(struct sym_cache_entry));
     entry->sym = strdup(sym);
     entry->va = va;
-    entry->base_addr=base_addr,
-    entry->pid=pid,
+    entry->base_addr = base_addr,
+    entry->pid = pid,
     entry->last_used = time(NULL);
     return entry;
 }
@@ -271,7 +270,7 @@ status_t
 sym_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym,
     addr_t *va)
 {
@@ -303,7 +302,7 @@ void
 sym_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym,
     addr_t va)
 {
@@ -328,7 +327,7 @@ status_t
 sym_cache_del(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym)
 {
     status_t ret=VMI_FAILURE;
@@ -382,7 +381,7 @@ status_t
 rva_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t rva,
     char **sym)
 {
@@ -413,7 +412,7 @@ void
 rva_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t rva,
     char *sym)
 {
@@ -438,7 +437,7 @@ status_t
 rva_cache_del(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t rva)
 {
     status_t ret=VMI_FAILURE;
@@ -594,7 +593,7 @@ pid_cache_destroy(
 status_t
 pid_cache_get(
     vmi_instance_t vmi,
-    int pid,
+    vmi_pid_t pid,
     addr_t *dtb)
 {
     return VMI_FAILURE;
@@ -603,7 +602,7 @@ pid_cache_get(
 void
 pid_cache_set(
     vmi_instance_t vmi,
-    int pid,
+    vmi_pid_t pid,
     addr_t dtb)
 {
     return;
@@ -612,7 +611,7 @@ pid_cache_set(
 status_t
 pid_cache_del(
     vmi_instance_t vmi,
-    int pid)
+    vmi_pid_t pid)
 {
     return VMI_FAILURE;
 }
@@ -642,7 +641,7 @@ status_t
 sym_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym,
     addr_t *va)
 {
@@ -653,7 +652,7 @@ void
 sym_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym,
     addr_t va)
 {
@@ -664,7 +663,7 @@ status_t
 sym_cache_del(
     vmi_instance_t vmi,
     addr_t bade_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym)
 {
     return VMI_FAILURE;
@@ -704,7 +703,7 @@ void
 rva_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t rva,
     char *sym)
 {
@@ -781,7 +780,7 @@ v2p_cache_flush(
 void
 vmi_pidcache_add(
     vmi_instance_t vmi,
-    int pid,
+    vmi_pid_t pid,
     addr_t dtb)
 {
     return pid_cache_set(vmi, pid, dtb);
@@ -798,7 +797,7 @@ void
 vmi_symcache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym,
     addr_t va)
 {
@@ -816,7 +815,7 @@ void
 vmi_rvacache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t rva,
     char *sym)
 {

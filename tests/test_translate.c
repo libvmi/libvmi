@@ -32,7 +32,7 @@ START_TEST (test_libvmi_piddtb)
 {
     vmi_instance_t vmi = NULL;
     addr_t next_process, list_head;
-    int pid = 0;
+    vmi_pid_t pid = 0;
     int tasks_offset, pid_offset, name_offset;
     int failed = 1;
 

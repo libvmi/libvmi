@@ -229,15 +229,15 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t vmi);
     status_t pid_cache_get(
     vmi_instance_t vmi,
-    int pid,
+    vmi_pid_t pid,
     addr_t *dtb);
     void pid_cache_set(
     vmi_instance_t vmi,
-    int pid,
+    vmi_pid_t pid,
     addr_t dtb);
     status_t pid_cache_del(
     vmi_instance_t vmi,
-    int pid);
+    vmi_pid_t pid);
     void pid_cache_flush(
     vmi_instance_t vmi);
 
@@ -248,19 +248,19 @@ typedef struct _windows_unicode_string32 {
     status_t sym_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym,
     addr_t *va);
     void sym_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym,
     addr_t va);
     status_t sym_cache_del(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym);
     void sym_cache_flush(
     vmi_instance_t vmi);
@@ -316,8 +316,8 @@ typedef struct _windows_unicode_string32 {
     addr_t *address);
     addr_t linux_pid_to_pgd(
     vmi_instance_t vmi,
-    int pid);
-    int linux_pgd_to_pid(
+    vmi_pid_t pid);
+    vmi_pid_t linux_pgd_to_pid(
     vmi_instance_t vmi,
     addr_t pgd);
 
@@ -334,11 +334,11 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t instance,
     char *name);
     status_t windows_export_to_rva(
-    vmi_instance_t,
-    char *,
-    addr_t,
-    uint32_t,
-    addr_t *);
+    vmi_instance_t vmi,
+    char *sym,
+    addr_t base_address,
+    vmi_pid_t pid,
+    addr_t * address);
     status_t windows_kpcr_lookup(
     vmi_instance_t vmi,
     char *symbol,
@@ -356,8 +356,8 @@ typedef struct _windows_unicode_string32 {
     size_t len);
     addr_t windows_pid_to_pgd(
     vmi_instance_t vmi,
-    int pid);
-    int windows_pgd_to_pid(
+    vmi_pid_t pid);
+    vmi_pid_t windows_pgd_to_pid(
     vmi_instance_t vmi,
     addr_t pgd);
     status_t
@@ -366,7 +366,7 @@ typedef struct _windows_unicode_string32 {
     char *symbol,
     addr_t *address);
 
-    addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, int pid);
+    addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, vmi_pid_t pid);
     addr_t windows_find_eprocess_list_pgd(vmi_instance_t vmi, addr_t pgd);
 
 /*-----------------------------------------

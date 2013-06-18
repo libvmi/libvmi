@@ -72,7 +72,7 @@ windows_symbol_to_address(
 addr_t
 windows_pid_to_pgd(
     vmi_instance_t vmi,
-    int pid)
+    vmi_pid_t pid)
 {
     addr_t pgd = 0;
     addr_t eprocess = 0;
@@ -94,12 +94,12 @@ error_exit:
     return pgd;
 }
 
-int
+vmi_pid_t
 windows_pgd_to_pid(
     vmi_instance_t vmi,
     addr_t pgd)
 {
-    int pid = -1;
+    vmi_pid_t pid = -1;
     addr_t eprocess = 0;
     int pdbase_offset = vmi->os.windows_instance.pdbase_offset;
     int tasks_offset = vmi->os.windows_instance.tasks_offset;

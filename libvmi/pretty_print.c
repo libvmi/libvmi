@@ -98,7 +98,7 @@ void
 vmi_print_hex_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     size_t length)
 {
     addr_t paddr = 0;
