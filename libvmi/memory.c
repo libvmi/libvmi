@@ -496,7 +496,7 @@ addr_t vmi_translate_kv2p (vmi_instance_t vmi, addr_t virt_address)
 
 /* expose virtual to physical mapping for user space via api call */
 addr_t vmi_translate_uv2p_nocache (vmi_instance_t vmi, addr_t virt_address,
-        int pid)
+        vmi_pid_t pid)
 {
     addr_t dtb = vmi_pid_to_dtb(vmi, pid);
 
@@ -514,7 +514,7 @@ addr_t vmi_translate_uv2p_nocache (vmi_instance_t vmi, addr_t virt_address,
     }
 }
 
-addr_t vmi_translate_uv2p (vmi_instance_t vmi, addr_t virt_address, int pid)
+addr_t vmi_translate_uv2p (vmi_instance_t vmi, addr_t virt_address, vmi_pid_t pid)
 {
     addr_t dtb = vmi_pid_to_dtb(vmi, pid);
 
@@ -566,7 +566,7 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
 }
 
 /* convert a symbol into an address */
-addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, uint32_t pid, char *symbol)
+addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, char *symbol)
 {
     addr_t ret = 0;
 
@@ -592,7 +592,7 @@ addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, uint32_t pid,
     return ret;
 }
 /* convert an RVA into a symbol */
-const char* vmi_translate_v2sym(vmi_instance_t vmi, addr_t base_vaddr, uint32_t pid, addr_t rva)
+const char* vmi_translate_v2sym(vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, addr_t rva)
 {
     char *ret = NULL;
 
@@ -615,7 +615,7 @@ const char* vmi_translate_v2sym(vmi_instance_t vmi, addr_t base_vaddr, uint32_t 
 }
 
 /* finds the address of the page global directory for a given pid */
-addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid)
+addr_t vmi_pid_to_dtb (vmi_instance_t vmi, vmi_pid_t pid)
 {
     addr_t dtb = 0;
 
@@ -636,10 +636,10 @@ addr_t vmi_pid_to_dtb (vmi_instance_t vmi, int pid)
 }
 
 /* finds the pid for a given dtb */
-int vmi_dtb_to_pid (vmi_instance_t vmi, addr_t dtb)
+vmi_pid_t vmi_dtb_to_pid (vmi_instance_t vmi, addr_t dtb)
 {
 
-    int pid = -1;
+    vmi_pid_t pid = -1;
 
     if (VMI_OS_LINUX == vmi->os_type) {
         pid = linux_pgd_to_pid(vmi, dtb);

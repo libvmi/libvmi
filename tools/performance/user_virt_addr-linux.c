@@ -46,7 +46,7 @@ main(
     struct timeval ktv_end;
 
      uint32_t dom = atoi(argv[1]);
-    int pid = atoi(argv[2]);
+    vmi_pid_t pid = atoi(argv[2]);
     int loops = atoi(argv[3]);
     int i = 0;
     long int diff;

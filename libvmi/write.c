@@ -55,7 +55,7 @@ size_t
 vmi_write_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     void *buf,
     size_t count)
 {
@@ -182,7 +182,7 @@ static status_t
 vmi_write_X_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     void *value,
     int size)
 {
@@ -200,7 +200,7 @@ status_t
 vmi_write_8_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint8_t * value)
 {
     return vmi_write_X_va(vmi, vaddr, pid, value, 1);
@@ -210,7 +210,7 @@ status_t
 vmi_write_16_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint16_t * value)
 {
     return vmi_write_X_va(vmi, vaddr, pid, value, 2);
@@ -220,7 +220,7 @@ status_t
 vmi_write_32_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint32_t * value)
 {
     return vmi_write_X_va(vmi, vaddr, pid, value, 4);
@@ -230,7 +230,7 @@ status_t
 vmi_write_64_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint64_t * value)
 {
     return vmi_write_X_va(vmi, vaddr, pid, value, 8);

@@ -232,6 +232,9 @@ typedef enum registers {
 /* type def for forward compatibility with 64-bit guests */
 typedef uint64_t addr_t;
 
+/* type def for consistent pid_t usage */
+typedef int32_t vmi_pid_t;
+
 /**
  * Generic representation of Unicode string to be used within libvmi
  */
@@ -377,7 +380,7 @@ addr_t vmi_translate_kv2p(
 addr_t vmi_translate_uv2p(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid);
+    vmi_pid_t pid);
 
 /**
  * Performs the translation from a kernel symbol to a virtual address.
@@ -404,7 +407,7 @@ addr_t vmi_translate_ksym2v(
 addr_t vmi_translate_sym2v(
     vmi_instance_t vmi,
     addr_t base_vaddr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *symbol);
 
 /**
@@ -421,7 +424,7 @@ addr_t vmi_translate_sym2v(
 const char* vmi_translate_v2sym(
     vmi_instance_t vmi,
     addr_t base_vaddr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t rva);
 
 /**
@@ -436,7 +439,7 @@ const char* vmi_translate_v2sym(
  */
 addr_t vmi_pid_to_dtb(
     vmi_instance_t vmi,
-    int pid);
+    vmi_pid_t pid);
 
 /**
  * Given a dtb, this function returns the PID corresponding to the
@@ -447,7 +450,7 @@ addr_t vmi_pid_to_dtb(
  * @param[in] dtb Desired dtb to lookup
  * @return The PID corresponding to the dtb
  */
-int vmi_dtb_to_pid(
+vmi_pid_t vmi_dtb_to_pid(
     vmi_instance_t vmi,
     addr_t dtb);
 
@@ -499,7 +502,7 @@ size_t vmi_read_ksym(
 size_t vmi_read_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     void *buf,
     size_t count);
 
@@ -610,7 +613,7 @@ char *vmi_read_str_ksym(
 status_t vmi_read_8_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint8_t * value);
 
 /**
@@ -625,7 +628,7 @@ status_t vmi_read_8_va(
 status_t vmi_read_16_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint16_t * value);
 
 /**
@@ -640,7 +643,7 @@ status_t vmi_read_16_va(
 status_t vmi_read_32_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint32_t * value);
 
 /**
@@ -655,7 +658,7 @@ status_t vmi_read_32_va(
 status_t vmi_read_64_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint64_t * value);
 
 /**
@@ -671,7 +674,7 @@ status_t vmi_read_64_va(
 status_t vmi_read_addr_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     addr_t *value);
 
 /**
@@ -687,7 +690,7 @@ status_t vmi_read_addr_va(
 char *vmi_read_str_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid);
+    vmi_pid_t pid);
 
 /**
  * Reads a Unicode string from the given address. If the guest is running
@@ -703,7 +706,7 @@ char *vmi_read_str_va(
 unicode_string_t *vmi_read_unicode_str_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid);
+    vmi_pid_t pid);
 
 /**
  * Converts character encoding from that in the input string to another
@@ -838,7 +841,7 @@ size_t vmi_write_ksym(
 size_t vmi_write_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     void *buf,
     size_t count);
 
@@ -922,7 +925,7 @@ status_t vmi_write_64_ksym(
 status_t vmi_write_8_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint8_t * value);
 
 /**
@@ -937,7 +940,7 @@ status_t vmi_write_8_va(
 status_t vmi_write_16_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint16_t * value);
 
 /**
@@ -952,7 +955,7 @@ status_t vmi_write_16_va(
 status_t vmi_write_32_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint32_t * value);
 
 /**
@@ -967,7 +970,7 @@ status_t vmi_write_32_va(
 status_t vmi_write_64_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     uint64_t * value);
 
 /**
@@ -1065,7 +1068,7 @@ void vmi_print_hex_ksym(
 void vmi_print_hex_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    int pid,
+    vmi_pid_t pid,
     size_t length);
 
 /**
@@ -1335,7 +1338,7 @@ void vmi_symcache_flush(
 void vmi_symcache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     char *sym,
     addr_t va);
 
@@ -1362,7 +1365,7 @@ void vmi_rvacache_flush(
 void vmi_rvacache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t rva,
     char *sym);
 
@@ -1386,7 +1389,7 @@ void vmi_pidcache_flush(
  */
 void vmi_pidcache_add(
     vmi_instance_t vmi,
-    int pid,
+    vmi_pid_t pid,
     addr_t dtb);
 
 /*---------------------------------------------------------

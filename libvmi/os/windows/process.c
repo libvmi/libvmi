@@ -324,10 +324,10 @@ exit:
 addr_t
 windows_find_eprocess_list_pid(
         vmi_instance_t vmi,
-        int pid)
+        vmi_pid_t pid)
 {
     int pid_offset = vmi->os.windows_instance.pid_offset;
-    size_t len = sizeof(int);
+    size_t len = sizeof(vmi_pid_t);
     return eprocess_list_search(vmi, pid_offset, len, &pid);
 }
 
