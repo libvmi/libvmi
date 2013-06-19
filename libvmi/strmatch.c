@@ -63,7 +63,7 @@ suffixes(
     int m,
     int *suff)
 {
-    int f, g, i;
+    int f = 0, g, i;
 
     suff[m - 1] = m;
     g = m - 1;
