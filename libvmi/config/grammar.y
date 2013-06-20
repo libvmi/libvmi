@@ -354,7 +354,7 @@ assignment:
 linux_tasks_assignment:
         LINUX_TASKS EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.tasks = tmp;
             free($3);
         }
@@ -363,7 +363,7 @@ linux_tasks_assignment:
 linux_mm_assignment:
         LINUX_MM EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.mm = tmp;
             free($3);
         }
@@ -372,7 +372,7 @@ linux_mm_assignment:
 linux_pid_assignment:
         LINUX_PID EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.pid = tmp;
             free($3);
         }
@@ -380,7 +380,7 @@ linux_pid_assignment:
 linux_name_assignment:
         LINUX_NAME EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.name = tmp;
             free($3);
         }
@@ -389,7 +389,7 @@ linux_name_assignment:
 linux_pgd_assignment:
         LINUX_PGD EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.linux_offsets.pgd = tmp;
             free($3);
         }
@@ -398,8 +398,7 @@ linux_pgd_assignment:
 linux_addr_assignment:
         LINUX_ADDR EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.linux_offsets.addr = tmp;
+            fprintf(stderr, "VMI_WARNING: linux_addr is no longer used and should be removed from your config file\n");
             free($3);
         }
         ;
@@ -407,7 +406,7 @@ linux_addr_assignment:
 win_ntoskrnl_assignment:
         WIN_NTOSKRNL EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.ntoskrnl = tmp;
             free($3);
         }
@@ -416,7 +415,7 @@ win_ntoskrnl_assignment:
 win_tasks_assignment:
         WIN_TASKS EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.tasks = tmp;
             free($3);
         }
@@ -425,7 +424,7 @@ win_tasks_assignment:
 win_pdbase_assignment:
         WIN_PDBASE EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.pdbase = tmp;
             free($3);
         }
@@ -434,7 +433,7 @@ win_pdbase_assignment:
 win_pid_assignment:
         WIN_PID EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.pid = tmp;
             free($3);
         }
@@ -443,7 +442,7 @@ win_pid_assignment:
 win_peb_assignment:
         WIN_PEB EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.peb = tmp;
             free($3);
         }
@@ -452,7 +451,7 @@ win_peb_assignment:
 win_iba_assignment:
         WIN_IBA EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.iba = tmp;
             free($3);
         }
@@ -461,7 +460,7 @@ win_iba_assignment:
 win_ph_assignment:
         WIN_PH EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.ph = tmp;
             free($3);
         }
@@ -470,7 +469,7 @@ win_ph_assignment:
 win_pname_assignment:
         WIN_PNAME EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
+            uint64_t tmp = strtoull($3, NULL, 0);
             tmp_entry.offsets.windows_offsets.pname = tmp;
             free($3);
         }

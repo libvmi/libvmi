@@ -26,6 +26,9 @@
  
 #include "../libvmi.h"
 
+#ifndef CONFIG_PARSER_H_
+#define CONFIG_PARSER_H_
+
 #define CONFIG_STR_LENGTH 1024
 
 typedef struct vmi_config_entry {
@@ -58,3 +61,5 @@ typedef struct vmi_config_entry {
 
 int vmi_parse_config(char *td);
 vmi_config_entry_t* vmi_get_config();
+
+#endif /* CONFIG_PARSER_H_ */

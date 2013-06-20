@@ -27,6 +27,9 @@
 #include "libvmi.h"
 #include "private.h"
 #include "peparse.h"
+#include "os/windows/windows.h"
+
+addr_t windows_find_eprocess(vmi_instance_t instance, char *name);
 
 addr_t
 get_ntoskrnl_base(
@@ -103,7 +106,16 @@ static status_t
 get_kpgd_method2(
     vmi_instance_t vmi)
 {
-    addr_t sysproc = vmi->os.windows_instance.sysproc;
+    addr_t sysproc = 0;
+    windows_instance_t windows = NULL;
+
+    if (vmi->os_data == NULL) {
+        errprint("VMI_ERROR: No OS data initialized\n");
+        return VMI_FAILURE;
+    }
+
+    windows = vmi->os_data;
+    sysproc = windows->sysproc;
 
     /* get address for System process */
     if (!sysproc) {
@@ -122,7 +134,7 @@ get_kpgd_method2(
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi,
                          sysproc +
-                         vmi->os.windows_instance.pdbase_offset,
+                         windows->pdbase_offset,
                          &vmi->kpgd)) {
         dbprint("--failed to resolve PD for Idle process\n");
         goto error_exit;
@@ -136,12 +148,12 @@ get_kpgd_method2(
 
     if (VMI_FAILURE == 
         vmi_read_addr_pa(vmi,
-                     sysproc + vmi->os.windows_instance.tasks_offset,
+                     sysproc + windows->tasks_offset,
                      &vmi->init_task)) {
         dbprint("--failed to resolve address of Idle process\n");
         goto error_exit;
     }
-    vmi->init_task -= vmi->os.windows_instance.tasks_offset;
+    vmi->init_task -= windows->tasks_offset;
     dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
@@ -168,6 +180,14 @@ get_kpgd_method1(
     vmi_instance_t vmi)
 {
     addr_t sysproc = 0;
+    windows_instance_t windows = NULL;
+
+    if (vmi->os_data == NULL) {
+        errprint("VMI_ERROR: No OS data initialized\n");
+        return VMI_FAILURE;
+    }
+
+    windows = vmi->os_data;
 
     if (VMI_FAILURE ==
         vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &sysproc)) {
@@ -181,7 +201,7 @@ get_kpgd_method1(
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi,
                          sysproc +
-                         vmi->os.windows_instance.pdbase_offset,
+                         windows->pdbase_offset,
                          &vmi->kpgd)) {
         dbprint("--failed to resolve pointer for system process\n");
         goto error_exit;
@@ -195,12 +215,12 @@ get_kpgd_method1(
 
     if (VMI_FAILURE == 
         vmi_read_addr_pa(vmi,
-                     sysproc + vmi->os.windows_instance.tasks_offset,
+                     sysproc + windows->tasks_offset,
                      &vmi->init_task)) {
         dbprint("--failed to resolve address of Idle process\n");
         goto error_exit;
     }
-    vmi->init_task -= vmi->os.windows_instance.tasks_offset;
+    vmi->init_task -= windows->tasks_offset;
     dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
@@ -214,9 +234,18 @@ get_kpgd_method0(
     vmi_instance_t vmi)
 {
     addr_t sysproc = 0;
+    windows_instance_t windows = NULL;
+
+    if (vmi->os_data == NULL) {
+        errprint("VMI_ERROR: No OS data initialized\n");
+        return VMI_FAILURE;
+    }
+
+    windows = vmi->os_data;
 
     if (VMI_FAILURE ==
-        windows_symbol_to_address(vmi, "PsActiveProcessHead",
+        windows_kernel_symbol_to_address(vmi, "PsActiveProcessHead",
+                                  NULL,
                                   &sysproc)) {
         dbprint("--failed to resolve PsActiveProcessHead\n");
         goto error_exit;
@@ -228,13 +257,13 @@ get_kpgd_method0(
     sysproc =
         vmi_translate_kv2p(vmi,
                            sysproc) -
-        vmi->os.windows_instance.tasks_offset;
+        windows->tasks_offset;
     dbprint("--got PA to PsActiveProcessHead (0x%.16"PRIx64").\n", sysproc);
 
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi,
                          sysproc +
-                         vmi->os.windows_instance.pdbase_offset,
+                         windows->pdbase_offset,
                          &vmi->kpgd)) {
         dbprint("--failed to resolve pointer for system process\n");
         goto error_exit;
@@ -248,12 +277,12 @@ get_kpgd_method0(
 
     if (VMI_FAILURE == 
         vmi_read_addr_pa(vmi,
-                     sysproc + vmi->os.windows_instance.tasks_offset,
+                     sysproc + windows->tasks_offset,
                      &vmi->init_task)){
         dbprint("--failed to resolve address of Idle process\n");
         goto error_exit;
     }
-    vmi->init_task -= vmi->os.windows_instance.tasks_offset;
+    vmi->init_task -= windows->tasks_offset;
     dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
@@ -262,10 +291,59 @@ error_exit:
     return VMI_FAILURE;
 }
 
+unsigned long windows_get_offset(vmi_instance_t vmi, const char* offset_name) {
+    const size_t max_length = 100;
+    windows_instance_t windows = vmi->os_data;
+
+    if (windows == NULL) {
+        errprint("VMI_ERROR: OS instance not initialized\n");
+        return 0;
+    }
+
+    if (strncmp(offset_name, "win_tasks", max_length) == 0) {
+        return windows->tasks_offset;
+    } else if (strncmp(offset_name, "win_pdbase", max_length) == 0) {
+        return windows->pdbase_offset;
+    } else if (strncmp(offset_name, "win_pid", max_length) == 0) {
+        return windows->pid_offset;
+    } else if (strncmp(offset_name, "win_pname", max_length) == 0) {
+        if (windows->pname_offset == 0) {
+            windows->pname_offset = find_pname_offset(vmi,
+                    NULL );
+            if (windows->pname_offset == 0) {
+                dbprint("--failed to find pname_offset\n");
+                return 0;
+            }
+        }
+        return windows->pname_offset;
+    } else {
+        warnprint("Invalid offset name in windows_get_offset (%s).\n",
+                offset_name);
+        return 0;
+    }
+}
+
+
 status_t
 windows_init(
     vmi_instance_t vmi)
 {
+    windows_instance_t windows = NULL;
+    os_interface_t os_interface = NULL;
+
+    /* Need to provide this functions so that find_page_mode will work */
+    os_interface = safe_malloc(sizeof(struct os_interface));
+    bzero(os_interface, sizeof(struct os_interface));
+    os_interface->os_get_offset = windows_get_offset;
+    os_interface->os_pid_to_pgd = windows_pid_to_pgd;
+    os_interface->os_pgd_to_pid = windows_pgd_to_pid;
+    os_interface->os_ksym2v = windows_kernel_symbol_to_address;
+    os_interface->os_usym2rva = windows_export_to_rva;
+    os_interface->os_rva2sym = windows_rva_to_export;
+    os_interface->os_teardown = NULL;
+
+    vmi->os_interface = os_interface;
+
     /* get base address for kernel image in memory */
     if (VMI_PM_UNKNOWN == vmi->page_mode) {
         if (VMI_FAILURE == find_page_mode(vmi)) {
@@ -274,21 +352,30 @@ windows_init(
         }
     }
 
+    windows = vmi->os_data;
+
     if (VMI_FAILURE ==
-        windows_symbol_to_address(vmi, "KernBase",
-                                  &vmi->os.windows_instance.
-                                  ntoskrnl_va)) {
+        windows_kernel_symbol_to_address(vmi, "KernBase",
+                                  NULL,
+                                  &windows->ntoskrnl_va)) {
         errprint("Address translation failure.\n");
         goto error_exit;
     }
 
     dbprint("**ntoskrnl @ VA 0x%.16"PRIx64".\n",
-            vmi->os.windows_instance.ntoskrnl_va);
+            windows->ntoskrnl_va);
 
-    vmi->os.windows_instance.ntoskrnl =
-        vmi_translate_kv2p(vmi, vmi->os.windows_instance.ntoskrnl_va);
+    windows->ntoskrnl =
+        vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
     dbprint("**set ntoskrnl (0x%.16"PRIx64").\n",
-            vmi->os.windows_instance.ntoskrnl);
+            windows->ntoskrnl);
+
+    if (vmi->kpgd) {
+        /* This can happen for file because find_cr3() is called and this
+         * is set via get_kpgd_method2() /
+         */
+        goto found_kpgd;
+    }
 
     /* get the kernel page directory location */
     if (VMI_SUCCESS == get_kpgd_method0(vmi)) {
@@ -310,5 +397,7 @@ windows_init(
 found_kpgd:
     return VMI_SUCCESS;
 error_exit:
+    free(vmi->os_interface);
+    vmi->os_interface = NULL;
     return VMI_FAILURE;
 }

@@ -124,7 +124,7 @@ get_aof_index(
 int
 get_aon_index_linear(
     vmi_instance_t vmi,
-    char *symbol,
+    const char *symbol,
     struct export_table *et,
     addr_t base_addr,
     vmi_pid_t pid)
@@ -158,7 +158,7 @@ get_aon_index_linear(
 static int
 find_aon_idx_bin(
     vmi_instance_t vmi,
-    char *symbol,
+    const char *symbol,
     addr_t aon_base_va,
     int low,
     int high,
@@ -205,7 +205,7 @@ not_found:
 int
 get_aon_index_binary(
     vmi_instance_t vmi,
-    char *symbol,
+    const char *symbol,
     struct export_table *et,
     addr_t base_addr,
     vmi_pid_t pid)
@@ -219,7 +219,7 @@ get_aon_index_binary(
 int
 get_aon_index(
     vmi_instance_t vmi,
-    char *symbol,
+    const char *symbol,
     struct export_table *et,
     addr_t base_addr,
     vmi_pid_t pid)
@@ -507,7 +507,7 @@ peparse_get_export_table(
 
     dbprint
         ("--PEParse: found export table at [VA] 0x%.16"PRIx64" = 0x%.16"PRIx64" + 0x%"PRIx64"\n",
-         export_header_va, vmi->os.windows_instance.ntoskrnl_va,
+         export_header_va, ((windows_instance_t)vmi->os_data)->ntoskrnl_va,
          export_header_rva);
 
     nbytes = vmi_read_va(vmi, export_header_va, pid, et, sizeof(*et));
@@ -529,9 +529,9 @@ peparse_get_export_table(
 status_t
 windows_export_to_rva(
     vmi_instance_t vmi,
-    char *symbol,
-    addr_t base_vaddr,
     vmi_pid_t pid,
+    addr_t base_vaddr,
+    const char *symbol,
     addr_t *rva)
 {
     struct export_table et;
@@ -576,29 +576,29 @@ windows_export_to_rva(
 }
 
 /* returns a windows PE export from an RVA*/
-status_t
+char*
 windows_rva_to_export(
     vmi_instance_t vmi,
     addr_t rva,
     addr_t base_vaddr,
-    vmi_pid_t pid,
-    char **sym)
+    vmi_pid_t pid)
 {
     struct export_table et;
     addr_t et_rva;
     size_t et_size;
     int aon_index = -1;
     int aof_index = -1;
+    char* symbol = NULL;
 
     // get export table structure
     if (peparse_get_export_table(vmi, base_vaddr, pid, &et, &et_rva, &et_size) != VMI_SUCCESS) {
         dbprint("--PEParse: failed to get export table\n");
-        return VMI_FAILURE;
+        return NULL;
     }
 
     if(rva>=et_rva && rva < et_rva+et_size) {
         dbprint("--PEParse: symbol @ %u:0x%"PRIx64" is forwarded\n", pid, base_vaddr+rva);
-        return VMI_FAILURE;
+        return NULL;
     }
 
 
@@ -620,8 +620,8 @@ windows_rva_to_export(
         if(loc==rva) {
 
             if(i < et.number_of_names && VMI_SUCCESS==vmi_read_32_va(vmi, base1 + i * sizeof(uint32_t), pid, &name_rva) && name_rva) {
-                if(NULL != (*sym = rva_to_string(vmi, (addr_t) name_rva, base_vaddr, pid)))
-                    return VMI_SUCCESS;
+                symbol = rva_to_string(vmi, (addr_t)name_rva, base_vaddr, pid);
+                return symbol;
             }
 
             dbprint("--PEParse: symbol @ %u:0x%"PRIx64" is exported by ordinal only\n", pid, base_vaddr+rva);
@@ -629,7 +629,7 @@ windows_rva_to_export(
         }
     }
 
-    return VMI_FAILURE;
+    return NULL;
 }
 
 

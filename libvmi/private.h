@@ -40,6 +40,7 @@
 #include <time.h>
 #include <inttypes.h>
 #include "libvmi.h"
+#include "os/os_interface.h"
 
 /**
  * @brief LibVMI Instance.
@@ -61,13 +62,9 @@ struct vmi_instance {
 
     uint32_t config_mode;     /**< VMI_CONFIG_NONE/FILE/STRING/GHASHTABLE */
 
-    char *sysmap;           /**< system map file for domain's running kernel */
-
     char *image_type;       /**< image type that we are accessing */
 
     char *image_type_complete;  /**< full path for file images */
-
-    uint32_t page_offset;   /**< page offset for this instance */
 
     uint32_t page_shift;    /**< page shift for last mapped page */
 
@@ -93,40 +90,9 @@ struct vmi_instance {
 
     int hvm;                /**< nonzero if HVM */
 
-    union {
-        struct linux_instance {
+    os_interface_t os_interface; /**< Guest OS specific functions */
 
-            int tasks_offset;    /**< task_struct->tasks */
-
-            int mm_offset;       /**< task_struct->mm */
-
-            int pid_offset;      /**< task_struct->pid */
-
-            int pgd_offset;      /**< mm_struct->pgd */
-
-            int name_offset;     /**< task_struct->comm */
-        } linux_instance;
-        struct windows_instance {
-
-            addr_t ntoskrnl;          /**< base phys address for ntoskrnl image */
-
-            addr_t ntoskrnl_va;       /**< base virt address for ntoskrnl image */
-
-            addr_t kdversion_block;   /**< kernel virtual address for start of KdVersionBlock structure */
-
-            addr_t sysproc;      /**< physical address for the system process */
-
-            int tasks_offset;    /**< EPROCESS->ActiveProcessLinks */
-
-            int pdbase_offset;   /**< EPROCESS->Pcb.DirectoryTableBase */
-
-            int pid_offset;      /**< EPROCESS->UniqueProcessId */
-
-            int pname_offset;    /**< EPROCESS->ImageFileName */
-
-            win_ver_t version;   /**< version of Windows */
-        } windows_instance;
-    } os;
+    void* os_data; /**< Guest OS specific data */
 
     GHashTable *pid_cache;  /**< hash table to hold the PID cache data */
 
@@ -249,13 +215,13 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
-    char *sym,
+    const char *sym,
     addr_t *va);
     void sym_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
-    char *sym,
+    const char *sym,
     addr_t va);
     status_t sym_cache_del(
     vmi_instance_t vmi,
@@ -304,70 +270,6 @@ typedef struct _windows_unicode_string32 {
     void *vmi_read_page(
     vmi_instance_t vmi,
     addr_t frame_num);
-
-/*-----------------------------------------
- * os/linux/...
- */
-    status_t linux_init(
-    vmi_instance_t instance);
-    status_t linux_system_map_symbol_to_address(
-    vmi_instance_t instance,
-    char *symbol,
-    addr_t *address);
-    addr_t linux_pid_to_pgd(
-    vmi_instance_t vmi,
-    vmi_pid_t pid);
-    vmi_pid_t linux_pgd_to_pid(
-    vmi_instance_t vmi,
-    addr_t pgd);
-
-/*-----------------------------------------
- * os/windows/...
- */
-    typedef int (
-    *check_magic_func) (
-    uint32_t);
-
-    status_t windows_init(
-    vmi_instance_t instance);
-    addr_t windows_find_eprocess(
-    vmi_instance_t instance,
-    char *name);
-    status_t windows_export_to_rva(
-    vmi_instance_t vmi,
-    char *sym,
-    addr_t base_address,
-    vmi_pid_t pid,
-    addr_t * address);
-    status_t windows_kpcr_lookup(
-    vmi_instance_t vmi,
-    char *symbol,
-    addr_t *address);
-    addr_t windows_find_cr3(
-    vmi_instance_t vmi);
-    int find_pname_offset(
-    vmi_instance_t vmi,
-    check_magic_func check);
-    win_ver_t find_windows_version(
-    vmi_instance_t vmi,
-    addr_t KdVersionBlock);
-    status_t validate_pe_image(
-    const uint8_t * const image,
-    size_t len);
-    addr_t windows_pid_to_pgd(
-    vmi_instance_t vmi,
-    vmi_pid_t pid);
-    vmi_pid_t windows_pgd_to_pid(
-    vmi_instance_t vmi,
-    addr_t pgd);
-    status_t
-    windows_symbol_to_address(
-    vmi_instance_t vmi,
-    char *symbol,
-    addr_t *address);
-
-    addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, vmi_pid_t pid);
-    addr_t windows_find_eprocess_list_pgd(vmi_instance_t vmi, addr_t pgd);
 
 /*-----------------------------------------
  * strmatch.c

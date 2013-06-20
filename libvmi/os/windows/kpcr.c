@@ -178,7 +178,15 @@ kpcr_symbol_resolve(
     addr_t *address)
 {
     uint64_t tmp = 0;
-    addr_t symaddr = vmi->os.windows_instance.kdversion_block + offset;
+    addr_t symaddr = 0;
+    windows_instance_t windows = NULL;
+
+    if (vmi->os_data == NULL) {
+        return VMI_FAILURE;
+    }
+
+    windows = vmi->os_data;
+    symaddr = windows->kdversion_block + offset;
 
     if (VMI_FAILURE == vmi_read_64_va(vmi, symaddr, 0, &tmp)) {
         return VMI_FAILURE;
@@ -709,10 +717,18 @@ find_windows_version(
     vmi_instance_t vmi,
     addr_t KdVersionBlock)
 {
+    windows_instance_t windows = NULL;
+
+    if (vmi->os_data == NULL) {
+        return VMI_FAILURE;
+    }
+
+    windows = vmi->os_data;
+
     // no need to repeat this work if we already have the answer
-    if (vmi->os.windows_instance.version &&
-        vmi->os.windows_instance.version != VMI_OS_WINDOWS_UNKNOWN) {
-        return vmi->os.windows_instance.version;
+    if (windows->version &&
+        windows->version != VMI_OS_WINDOWS_UNKNOWN) {
+        return windows->version;
     }
 
     uint16_t size = 0;
@@ -838,6 +854,13 @@ init_kdversion_block(
 {
     addr_t KdVersionBlock_phys = 0;
     addr_t DebuggerDataList = 0, ListPtr = 0;
+    windows_instance_t windows = NULL;
+
+    if (vmi->os_data == NULL) {
+        return VMI_FAILURE;
+    }
+
+    windows = vmi->os_data;
 
     KdVersionBlock_phys = find_kdversionblock_address_fast(vmi);
     //KdVersionBlock_phys = find_kdversionblock_address(vmi);
@@ -855,14 +878,14 @@ init_kdversion_block(
         goto error_exit;
     }
 
-    if (ListPtr && !vmi->os.windows_instance.kdversion_block) {
-        vmi->os.windows_instance.kdversion_block = ListPtr;
+    if (ListPtr && !windows->kdversion_block) {
+        windows->kdversion_block = ListPtr;
         printf
             ("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
-             vmi->os.windows_instance.kdversion_block);
+             windows->kdversion_block);
     }
     dbprint("**set KdVersionBlock address=0x%"PRIx64"\n",
-            vmi->os.windows_instance.kdversion_block);
+            windows->kdversion_block);
 
     return VMI_SUCCESS;
 
@@ -877,17 +900,23 @@ windows_kpcr_lookup(
     addr_t *address)
 {
     unsigned long offset = 0;
+    windows_instance_t windows = NULL;
 
-    if (!vmi->os.windows_instance.kdversion_block) {
+    if (vmi->os_data == NULL) {
+        return VMI_FAILURE;
+    }
+
+    windows = vmi->os_data;
+
+    if (!windows->kdversion_block) {
         if (VMI_FAILURE == init_kdversion_block(vmi)) {
             goto error_exit;
         }
     }
 
     // Use heuristic to find windows version
-    addr_t kdvb_p = vmi_translate_kv2p(vmi, vmi->os.windows_instance.kdversion_block);
-    vmi->os.windows_instance.version =
-        find_windows_version(vmi, kdvb_p);
+    addr_t kdvb_p = vmi_translate_kv2p(vmi, windows->kdversion_block);
+    windows->version = find_windows_version(vmi, kdvb_p);
 
     if (VMI_FAILURE == kpcr_symbol_offset(vmi, symbol, &offset)) {
         goto error_exit;

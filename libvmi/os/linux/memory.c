@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include "private.h"
+#include "os/linux/linux.h"
 
 /* finds the task struct for a given pid */
 static addr_t
@@ -37,8 +38,19 @@ linux_get_taskstruct_addr_from_pid(
 {
     addr_t list_head = 0, next_process = 0;
     vmi_pid_t task_pid = -1;
-    int pid_offset = vmi->os.linux_instance.pid_offset;
-    int tasks_offset = vmi->os.linux_instance.tasks_offset;
+    linux_instance_t linux_instance = NULL;
+    int pid_offset = 0;
+    int tasks_offset = 0;
+
+    if (vmi->os_data == NULL) {
+        errprint("VMI_ERROR: No os_data initialized\n");
+        return 0;
+    }
+
+    linux_instance = vmi->os_data;
+
+    pid_offset = linux_instance->pid_offset;
+    tasks_offset = linux_instance->tasks_offset;
 
     /* First we need a pointer to the initial entry in the tasks list.
      * Note that this is task_struct->tasks, not the base addr
@@ -74,9 +86,21 @@ linux_get_taskstruct_addr_from_pgd(
     addr_t task_pgd = 0;
     status_t rc = VMI_FAILURE;
     uint8_t width = 0;
-    int tasks_offset = vmi->os.linux_instance.tasks_offset;
-    int mm_offset = vmi->os.linux_instance.mm_offset;
-    int pgd_offset = vmi->os.linux_instance.pgd_offset;
+    int tasks_offset = 0;
+    int mm_offset = 0;
+    int pgd_offset = 0;
+    linux_instance_t os = NULL;
+
+    if (vmi->os_data == NULL) {
+        errprint("VMI_ERROR: No os_data initialized\n");
+        return 0;
+    }
+
+    os = vmi->os_data;
+
+    tasks_offset = os->tasks_offset;
+    mm_offset = os->mm_offset;
+    pgd_offset = os->pgd_offset;
 
     /* First we need a pointer to the initial entry in the tasks list.
      * Note that this is task_struct->tasks, not the base addr
@@ -103,14 +127,14 @@ linux_get_taskstruct_addr_from_pgd(
         if(!ptr && width)
             vmi_read_addr_va(vmi, next_process + mm_offset + width, 0, &ptr);
         vmi_read_addr_va(vmi, ptr + pgd_offset, 0, &task_pgd);
-        task_pgd = vmi_translate_kv2p(vmi, task_pgd);
 
+        pgd = vmi_translate_kv2p(vmi, pgd);
         if (task_pgd == pgd) {
             return next_process;
         }
 
         vmi_read_addr_va(vmi, next_process + tasks_offset, 0, &next_process);
-        next_process-=tasks_offset;
+        next_process -= tasks_offset;
         
         /* if we are back at the list head, we are done */
     } while (list_head != next_process);
@@ -128,8 +152,23 @@ linux_pid_to_pgd(
     addr_t ts_addr = 0, pgd = 0, ptr = 0;
     uint8_t width = 0;
     status_t rc = VMI_FAILURE;
-    int mm_offset = vmi->os.linux_instance.mm_offset;
-    int pgd_offset = vmi->os.linux_instance.pgd_offset;
+    linux_instance_t linux_instance = NULL;
+    int pid_offset = 0;
+    int tasks_offset = 0;
+    int mm_offset = 0;
+    int pgd_offset = 0;
+
+    if (vmi->os_data == NULL) {
+        errprint("VMI_ERROR: No os_data initialized\n");
+        return 0;
+    }
+
+    linux_instance = vmi->os_data;
+
+    pid_offset = linux_instance->pid_offset;
+    tasks_offset = linux_instance->tasks_offset;
+    mm_offset = linux_instance->mm_offset;
+    pgd_offset = linux_instance->pgd_offset;
 
     /* May fail for some drivers, but handle gracefully below by 
      * testing width 
@@ -170,7 +209,16 @@ linux_pgd_to_pid(
 {
     vmi_pid_t pid = -1;
     addr_t ts_addr = 0;
-    int pid_offset = vmi->os.linux_instance.pid_offset;
+    linux_instance_t linux_instance = NULL;
+    int pid_offset = 0;
+
+    if (vmi->os_data == NULL) {
+        errprint("VMI_ERROR: No os_data initialized\n");
+        return VMI_FAILURE;
+    }
+
+    linux_instance = vmi->os_data;
+    pid_offset = linux_instance->pid_offset;
 
     /* first we the address of the task_struct with this PGD */
     ts_addr = linux_get_taskstruct_addr_from_pgd(vmi, pgd);

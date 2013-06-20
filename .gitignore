@@ -103,6 +103,8 @@ libvmi/os/os_interface.h.orig
 libvmi/os/linux/.deps/
 libvmi/os/linux/.dirstamp
 libvmi/os/linux/.libs/
+libvmi/os/linux/libvmi_la-os_interface.lo
+libvmi/os/linux/libvmi_la-os_interface.o
 libvmi/os/linux/libvmi_la-core.lo
 libvmi/os/linux/libvmi_la-core.o
 libvmi/os/linux/libvmi_la-memory.lo

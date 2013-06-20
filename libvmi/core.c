@@ -28,6 +28,9 @@
 #include "private.h"
 #include "driver/interface.h"
 #include "driver/memory_cache.h"
+#include "os/os_interface.h"
+#include "os/windows/windows.h"
+#include "os/linux/linux.h"
 #include "config/config_parser.h"
 #include <string.h>
 #include <stdio.h>
@@ -112,86 +115,83 @@ read_config_file(
     }
     entry = vmi_get_config();
 
-    /* copy the values from entry into instance struct */
-    vmi->sysmap = strdup(entry->sysmap);
-    dbprint("--got sysmap from config (%s).\n", vmi->sysmap);
-
+    /* Copy config info based on OS type */
     if (strncmp(entry->ostype, "Linux", CONFIG_STR_LENGTH) == 0) {
+        linux_instance_t linux_instance =
+                safe_malloc(sizeof(struct linux_instance));
+        bzero(linux_instance, sizeof(struct linux_instance));
+
         vmi->os_type = VMI_OS_LINUX;
+        vmi->os_data = linux_instance;
+
+        /* copy the values from entry into instance struct */
+        linux_instance->sysmap = strdup(entry->sysmap);
+        dbprint("--got sysmap from config (%s).\n", vmi->sysmap);
+
+        dbprint("--reading in linux offsets from config file.\n");
+        if (entry->offsets.linux_offsets.tasks) {
+            linux_instance->tasks_offset = entry->offsets.linux_offsets.tasks;
+        }
+
+        if (entry->offsets.linux_offsets.mm) {
+            linux_instance->mm_offset = entry->offsets.linux_offsets.mm;
+        }
+
+        if (entry->offsets.linux_offsets.pid) {
+            linux_instance->pid_offset = entry->offsets.linux_offsets.pid;
+        }
+
+        if (entry->offsets.linux_offsets.name) {
+            linux_instance->name_offset = entry->offsets.linux_offsets.name;
+        }
+
+        if (entry->offsets.linux_offsets.pgd) {
+            linux_instance->pgd_offset = entry->offsets.linux_offsets.pgd;
+        }
+        ret = VMI_SUCCESS;
     }
     else if (strncmp(entry->ostype, "Windows", CONFIG_STR_LENGTH) == 0) {
+        windows_instance_t windows = safe_malloc(sizeof(struct windows_instance));
+        bzero(windows, sizeof(struct windows_instance));
+
         vmi->os_type = VMI_OS_WINDOWS;
+        vmi->os_data = windows;
+
+        dbprint("--reading in windows offsets from config file.\n");
+        if (entry->offsets.windows_offsets.ntoskrnl) {
+            windows->ntoskrnl = entry->offsets.windows_offsets.ntoskrnl;
+        }
+
+        if (entry->offsets.windows_offsets.tasks) {
+            windows->tasks_offset = entry->offsets.windows_offsets.tasks;
+        }
+
+        if (entry->offsets.windows_offsets.pdbase) {
+            windows->pdbase_offset = entry->offsets.windows_offsets.pdbase;
+        }
+
+        if (entry->offsets.windows_offsets.pid) {
+            windows->pid_offset = entry->offsets.windows_offsets.pid;
+        }
+
+        if (entry->offsets.windows_offsets.pname) {
+            windows->pname_offset = entry->offsets.windows_offsets.pname;
+        }
+
+        if (entry->offsets.windows_offsets.kdvb) {
+            windows->kdversion_block = entry->offsets.windows_offsets.kdvb;
+        }
+
+        if (entry->offsets.windows_offsets.sysproc) {
+            windows->sysproc = entry->offsets.windows_offsets.sysproc;
+        }
+
+        ret = VMI_SUCCESS;
     }
     else {
         errprint("Unknown or undefined OS type.\n");
         ret = VMI_FAILURE;
         goto error_exit;
-    }
-
-    /* Copy config info based on OS type */
-    if (VMI_OS_LINUX == vmi->os_type) {
-        dbprint("--reading in linux offsets from config file.\n");
-        if (entry->offsets.linux_offsets.tasks) {
-            vmi->os.linux_instance.tasks_offset =
-                entry->offsets.linux_offsets.tasks;
-        }
-
-        if (entry->offsets.linux_offsets.mm) {
-            vmi->os.linux_instance.mm_offset =
-                entry->offsets.linux_offsets.mm;
-        }
-
-        if (entry->offsets.linux_offsets.pid) {
-            vmi->os.linux_instance.pid_offset =
-                entry->offsets.linux_offsets.pid;
-        }
-
-        if (entry->offsets.linux_offsets.name) {
-            vmi->os.linux_instance.name_offset =
-                entry->offsets.linux_offsets.name;
-        }
-
-        if (entry->offsets.linux_offsets.pgd) {
-            vmi->os.linux_instance.pgd_offset =
-                entry->offsets.linux_offsets.pgd;
-        }
-    }
-    else if (VMI_OS_WINDOWS == vmi->os_type) {
-        dbprint("--reading in windows offsets from config file.\n");
-        if (entry->offsets.windows_offsets.ntoskrnl) {
-            vmi->os.windows_instance.ntoskrnl =
-                entry->offsets.windows_offsets.ntoskrnl;
-        }
-
-        if (entry->offsets.windows_offsets.tasks) {
-            vmi->os.windows_instance.tasks_offset =
-                entry->offsets.windows_offsets.tasks;
-        }
-
-        if (entry->offsets.windows_offsets.pdbase) {
-            vmi->os.windows_instance.pdbase_offset =
-                entry->offsets.windows_offsets.pdbase;
-        }
-
-        if (entry->offsets.windows_offsets.pid) {
-            vmi->os.windows_instance.pid_offset =
-                entry->offsets.windows_offsets.pid;
-        }
-
-        if (entry->offsets.windows_offsets.pname) {
-            vmi->os.windows_instance.pname_offset =
-                entry->offsets.windows_offsets.pname;
-        }
-
-        if (entry->offsets.windows_offsets.kdvb) {
-            vmi->os.windows_instance.kdversion_block =
-                entry->offsets.windows_offsets.kdvb;
-        }
-
-        if (entry->offsets.windows_offsets.sysproc) {
-            vmi->os.windows_instance.sysproc =
-                entry->offsets.windows_offsets.sysproc;
-        }
     }
 
 #ifdef VMI_DEBUG
@@ -221,90 +221,79 @@ read_config_ghashtable_entries(
     gpointer value,
     vmi_instance_t vmi)
 {
-    if(strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0 || strncmp(key, "os_type", CONFIG_STR_LENGTH) == 0) {
-        if(strncmp((char *)value, "Linux", CONFIG_STR_LENGTH) == 0) {
-            vmi->os_type = VMI_OS_LINUX;
-        } else if(strncmp((char *)value, "Windows", CONFIG_STR_LENGTH) == 0) {
-            vmi->os_type = VMI_OS_WINDOWS;
+
+    if (vmi->os_type == VMI_OS_LINUX) {
+        linux_instance_t linux_instance = vmi->os_data;
+
+        if(strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
+            linux_instance->sysmap = strdup((char *)value);
+            goto _done;
+        }
+
+        if (strncmp(key, "linux_tasks", CONFIG_STR_LENGTH) == 0) {
+            linux_instance->tasks_offset = *(int *)value;
+            goto _done;
+        }
+
+        if (strncmp(key, "linux_mm", CONFIG_STR_LENGTH) == 0) {
+            linux_instance->mm_offset = *(int *)value;
+            goto _done;
+        }
+
+        if (strncmp(key, "linux_pid", CONFIG_STR_LENGTH) == 0) {
+            linux_instance->pid_offset = *(int *)value;
+            goto _done;
+        }
+
+        if (strncmp(key, "linux_name", CONFIG_STR_LENGTH) == 0) {
+            linux_instance->name_offset = *(int *)value;
+            goto _done;
+        }
+
+        if (strncmp(key, "linux_pgd", CONFIG_STR_LENGTH) == 0) {
+            linux_instance->pgd_offset = *(int *)value;
+            goto _done;
         }
         goto _done;
     }
 
-    if(strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
-        vmi->sysmap = strdup((char *)value);
-        goto _done;
-    }
+    if (vmi->os_type == VMI_OS_WINDOWS) {
+        windows_instance_t windows_instance = vmi->os_data;
 
-    if (strncmp(key, "linux_tasks", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.linux_instance.tasks_offset =
-            *(int *)value;
-        goto _done;
-    }
+        if (strncmp(key, "win_ntoskrnl", CONFIG_STR_LENGTH) == 0) {
+            windows_instance->ntoskrnl = *(addr_t *)value;
+            goto _done;
+        }
 
-    if (strncmp(key, "linux_mm", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.linux_instance.mm_offset =
-            *(int *)value;
-        goto _done;
-    }
+        if (strncmp(key, "win_tasks", CONFIG_STR_LENGTH) == 0) {
+            windows_instance->tasks_offset = *(int *)value;
+            goto _done;
+        }
 
-    if (strncmp(key, "linux_pid", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.linux_instance.pid_offset =
-            *(int *)value;
-        goto _done;
-    }
+        if (strncmp(key, "win_pdbase", CONFIG_STR_LENGTH) == 0) {
+            windows_instance->pdbase_offset = *(int *)value;
+            goto _done;
+        }
 
-    if (strncmp(key, "linux_name", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.linux_instance.name_offset =
-            *(int *)value;
-        goto _done;
-    }
+        if (strncmp(key, "win_pid", CONFIG_STR_LENGTH) == 0) {
+            windows_instance->pid_offset = *(int *)value;
+            goto _done;
+        }
 
-    if (strncmp(key, "linux_pgd", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.linux_instance.pgd_offset =
-            *(int *)value;
-        goto _done;
-    }
+        if (strncmp(key, "win_pname", CONFIG_STR_LENGTH) == 0) {
+            windows_instance->pname_offset = *(int *)value;
+            goto _done;
+        }
 
-    if (strncmp(key, "win_ntoskrnl", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.windows_instance.ntoskrnl =
-            *(addr_t *)value;
-        goto _done;
-    }
+        if (strncmp(key, "win_kdvb", CONFIG_STR_LENGTH) == 0) {
+            windows_instance->kdversion_block = *(addr_t *)value;
+            goto _done;
+        }
 
-    if (strncmp(key, "win_tasks", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.windows_instance.tasks_offset =
-            *(int *)value;
-        goto _done;
-    }
-
-    if (strncmp(key, "win_pdbase", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.windows_instance.pdbase_offset =
-            *(int *)value;
-        goto _done;
-    }
-
-    if (strncmp(key, "win_pid", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.windows_instance.pid_offset =
-            *(int *)value;
-        goto _done;
-    }
-
-    if (strncmp(key, "win_pname", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.windows_instance.pname_offset =
-            *(int *)value;
-        goto _done;
-    }
-
-    if (strncmp(key, "win_kdvb", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.windows_instance.kdversion_block =
-            *(addr_t *)value;
-        goto _done;
-    }
-
-    if (strncmp(key, "win_sysproc", CONFIG_STR_LENGTH) == 0) {
-        vmi->os.windows_instance.sysproc =
-            *(addr_t *)value;
-        goto _done;
+        if (strncmp(key, "win_sysproc", CONFIG_STR_LENGTH) == 0) {
+            windows_instance->sysproc = *(addr_t *)value;
+            goto _done;
+        }
     }
 
 _done:
@@ -317,15 +306,36 @@ read_config_ghashtable(
 {
     status_t ret = VMI_FAILURE;
     GHashTable *configtbl = (GHashTable *)vmi->config;
+    const char* ostype = NULL;
+
     vmi->os_type = VMI_OS_UNKNOWN;
+    if (vmi->os_data) {
+        free(vmi->os_data);
+        vmi->os_data = NULL;
+    }
 
-    g_hash_table_foreach(configtbl, (GHFunc)read_config_ghashtable_entries, vmi);
+    ostype = g_hash_table_lookup(configtbl, "ostype");
+    if (ostype == NULL) {
+        ostype = g_hash_table_lookup(configtbl, "os_type");
+    }
 
-    if(vmi->os_type != VMI_OS_UNKNOWN) {
-        ret = VMI_SUCCESS;
+    if (ostype == NULL) {
+        errprint("Unknown or undefined OS type!\n");
+        return VMI_FAILURE;
+    }
+
+    if (strncmp(ostype, "Linux", CONFIG_STR_LENGTH) == 0) {
+        vmi->os_type = VMI_OS_LINUX;
+        vmi->os_data = safe_malloc(sizeof(struct linux_instance));
+    } else if (strncmp(ostype, "Windows", CONFIG_STR_LENGTH) == 0) {
+        vmi->os_type = VMI_OS_WINDOWS;
+        vmi->os_data = safe_malloc(sizeof(struct windows_instance));
     } else {
         errprint("Unknown or undefined OS type!\n");
+        return VMI_FAILURE;
     }
+
+    g_hash_table_foreach(configtbl, (GHFunc)read_config_ghashtable_entries, vmi);
 
     return ret;
 }
@@ -335,7 +345,10 @@ find_cr3(
     vmi_instance_t vmi)
 {
     if (VMI_OS_WINDOWS == vmi->os_type) {
-        vmi->os.windows_instance.version = VMI_OS_WINDOWS_UNKNOWN;
+        if (vmi->os_data != NULL ) {
+            ((windows_instance_t)(vmi->os_data))->version =
+                    VMI_OS_WINDOWS_UNKNOWN;
+        }
         return windows_find_cr3(vmi);
     }
 
@@ -451,7 +464,7 @@ get_memory_layout(
         pm = VMI_PM_PAE;
         cr3 &= 0xFFFFFFE0;
     }   // if-else
-    dbprint("**set cr3 = 0x%.16"PRIx64"\n", vmi->cr3);
+    dbprint("**set cr3 = 0x%.16"PRIx64"\n", cr3);
 
     /* testing to see CR3 value */
     if (!driver_is_pv(vmi) && cr3 > vmi->size) {   // sanity check on CR3
@@ -484,20 +497,8 @@ init_page_offset(
     vmi_instance_t vmi)
 {
     //TODO need to actually determine these values instead of just guessing
-
-    if (VMI_OS_LINUX == vmi->os_type) {
-        vmi->page_offset = 0xc0000000;
-    }
-    else if (VMI_OS_WINDOWS == vmi->os_type) {
-        vmi->page_offset = 0x80000000;
-    }
-    else {
-        vmi->page_offset = 0;
-    }
-    dbprint("**set page_offset = 0x%.8x\n", vmi->page_offset);
-
     //TODO need a better way to handle the page size issue
-    /* assume 4k pages for now, update when 4M page is found */
+    /* assume 4k pages for now, update when 2M page is found */
     vmi->page_shift = 12;
     vmi->page_size = 1 << vmi->page_shift;
 
@@ -675,12 +676,12 @@ vmi_init_private(
             goto error_exit;
         }
         /* read and parse the config file */
-        else if ( (VMI_CONFIG_STRING & (*vmi)->config_mode || VMI_CONFIG_GLOBAL_FILE_ENTRY & (*vmi)->config_mode)
+        else if ( ((VMI_CONFIG_STRING & (*vmi)->config_mode) || (VMI_CONFIG_GLOBAL_FILE_ENTRY & (*vmi)->config_mode))
                  && VMI_FAILURE == read_config_file(*vmi)) {
             goto error_exit;
         }
         /* read and parse the ghashtable */
-        else if (VMI_CONFIG_GHASHTABLE & (*vmi)->config_mode
+        else if ((VMI_CONFIG_GHASHTABLE & (*vmi)->config_mode)
                  && VMI_FAILURE == read_config_ghashtable(*vmi)) {
             dbprint("--failed to parse ghashtable\n");
             goto error_exit;
@@ -864,7 +865,7 @@ vmi_init_complete(
 
     if(configstr) {
         flags |= VMI_CONFIG_STRING;
-    } else if(name && (*vmi)->config_mode & VMI_CONFIG_GLOBAL_FILE_ENTRY) {
+    } else if(name && ((*vmi)->config_mode & VMI_CONFIG_GLOBAL_FILE_ENTRY)) {
         flags |= VMI_CONFIG_GLOBAL_FILE_ENTRY;
     } else {
         flags |= VMI_CONFIG_NONE;
@@ -902,13 +903,18 @@ vmi_destroy(
         events_destroy(vmi);
     }
     driver_destroy(vmi);
+    if (vmi->os_interface) {
+        os_destroy(vmi);
+    }
+    if (vmi->os_data) {
+        free(vmi->os_data);
+    }
+    vmi->os_data = NULL;
     pid_cache_destroy(vmi);
     sym_cache_destroy(vmi);
     rva_cache_destroy(vmi);
     v2p_cache_destroy(vmi);
     memory_cache_destroy(vmi);
-    if (vmi->sysmap)
-        free(vmi->sysmap);
     if (vmi->image_type)
         free(vmi->image_type);
     if (vmi)
