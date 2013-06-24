@@ -1681,10 +1681,21 @@ xen_test(
     unsigned long id,
     char *name)
 {
-    // Only way this could fail on Xen is when LibVMI is running in a domU
-    // and the XSM policy doesn't allow the getdomaininfo hypercall.
-    // Default Xen allows this without XSM for _all_ domains.
-    return xen_check_domainid(NULL, 0);
+    if (id == VMI_INVALID_DOMID && name == NULL) {
+        errprint("VMI_ERROR: xen_test: domid or name must be specified\n");
+        return VMI_FAILURE;
+    }
+
+    if (id == VMI_INVALID_DOMID) { /* name != NULL */
+        unsigned long domid = xen_get_domainid_from_name(NULL, name);
+        if (domid != VMI_INVALID_DOMID) {
+            return VMI_SUCCESS;
+        } else {
+            return VMI_FAILURE;
+        }
+    }
+
+    return xen_check_domainid(NULL, id);
 }
 
 status_t
@@ -1767,7 +1778,7 @@ unsigned long
 xen_get_domainid(
     vmi_instance_t vmi)
 {
-    return 0;
+    return VMI_INVALID_DOMID;
 }
 
 void
