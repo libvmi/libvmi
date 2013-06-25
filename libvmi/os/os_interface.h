@@ -27,7 +27,7 @@
 #include <stdlib.h>
 
 
-typedef unsigned long (*os_get_offset_t)(vmi_instance_t vmi,
+typedef uint64_t (*os_get_offset_t)(vmi_instance_t vmi,
         const char* offset_name);
 
 typedef vmi_pid_t (*os_pgd_to_pid_t)(vmi_instance_t vmi, addr_t pgd);

@@ -127,7 +127,7 @@ vmi_get_winver_manual(
     return find_windows_version(vmi, kdvb_pa);
 }
 
-unsigned long
+uint64_t
 vmi_get_offset(
     vmi_instance_t vmi,
     char *offset_name)

@@ -1199,7 +1199,7 @@ win_ver_t vmi_get_winver_manual(
  * @param[in] offset_name String name for desired offset
  * @return The offset value
  */
-unsigned long vmi_get_offset(
+uint64_t vmi_get_offset(
     vmi_instance_t vmi,
     char *offset_name);
 

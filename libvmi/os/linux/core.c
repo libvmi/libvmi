@@ -80,7 +80,7 @@ status_t linux_init(vmi_instance_t vmi) {
     _exit: return ret;
 }
 
-unsigned long linux_get_offset(vmi_instance_t vmi, const char* offset_name) {
+uint64_t linux_get_offset(vmi_instance_t vmi, const char* offset_name) {
     const size_t max_length = 100;
     linux_instance_t linux_instance = vmi->os_data;
 

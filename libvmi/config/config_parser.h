@@ -37,22 +37,22 @@ typedef struct vmi_config_entry {
     char ostype[CONFIG_STR_LENGTH];
     union {
         struct linux_offsets {
-            int tasks;
-            int mm;
-            int pid;
-            int pgd;
-            int addr; 
-            int name;
+            uint64_t tasks;
+            uint64_t mm;
+            uint64_t pid;
+            uint64_t pgd;
+            uint64_t addr;
+            uint64_t name;
         } linux_offsets;
         struct windows_offsets {
-            int ntoskrnl;
-            int tasks; 
-            int pdbase;
-            int pid;
-            int peb;
-            int iba;
-            int ph;
-            int pname;
+            uint64_t tasks;
+            uint64_t pdbase;
+            uint64_t pid;
+            uint64_t peb;
+            uint64_t iba;
+            uint64_t ph;
+            uint64_t pname;
+            uint64_t ntoskrnl;
             uint64_t kdvb;
             uint64_t sysproc;
         } windows_offsets;

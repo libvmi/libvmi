@@ -32,13 +32,13 @@ struct windows_instance {
 
     addr_t sysproc; /**< physical address for the system process */
 
-    int tasks_offset; /**< EPROCESS->ActiveProcessLinks */
+    uint64_t tasks_offset; /**< EPROCESS->ActiveProcessLinks */
 
-    int pdbase_offset; /**< EPROCESS->Pcb.DirectoryTableBase */
+    uint64_t pdbase_offset; /**< EPROCESS->Pcb.DirectoryTableBase */
 
-    int pid_offset; /**< EPROCESS->UniqueProcessId */
+    uint64_t pid_offset; /**< EPROCESS->UniqueProcessId */
 
-    int pname_offset; /**< EPROCESS->ImageFileName */
+    uint64_t pname_offset; /**< EPROCESS->ImageFileName */
 
     win_ver_t version; /**< version of Windows */
 };

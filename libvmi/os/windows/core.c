@@ -291,7 +291,7 @@ error_exit:
     return VMI_FAILURE;
 }
 
-unsigned long windows_get_offset(vmi_instance_t vmi, const char* offset_name) {
+uint64_t windows_get_offset(vmi_instance_t vmi, const char* offset_name) {
     const size_t max_length = 100;
     windows_instance_t windows = vmi->os_data;
 
