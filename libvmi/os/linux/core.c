@@ -33,27 +33,27 @@ status_t linux_init(vmi_instance_t vmi) {
     status_t ret = VMI_FAILURE;
     os_interface_t os_interface = NULL;
 
-    if (vmi->cr3) {
-        vmi->kpgd = vmi->cr3;
-    } else if (VMI_SUCCESS
-             == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir",
-                     NULL, &vmi->kpgd)) {
+    if (VMI_SUCCESS
+            == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL,
+                    &vmi->kpgd)) {
         dbprint("--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
                 vmi->kpgd);
         if (driver_is_pv(vmi)) {
-            vmi->kpgd = vmi_translate_kv2p(vmi,
-                    vmi->kpgd);
-            if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd))
-                    == VMI_FAILURE) {
-                errprint("Failed to get physical addr for kpgd.\n");
-                goto _exit;
+            vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
+            if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE) {
+                errprint(
+                        "Failed to get physical addr for kpgd using swapper_pg_dir.\n");
             }
         }
-    } else if (vmi->cr3) {
-        vmi->kpgd = vmi->cr3;
-    } else {
-        errprint("swapper_pg_dir not found and CR3 not set, exiting\n");
-        goto _exit;
+    }
+
+    if (!vmi->kpgd) {
+        ret = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);
+        if (ret != VMI_SUCCESS) {
+            errprint(
+                    "Driver does not support cr3 read and kpgd could not be set, exiting\n");
+            goto _exit;
+        }
     }
 
     dbprint("**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);

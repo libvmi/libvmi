@@ -82,8 +82,6 @@ struct vmi_instance {
 
     int lme;                /**< nonzero if LME is enabled */
 
-    reg_t cr3;              /**< value in the CR3 register */
-
     page_mode_t page_mode;  /**< paging mode in use */
 
     uint64_t size;          /**< total size of target's memory */
@@ -259,7 +257,6 @@ typedef struct _windows_unicode_string32 {
     get_memory_layout(
     vmi_instance_t vmi,
     page_mode_t *set_pm,
-    reg_t *set_cr3,
     int *set_pae,
     int *set_pse,
     int *set_lme);

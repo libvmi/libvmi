@@ -37,7 +37,7 @@ vmi_get_page_mode(
 {
     if(vmi->page_mode == VMI_PM_UNKNOWN) {
         page_mode_t ret=VMI_PM_UNKNOWN;
-        get_memory_layout(vmi, &ret, NULL, NULL, NULL, NULL);
+        get_memory_layout(vmi, &ret, NULL, NULL, NULL);
         return ret;
     } else {
         return vmi->page_mode;

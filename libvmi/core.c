@@ -340,23 +340,6 @@ read_config_ghashtable(
     return ret;
 }
 
-static uint32_t
-find_cr3(
-    vmi_instance_t vmi)
-{
-    if (VMI_OS_WINDOWS == vmi->os_type) {
-        if (vmi->os_data != NULL ) {
-            ((windows_instance_t)(vmi->os_data))->version =
-                    VMI_OS_WINDOWS_UNKNOWN;
-        }
-        return windows_find_cr3(vmi);
-    }
-
-    errprint("find_kpgd not implemented for this target OS\n");
-
-    return 0;
-}
-
 /*
  * check that this vm uses a paging method that we support
  * and set pm/cr3/pae/pse/lme flags optionally on the given pointers
@@ -365,7 +348,6 @@ status_t
 get_memory_layout(
     vmi_instance_t vmi,
     page_mode_t *set_pm,
-    reg_t *set_cr3,
     int *set_pae,
     int *set_pse,
     int *set_lme)
@@ -406,12 +388,6 @@ get_memory_layout(
     //
     // Paging enabled (PG==1)
     //
-
-    if (driver_get_vcpureg(vmi, &cr3, CR3, 0) == VMI_FAILURE) {
-        errprint("**failed to get CR3\n");
-        goto _exit;
-    }
-
     if (driver_get_vcpureg(vmi, &cr4, CR4, 0) == VMI_FAILURE) {
         errprint("**failed to get CR4\n");
         goto _exit;
@@ -447,6 +423,12 @@ get_memory_layout(
     }   // if
 
 
+    // Get current cr3 for sanity checking
+    if (driver_get_vcpureg(vmi, &cr3, CR3, 0) == VMI_FAILURE) {
+        errprint("**failed to get CR3\n");
+        goto _exit;
+    }
+
     // now determine addressing mode
     if (0 == pae) {
         dbprint("**32-bit paging\n");
@@ -464,7 +446,7 @@ get_memory_layout(
         pm = VMI_PM_PAE;
         cr3 &= 0xFFFFFFE0;
     }   // if-else
-    dbprint("**set cr3 = 0x%.16"PRIx64"\n", cr3);
+    dbprint("**sanity checking cr3 = 0x%.16"PRIx64"\n", cr3);
 
     /* testing to see CR3 value */
     if (!driver_is_pv(vmi) && cr3 > vmi->size) {   // sanity check on CR3
@@ -474,9 +456,6 @@ get_memory_layout(
 
     if(set_pm != NULL) {
         *set_pm=pm;
-    }
-    if(set_cr3 != NULL) {
-        *set_cr3=cr3;
     }
     if(set_pae != NULL) {
         *set_pae=pae;
@@ -704,27 +683,22 @@ vmi_init_private(
 
         // Find the memory layout. If this fails, then proceed with the
         // OS-specific heuristic techniques.
-        (*vmi)->pae = (*vmi)->pse = (*vmi)->lme = (*vmi)->cr3 = 0;
+        (*vmi)->pae = (*vmi)->pse = (*vmi)->lme = 0;
         (*vmi)->page_mode = VMI_PM_UNKNOWN;
 
-        status = get_memory_layout(*vmi,
-                                        &((*vmi)->page_mode),
-                                        &((*vmi)->cr3),
-                                        &((*vmi)->pae),
-                                        &((*vmi)->pse),
-                                        &((*vmi)->lme));
+        if ((*vmi)->mode == VMI_FILE) {
+            dbprint(
+                    "**Can't get memory layout for VMI_FILE. Trying heuristic methods, if any.\n");
+        } else {
+            status = get_memory_layout(*vmi, &((*vmi)->page_mode),
+                    &((*vmi)->pae), &((*vmi)->pse), &((*vmi)->lme));
 
-        if (VMI_FAILURE == status) {
-            dbprint
-                ("**Failed to get memory layout for VM. Trying heuristic method.\n");
-            // fall-through
-        }   // if
-
-        // Heuristic method
-        if (!(*vmi)->cr3) {
-            (*vmi)->cr3 = find_cr3((*vmi));
-            dbprint("**set cr3 = 0x%.16"PRIx64"\n", (*vmi)->cr3);
-        }   // if
+            if (VMI_FAILURE == status) {
+                dbprint(
+                        "**Failed to get memory layout for VM. Trying OS heuristic methods, if any.\n");
+                // fall-through
+            }   // if
+        }
 
         /* setup OS specific stuff */
         if (VMI_OS_LINUX == (*vmi)->os_type) {

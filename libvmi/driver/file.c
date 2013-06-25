@@ -242,9 +242,6 @@ file_get_vcpureg(
         if (vmi->kpgd) {
             *value = vmi->kpgd;
         }
-        else if (vmi->cr3) {
-            *value = vmi->cr3;
-        }
         else {
             goto error_exit;
         }

@@ -328,6 +328,7 @@ status_t
 windows_init(
     vmi_instance_t vmi)
 {
+    status_t status = VMI_FAILURE;
     windows_instance_t windows = NULL;
     os_interface_t os_interface = NULL;
 
@@ -346,6 +347,14 @@ windows_init(
 
     /* get base address for kernel image in memory */
     if (VMI_PM_UNKNOWN == vmi->page_mode) {
+        if (!vmi->kpgd) {
+            status = get_kpgd_method2(vmi);
+            if (status == VMI_FAILURE) {
+                errprint("Could not get_kpgd, will not be able to determine page mode\n");
+                goto error_exit;
+            }
+        }
+
         if (VMI_FAILURE == find_page_mode(vmi)) {
             errprint("Failed to find correct page mode.\n");
             goto error_exit;
