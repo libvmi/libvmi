@@ -31,35 +31,9 @@
 
 #define CONFIG_STR_LENGTH 1024
 
-typedef struct vmi_config_entry {
-    char domain_name[CONFIG_STR_LENGTH];
-    char sysmap[CONFIG_STR_LENGTH];
-    char ostype[CONFIG_STR_LENGTH];
-    union {
-        struct linux_offsets {
-            uint64_t tasks;
-            uint64_t mm;
-            uint64_t pid;
-            uint64_t pgd;
-            uint64_t addr;
-            uint64_t name;
-        } linux_offsets;
-        struct windows_offsets {
-            uint64_t tasks;
-            uint64_t pdbase;
-            uint64_t pid;
-            uint64_t peb;
-            uint64_t iba;
-            uint64_t ph;
-            uint64_t pname;
-            uint64_t ntoskrnl;
-            uint64_t kdvb;
-            uint64_t sysproc;
-        } windows_offsets;
-    } offsets;
-} vmi_config_entry_t;
+#include <glib.h>
 
-int vmi_parse_config(char *td);
-vmi_config_entry_t* vmi_get_config();
+int vmi_parse_config(const char *target_name);
+GHashTable* vmi_get_config();
 
 #endif /* CONFIG_PARSER_H_ */

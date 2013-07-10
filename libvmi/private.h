@@ -58,7 +58,7 @@ struct vmi_instance {
 
     uint32_t init_mode;     /**< VMI_INIT_PARTIAL or VMI_INIT_COMPLETE */
 
-    vmi_config_t config;    /**< configuration */
+    GHashTable* config;    /**< configuration */
 
     uint32_t config_mode;     /**< VMI_CONFIG_NONE/FILE/STRING/GHASHTABLE */
 

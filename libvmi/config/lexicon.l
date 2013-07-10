@@ -40,23 +40,24 @@
 %}
 
 %%
-linux_tasks             { BeginToken(yytext); return LINUX_TASKS; }
-linux_mm                { BeginToken(yytext); return LINUX_MM; }
-linux_name              { BeginToken(yytext); return LINUX_NAME; }
-linux_pid               { BeginToken(yytext); return LINUX_PID; }
-linux_pgd               { BeginToken(yytext); return LINUX_PGD; }
-ntoskrnl                { BeginToken(yytext); return WIN_NTOSKRNL; }
-win_tasks               { BeginToken(yytext); return WIN_TASKS; }
-win_pdbase              { BeginToken(yytext); return WIN_PDBASE; }
-win_pid                 { BeginToken(yytext); return WIN_PID; }
-win_peb                 { BeginToken(yytext); return WIN_PEB; }
-win_iba                 { BeginToken(yytext); return WIN_IBA; }
-win_ph                  { BeginToken(yytext); return WIN_PH; }
-win_pname               { BeginToken(yytext); return WIN_PNAME; }
-win_kdvb                { BeginToken(yytext); return WIN_KDVB; }
-win_sysproc             { BeginToken(yytext); return WIN_SYSPROC; }
-sysmap                  { BeginToken(yytext); return SYSMAPTOK; }
-ostype                  { BeginToken(yytext); return OSTYPETOK; }
+linux_tasks             { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_TASKS; }
+linux_mm                { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_MM; }
+linux_name              { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_NAME; }
+linux_pid               { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_PID; }
+linux_pgd               { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_PGD; }
+linux_addr              { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_ADDR; }
+ntoskrnl                { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_NTOSKRNL; }
+win_tasks               { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_TASKS; }
+win_pdbase              { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_PDBASE; }
+win_pid                 { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_PID; }
+win_peb                 { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_PEB; }
+win_iba                 { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_IBA; }
+win_ph                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_PH; }
+win_pname               { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_PNAME; }
+win_kdvb                { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_KDVB; }
+win_sysproc             { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_SYSPROC; }
+sysmap                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return SYSMAPTOK; }
+ostype                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return OSTYPETOK; }
 0x[0-9a-fA-F]+|[0-9]+   {
     BeginToken(yytext);
     yylval.str = strdup(yytext);
