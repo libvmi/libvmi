@@ -29,9 +29,25 @@
 #include "driver/interface.h"
 #include "os/linux/linux.h"
 
+void linux_read_config_ghashtable_entries(char* key, gpointer value,
+        vmi_instance_t vmi);
+
 status_t linux_init(vmi_instance_t vmi) {
     status_t ret = VMI_FAILURE;
     os_interface_t os_interface = NULL;
+
+    if (vmi->config == NULL) {
+        errprint("VMI_ERROR: No config table found\n");
+        return VMI_FAILURE;
+    }
+
+    if (vmi->os_data != NULL) {
+        errprint("VMI_ERROR: os data already initialized, reinitializing\n");
+        free(vmi->os_data);
+    }
+    vmi->os_data = safe_malloc(sizeof(struct linux_instance));
+
+    g_hash_table_foreach(vmi->config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
 
     if (VMI_SUCCESS
             == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL,
@@ -78,6 +94,50 @@ status_t linux_init(vmi_instance_t vmi) {
     vmi->os_interface = os_interface;
 
     _exit: return ret;
+}
+
+void linux_read_config_ghashtable_entries(char* key, gpointer value,
+        vmi_instance_t vmi) {
+
+    linux_instance_t linux_instance = vmi->os_data;
+
+    if (strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->sysmap = strdup((char *)value);
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_tasks", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->tasks_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_mm", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->mm_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_pid", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->pid_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_name", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->name_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_pgd", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->pgd_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0) {
+        goto _done;
+    }
+
+    errprint("VMI_WARNING: Invalid offset %s given for Linux target\n", key);
+
+    _done: return;
 }
 
 uint64_t linux_get_offset(vmi_instance_t vmi, const char* offset_name) {

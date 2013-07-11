@@ -84,93 +84,8 @@ success:
     return f;
 }
 
-void
-read_config_ghashtable_entries(
-    char* key,
-    gpointer value,
-    vmi_instance_t vmi)
-{
-
-    if (vmi->os_type == VMI_OS_LINUX) {
-        linux_instance_t linux_instance = vmi->os_data;
-
-        if(strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
-            linux_instance->sysmap = strdup((char *)value);
-            goto _done;
-        }
-
-        if (strncmp(key, "linux_tasks", CONFIG_STR_LENGTH) == 0) {
-            linux_instance->tasks_offset = *(int *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "linux_mm", CONFIG_STR_LENGTH) == 0) {
-            linux_instance->mm_offset = *(int *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "linux_pid", CONFIG_STR_LENGTH) == 0) {
-            linux_instance->pid_offset = *(int *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "linux_name", CONFIG_STR_LENGTH) == 0) {
-            linux_instance->name_offset = *(int *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "linux_pgd", CONFIG_STR_LENGTH) == 0) {
-            linux_instance->pgd_offset = *(int *)value;
-            goto _done;
-        }
-        goto _done;
-    }
-
-    if (vmi->os_type == VMI_OS_WINDOWS) {
-        windows_instance_t windows_instance = vmi->os_data;
-
-        if (strncmp(key, "win_ntoskrnl", CONFIG_STR_LENGTH) == 0) {
-            windows_instance->ntoskrnl = *(addr_t *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "win_tasks", CONFIG_STR_LENGTH) == 0) {
-            windows_instance->tasks_offset = *(int *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "win_pdbase", CONFIG_STR_LENGTH) == 0) {
-            windows_instance->pdbase_offset = *(int *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "win_pid", CONFIG_STR_LENGTH) == 0) {
-            windows_instance->pid_offset = *(int *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "win_pname", CONFIG_STR_LENGTH) == 0) {
-            windows_instance->pname_offset = *(int *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "win_kdvb", CONFIG_STR_LENGTH) == 0) {
-            windows_instance->kdversion_block = *(addr_t *)value;
-            goto _done;
-        }
-
-        if (strncmp(key, "win_sysproc", CONFIG_STR_LENGTH) == 0) {
-            windows_instance->sysproc = *(addr_t *)value;
-            goto _done;
-        }
-    }
-
-_done:
-    return;
-}
-
 status_t
-read_config_ghashtable(
+set_os_type_from_config(
     vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
@@ -195,16 +110,14 @@ read_config_ghashtable(
 
     if (strncmp(ostype, "Linux", CONFIG_STR_LENGTH) == 0) {
         vmi->os_type = VMI_OS_LINUX;
-        vmi->os_data = safe_malloc(sizeof(struct linux_instance));
+        ret = VMI_SUCCESS;
     } else if (strncmp(ostype, "Windows", CONFIG_STR_LENGTH) == 0) {
         vmi->os_type = VMI_OS_WINDOWS;
-        vmi->os_data = safe_malloc(sizeof(struct windows_instance));
+        ret = VMI_SUCCESS;
     } else {
-        errprint("Unknown or undefined OS type!\n");
-        return VMI_FAILURE;
+        errprint("VMI_ERROR: Unknown OS type: %s!\n", ostype);
+        ret = VMI_FAILURE;
     }
-
-    g_hash_table_foreach(configtbl, (GHFunc)read_config_ghashtable_entries, vmi);
 
     return ret;
 }
@@ -622,14 +535,13 @@ vmi_init_private(
         }
 
         /* read and parse the ghashtable */
-        if ((VMI_CONFIG_GHASHTABLE & (*vmi)->config_mode)
-                 && VMI_FAILURE == read_config_ghashtable(*vmi)) {
+        if ((VMI_CONFIG_GHASHTABLE & (*vmi)->config_mode)) {
             (*vmi)->config = (GHashTable*)config;
             goto error_exit;
         }
 
-        if(VMI_FAILURE == read_config_ghashtable(*vmi)) {
-            dbprint("--failed to parse ghashtable\n");
+        if(VMI_FAILURE == set_os_type_from_config(*vmi)) {
+            dbprint("--failed to determind os type from ghashtable\n");
             goto error_exit;
         }
 

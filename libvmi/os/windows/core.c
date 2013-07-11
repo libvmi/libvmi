@@ -323,6 +323,55 @@ uint64_t windows_get_offset(vmi_instance_t vmi, const char* offset_name) {
     }
 }
 
+void windows_read_config_ghashtable_entries(char* key, gpointer value,
+        vmi_instance_t vmi) {
+
+    windows_instance_t windows_instance = vmi->os_data;
+
+    if (strncmp(key, "win_ntoskrnl", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->ntoskrnl = *(addr_t *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_tasks", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->tasks_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_pdbase", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->pdbase_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_pid", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->pid_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_pname", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->pname_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_kdvb", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->kdversion_block = *(addr_t *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_sysproc", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->sysproc = *(addr_t *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0) {
+        goto _done;
+    }
+
+    errprint("VMI_WARNING: Invalid offset %s given for Windows target\n", key);
+
+    _done: return;
+}
+
 
 status_t
 windows_init(
@@ -331,6 +380,19 @@ windows_init(
     status_t status = VMI_FAILURE;
     windows_instance_t windows = NULL;
     os_interface_t os_interface = NULL;
+
+    if (vmi->config == NULL) {
+        errprint("VMI_ERROR: No config table found\n");
+        return VMI_FAILURE;
+    }
+
+    if (vmi->os_data != NULL) {
+        errprint("VMI_ERROR: os data already initialized, reinitializing\n");
+        free(vmi->os_data);
+    }
+    vmi->os_data = safe_malloc(sizeof(struct windows_instance));
+
+    g_hash_table_foreach(vmi->config, (GHFunc)windows_read_config_ghashtable_entries, vmi);
 
     /* Need to provide this functions so that find_page_mode will work */
     os_interface = safe_malloc(sizeof(struct os_interface));
