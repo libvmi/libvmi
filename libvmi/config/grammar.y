@@ -41,10 +41,11 @@
 int debug = 0;
 #endif /* VMI_DEBUG */
 
-vmi_config_entry_t entry;
-vmi_config_entry_t tmp_entry;
+GHashTable *entry = NULL;
+GHashTable *tmp_entry = NULL;
 char *target_domain = NULL;
 char tmp_str[CONFIG_STR_LENGTH];
+char tmp_domain_name[CONFIG_STR_LENGTH];
 
 #ifdef VMI_DEBUG
 extern FILE *yyin;
@@ -175,11 +176,11 @@ static int getNextLine (void)
 int GetNextChar (char *b, int maxBuffer)
 {
     int frc;
-  
+
     if (eof){
         return 0;
     }
-  
+
     /* read next line if at the end of the current */
     while (nBuffer >= lBuffer){
         frc = getNextLine();
@@ -222,7 +223,7 @@ void yyerror (const char *str)
     printError(str);
 #endif
 }
- 
+
 int yywrap()
 {
     return 1;
@@ -230,33 +231,32 @@ int yywrap()
 
 void entry_done ()
 {
-    if (strncmp(tmp_entry.domain_name, target_domain, CONFIG_STR_LENGTH) == 0){
+    if (strncmp(tmp_domain_name, target_domain, CONFIG_STR_LENGTH) == 0){
+        if (entry != NULL) {
+            fprintf(stderr, "Duplicate config for %s found, using most recent\n", target_domain);
+            g_hash_table_destroy(entry);
+        }
         entry = tmp_entry;
-/*
-        memcpy(entry.domain_name, tmp_entry.domain_name, CONFIG_STR_LENGTH);
-        memcpy(entry.sysmap, tmp_entry.sysmap, CONFIG_STR_LENGTH);
-        memcpy(entry.ostype, tmp_entry.ostype, CONFIG_STR_LENGTH)
-        entry.offsets = tmp_entry.offsets;
-*/
+    } else {
+        g_hash_table_destroy(tmp_entry);
     }
-    bzero(&tmp_entry, sizeof(vmi_config_entry_t));
+    tmp_entry = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 }
 
-vmi_config_entry_t* vmi_get_config()
+GHashTable* vmi_get_config()
 {
-    return &entry;
+    return entry;
 }
-  
-int vmi_parse_config (char *td)
+
+int vmi_parse_config (const char *target_name)
 {
-    int ret;
-    target_domain = strdup(td);
-    bzero(&entry, sizeof(vmi_config_entry_t));
-    bzero(&tmp_entry, sizeof(vmi_config_entry_t));
+    int ret = 0;
+    target_domain = strdup(target_name);
+    tmp_entry = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
     ret = yyparse();
     if (target_domain) free(target_domain);
     return ret;
-} 
+}
 
 %}
 
@@ -265,24 +265,24 @@ int vmi_parse_config (char *td)
 }
 
 %token<str>    NUM
-%token         LINUX_TASKS
-%token         LINUX_MM
-%token         LINUX_PID
-%token         LINUX_NAME
-%token         LINUX_PGD
-%token         LINUX_ADDR
-%token         WIN_NTOSKRNL
-%token         WIN_TASKS
-%token         WIN_PDBASE
-%token         WIN_PID
-%token         WIN_PEB
-%token         WIN_IBA
-%token         WIN_PH
-%token         WIN_PNAME
-%token         WIN_KDVB
-%token         WIN_SYSPROC
-%token         SYSMAPTOK
-%token         OSTYPETOK
+%token<str>    LINUX_TASKS
+%token<str>    LINUX_MM
+%token<str>    LINUX_PID
+%token<str>    LINUX_NAME
+%token<str>    LINUX_PGD
+%token<str>    LINUX_ADDR
+%token<str>    WIN_NTOSKRNL
+%token<str>    WIN_TASKS
+%token<str>    WIN_PDBASE
+%token<str>    WIN_PID
+%token<str>    WIN_PEB
+%token<str>    WIN_IBA
+%token<str>    WIN_PH
+%token<str>    WIN_PNAME
+%token<str>    WIN_KDVB
+%token<str>    WIN_SYSPROC
+%token<str>    SYSMAPTOK
+%token<str>    OSTYPETOK
 %token<str>    WORD
 %token<str>    FILENAME
 %token         QUOTE
@@ -300,8 +300,8 @@ domains:
 domain_info:
         WORD OBRACE assignments EBRACE
         {
-            snprintf(tmp_str, CONFIG_STR_LENGTH,"%s", $1);
-            memcpy(tmp_entry.domain_name, tmp_str, CONFIG_STR_LENGTH);
+            snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $1);
+            memcpy(tmp_domain_name, tmp_str, CONFIG_STR_LENGTH);
             free($1);
             entry_done();
         }
@@ -354,8 +354,10 @@ assignment:
 linux_tasks_assignment:
         LINUX_TASKS EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.linux_offsets.tasks = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -363,8 +365,10 @@ linux_tasks_assignment:
 linux_mm_assignment:
         LINUX_MM EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.linux_offsets.mm = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -372,16 +376,20 @@ linux_mm_assignment:
 linux_pid_assignment:
         LINUX_PID EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.linux_offsets.pid = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
 linux_name_assignment:
         LINUX_NAME EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.linux_offsets.name = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -389,8 +397,10 @@ linux_name_assignment:
 linux_pgd_assignment:
         LINUX_PGD EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.linux_offsets.pgd = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -398,8 +408,7 @@ linux_pgd_assignment:
 linux_addr_assignment:
         LINUX_ADDR EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.linux_offsets.addr = tmp;
+            fprintf(stderr, "VMI_WARNING: linux_addr is no longer used and should be removed from your config file\n");
             free($3);
         }
         ;
@@ -407,8 +416,10 @@ linux_addr_assignment:
 win_ntoskrnl_assignment:
         WIN_NTOSKRNL EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.ntoskrnl = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -416,8 +427,10 @@ win_ntoskrnl_assignment:
 win_tasks_assignment:
         WIN_TASKS EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.tasks = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -425,8 +438,10 @@ win_tasks_assignment:
 win_pdbase_assignment:
         WIN_PDBASE EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.pdbase = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -434,8 +449,10 @@ win_pdbase_assignment:
 win_pid_assignment:
         WIN_PID EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.pid = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -443,8 +460,10 @@ win_pid_assignment:
 win_peb_assignment:
         WIN_PEB EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.peb = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -452,8 +471,10 @@ win_peb_assignment:
 win_iba_assignment:
         WIN_IBA EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.iba = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -461,8 +482,10 @@ win_iba_assignment:
 win_ph_assignment:
         WIN_PH EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.ph = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -470,8 +493,10 @@ win_ph_assignment:
 win_pname_assignment:
         WIN_PNAME EQUALS NUM
         {
-            int tmp = strtol($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.pname = tmp;
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -480,7 +505,9 @@ win_kdvb_assignment:
         WIN_KDVB EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.kdvb = tmp;
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
@@ -489,25 +516,29 @@ win_sysproc_assignment:
         WIN_SYSPROC EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            tmp_entry.offsets.windows_offsets.sysproc = tmp;
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;
 
 sysmap_assignment:
-        SYSMAPTOK EQUALS QUOTE FILENAME QUOTE 
+        SYSMAPTOK EQUALS QUOTE FILENAME QUOTE
         {
-            snprintf(tmp_str, CONFIG_STR_LENGTH,"%s", $4);
-            memcpy(tmp_entry.sysmap, tmp_str, CONFIG_STR_LENGTH);
+            snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
+            char* sysmap_path = strndup(tmp_str, CONFIG_STR_LENGTH);
+            g_hash_table_insert(tmp_entry, $1, sysmap_path);
             free($4);
         }
         ;
 
 ostype_assignment:
-        OSTYPETOK EQUALS QUOTE WORD QUOTE 
+        OSTYPETOK EQUALS QUOTE WORD QUOTE
         {
-            snprintf(tmp_str, CONFIG_STR_LENGTH,"%s", $4);
-            memcpy(tmp_entry.ostype, tmp_str, CONFIG_STR_LENGTH);
+            snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
+            char* os_type_str = strndup(tmp_str, CONFIG_STR_LENGTH);
+            g_hash_table_insert(tmp_entry, $1, os_type_str);
             free($4);
         }
         ;

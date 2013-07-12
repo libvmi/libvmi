@@ -235,7 +235,7 @@ sym_cache_entry_free(
 
 static sym_cache_entry_t
 sym_cache_entry_create(
-    char *sym,
+    const char *sym,
     addr_t va,
     addr_t base_addr,
     vmi_pid_t pid)
@@ -271,7 +271,7 @@ sym_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
-    char *sym,
+    const char *sym,
     addr_t *va)
 {
 
@@ -303,24 +303,27 @@ sym_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
-    char *sym,
+    const char *sym,
     addr_t va)
 {
     GHashTable *symbol_table = NULL;
     sym_cache_entry_t entry = sym_cache_entry_create(sym, va, base_addr, pid);
+    char* sym_dup = NULL;
 
     key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)pid);
 
-    if ((symbol_table = g_hash_table_lookup(vmi->sym_cache, key)) == NULL) {
-        symbol_table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL,
+    symbol_table = g_hash_table_lookup(vmi->sym_cache, key);
+    if (symbol_table == NULL) {
+        symbol_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
                               sym_cache_entry_free);
         g_hash_table_insert(vmi->sym_cache, key, symbol_table);
     } else {
         free(key);
     }
 
-    g_hash_table_insert(symbol_table, sym, entry);
-    dbprint("--SYM cache set %s -- 0x%.16"PRIx64"\n", key, va);
+    sym_dup = strndup(sym, 100);
+    g_hash_table_insert(symbol_table, sym_dup, entry);
+    dbprint("--SYM cache set %s -- 0x%.16"PRIx64"\n", sym, va);
 }
 
 status_t
@@ -430,7 +433,7 @@ rva_cache_set(
     }
 
     g_hash_table_insert(rva_table, GUINT_TO_POINTER(rva), entry);
-    dbprint("--RVA cache set %s -- 0x%.16"PRIx64"\n", key, rva);
+    dbprint("--RVA cache set %s -- 0x%.16"PRIx64"\n", sym, rva);
 }
 
 status_t
@@ -450,7 +453,8 @@ rva_cache_del(
         return ret;
     }
 
-    dbprint("--RVA cache del %u:0x%.16"PRIx64":%s\n", pid, base_addr, rva);
+    dbprint("--RVA cache del %u:0x%.16"PRIx64":0x%.16"PRIx64"\n",
+            pid, base_addr, rva);
 
     if (TRUE == g_hash_table_remove(rva_table, GUINT_TO_POINTER(rva))) {
         ret=VMI_SUCCESS;

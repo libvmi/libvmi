@@ -28,13 +28,16 @@
 #include "private.h"
 #include "driver/interface.h"
 
+/* NB: Necessary for windows specific API functions */
+#include "os/windows/windows.h"
+
 page_mode_t
 vmi_get_page_mode(
     vmi_instance_t vmi)
 {
     if(vmi->page_mode == VMI_PM_UNKNOWN) {
         page_mode_t ret=VMI_PM_UNKNOWN;
-        get_memory_layout(vmi, &ret, NULL, NULL, NULL, NULL);
+        get_memory_layout(vmi, &ret, NULL, NULL, NULL);
         return ret;
     } else {
         return vmi->page_mode;
@@ -69,16 +72,23 @@ win_ver_t
 vmi_get_winver(
     vmi_instance_t vmi)
 {
+    windows_instance_t windows_instance = NULL;
 
-    if (VMI_OS_WINDOWS != vmi->os_type || VMI_INIT_PARTIAL & vmi->init_mode)
+    if (VMI_OS_WINDOWS != vmi->os_type || (VMI_INIT_PARTIAL & vmi->init_mode))
         return VMI_OS_WINDOWS_NONE;
 
-    if (!vmi->os.windows_instance.version ||
-        vmi->os.windows_instance.version == VMI_OS_WINDOWS_UNKNOWN) {
-        vmi->os.windows_instance.version = find_windows_version(vmi,
-                             vmi->os.windows_instance.kdversion_block);
+    if (!vmi->os_data) {
+        return VMI_OS_WINDOWS_NONE;
     }
-    return vmi->os.windows_instance.version;
+
+    windows_instance = vmi->os_data;
+
+    if (!windows_instance->version
+            || windows_instance->version == VMI_OS_WINDOWS_UNKNOWN) {
+        windows_instance->version = find_windows_version(vmi,
+                windows_instance->kdversion_block);
+    }
+    return windows_instance->version;
 }
 
 const char *
@@ -117,53 +127,18 @@ vmi_get_winver_manual(
     return find_windows_version(vmi, kdvb_pa);
 }
 
-unsigned long
+uint64_t
 vmi_get_offset(
     vmi_instance_t vmi,
     char *offset_name)
 {
     size_t max_length = 100;
 
-    if (strncmp(offset_name, "win_tasks", max_length) == 0) {
-        return vmi->os.windows_instance.tasks_offset;
-    }
-    else if (strncmp(offset_name, "win_pdbase", max_length) == 0) {
-        return vmi->os.windows_instance.pdbase_offset;
-    }
-    else if (strncmp(offset_name, "win_pid", max_length) == 0) {
-        return vmi->os.windows_instance.pid_offset;
-    }
-    else if (strncmp(offset_name, "win_pname", max_length) == 0) {
-        if (vmi->os.windows_instance.pname_offset == 0) {
-            vmi->os.windows_instance.pname_offset =
-                find_pname_offset(vmi, NULL);
-            if (vmi->os.windows_instance.pname_offset == 0) {
-                dbprint("--failed to find pname_offset\n");
-                return 0;
-            }
-        }
-        return vmi->os.windows_instance.pname_offset;
-    }
-    else if (strncmp(offset_name, "linux_tasks", max_length) == 0) {
-        return vmi->os.linux_instance.tasks_offset;
-    }
-    else if (strncmp(offset_name, "linux_mm", max_length) == 0) {
-        return vmi->os.linux_instance.mm_offset;
-    }
-    else if (strncmp(offset_name, "linux_pid", max_length) == 0) {
-        return vmi->os.linux_instance.pid_offset;
-    }
-    else if (strncmp(offset_name, "linux_name", max_length) == 0) {
-        return vmi->os.linux_instance.name_offset;
-    }
-    else if (strncmp(offset_name, "linux_pgd", max_length) == 0) {
-        return vmi->os.linux_instance.pgd_offset;
-    }
-    else {
-        warnprint("Invalid offset name in vmi_get_offset (%s).\n",
-                  offset_name);
+    if (vmi->os_interface == NULL || vmi->os_interface->os_get_offset == NULL ) {
         return 0;
     }
+
+    return vmi->os_interface->os_get_offset(vmi, offset_name);
 }
 
 unsigned long

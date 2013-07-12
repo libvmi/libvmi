@@ -27,45 +27,157 @@
 #include "libvmi.h"
 #include "private.h"
 #include "driver/interface.h"
+#include "os/linux/linux.h"
 
-status_t
-linux_init(
-    vmi_instance_t vmi)
-{
+void linux_read_config_ghashtable_entries(char* key, gpointer value,
+        vmi_instance_t vmi);
+
+status_t linux_init(vmi_instance_t vmi) {
     status_t ret = VMI_FAILURE;
+    os_interface_t os_interface = NULL;
 
-    if (vmi->cr3) {
-        vmi->kpgd = vmi->cr3;
+    if (vmi->config == NULL) {
+        errprint("VMI_ERROR: No config table found\n");
+        return VMI_FAILURE;
     }
-    else if (VMI_SUCCESS ==
-             linux_system_map_symbol_to_address(vmi, "swapper_pg_dir",
-                                                &vmi->kpgd)) {
+
+    if (vmi->os_data != NULL) {
+        errprint("VMI_ERROR: os data already initialized, reinitializing\n");
+        free(vmi->os_data);
+    }
+    vmi->os_data = safe_malloc(sizeof(struct linux_instance));
+
+    g_hash_table_foreach(vmi->config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
+
+    if (VMI_SUCCESS
+            == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL,
+                    &vmi->kpgd)) {
         dbprint("--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
                 vmi->kpgd);
         if (driver_is_pv(vmi)) {
             vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
-            if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd)) ==
-                VMI_FAILURE) {
-                errprint("Failed to get physical addr for kpgd.\n");
-                goto _exit;
+            if (vmi_read_addr_pa(vmi, vmi->kpgd, &(vmi->kpgd)) == VMI_FAILURE) {
+                errprint(
+                        "Failed to get physical addr for kpgd using swapper_pg_dir.\n");
             }
         }
-        else {
-            vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
+    }
+
+    if (!vmi->kpgd) {
+        ret = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);
+        if (ret != VMI_SUCCESS) {
+            errprint(
+                    "Driver does not support cr3 read and kpgd could not be set, exiting\n");
+            goto _exit;
         }
     }
-    else {
-        errprint("swapper_pg_dir not found and CR3 not set, exiting\n");
-        goto _exit;
-    }
 
-    vmi->kpgd = vmi->cr3;
     dbprint("**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
-    vmi->init_task = vmi_translate_ksym2v(vmi, "init_task");
+    ret = linux_system_map_symbol_to_address(vmi, "init_task", NULL,
+            &vmi->init_task);
+    if (ret != VMI_SUCCESS) {
+        errprint("VMI_ERROR: Could not get init_task from System.map\n");
+        return ret;
+    }
 
-    ret = VMI_SUCCESS;
+    os_interface = safe_malloc(sizeof(struct os_interface));
+    bzero(os_interface, sizeof(struct os_interface));
+    os_interface->os_get_offset = linux_get_offset;
+    os_interface->os_pid_to_pgd = linux_pid_to_pgd;
+    os_interface->os_pgd_to_pid = linux_pgd_to_pid;
+    os_interface->os_ksym2v = linux_system_map_symbol_to_address;
+    os_interface->os_usym2rva = NULL;
+    os_interface->os_rva2sym = NULL;
+    os_interface->os_teardown = linux_teardown;
 
-_exit:
-    return ret;
+    vmi->os_interface = os_interface;
+
+    _exit: return ret;
 }
+
+void linux_read_config_ghashtable_entries(char* key, gpointer value,
+        vmi_instance_t vmi) {
+
+    linux_instance_t linux_instance = vmi->os_data;
+
+    if (strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->sysmap = strdup((char *)value);
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_tasks", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->tasks_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_mm", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->mm_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_pid", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->pid_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_name", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->name_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_pgd", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->pgd_offset = *(int *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0) {
+        goto _done;
+    }
+
+    errprint("VMI_WARNING: Invalid offset %s given for Linux target\n", key);
+
+    _done: return;
+}
+
+uint64_t linux_get_offset(vmi_instance_t vmi, const char* offset_name) {
+    const size_t max_length = 100;
+    linux_instance_t linux_instance = vmi->os_data;
+
+    if (linux_instance == NULL) {
+        errprint("VMI_ERROR: OS instance not initialized\n");
+        return 0;
+    }
+
+    if (strncmp(offset_name, "linux_tasks", max_length) == 0) {
+        return linux_instance->tasks_offset;
+    } else if (strncmp(offset_name, "linux_mm", max_length) == 0) {
+        return linux_instance->mm_offset;
+    } else if (strncmp(offset_name, "linux_pid", max_length) == 0) {
+        return linux_instance->pid_offset;
+    } else if (strncmp(offset_name, "linux_name", max_length) == 0) {
+        return linux_instance->name_offset;
+    } else if (strncmp(offset_name, "linux_pgd", max_length) == 0) {
+        return linux_instance->pgd_offset;
+    } else {
+        warnprint("Invalid offset name in linux_get_offset (%s).\n", offset_name);
+        return 0;
+    }
+}
+
+status_t linux_teardown(vmi_instance_t vmi) {
+    linux_instance_t linux_instance = vmi->os_data;
+
+    if (vmi->os_data == NULL) {
+        return VMI_SUCCESS;
+    }
+
+    if (linux_instance->sysmap) {
+        free(linux_instance->sysmap);
+    }
+    free(vmi->os_data);
+
+    vmi->os_data = NULL;
+    return VMI_SUCCESS;
+}
+
