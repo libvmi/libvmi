@@ -19,6 +19,7 @@ c_sources = \
     driver/memory_cache.c \
     driver/xen.c \
     driver/xen_events.c \
+    os/os_interface.c \
     os/linux/core.c \
     os/linux/memory.c \
     os/linux/symbols.c \

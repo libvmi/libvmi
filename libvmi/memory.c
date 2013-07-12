@@ -535,75 +535,55 @@ addr_t vmi_translate_uv2p (vmi_instance_t vmi, addr_t virt_address, vmi_pid_t pi
 }
 
 /* convert a kernel symbol into an address */
-addr_t vmi_translate_ksym2v (vmi_instance_t vmi, char *symbol)
+addr_t vmi_translate_ksym2v (vmi_instance_t vmi, const char *symbol)
 {
-    addr_t ret = 0;
-
+    status_t status = VMI_FAILURE;
     addr_t base_vaddr = 0;
-    if (VMI_OS_WINDOWS == vmi->os_type) {
-        base_vaddr = vmi->os.windows_instance.ntoskrnl_va;
-    }
+    addr_t address = 0;
 
-    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, 0, symbol, &ret)) {
-        if (VMI_OS_LINUX == vmi->os_type) {
-            if (VMI_FAILURE
-                    == linux_system_map_symbol_to_address(vmi, symbol, &ret)) {
-                ret = 0;
-            }
-        }
-        else if (VMI_OS_WINDOWS == vmi->os_type) {
-            if (VMI_FAILURE == windows_symbol_to_address(vmi, symbol, &ret)) {
-                ret = 0;
-            }
-        }
+    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, 0, symbol, &address)) {
 
-        if (ret) {
-            sym_cache_set(vmi, base_vaddr, 0, symbol, ret);
+        if (vmi->os_interface && vmi->os_interface->os_ksym2v) {
+            status = vmi->os_interface->os_ksym2v(vmi, symbol, &base_vaddr,
+                    &address);
+            if (status == VMI_SUCCESS) {
+                sym_cache_set(vmi, base_vaddr, 0, symbol, address);
+            }
         }
     }
 
-    return ret;
+    return address;
 }
 
 /* convert a symbol into an address */
 addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, char *symbol)
 {
-    addr_t ret = 0;
+    status_t status = VMI_FAILURE;
+    addr_t rva = 0;
+    addr_t address = 0;
 
-    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, pid, symbol, &ret)) {
+    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, pid, symbol, &address)) {
 
-        if (VMI_OS_LINUX == vmi->os_type) {
-            // TODO
-            return VMI_FAILURE;
-        }
-        else if (VMI_OS_WINDOWS == vmi->os_type) {
-            if (VMI_FAILURE == windows_export_to_rva(vmi, symbol, base_vaddr, pid, &ret)) {
-                ret = 0;
-            } else {
-                ret += base_vaddr;
+        if (vmi->os_interface && vmi->os_interface->os_ksym2v) {
+            status  = vmi->os_interface->os_usym2rva(vmi, base_vaddr, pid, symbol, &rva);
+            if (status == VMI_SUCCESS) {
+                address = base_vaddr + rva;
+                sym_cache_set(vmi, base_vaddr, pid, symbol, address);
             }
-        }
-
-        if (ret) {
-            sym_cache_set(vmi, base_vaddr, pid, symbol, ret);
         }
     }
 
-    return ret;
+    return address;
 }
+
 /* convert an RVA into a symbol */
 const char* vmi_translate_v2sym(vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, addr_t rva)
 {
     char *ret = NULL;
 
     if (VMI_FAILURE == rva_cache_get(vmi, base_vaddr, pid, rva, &ret)) {
-
-        if (VMI_OS_LINUX == vmi->os_type) {
-            // TODO
-            return ret;
-        }
-        else if (VMI_OS_WINDOWS == vmi->os_type) {
-            windows_rva_to_export(vmi, rva, base_vaddr, pid, &ret);
+        if (vmi->os_interface && vmi->os_interface->os_rva2sym) {
+            ret = vmi->os_interface->os_rva2sym(vmi, rva, base_vaddr, pid);
         }
 
         if (ret) {
@@ -620,11 +600,8 @@ addr_t vmi_pid_to_dtb (vmi_instance_t vmi, vmi_pid_t pid)
     addr_t dtb = 0;
 
     if (VMI_FAILURE == pid_cache_get(vmi, pid, &dtb)) {
-        if (VMI_OS_LINUX == vmi->os_type) {
-            dtb = linux_pid_to_pgd(vmi, pid);
-        }
-        else if (VMI_OS_WINDOWS == vmi->os_type) {
-            dtb = windows_pid_to_pgd(vmi, pid);
+        if (vmi->os_interface && vmi->os_interface->os_pid_to_pgd) {
+            dtb = vmi->os_interface->os_pid_to_pgd(vmi, pid);
         }
 
         if (dtb) {
@@ -638,14 +615,10 @@ addr_t vmi_pid_to_dtb (vmi_instance_t vmi, vmi_pid_t pid)
 /* finds the pid for a given dtb */
 vmi_pid_t vmi_dtb_to_pid (vmi_instance_t vmi, addr_t dtb)
 {
-
     vmi_pid_t pid = -1;
 
-    if (VMI_OS_LINUX == vmi->os_type) {
-        pid = linux_pgd_to_pid(vmi, dtb);
-    }
-    else if (VMI_OS_WINDOWS == vmi->os_type) {
-        pid = windows_pgd_to_pid(vmi, dtb);
+    if (vmi->os_interface && vmi->os_interface->os_pgd_to_pid) {
+        pid = vmi->os_interface->os_pgd_to_pid(vmi, dtb);
     }
 
     return pid;

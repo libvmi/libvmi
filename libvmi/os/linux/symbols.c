@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include "os/linux/linux.h"
 
 #define MAX_ROW_LENGTH 500
 
@@ -36,7 +37,7 @@ static int
 get_symbol_row(
     FILE * f,
     char *row,
-    char *symbol,
+    const char *symbol,
     int position)
 {
     int ret = VMI_FAILURE;
@@ -90,38 +91,51 @@ error_exit:
 status_t
 linux_system_map_symbol_to_address(
     vmi_instance_t vmi,
-    char *symbol,
+    const char *symbol,
+    addr_t *kernel_base_vaddr,
     addr_t *address)
 {
     FILE *f = NULL;
     char *row = NULL;
-    int ret = VMI_SUCCESS;
+    status_t ret;
 
-    if ((NULL == vmi->sysmap) || (strlen(vmi->sysmap) == 0)) {
-        vmi->sysmap = strndup("unknown", 10);
+    linux_instance_t linux_instance = vmi->os_data;
+
+    if (linux_instance == NULL) {
+        errprint("VMI_ERROR: OS instance not initialized\n");
+        return 0;
+    }
+
+    if ((NULL == linux_instance->sysmap) || (strlen(linux_instance->sysmap) == 0)) {
+        errprint("VMI_WARNING: No linux sysmap configured\n");
+        return 0;
     }
 
     row = safe_malloc(MAX_ROW_LENGTH);
-    if ((f = fopen(vmi->sysmap, "r")) == NULL) {
+    if ((f = fopen(linux_instance->sysmap, "r")) == NULL) {
         fprintf(stderr,
                 "ERROR: could not find System.map file after checking:\n");
-        fprintf(stderr, "\t%s\n", vmi->sysmap);
+        fprintf(stderr, "\t%s\n", linux_instance->sysmap);
         fprintf(stderr,
                 "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
-        ret = VMI_FAILURE;
+        address = 0;
         goto error_exit;
     }
     if (get_symbol_row(f, row, symbol, 2) == VMI_FAILURE) {
-        ret = VMI_FAILURE;
+        address = 0;
         goto error_exit;
     }
 
-    *address = (addr_t) strtoull(row, NULL, 16);
+    if (kernel_base_vaddr) {
+        (*kernel_base_vaddr) = 0;
+    }
+    (*address) = (addr_t) strtoull(row, NULL, 16);
 
+    return VMI_SUCCESS;
 error_exit:
     if (row)
         free(row);
     if (f)
         fclose(f);
-    return ret;
+    return VMI_FAILURE;
 }

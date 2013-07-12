@@ -29,13 +29,19 @@
 #include "driver/interface.h"
 
 status_t
-windows_symbol_to_address(
+windows_kernel_symbol_to_address(
     vmi_instance_t vmi,
-    char *symbol,
+    const char *symbol,
+    addr_t *kernel_base_address,
     addr_t *address)
 {
     /* see if we have a cr3 value */
     reg_t cr3 = 0;
+    windows_instance_t windows = vmi->os_data;
+
+    if (vmi->os_data == NULL) {
+        return VMI_FAILURE;
+    }
 
     if (vmi->kpgd) {
         cr3 = vmi->kpgd;
@@ -44,6 +50,10 @@ windows_symbol_to_address(
         driver_get_vcpureg(vmi, &cr3, CR3, 0);
     }
     dbprint("--windows symbol lookup (%s)\n", symbol);
+
+    if (kernel_base_address) {
+        *kernel_base_address = windows->ntoskrnl_va;
+    }
 
     /* check kpcr if we have a cr3 */
     if ( /*cr3 && */ VMI_SUCCESS ==
@@ -55,10 +65,12 @@ windows_symbol_to_address(
     dbprint("--kpcr lookup failed, trying kernel PE export table\n");
 
     /* check exports */
-    if (VMI_SUCCESS == windows_export_to_rva(vmi, symbol, vmi->os.windows_instance.ntoskrnl_va, 0, address)) {
+    if (VMI_SUCCESS
+            == windows_export_to_rva(vmi, 0, windows->ntoskrnl_va, symbol,
+                    address)) {
         addr_t rva = *address;
 
-        *address = vmi->os.windows_instance.ntoskrnl_va + rva;
+        *address = windows->ntoskrnl_va + rva;
         dbprint("--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
              symbol, *address);
         return VMI_SUCCESS;
@@ -76,8 +88,18 @@ windows_pid_to_pgd(
 {
     addr_t pgd = 0;
     addr_t eprocess = 0;
-    int pdbase_offset = vmi->os.windows_instance.pdbase_offset;
-    int tasks_offset = vmi->os.windows_instance.tasks_offset;
+    int pid_offset = 0;
+    int tasks_offset = 0;
+    int pdbase_offset = 0;
+    windows_instance_t windows = vmi->os_data;
+
+    if (vmi->os_data == NULL) {
+        return VMI_FAILURE;
+    }
+
+    pid_offset = windows->pid_offset;
+    tasks_offset = windows->tasks_offset;
+    pdbase_offset = windows->pdbase_offset;
 
     /* first we need a pointer to this pid's EPROCESS struct */
     eprocess = windows_find_eprocess_list_pid(vmi, pid);
@@ -101,9 +123,16 @@ windows_pgd_to_pid(
 {
     vmi_pid_t pid = -1;
     addr_t eprocess = 0;
-    int pdbase_offset = vmi->os.windows_instance.pdbase_offset;
-    int tasks_offset = vmi->os.windows_instance.tasks_offset;
-    int pid_offset = vmi->os.windows_instance.pid_offset;
+    int tasks_offset = 0;
+    int pid_offset = 0;
+    windows_instance_t windows = vmi->os_data;
+
+    if (vmi->os_data == NULL) {
+        return VMI_FAILURE;
+    }
+
+    tasks_offset = windows->tasks_offset;
+    pid_offset = windows->pid_offset;
 
     /* first we need a pointer to this pgd's EPROCESS struct */
     eprocess = windows_find_eprocess_list_pgd(vmi, pgd);

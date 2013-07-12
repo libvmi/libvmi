@@ -2,12 +2,6 @@
  * memory in a target virtual machine or in a file containing a dump of 
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * Copyright 2011 Sandia Corporation. Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
- * retains certain rights in this software.
- *
- * Author: Bryan D. Payne (bdpayne@acm.org)
- *
  * This file is part of LibVMI.
  *
  * LibVMI is free software: you can redistribute it and/or modify it under
@@ -23,17 +17,29 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
-#include "../libvmi.h"
 
-#ifndef CONFIG_PARSER_H_
-#define CONFIG_PARSER_H_
+#include "os_interface.h"
+#include "private.h"
 
-#define CONFIG_STR_LENGTH 1024
+status_t os_destroy(vmi_instance_t vmi) {
+    status_t status = VMI_SUCCESS;
 
-#include <glib.h>
+    if (vmi->os_interface == NULL ) {
+        errprint("VMI_ERROR: No OS initialized\n");
+        status = VMI_FAILURE;
+    } else if (vmi->os_interface->os_teardown != NULL ) {
+        status = vmi->os_interface->os_teardown(vmi);
+    }
 
-int vmi_parse_config(const char *target_name);
-GHashTable* vmi_get_config();
+    if (vmi->os_interface != NULL ) {
+        free(vmi->os_interface);
+    }
+    vmi->os_interface = NULL;
 
-#endif /* CONFIG_PARSER_H_ */
+    if (vmi->os_data != NULL ) {
+        free(vmi->os_data);
+    }
+    vmi->os_data = NULL;
+
+    return VMI_SUCCESS;
+}

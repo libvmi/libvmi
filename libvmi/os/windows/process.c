@@ -38,7 +38,13 @@ windows_get_eprocess_name(
     addr_t paddr)
 {
     int name_length = 16;   //TODO verify that this is correct for all versions
-    addr_t name_paddr = paddr + vmi->os.windows_instance.pname_offset;
+    windows_instance_t windows = vmi->os_data;
+
+    if (windows == NULL) {
+        return NULL;
+    }
+
+    addr_t name_paddr = paddr + windows->pname_offset;
     char *name = (char *) safe_malloc(name_length);
 
     if (name_length == vmi_read_pa(vmi, name_paddr, name, name_length)) {
@@ -107,8 +113,11 @@ get_check_magic_func(
     vmi_instance_t vmi)
 {
     check_magic_func rtn = NULL;
+    if (vmi->os_data == NULL) {
+        return &check_magic_unknown;
+    }
 
-    switch (vmi->os.windows_instance.version) {
+    switch (((windows_instance_t)vmi->os_data)->version) {
     case VMI_OS_WINDOWS_2000:
         rtn = &check_magic_2k;
         break;
@@ -257,18 +266,23 @@ windows_find_eprocess(
     char *name)
 {
     addr_t start_address = 0;
+    windows_instance_t windows = vmi->os_data;
     check_magic_func check = get_check_magic_func(vmi);
 
-    if (vmi->os.windows_instance.pname_offset == 0) {
-        vmi->os.windows_instance.pname_offset =
+    if (windows == NULL) {
+        return 0;
+    }
+
+    if (windows->pname_offset == 0) {
+        windows->pname_offset =
             find_pname_offset(vmi, check);
-        if (vmi->os.windows_instance.pname_offset == 0) {
+        if (windows->pname_offset == 0) {
             dbprint("--failed to find pname_offset\n");
             return 0;
         }
         else {
             dbprint("**set os.windows_instance.pname_offset (0x%x)\n",
-                    vmi->os.windows_instance.pname_offset);
+                    windows->pname_offset);
         }
     }
 
@@ -326,8 +340,15 @@ windows_find_eprocess_list_pid(
         vmi_instance_t vmi,
         vmi_pid_t pid)
 {
-    int pid_offset = vmi->os.windows_instance.pid_offset;
     size_t len = sizeof(vmi_pid_t);
+    int pid_offset = 0;
+
+    if (vmi->os_data == NULL) {
+        return 0;
+    }
+
+    pid_offset = ((windows_instance_t)vmi->os_data)->pid_offset;
+
     return eprocess_list_search(vmi, pid_offset, len, &pid);
 }
 
@@ -336,8 +357,15 @@ windows_find_eprocess_list_pgd(
         vmi_instance_t vmi,
         addr_t pgd)
 {
-    int pdbase_offset = vmi->os.windows_instance.pdbase_offset;
-    size_t len;
+    int pdbase_offset = 0;
+    size_t len = 0;
+
+    if (vmi->os_data == NULL) {
+        return 0;
+    }
+
+    pdbase_offset = ((windows_instance_t)vmi->os_data)->pdbase_offset;
+
     if(vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE)
         len = sizeof(uint32_t);
     else
