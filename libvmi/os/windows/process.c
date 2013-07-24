@@ -170,7 +170,7 @@ find_pname_offset(
         check = get_check_magic_func(vmi);
     }
 
-    for (block_pa = 4096; block_pa < vmi->size; block_pa += BLOCK_SIZE) {
+    for (block_pa = 4096; block_pa + BLOCK_SIZE <= vmi->size; block_pa += BLOCK_SIZE) {
         read = vmi_read_pa(vmi, block_pa, block_buffer, BLOCK_SIZE);
         if (BLOCK_SIZE != read) {
             continue;
@@ -233,7 +233,7 @@ find_process_by_name(
         check = get_check_magic_func(vmi);
     }
 
-    for (block_pa = start_address; block_pa < vmi->size;
+    for (block_pa = start_address; block_pa + BLOCK_SIZE <= vmi->size;
          block_pa += BLOCK_SIZE) {
         read = vmi_read_pa(vmi, block_pa, block_buffer, BLOCK_SIZE);
         if (BLOCK_SIZE != read) {
