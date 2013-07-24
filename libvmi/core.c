@@ -188,7 +188,6 @@ read_config_file(
     }
 
 #ifdef VMI_DEBUG
-    dbprint("--got ostype from config (%s).\n", entry->ostype);
     if (vmi->os_type == VMI_OS_LINUX) {
         dbprint("**set os_type to Linux.\n");
     }
@@ -537,7 +536,6 @@ vmi_init_private(
         /* read and parse the ghashtable */
         if ((VMI_CONFIG_GHASHTABLE & (*vmi)->config_mode)) {
             (*vmi)->config = (GHashTable*)config;
-            goto error_exit;
         }
 
         if(VMI_FAILURE == set_os_type_from_config(*vmi)) {
@@ -654,9 +652,9 @@ vmi_init_custom(
         char *name = NULL;
         unsigned long domid = VMI_INVALID_DOMID;
         GHashTable *configtbl = (GHashTable *)config;
+        gpointer idptr = NULL;
 
         name = (char *)g_hash_table_lookup(configtbl, "name");
-        gpointer idptr;
         if(g_hash_table_lookup_extended(configtbl, "domid", NULL, &idptr)) {
             domid = *(unsigned long *)idptr;
         }
