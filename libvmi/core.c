@@ -188,7 +188,6 @@ read_config_file(
     }
 
 #ifdef VMI_DEBUG
-    dbprint("--got ostype from config (%s).\n", entry->ostype);
     if (vmi->os_type == VMI_OS_LINUX) {
         dbprint("**set os_type to Linux.\n");
     }
