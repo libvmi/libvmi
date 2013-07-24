@@ -536,7 +536,6 @@ vmi_init_private(
         /* read and parse the ghashtable */
         if ((VMI_CONFIG_GHASHTABLE & (*vmi)->config_mode)) {
             (*vmi)->config = (GHashTable*)config;
-            goto error_exit;
         }
 
         if(VMI_FAILURE == set_os_type_from_config(*vmi)) {
