@@ -773,7 +773,7 @@ find_kdversionblock_address(
     addr_t paddr = 0;
     unsigned char buf[12];
 
-    for (paddr = 0; paddr < vmi_get_memsize(vmi); paddr += 4) {
+    for (paddr = 0; paddr + 12 <= vmi_get_memsize(vmi); paddr += 4) {
         if (12 == vmi_read_pa(vmi, paddr, buf, 12)) {
             if (VMI_PM_IA32E == vmi->page_mode) {
                 if (memcmp(buf, "\x00\xf8\xff\xffKDBG", 8) == 0) {
@@ -826,7 +826,7 @@ find_kdversionblock_address_fast(
         find_ofs = 0x8;
     }   // if-else
 
-    for (block_pa = 4096; block_pa < memsize; block_pa += BLOCK_SIZE) {
+    for (block_pa = 4096; block_pa + BLOCK_SIZE <= memsize; block_pa += BLOCK_SIZE) {
         read = vmi_read_pa(vmi, block_pa, haystack, BLOCK_SIZE);
         if (BLOCK_SIZE != read) {
             continue;
