@@ -653,9 +653,9 @@ vmi_init_custom(
         char *name = NULL;
         unsigned long domid = VMI_INVALID_DOMID;
         GHashTable *configtbl = (GHashTable *)config;
+        gpointer idptr = NULL;
 
         name = (char *)g_hash_table_lookup(configtbl, "name");
-        gpointer idptr;
         if(g_hash_table_lookup_extended(configtbl, "domid", NULL, &idptr)) {
             domid = *(unsigned long *)idptr;
         }
