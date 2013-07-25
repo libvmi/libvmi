@@ -32,37 +32,32 @@
 #include <unistd.h>
 #include "libvmi/libvmi.h"
 #include "common.h"
-    int
-main(
-    int argc,
-    char **argv) 
+
+int main(int argc, char **argv) 
 {
-    vmi_instance_t vmi;
-    addr_t paddr, vaddr;
-    struct timeval ktv_start;
-    struct timeval ktv_end;
-     char *vm = argv[1];
-    int loops = atoi(argv[2]);
-    int i = 0;
-    long int diff;
-    long int *data = malloc(loops * sizeof(int));
+    vmi_instance_t vmi;
+    addr_t vaddr;
+    struct timeval ktv_start;
+    struct timeval ktv_end;
+    char *vm = argv[1];
+    int loops = atoi(argv[2]);
+    int i = 0;
+    long int diff;
+    long int *data = malloc(loops * sizeof(long int));
 
-     
-        /* initialize the xen access library */ 
-        vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, vm);
-    vaddr = vmi_translate_ksym2v(vmi, "PsInitialSystemProcess");
-     for (i = 0; i < loops; ++i) {
-        gettimeofday(&ktv_start, 0);
-        paddr = vmi_translate_kv2p(vmi, vaddr);
-        gettimeofday(&ktv_end, 0);
-         print_measurement(ktv_start, ktv_end, &diff);
-        data[i] = diff;
-         sleep(2);
-     }
-    avg_measurement(data, loops);
-     
-        //    vmi_destroy(vmi);
-        return 0;
-}
-
-
+    /* initialize the xen access library */ 
+    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, vm);
+    vaddr = vmi_translate_ksym2v(vmi, "PsInitialSystemProcess");
+    for (i = 0; i < loops; ++i) {
+        gettimeofday(&ktv_start, 0);
+        vmi_translate_kv2p(vmi, vaddr);
+        gettimeofday(&ktv_end, 0);
+        print_measurement(ktv_start, ktv_end, &diff);
+        data[i] = diff;
+        sleep(2);
+    }
+    avg_measurement(data, loops);
+    
+    vmi_destroy(vmi);
+    return 0;
+}
