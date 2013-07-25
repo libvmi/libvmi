@@ -1,7 +1,7 @@
 CC       = gcc
 
 CFLAGS   += -Wall
-CFLAGS   += -Werror
+CFLAGS   += #-Werror
 CFLAGS   += -O3
 #CFLAGS   += $(INCLUDES) -I.
 CFLAGS   += -Wp,-MD,.$(@F).d
@@ -16,18 +16,18 @@ clean:
 	rm -rf *.a *.o *~ $(DEPS) kern_sym virt_addr user_virt_addr-linux user_virt_addr-windows read_mem
 
 kern_sym: kern_sym.c common.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^  $(LIBS)
 
 virt_addr: virt_addr.c common.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 user_virt_addr-linux: user_virt_addr-linux.c common.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 user_virt_addr-windows: user_virt_addr-windows.c common.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 read_mem: read_mem.c common.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 -include $(DEPS)
