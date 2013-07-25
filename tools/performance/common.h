@@ -28,13 +28,14 @@
     
 #include <stdio.h>
 #include <sys/time.h>
-void print_measurement(
+
+void print_measurement(
     struct timeval ktv_start,
     struct timeval ktv_end,
     long int *diff);
-void avg_measurement(
+
+void avg_measurement(
     long int *data,
     int loops);
 
- 
 #endif  /* COMMON_H */
