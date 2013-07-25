@@ -26,66 +26,69 @@
 #include "common.h"
 #include <stdlib.h>
 #include <math.h>
-    void
-print_measurement(
+
+void print_measurement(
     struct timeval ktv_start,
     struct timeval ktv_end,
     long int *diff) 
 {
-    *diff =
-        (((long int) ktv_end.tv_usec - (long int) ktv_start.tv_usec) +
-          (((long int) ktv_end.tv_sec % 1000000 -
-             (long int) ktv_start.tv_sec % 1000000)  *1000000 ) );
-     printf("%ld.%.6ld : %ld.%.6ld : %ld\n",
-              ((long int) ktv_start.tv_sec) % 1000000,
+    *diff =
+        (((long int) ktv_end.tv_usec - (long int) ktv_start.tv_usec) +
+          (((long int) ktv_end.tv_sec % 1000000 -
+             (long int) ktv_start.tv_sec % 1000000) * 1000000));
+    printf("%ld.%.6ld : %ld.%.6ld : %ld\n",
+              ((long int) ktv_start.tv_sec) % 1000000,
               (long int) ktv_start.tv_usec,
-              ((long int) ktv_end.tv_sec) % 1000000,
+              ((long int) ktv_end.tv_sec) % 1000000,
               (long int) ktv_end.tv_usec, *diff);
-}  static double
+}
 
-stddev(
+static double stddev(
     long int *data,
     int count) 
 {
-    double *sq_data = malloc(count * sizeof(double));
-    double total = 0.0;
-    double mean = 0.0;
-    int i = 0;
+    double *sq_data = malloc(count * sizeof(double));
+    double total = 0.0;
+    double mean = 0.0;
+    int i = 0;
 
-     for (i = 0; i < count; ++i) {
-        total += (double) data[i];
-    } mean = total / (double) count;
-     for (i = 0; i < count; ++i) {
-        sq_data[i] = ((double) data[i]) - mean;
-        sq_data[i] *= sq_data[i];
-    }  total = 0.0;
-    for (i = 0; i < count; ++i) {
-        total += sq_data[i];
-    }
-    mean = total / (double) count;
-     return sqrt(mean);
-}
+    for (i = 0; i < count; ++i) {
+        total += (double) data[i];
+    }
+    
+    mean = total / (double) count;
+    for (i = 0; i < count; ++i) {
+        sq_data[i] = ((double) data[i]) - mean;
+        sq_data[i] *= sq_data[i];
+    }
+    
+    total = 0.0;
+    for (i = 0; i < count; ++i) {
+        total += sq_data[i];
+    }
+    mean = total / (double) count;
 
- void
-avg_measurement(
+    return sqrt(mean);
+}
+
+void avg_measurement(
     long int *data,
     int loops) 
 {
-    int i = 0;
-    long int sum = 0;
+    int i = 0;
+    long int sum = 0;
 
-     for (i = 0; i < loops; ++i) {
-        sum += data[i];
-    }
-    printf("mean %f, stdev %f\n",
-            (double) ((double) sum / (double) loops), stddev(data,
-                                                             loops));
-     
-        // repeat avg for all but first measurement
-        sum = 0;
-    for (i = 1; i < loops; ++i) {
-        sum += data[i];
-    }
-    printf("mean (dropped first-%ld) %f\n", data[0],
+    for (i = 0; i < loops; ++i) {
+        sum += data[i];
+    }
+    printf("mean %f, stdev %f\n",
+            (double) ((double) sum / (double) loops), stddev(data, loops));
+    
+    // repeat avg for all but first measurement
+    sum = 0;
+    for (i = 1; i < loops; ++i) {
+        sum += data[i];
+    }
+    printf("mean (dropped first-%ld) %f\n", data[0],
             (double) ((double) sum / ((double) loops - 1.0)));
-} 
+} 

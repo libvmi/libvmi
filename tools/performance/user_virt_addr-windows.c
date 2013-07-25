@@ -32,54 +32,52 @@
 #include <unistd.h>
 #include "xenaccess/xenaccess.h"
 #include "common.h"
-    int
-main(
-    int argc,
-    char **argv) 
+
+int main(int argc, char **argv) 
 {
-    xa_instance_t xai;
-    xa_windows_peb_t peb;
-    unsigned char *memory = NULL;
+    xa_instance_t xai;
+    xa_windows_peb_t peb;
+    unsigned char *memory = NULL;
 
-    uint32_t offset;
-    struct timeval ktv_start;
-    struct timeval ktv_end;
+    uint32_t offset;
+    struct timeval ktv_start;
+    struct timeval ktv_end;
 
-     uint32_t dom = atoi(argv[1]);
-    vmi_pid_t pid = atoi(argv[2]);
-    int loops = atoi(argv[3]);
-    int i = 0;
-    long int diff;
-    long int *data = malloc(loops * sizeof(int));
+    uint32_t dom = atoi(argv[1]);
+    vmi_pid_t pid = atoi(argv[2]);
+    int loops = atoi(argv[3]);
+    int i = 0;
+    long int diff;
+    long int *data = malloc(loops * sizeof(int));
+    
+    /* initialize the xen access library */ 
+    xa_init_vm_id_strict(dom, &xai);
+    if (xa_windows_get_peb(&xai, pid, &peb) == XA_FAILURE) {
+        perror("failed to get windows peb");
+        goto error_exit;
+    }
 
-     
-        /* initialize the xen access library */ 
-        xa_init_vm_id_strict(dom, &xai);
-     if (xa_windows_get_peb(&xai, pid, &peb) == XA_FAILURE) {
-        perror("failed to get windows peb");
-        goto error_exit;
-    }
-     for (i = 0; i < loops; ++i) {
-        gettimeofday(&ktv_start, 0);
-        memory =
-            xa_access_user_va(&xai, peb.ImageBaseAddress, &offset, pid,
-                              PROT_READ);
-        gettimeofday(&ktv_end, 0);
-        if (memory == NULL) {
-            perror("failed to map memory");
-            goto error_exit;
-        }
-         print_measurement(ktv_start, ktv_end, &diff);
-        data[i] = diff;
-         if (memory)
+    for (i = 0; i < loops; ++i) {
+        gettimeofday(&ktv_start, 0);
+        memory = xa_access_user_va(&xai, peb.ImageBaseAddress, &offset, pid, PROT_READ);
+        gettimeofday(&ktv_end, 0);
+        if (memory == NULL) {
+            perror("failed to map memory");
+            goto error_exit;
+        }
+        print_measurement(ktv_start, ktv_end, &diff);
+        data[i] = diff;
+        if (memory)
             munmap(memory, xai.page_size);
-        sleep(2);
-     }
-    avg_measurement(data, loops);
- error_exit:xa_destroy(&xai);
-    if (memory)
+        sleep(2);
+    }
+    avg_measurement(data, loops);
+
+error_exit:
+    xa_destroy(&xai);
+    if (memory)
         munmap(memory, xai.page_size);
-     return 0;
-}
+    return 0;
+}
 
 
