@@ -390,7 +390,10 @@ windows_init(
         errprint("VMI_ERROR: os data already initialized, reinitializing\n");
         free(vmi->os_data);
     }
+
     vmi->os_data = safe_malloc(sizeof(struct windows_instance));
+    bzero(vmi->os_data, sizeof(struct windows_instance));
+    windows = vmi->os_data;
 
     g_hash_table_foreach(vmi->config, (GHFunc)windows_read_config_ghashtable_entries, vmi);
 
@@ -423,7 +426,6 @@ windows_init(
         }
     }
 
-    windows = vmi->os_data;
 
     if (VMI_FAILURE ==
         windows_kernel_symbol_to_address(vmi, "KernBase",

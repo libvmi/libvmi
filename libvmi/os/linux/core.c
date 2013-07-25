@@ -45,7 +45,9 @@ status_t linux_init(vmi_instance_t vmi) {
         errprint("VMI_ERROR: os data already initialized, reinitializing\n");
         free(vmi->os_data);
     }
+
     vmi->os_data = safe_malloc(sizeof(struct linux_instance));
+    bzero(vmi->os_data, sizeof(struct linux_instance));
 
     g_hash_table_foreach(vmi->config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
 
