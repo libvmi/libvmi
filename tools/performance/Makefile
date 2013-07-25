@@ -1,7 +1,7 @@
 CC       = gcc
 
 CFLAGS   += -Wall
-CFLAGS   += #-Werror
+CFLAGS   += -Werror
 CFLAGS   += -O3
 #CFLAGS   += $(INCLUDES) -I.
 CFLAGS   += -Wp,-MD,.$(@F).d
