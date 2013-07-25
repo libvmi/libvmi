@@ -59,5 +59,6 @@ int main(int argc, char **argv)
     avg_measurement(data, loops);
     
     vmi_destroy(vmi);
+    free(data);
     return 0;
 }

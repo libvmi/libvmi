@@ -46,7 +46,7 @@ int main(int argc, char **argv)
     unsigned char *buf = malloc(buf_size);
     int i = 0;
     long int diff;
-    long int *data = malloc(loops * sizeof(int));
+    long int *data = malloc(loops * sizeof(long int));
     int j = 0;
 
     uint32_t value = 0;
@@ -83,7 +83,8 @@ int main(int argc, char **argv)
     }
     avg_measurement(data, loops);
     
-    //    vmi_destroy(vmi);
-    //    free(buf);
+    vmi_destroy(vmi);
+    free(buf);
+    free(data);
     return 0;
 }
