@@ -180,7 +180,7 @@ read_config_file(
     vmi->config = vmi_get_config();
 
     if (vmi->config == NULL) {
-        errprint("Failed to read config file.\n");
+        errprint("No entry in config file for %s.\n", vmi->image_type);
         ret = VMI_FAILURE;
         goto error_exit;
     } else {
