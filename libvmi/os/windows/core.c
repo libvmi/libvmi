@@ -367,7 +367,15 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
-    errprint("VMI_WARNING: Invalid offset %s given for Windows target\n", key);
+    if (strncmp(key, "name", CONFIG_STR_LENGTH) == 0) {
+        goto _done;
+    }
+
+    if (strncmp(key, "domid", CONFIG_STR_LENGTH) == 0) {
+        goto _done;
+    }
+
+    warnprint("Invalid offset \"%s\" given for Windows target\n", key);
 
     _done: return;
 }
