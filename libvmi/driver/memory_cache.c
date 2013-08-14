@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -93,17 +93,17 @@ clean_cache(
     GList *list = NULL;
 
     while (vmi->memory_cache_size > vmi->memory_cache_size_max / 2) {
-        gpointer key = NULL;
         GList *last = g_list_last(vmi->memory_cache_lru);
 
-        key = last->data;
-        list = g_list_prepend(list, key);
         vmi->memory_cache_lru =
             g_list_remove_link(vmi->memory_cache_lru, last);
+        list = g_list_concat(list, last);
+
         vmi->memory_cache_size--;
     }
     g_list_foreach(list, remove_entry, vmi->memory_cache);
     g_list_free(list);
+
     dbprint("--MEMORY cache cleanup round complete (cache size = %u)\n",
             g_hash_table_size(vmi->memory_cache));
 }
@@ -124,9 +124,9 @@ validate_and_return_data(
 
         GList* lru_entry = g_list_find_custom(vmi->memory_cache_lru,
                 &entry->paddr, g_int64_equal);
-        gint64* key = lru_entry->data;
-        vmi->memory_cache_lru = g_list_remove(vmi->memory_cache_lru, key);
-        vmi->memory_cache_lru = g_list_prepend(vmi->memory_cache_lru, key);
+        vmi->memory_cache_lru = g_list_remove_link(vmi->memory_cache_lru,
+                lru_entry);
+        vmi->memory_cache_lru = g_list_concat(lru_entry, vmi->memory_cache_lru);
     }
     entry->last_used = now;
     return entry->data;
@@ -137,7 +137,7 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
 {
 
     // sanity check - are we getting memory outside of the physical memory range?
-    // 
+    //
     // This does not work with a Xen PV VM during page table lookups, because
     // cr3 > [physical memory size]. It *might* not work when examining a PV
     // snapshot, since we're not sure where the page tables end up. So, we
@@ -193,6 +193,7 @@ memory_cache_init(
     get_data_callback = get_data;
     release_data_callback = release_data;
 }
+
 
 #if ENABLE_PAGE_CACHE == 1
 void *
@@ -250,9 +251,26 @@ void
 memory_cache_destroy(
     vmi_instance_t vmi)
 {
-    uint32_t tmp = vmi->memory_cache_size_max;
-
     vmi->memory_cache_size_max = 0;
-    clean_cache(vmi);
-    vmi->memory_cache_size_max = tmp;
+
+    if (vmi->memory_cache_lru) {
+#if GLIB_CHECK_VERSION(2, 28, 0)
+        g_list_free_full(vmi->memory_cache_lru, g_free);
+#else
+        g_list_foreach(vmi->memory_cache_lru, g_free, NULL);
+        g_list_free(vmi->memory_cache_lru);
+#endif
+        vmi->memory_cache_lru = NULL;
+    }
+
+    if (vmi->memory_cache) {
+        g_hash_table_destroy(vmi->memory_cache);
+        vmi->memory_cache = NULL;
+    }
+
+    vmi->memory_cache_age = 0;
+    vmi->memory_cache_size = 0;
+    vmi->memory_cache_size_max = 0;
+    get_data_callback = NULL;
+    release_data_callback = NULL;
 }
