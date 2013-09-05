@@ -86,6 +86,15 @@ status_t driver_pause_vm(
     vmi_instance_t vmi);
 status_t driver_resume_vm(
     vmi_instance_t vmi);
+#if ENABLE_SHM_SNAPSHOT == 1
+/* "shm-snapshot" feature is applicable to
+ * hypervisor drivers (e.g. KVM, Xen), and not to the
+ * other drivers (e.g. File). */
+status_t driver_shm_snapshot_vm(
+    vmi_instance_t vmi);
+status_t driver_destroy_shm_snapshot_vm(
+    vmi_instance_t vmi);
+#endif
 status_t driver_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout);
