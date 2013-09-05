@@ -82,6 +82,8 @@ typedef uint32_t vmi_mode_t;
 
 #define VMI_INIT_EVENTS (1 << 18) /**< init support for memory events */
 
+#define VMI_INIT_SHM_SNAPSHOT (1 << 19) /**< setup shm-snapshot in vmi_init() if the feature is activated */
+
 #define VMI_CONFIG_NONE (1 << 24) /**< no config provided */
 
 #define VMI_CONFIG_GLOBAL_FILE_ENTRY (1 << 25) /**< config in file provided */
@@ -1289,6 +1291,36 @@ status_t vmi_pause_vm(
  */
 status_t vmi_resume_vm(
     vmi_instance_t vmi);
+
+#if ENABLE_SHM_SNAPSHOT == 1
+/**
+ * Create a shm-snapshot and enter "shm-snapshot" mode.
+ *  (KVM only, Xen support is pending.)
+ *  (This API requires a patch to KVM.)
+ * If LibVMI is in "live" mode (i.e. KVM patch or KVM native), this will
+ * switch it to "shm-snapshot" mode; If LibVMI is already in "shm-snapshot" mode,
+ * this will destroy the old shm-snapshot and create a new one.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_shm_snapshot_create(
+		vmi_instance_t vmi);
+
+/**
+ * Destroy existed shm-snapshot and exit "shm-snapshot" mode.
+ *  (KVM only, Xen support is pending.)
+ *  (This API requires a patch to KVM.)
+ * If LibVMI is in "shm-snapshot", this API will switch it to "live" mode
+ * (i.e. KVM patch or KVM native); if LibVMI is already in "live" mode,
+ * this API does nothing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_shm_snapshot_destroy(
+		vmi_instance_t vmi);
+#endif
 
 /**
  * Removes all entries from LibVMI's internal virtual to physical address

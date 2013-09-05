@@ -65,6 +65,13 @@ AC_ARG_ENABLE([kvm],
       [enable_kvm=yes])
 AM_CONDITIONAL([KVM], [test x$enable_kvm = xyes])
 
+AC_ARG_ENABLE([shm_snapshot],
+      [AS_HELP_STRING([--disable-shm-snapshot],
+         [Support shm-snapshot with KVM VMs (Xen is pending) (default is no)])],
+      [enable_shm_snapshot=$enableval],
+      [enable_shm_snapshot=no])
+AM_CONDITIONAL([KVM], [test x$enable_shm_snapshot = xyes])
+
 AC_ARG_ENABLE([file],
       [AS_HELP_STRING([--disable-file],
          [Support memory introspection with physical memory dumps in a file (default is yes)])],
@@ -208,6 +215,15 @@ kvm_space='      '
     [fi]
 [fi]
 
+have_shm_snapshot='no'
+shm_snapshot_space=' '
+[if test "$enable_shm_snapshot" = "yes"]
+[then]
+    AC_DEFINE([ENABLE_SHM_SNAPSHOT], [1], [Define to 1 to enable shm-snapshot support.])
+    shm_snapshot_space=''
+    have_shm_snapshot='yes'
+[fi]
+
 have_file='no'
 file_space='      '
 [if test "$enable_file" = "yes"]
@@ -296,17 +312,18 @@ Host system type: $host
 Build system type: $build
 Installation prefix: $prefix
 
-Feature      | Option                  | Reason
--------------|-------------------------|----------------------------
-Xen Support  | --enable-xen=$enable_xen$xen_space   | $have_xen
-Xen Events   | --enable-xen-events=$enable_xen_events$xen_event_space | $have_xen_events
-KVM Support  | --enable-kvm=$enable_kvm$kvm_space   | $have_kvm
-File Support | --enable-file=$enable_file$file_space  | $have_file
--------------|-------------------------|----------------------------
+Feature      | Option                    | Reason
+-------------|---------------------------|----------------------------
+Xen Support  | --enable-xen=$enable_xen$xen_space     | $have_xen
+Xen Events   | --enable-xen-events=$enable_xen_events$xen_event_space   | $have_xen_events
+KVM Support  | --enable-kvm=$enable_kvm$kvm_space     | $have_kvm
+File Support | --enable-file=$enable_file$file_space    | $have_file
+Shm-snapshot | --enable-shm-snapshot=$enable_shm_snapshot$shm_snapshot_space | $have_shm_snapshot
+-------------|---------------------------|----------------------------
 
-Tools        | Option                  | Reason
--------------|-------------------------|----------------------------
-VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space | $have_vmifs
+Tools        | Option                    | Reason
+-------------|---------------------------|----------------------------
+VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space         | $have_vmifs
  
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.

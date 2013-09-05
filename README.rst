@@ -149,6 +149,41 @@ If you would like LibVMI to work on physical memory snapshots saved to
 a file, then you don't need any special setup.
 
 
+Shm-snapshot Support
+------------------------------
+(Don't mix up with VM snapshot file) This technique will provide a very 
+fast and coherent memory access, except the creation of shm-snapshot can take
+0.2 ~ 1.4 seconds when the memory size of guest VM expands from 512MB to 
+3GB. This technique is currently for KVM only, we are going to support Xen
+later. If you would like LibVMI to work on a shm-snapshot, then 
+you need to do the following:
+
+- Ensure that your libvirt installation supports QMP commands.
+
+- Patch QEMU-KVM with the provided shm-snapshot patch.  
+  cd qemu-1.6
+  patch -p1 < [libvmi_dir]/tools/qemu-kvm-patch/kvm-physmem-access-physmem-snapshot_1.6.0.patch
+  make
+  make install
+  
+- ./configure --enable-shm-snapshot
+
+- Choose a setup method :
+  1) Add VMI_INIT_SHM_SNAPSHOT flag to vmi_int(), then vmi_init() will create 
+     a shm-snapshot and enter shm-snapshot mode automatically. Once LibVMI enters 
+     the shm-snapshot mode, memory access will be redirect to the shared memory 
+     shm-snapshot, rather than your live guest VM.
+  
+  2) After the vmi_init() has been called, invoke vmi_snapshot_create(vmi)
+     to snaphsot your guest VM and enter shm-snapshot mode.
+  
+  No matter which method you choose, you can turn LibVMI back to live mode 
+  by calling vmi_shm_snapshot_destroy(vmi).
+  
+  Even if you didn't call vmi_shm_snapshot_destroy(vmi), vmi_destroy(vmi) will 
+  teardown the shm-snapshot if existed.
+
+
 Building
 --------
 LibVMI uses the standard GNU build system.  To compile this library, simply

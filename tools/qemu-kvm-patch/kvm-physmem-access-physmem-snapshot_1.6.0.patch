@@ -1,0 +1,531 @@
+diff --git a/Makefile.target b/Makefile.target
+index 9a49852..46db6e7 100644
+--- a/Makefile.target
++++ b/Makefile.target
+@@ -113,7 +113,7 @@ endif #CONFIG_BSD_USER
+ #########################################################
+ # System emulator target
+ ifdef CONFIG_SOFTMMU
+-obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o
++obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o memory-snapshot.o memory-access.o
+ obj-y += qtest.o
+ obj-y += hw/
+ obj-$(CONFIG_FDT) += device_tree.o
+diff --git a/memory-access.c b/memory-access.c
+new file mode 100644
+index 0000000..801299e
+--- /dev/null
++++ b/memory-access.c
+@@ -0,0 +1,199 @@
++/*
++ * Access guest physical memory via a domain socket.
++ *
++ * Copyright (C) 2011 Sandia National Laboratories
++ * Author: Bryan D. Payne (bdpayne@acm.org)
++ */
++
++#include "memory-access.h"
++//#include "cpu-all.h"
++#include "qemu-common.h"
++#include "exec/cpu-common.h"
++#include "config.h"
++
++#include <stdlib.h>
++#include <stdio.h>
++#include <string.h>
++#include <pthread.h>
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <sys/un.h>
++#include <unistd.h>
++#include <signal.h>
++#include <stdint.h>
++
++struct request{
++    uint8_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
++    uint64_t address;  // address to read from OR write to
++    uint64_t length;   // number of bytes to read OR write
++};
++
++static uint64_t
++connection_read_memory (uint64_t user_paddr, void *buf, uint64_t user_len)
++{
++    hwaddr paddr = (hwaddr) user_paddr;
++    hwaddr len = (hwaddr) user_len;
++    void *guestmem = cpu_physical_memory_map(paddr, &len, 0);
++    if (!guestmem){
++        return 0;
++    }
++    memcpy(buf, guestmem, len);
++    cpu_physical_memory_unmap(guestmem, len, 0, len);
++
++    return len;
++}
++
++static uint64_t
++connection_write_memory (uint64_t user_paddr, void *buf, uint64_t user_len)
++{
++    hwaddr paddr = (hwaddr) user_paddr;
++    hwaddr len = (hwaddr) user_len;
++    void *guestmem = cpu_physical_memory_map(paddr, &len, 1);
++    if (!guestmem){
++        return 0;
++    }
++    memcpy(guestmem, buf, len);
++    cpu_physical_memory_unmap(guestmem, len, 0, len);
++
++    return len;
++}
++
++static void
++send_success_ack (int connection_fd)
++{
++    uint8_t success = 1;
++    int nbytes = write(connection_fd, &success, 1);
++    if (1 != nbytes){
++        printf("QemuMemoryAccess: failed to send success ack\n");
++    }
++}
++
++static void
++send_fail_ack (int connection_fd)
++{
++    uint8_t fail = 0;
++    int nbytes = write(connection_fd, &fail, 1);
++    if (1 != nbytes){
++        printf("QemuMemoryAccess: failed to send fail ack\n");
++    }
++}
++
++static void
++connection_handler (int connection_fd)
++{
++    int nbytes;
++    struct request req;
++
++    while (1){
++        // client request should match the struct request format
++        nbytes = read(connection_fd, &req, sizeof(struct request));
++        if (nbytes != sizeof(struct request)){
++            // error
++            continue;
++        }
++        else if (req.type == 0){
++            // request to quit, goodbye
++            break;
++        }
++        else if (req.type == 1){
++            // request to read
++            char *buf = malloc(req.length + 1);
++            nbytes = connection_read_memory(req.address, buf, req.length);
++            if (nbytes != req.length){
++                // read failure, return failure message
++                buf[req.length] = 0; // set last byte to 0 for failure
++                nbytes = write(connection_fd, buf, 1);
++            }
++            else{
++                // read success, return bytes
++                buf[req.length] = 1; // set last byte to 1 for success
++                nbytes = write(connection_fd, buf, nbytes + 1);
++            }
++            free(buf);
++        }
++        else if (req.type == 2){
++            // request to write
++            void *write_buf = malloc(req.length);
++            nbytes = read(connection_fd, &write_buf, req.length);
++            if (nbytes != req.length){
++                // failed reading the message to write
++                send_fail_ack(connection_fd);
++            }
++            else{
++                // do the write
++                nbytes = connection_write_memory(req.address, write_buf, req.length);
++                if (nbytes == req.length){
++                    send_success_ack(connection_fd);
++                }
++                else{
++                    send_fail_ack(connection_fd);
++                }
++            }
++            free(write_buf);
++        }
++        else{
++            // unknown command
++            printf("QemuMemoryAccess: ignoring unknown command (%d)\n", req.type);
++            char *buf = malloc(1);
++            buf[0] = 0;
++            nbytes = write(connection_fd, buf, 1);
++            free(buf);
++        }
++    }
++
++    close(connection_fd);
++}
++
++static void *
++memory_access_thread (void *path)
++{
++    struct sockaddr_un address;
++    int socket_fd, connection_fd;
++    socklen_t address_length;
++
++    socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
++    if (socket_fd < 0){
++        printf("QemuMemoryAccess: socket failed\n");
++        goto error_exit;
++    }
++    unlink(path);
++    address.sun_family = AF_UNIX;
++    address_length = sizeof(address.sun_family) + sprintf(address.sun_path, "%s", (char *) path);
++
++    if (bind(socket_fd, (struct sockaddr *) &address, address_length) != 0){
++        printf("QemuMemoryAccess: bind failed\n");
++        goto error_exit;
++    }
++    if (listen(socket_fd, 0) != 0){
++        printf("QemuMemoryAccess: listen failed\n");
++        goto error_exit;
++    }
++
++    connection_fd = accept(socket_fd, (struct sockaddr *) &address, &address_length);
++    connection_handler(connection_fd);
++
++    close(socket_fd);
++    unlink(path);
++error_exit:
++    return NULL;
++}
++
++int
++memory_access_start (const char *path)
++{
++    pthread_t thread;
++    sigset_t set, oldset;
++    int ret;
++
++    // create a copy of path that we can safely use
++    char *pathcopy = malloc(strlen(path) + 1);
++    memcpy(pathcopy, path, strlen(path) + 1);
++
++    // start the thread
++    sigfillset(&set);
++    pthread_sigmask(SIG_SETMASK, &set, &oldset);
++    ret = pthread_create(&thread, NULL, memory_access_thread, pathcopy);
++    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
++
++    return ret;
++}
+diff --git a/memory-access.h b/memory-access.h
+new file mode 100644
+index 0000000..e538134
+--- /dev/null
++++ b/memory-access.h
+@@ -0,0 +1,8 @@
++/*
++ * Mount guest physical memory using FUSE.
++ *
++ * Copyright (C) 2011 Sandia National Laboratories
++ * Author: Bryan D. Payne (bdpayne@acm.org)
++ */
++
++int memory_access_start (const char *path);
+diff --git a/memory-snapshot.c b/memory-snapshot.c
+new file mode 100644
+index 0000000..7c686ff
+--- /dev/null
++++ b/memory-snapshot.c
+@@ -0,0 +1,123 @@
++/* 
++ * Shared Memory Snapshot via POSIX shared memory
++ *
++ * Copyright (C) 2013
++ * Author: Peter F. Klemperer (klemperer@cmu.edu)
++ */
++
++
++#include "config-host.h"
++
++#include "monitor/monitor.h"
++#include "sysemu/sysemu.h"
++#include "exec/gdbstub.h"
++#include "sysemu/dma.h"
++#include "sysemu/kvm.h"
++#include "qmp-commands.h"
++
++#include "qemu/thread.h"
++#include "sysemu/cpus.h"
++#include "sysemu/qtest.h"
++#include "qemu/main-loop.h"
++#include "qemu/bitmap.h"
++
++#ifndef _WIN32
++#include "qemu/compatfd.h"
++#endif
++
++#ifdef CONFIG_LINUX
++
++#include <sys/mman.h>
++#include <sys/stat.h>        /* For mode constants */
++#include <fcntl.h>           /* For O_* constants */
++                     
++#include <sys/prctl.h>
++
++#endif /* CONFIG_LINUX */
++
++#include "memory-snapshot.h"
++
++
++// shm_pmemsave - same functionality as pmemsave
++// except that the "file" is actually shm shared memory space.
++int64_t shm_pmemsave(int64_t psize, const char *filename,
++                  Error **errp)
++{
++    fprintf(stderr, "qemu: shm_pmemsave %s : start\n", filename);
++    int64_t addr = 0;
++    int64_t size = psize;
++    uint32_t l;
++    uint8_t buf[1024];
++    
++    int shm_fd;
++    int shm_flags = O_CREAT | O_RDWR;
++    int perms = 0777;
++    shm_fd = shm_open( filename, shm_flags, (mode_t) perms);
++    if ( shm_fd == -1 ) {
++        error_setg_file_open(errp, errno, filename);
++        psize = 0;
++        return psize;
++    }
++
++    if( ftruncate( shm_fd, size ) == -1 ) {
++        error_set(errp, QERR_IO_ERROR); 
++        psize = 0;
++        goto exit;
++    }
++
++    // mmap open file
++    uint8_t *shm_buffer;
++    int mprot  = PROT_READ | PROT_WRITE;
++    int mflags = MAP_SHARED;
++    shm_buffer = (void *) mmap( NULL, size, mprot, mflags, shm_fd, (off_t)0 );
++    if (shm_buffer == MAP_FAILED ) {
++        error_set(errp, QERR_IO_ERROR);
++        psize = 0;
++        goto exit;
++    }
++
++    while (size != 0) {
++        l = sizeof(buf);
++        if (l > size)
++            l = size;
++
++        // read out memory
++        cpu_physical_memory_rw(addr, buf, l, 0);
++
++        // memcopy from buffer into file instead of file
++        memcpy( (shm_buffer + addr), buf, l );
++
++        addr += l;
++        size -= l;
++    }
++
++    // munmap the shm_buffer
++    if( munmap( shm_buffer, psize ) == -1 ) {
++        error_set(errp, QERR_IO_ERROR); 
++        psize = 0;
++        goto exit;
++    }
++
++exit:
++    close(shm_fd);
++    return psize;
++}
++
++
++int64_t qmp_snapshot_create(const char *filename, Error **errp)
++{
++    RAMBlock *block;
++    block = QTAILQ_FIRST( &ram_list.blocks );
++
++    int64_t size = memory_region_size(block->mr);
++
++    return shm_pmemsave( size, filename, errp );
++}
++
++
++void qmp_snapshot_destroy(const char *filename, Error **errp)
++{
++    shm_unlink( filename );
++    return;
++}
++
+diff --git a/memory-snapshot.h b/memory-snapshot.h
+new file mode 100644
+index 0000000..36e2a0a
+--- /dev/null
++++ b/memory-snapshot.h
+@@ -0,0 +1,13 @@
++/* 
++ * Shared Memory Snapshot via POSIX shared memory
++ *
++ * Copyright (C) 2013
++ * Author: Peter F. Klemperer (klemperer@cmu.edu)
++ */
++#ifndef MEMORY_SNAPSHOT_H
++#define MEMORY_SNAPSHOT_H 1
++
++/* memory-snapshot.c */
++int64_t shm_pmemsave(int64_t size, const char *filename, Error **errp);
++
++#endif /* MEMORY_SNAPSHOT_H */
+diff --git a/monitor.c b/monitor.c
+index 5dc0aa9..4120d5f 100644
+--- a/monitor.c
++++ b/monitor.c
+@@ -67,6 +67,7 @@
+ #include "qmp-commands.h"
+ #include "hmp.h"
+ #include "qemu/thread.h"
++#include "memory-access.h"
+ 
+ /* for pic/irq_info */
+ #if defined(TARGET_SPARC)
+@@ -1258,6 +1259,13 @@ static void do_print(Monitor *mon, const QDict *qdict)
+     monitor_printf(mon, "\n");
+ }
+ 
++static int do_physical_memory_access(Monitor *mon, const QDict *qdict, QObject **ret_data)
++{
++    const char *path = qdict_get_str(qdict, "path");
++    memory_access_start(path);
++    return 0;
++}
++
+ static void do_sum(Monitor *mon, const QDict *qdict)
+ {
+     uint32_t addr;
+diff --git a/qapi-schema.json b/qapi-schema.json
+index a51f7d2..166874d 100644
+--- a/qapi-schema.json
++++ b/qapi-schema.json
+@@ -3773,3 +3773,31 @@
+ ##
+ { 'command': 'query-rx-filter', 'data': { '*name': 'str' },
+   'returns': ['RxFilterInfo'] }
++
++##
++# @snapshot-create
++#
++# Create a memory snapshot with POSIX shared memory.
++#
++# @filename: store at /dev/shm/filename
++#
++# Returns: json-int the size of the memory snapshot in bytes.
++#
++# Since: 1.6
++##
++{'command': 'snapshot-create', 'data': { 'filename': 'str' },
++  'returns': 'int' }
++
++##
++# @snapshot-destroy
++#
++# Destroy the memory snapshot with POSIX shared memory.
++#
++# @filename: Destroy snapshot stored at /dev/shm/filename
++#
++# Returns: none.
++#
++# Since: 1.6
++##
++{'command': 'snapshot-destroy', 'data': { 'filename': 'str' } }
++
+diff --git a/qmp-commands.hx b/qmp-commands.hx
+index cf47e3f..bc157de 100644
+--- a/qmp-commands.hx
++++ b/qmp-commands.hx
+@@ -610,6 +610,84 @@ Example:
+ EQMP
+ 
+     {
++        .name       = "snapshot-create",
++        .args_type  = "filename:s",
++        .help       = "share guest physical memory image at '/dev/shm/filename'",
++        .mhandler.cmd_new = qmp_marshal_input_snapshot_create,
++    },
++
++SQMP
++snapshot-create
++----------
++
++Mount guest physical memory image at 'path'. 
++Returns json-int indicating the size of the snapshot.
++
++Arguments:
++
++- "path": mount point path (json-string)
++
++Example:
++
++-> { "execute": "snapshot-create",
++             "arguments": { "path": "/snapshot" } }
++<- { "return": {1074859} }
++
++EQMP
++
++    {
++        .name       = "snapshot-destroy",
++        .args_type  = "filename:s",
++        .help       = "destroy guest physical memory image at '/dev/shm/filename'",
++        .mhandler.cmd_new = qmp_marshal_input_snapshot_destroy,
++    },
++
++SQMP
++snapshot-destroy
++----------
++
++Mount guest physical memory image at 'path'. 
++
++Arguments:
++
++- "path": mount point path (json-string)
++
++Example:
++
++-> { "execute": "snapshot-destroy",
++             "arguments": { "path": "/snapshot" } }
++<- { "return": {} }
++
++EQMP
++
++    {
++        .name       = "pmemaccess",
++        .args_type  = "path:s",
++        .params     = "path",
++        .help       = "mount guest physical memory image at 'path'",
++        .user_print = monitor_user_noop,
++        .mhandler.cmd_new = do_physical_memory_access,
++    },
++
++SQMP
++pmemaccess
++----------
++
++Mount guest physical memory image at 'path'.
++
++Arguments:
++
++- "path": mount point path (json-string)
++
++Example:
++
++-> { "execute": "pmemaccess",
++             "arguments": { "path": "/tmp/guestname" } }
++<- { "return": {} }
++
++EQMP
++
++    {
+         .name       = "migrate",
+         .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
+         .mhandler.cmd_new = qmp_marshal_input_migrate,

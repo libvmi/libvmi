@@ -107,6 +107,12 @@ struct driver_instance {
     *resume_vm_ptr) (
     vmi_instance_t);
     status_t (
+	*create_shm_snapshot_ptr) (
+	vmi_instance_t);
+	status_t (
+	*destroy_shm_snapshot_ptr) (
+	vmi_instance_t);
+	status_t (
     *events_listen_ptr)(
     vmi_instance_t,
     uint32_t);
@@ -193,6 +199,13 @@ driver_kvm_setup(
     instance->is_pv_ptr = &kvm_is_pv;
     instance->pause_vm_ptr = &kvm_pause_vm;
     instance->resume_vm_ptr = &kvm_resume_vm;
+#if ENABLE_SHM_SNAPSHOT == 1
+	instance->create_shm_snapshot_ptr = &kvm_create_shm_snapshot;
+	instance->destroy_shm_snapshot_ptr = &kvm_destroy_shm_snapshot;
+#else
+	instance->create_shm_snapshot_ptr = NULL;
+	instance->destroy_shm_snapshot_ptr = NULL;
+#endif
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
     instance->set_mem_access_ptr = NULL;
@@ -631,6 +644,36 @@ driver_resume_vm(
         return VMI_FAILURE;
     }
 }
+
+#if ENABLE_SHM_SNAPSHOT == 1
+status_t driver_shm_snapshot_vm(
+    vmi_instance_t vmi)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+
+    if (NULL != ptrs && NULL != ptrs->create_shm_snapshot_ptr) {
+        return ptrs->create_shm_snapshot_ptr(vmi);
+    }
+    else {
+        dbprint("WARNING: driver_shm_snapshot_vm function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t driver_destroy_shm_snapshot_vm(
+    vmi_instance_t vmi)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+
+    if (NULL != ptrs && NULL != ptrs->destroy_shm_snapshot_ptr) {
+        return ptrs->destroy_shm_snapshot_ptr(vmi);
+    }
+    else {
+        dbprint("WARNING: driver_destroy_shm_snapshot_vm function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+#endif
 
 status_t driver_events_listen(
     vmi_instance_t vmi,
