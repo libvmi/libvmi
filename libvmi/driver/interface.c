@@ -165,6 +165,13 @@ driver_xen_setup(
     instance->is_pv_ptr = &xen_is_pv;
     instance->pause_vm_ptr = &xen_pause_vm;
     instance->resume_vm_ptr = &xen_resume_vm;
+#if ENABLE_SHM_SNAPSHOT == 1
+	instance->create_shm_snapshot_ptr = &xen_create_shm_snapshot;
+	instance->destroy_shm_snapshot_ptr = &xen_destroy_shm_snapshot;
+#else
+	instance->create_shm_snapshot_ptr = NULL;
+	instance->destroy_shm_snapshot_ptr = NULL;
+#endif
 #if ENABLE_XEN_EVENTS==1
     instance->events_listen_ptr = &xen_events_listen;
     instance->set_reg_access_ptr = &xen_set_reg_access;
