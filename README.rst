@@ -153,22 +153,29 @@ Shm-snapshot Support
 ------------------------------
 (Don't mix up with VM snapshot file) This technique will provide a very 
 fast and coherent memory access, except the creation of shm-snapshot can take
-0.2 ~ 1.4 seconds when the memory size of guest VM expands from 512MB to 
-3GB. This technique is currently for KVM only, we are going to support Xen
-later. If you would like LibVMI to work on a shm-snapshot, then 
-you need to do the following:
+0.2 ~ 1.4 seconds (KVM) when the memory size of guest VM expands from 512MB to 
+3GB. 
+Shm-snapshot supports both KVM and Xen. However,shm-snapshot for Xen is 
+currently created by LibVMI, hence unreal. Moreover,it takes more time (about 3 
+seconds in 1GB guest memory settings) to create Xen "shm-snapshot" because we 
+have to probe unmmapable memory page holes one by one.
 
-- Ensure that your libvirt installation supports QMP commands.
+If you would like LibVMI to work on a shm-snapshot, then you need to do the 
+following:
 
-- Patch QEMU-KVM with the provided shm-snapshot patch.  
-  cd qemu-1.6
-  patch -p1 < [libvmi_dir]/tools/qemu-kvm-patch/kvm-physmem-access-physmem-snapshot_1.6.0.patch
-  make
-  make install
+(P.S: If you use Xen, just to start on step 3)
+
+1. ensure that your libvirt installation supports QMP commands.
+
+2. patch QEMU-KVM with the provided shm-snapshot patch.  
+    cd qemu-1.6
+    patch -p1 < [libvmi_dir]/tools/qemu-kvm-patch/kvm-physmem-access-physmem-snapshot_1.6.0.patch
+    make
+    make install
   
-- ./configure --enable-shm-snapshot
+3. ./configure --enable-shm-snapshot
 
-- Choose a setup method :
+4. Choose a setup method :
   1) Add VMI_INIT_SHM_SNAPSHOT flag to vmi_int(), then vmi_init() will create 
      a shm-snapshot and enter shm-snapshot mode automatically. Once LibVMI enters 
      the shm-snapshot mode, memory access will be redirect to the shared memory 

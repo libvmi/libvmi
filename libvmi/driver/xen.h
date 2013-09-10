@@ -86,6 +86,13 @@ typedef struct xen_instance {
 #if ENABLE_XEN_EVENTS==1
     xen_events_t *events; /**< handle to events data */
 #endif
+
+#if ENABLE_SHM_SNAPSHOT == 1
+    char *shm_snapshot_path;  /** reserved for shared memory snapshot device path in /dev/shm directory */
+    int   shm_snapshot_fd;    /** reserved for file description of the shared memory snapshot device */
+    void *shm_snapshot_map;   /** reserved mapped shared memory region. It's currently malloc() regions */
+    void *shm_snapshot_cpu_regs;  /** structure of dumped CPU registers */
+#endif
 } xen_instance_t;
 
 #else
@@ -158,3 +165,9 @@ status_t xen_set_domain_debug_control(
     vmi_instance_t vmi,
     unsigned long vcpu,
     int enable);
+#if ENABLE_SHM_SNAPSHOT == 1
+status_t xen_create_shm_snapshot(
+    vmi_instance_t vmi);
+status_t xen_destroy_shm_snapshot(
+    vmi_instance_t vmi);
+#endif
