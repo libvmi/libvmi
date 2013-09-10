@@ -1161,6 +1161,11 @@ kvm_destroy_shm_snapshot(
 
 	return kvm_setup_live_mode(vmi);
 }
+
+const void * kvm_get_dgpma(
+    vmi_instance_t vmi) {
+    return kvm_get_instance(vmi)->shm_snapshot_map;
+}
 #endif
 
 //////////////////////////////////////////////////////////////////////
@@ -1314,6 +1319,11 @@ kvm_destroy_shm_snapshot(
     vmi_instance_t vmi)
 {
     return VMI_FAILURE;
+}
+
+const void * kvm_get_dgpma(
+    vmi_instance_t vmi) {
+    return NULL;
 }
 #endif
 

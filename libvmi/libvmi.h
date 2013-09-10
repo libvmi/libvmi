@@ -1323,6 +1323,17 @@ status_t vmi_shm_snapshot_destroy(
 #endif
 
 /**
+ * Direct Guest Physical Memory Access: Get a read-only pointer of shm-snapshot.
+ * This function provides a much faster (non-copy) option to read guest physical
+ * memory bypassing vmi_read_pa().
+ * If the shm-snapshot hasn't been created yet, it returns NULL.
+ */
+const void * vmi_get_dgpma(
+    vmi_instance_t vmi);
+
+/**
+
+/**
  * Removes all entries from LibVMI's internal virtual to physical address
  * cache.  This is generally only useful if you believe that an entry in
  * the cache is incorrect, or out of date.
