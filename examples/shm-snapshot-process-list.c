@@ -31,7 +31,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 
-void list_processes(vmi_instance_t* vmi, addr_t current_process,
+void list_processes(vmi_instance_t vmi, addr_t current_process,
     addr_t list_head, unsigned long tasks_offset, addr_t current_list_entry,
     status_t status, addr_t next_list_entry, unsigned long pid_offset,
     vmi_pid_t pid, char* procname, unsigned long name_offset) {

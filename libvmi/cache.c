@@ -646,7 +646,7 @@ sym_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
-    char *sym,
+    const char *sym,
     addr_t *va)
 {
     return VMI_FAILURE;
@@ -657,7 +657,7 @@ sym_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
-    char *sym,
+    const char *sym,
     addr_t va)
 {
     return;
