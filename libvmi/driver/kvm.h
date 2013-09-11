@@ -109,4 +109,6 @@ status_t kvm_create_shm_snapshot(
     vmi_instance_t vmi);
 status_t kvm_destroy_shm_snapshot(
     vmi_instance_t vmi);
+const void * kvm_get_dgpma(
+    vmi_instance_t vmi);
 #endif

@@ -2175,6 +2175,11 @@ xen_destroy_shm_snapshot(
 
 	return xen_setup_live_mode(vmi);
 }
+
+const void * xen_get_dgpma(
+    vmi_instance_t vmi) {
+    return xen_get_instance(vmi)->shm_snapshot_map;
+}
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2355,6 +2360,11 @@ xen_destroy_shm_snapshot(
     vmi_instance_t vmi)
 {
     return VMI_FAILURE;
+}
+
+const void * xen_get_dgpma(
+    vmi_instance_t vmi) {
+    return NULL;
 }
 #endif
 
