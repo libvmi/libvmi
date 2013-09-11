@@ -170,4 +170,6 @@ status_t xen_create_shm_snapshot(
     vmi_instance_t vmi);
 status_t xen_destroy_shm_snapshot(
     vmi_instance_t vmi);
+const void * xen_get_dgpma(
+    vmi_instance_t vmi);
 #endif

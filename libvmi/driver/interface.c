@@ -112,6 +112,9 @@ struct driver_instance {
 	status_t (
 	*destroy_shm_snapshot_ptr) (
 	vmi_instance_t);
+	const void * (
+	*get_dgpma_ptr) (
+	vmi_instance_t);
 	status_t (
     *events_listen_ptr)(
     vmi_instance_t,
@@ -168,9 +171,11 @@ driver_xen_setup(
 #if ENABLE_SHM_SNAPSHOT == 1
 	instance->create_shm_snapshot_ptr = &xen_create_shm_snapshot;
 	instance->destroy_shm_snapshot_ptr = &xen_destroy_shm_snapshot;
+	instance->get_dgpma_ptr = &xen_get_dgpma;
 #else
 	instance->create_shm_snapshot_ptr = NULL;
 	instance->destroy_shm_snapshot_ptr = NULL;
+	instance->get_dgpma_ptr = NULL;
 #endif
 #if ENABLE_XEN_EVENTS==1
     instance->events_listen_ptr = &xen_events_listen;
@@ -209,9 +214,11 @@ driver_kvm_setup(
 #if ENABLE_SHM_SNAPSHOT == 1
 	instance->create_shm_snapshot_ptr = &kvm_create_shm_snapshot;
 	instance->destroy_shm_snapshot_ptr = &kvm_destroy_shm_snapshot;
+	instance->get_dgpma_ptr = &kvm_get_dgpma;
 #else
 	instance->create_shm_snapshot_ptr = NULL;
 	instance->destroy_shm_snapshot_ptr = NULL;
+	instance->get_dgpma_ptr = NULL;
 #endif
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
@@ -679,6 +686,20 @@ status_t driver_destroy_shm_snapshot_vm(
         dbprint("WARNING: driver_destroy_shm_snapshot_vm function not implemented.\n");
         return VMI_FAILURE;
     }
+}
+
+const void * driver_get_dgpma(
+    vmi_instance_t vmi) {
+    driver_instance_t ptrs = driver_get_instance(vmi);
+
+    if (NULL != ptrs && NULL != ptrs->get_dgpma_ptr) {
+        return ptrs->get_dgpma_ptr(vmi);
+    }
+    else {
+        dbprint("WARNING: get_dgpma_ptr function not implemented.\n");
+        return VMI_FAILURE;
+    }
+
 }
 #endif
 
