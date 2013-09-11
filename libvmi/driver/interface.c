@@ -189,6 +189,13 @@ driver_xen_setup(
     instance->start_single_step_ptr = &xen_start_single_step;
     instance->stop_single_step_ptr = &xen_stop_single_step;
     instance->shutdown_single_step_ptr = &xen_shutdown_single_step;
+#else
+    instance->events_listen_ptr = NULL;
+    instance->set_reg_access_ptr = NULL;
+    instance->set_mem_access_ptr = NULL;
+    instance->start_single_step_ptr = NULL;
+    instance->stop_single_step_ptr = NULL;
+    instance->shutdown_single_step_ptr = NULL;
 #endif
 }
 
