@@ -646,7 +646,7 @@ sym_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
-    char *sym,
+    const char *sym,
     addr_t *va)
 {
     return VMI_FAILURE;
@@ -657,7 +657,7 @@ sym_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
-    char *sym,
+    const char *sym,
     addr_t va)
 {
     return;
@@ -666,7 +666,7 @@ sym_cache_set(
 status_t
 sym_cache_del(
     vmi_instance_t vmi,
-    addr_t bade_addr,
+    addr_t base_addr,
     vmi_pid_t pid,
     char *sym)
 {
@@ -697,8 +697,10 @@ rva_cache_destroy(
 status_t
 rva_cache_get(
     vmi_instance_t vmi,
-    char *sym,
-    addr_t *va)
+    addr_t base_addr,
+    uint32_t pid,
+    addr_t rva,
+    char **sym)
 {
     return VMI_FAILURE;
 }
@@ -717,7 +719,9 @@ rva_cache_set(
 status_t
 rva_cache_del(
     vmi_instance_t vmi,
-    char *sym)
+    addr_t base_addr,
+    uint32_t pid,
+    addr_t rva)
 {
     return VMI_FAILURE;
 }
