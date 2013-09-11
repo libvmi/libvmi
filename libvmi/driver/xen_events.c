@@ -233,6 +233,122 @@ static int resume_domain(vmi_instance_t vmi, mem_event_response_t *rsp)
     return ret;
 }
 
+status_t process_interrupt_event(vmi_instance_t vmi,
+                          interrupts_t intr,
+                          mem_event_request_t req)
+{
+
+    int rc                      = -1;
+    status_t status             = VMI_FAILURE;
+    vmi_event_t * event         = g_hash_table_lookup(vmi->interrupt_events, &intr);
+    xc_interface * xch          = xen_get_xchandle(vmi);
+    unsigned long domain_id     = xen_get_domainid(vmi);
+
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( domain_id == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    if(event) {
+        event->interrupt_event.gfn = req.gfn;
+        event->interrupt_event.gla = req.gla;
+        event->vcpu_id = req.vcpu_id;
+
+        /* Will need to refactor if another interrupt is accessible 
+         *  via events, and needs differing setup before callback.
+         *  ..but this basic structure should be adequate for now.
+         */
+
+        event->callback(vmi, event);
+
+        switch(intr){
+        case INT3:
+            /* Reinject (callback may decide) */
+            if(event->interrupt_event.reinject) {
+                dbprint("rip %lx gfn %lx\n",
+                    event->interrupt_event.gla, event->interrupt_event.gfn);
+
+                /* Undocumented enough to be worth describing at length:
+                 *  If enabled, INT3 events are reported via the mem events
+                 *  facilities of Xen only for the 1-byte 0xCC variant of the
+                 *  instruction. The 2-byte 0xCD imm8 variant taking the
+                 *  interrupt vector as an operand (i.e., 0xCD03) is NOT
+                 *  reported in the same fashion (These details are valid as of
+                 *  Xen 4.3). 
+                 * 
+                 *  In order for INT3 to be handled correctly by the VM
+                 *  kernel and subsequently passed on to the debugger within a
+                 *  VM, the trap must be re-injected. Because only 0xCC is in
+                 *  play for events, the instruction length involved is only
+                 *  one byte.
+                 */
+                #define TRAP_int3              3
+                rc = xc_hvm_inject_trap(xch, domain_id, req.vcpu_id,
+                        TRAP_int3,         /* Vector 3 for INT3 */
+                        HVMOP_TRAP_sw_exc, /* Trap type, here a software intr */
+                        ~0u, /* error code. ~0u means 'ignore' */
+                         1,  /* Instruction length. Xen INT3 events are
+                              *  exclusively specific to 0xCC with no operand,
+                              *  providing a guarantee that this is 1 byte only.
+                              */
+                         0   /* cr2 need not be preserved */
+                    );
+                
+                /* NOTE: Inability to re-inject constitutes a serious error. 
+                 *  (E.g., some program like a debugger in the guest is
+                 *  awaiting SIGTRAP in order to trigger to re-write/emulation
+                 *  of the instruction(s) it replaced..without which the
+                 *  debugger's target program may be suspended with little hope
+                 *  of resuming.)
+                 *
+                 * Further, the trap handler in kernel land may
+                 *  itself be placed into an unrecoverable state if extreme
+                 *  caution is not used here.
+                 *   
+                 * However, the hypercall (and subsequently the libxc function)
+                 *  return non-zero for Xen 4.1 and 4.2 even for successful
+                 *  actions...so, ignore rc if version < 4.3.
+                 *
+                 * For future reference, this is a failed reinjection, as
+                 * shown via 'xl dmesg' (the domain is forced to crash intentionally by Xen):
+                 *  (XEN) <vm_resume_fail> error code 7
+                 *  (XEN) domain_crash_sync called from vmcs.c:1107
+                 *  (XEN) Domain 449 (vcpu#1) crashed on cpu#0:
+                 *
+                */
+#if __XEN_INTERFACE_VERSION__ >= 0x00040300
+                if (rc < 0) {
+                    errprint("%s : Xen event error %d re-injecting int3\n", __FUNCTION__, rc);
+                    status = VMI_FAILURE; 
+                    break;
+                }
+#else
+#warning Xen version installed has interrupt reinjection with unusable return value.
+/* NOTE: 4.2.3 has the required patch
+ *   i.e., 'fix HVMOP_inject_trap return value on success' 
+ * But this cannot be inferred via __XEN_INTERFACE_VERSION__, which is only
+ *  updated for major versions.
+ */
+#endif
+            }
+            
+            status = VMI_SUCCESS;
+ 
+            break;
+        default:
+            errprint("%s : Xen event - unknown interrupt %d\n", __FUNCTION__, intr);
+            status = VMI_FAILURE; 
+            break;
+        }
+    }
+
+    return status;
+}
+
 status_t process_register(vmi_instance_t vmi,
                           registers_t reg,
                           mem_event_request_t req)
@@ -789,15 +905,40 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
     return VMI_SUCCESS;
 }
 
-status_t xen_set_int3_access(vmi_instance_t vmi, int enabled)
+status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event)
 {
-    int param = HVMPME_mode_disabled;
-    if(enabled)
-        param = HVMPME_mode_sync;
+    
+    switch(event.intr){
+    case INT3:
+        return xen_set_int3_access(vmi, event);
+        break;
+    default:
+        errprint("Xen driver does not support enabling events for interrupt: %"PRIu32"\n", event.intr);
+        break;
+    }
 
-    return xc_set_hvm_param(
-        xen_get_xchandle(vmi), xen_get_domainid(vmi),
-        HVM_PARAM_MEMORY_EVENT_INT3, param);
+    return VMI_FAILURE;
+}
+
+status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event)
+{
+    xc_interface * xch = xen_get_xchandle(vmi);
+    unsigned long dom = xen_get_domainid(vmi);
+    int param = HVMPME_mode_disabled;
+
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+ 
+    if(event.enabled)
+        param = HVMPME_mode_sync;
+ 
+    return xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_INT3, param);
 }
 
 status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event)
@@ -988,9 +1129,11 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
                 }
                 break;
             case MEM_EVENT_REASON_INT3:
-                /* TODO MARESCA need to handle this;
-                 * see xen-unstable.hg/tools/include/xen/mem_event.h
-                 */
+                if(!vmi->shutting_down) {
+                    dbprint("--Caught int3 interrupt event!\n");
+                    vrc = process_interrupt_event(vmi, INT3, req);
+                }
+                break;
             default:
                 errprint("UNKNOWN REASON CODE %d\n", req.reason);
                 vrc = VMI_FAILURE;
@@ -1014,6 +1157,10 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout){
 
 status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event){
     return VMI_FAILURE;
+}
+
+status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event){
+	return VMI_FAILURE;
 }
 
 status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_access_t page_access_flag){
