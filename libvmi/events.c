@@ -96,6 +96,7 @@ void events_init(vmi_instance_t vmi)
         return;
     }
 
+    vmi->interrupt_events = g_hash_table_new(g_int_hash, g_int_equal);
     vmi->mem_events = g_hash_table_new_full(g_int64_hash, g_int64_equal, NULL,
             memevent_page_free);
     vmi->reg_events = g_hash_table_new(g_int_hash, g_int_equal);
@@ -128,6 +129,31 @@ void events_destroy(vmi_instance_t vmi)
         g_hash_table_destroy(vmi->ss_events);
     }
     
+    if (vmi->interrupt_events)
+    {
+        g_hash_table_foreach_steal(vmi->interrupt_events, event_entry_free, vmi);
+        g_hash_table_destroy(vmi->interrupt_events);
+    }
+}
+
+status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+
+    status_t rc = VMI_FAILURE;
+
+    if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr)))
+    {
+        dbprint("An event is already registered on this interrupt: %d\n",
+                event->interrupt_event.intr);
+    }
+    else if (VMI_SUCCESS == driver_set_intr_access(vmi, event->interrupt_event))
+    {
+        g_hash_table_insert(vmi->interrupt_events, &(event->interrupt_event.intr), event);
+        dbprint("Enabled event on interrupt: %d\n", event->interrupt_event.intr);
+        rc = VMI_SUCCESS;
+    }
+
+    return rc;
 }
 
 status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
@@ -294,6 +320,26 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
     }
 
     return rc;
+}
+
+status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+
+    status_t rc = VMI_FAILURE;
+
+    if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr)))
+    {
+        dbprint("Disabling event on interrupt: %d\n", event->interrupt_event.intr);
+        event->interrupt_event.enabled = 0;
+        rc = driver_set_intr_access(vmi, event->interrupt_event);
+        if (!vmi->shutting_down && rc == VMI_SUCCESS)
+        {
+            g_hash_table_remove(vmi->interrupt_events, &(event->interrupt_event.intr));
+        }
+    }
+
+    return rc;
+
 }
 
 status_t clear_reg_event(vmi_instance_t vmi, vmi_event_t *event)
@@ -551,6 +597,9 @@ status_t vmi_register_event(vmi_instance_t vmi, vmi_event_t* event)
     case VMI_EVENT_SINGLESTEP:
         rc = register_singlestep_event(vmi, event);
         break;
+    case VMI_EVENT_INTERRUPT:
+        rc = register_interrupt_event(vmi, event);
+        break;
     default:
         errprint("Unknown event type: %d\n", event->type);
         break;
@@ -575,6 +624,9 @@ status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event)
         break;
     case VMI_EVENT_REGISTER:
         rc = clear_reg_event(vmi, event);
+        break;
+    case VMI_EVENT_INTERRUPT:
+        rc = clear_interrupt_event(vmi, event);
         break;
     case VMI_EVENT_MEMORY:
         rc = clear_mem_event(vmi, event);

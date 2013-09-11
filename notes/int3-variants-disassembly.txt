@@ -1,0 +1,48 @@
+Disassembly of embedded-int3.c for both:
+  # One byte variant
+     gcc -o embedded-int3 -Dint3imm8=1 embedded-int3.c -O0
+  # Two byte variant
+     gcc -o embedded-int3 embedded-int3.c -O0
+
+1 byte variant, 0xCC:
+
+0000000000400594 <main>:
+  400594:	55                   	push   %rbp
+  400595:	48 89 e5             	mov    %rsp,%rbp
+  400598:	e8 f3 fe ff ff       	callq  400490 <getpid@plt>
+  40059d:	89 c2                	mov    %eax,%edx
+  40059f:	b8 c8 06 40 00       	mov    $0x4006c8,%eax
+  4005a4:	89 d6                	mov    %edx,%esi
+  4005a6:	48 89 c7             	mov    %rax,%rdi
+  4005a9:	b8 00 00 00 00       	mov    $0x0,%eax
+  4005ae:	e8 ad fe ff ff       	callq  400460 <printf@plt>
+  4005b3:	bf 0a 00 00 00       	mov    $0xa,%edi
+  4005b8:	e8 e3 fe ff ff       	callq  4004a0 <sleep@plt>
+  4005bd:	cc                   	int3   
+  4005be:	bf d0 06 40 00       	mov    $0x4006d0,%edi
+  4005c3:	e8 a8 fe ff ff       	callq  400470 <puts@plt>
+  4005c8:	b8 00 00 00 00       	mov    $0x0,%eax
+  4005cd:	c9                   	leaveq 
+  4005ce:	c3                   	retq   
+  4005cf:	90                   	nop
+
+2 byte variant, 0xCD03:
+
+0000000000400594 <main>:
+  400594:	55                   	push   %rbp
+  400595:	48 89 e5             	mov    %rsp,%rbp
+  400598:	e8 f3 fe ff ff       	callq  400490 <getpid@plt>
+  40059d:	89 c2                	mov    %eax,%edx
+  40059f:	b8 c8 06 40 00       	mov    $0x4006c8,%eax
+  4005a4:	89 d6                	mov    %edx,%esi
+  4005a6:	48 89 c7             	mov    %rax,%rdi
+  4005a9:	b8 00 00 00 00       	mov    $0x0,%eax
+  4005ae:	e8 ad fe ff ff       	callq  400460 <printf@plt>
+  4005b3:	bf 0a 00 00 00       	mov    $0xa,%edi
+  4005b8:	e8 e3 fe ff ff       	callq  4004a0 <sleep@plt>
+  4005bd:	cd 03                	int    $0x3
+  4005bf:	bf d0 06 40 00       	mov    $0x4006d0,%edi
+  4005c4:	e8 a7 fe ff ff       	callq  400470 <puts@plt>
+  4005c9:	b8 00 00 00 00       	mov    $0x0,%eax
+  4005ce:	c9                   	leaveq 
+  4005cf:	c3                   	retq   
