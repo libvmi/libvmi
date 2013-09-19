@@ -1320,7 +1320,6 @@ status_t vmi_shm_snapshot_create(
  */
 status_t vmi_shm_snapshot_destroy(
 		vmi_instance_t vmi);
-#endif
 
 /**
  * Direct Guest Physical Memory Access: Get a read-only pointer of shm-snapshot.
@@ -1332,6 +1331,24 @@ const void * vmi_get_dgpma(
     vmi_instance_t vmi);
 
 /**
+ * Direct Guest Virtual Memory Access: get a read-only pointer of the guest
+ * virtual memory related to a pid.  It provides a much faster (non-copy)
+ * option to read guest virtual memory bypassing vmi_read_va().
+ * Note:
+ * 1. It is dependent on shm-snapshot, if LibVMI isn't in shm-snapshot mode,
+ *    just return NULL;
+ * 2. It costs several hundred milliseconds to create a shadow addr mapping
+ *    (i.e. TEVAT mapping) for first use;
+ * 3. The TEVAT mappings will stay until vmi_shm_snapshot_destroy().
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @return The base address of DGVMA
+ */
+const void * vmi_get_dgvma(
+    vmi_instance_t vmi,
+    pid_t pid);
+#endif
 
 /**
  * Removes all entries from LibVMI's internal virtual to physical address

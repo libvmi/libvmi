@@ -382,6 +382,597 @@ munmap_unlink_shm_snapshot_dev(
     return VMI_SUCCESS;
 }
 
+status_t map_tevat_mapping_table(
+    vmi_instance_t vmi,
+    tevat_mapping_chunk_entry_t page_chunk_list,
+    addr_t size,
+    void** vaddr_base_ptr)
+{
+    // find a large enough vaddr base
+    // TODO: we don't actually need such a "big" available space,
+    //    because of the large holes among the guest virtual address
+    //    space. So try to learn the holes and avoid failure to find
+    //    large enough vaddr space.
+    void *map = mmap(NULL,  // addr
+        (long long unsigned int)size,   // vaddr space
+        PROT_READ,   // prot
+        MAP_PRIVATE | MAP_ANONYMOUS|MAP_NORESERVE,  // flags
+        NULL,    // file descriptor
+        NULL);  // offset
+    if (MAP_FAILED != map) {
+        *vaddr_base_ptr = map;
+        (void) munmap(map, size);
+    } else {
+        errprint("Failed to find large enough vaddr space, size: %d GB\n", size>>30);
+        perror("");
+        return VMI_FAILURE;
+    }
+
+    // map addresses
+    if (NULL != page_chunk_list) {
+        do {
+            dbprint("map va: %lldM - %lldM, pa: %lldM - %lldM, size: %dKB\n",
+                page_chunk_list->vaddr_begin>>20, page_chunk_list->vaddr_end>>20,
+                page_chunk_list->paddr_begin>>20, page_chunk_list->paddr_end>>20,
+                (page_chunk_list->vaddr_end - page_chunk_list->vaddr_begin+1)>>10);
+
+            void *map = mmap(*vaddr_base_ptr + page_chunk_list->vaddr_begin,  // addr
+                page_chunk_list->vaddr_end - page_chunk_list->vaddr_begin + 1,   // len
+                PROT_READ,   // prot
+                MAP_PRIVATE | MAP_NORESERVE | MAP_POPULATE | MAP_FIXED,  // flags
+                kvm_get_instance(vmi)->shm_snapshot_fd,    // file descriptor
+                page_chunk_list->paddr_begin);  // offset
+
+            if (MAP_FAILED == map) {
+                perror("Failed to mmap page");
+                return VMI_FAILURE;
+            }
+            page_chunk_list = page_chunk_list->next;
+        } while (NULL!= page_chunk_list);
+    }
+    return VMI_SUCCESS;
+}
+
+void add_tevat_page_chunk_to_list(
+    vmi_instance_t vmi,
+    tevat_mapping_chunk_entry_t *page_chunk_list,
+    tevat_mapping_chunk_entry_t *head,
+    addr_t start_vaddr,
+    addr_t end_vaddr,
+    addr_t start_paddr,
+    addr_t end_paddr)
+{
+    // the first chunk
+    if (NULL == *page_chunk_list) {
+        *page_chunk_list = malloc(sizeof(tevat_mapping_chunk_entry));
+        memset(*page_chunk_list, 0, sizeof(tevat_mapping_chunk_entry));
+        (*page_chunk_list)->vaddr_begin = start_vaddr;
+        (*page_chunk_list)->vaddr_end = end_vaddr;
+        (*page_chunk_list)->paddr_begin = start_paddr;
+        (*page_chunk_list)->paddr_end = end_paddr;
+        (*head) = *page_chunk_list;
+    } else {
+        if (start_vaddr == (*head)->vaddr_end + 1 && start_paddr == (*head)->paddr_end + 1) {
+            // merge continuous chunk
+            (*head)->vaddr_end = end_vaddr;
+            (*head)->paddr_end = end_paddr;
+        } else {
+            // new entry
+            tevat_mapping_chunk_entry_t new_page = malloc(sizeof(tevat_mapping_chunk_entry));
+            memset(new_page, 0, sizeof(tevat_mapping_chunk_entry));
+            new_page->vaddr_begin = start_vaddr;
+            new_page->vaddr_end = end_vaddr;
+            new_page->paddr_begin = start_paddr;
+            new_page->paddr_end = end_paddr;
+            (*head)->next = new_page;
+            (*head) = new_page;
+        }
+    }
+}
+
+status_t
+walkthrough_shm_snapshot_pagetable_nopae(
+    vmi_instance_t vmi,
+    addr_t dtb,
+    tevat_mapping_chunk_entry_t* page_chunk_list_ptr,
+    tevat_mapping_chunk_entry_t* page_chunk_head_ptr)
+{
+    tevat_mapping_chunk_entry_t page_list = *page_chunk_list_ptr;
+    tevat_mapping_chunk_entry_t page_head = *page_chunk_head_ptr;
+
+    //read page directory (1 page size)
+    addr_t pd_pfn = dtb >> vmi->page_shift;
+    unsigned char *pd = vmi_read_page(vmi, pd_pfn); // page directory
+
+    // walk through page directory entries (1024 entries)
+    addr_t i;
+    for (i = 0; i < 1024; i++) {
+        uint32_t pde = *(uint32_t*) (pd + sizeof(uint32_t) * i); // pd entry
+
+        // valid entry
+        if (entry_present(vmi->os_type, pde)) {
+
+            // large page (4mb)
+            if (page_size_flag(pde)) {
+                addr_t start_vaddr = i << 22; // left 10 bits
+                addr_t end_vaddr = start_vaddr | 0x3FFFFF; // begin + 4mb
+                addr_t start_paddr = pde & 0xFFC00000; // left 10 bits
+                addr_t end_paddr = start_paddr | 0x3FFFFF; // begin + 4mb
+                if (start_paddr < vmi->size) {
+                    add_tevat_page_chunk_to_list(vmi, &page_list, &page_head,
+                        start_vaddr, end_vaddr, start_paddr, end_paddr);
+                }
+            }
+            else {
+                // read page table (1 page size)
+                addr_t pt_pfn = ptba_base_nopae(pde) >> vmi->page_shift;
+                unsigned char *pt = vmi_read_page(vmi, pt_pfn); // page talbe
+
+                // walk through page table entries (1024 entries)
+                addr_t j;
+                for (j = 0; j < 1024; j++) {
+                    uint32_t pte = *(uint32_t*) (pt + sizeof(uint32_t) * j); // page table entry
+
+                    //valid entry
+                    if (entry_present(vmi->os_type, pte)) {
+                        dbprint("valid page table entry %d, %8x:\n", i, pte);
+                        // 4kb page
+                        addr_t start_vaddr = i << 22 | j << 12; // left 20 bits
+                        addr_t end_vaddr = start_vaddr | 0xFFF; // begin + 4kb
+                        addr_t start_paddr = pte_pfn_nopae(pte); // left 20 bits
+                        addr_t end_paddr = start_paddr | 0xFFF; // begin + 4kb
+                        if (start_paddr < vmi->size) {
+                            add_tevat_page_chunk_to_list(vmi, &page_list, &page_head,
+                                start_vaddr, end_vaddr, start_paddr, end_paddr);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    *page_chunk_list_ptr = page_list;
+    *page_chunk_head_ptr = page_head;
+    return VMI_SUCCESS;
+}
+
+status_t
+walkthrough_shm_snapshot_pagetable_pae(
+    vmi_instance_t vmi,
+    addr_t dtb,
+    tevat_mapping_chunk_entry_t* page_chunk_list_ptr,
+    tevat_mapping_chunk_entry_t* page_chunk_head_ptr)
+{
+    tevat_mapping_chunk_entry_t page_list = *page_chunk_list_ptr;
+    tevat_mapping_chunk_entry_t page_head = *page_chunk_head_ptr;
+
+    // read page directory pointer page (4 entries, 64bit per entry)
+    addr_t pdpt_pfn = dtb >> vmi->page_shift;
+    unsigned char *pdpt = vmi_read_page(vmi, pdpt_pfn); // pdp table
+
+    // walk through page directory pointer entries (4 entries, 64bit per entry)
+    addr_t i;
+    for (i = 0; i < 4; i++) {
+        uint64_t pdpte = *(uint64_t *) (pdpt + sizeof(uint64_t) * i); // pdp table entry
+
+        // valid page directory pointer entry
+        if (entry_present(vmi->os_type, pdpte)) {
+
+            //read page directory  (1 page size)
+            addr_t pd_pfn = pdba_base_pae(pdpte) >> vmi->page_shift; // 24 (35th ~ 12th) bits
+            unsigned char *pd = vmi_read_page(vmi, pd_pfn); // page directory
+
+            // walk through page directory entry (512 entries, 64 bit per entry)
+            addr_t j;
+            for (j = 0; j < 512; j++) {
+                uint64_t pde = *(uint64_t *) (pd + sizeof(uint64_t) * j); // page directory entry
+
+                // valid page directory entry
+                if (entry_present(vmi->os_type, pde)) {
+
+                    if (page_size_flag(pde)) { // 2MB large page
+
+                        addr_t start_vaddr = i << 30 | j << 21; // left 11 bits
+                        addr_t end_vaddr = start_vaddr | 0x1FFFFF; // begin + 2mb
+                        addr_t start_paddr = pde & 0xFFFE00000; // 11 bits,  should be 15 (35th - 21th) bits
+                        addr_t end_paddr = start_paddr | 0x1FFFFF; // begin + 2mb
+
+                        if (start_paddr < vmi->size) {
+                            add_tevat_page_chunk_to_list(vmi, &page_list, &page_head,
+                                start_vaddr, end_vaddr, start_paddr, end_paddr);
+                        }
+                    }
+                    else {
+                        // read page tables
+                        addr_t pt_pfn = ptba_base_pae(pde) >> vmi->page_shift; // 24 (35th ~ 12th) bits
+                        unsigned char *pt = vmi_read_page(vmi, pt_pfn); // page table
+
+                        // walk through page table entry (512 entries, 64bit per entry)
+                        addr_t k;
+                        for (k = 0; k < 512; k++) {
+                            uint64_t pte = *(uint64_t *) (pt
+                                + sizeof(uint64_t) * k); // page table entry
+
+                            // valid page table entry
+                            if (entry_present(vmi->os_type, pte)) {
+                                // 4kb page
+                                addr_t start_vaddr = i << 30 | j << 21
+                                    | k << 12; // left 20 bits
+                                addr_t end_vaddr = start_vaddr | 0xFFF; // begin + 4kb
+                                addr_t start_paddr = pte_pfn_pae(pte); // 24 (35th ~ 12th) bits
+                                addr_t end_paddr = start_paddr | 0xFFF; // begin + 4kb
+
+                                if (start_paddr < vmi->size) {
+                                    add_tevat_page_chunk_to_list(vmi, &page_list,
+                                        &page_head, start_vaddr, end_vaddr,
+                                        start_paddr, end_paddr);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    *page_chunk_list_ptr = page_list;
+    *page_chunk_head_ptr = page_head;
+    return VMI_SUCCESS;
+}
+
+status_t
+walkthrough_shm_snapshot_pagetable_ia32e(
+    vmi_instance_t vmi,
+    addr_t dtb,
+    tevat_mapping_chunk_entry_t* page_chunk_list_ptr,
+    tevat_mapping_chunk_entry_t* page_chunk_head_ptr)
+{
+    tevat_mapping_chunk_entry_t page_list = *page_chunk_list_ptr;
+    tevat_mapping_chunk_entry_t page_head = *page_chunk_head_ptr;
+
+    // read PML4 table (512 * 64-bit entries)
+    addr_t pml4t_pfn = get_bits_51to12(dtb) >> vmi->page_shift;
+    unsigned char* pml4t = vmi_read_page(vmi, pml4t_pfn); // pml4 table
+
+    // walk through PML4 entries (512 * 64-bit entries)
+    addr_t i;
+    for (i = 0; i < 512; i++) {
+        uint64_t pml4e = *(uint64_t *) (pml4t + sizeof(uint64_t) * i);
+
+        // valid page directory pointer entry
+        if (entry_present(vmi->os_type, pml4e)) {
+
+            // read page directory pointer table (512 * 64-bit entries)
+            addr_t pdpt_pfn = get_bits_51to12(pml4e) >> vmi->page_shift;
+            unsigned char *pdpt = vmi_read_page(vmi, pdpt_pfn); // pdp table
+
+            // walk through page directory pointer entries (512 * 64-bit entries)
+            addr_t j;
+            for (j = 0; j < 512; j++) {
+                uint64_t pdpte = *(uint64_t *) (pdpt + sizeof(uint64_t) * j); // pdp table entry
+
+                // valid page directory pointer entry
+                if (entry_present(vmi->os_type, pdpte)) {
+
+                    if (page_size_flag(pdpte)) { // 1GB large page
+
+                        addr_t start_vaddr = i << 39 | j << 30; // 47th ~ 30th bits
+                        addr_t end_vaddr = start_vaddr | 0xFFFFFFFF; // begin + 1GB
+                        addr_t start_paddr = pdpte & 0x000FFFFFC0000000ULL; //  22 (51th - 30th) bits
+                        addr_t end_paddr = start_paddr | 0xFFFFFFFF; // begin + 1GB
+
+                        if (start_paddr < vmi->size) {
+                            add_tevat_page_chunk_to_list(vmi, &page_list, &page_head,
+                                start_vaddr, end_vaddr, start_paddr, end_paddr);
+                        }
+
+                    }
+                    else {
+
+                        //read page directory  (1 page size)
+                        addr_t pd_pfn = get_bits_51to12(pdpte)
+                            >> vmi->page_shift; // 40 (51th ~ 12th) bits
+                        unsigned char *pd = vmi_read_page(vmi, pd_pfn); // page directory
+
+                        // walk through page directory entry (512 entries, 64 bit per entry)
+                        addr_t k;
+                        for (k = 0; k < 512; k++) {
+                            uint64_t pde = *(uint64_t *) (pd
+                                + sizeof(uint64_t) * k); // pd entry
+
+                            // valid page directory entry
+                            if (entry_present(vmi->os_type, pde)) {
+
+                                if (page_size_flag(pde)) { // 2MB large page
+
+                                    addr_t start_vaddr = i << 39 | j << 30
+                                        | k << 21; //
+                                    addr_t end_vaddr = start_vaddr | 0x1FFFFF; // begin + 2mb
+                                    addr_t start_paddr = pde
+                                        & 0x000FFFFFFFE00000ULL; // 31 (51th - 21th) bits
+                                    addr_t end_paddr = start_paddr | 0x1FFFFF; // begin + 2mb
+
+                                    if (start_paddr < vmi->size) {
+                                        add_tevat_page_chunk_to_list(vmi, &page_list,
+                                            &page_head, start_vaddr, end_vaddr,
+                                            start_paddr, end_paddr);
+                                    }
+                                }
+                                else {
+                                    // read page tables
+                                    addr_t pt_pfn = get_bits_51to12(pde)
+                                        >> vmi->page_shift; // 40 (51th ~ 12th) bits
+                                    unsigned char *pt = vmi_read_page(vmi,
+                                        pt_pfn); // page table
+
+                                    // walk through page table entry (512 entries, 64bit per entry)
+                                    addr_t l;
+                                    for (l = 0; l < 512; l++) {
+                                        uint64_t pte = *(uint64_t *) (pt
+                                            + sizeof(uint64_t) * l); // pt entry
+
+                                        // valid page table entry
+                                        if (entry_present(vmi->os_type, pte)) {
+                                            // 4kb page
+                                            addr_t start_vaddr = i << 39
+                                                | j << 30 | k << 21 | l << 12; // 47th - 12th bits
+                                            addr_t end_vaddr = start_vaddr
+                                                | 0xFFF; // begin + 4kb
+                                            addr_t start_paddr =
+                                                get_bits_51to12(pte); // 40 (51th ~ 12th) bits
+                                            addr_t end_paddr = start_paddr
+                                                | 0xFFF; // begin + 4kb
+
+                                            if (start_paddr < vmi->size) {
+                                                add_tevat_page_chunk_to_list(vmi,
+                                                    &page_list, &page_head,
+                                                    start_vaddr, end_vaddr,
+                                                    start_paddr, end_paddr);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    *page_chunk_list_ptr = page_list;
+    *page_chunk_head_ptr = page_head;
+    return VMI_SUCCESS;
+}
+
+status_t
+walkthrough_shm_snapshot_pagetable(
+    vmi_instance_t vmi,
+    addr_t dtb,
+    tevat_mapping_chunk_entry_t* page_chunk_list_ptr,
+    tevat_mapping_chunk_entry_t* page_chunk_head_ptr)
+{
+    if (vmi->page_mode == VMI_PM_LEGACY) {
+        return walkthrough_shm_snapshot_pagetable_nopae(vmi, dtb,
+            page_chunk_list_ptr, page_chunk_head_ptr);
+    }
+    else if (vmi->page_mode == VMI_PM_PAE) {
+        return  walkthrough_shm_snapshot_pagetable_pae(vmi, dtb,
+            page_chunk_list_ptr, page_chunk_head_ptr);
+    }
+    else if (vmi->page_mode == VMI_PM_IA32E) {
+        return  walkthrough_shm_snapshot_pagetable_ia32e(vmi, dtb,
+            page_chunk_list_ptr, page_chunk_head_ptr);
+    }
+    else {
+        errprint(
+            "Invalid paging mode during walkthrough_shm_snapshot_pagetable\n");
+        return VMI_FAILURE;
+    }
+}
+
+status_t
+insert_tevat_mapping_table_entry(
+    vmi_instance_t vmi,
+    tevat_mapping_table_entry_t entry)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    // the first tevat page table
+    if (kvm->shm_snapshot_tevat_mapping_table == NULL) {
+        kvm->shm_snapshot_tevat_mapping_table = entry;
+        return VMI_SUCCESS;
+    }
+    else {
+        // append to the existed page table link list
+        tevat_mapping_table_entry_t head = kvm->shm_snapshot_tevat_mapping_table;
+        while (NULL != head->next) {
+            head = head->next;
+        }
+        head->next = entry;
+        return VMI_SUCCESS;
+    }
+}
+
+status_t
+setup_tevat_mapping_table(
+    vmi_instance_t vmi,
+    pid_t pid,
+    addr_t dtb)
+{
+    tevat_mapping_chunk_entry_t page_chunk_list = NULL;
+    tevat_mapping_chunk_entry_t page_chunk_head = NULL;
+
+    if (VMI_SUCCESS ==
+        walkthrough_shm_snapshot_pagetable(vmi, dtb, &page_chunk_list, &page_chunk_head))
+    {
+        addr_t vaddr_space_size = page_chunk_head->vaddr_end - page_chunk_list->vaddr_begin;
+        void* vaddr_base = NULL;
+
+        if (VMI_SUCCESS ==
+            map_tevat_mapping_table(vmi, page_chunk_list, vaddr_space_size, &vaddr_base))
+        {
+            tevat_mapping_table_entry_t guest_vaddr_entry = malloc(sizeof(tevat_mapping_table_entry));
+            guest_vaddr_entry->pid = pid;
+            guest_vaddr_entry->vaddr_base = vaddr_base;
+            guest_vaddr_entry->chunks = page_chunk_list;
+            guest_vaddr_entry->vaddr_space_size = vaddr_space_size;
+            guest_vaddr_entry->next = NULL;
+            return insert_tevat_mapping_table_entry(vmi, guest_vaddr_entry);
+        } else {
+            return VMI_FAILURE;
+        }
+    }
+    return VMI_FAILURE;
+}
+
+status_t
+create_tevat_mapping_table(
+    vmi_instance_t vmi,
+    pid_t pid)
+{
+    if (VMI_SUCCESS == test_using_shm_snapshot(vmi)) {
+        // kernel page table
+        if (0 == pid) {
+            reg_t cr3 = 0;
+
+            if (vmi->kpgd) {
+                cr3 = vmi->kpgd;
+            }
+            else {
+                driver_get_vcpureg(vmi, &cr3, CR3, 0);
+            }
+            if (!cr3) {
+                dbprint("--early bail on TEVAT create because cr3 is zero\n");
+                return VMI_FAILURE;
+            }
+            else {
+                return setup_tevat_mapping_table(vmi, pid, cr3);
+            }
+        }
+        else {
+            // user process page table
+            addr_t dtb = vmi_pid_to_dtb(vmi, pid);
+            if (!dtb) {
+                dbprint("--early bail on TEVAT create because dtb is zero\n");
+                return VMI_FAILURE;
+            }
+            else {
+                return setup_tevat_mapping_table(vmi, pid, dtb);
+            }
+        }
+    }
+    else {
+        errprint("can't create TEVAT because shm-snapshot is not using.\n");
+        return VMI_FAILURE;
+    }
+}
+
+tevat_mapping_table_entry_t
+get_tevat_mapping_table_entry(
+    vmi_instance_t vmi,
+    pid_t pid)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    if (NULL != kvm->shm_snapshot_tevat_mapping_table) {
+        tevat_mapping_table_entry_t tmp = kvm->shm_snapshot_tevat_mapping_table;
+        while (NULL != tmp) {
+            if (pid == tmp->pid)
+                return tmp;
+            tmp = tmp->next;
+        }
+    }
+    return NULL;
+}
+
+status_t
+free_chunks_of_tevat_mapping_table_entry(
+    vmi_instance_t vmi,
+    tevat_mapping_table_entry_t tevat_mt_entry)
+{
+    tevat_mapping_chunk_entry_t tail = tevat_mt_entry->chunks;
+    if (NULL != tail) {
+        do {
+            tevat_mapping_chunk_entry_t tmp = tail->next;
+            munmap(tevat_mt_entry->vaddr_base + tail->vaddr_begin,
+                (tail->vaddr_end - tail->vaddr_begin + 1));
+            free(tail);
+            tail = tmp;
+        } while (NULL != tail);
+        tevat_mt_entry->chunks = NULL;
+        tevat_mt_entry->vaddr_base = NULL;
+        return VMI_SUCCESS;
+    }
+    else {
+        errprint("try to free NULL tevat_mt_entry->chunks");
+        return VMI_FAILURE;
+    }
+}
+
+status_t
+delete_tevat_mapping_table_entry(
+    vmi_instance_t vmi,
+    tevat_mapping_table_entry_t tevat_pt_entry)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    // the 1st entry matches
+    if (NULL != kvm->shm_snapshot_tevat_mapping_table
+        && tevat_pt_entry == kvm->shm_snapshot_tevat_mapping_table) {
+        tevat_mapping_table_entry_t tmp = kvm->shm_snapshot_tevat_mapping_table;
+        kvm->shm_snapshot_tevat_mapping_table = tmp->next;
+        free(tmp);
+        return VMI_SUCCESS;
+    }
+    // there are two or more entries
+    else if (NULL != kvm->shm_snapshot_tevat_mapping_table
+        && NULL != kvm->shm_snapshot_tevat_mapping_table->next) {
+        tevat_mapping_table_entry_t tmp[2];
+        tmp[0] = kvm->shm_snapshot_tevat_mapping_table;
+        tmp[1] = kvm->shm_snapshot_tevat_mapping_table->next;
+        while (NULL != tmp[1]) {
+            if (tevat_pt_entry == tmp[1]) {
+                tmp[0]->next = tmp[1]->next;
+                free(tmp[1]);
+                return VMI_SUCCESS;
+            }
+            tmp[0] = tmp[1];
+            tmp[1] = tmp[1]->next;
+        }
+        return VMI_FAILURE;
+    }
+    // no entry matches
+    else
+        return VMI_FAILURE;
+}
+
+status_t
+destroy_tevat_mappings(
+    vmi_instance_t vmi)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    tevat_mapping_table_entry_t tail = kvm->shm_snapshot_tevat_mapping_table;
+    if (NULL != tail) {
+        do {
+            tevat_mapping_table_entry_t tmp = tail->next;
+
+            if (VMI_SUCCESS
+                != free_chunks_of_tevat_mapping_table_entry(vmi, tail)) {
+                errprint("fail to free_chunks_of_tevat_mapping_table_entry\n");
+                return VMI_FAILURE;
+            }
+
+            if (VMI_SUCCESS != delete_tevat_mapping_table_entry(vmi, tail)) {
+                errprint("fail to delete_tevat_mapping_table_entry\n");
+                return VMI_FAILURE;
+            }
+            tail = tmp;
+        }
+        while (NULL != tail);
+        kvm->shm_snapshot_tevat_mapping_table = NULL;
+    }
+    return VMI_SUCCESS;
+}
+
 /**
  * kvm_get_memory_shm_snapshot
  *
@@ -1157,15 +1748,45 @@ status_t
 kvm_destroy_shm_snapshot(
     vmi_instance_t vmi)
 {
-	kvm_teardown_shm_snapshot_mode(vmi);
+    destroy_tevat_mappings(vmi);
+    kvm_teardown_shm_snapshot_mode(vmi);
 
-	return kvm_setup_live_mode(vmi);
+    return kvm_setup_live_mode(vmi);
 }
 
 const void * kvm_get_dgpma(
     vmi_instance_t vmi) {
     return kvm_get_instance(vmi)->shm_snapshot_map;
 }
+
+const void*
+kvm_get_dgvma(
+    vmi_instance_t vmi,
+    pid_t pid)
+{
+    tevat_mapping_table_entry_t tevat_pt_entry = get_tevat_mapping_table_entry(
+        vmi, pid);
+
+    // TEVAT mappings exists
+    if (NULL != tevat_pt_entry) {
+        return tevat_pt_entry->vaddr_base;
+    }
+    else {
+        // create new TEVAT mappings
+        if (VMI_SUCCESS == create_tevat_mapping_table(vmi, pid)) {
+            tevat_mapping_table_entry_t new_entry =
+                get_tevat_mapping_table_entry(vmi, pid);
+            if (NULL != new_entry)
+                return new_entry->vaddr_base;
+            else
+                return NULL;
+        }
+        else {
+            return NULL;
+        }
+    }
+}
+
 #endif
 
 //////////////////////////////////////////////////////////////////////
@@ -1325,6 +1946,14 @@ const void * kvm_get_dgpma(
     vmi_instance_t vmi) {
     return NULL;
 }
+
+void*
+kvm_get_dgvma(
+    vmi_instance_t vmi)
+{
+    return NULL;
+}
+
 #endif
 
 #endif /* ENABLE_KVM */

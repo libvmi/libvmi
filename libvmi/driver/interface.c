@@ -114,8 +114,12 @@ struct driver_instance {
 	vmi_instance_t);
 	const void * (
 	*get_dgpma_ptr) (
-	vmi_instance_t);
-	status_t (
+    vmi_instance_t);
+    const void* (
+    *get_dgvma_ptr) (
+    vmi_instance_t,
+    pid_t);
+    status_t (
     *events_listen_ptr)(
     vmi_instance_t,
     uint32_t);
@@ -227,10 +231,12 @@ driver_kvm_setup(
 	instance->create_shm_snapshot_ptr = &kvm_create_shm_snapshot;
 	instance->destroy_shm_snapshot_ptr = &kvm_destroy_shm_snapshot;
 	instance->get_dgpma_ptr = &kvm_get_dgpma;
+	instance->get_dgvma_ptr = &kvm_get_dgvma;
 #else
 	instance->create_shm_snapshot_ptr = NULL;
 	instance->destroy_shm_snapshot_ptr = NULL;
 	instance->get_dgpma_ptr = NULL;
+	instance->get_dgvma_ptr = NULL;
 #endif
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
@@ -704,7 +710,8 @@ status_t driver_destroy_shm_snapshot_vm(
 }
 
 const void * driver_get_dgpma(
-    vmi_instance_t vmi) {
+    vmi_instance_t vmi)
+{
     driver_instance_t ptrs = driver_get_instance(vmi);
 
     if (NULL != ptrs && NULL != ptrs->get_dgpma_ptr) {
@@ -712,9 +719,24 @@ const void * driver_get_dgpma(
     }
     else {
         dbprint("WARNING: get_dgpma_ptr function not implemented.\n");
-        return VMI_FAILURE;
+        return NULL;
     }
+}
 
+const void* driver_get_dgvma(
+	vmi_instance_t vmi,
+    pid_t pid)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+
+    if (NULL != ptrs && NULL != ptrs->get_dgvma_ptr) {
+        return ptrs->get_dgvma_ptr(vmi, pid);
+    }
+    else {
+        dbprint("WARNING: driver_get_dgvma function not implemented.\n");
+        return NULL;
+    }
+    return NULL;
 }
 #endif
 
