@@ -1305,7 +1305,7 @@ status_t vmi_resume_vm(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_shm_snapshot_create(
-		vmi_instance_t vmi);
+    vmi_instance_t vmi);
 
 /**
  * Destroy existed shm-snapshot and exit "shm-snapshot" mode.
@@ -1319,7 +1319,7 @@ status_t vmi_shm_snapshot_create(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_shm_snapshot_destroy(
-		vmi_instance_t vmi);
+    vmi_instance_t vmi);
 #endif
 
 /**

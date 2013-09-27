@@ -107,15 +107,15 @@ struct driver_instance {
     *resume_vm_ptr) (
     vmi_instance_t);
     status_t (
-	*create_shm_snapshot_ptr) (
-	vmi_instance_t);
-	status_t (
-	*destroy_shm_snapshot_ptr) (
-	vmi_instance_t);
-	const void * (
-	*get_dgpma_ptr) (
-	vmi_instance_t);
-	status_t (
+    *create_shm_snapshot_ptr) (
+    vmi_instance_t);
+    status_t (
+    *destroy_shm_snapshot_ptr) (
+    vmi_instance_t);
+    const void * (
+    *get_dgpma_ptr) (
+    vmi_instance_t);
+    status_t (
     *events_listen_ptr)(
     vmi_instance_t,
     uint32_t);
@@ -173,13 +173,13 @@ driver_xen_setup(
     instance->pause_vm_ptr = &xen_pause_vm;
     instance->resume_vm_ptr = &xen_resume_vm;
 #if ENABLE_SHM_SNAPSHOT == 1
-	instance->create_shm_snapshot_ptr = &xen_create_shm_snapshot;
-	instance->destroy_shm_snapshot_ptr = &xen_destroy_shm_snapshot;
-	instance->get_dgpma_ptr = &xen_get_dgpma;
+    instance->create_shm_snapshot_ptr = &xen_create_shm_snapshot;
+    instance->destroy_shm_snapshot_ptr = &xen_destroy_shm_snapshot;
+    instance->get_dgpma_ptr = &xen_get_dgpma;
 #else
-	instance->create_shm_snapshot_ptr = NULL;
-	instance->destroy_shm_snapshot_ptr = NULL;
-	instance->get_dgpma_ptr = NULL;
+    instance->create_shm_snapshot_ptr = NULL;
+    instance->destroy_shm_snapshot_ptr = NULL;
+    instance->get_dgpma_ptr = NULL;
 #endif
 #if ENABLE_XEN_EVENTS==1
     instance->events_listen_ptr = &xen_events_listen;
@@ -224,13 +224,13 @@ driver_kvm_setup(
     instance->pause_vm_ptr = &kvm_pause_vm;
     instance->resume_vm_ptr = &kvm_resume_vm;
 #if ENABLE_SHM_SNAPSHOT == 1
-	instance->create_shm_snapshot_ptr = &kvm_create_shm_snapshot;
-	instance->destroy_shm_snapshot_ptr = &kvm_destroy_shm_snapshot;
-	instance->get_dgpma_ptr = &kvm_get_dgpma;
+    instance->create_shm_snapshot_ptr = &kvm_create_shm_snapshot;
+    instance->destroy_shm_snapshot_ptr = &kvm_destroy_shm_snapshot;
+    instance->get_dgpma_ptr = &kvm_get_dgpma;
 #else
-	instance->create_shm_snapshot_ptr = NULL;
-	instance->destroy_shm_snapshot_ptr = NULL;
-	instance->get_dgpma_ptr = NULL;
+    instance->create_shm_snapshot_ptr = NULL;
+    instance->destroy_shm_snapshot_ptr = NULL;
+    instance->get_dgpma_ptr = NULL;
 #endif
     instance->events_listen_ptr = NULL;
     instance->set_reg_access_ptr = NULL;

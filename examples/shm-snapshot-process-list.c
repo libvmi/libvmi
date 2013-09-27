@@ -178,7 +178,7 @@ int main (int argc, char **argv)
     }
 
     /* demonstrate name and id accessors */
-	list_processes(vmi, current_process, list_head, tasks_offset,
+    list_processes(vmi, current_process, list_head, tasks_offset,
         current_list_entry, status, next_list_entry, pid_offset, pid,
         procname, name_offset);
 

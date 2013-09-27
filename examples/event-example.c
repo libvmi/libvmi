@@ -56,14 +56,14 @@ void print_event(vmi_event_t event){
         event.mem_event.gfn,
         event.mem_event.offset,
         event.mem_event.gla,
-	event.vcpu_id
+        event.vcpu_id
     );
 }
 
 
 /* MSR registers used to hold system calls in x86_64. Note that compat mode is
- *	used in concert with long mode for certain system calls.
- *	e.g. in 3.2.0 ioctl, getrlimit, etc. (see /usr/include/asm-generic/unistd.h)
+ *  used in concert with long mode for certain system calls.
+ *  e.g. in 3.2.0 ioctl, getrlimit, etc. (see /usr/include/asm-generic/unistd.h)
  * MSR_STAR     -    legacy mode SYSCALL target (not addressed here)
  * MSR_LSTAR    -    long mode SYSCALL target 
  * MSR_CSTAR    -    compat mode SYSCALL target 
@@ -163,12 +163,12 @@ void cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event){
     vmi_pid_t pid = vmi_dtb_to_pid(vmi, event->reg_event.value);
     printf("PID %i with CR3=%"PRIx64" executing on vcpu %u.\n", pid, event->reg_event.value, event->vcpu_id);
 
-	msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
-	msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
+    msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
+    msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
 
-	if(vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
-	    fprintf(stderr, "Could not install sysenter syscall handler.\n");
-	vmi_clear_event(vmi, &msr_syscall_sysenter_event);
+    if(vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
+        fprintf(stderr, "Could not install sysenter syscall handler.\n");
+    vmi_clear_event(vmi, &msr_syscall_sysenter_event);
 }
 
 static int interrupted = 0;

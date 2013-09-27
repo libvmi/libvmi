@@ -1160,11 +1160,11 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event){
 }
 
 status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event){
-	return VMI_FAILURE;
+    return VMI_FAILURE;
 }
 
 status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_access_t page_access_flag){
-return VMI_FAILURE;
+    return VMI_FAILURE;
 }
 status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event){
     return VMI_FAILURE;

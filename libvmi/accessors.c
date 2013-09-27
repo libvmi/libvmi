@@ -192,16 +192,16 @@ vmi_resume_vm(
 #if ENABLE_SHM_SNAPSHOT == 1
 status_t
 vmi_shm_snapshot_create(
-		vmi_instance_t vmi)
+    vmi_instance_t vmi)
 {
-	return driver_shm_snapshot_vm(vmi);
+    return driver_shm_snapshot_vm(vmi);
 }
 
 status_t
 vmi_shm_snapshot_destroy(
-		vmi_instance_t vmi)
+    vmi_instance_t vmi)
 {
-	return driver_destroy_shm_snapshot_vm(vmi);
+    return driver_destroy_shm_snapshot_vm(vmi);
 }
 
 const void * vmi_get_dgpma(

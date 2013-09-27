@@ -99,9 +99,9 @@ xen_get_memory_shm_snapshot(
  * xen_release_memory_shm_snapshot
  *
  *  Since xen_get_memory_shm_snapshot() didn't copy memory contents to a temporary buffer,
- *	shm-snapshot need not free memory.
- *	However, this dummy function is still required as memory_cache.c need release_data_callback() to
- *	free entries and it never checks if the callback is not NULL, which must cause segmentation fault.
+ *  shm-snapshot need not free memory.
+ *  However, this dummy function is still required as memory_cache.c need release_data_callback() to
+ *  free entries and it never checks if the callback is not NULL, which must cause segmentation fault.
  */
 void
 xen_release_memory_shm_snapshot(
@@ -255,7 +255,7 @@ dump_vcpureg_pv64_snapshot(
     }
     void * mem  = malloc(sizeof(vcpu_guest_context_x86_64_t));
     if (NULL != mem) {
-    	xen->shm_snapshot_cpu_regs = mem;
+        xen->shm_snapshot_cpu_regs = mem;
         memcpy (xen->shm_snapshot_cpu_regs, &ctx.x64,
             sizeof(vcpu_guest_context_x86_64_t));
         return VMI_SUCCESS;
@@ -751,7 +751,7 @@ _bail:
  */
 status_t
 xen_setup_live_mode(
-	    vmi_instance_t vmi)
+    vmi_instance_t vmi)
 {
     dbprint("--xen: setup live mode\n");
     memory_cache_destroy(vmi);
@@ -828,10 +828,10 @@ xen_init(
 
 #if ENABLE_SHM_SNAPSHOT == 1
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
-    	return xen_create_shm_snapshot(vmi);
+        return xen_create_shm_snapshot(vmi);
     }
     else {
-    	return xen_setup_live_mode(vmi);
+        return xen_setup_live_mode(vmi);
     }
 #else
     xen_setup_live_mode(vmi);
@@ -856,7 +856,7 @@ xen_destroy(
 
 #if ENABLE_SHM_SNAPSHOT == 1
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
-    	xen_teardown_shm_snapshot_mode(vmi);
+        xen_teardown_shm_snapshot_mode(vmi);
     }
 #endif
 
@@ -951,7 +951,7 @@ xen_get_vcpureg_hvm(
     if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
         hvm_cpu = (struct hvm_hw_cpu*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
         dbprint("read hvm cpu registers from shm-snapshot\n");
-	}
+    }
 #endif
     struct hvm_hw_cpu hw_ctxt = { 0 };
     if (NULL == hvm_cpu) {
@@ -1236,7 +1236,7 @@ xen_set_vcpureg_hvm(
     struct hvm_save_descriptor *desc = NULL;
 
     /* calling with no arguments --> return is the size of buffer required
-     *	for storing the HVM context
+     *  for storing the HVM context
      */
     size = xc_domain_hvm_getcontext(xen_get_xchandle(vmi), xen_get_domainid(vmi), 0, 0);
 
@@ -1254,7 +1254,7 @@ xen_set_vcpureg_hvm(
     }
 
     /* Locate runtime CPU registers in the context record, using the full  
-     *	version of xc_domain_hvm_getcontext rather than the partial
+     *  version of xc_domain_hvm_getcontext rather than the partial
      *  variant, because there is no equivalent setcontext_partial.
      * NOTE: to avoid inducing race conditions/errors, run while VM is paused.
      */
@@ -1263,7 +1263,7 @@ xen_set_vcpureg_hvm(
 
         errprint("Failed to fetch HVM context buffer.\n");
         ret = VMI_FAILURE;
-	goto _bail;
+    goto _bail;
     }
 
     off = 0;
@@ -1275,7 +1275,7 @@ xen_set_vcpureg_hvm(
         if (desc->typecode == HVM_SAVE_CODE(CPU) && desc->instance == vcpu) {
             cpu = (HVM_SAVE_TYPE(CPU) *)(buf + off);
             break;
-	}
+    }
 
         off += desc->length;
     }
@@ -1283,7 +1283,7 @@ xen_set_vcpureg_hvm(
     if(cpu == NULL){
         errprint("Failed to locate HVM cpu context.\n");
         ret = VMI_FAILURE;
-	goto _bail;
+        goto _bail;
     }
 
     switch (reg) {
@@ -1560,12 +1560,12 @@ xen_get_vcpureg_pv64(
     unsigned long vcpu)
 {
     status_t ret = VMI_SUCCESS;
-	vcpu_guest_context_x86_64_t* vcpu_ctx = NULL;
+    vcpu_guest_context_x86_64_t* vcpu_ctx = NULL;
 #if ENABLE_SHM_SNAPSHOT == 1
-	if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
-		vcpu_ctx = (struct cpu_user_regs_x86_64*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
-		dbprint("read pv_64 cpu registers from shm-snapshot\n");
-	}
+    if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
+        vcpu_ctx = (struct cpu_user_regs_x86_64*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
+        dbprint("read pv_64 cpu registers from shm-snapshot\n");
+    }
 #endif
     vcpu_guest_context_any_t ctx = { 0 };
     xen_domctl_t domctl = { 0 };
@@ -1829,20 +1829,20 @@ xen_get_vcpureg_pv32(
     status_t ret = VMI_SUCCESS;
     vcpu_guest_context_x86_32_t* vcpu_ctx = NULL;
 #if ENABLE_SHM_SNAPSHOT == 1
-	if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
-		vcpu_ctx = (struct vcpu_guest_context_x86_32_t*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
-		dbprint("read pv_32 cpu registers from shm-snapshot\n");
-	}
+    if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
+        vcpu_ctx = (struct vcpu_guest_context_x86_32_t*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
+        dbprint("read pv_32 cpu registers from shm-snapshot\n");
+    }
 #endif
     vcpu_guest_context_any_t ctx = { 0 };
     xen_domctl_t domctl = { 0 };
     if (NULL == vcpu_ctx) {
-		if (xc_vcpu_getcontext(xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
-			errprint("Failed to get context information (PV domain).\n");
-			ret = VMI_FAILURE;
-			goto _bail;
-		}
-		vcpu_ctx = &ctx.x32;
+        if (xc_vcpu_getcontext(xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
+            errprint("Failed to get context information (PV domain).\n");
+            ret = VMI_FAILURE;
+            goto _bail;
+        }
+        vcpu_ctx = &ctx.x32;
     }
 
     switch (reg) {
@@ -2159,9 +2159,9 @@ status_t
 xen_create_shm_snapshot(
     vmi_instance_t vmi)
 {
-	// teardown the old shm-snapshot if existed.
+    // teardown the old shm-snapshot if existed.
     if (VMI_SUCCESS == test_using_shm_snapshot(xen_get_instance(vmi))) {
-    	xen_teardown_shm_snapshot_mode(vmi);
+        xen_teardown_shm_snapshot_mode(vmi);
     }
 
     return xen_setup_shm_snapshot_mode(vmi);
@@ -2171,9 +2171,9 @@ status_t
 xen_destroy_shm_snapshot(
     vmi_instance_t vmi)
 {
-	xen_teardown_shm_snapshot_mode(vmi);
+    xen_teardown_shm_snapshot_mode(vmi);
 
-	return xen_setup_live_mode(vmi);
+    return xen_setup_live_mode(vmi);
 }
 
 const void * xen_get_dgpma(
