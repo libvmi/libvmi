@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -802,7 +802,7 @@ find_kdversionblock_address_fast(
     // Note: this function has several limitations:
     // -the KD version block signature cannot cross block (frame) boundaries
     // -reading PA 0 fails; hope the KD version block is not in frame 0
-    // 
+    //
     // Todo:
     // -support matching across frames (can this happen in windows?)
 

@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -815,7 +815,7 @@ xen_init(
 #endif /* VMI_DEBUG */
 
 #if ENABLE_XEN_EVENTS==1
-    /* Only enable events IFF(mode & VMI_INIT_EVENTS) 
+    /* Only enable events IFF(mode & VMI_INIT_EVENTS)
      * Additional checks performed within xen_events_init
      */
     if(vmi->init_mode & VMI_INIT_EVENTS){
@@ -1253,7 +1253,7 @@ xen_set_vcpureg_hvm(
         goto _bail;
     }
 
-    /* Locate runtime CPU registers in the context record, using the full  
+    /* Locate runtime CPU registers in the context record, using the full
      *  version of xc_domain_hvm_getcontext rather than the partial
      *  variant, because there is no equivalent setcontext_partial.
      * NOTE: to avoid inducing race conditions/errors, run while VM is paused.
@@ -1516,7 +1516,7 @@ xen_set_vcpureg_hvm(
         break;
 
 #ifdef DECLARE_HVM_SAVE_TYPE_COMPAT
-        /* Handle churn in struct hvm_hw_cpu (from xen/hvm/save.h) 
+        /* Handle churn in struct hvm_hw_cpu (from xen/hvm/save.h)
          * that would prevent otherwise-compatible Xen 4.0 branches
          * from building.
          *

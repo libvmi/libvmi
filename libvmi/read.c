@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -371,7 +371,7 @@ vmi_read_str_va(
     int len = 0;
     size_t read_len = 0;
     int read_more = 1;
- 
+
     rtnval = NULL;
 
     while (read_more) {

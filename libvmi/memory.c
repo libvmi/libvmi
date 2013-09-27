@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -262,7 +262,7 @@ uint64_t get_2megpage_ia32e (addr_t vaddr, uint64_t pde)
 
 /* "buffalo" routines
  * see "Using Every Part of the Buffalo in Windows Memory Analysis" by
- * Jesse D. Kornblum for details. 
+ * Jesse D. Kornblum for details.
  * for now, just test the bits and print out details */
 int get_transition_bit (uint32_t entry)
 {

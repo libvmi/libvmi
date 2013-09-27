@@ -122,13 +122,13 @@ void events_destroy(vmi_instance_t vmi)
         g_hash_table_foreach_steal(vmi->reg_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->reg_events);
     }
-    
+
     if (vmi->ss_events)
     {
         g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->ss_events);
     }
-    
+
     if (vmi->interrupt_events)
     {
         g_hash_table_foreach_steal(vmi->interrupt_events, event_entry_free, vmi);
@@ -681,7 +681,7 @@ status_t vmi_shutdown_single_step(vmi_instance_t vmi)
     if(VMI_SUCCESS == driver_shutdown_single_step(vmi))
     {
         /* Safe to destroy here because the driver has disabled single-step
-         *  for all VCPUs. Library user still manages event allocation at this 
+         *  for all VCPUs. Library user still manages event allocation at this
          *  stage.
          * Recreate hash table for possible future use.
          */

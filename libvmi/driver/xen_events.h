@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -26,10 +26,10 @@
  */
 
 /*
- * Portions of this header and dependent code is based upon that in xen-access, 
- *    from the official Xen source distribution.  That code carries the 
+ * Portions of this header and dependent code is based upon that in xen-access,
+ *    from the official Xen source distribution.  That code carries the
  *    following copyright notices and license.
- *  
+ *
  * Copyright (c) 2011 Virtuata, Inc.
  * Copyright (c) 2009 by Citrix Systems, Inc. (Patrick Colp), based on
  *   xenpaging.c
@@ -64,13 +64,13 @@
 #include <xen/hvm/save.h>
 
 typedef int spinlock_t;
-#ifdef XENCTRL_HAS_XC_INTERFACE 
+#ifdef XENCTRL_HAS_XC_INTERFACE
 #if XENCTRL_HAS_XC_INTERFACE==1
 typedef xc_evtchn* xc_evtchn_t;
 #else
 #error Unknown libxenctrl interface version! This constitutes a bug and requires an update to the LibVMI Xen driver.
 #endif
-#else 
+#else
 typedef int xc_evtchn_t;
 #endif
 

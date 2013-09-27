@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -24,8 +24,8 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
-/* Portions of this header and dependent code is based upon that in xen-access, 
- *    from the official Xen source distribution.  That code carries the 
+/* Portions of this header and dependent code is based upon that in xen-access,
+ *    from the official Xen source distribution.  That code carries the
  *    following copyright notices and license.
  *
  * Copyright (c) 2011 Virtuata, Inc.
@@ -63,7 +63,7 @@
  * Helper functions
  */
 
-/* Only build if Xen and Xen memory events are explicitly enabled by the 
+/* Only build if Xen and Xen memory events are explicitly enabled by the
  *  configure script.
  *
  * Use the xenctrl interface version defined (from xenctrl.h) to validate
@@ -72,7 +72,7 @@
  *  all of the features LibVMI needs.
  */
 #if ENABLE_XEN==1 && ENABLE_XEN_EVENTS==1 && XENCTRL_HAS_XC_INTERFACE
-static xen_events_t *xen_get_events(vmi_instance_t vmi) 
+static xen_events_t *xen_get_events(vmi_instance_t vmi)
 {
     return xen_get_instance(vmi)->events;
 }
@@ -258,7 +258,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         event->interrupt_event.gla = req.gla;
         event->vcpu_id = req.vcpu_id;
 
-        /* Will need to refactor if another interrupt is accessible 
+        /* Will need to refactor if another interrupt is accessible
          *  via events, and needs differing setup before callback.
          *  ..but this basic structure should be adequate for now.
          */
@@ -278,8 +278,8 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                  *  instruction. The 2-byte 0xCD imm8 variant taking the
                  *  interrupt vector as an operand (i.e., 0xCD03) is NOT
                  *  reported in the same fashion (These details are valid as of
-                 *  Xen 4.3). 
-                 * 
+                 *  Xen 4.3).
+                 *
                  *  In order for INT3 to be handled correctly by the VM
                  *  kernel and subsequently passed on to the debugger within a
                  *  VM, the trap must be re-injected. Because only 0xCC is in
@@ -297,8 +297,8 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                               */
                          0   /* cr2 need not be preserved */
                     );
-                
-                /* NOTE: Inability to re-inject constitutes a serious error. 
+
+                /* NOTE: Inability to re-inject constitutes a serious error.
                  *  (E.g., some program like a debugger in the guest is
                  *  awaiting SIGTRAP in order to trigger to re-write/emulation
                  *  of the instruction(s) it replaced..without which the
@@ -308,7 +308,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                  * Further, the trap handler in kernel land may
                  *  itself be placed into an unrecoverable state if extreme
                  *  caution is not used here.
-                 *   
+                 *
                  * However, the hypercall (and subsequently the libxc function)
                  *  return non-zero for Xen 4.1 and 4.2 even for successful
                  *  actions...so, ignore rc if version < 4.3.
@@ -323,25 +323,25 @@ status_t process_interrupt_event(vmi_instance_t vmi,
 #if __XEN_INTERFACE_VERSION__ >= 0x00040300
                 if (rc < 0) {
                     errprint("%s : Xen event error %d re-injecting int3\n", __FUNCTION__, rc);
-                    status = VMI_FAILURE; 
+                    status = VMI_FAILURE;
                     break;
                 }
 #else
 #warning Xen version installed has interrupt reinjection with unusable return value.
 /* NOTE: 4.2.3 has the required patch
- *   i.e., 'fix HVMOP_inject_trap return value on success' 
+ *   i.e., 'fix HVMOP_inject_trap return value on success'
  * But this cannot be inferred via __XEN_INTERFACE_VERSION__, which is only
  *  updated for major versions.
  */
 #endif
             }
-            
+
             status = VMI_SUCCESS;
- 
+
             break;
         default:
             errprint("%s : Xen event - unknown interrupt %d\n", __FUNCTION__, intr);
-            status = VMI_FAILURE; 
+            status = VMI_FAILURE;
             break;
         }
     }
@@ -371,7 +371,7 @@ status_t process_register(vmi_instance_t vmi,
             if(event->reg_event.reg == MSR_ALL)
                 event->reg_event.context = req.gla;
 #endif
-            
+
             /* TODO MARESCA: note that vmi_event_t lacks a flags member
              *   so we have no req.flags equivalent. might need to add
              *   e.g !!(req.flags & MEM_EVENT_FLAG_VCPU_PAUSED)  would be nice
@@ -520,7 +520,7 @@ void xen_events_destroy(vmi_instance_t vmi)
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return;
     }
-    
+
     //A precaution to not leave vcpus stuck in single step
     xen_shutdown_single_step(vmi);
 
@@ -606,7 +606,7 @@ status_t xen_events_init(vmi_instance_t vmi)
     unsigned long mmap_pfn = 0;
     int rc = 0;
 
-    /* Xen (as of 4.3) only supports events for HVM domains 
+    /* Xen (as of 4.3) only supports events for HVM domains
      *  This is likely to expand to PV in the future, but
      *  until such time, enforce this restriction
      */
@@ -634,7 +634,7 @@ status_t xen_events_init(vmi_instance_t vmi)
         errprint("%s error: allocation for xen_events_t failed\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    
+
     dbprint("Init xen events with xch == %llx\n", (unsigned long long)xch);
 
     // Initialise lock
@@ -806,7 +806,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
     if ( dom == VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
-    } 
+    }
 
     switch(event.in_access){
         case VMI_REGACCESS_N: break;
@@ -874,7 +874,7 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
- 
+
     addr_t page_key = event.physical_address >> 12;
 
     uint64_t npages = page_key + event.npages > xe->mem_event.max_pages
@@ -907,7 +907,7 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
 
 status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event)
 {
-    
+
     switch(event.intr){
     case INT3:
         return xen_set_int3_access(vmi, event);
@@ -934,10 +934,10 @@ status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event)
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
- 
+
     if(event.enabled)
         param = HVMPME_mode_sync;
- 
+
     return xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_INT3, param);
 }
 
@@ -948,7 +948,7 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event)
     uint32_t i = 0;
 
     dbprint("--Starting single step on domain %lu\n", dom);
-    
+
     rc = xc_set_hvm_param(
             xen_get_xchandle(vmi), dom,
             HVM_PARAM_MEMORY_EVENT_SINGLE_STEP, HVMPME_mode_sync);
@@ -957,7 +957,7 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event)
         errprint("Error %d setting HVM single step\n", rc);
         return VMI_FAILURE;
     }
-    
+
     for(;i < MAX_SINGLESTEP_VCPUS; i++){
         if(CHECK_VCPU_SINGLESTEP(event, i)) {
             dbprint("--Setting MTF flag on vcpu %u\n", i);
@@ -974,7 +974,7 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event)
     do {
         xen_stop_single_step(vmi, i);
     }while(i--);
-    
+
     return VMI_FAILURE;
 }
 
@@ -984,7 +984,7 @@ status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu)
     status_t ret = VMI_FAILURE;
 
     dbprint("--Removing MTF flag from vcpu %u\n", vcpu);
-    
+
     ret = xen_set_domain_debug_control(vmi, vcpu, 0);
 
     return ret;
@@ -996,7 +996,7 @@ status_t xen_shutdown_single_step(vmi_instance_t vmi) {
     uint32_t i=0;
 
     dbprint("--Shutting down single step on domain %lu\n", dom);
-    
+
     for(;i<vmi->num_vcpus; i++) {
         xen_stop_single_step(vmi, i);
     }
@@ -1010,7 +1010,7 @@ status_t xen_shutdown_single_step(vmi_instance_t vmi) {
         return VMI_FAILURE;
     }
 
-    return VMI_SUCCESS;    
+    return VMI_SUCCESS;
 }
 
 status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
