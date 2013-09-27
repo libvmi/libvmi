@@ -269,7 +269,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         case INT3:
             /* Reinject (callback may decide) */
             if(event->interrupt_event.reinject) {
-                dbprint("rip %lx gfn %lx\n",
+                dbprint("rip %"PRIx64" gfn %"PRIx64"\n",
                     event->interrupt_event.gla, event->interrupt_event.gfn);
 
                 /* Undocumented enough to be worth describing at length:

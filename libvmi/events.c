@@ -506,7 +506,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     }
     else
     {
-        printf("Disabling event failed, no event found on page: %lu\n",
+        printf("Disabling event failed, no event found on page: %"PRIu64"\n",
                 page_key);
     }
 
