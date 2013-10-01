@@ -141,7 +141,7 @@ vmi_get_offset(
     return vmi->os_interface->os_get_offset(vmi, offset_name);
 }
 
-unsigned long
+uint64_t
 vmi_get_memsize(
     vmi_instance_t vmi)
 {

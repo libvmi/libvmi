@@ -866,7 +866,7 @@ kvm_set_name(
 status_t
 kvm_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size)
+    uint64_t *size)
 {
     virDomainInfo info;
 
@@ -1245,7 +1245,7 @@ kvm_set_name(
 status_t
 kvm_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size)
+    uint64_t *size)
 {
     return VMI_FAILURE;
 }

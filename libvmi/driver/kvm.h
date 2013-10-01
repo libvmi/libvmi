@@ -78,7 +78,7 @@ void kvm_set_name(
     char *name);
 status_t kvm_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size);
+    uint64_t *size);
 status_t kvm_get_vcpureg(
     vmi_instance_t vmi,
     reg_t *value,

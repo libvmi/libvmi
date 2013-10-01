@@ -70,7 +70,7 @@ struct driver_instance {
     status_t (
     *get_memsize_ptr) (
     vmi_instance_t,
-    unsigned long *);
+    uint64_t *);
     status_t (
     *get_vcpureg_ptr) (
     vmi_instance_t,
@@ -526,7 +526,7 @@ driver_set_name(
 status_t
 driver_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size)
+    uint64_t *size)
 {
     driver_instance_t ptrs = driver_get_instance(vmi);
 

@@ -136,7 +136,7 @@ file_init(
 
 #if USE_MMAP
     /* try memory mapped file I/O */
-    unsigned long size;
+    uint64_t size = 0;
 
     if (VMI_FAILURE == file_get_memsize(vmi, &size)) {
         goto fail;
@@ -214,7 +214,7 @@ file_set_name(
 status_t
 file_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size)
+    uint64_t *size)
 {
     status_t ret = VMI_FAILURE;
     struct stat s;
@@ -223,7 +223,7 @@ file_get_memsize(
         errprint("Failed to stat file.\n");
         goto error_exit;
     }
-    *size = (unsigned long) s.st_size;
+    *size = s.st_size;
     ret = VMI_SUCCESS;
 
 error_exit:
@@ -363,7 +363,7 @@ file_set_name(
 status_t
 file_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size)
+    uint64_t *size)
 {
     return VMI_FAILURE;
 }

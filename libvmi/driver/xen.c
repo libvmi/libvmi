@@ -924,7 +924,7 @@ xen_set_domainname(
 status_t
 xen_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size)
+    uint64_t *size)
 {
     // note: may also available through xen_get_instance(vmi)->info.max_memkb
     // or xenstore /local/domain/%d/memory/target
@@ -2258,7 +2258,7 @@ xen_set_domainname(
 status_t
 xen_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size)
+    uint64_t *size)
 {
     return VMI_FAILURE;
 }

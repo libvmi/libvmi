@@ -1217,7 +1217,7 @@ uint64_t vmi_get_offset(
  * @param[in] vmi LibVMI instance
  * @return Memory size
  */
-unsigned long vmi_get_memsize(
+uint64_t vmi_get_memsize(
     vmi_instance_t vmi);
 
 /**
