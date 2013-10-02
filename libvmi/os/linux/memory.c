@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -71,7 +71,7 @@ linux_get_taskstruct_addr_from_pid(
         next_process -= tasks_offset;
 
         /* if we are back at the list head, we are done */
-    } while(list_head != next_process); 
+    } while(list_head != next_process);
 
 error_exit:
     return 0;
@@ -104,13 +104,13 @@ linux_get_taskstruct_addr_from_pgd(
 
     /* First we need a pointer to the initial entry in the tasks list.
      * Note that this is task_struct->tasks, not the base addr
-     *  of task_struct: task_struct base = $entry - tasks_offset. 
+     *  of task_struct: task_struct base = $entry - tasks_offset.
      */
     next_process = vmi->init_task;
     list_head = next_process;
 
-    /* May fail for some drivers, but handle gracefully below by 
-     * testing width 
+    /* May fail for some drivers, but handle gracefully below by
+     * testing width
      */
     rc = driver_get_address_width(vmi, &width);
 
@@ -119,7 +119,7 @@ linux_get_taskstruct_addr_from_pgd(
         vmi_read_addr_va(vmi, next_process + mm_offset, 0, &ptr);
 
         /* task_struct->mm is NULL when Linux is executing on the behalf
-         * of a task, or if the task represents a kthread. In this context, 
+         * of a task, or if the task represents a kthread. In this context,
          * task_struct->active_mm is non-NULL and we can use it as
          * a fallback. task_struct->active_mm can be found very reliably
          * at task_struct->mm + 1 pointer width
@@ -135,7 +135,7 @@ linux_get_taskstruct_addr_from_pgd(
 
         vmi_read_addr_va(vmi, next_process + tasks_offset, 0, &next_process);
         next_process -= tasks_offset;
-        
+
         /* if we are back at the list head, we are done */
     } while (list_head != next_process);
 
@@ -170,8 +170,8 @@ linux_pid_to_pgd(
     mm_offset = linux_instance->mm_offset;
     pgd_offset = linux_instance->pgd_offset;
 
-    /* May fail for some drivers, but handle gracefully below by 
-     * testing width 
+    /* May fail for some drivers, but handle gracefully below by
+     * testing width
      */
     rc = driver_get_address_width(vmi, &width);
 
@@ -186,7 +186,7 @@ linux_pid_to_pgd(
     vmi_read_addr_va(vmi, ts_addr + mm_offset, 0, &ptr);
 
     /* task_struct->mm is NULL when Linux is executing on the behalf
-     * of a task, or if the task represents a kthread. In this context, 
+     * of a task, or if the task represents a kthread. In this context,
      * task_struct->active_mm is non-NULL and we can use it as
      * a fallback. task_struct->active_mm can be found very reliably
      * at task_struct->mm + 1 pointer width
