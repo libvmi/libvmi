@@ -1217,7 +1217,7 @@ uint64_t vmi_get_offset(
  * @param[in] vmi LibVMI instance
  * @return Memory size
  */
-unsigned long vmi_get_memsize(
+uint64_t vmi_get_memsize(
     vmi_instance_t vmi);
 
 /**
@@ -1305,7 +1305,7 @@ status_t vmi_resume_vm(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_shm_snapshot_create(
-		vmi_instance_t vmi);
+    vmi_instance_t vmi);
 
 /**
  * Destroy existed shm-snapshot and exit "shm-snapshot" mode.
@@ -1319,7 +1319,7 @@ status_t vmi_shm_snapshot_create(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_shm_snapshot_destroy(
-		vmi_instance_t vmi);
+    vmi_instance_t vmi);
 #endif
 
 /**
@@ -1587,8 +1587,8 @@ typedef struct {
     addr_t gla;         /* (Global Linear Address) == RIP of the trapped instruction */
     addr_t gfn;         /* (Guest Frame Number) == 'physical' page where trap occurred */
     interrupts_t intr;  /* Specific interrupt intended to trigger the event */
-    int reinject:1;     /* Toggle, controls whether interrupt is re-injected after callback */ 
-    int enabled:1;      /* Toggle */ 
+    int reinject:1;     /* Toggle, controls whether interrupt is re-injected after callback */
+    int enabled:1;      /* Toggle */
 } interrupt_event_t;
 
 typedef struct {

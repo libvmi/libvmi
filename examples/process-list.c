@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 int main (int argc, char **argv)
 {
@@ -127,12 +128,12 @@ int main (int argc, char **argv)
 
     status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
     if (status == VMI_FAILURE) {
-        printf("Failed to read next pointer at 0x%lx before entering loop\n",
+        printf("Failed to read next pointer at 0x%"PRIx64" before entering loop\n",
                 current_list_entry);
         goto error_exit;
     }
 
-    printf("Next list entry is at: %lx\n", next_list_entry);
+    printf("Next list entry is at: %"PRIx64"\n", next_list_entry);
 
     do {
         /* Note: the task_struct that we are looking at has a lot of
@@ -156,7 +157,7 @@ int main (int argc, char **argv)
         }
 
         /* print out the process name */
-        printf("[%5d] %s (struct addr:%lx)\n", pid, procname, current_process);
+        printf("[%5d] %s (struct addr:%"PRIx64")\n", pid, procname, current_process);
         if (procname) {
             free(procname);
             procname = NULL;
@@ -169,7 +170,7 @@ int main (int argc, char **argv)
 
         status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
         if (status == VMI_FAILURE) {
-            printf("Failed to read next pointer in loop at %lx\n", current_list_entry);
+            printf("Failed to read next pointer in loop at %"PRIx64"\n", current_list_entry);
             goto error_exit;
         }
 

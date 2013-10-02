@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -26,7 +26,7 @@
 
 /*
  * @file glib_compat.c
- * @brief Compatibility functions are defined here that enable use of LibVMI 
+ * @brief Compatibility functions are defined here that enable use of LibVMI
  *  with versions of glib older than 2.22
  *
  */

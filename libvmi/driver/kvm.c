@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -190,12 +190,12 @@ exec_memory_access_success(
  */
 inline status_t
 test_using_kvm_patch(
-	    kvm_instance_t *kvm)
+    kvm_instance_t *kvm)
 {
     if (kvm->socket_fd) {
-    	return VMI_SUCCESS;
+        return VMI_SUCCESS;
     } else {
-    	return VMI_FAILURE;
+        return VMI_FAILURE;
     }
 }
 
@@ -257,16 +257,16 @@ kvm_get_instance(
 #if ENABLE_SHM_SNAPSHOT == 1
 status_t
 test_using_shm_snapshot(
-		kvm_instance_t *kvm)
+    kvm_instance_t *kvm)
 {
-	if (NULL != kvm->shm_snapshot_path && NULL != kvm->shm_snapshot_fd
+    if (NULL != kvm->shm_snapshot_path && NULL != kvm->shm_snapshot_fd
         && NULL != kvm->shm_snapshot_map && NULL != kvm->shm_snapshot_cpu_regs) {
         dbprint("is using shm-snapshot\n");
         return VMI_SUCCESS;
-	} else {
+    } else {
         dbprint("is not using shm-snapshot\n");
         return VMI_FAILURE;
-	}
+    }
 }
 
 /*
@@ -274,11 +274,11 @@ test_using_shm_snapshot(
  */
 static char *
 exec_shm_snapshot(
-	    vmi_instance_t vmi)
+    vmi_instance_t vmi)
 {
-	kvm_instance_t *kvm = kvm_get_instance(vmi);
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-	// get a random unique path e.g. /dev/shm/[domain name]xxxxxx.
+    // get a random unique path e.g. /dev/shm/[domain name]xxxxxx.
     char *unique_shm_path = tempnam("/dev/shm", (char *) virDomainGetName(kvm->dom));
 
     if (NULL != unique_shm_path) {
@@ -294,34 +294,34 @@ exec_shm_snapshot(
         return output;
     }
     else {
-    	return NULL;
+        return NULL;
     }
 }
 
 static status_t
 exec_shm_snapshot_success(
-		char* status)
+    char* status)
 {
-	// successful status should like: {"return":2684354560,"id":"libvirt-812"}
-	if (NULL == status) {
+    // successful status should like: {"return":2684354560,"id":"libvirt-812"}
+    if (NULL == status) {
         return VMI_FAILURE;
     }
     char *ptr = strcasestr(status, "CommandNotFound");
     if (NULL == ptr) {
-    	uint64_t shm_snapshot_size = strtoul(status + strlen("{\"return\":"), NULL, 0);
-    	if (shm_snapshot_size > 0) {
-    		//qmp status e.g. : {"return":2684354560,"id":"libvirt-812"}
-    		dbprint("--kvm: using shm-snapshot support\n");
-    		return VMI_SUCCESS;
-    	} else {
-    		//qmp status e.g. : {"return":0,"id":"libvirt-812"}
-    		errprint ("--kvm: fail to shm-snapshot\n");
-    		return VMI_FAILURE;
-    	}
+        uint64_t shm_snapshot_size = strtoul(status + strlen("{\"return\":"), NULL, 0);
+        if (shm_snapshot_size > 0) {
+            //qmp status e.g. : {"return":2684354560,"id":"libvirt-812"}
+            dbprint("--kvm: using shm-snapshot support\n");
+            return VMI_SUCCESS;
+        } else {
+            //qmp status e.g. : {"return":0,"id":"libvirt-812"}
+            errprint ("--kvm: fail to shm-snapshot\n");
+            return VMI_FAILURE;
+        }
     }
     else {
-    	//qmp status e.g. : CommandNotFound
-		errprint("--kvm: didn't find shm-snapshot support\n");
+        //qmp status e.g. : CommandNotFound
+        errprint("--kvm: didn't find shm-snapshot support\n");
         return VMI_FAILURE;
     }
 }
@@ -367,15 +367,15 @@ link_mmap_shm_snapshot_dev(
  */
 static status_t
 munmap_unlink_shm_snapshot_dev(
-		kvm_instance_t *kvm, uint64_t mem_size)
+    kvm_instance_t *kvm, uint64_t mem_size)
 {
     if (kvm->shm_snapshot_map) {
         (void) munmap(kvm->shm_snapshot_map, mem_size);
         kvm->shm_snapshot_map = 0;
     }
     if (kvm->shm_snapshot_fd) {
-    	shm_unlink(kvm->shm_snapshot_path);
-    	free(kvm->shm_snapshot_path);
+        shm_unlink(kvm->shm_snapshot_path);
+        free(kvm->shm_snapshot_path);
         kvm->shm_snapshot_path = NULL;
         kvm->shm_snapshot_fd = 0;
     }
@@ -415,9 +415,9 @@ error_noprint:
  * kvm_release_memory_shm_snapshot
  *
  *  Since kvm_get_memory_shm_snapshot() didn't copy memory contents to a temporary buffer,
- *	shm-snapshot need not free memory.
- *	However, this dummy function is still required as memory_cache.c need release_data_callback() to
- *	free entries and it never checks if the callback is not NULL, which must cause segmentation fault.
+ *  shm-snapshot need not free memory.
+ *  However, this dummy function is still required as memory_cache.c need release_data_callback() to
+ *  free entries and it never checks if the callback is not NULL, which must cause segmentation fault.
  */
 void
 kvm_release_memory_shm_snapshot(
@@ -428,43 +428,44 @@ kvm_release_memory_shm_snapshot(
 
 status_t
 kvm_setup_shm_snapshot_mode(
-	    vmi_instance_t vmi)
+    vmi_instance_t vmi)
 {
-	char *shm_snapshot_status = exec_shm_snapshot(vmi);
-	if (VMI_SUCCESS == exec_shm_snapshot_success(shm_snapshot_status)) {
+    char *shm_snapshot_status = exec_shm_snapshot(vmi);
+    if (VMI_SUCCESS == exec_shm_snapshot_success(shm_snapshot_status)) {
 
-		// dump cpu registers
-		char *cpu_regs = exec_info_registers(kvm_get_instance(vmi));
-		kvm_get_instance(vmi)->shm_snapshot_cpu_regs = strdup(cpu_regs);
-		free(cpu_regs);
+        // dump cpu registers
+        char *cpu_regs = exec_info_registers(kvm_get_instance(vmi));
+        kvm_get_instance(vmi)->shm_snapshot_cpu_regs = strdup(cpu_regs);
+        free(cpu_regs);
 
-		memory_cache_destroy(vmi);
-		memory_cache_init(vmi, kvm_get_memory_shm_snapshot, kvm_release_memory_shm_snapshot,
-							  1);
+        memory_cache_destroy(vmi);
+        memory_cache_init(vmi, kvm_get_memory_shm_snapshot, kvm_release_memory_shm_snapshot,
+                                1);
 
-		if (shm_snapshot_status)
-			free (shm_snapshot_status);
-		return link_mmap_shm_snapshot_dev(vmi);
-	} else {
-		if (shm_snapshot_status)
-			free (shm_snapshot_status);
-		return VMI_FAILURE;
-	}
+        if (shm_snapshot_status)
+            free (shm_snapshot_status);
+
+        return link_mmap_shm_snapshot_dev(vmi);
+    } else {
+        if (shm_snapshot_status)
+            free (shm_snapshot_status);
+        return VMI_FAILURE;
+    }
 }
 
 status_t
 kvm_teardown_shm_snapshot_mode(
-		vmi_instance_t vmi)
+    vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
     if (VMI_SUCCESS == test_using_shm_snapshot(kvm)) {
-    	dbprint("--kvm: teardown KVM shm-snapshot\n");
-    	munmap_unlink_shm_snapshot_dev(kvm, vmi->size);
-    	if (kvm->shm_snapshot_cpu_regs != NULL) {
-    		free(kvm->shm_snapshot_cpu_regs);
-    		kvm->shm_snapshot_cpu_regs = NULL;
-    	}
+        dbprint("--kvm: teardown KVM shm-snapshot\n");
+        munmap_unlink_shm_snapshot_dev(kvm, vmi->size);
+        if (kvm->shm_snapshot_cpu_regs != NULL) {
+            free(kvm->shm_snapshot_cpu_regs);
+            kvm->shm_snapshot_cpu_regs = NULL;
+        }
 
         memory_cache_destroy(vmi);
     }
@@ -603,7 +604,7 @@ error_exit:
  */
 status_t
 kvm_setup_live_mode(
-	    vmi_instance_t vmi)
+    vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
@@ -695,11 +696,11 @@ kvm_init(
 
 
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
-    	return kvm_create_shm_snapshot(vmi);
+        return kvm_create_shm_snapshot(vmi);
     } else
 #endif
     {
-    	return kvm_setup_live_mode(vmi);
+        return kvm_setup_live_mode(vmi);
     }
 }
 
@@ -713,7 +714,7 @@ kvm_destroy(
 
 #if ENABLE_SHM_SNAPSHOT == 1
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
-    	kvm_teardown_shm_snapshot_mode(vmi);
+        kvm_teardown_shm_snapshot_mode(vmi);
     }
 #endif
 
@@ -865,7 +866,7 @@ kvm_set_name(
 status_t
 kvm_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size)
+    uint64_t *size)
 {
     virDomainInfo info;
 
@@ -887,18 +888,18 @@ kvm_get_vcpureg(
     registers_t reg,
     unsigned long vcpu)
 {
-	char *regs = NULL;
+    char *regs = NULL;
 
 #if ENABLE_SHM_SNAPSHOT == 1
-	// if we have shm-snapshot configuration, then read from the loaded string.
-	if (kvm_get_instance(vmi)->shm_snapshot_cpu_regs != NULL) {
-		regs = strdup(kvm_get_instance(vmi)->shm_snapshot_cpu_regs);
-		dbprint("read cpu regs from shm-snapshot\n");
-	}
+    // if we have shm-snapshot configuration, then read from the loaded string.
+    if (kvm_get_instance(vmi)->shm_snapshot_cpu_regs != NULL) {
+        regs = strdup(kvm_get_instance(vmi)->shm_snapshot_cpu_regs);
+        dbprint("read cpu regs from shm-snapshot\n");
+    }
 #endif
 
-	if (NULL == regs)
-		regs = exec_info_registers(kvm_get_instance(vmi));
+    if (NULL == regs)
+        regs = exec_info_registers(kvm_get_instance(vmi));
 
     status_t ret = VMI_SUCCESS;
 
@@ -1145,9 +1146,9 @@ status_t
 kvm_create_shm_snapshot(
     vmi_instance_t vmi)
 {
-	// teardown the old shm-snapshot if existed.
+    // teardown the old shm-snapshot if existed.
     if (VMI_SUCCESS == test_using_shm_snapshot(kvm_get_instance(vmi))) {
-    	kvm_teardown_shm_snapshot_mode(vmi);
+        kvm_teardown_shm_snapshot_mode(vmi);
     }
 
     return kvm_setup_shm_snapshot_mode(vmi);
@@ -1157,9 +1158,9 @@ status_t
 kvm_destroy_shm_snapshot(
     vmi_instance_t vmi)
 {
-	kvm_teardown_shm_snapshot_mode(vmi);
+    kvm_teardown_shm_snapshot_mode(vmi);
 
-	return kvm_setup_live_mode(vmi);
+    return kvm_setup_live_mode(vmi);
 }
 
 const void * kvm_get_dgpma(
@@ -1244,7 +1245,7 @@ kvm_set_name(
 status_t
 kvm_get_memsize(
     vmi_instance_t vmi,
-    unsigned long *size)
+    uint64_t *size)
 {
     return VMI_FAILURE;
 }

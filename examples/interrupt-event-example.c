@@ -32,7 +32,8 @@
 vmi_event_t interrupt_event;
 
 void int3_cb(vmi_instance_t vmi, vmi_event_t *event){
-    printf("Int 3 happened: GFN=%lx RIP=%lx\n", event->interrupt_event.gfn, event->interrupt_event.gla);
+    printf("Int 3 happened: GFN=%"PRIx64" RIP=%"PRIx64"\n",
+        event->interrupt_event.gfn, event->interrupt_event.gla);
 }
 
 static int interrupted = 0;
