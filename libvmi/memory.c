@@ -564,7 +564,7 @@ addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid
 
     if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, pid, symbol, &address)) {
 
-        if (vmi->os_interface && vmi->os_interface->os_ksym2v) {
+        if (vmi->os_interface && vmi->os_interface->os_usym2rva) {
             status  = vmi->os_interface->os_usym2rva(vmi, base_vaddr, pid, symbol, &rva);
             if (status == VMI_SUCCESS) {
                 address = base_vaddr + rva;
