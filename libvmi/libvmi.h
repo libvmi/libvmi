@@ -1332,8 +1332,6 @@ const void * vmi_get_dgpma(
     vmi_instance_t vmi);
 
 /**
-
-/**
  * Removes all entries from LibVMI's internal virtual to physical address
  * cache.  This is generally only useful if you believe that an entry in
  * the cache is incorrect, or out of date.

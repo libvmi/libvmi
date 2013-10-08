@@ -281,7 +281,7 @@ windows_find_eprocess(
             return 0;
         }
         else {
-            dbprint("**set os.windows_instance.pname_offset (0x%x)\n",
+            dbprint("**set os.windows_instance.pname_offset (0x%"PRIx64")\n",
                     windows->pname_offset);
         }
     }
