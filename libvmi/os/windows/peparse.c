@@ -529,8 +529,8 @@ peparse_get_export_table(
 status_t
 windows_export_to_rva(
     vmi_instance_t vmi,
-    vmi_pid_t pid,
     addr_t base_vaddr,
+    vmi_pid_t pid,
     const char *symbol,
     addr_t *rva)
 {
