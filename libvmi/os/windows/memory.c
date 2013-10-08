@@ -66,7 +66,7 @@ windows_kernel_symbol_to_address(
 
     /* check exports */
     if (VMI_SUCCESS
-            == windows_export_to_rva(vmi, 0, windows->ntoskrnl_va, symbol,
+            == windows_export_to_rva(vmi, windows->ntoskrnl_va, 0, symbol,
                     address)) {
         addr_t rva = *address;
 
