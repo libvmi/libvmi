@@ -38,7 +38,7 @@ typedef status_t (*os_kernel_symbol_to_address_t)(vmi_instance_t instance,
         const char *symbol, addr_t *kernel_base_vaddr, addr_t *address);
 
 typedef status_t (*os_user_symbol_to_rva_t)(vmi_instance_t instance,
-        vmi_pid_t pid, addr_t base_vaddr, const char *symbol, addr_t *rva);
+        addr_t base_vaddr, vmi_pid_t pid, const char *symbol, addr_t *rva);
 
 typedef char* (*os_rva_to_symbol_t)(vmi_instance_t vmi, addr_t rva,
         addr_t base_vaddr, vmi_pid_t pid);
