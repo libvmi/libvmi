@@ -184,6 +184,9 @@ find_aon_idx_bin(
 
     // get the curr string & compare to symbol
     name = rva_to_string(vmi, (addr_t) str_rva, base_addr, pid);
+    if(!name)
+        goto not_found;
+
     cmp = strcmp(symbol, name);
     free(name);
 
