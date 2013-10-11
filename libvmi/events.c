@@ -375,14 +375,18 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
 
     vmi_memevent_granularity_t granularity = event->mem_event.granularity;
     addr_t page_key = event->mem_event.physical_address >> 12;
+    vmi_mem_access_t page_access_flag = VMI_MEMACCESS_N;
+
+    if(vmi->shutting_down) {
+        rc = driver_set_mem_access(vmi, event->mem_event,
+                        page_access_flag);
+        goto done;
+    }
 
     // Page has event(s) registered
     page = g_hash_table_lookup(vmi->mem_events, &page_key);
     if (NULL != page)
     {
-
-        vmi_mem_access_t page_access_flag = VMI_MEMACCESS_N;
-
         if (granularity == VMI_MEMEVENT_PAGE)
         {
             if (!page->event)
@@ -420,8 +424,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                     page->event = NULL;
                     page->access_flag = page_access_flag;
 
-                    // if libvmi is shutting down memevent_page_clean will take care of cleaning up
-                    if (!vmi->shutting_down && !page->byte_events)
+                    if (!page->byte_events)
                     {
                         g_hash_table_remove(vmi->mem_events, &page_key);
                     }
@@ -486,9 +489,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                             page->byte_events = NULL;
                         }
 
-                        // if libvmi is shutting down memevent_page_clean will take care of cleaning up
-                        if (!vmi->shutting_down && !page->event
-                                && !page->byte_events)
+                        if (!page->event && !page->byte_events)
                         {
                             g_hash_table_remove(vmi->mem_events, &page_key);
                         }
@@ -510,6 +511,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                 page_key);
     }
 
+done:
     return rc;
 
 }
