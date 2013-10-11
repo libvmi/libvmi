@@ -450,7 +450,7 @@ vmi_read_win_unicode_struct_va(
                  __FUNCTION__, vaddr, pid);
             goto out_error;
         }   // if
-        buffer_va = us64.pBuffer;
+        buffer_va = (vaddr & 0xFFFFFFFF00000000) + (us64.pBuffer >> 32);
         buffer_len = us64.length;
     }
     else {
