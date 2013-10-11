@@ -94,10 +94,21 @@ main(
             free(modname);
         }
         else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
-            /*TODO don't use a hard-coded offsets here */
-            /* this offset works with WinXP SP2 */
-            unicode_string_t *us =
-                vmi_read_unicode_str_va(vmi, next_module + 0x2c, 0);
+
+            unicode_string_t *us = NULL;
+
+            /*
+             * The offset 0x58 and 0x2c is the offset in the _LDR_DATA_TABLE_ENTRY structure
+             * to the BaseDllName member.
+             * These offset values are stable (at least) between XP and Windows 7.
+             */
+
+            if (VMI_PM_IA32E == vmi_get_page_mode(vmi)) {
+                us = vmi_read_unicode_str_va(vmi, next_module + 0x58, 0);
+            } else {
+                us = vmi_read_unicode_str_va(vmi, next_module + 0x2c, 0);
+            }
+
             unicode_string_t out = { 0 };
             //         both of these work
             if (us &&
