@@ -10,6 +10,7 @@
  *
  * Author: Nasser Salim (njsalim@sandia.gov)
  * Author: Steven Maresca (steve@zentific.com)
+ * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
  *
  * LibVMI is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
@@ -434,10 +435,11 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
         {
             event_iter_t i;
             addr_t *pa;
+            GSList *cb_list_head = NULL;
             for_each_event(vmi, i, page->byte_events, &pa, &event)
             {
                 if ((event->mem_event.in_access & out_access)
-                        && *pa == req.gfn + req.offset)
+                        && *pa == (req.gfn<<12) + req.offset)
                 {
                     event->mem_event.gla = req.gla;
                     event->mem_event.gfn = req.gfn;
@@ -445,9 +447,19 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
                     event->mem_event.out_access = out_access;
                     event->vcpu_id = req.vcpu_id;
 
-                    event->callback(vmi, event);
+                    // We build a gslist so that the user may call
+                    // vmi_clear_event inside the callback
+                    cb_list_head = g_slist_append(cb_list_head, event);
                 }
             }
+
+            GSList *cb_list = cb_list_head;
+            while(cb_list) {
+                event = (vmi_event_t*)cb_list->data;
+                event->callback(vmi, event);
+                cb_list=cb_list->next;
+            }
+            g_slist_free(cb_list_head);
         }
 
         /* TODO MARESCA: decide whether it's worthwhile to emulate xen-access here and call the following
