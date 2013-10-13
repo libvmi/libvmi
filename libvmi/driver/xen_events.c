@@ -433,33 +433,20 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
 
         if (page->byte_events)
         {
-            event_iter_t i;
-            addr_t *pa;
-            GSList *cb_list_head = NULL;
-            for_each_event(vmi, i, page->byte_events, &pa, &event)
-            {
-                if ((event->mem_event.in_access & out_access)
-                        && *pa == (req.gfn<<12) + req.offset)
-                {
-                    event->mem_event.gla = req.gla;
-                    event->mem_event.gfn = req.gfn;
-                    event->mem_event.offset = req.offset;
-                    event->mem_event.out_access = out_access;
-                    event->vcpu_id = req.vcpu_id;
 
-                    // We build a gslist so that the user may call
-                    // vmi_clear_event inside the callback
-                    cb_list_head = g_slist_append(cb_list_head, event);
-                }
-            }
+            // Check if the offset has a byte-event registered
+            addr_t pa = (req.gfn<<12) + req.offset;
+            vmi_event_t *byte_event = (vmi_event_t *)g_hash_table_lookup(page->byte_events, &pa);
 
-            GSList *cb_list = cb_list_head;
-            while(cb_list) {
-                event = (vmi_event_t*)cb_list->data;
-                event->callback(vmi, event);
-                cb_list=cb_list->next;
+            if(byte_event && (byte_event->mem_event.in_access & out_access)) {
+                byte_event->mem_event.gla = req.gla;
+                byte_event->mem_event.gfn = req.gfn;
+                byte_event->mem_event.offset = req.offset;
+                byte_event->mem_event.out_access = out_access;
+                byte_event->vcpu_id = req.vcpu_id;
+
+                byte_event->callback(vmi, byte_event);
             }
-            g_slist_free(cb_list_head);
         }
 
         /* TODO MARESCA: decide whether it's worthwhile to emulate xen-access here and call the following
