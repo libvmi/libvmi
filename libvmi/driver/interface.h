@@ -88,14 +88,23 @@ status_t driver_resume_vm(
     vmi_instance_t vmi);
 #if ENABLE_SHM_SNAPSHOT == 1
 /* "shm-snapshot" feature is applicable to
- * hypervisor drivers (e.g. KVM, Xen), and not to the
+ * hypervisor drivers (e.g. KVM, Xen), but not to the
  * other drivers (e.g. File). */
 status_t driver_shm_snapshot_vm(
     vmi_instance_t vmi);
 status_t driver_destroy_shm_snapshot_vm(
     vmi_instance_t vmi);
-const void * driver_get_dgpma(
-    vmi_instance_t vmi);
+size_t driver_get_dgpma(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void** guest_mapping_paddr,
+    size_t count);
+size_t driver_get_dgvma(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    pid_t pid,
+    void** guest_mapping_vaddr,
+    size_t count);
 #endif
 status_t driver_events_listen(
     vmi_instance_t vmi,

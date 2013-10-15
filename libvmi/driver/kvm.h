@@ -28,6 +28,55 @@
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
 
+#if ENABLE_SHM_SNAPSHOT == 1
+
+/** Guest virtual-medial-physical address mapping enables
+ *   Direct Guest Virtual Memory Access (DGVMA) to the
+ *   shm-snapshot.
+ *  While the m2p mapping will be established at process
+ *   page table and so MMU will take care of it, we must
+ *   maintain v2m mapping by ourself.
+ *  We use 3 structures to establish and maintain the v2m
+ *   mapping. The three, from top to bottom, are v2m table,
+ *   v2m_chunk and m2p mapping clue chunk.
+ */
+
+/* m2p mapping clue chunk is used to mmap guest physical
+ *  address to medial address (i.e. LibVMI virtual address),
+ *  and will be deleted just after mmap() because munmap()
+ *  can be done with v2m chunk.
+ * In a m2p chunk, the mappings between m and p are consecutive.
+ */
+typedef struct m2p_mapping_clue_chunk_struct {
+    void * medial_mapping_addr;
+    addr_t paddr_begin;
+    addr_t paddr_end;
+    addr_t vaddr_begin;
+    addr_t vaddr_end;
+    struct m2p_mapping_clue_chunk_struct* next;
+} m2p_mapping_clue_chunk, *m2p_mapping_clue_chunk_t;
+
+/* v2m chunk is used to maintain the mapping of v and m.
+ *  We search an medial address of a given virtual address
+ *  in a collection of v2m chunk.
+ * In a m2p chunk, the virtual address range are continuous.
+ */
+typedef struct v2m_chunk_struct {
+    addr_t vaddr_begin;
+    addr_t vaddr_end;
+    void * medial_mapping_addr;
+    m2p_mapping_clue_chunk_t m2p_chunks;
+    struct v2m_chunk_struct* next;
+} v2m_chunk, *v2m_chunk_t;
+
+// v2m table binds a pid and a list of v2m chunks
+typedef struct v2m_table_struct {
+    pid_t pid;
+    v2m_chunk_t v2m_chunks;
+    struct v2m_table_struct* next;
+} v2m_table, *v2m_table_t;
+#endif
+
 typedef struct kvm_instance {
     virConnectPtr conn;
     virDomainPtr dom;
@@ -41,6 +90,7 @@ typedef struct kvm_instance {
     int   shm_snapshot_fd;    /** file description of the shared memory snapshot device */
     void *shm_snapshot_map;   /** mapped shared memory region */
     char *shm_snapshot_cpu_regs;  /** string of dumped CPU registers */
+    v2m_table_t shm_snapshot_v2m_tables; /** V2m tables of all pids */
 #endif
 } kvm_instance_t;
 
@@ -109,6 +159,15 @@ status_t kvm_create_shm_snapshot(
     vmi_instance_t vmi);
 status_t kvm_destroy_shm_snapshot(
     vmi_instance_t vmi);
-const void * kvm_get_dgpma(
-    vmi_instance_t vmi);
+size_t kvm_get_dgpma(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void** medial_addr_ptr,
+    size_t count);
+size_t kvm_get_dgvma(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    pid_t pid,
+    void** medial_addr_ptr,
+    size_t count);
 #endif

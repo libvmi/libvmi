@@ -100,6 +100,10 @@ struct vmi_instance {
 
     GHashTable *v2p_cache;  /**< hash table to hold the v2p cache data */
 
+#if ENABLE_SHM_SNAPSHOT == 1
+    GHashTable *v2m_cache;  /**< hash table to hold the v2m cache data */
+#endif
+
     void *driver;           /**< driver-specific information */
 
     GHashTable *memory_cache;  /**< hash table for memory cache */
@@ -251,6 +255,30 @@ typedef struct _windows_unicode_string32 {
     addr_t dtb);
     void v2p_cache_flush(
     vmi_instance_t vmi);
+#if ENABLE_SHM_SNAPSHOT == 1
+    void v2m_cache_init(
+    vmi_instance_t vmi);
+    void v2m_cache_destroy(
+    vmi_instance_t vmi);
+    status_t v2m_cache_get(
+    vmi_instance_t vmi,
+    addr_t va,
+    pid_t pid,
+    addr_t *ma,
+    uint64_t *length);
+    void v2m_cache_set(
+    vmi_instance_t vmi,
+    addr_t va,
+    pid_t pid,
+    addr_t ma,
+    uint64_t length);
+    status_t v2m_cache_del(
+    vmi_instance_t vmi,
+    addr_t va,
+    pid_t pid);
+    void v2m_cache_flush(
+    vmi_instance_t vmi);
+#endif
 
 /*-----------------------------------------
  * core.c

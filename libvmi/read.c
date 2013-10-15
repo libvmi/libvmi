@@ -148,6 +148,29 @@ vmi_read_va(
     return buf_offset;
 }
 
+#if ENABLE_SHM_SNAPSHOT == 1
+size_t
+vmi_get_dgpma(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void **buf_ptr,
+    size_t count)
+{
+    return driver_get_dgpma(vmi, paddr, buf_ptr, count);
+}
+
+size_t
+vmi_get_dgvma(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    pid_t pid,
+    void **buf_ptr,
+    size_t count)
+{
+    return driver_get_dgvma(vmi, vaddr, pid, buf_ptr, count);
+}
+#endif
+
 size_t
 vmi_read_ksym(
     vmi_instance_t vmi,

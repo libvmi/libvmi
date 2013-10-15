@@ -1320,16 +1320,41 @@ status_t vmi_shm_snapshot_create(
  */
 status_t vmi_shm_snapshot_destroy(
     vmi_instance_t vmi);
-#endif
 
 /**
- * Direct Guest Physical Memory Access: Get a read-only pointer of shm-snapshot.
- * This function provides a much faster (non-copy) option to read guest physical
- * memory bypassing vmi_read_pa().
- * If the shm-snapshot hasn't been created yet, it returns NULL.
+ * Direct Guest Physical Memory Access:  A similar memory read semantic to
+ *  vmi_read_pa() but a non-copy direct access.
+ * Note that it is only capable for shm-snapshot.
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr
+ * @param[out] medial_addr_ptr
+ * @param[in] count the expected count of bytes
+ * @return the actual count that less or equal than count[in]
  */
-const void * vmi_get_dgpma(
-    vmi_instance_t vmi);
+size_t vmi_get_dgpma(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void **buf_ptr,
+    size_t count);
+
+/**
+ * Direct Guest Virtual Memory Access:  A similar memory read semantic to
+ *  vmi_read_pa() but a non-copy direct access.
+ * Note that it is only capable for shm-snapshot.
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr
+ * @param[in] pid
+ * @param[out] medial_addr_ptr
+ * @param[in] count the expected count of bytes
+ * @return the actual count that less or equal than count[in]
+ */
+size_t vmi_get_dgvma(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    pid_t pid,
+    void **buf_ptr,
+    size_t count);
+#endif
 
 /**
  * Removes all entries from LibVMI's internal virtual to physical address

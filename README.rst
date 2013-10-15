@@ -159,6 +159,10 @@ Shm-snapshot supports both KVM and Xen. However,shm-snapshot for Xen is
 currently created by LibVMI, hence unreal. Moreover,it takes more time (about 3 
 seconds in 1GB guest memory settings) to create Xen "shm-snapshot" because we 
 have to probe unmmapable memory page holes one by one.
+Shm-snapshot is shiped with direct guest memory access, a non-copy access technique
+that can drastically reduce the latency of guest memory access. For KVM, we support
+both vmi_get_dgpma() and vmi_get_dgvma(); for Xen, however, due to the unreal 
+shm-snapshot, we only support vmi_get_dgpma() now.
 
 If you would like LibVMI to work on a shm-snapshot, then you need to do the 
 following:
@@ -190,6 +194,19 @@ following:
   Even if you didn't call vmi_shm_snapshot_destroy(vmi), vmi_destroy(vmi) will 
   teardown the shm-snapshot if existed.
 
+5. (optional but valuable) replace your guest memory access function.
+  If you ever used vmi_read_pa() like the following:
+    void* buf = malloc(100);
+    int size = vmi_read_pa(vmi, 0x1000, buf, 100);
+    process_anything(buf, size);
+    free(buf);
+  Just feel free to change your code like the following:
+    void* buf = NULL;
+    int size = vmi_get_dgpma(vmi, 0x1000, &buf, 100);
+    process_anything(buf, size);
+  For vmi_read_va(), the replacement is very similar, but only capable for
+  KVM at present.
+    
 
 Building
 --------
