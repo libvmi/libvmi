@@ -176,6 +176,27 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
+void rereg_mem_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
+{
+
+    GSList *rereg_list = vmi->step_memevents;
+    GSList *remain = NULL;
+    while(rereg_list) {
+
+        vmi_event_t *event = (vmi_event_t *)rereg_list->data;
+        vmi_register_event(vmi, event);
+
+        rereg_list = rereg_list->next;
+    }
+
+    g_slist_free(vmi->step_memevents);
+    vmi->step_memevents = NULL;
+
+    vmi_clear_event(vmi, singlestep_event);
+    g_free(singlestep_event);
+
+}
+
 status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
 {
 
@@ -400,7 +421,6 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
 
                 dbprint("Disabling memory event on page: %"PRIu64"\n",
                         remove_event->mem_event.physical_address);
-                remove_event->mem_event.in_access = VMI_MEMACCESS_N;
 
                 // We still have byte-level events registered on this page
                 if (page->byte_events)
@@ -507,7 +527,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     }
     else
     {
-        printf("Disabling event failed, no event found on page: %"PRIu64"\n",
+        dbprint("Disabling event failed, no event found on page: %"PRIu64"\n",
                 page_key);
     }
 
@@ -533,6 +553,11 @@ status_t clear_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
                 g_hash_table_remove(vmi->ss_events, &(vcpu));
             }
         }
+    }
+
+    if(0 == g_hash_table_size(vmi->ss_events))
+    {
+        vmi_shutdown_single_step(vmi);
     }
 
     return rc;
@@ -638,6 +663,49 @@ status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event)
         return VMI_FAILURE;
     }
 
+    return rc;
+}
+
+// This function is to be called from a memevent callback function
+status_t vmi_step_mem_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if(VMI_EVENT_MEMORY != event->type)
+    {
+        dbprint("This function is only for memory events!\n");
+        goto done;
+    }
+
+    if(NULL != vmi_get_singlestep_event(vmi, event->vcpu_id))
+    {
+        dbprint("Can't step memory event, single-step is already enabled on vCPU %u\n", event->vcpu_id);
+        goto done;
+    }
+
+    if(VMI_SUCCESS != vmi_clear_event(vmi, event))
+    {
+        goto done;
+    }
+
+    //setup single step event to re-register the memevent
+    vmi_event_t *single_event = g_malloc0(sizeof(vmi_event_t));
+    single_event->type = VMI_EVENT_SINGLESTEP;
+    single_event->callback = rereg_mem_events;
+    SET_VCPU_SINGLESTEP(single_event->ss_event, event->vcpu_id);
+
+    if(VMI_SUCCESS == vmi_register_event(vmi, single_event))
+    {
+        // save the event into the queue
+        vmi->step_memevents = g_slist_append(vmi->step_memevents, event);
+        rc = VMI_SUCCESS;
+    }
+    else
+    {
+        free(single_event);
+    }
+
+done:
     return rc;
 }
 

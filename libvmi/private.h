@@ -122,6 +122,8 @@ struct vmi_instance {
 
     GHashTable *ss_events; /**< single step event to functions mapping (key: vcpu_id) */
 
+    GSList *step_memevents; /**< memory events to be re-registered after single-stepping them */
+
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
 };
 
