@@ -128,7 +128,7 @@ linux_get_taskstruct_addr_from_pgd(
             vmi_read_addr_va(vmi, next_process + mm_offset + width, 0, &ptr);
         vmi_read_addr_va(vmi, ptr + pgd_offset, 0, &task_pgd);
 
-        pgd = vmi_translate_kv2p(vmi, pgd);
+        task_pgd = vmi_translate_kv2p(vmi, task_pgd);
         if (task_pgd == pgd) {
             return next_process;
         }
