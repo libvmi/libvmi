@@ -83,7 +83,7 @@ static gboolean key_128_equals(gconstpointer key1, gconstpointer key2){
  */
 static void key_128_init(vmi_instance_t vmi, key_128_t key, uint64_t low, uint64_t high)
 {
-    low = (low & ~(vmi->page_size - 1));
+    low = (low & ~((uint64_t)vmi->page_size - 1));
     key->low = low;
     key->high = high;
 }

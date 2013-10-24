@@ -14,7 +14,10 @@ check_libvmi_SOURCES = \
     test_write.c \
     test_peparse.c \
     test_shm_snapshot.c \
+    test_cache.c \
+    ../libvmi/cache.c \
+    ../libvmi/convenience.c \
     $(top_builddir)/libvmi/libvmi.h
 
-check_libvmi_CFLAGS = @CHECK_CFLAGS@
+check_libvmi_CFLAGS = @CHECK_CFLAGS@ @GLIB_CFLAGS@ -I../libvmi/
 check_libvmi_LDADD = $(top_builddir)/libvmi/libvmi.la @CHECK_LIBS@
