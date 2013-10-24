@@ -127,7 +127,7 @@ get_kpgd_method2(
             ("LibVMI Suggestion: set win_sysproc=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              sysproc);
     }
-    dbprint("--got PA to PsInititalSystemProcess (0x%.16"PRIx64").\n",
+    dbprint("--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
             sysproc);
 
     /* get address for page directory (from system process) */
@@ -195,7 +195,7 @@ get_kpgd_method1(
         goto error_exit;
     }
     sysproc = vmi_translate_kv2p(vmi, sysproc);
-    dbprint("--got PA to PsInititalSystemProcess (0x%.16"PRIx64").\n",
+    dbprint("--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
             sysproc);
 
     if (VMI_FAILURE ==
