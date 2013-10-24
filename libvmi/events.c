@@ -183,18 +183,27 @@ void rereg_mem_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
     GSList *remain = NULL;
     while(rereg_list) {
 
-        vmi_event_t *event = (vmi_event_t *)rereg_list->data;
-        vmi_register_event(vmi, event);
+        rereg_memevent_wrapper_t *wrap = (rereg_memevent_wrapper_t *)rereg_list->data;
+
+        wrap->steps--;
+
+        if(0 == wrap->steps) {
+            vmi_register_event(vmi, wrap->event);
+            free(wrap);
+        } else {
+            remain = g_slist_append(remain, wrap);
+        }
 
         rereg_list = rereg_list->next;
     }
 
     g_slist_free(vmi->step_memevents);
-    vmi->step_memevents = NULL;
+    vmi->step_memevents = remain;
 
-    vmi_clear_event(vmi, singlestep_event);
-    g_free(singlestep_event);
-
+    if(NULL == vmi->step_memevents) {
+        vmi_clear_event(vmi, singlestep_event);
+        g_free(singlestep_event);
+    }
 }
 
 status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
@@ -667,7 +676,7 @@ status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event)
 }
 
 // This function is to be called from a memevent callback function
-status_t vmi_step_mem_event(vmi_instance_t vmi, vmi_event_t *event)
+status_t vmi_step_mem_event(vmi_instance_t vmi, vmi_event_t *event, uint64_t steps)
 {
     status_t rc = VMI_FAILURE;
 
@@ -680,6 +689,11 @@ status_t vmi_step_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     if(NULL != vmi_get_singlestep_event(vmi, event->vcpu_id))
     {
         dbprint("Can't step memory event, single-step is already enabled on vCPU %u\n", event->vcpu_id);
+        goto done;
+    }
+
+    if(0 == steps) {
+        dbprint("Minimum number of steps is 1!\n");
         goto done;
     }
 
@@ -696,8 +710,12 @@ status_t vmi_step_mem_event(vmi_instance_t vmi, vmi_event_t *event)
 
     if(VMI_SUCCESS == vmi_register_event(vmi, single_event))
     {
-        // save the event into the queue
-        vmi->step_memevents = g_slist_append(vmi->step_memevents, event);
+        // save the event into the queue using the wrapper
+        rereg_memevent_wrapper_t *wrap = g_malloc0(sizeof(rereg_memevent_wrapper_t));
+        wrap->event = event;
+        wrap->steps = steps;
+
+        vmi->step_memevents = g_slist_append(vmi->step_memevents, wrap);
         rc = VMI_SUCCESS;
     }
     else

@@ -1729,11 +1729,13 @@ vmi_event_t *vmi_get_mem_event(
  *
  * @param[in] vmi LibVMI instance
  * @param[in] event The memory event to re-register
+ * @param[in] steps The number of steps to take before re-registering
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_step_mem_event(
     vmi_instance_t vmi,
-    vmi_event_t *event);
+    vmi_event_t *event,
+    uint64_t steps);
 
 /**
  * Listen for events until one occurs or a timeout.

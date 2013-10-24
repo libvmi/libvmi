@@ -138,6 +138,12 @@ typedef struct memevent_page {
 
 } memevent_page_t;
 
+/** Memevent singlestep reregister wrapper */
+typedef struct rereg_memevent_wrapper {
+    vmi_event_t *event;
+    uint64_t steps;
+} rereg_memevent_wrapper_t;
+
 /** Windows' UNICODE_STRING structure (x86) */
 typedef struct _windows_unicode_string32 {
     uint16_t length;
