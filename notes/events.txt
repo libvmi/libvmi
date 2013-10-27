@@ -1,6 +1,7 @@
 LibVMI Events
 Author: Steven Maresca <steve@zentific.com>
-Document: version 1.1, 2013-09-10
+Author: Tamas K Lengyel <tamas.lengyel@zentific.com>
+Document: version 1.2, 2013-10-27
 Relevant LibVMI release: 0.11
 
 Overview:
@@ -149,6 +150,14 @@ Upon receipt of a related event, it is necessary that the page permissions be
 modified so that the action (write, execute, and/or read) may complete;
 otherwise, the action will continue to be attempted and will never succeed.
 This would effectively halt execution of the VM in perpetuity.
+
+A possible way to allow the VM to progress and catch all subsequent memory
+events on the page can be done by the use of single stepping. By calling the
+function vmi_step_mem_event() the user can instruct LibVMI to re-register the 
+memory event after the required number of instructions have executed on the
+vCPU. For example, stepping a single instruction ensures that the instruction
+that was cought using the memory event can finish but all subsequent memory
+events are cought.
 
 3) Performance
 Some event types, such as single stepping, have extreme performance impact

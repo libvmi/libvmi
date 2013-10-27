@@ -2,10 +2,6 @@
  * memory in a target virtual machine or in a file containing a dump of 
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * Copyright 2011 Sandia Corporation. Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
- * retains certain rights in this software.
- *
  * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
  *
  * This file is part of LibVMI.
@@ -115,7 +111,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if(argc < 2){
-        fprintf(stderr, "Usage: events_example <name of VM> <PID of process to track>\n");
+        fprintf(stderr, "Usage: %s <name of VM>\n", argv[0]);
         exit(1);
     }
 
