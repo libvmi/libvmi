@@ -63,6 +63,7 @@ main (void)
 #if ENABLE_SHM_SNAPSHOT == 1
     suite_add_tcase(s, shm_snapshot_tcase());
 #endif
+    suite_add_tcase(s, cache_tcase());
 
     /* run the tests */
     SRunner *sr = srunner_create(s);
