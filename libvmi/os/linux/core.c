@@ -133,7 +133,7 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
-    if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0) {
+    if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0 || strncmp(key, "os_type", CONFIG_STR_LENGTH) == 0) {
         goto _done;
     }
 
