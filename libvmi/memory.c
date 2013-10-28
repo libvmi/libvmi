@@ -128,6 +128,11 @@ uint64_t pdba_base_pae (uint64_t pdpe)
     return pdpe & 0xFFFFFF000ULL;
 }
 
+uint64_t pdba_base_ia32e (uint64_t pdpe)
+{
+    return get_bits_51to12(pdpe);
+}
+
 uint32_t get_pgd_nopae (vmi_instance_t instance, uint32_t vaddr, uint32_t pdpe)
 {
     uint32_t value;
@@ -222,6 +227,11 @@ uint32_t pte_pfn_nopae (uint32_t pte)
 uint64_t pte_pfn_pae (uint64_t pte)
 {
     return pte & 0xFFFFFF000ULL;
+}
+
+uint64_t pte_pfn_ia32e (uint64_t pte)
+{
+    return get_bits_51to12(pte);
 }
 
 uint32_t get_paddr_nopae (uint32_t vaddr, uint32_t pte)
@@ -433,6 +443,225 @@ addr_t v2p_ia32e (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
 
     dbprint("--PTLookup: paddr = 0x%.16"PRIx64"\n", paddr);
     return paddr;
+}
+
+GSList* get_va_pages_nopae(vmi_instance_t vmi) {
+
+    #define PTRS_PER_PTE 1024
+    #define PTRS_PER_PGD 1024
+
+    reg_t cr3;
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+    addr_t pgd_curr = cr3;
+    uint8_t entry_size = 0x4;
+
+    GSList *ret = NULL;
+
+    uint32_t j;
+    for(j=0;j<PTRS_PER_PGD;j++,pgd_curr+=entry_size) {
+        uint64_t soffset = j * PTRS_PER_PGD * PTRS_PER_PTE * entry_size;
+
+        uint32_t entry;
+        if(VMI_FAILURE == vmi_read_32_pa(vmi, pgd_curr, &entry)) {
+            continue;
+        }
+
+        if(entry_present(vmi->os_type, entry)) {
+
+            if(page_size_flag(entry)) {
+                struct va_page *p = g_malloc0(sizeof(struct va_page));
+                p->va = soffset;
+                p->size = VMI_PS_4MB;
+                ret = g_slist_append(ret, p);
+                continue;
+            }
+
+            uint32_t pte_curr = entry & ~(0xFFF);
+
+            uint32_t k;
+            for(k=0;k<PTRS_PER_PTE;k++,pte_curr+=entry_size){
+                uint32_t pte_entry;
+                if(VMI_FAILURE == vmi_read_32_pa(vmi, pte_curr, &pte_entry)) {
+                    continue;
+                }
+
+                if(entry_present(vmi->os_type, pte_entry)) {
+                    struct va_page *p = g_malloc0(sizeof(struct va_page));
+                    p->va = soffset + k * VMI_PS_4KB;
+                    p->size = VMI_PS_4KB;
+                    ret = g_slist_append(ret, p);
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+GSList* get_va_pages_pae(vmi_instance_t vmi) {
+
+    #define PTRS_PER_PDPI 4
+    #define PTRS_PER_PAE_PTE 512
+    #define PTRS_PER_PAE_PGD 512
+
+    reg_t cr3;
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+    uint32_t pdpi_base = get_pdptb(cr3);
+    uint8_t entry_size = 0x8;
+
+    GSList *ret = NULL;
+
+    uint32_t i;
+    for(i=0;i<PTRS_PER_PDPI;i++) {
+
+        uint32_t start = i * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size;
+        uint32_t pdpi_entry = pdpi_base + i * entry_size;
+
+        uint64_t pdpe;
+        vmi_read_64_pa(vmi, pdpi_entry, &pdpe);
+
+        if(!entry_present(vmi->os_type, pdpe)) {
+            continue;
+        }
+
+        uint64_t pgd_curr = pdba_base_pae(pdpe);
+
+        uint32_t j;
+        for(j=0;j<PTRS_PER_PAE_PGD;j++,pgd_curr+=entry_size) {
+            uint64_t soffset = start + (j * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size);
+
+            uint64_t entry;
+            if(VMI_FAILURE == vmi_read_64_pa(vmi, pgd_curr, &entry)) {
+                continue;
+            }
+
+            if(entry_present(vmi->os_type, entry)) {
+
+                if(page_size_flag(entry)) {
+                    struct va_page *p = g_malloc0(sizeof(struct va_page));
+                    p->va = soffset;
+                    p->size = VMI_PS_2MB;
+                    ret = g_slist_append(ret, p);
+                    continue;
+                }
+
+                uint64_t pte_curr = entry & ~(0xFFF);
+                uint32_t k;
+                for(k=0;k<PTRS_PER_PAE_PTE;k++,pte_curr+=entry_size){
+                    uint64_t pte_entry;
+                    if(VMI_FAILURE == vmi_read_64_pa(vmi, pte_curr, &pte_entry)) {
+                        continue;
+                    }
+
+                    if(entry_present(vmi->os_type, pte_entry)) {
+                        struct va_page *p = g_malloc0(sizeof(struct va_page));
+                        p->va = soffset + k * VMI_PS_4KB;
+                        p->size = VMI_PS_4KB;
+                        ret = g_slist_append(ret, p);
+                    }
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+GSList* get_va_pages_ia32e(vmi_instance_t vmi) {
+
+    reg_t cr3;
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+    GSList *ret = NULL;
+    uint8_t entry_size = 0x8;
+
+    #define PDES_AND_PTES_PER_PAGE 0x200 // 0x1000/0x8
+
+    uint64_t pml4e;
+    for(pml4e=0;pml4e<PDES_AND_PTES_PER_PAGE;pml4e++) {
+
+        addr_t vaddr = pml4e << 39;
+        uint64_t pml4e_value = get_pml4e(vmi, vaddr, cr3);
+
+        if(!entry_present(vmi->os_type, pml4e_value)) {
+            continue;
+        }
+
+        uint64_t pdpte;
+        for(pdpte=0;pdpte<PDES_AND_PTES_PER_PAGE;pdpte++) {
+
+            vaddr = (pml4e << 39) | (pdpte << 30);
+
+            uint64_t pdpte_value = get_pdpte_ia32e(vmi, vaddr, pml4e_value);
+            if(!entry_present(vmi->os_type, pdpte_value)) {
+                continue;
+            }
+
+            if(page_size_flag(pdpte_value)) {
+                struct va_page *p = g_malloc0(sizeof(struct va_page));
+                p->va = vaddr;
+                p->size = VMI_PS_1GB;
+                ret = g_slist_append(ret, p);
+                continue;
+            }
+
+            uint64_t pgd_curr = pdba_base_ia32e(pdpte_value);
+            uint64_t j;
+            for(j=0;j<PTRS_PER_PAE_PGD;j++,pgd_curr+=entry_size) {
+
+                uint64_t soffset = vaddr + (j * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size);
+
+                uint64_t entry;
+                if(VMI_FAILURE == vmi_read_64_pa(vmi, pgd_curr, &entry)) {
+                    continue;
+                }
+
+                if(entry_present(vmi->os_type, entry)) {
+
+                    if(page_size_flag(entry)) {
+                        struct va_page *p = g_malloc0(sizeof(struct va_page));
+                        p->va = soffset;
+                        p->size = VMI_PS_2MB;
+                        ret = g_slist_append(ret, p);
+                        continue;
+                    }
+
+                    uint64_t pte_curr = pte_pfn_ia32e(entry);
+                    uint64_t k;
+                    for(k=0;k<PTRS_PER_PAE_PTE;k++,pte_curr+=entry_size) {
+                        uint64_t pte_entry;
+                        if(VMI_FAILURE == vmi_read_64_pa(vmi, pte_curr, &pte_entry)) {
+                            continue;
+                        }
+
+                        if(entry_present(vmi->os_type, pte_entry)) {
+                            struct va_page *p = g_malloc0(sizeof(struct va_page));
+                            p->va = soffset + k * VMI_PS_4KB;
+                            p->size = VMI_PS_4KB;
+                            ret = g_slist_append(ret, p);
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+GSList* get_va_pages(vmi_instance_t vmi) {
+
+    GSList *ret = NULL;
+
+    if (vmi->page_mode == VMI_PM_LEGACY) {
+        ret = get_va_pages_nopae(vmi);
+    } else if (vmi->page_mode == VMI_PM_PAE) {
+        ret = get_va_pages_pae(vmi);
+    } else if (vmi->page_mode == VMI_PM_IA32E) {
+        ret = get_va_pages_ia32e(vmi);
+    }
+
+    return ret;
 }
 
 addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)

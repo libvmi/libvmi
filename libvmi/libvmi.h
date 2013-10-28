@@ -135,6 +135,20 @@ typedef enum page_mode {
     VMI_PM_IA32E    /**< IA-32e paging */
 } page_mode_t;
 
+typedef enum page_size {
+
+    VMI_PS_UNKNOWN, /**< page size unknown */
+
+    VMI_PS_4KB = 0x1000, /**< 4Kb */
+
+    VMI_PS_2MB = 0x200000, /**< 2Mb */
+
+    VMI_PS_4MB = 0x400000, /**< 4Mb */
+
+    VMI_PS_1GB = 0x4000000 /**< 1Gb */
+
+} page_size_t;
+
 typedef uint64_t reg_t;
 typedef enum registers {
     RAX,

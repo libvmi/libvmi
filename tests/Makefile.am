@@ -15,6 +15,7 @@ check_libvmi_SOURCES = \
     test_peparse.c \
     test_shm_snapshot.c \
     test_cache.c \
+    test_getvapages.c \
     ../libvmi/cache.c \
     ../libvmi/convenience.c \
     $(top_builddir)/libvmi/libvmi.h

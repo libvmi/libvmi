@@ -64,6 +64,7 @@ main (void)
     suite_add_tcase(s, shm_snapshot_tcase());
 #endif
     suite_add_tcase(s, cache_tcase());
+    suite_add_tcase(s, get_va_pages_tcase());
 
     /* run the tests */
     SRunner *sr = srunner_create(s);

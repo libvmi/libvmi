@@ -849,10 +849,94 @@ find_kdversionblock_address_fast(
 }
 
 status_t
+find_kdversionblock_address_faster(
+    vmi_instance_t vmi,
+    addr_t *kdvb_pa,
+    addr_t *kdvb_va)
+{
+    // Todo:
+    // -support matching across frames (can this happen in windows?)
+
+    status_t ret = VMI_FAILURE;
+    addr_t memsize = vmi_get_memsize(vmi);
+    GSList *va_pages = get_va_pages(vmi);
+    size_t read = 0;
+    void *bm = 0;   // boyer-moore internal state
+    int find_ofs = 0;
+    reg_t cr3;
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+
+    unsigned char haystack[VMI_PS_4KB];
+
+    if (VMI_PM_IA32E == vmi->page_mode) {
+        bm = boyer_moore_init("\x00\xf8\xff\xffKDBG", 8);
+        find_ofs = 0xc;
+    }
+    else {
+        bm = boyer_moore_init("\x00\x00\x00\x00\x00\x00\x00\x00KDBG",
+                              12);
+        find_ofs = 0x8;
+    }   // if-else
+
+    GSList *va_pages_loop = va_pages;
+    while(va_pages_loop) {
+
+        struct va_page *vap = (struct va_page *)va_pages_loop->data;
+
+        // We might get pages that are greater than 4Kb
+        // so we are just going to split them to 4Kb pages
+        while(vap && vap->size >= VMI_PS_4KB) {
+
+            vap->size -= VMI_PS_4KB;
+            addr_t page_vaddr = vap->va+vap->size;
+            addr_t page_paddr = vmi_pagetable_lookup(vmi, cr3, page_vaddr);
+
+            if(page_paddr + VMI_PS_4KB - 1 > memsize) {
+                continue;
+            }
+
+            read = vmi_read_pa(vmi, page_paddr, haystack, VMI_PS_4KB);
+
+            if (VMI_PS_4KB != read) {
+                continue;
+            }
+
+            int match_offset = boyer_moore2(bm, haystack, VMI_PS_4KB);
+
+            if (-1 != match_offset) {
+                *kdvb_pa = page_paddr + (unsigned int) match_offset - find_ofs;
+                *kdvb_va = page_vaddr + (unsigned int) match_offset - find_ofs;
+                ret = VMI_SUCCESS;
+                goto done;
+            }
+        }
+
+        g_free(vap);
+        va_pages_loop = va_pages_loop->next;
+    }
+
+done:
+    // free the rest of the list
+    while(va_pages_loop) {
+        g_free(va_pages_loop->data);
+        va_pages_loop = va_pages_loop->next;
+    }
+    g_slist_free(va_pages);
+
+    if (VMI_SUCCESS == ret)
+        dbprint("--Found KD version block at PA %.16"PRIx64" VA %.16"PRIx64"\n",
+                *kdvb_pa, *kdvb_va);
+    boyer_moore_fini(bm);
+    return ret;
+}
+
+
+status_t
 init_kdversion_block(
     vmi_instance_t vmi)
 {
     addr_t KdVersionBlock_phys = 0;
+    addr_t KdVersionBlock_virt = 0;
     addr_t DebuggerDataList = 0, ListPtr = 0;
     windows_instance_t windows = NULL;
 
@@ -862,24 +946,13 @@ init_kdversion_block(
 
     windows = vmi->os_data;
 
-    KdVersionBlock_phys = find_kdversionblock_address_fast(vmi);
-    //KdVersionBlock_phys = find_kdversionblock_address(vmi);
-    if (!KdVersionBlock_phys) {
+    if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KdVersionBlock_virt)) {
+        dbprint("**Failed to find KdVersionBlock\n");
         goto error_exit;
     }
 
-    // get the virtual address for KdVersionBlock from the physical
-    if (VMI_FAILURE ==
-        vmi_read_addr_pa(vmi, KdVersionBlock_phys, &DebuggerDataList)) {
-        goto error_exit;
-    }
-    if (VMI_FAILURE ==
-        vmi_read_addr_va(vmi, DebuggerDataList, 0, &ListPtr)) {
-        goto error_exit;
-    }
-
-    if (ListPtr && !windows->kdversion_block) {
-        windows->kdversion_block = ListPtr;
+    if (!windows->kdversion_block) {
+        windows->kdversion_block = KdVersionBlock_virt;
         printf
             ("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              windows->kdversion_block);
