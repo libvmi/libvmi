@@ -385,6 +385,104 @@ status_t process_register(vmi_instance_t vmi,
     return VMI_FAILURE;
 }
 
+
+/*
+ * This function uses the internals of the vmi_step_mem_event function
+ * to queue the events on the page for re-registration.
+ */
+status_t process_unhandled_mem(vmi_instance_t vmi, memevent_page_t *page,
+        mem_event_request_t *req)
+{
+
+    uint8_t internal_ss_present = 0;
+
+    // Check if there is singlestep already on the vCPU
+    if (NULL != vmi_get_singlestep_event(vmi, req->vcpu_id)) {
+
+        /*
+         *  Check if the singlestep registered on the vCPU is internal
+         *  (setup by vmi_step_mem_event).
+         *
+         *  We do this by looping through the linked list of queued events
+         *  and check if any of them are on the same vCPU.
+         *
+         *  If we don't find an event queued for that vCPU than the user
+         *  has singlestep enabled on the vCPU and we can't do anything here.
+         */
+        GSList *check = vmi->step_memevents;
+        while (check) {
+            vmi_event_t *step_event = (vmi_event_t *) check->data;
+            if (step_event->vcpu_id == req->vcpu_id) {
+                internal_ss_present = 1;
+                break;
+            }
+            check = check->next;
+        }
+
+        if (!internal_ss_present) {
+            dbprint("Caught an unprocessed memory event "
+                    "but can't automatically step it because "
+                    "singlestep is already enabled on vCPU %"PRIx32,
+                    req->vcpu_id);
+            goto errdone;
+        }
+    }
+
+    // Queue the VMI_MEMEVENT_PAGE
+    if (page->event) {
+        if (!internal_ss_present) {
+            vmi_step_mem_event(vmi, page->event, 1);
+            internal_ss_present = 1;
+        } else if (!g_slist_find(vmi->step_memevents, page->event)) {
+            vmi->step_memevents = g_slist_append(vmi->step_memevents, page->event);
+        }
+
+        // Clear the event to let the VM progress
+        vmi_clear_event(vmi, page->event);
+    }
+
+    // Queue each VMI_MEMEVENT_BYTE
+    event_iter_t i;
+    addr_t *pa;
+    vmi_event_t *loop;
+    GSList *clear = NULL;
+    for_each_event(vmi, i, page->byte_events, &pa, &loop) {
+        if (!internal_ss_present) {
+            vmi_step_mem_event(vmi, loop, 1);
+            internal_ss_present = 1;
+        } else if (!g_slist_find(vmi->step_memevents, loop)) {
+            vmi->step_memevents = g_slist_append(vmi->step_memevents, loop);
+        }
+
+        // We can't clear the event hear because we are iterating through the table
+        clear = g_slist_append(clear, loop);
+    }
+
+    // Clear the event(s) to let the VM progress
+    GSList *clear_loop = clear;
+    while (clear_loop) {
+        vmi_event_t *clear_event = (vmi_event_t *) clear_loop->data;
+        vmi_clear_event(vmi, clear_event);
+        clear_loop = clear_loop->next;
+    }
+    g_slist_free(clear);
+
+    return VMI_SUCCESS;
+
+errdone:
+    return VMI_FAILURE;
+}
+
+void issue_mem_cb(vmi_instance_t vmi, vmi_event_t *event,
+        mem_event_request_t *req, vmi_mem_access_t out_access) {
+    event->mem_event.gla = req->gla;
+    event->mem_event.gfn = req->gfn;
+    event->mem_event.offset = req->offset;
+    event->mem_event.out_access = out_access;
+    event->vcpu_id = req->vcpu_id;
+    event->callback(vmi, event);
+}
+
 status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
 {
 
@@ -415,37 +513,40 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
 
     if (page)
     {
-
-        vmi_event_t *event = NULL;
+        uint8_t cb_issued = 0;
 
         if (page->event && (page->event->mem_event.in_access & out_access))
         {
-            event = page->event;
-
-            event->mem_event.gla = req.gla;
-            event->mem_event.gfn = req.gfn;
-            event->mem_event.offset = req.offset;
-            event->mem_event.out_access = out_access;
-            event->vcpu_id = req.vcpu_id;
-
-            event->callback(vmi, event);
+            issue_mem_cb(vmi, page->event, &req, out_access);
+            cb_issued = 1;
         }
 
         if (page->byte_events)
         {
-
             // Check if the offset has a byte-event registered
             addr_t pa = (req.gfn<<12) + req.offset;
             vmi_event_t *byte_event = (vmi_event_t *)g_hash_table_lookup(page->byte_events, &pa);
 
-            if(byte_event && (byte_event->mem_event.in_access & out_access)) {
-                byte_event->mem_event.gla = req.gla;
-                byte_event->mem_event.gfn = req.gfn;
-                byte_event->mem_event.offset = req.offset;
-                byte_event->mem_event.out_access = out_access;
-                byte_event->vcpu_id = req.vcpu_id;
+            if(byte_event && (byte_event->mem_event.in_access & out_access))
+            {
+                issue_mem_cb(vmi, byte_event, &req, out_access);
+                cb_issued = 1;
+            }
+        }
 
-                byte_event->callback(vmi, byte_event);
+        /*
+         * When using VMI_MEMEVENT_BYTE the page-fault may be triggered
+         * at an offset that doesn't trigger a callback to the user. If these
+         * events are not catched and cleared the VM will halt. On the other hand
+         * if these events are cleared the user won't get the callback when the
+         * target offset is hit, therefore the events need to be re-registered
+         * after the fault has been cleared.
+         */
+        if(!cb_issued)
+        {
+            if(VMI_FAILURE == process_unhandled_mem(vmi, page, &req))
+            {
+                goto errdone;
             }
         }
 
@@ -458,6 +559,10 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
 
         return VMI_SUCCESS;
     }
+
+    errprint("Caught a memory event that had no handler registered in LibVMI\n");
+
+errdone:
     return VMI_FAILURE;
 }
 

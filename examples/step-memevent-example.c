@@ -74,6 +74,7 @@ void mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
         interrupted = 1;
     } else {
         printf("\tEvent on same page, but not the same RIP");
+        vmi_clear_event(vmi, event);
         vmi_step_mem_event(vmi, event, 1);
     }
 
