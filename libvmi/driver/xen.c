@@ -301,7 +301,7 @@ dump_vcpureg_hvm_snapshot(
 
     if (xc_domain_hvm_getcontext_partial
         (xen_get_xchandle(vmi), xen_get_domainid(vmi),
-         HVM_SAVE_CODE(CPU), vcpu, &hw_ctxt, sizeof hw_ctxt) != 0) {
+         HVM_SAVE_CODE(CPU), vcpu, &hw_ctxt, sizeof(struct hvm_hw_cpu)) != 0) {
         errprint("Failed to get context information (HVM domain).\n");
         return VMI_FAILURE;
     }
