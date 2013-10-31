@@ -874,6 +874,20 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
         return VMI_FAILURE;
     }
 
+    /*
+     * Setting a page write-only or write-execute in EPT triggers and EPT misconfiguration error
+     * which is unhandled by Xen (at least up to 4.3) and instantly crashes the domain on the first trigger.
+     *
+     * See Intel® 64 and IA-32 Architectures Software Developer’s Manual
+     * 8.2.3.1 EPT Misconfigurations
+     * AN EPT misconfiguration occurs if any of the following is identified while translating a guest-physical address:
+     * * The value of bits 2:0 of an EPT paging-structure entry is either 010b (write-only) or 110b (write/execute).
+     */
+    if(page_access_flag == VMI_MEMACCESS_R || page_access_flag == VMI_MEMACCESS_RX) {
+        errprint("%s error: can't set requested memory access, unsupported by EPT.\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
     addr_t page_key = event.physical_address >> 12;
 
     uint64_t npages = page_key + event.npages > xe->mem_event.max_pages
