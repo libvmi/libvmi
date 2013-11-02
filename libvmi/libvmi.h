@@ -1669,6 +1669,44 @@ struct vmi_event {
 #define CHECK_VCPU_SINGLESTEP(ss_event, x) \
         (ss_event.vcpus) & (1 << x)
 
+/* Convenience macro to setup a singlestep event */
+#define SETUP_SINGLESTEP_EVENT(_event, _vcpu_mask, _callback) \
+        do { \
+            (_event)->type = VMI_EVENT_SINGLESTEP; \
+            (_event)->ss_event.vcpus = _vcpu_mask; \
+            (_event)->callback = _callback; \
+        } while(0)
+
+/* Convenience macro to setup a memory event */
+#define SETUP_MEM_EVENT(_event, _addr, _granularity, _access, _callback) \
+        do { \
+            (_event)->type = VMI_EVENT_MEMORY; \
+            (_event)->mem_event.physical_address = _addr; \
+            (_event)->mem_event.granularity = _granularity; \
+            (_event)->mem_event.in_access = _access; \
+            (_event)->mem_event.npages = 1; \
+            (_event)->callback = _callback; \
+        } while(0)
+
+/* Convenience macro to setup a register event */
+#define SETUP_REG_EVENT(_event, _reg, _access, _equal, _callback) \
+        do { \
+            (_event)->type = VMI_EVENT_REGISTER; \
+            (_event)->reg_event.reg = _reg; \
+            (_event)->reg_event.in_access = _access; \
+            (_event)->reg_event.equal = _equal; \
+            (_event)->callback = _callback; \
+        } while(0)
+
+/* Convenience macro to setup a interrupt event */
+#define SETUP_INTERRUPT_EVENT(_event, _enable, _reinject, _callback) \
+        do { \
+            (_event)->type = VMI_EVENT_INTERRUPT; \
+            (_event)->interrupt_event.enabled = _enable; \
+            (_event)->interrupt_event.reinject = _reinject; \
+            (_event)->callback = _callback; \
+        } while(0)
+
 /**
  * Register to handle the event specified by the vmi_event object.
  *
