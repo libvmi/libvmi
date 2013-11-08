@@ -56,6 +56,11 @@ void print_event(vmi_event_t *event){
     );
 }
 
+void step_callback(vmi_instance_t vmi, vmi_event_t *event) {
+    printf("Re-registering event\n");
+    vmi_register_event(vmi, event);
+}
+
 void mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
 
     vmi_get_vcpureg(vmi, &cr3, CR3, 0);
@@ -75,7 +80,10 @@ void mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
     } else {
         printf("\tEvent on same page, but not the same RIP");
         vmi_clear_event(vmi, event);
-        vmi_step_mem_event(vmi, event, 1);
+
+        /* These two calls are equivalent */
+        //vmi_step_event(vmi, event, event->vcpu_id, 1, NULL);
+        vmi_step_event(vmi, event, event->vcpu_id, 1, step_callback);
     }
 
     printf("\n}\n");
@@ -142,11 +150,7 @@ int main (int argc, char **argv)
 
     vmi_pause_vm(vmi);
 
-    memset(&cr3_event, 0, sizeof(vmi_event_t));
-    cr3_event.type = VMI_EVENT_REGISTER;
-    cr3_event.reg_event.reg = CR3;
-    cr3_event.reg_event.in_access = VMI_REGACCESS_W;
-    cr3_event.callback = cr3_callback;
+    SETUP_REG_EVENT(&cr3_event, CR3, VMI_REGACCESS_W, 0, cr3_callback);
     vmi_register_event(vmi, &cr3_event);
 
     // Setup a mem event for tracking memory at the current instruction's page
@@ -167,14 +171,7 @@ int main (int argc, char **argv)
 
     printf("Preparing memory event to catch next RIP 0x%lx, PA 0x%lx, page 0x%lx for PID %u\n",
             rip, rip_pa, rip_pa >> 12, pid);
-
-    memset(&mm_event, 0, sizeof(vmi_event_t));
-    mm_event.callback = mm_callback;
-    mm_event.type = VMI_EVENT_MEMORY;
-    mm_event.mem_event.physical_address = rip_pa;
-    mm_event.mem_event.npages = 1;
-    mm_event.mem_event.in_access = VMI_MEMACCESS_X;
-    mm_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
+    SETUP_MEM_EVENT(&mm_event, rip_pa, VMI_MEMEVENT_PAGE, VMI_MEMACCESS_X, mm_callback);
 
     vmi_resume_vm(vmi);
 

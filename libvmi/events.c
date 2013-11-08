@@ -65,6 +65,27 @@ gboolean event_entry_free(gpointer key, gpointer value, gpointer data)
     return TRUE;
 }
 
+void step_wrapper_free(gpointer value, gpointer data)
+{
+    vmi_instance_t vmi = (vmi_instance_t) data;
+    step_and_reg_event_wrapper_t *wrap = (step_and_reg_event_wrapper_t*) value;
+    vmi_event_t *single_event = vmi_get_singlestep_event(vmi, wrap->vcpu_id);
+
+    if(single_event) {
+        // Not calling vmi_clear_event here as during shutdown
+        // it doesn't remove the event from the GHashTable
+        // and results in a use-after-free.
+        if(VMI_SUCCESS == driver_stop_single_step(vmi, wrap->vcpu_id))
+        {
+            g_hash_table_remove(vmi->ss_events, &(wrap->vcpu_id));
+        }
+
+       free(single_event);
+    }
+
+    free(wrap);
+}
+
 gboolean memevent_page_clean(gpointer key, gpointer value, gpointer data)
 {
 
@@ -123,6 +144,12 @@ void events_destroy(vmi_instance_t vmi)
         g_hash_table_destroy(vmi->reg_events);
     }
 
+    if (vmi->step_events)
+    {
+        g_slist_foreach(vmi->step_events, step_wrapper_free, vmi);
+        g_slist_free(vmi->step_events);
+    }
+
     if (vmi->ss_events)
     {
         g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
@@ -176,36 +203,53 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
-void rereg_mem_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
+void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
 {
 
-    GSList *rereg_list = vmi->step_memevents;
+    GSList *reg_list = vmi->step_events;
     GSList *remain = NULL;
-    while(rereg_list) {
+    while (reg_list)
+    {
 
-        rereg_memevent_wrapper_t *wrap = (rereg_memevent_wrapper_t *)rereg_list->data;
+        step_and_reg_event_wrapper_t *wrap =
+                (step_and_reg_event_wrapper_t *) reg_list->data;
 
-        if(wrap->event->vcpu_id == singlestep_event->vcpu_id) {
+        if (wrap->vcpu_id == singlestep_event->vcpu_id)
+        {
             wrap->steps--;
         }
 
-        if(0 == wrap->steps) {
-            vmi_register_event(vmi, wrap->event);
+        if (0 == wrap->steps)
+        {
+            if (wrap->cb)
+            {
+                wrap->cb(vmi, wrap->event);
+            }
+            else
+            {
+                vmi_register_event(vmi, wrap->event);
+            }
+
+            --(vmi->step_vcpus[wrap->vcpu_id]);
+            if (!vmi->step_vcpus[wrap->vcpu_id])
+            {
+                // No more events on this vcpu need registering
+                vmi_clear_event(vmi, singlestep_event);
+                g_free(singlestep_event);
+            }
+
             free(wrap);
-        } else {
+        }
+        else
+        {
             remain = g_slist_append(remain, wrap);
         }
 
-        rereg_list = rereg_list->next;
+        reg_list = reg_list->next;
     }
 
-    g_slist_free(vmi->step_memevents);
-    vmi->step_memevents = remain;
-
-    if(NULL == vmi->step_memevents) {
-        vmi_clear_event(vmi, singlestep_event);
-        g_free(singlestep_event);
-    }
+    g_slist_free(vmi->step_events);
+    vmi->step_events = remain;
 }
 
 status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
@@ -677,21 +721,30 @@ status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event)
     return rc;
 }
 
-// This function is to be called from a memevent callback function
-status_t vmi_step_mem_event(vmi_instance_t vmi, vmi_event_t *event, uint64_t steps)
+status_t vmi_step_event(vmi_instance_t vmi, vmi_event_t *event,
+        uint32_t vcpu_id, uint64_t steps, event_callback_t cb)
 {
     status_t rc = VMI_FAILURE;
+    uint8_t need_new_ss = 1;
 
-    if(VMI_EVENT_MEMORY != event->type)
+    if (vcpu_id > vmi->num_vcpus)
     {
-        dbprint(VMI_DEBUG_EVENTS, "This function is only for memory events!\n");
+        dbprint(VMI_DEBUG_EVENTS, "The vCPU ID specified does not exist!\n");
         goto done;
     }
 
-    if(NULL != vmi_get_singlestep_event(vmi, event->vcpu_id))
+    if(NULL != vmi_get_singlestep_event(vmi, vcpu_id))
     {
-        dbprint(VMI_DEBUG_EVENTS, "Can't step memory event, single-step is already enabled on vCPU %u\n", event->vcpu_id);
-        goto done;
+        if(!vmi->step_vcpus[vcpu_id])
+        {
+            dbprint(VMI_DEBUG_EVENTS, "Can't step event, user-defined single-step is already enabled on vCPU %u\n", event->vcpu_id);
+            goto done;
+        }
+        else
+        {
+            // No need to register new singlestep event, its already in place
+            need_new_ss = 0;
+        }
     }
 
     if(0 == steps) {
@@ -699,26 +752,29 @@ status_t vmi_step_mem_event(vmi_instance_t vmi, vmi_event_t *event, uint64_t ste
         goto done;
     }
 
-    // setup single step event to re-register the memevent
-    vmi_event_t *single_event = g_malloc0(sizeof(vmi_event_t));
-    single_event->type = VMI_EVENT_SINGLESTEP;
-    single_event->callback = rereg_mem_events;
-    SET_VCPU_SINGLESTEP(single_event->ss_event, event->vcpu_id);
+    if(need_new_ss) {
+        // setup single step event to re-register the event
+        vmi_event_t *single_event = g_malloc0(sizeof(vmi_event_t));
+        SETUP_SINGLESTEP_EVENT(single_event, 0, step_and_reg_events);
+        SET_VCPU_SINGLESTEP(single_event->ss_event, vcpu_id);
 
-    if(VMI_SUCCESS == vmi_register_event(vmi, single_event))
-    {
-        // save the event into the queue using the wrapper
-        rereg_memevent_wrapper_t *wrap = g_malloc0(sizeof(rereg_memevent_wrapper_t));
-        wrap->event = event;
-        wrap->steps = steps;
+        if(VMI_FAILURE == vmi_register_event(vmi, single_event))
+        {
+            free(single_event);
+            goto done;
+        }
+    }
 
-        vmi->step_memevents = g_slist_append(vmi->step_memevents, wrap);
-        rc = VMI_SUCCESS;
-    }
-    else
-    {
-        free(single_event);
-    }
+    // save the event into the queue using the wrapper
+    step_and_reg_event_wrapper_t *wrap = g_malloc0(sizeof(step_and_reg_event_wrapper_t));
+    wrap->event = event;
+    wrap->vcpu_id = vcpu_id;
+    wrap->steps = steps;
+    wrap->cb = cb;
+    vmi->step_events = g_slist_append(vmi->step_events, wrap);
+    vmi->step_vcpus[vcpu_id]++;
+
+    rc = VMI_SUCCESS;
 
 done:
     return rc;

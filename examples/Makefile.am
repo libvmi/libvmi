@@ -17,7 +17,7 @@ bin_PROGRAMS =  module-list \
                 msr-event-example \
                 singlestep-event-example \
                 interrupt-event-example \
-                step-memevent-example
+                step-event-example
 
 module_list_SOURCES = module-list.c
 process_list_SOURCES = process-list.c
@@ -30,4 +30,4 @@ msr_event_example_SOURCES = msr-event-example.c
 singlestep_event_example_SOURCES = singlestep-event-example.c
 interrupt_event_example_SOURCES = interrupt-event-example.c
 win_guid_SOURCES = win-guid.c
-step_memevent_example_SOURCES = step-memevent-example.c
+step_event_example_SOURCES = step-event-example.c

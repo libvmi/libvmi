@@ -127,7 +127,9 @@ struct vmi_instance {
 
     GHashTable *ss_events; /**< single step event to functions mapping (key: vcpu_id) */
 
-    GSList *step_memevents; /**< memory events to be re-registered after single-stepping them */
+    GSList *step_events; /**< events to be re-registered after single-stepping them */
+
+    uint32_t step_vcpus[MAX_SINGLESTEP_VCPUS]; /**< counter of events on vcpus for which we have internal singlestep enabled */
 
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
 };
@@ -143,11 +145,13 @@ typedef struct memevent_page {
 
 } memevent_page_t;
 
-/** Memevent singlestep reregister wrapper */
-typedef struct rereg_memevent_wrapper {
+/** Event singlestep reregister wrapper */
+typedef struct step_and_reg_event_wrapper {
     vmi_event_t *event;
+    uint32_t vcpu_id;
     uint64_t steps;
-} rereg_memevent_wrapper_t;
+    event_callback_t cb;
+} step_and_reg_event_wrapper_t;
 
 /** structure to hold virtual address and page size during get_va_pages */
 struct va_page {

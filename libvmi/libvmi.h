@@ -1797,19 +1797,25 @@ vmi_event_t *vmi_get_mem_event(
     vmi_memevent_granularity_t granularity);
 
 /**
- * Setup single-stepping to re-register the given memory event
- *
- * This function is intended to be called in the callback routine of a memory event.
+ * Setup single-stepping to register the given event
+ * after the specified number of steps.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] event The memory event to re-register
- * @param[in] steps The number of steps to take before re-registering
+ * @param[in] event The event to register
+ * @param[in] vcpu_id The vCPU ID to step the event on.
+ * @param[in] steps The number of steps to take before registering the event
+ * @param[in] cb Optional: A callback function to call after the specified number of steps.
+ *                         If no callback is provided, the event will be re-registered
+                           automatically. If a callback is provided, event re-registration
+                           is not automatic, but can be done in the callback.
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_step_mem_event(
+status_t vmi_step_event(
     vmi_instance_t vmi,
     vmi_event_t *event,
-    uint64_t steps);
+    uint32_t vcpu_id,
+    uint64_t steps,
+    event_callback_t cb);
 
 /**
  * Listen for events until one occurs or a timeout.

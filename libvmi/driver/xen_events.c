@@ -387,85 +387,41 @@ status_t process_register(vmi_instance_t vmi,
 
 
 /*
- * This function uses the internals of the vmi_step_mem_event function
- * to queue the events on the page for re-registration.
+ * This function clears up the page access flags and queues each event
+ * registered on that page for re-registration using vmi_step_event.
  */
 status_t process_unhandled_mem(vmi_instance_t vmi, memevent_page_t *page,
         mem_event_request_t *req)
 {
 
-    uint8_t internal_ss_present = 0;
-
-    // Check if there is singlestep already on the vCPU
-    if (NULL != vmi_get_singlestep_event(vmi, req->vcpu_id)) {
-
-        /*
-         *  Check if the singlestep registered on the vCPU is internal
-         *  (setup by vmi_step_mem_event).
-         *
-         *  We do this by looping through the linked list of queued events
-         *  and check if any of them are on the same vCPU.
-         *
-         *  If we don't find an event queued for that vCPU than the user
-         *  has singlestep enabled on the vCPU and we can't do anything here.
-         */
-        GSList *check = vmi->step_memevents;
-        while (check) {
-            vmi_event_t *step_event = (vmi_event_t *) check->data;
-            if (step_event->vcpu_id == req->vcpu_id) {
-                internal_ss_present = 1;
-                break;
-            }
-            check = check->next;
-        }
-
-        if (!internal_ss_present) {
-            dbprint(VMI_DEBUG_XEN, "Caught an unprocessed memory event "
-                    "but can't automatically step it because "
-                    "singlestep is already enabled on vCPU %"PRIx32,
-                    req->vcpu_id);
-            goto errdone;
-        }
-    }
+    // Clear the page's access flags
+    mem_event_t event = { 0 };
+    event.physical_address = page->key << 12;
+    event.npages = 1;
+    xen_set_mem_access(vmi, event, VMI_MEMACCESS_N);
 
     // Queue the VMI_MEMEVENT_PAGE
     if (page->event) {
-        if (!internal_ss_present) {
-            vmi_step_mem_event(vmi, page->event, 1);
-            internal_ss_present = 1;
-        } else if (!g_slist_find(vmi->step_memevents, page->event)) {
-            vmi->step_memevents = g_slist_append(vmi->step_memevents, page->event);
-        }
-
-        // Clear the event to let the VM progress
-        vmi_clear_event(vmi, page->event);
+        vmi_step_event(vmi, page->event, req->vcpu_id, 1, NULL);
     }
 
     // Queue each VMI_MEMEVENT_BYTE
-    event_iter_t i;
-    addr_t *pa;
-    vmi_event_t *loop;
-    GSList *clear = NULL;
-    for_each_event(vmi, i, page->byte_events, &pa, &loop) {
-        if (!internal_ss_present) {
-            vmi_step_mem_event(vmi, loop, 1);
-            internal_ss_present = 1;
-        } else if (!g_slist_find(vmi->step_memevents, loop)) {
-            vmi->step_memevents = g_slist_append(vmi->step_memevents, loop);
+    if (page->byte_events)
+    {
+        event_iter_t i;
+        addr_t *pa;
+        vmi_event_t *loop;
+        for_each_event(vmi, i, page->byte_events, &pa, &loop)
+        {
+            vmi_step_event(vmi, loop, req->vcpu_id, 1, NULL);
         }
 
-        // We can't clear the event hear because we are iterating through the table
-        clear = g_slist_append(clear, loop);
+        // Free up memory of byte events GHashTable
+        g_hash_table_destroy(page->byte_events);
     }
 
-    // Clear the event(s) to let the VM progress
-    GSList *clear_loop = clear;
-    while (clear_loop) {
-        vmi_event_t *clear_event = (vmi_event_t *) clear_loop->data;
-        vmi_clear_event(vmi, clear_event);
-        clear_loop = clear_loop->next;
-    }
-    g_slist_free(clear);
+    // Clear page from LibVMI GhashTable
+    g_hash_table_remove(vmi->mem_events, &page->key);
 
     return VMI_SUCCESS;
 
@@ -514,6 +470,8 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
     if (page)
     {
         uint8_t cb_issued = 0;
+        // To prevent use-after-free of 'page' in case it is freed after the first cb
+        GHashTable *byte_events = page->byte_events;
 
         if (page->event && (page->event->mem_event.in_access & out_access))
         {
@@ -521,11 +479,11 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
             cb_issued = 1;
         }
 
-        if (page->byte_events)
+        if (byte_events)
         {
             // Check if the offset has a byte-event registered
             addr_t pa = (req.gfn<<12) + req.offset;
-            vmi_event_t *byte_event = (vmi_event_t *)g_hash_table_lookup(page->byte_events, &pa);
+            vmi_event_t *byte_event = (vmi_event_t *)g_hash_table_lookup(byte_events, &pa);
 
             if(byte_event && (byte_event->mem_event.in_access & out_access))
             {
@@ -559,6 +517,13 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
 
         return VMI_SUCCESS;
     }
+
+    /*
+     * TODO: Could this happen when using multi-vCPU VMs where multiple vCPU's trigger
+     *       the same violation and the event is already being passed to vmi_step_event?
+     *       The event in that case would be already removed from the GHashTable so
+     *       the second violation on the other vCPU would not get delivered..
+     */
 
     errprint("Caught a memory event that had no handler registered in LibVMI\n");
 
