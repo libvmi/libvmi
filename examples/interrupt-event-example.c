@@ -74,6 +74,7 @@ int main (int argc, char **argv) {
     /* Register event to track INT3 interrupts */
     memset(&interrupt_event, 0, sizeof(vmi_event_t));
     interrupt_event.type = VMI_EVENT_INTERRUPT;
+    interrupt_event.interrupt_event.intr = INT3;
     interrupt_event.interrupt_event.enabled = 1;
     interrupt_event.interrupt_event.reinject = 1;
     interrupt_event.callback = int3_cb;
