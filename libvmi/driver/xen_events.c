@@ -324,7 +324,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                 */
 #if __XEN_INTERFACE_VERSION__ >= 0x00040300
                 if (rc < 0) {
-                    errprint("%s : Xen event error %d re-injecting int3\n", __FUNCTION__, rc);
+                    errprint("%s : Xen event error %d re-injecting int3 (benign result for 4.1 >= Xen < 4.3)\n", __FUNCTION__, rc);
                     status = VMI_FAILURE;
                     break;
                 }
