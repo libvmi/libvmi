@@ -185,7 +185,9 @@ void rereg_mem_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
 
         rereg_memevent_wrapper_t *wrap = (rereg_memevent_wrapper_t *)rereg_list->data;
 
-        wrap->steps--;
+        if(wrap->event->vcpu_id == singlestep_event->vcpu_id) {
+            wrap->steps--;
+        }
 
         if(0 == wrap->steps) {
             vmi_register_event(vmi, wrap->event);
@@ -697,12 +699,7 @@ status_t vmi_step_mem_event(vmi_instance_t vmi, vmi_event_t *event, uint64_t ste
         goto done;
     }
 
-    if(VMI_SUCCESS != vmi_clear_event(vmi, event))
-    {
-        goto done;
-    }
-
-    //setup single step event to re-register the memevent
+    // setup single step event to re-register the memevent
     vmi_event_t *single_event = g_malloc0(sizeof(vmi_event_t));
     single_event->type = VMI_EVENT_SINGLESTEP;
     single_event->callback = rereg_mem_events;
