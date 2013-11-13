@@ -26,20 +26,21 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <inttypes.h>
 #include <pwd.h>
 #include "../libvmi/libvmi.h"
 #include "check_tests.h"
 
 
+#if ENABLE_SHM_SNAPSHOT == 1
 /* test vmi_snapshot_create */
 START_TEST (test_libvmi_shm_snapshot_create)
 {
     vmi_instance_t vmi = NULL;
     status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
 
-#if ENABLE_SNAPSHOT == 1
-    ret = vmi_snapshot_create(vmi);
-#endif
+    ret = vmi_shm_snapshot_create(vmi);
+    vmi_shm_snapshot_destroy(vmi);
 
     fail_unless(ret == VMI_SUCCESS,
                 "vmi_init failed with AUTO | COMPLETE");
@@ -49,10 +50,82 @@ START_TEST (test_libvmi_shm_snapshot_create)
 }
 END_TEST
 
+/* test vmi_get_dgpma */
+// we use vmi_read_pa() to verify vmi_get_dgpma()
+START_TEST (test_vmi_get_dgpma)
+{
+    vmi_instance_t vmi = NULL;
+    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_shm_snapshot_create(vmi);
+
+    addr_t pa = 0x1000; // just because vmi_read_page() deny to fetch frame 0.
+    size_t count = 4096;
+    unsigned long max_size = vmi_get_memsize(vmi);
+    void *buf_readpa = malloc(count);
+    void *buf_dgpma = NULL;
+    for (; pa + count <= max_size; pa += count) {
+        size_t read_pa = vmi_read_pa(vmi, pa, buf_readpa, count);
+        size_t read_dgpma = vmi_get_dgpma(vmi, pa, &buf_dgpma, count);
+        fail_unless(read_pa == read_dgpma, "vmi_get_dgpma(0x%"PRIx64
+            ") read size %d dosn't conform to %d of vmi_read_pa()",
+            pa, read_dgpma, read_pa);
+
+        int cmp = memcmp(buf_readpa, buf_dgpma, read_pa);
+        fail_unless(0 == cmp, "vmi_get_dgpma(0x%"PRIx64
+            ") contents dosn't conform to vmi_read_pa()", pa);
+    }
+    free(buf_readpa);
+
+    vmi_shm_snapshot_destroy(vmi);
+    vmi_destroy(vmi);
+}
+END_TEST
+
+#if ENABLE_KVM == 1
+/* test vmi_get_dgvma */
+// we use vmi_read_va() to verify vmi_get_dgvma()
+START_TEST (test_vmi_get_dgvma)
+{
+    vmi_instance_t vmi = NULL;
+    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_shm_snapshot_create(vmi);
+
+    addr_t va = 0x0;
+    size_t count = 4096;
+    unsigned long max_size = 0xffff;
+    void *buf_readva = malloc(count);
+    void *buf_dgvma = NULL;
+    for (; va + count <= max_size; va += count) {
+        size_t read_va = vmi_read_va(vmi, va, 0, buf_readva, count);
+        size_t read_dgvma = vmi_get_dgvma(vmi, va, 0, &buf_dgvma, count);
+        fail_unless(read_va == read_dgvma, "vmi_get_dgvma(0x%"PRIx64
+            ") read size %d dosn't conform to %d of vmi_read_va()",
+            va, read_dgvma, read_va);
+
+        int cmp = memcmp(buf_readva, buf_dgvma, read_va);
+        fail_unless(0 == cmp, "vmi_get_dgvma(0x%"PRIx64
+            ") contents dosn't conform to vmi_read_va()", va);
+    }
+    free(buf_readva);
+
+    vmi_shm_snapshot_destroy(vmi);
+    vmi_destroy(vmi);
+}
+END_TEST
+#endif
+
+#endif
+
 /* snapshot test cases */
 TCase *shm_snapshot_tcase (void)
 {
     TCase *tc_init = tcase_create("LibVMI shm-snapshot");
+#if ENABLE_SHM_SNAPSHOT == 1
     tcase_add_test(tc_init, test_libvmi_shm_snapshot_create);
+    tcase_add_test(tc_init, test_vmi_get_dgpma);
+    #if ENABLE_KVM == 1
+    tcase_add_test(tc_init, test_vmi_get_dgvma);
+    #endif
+#endif
     return tc_init;
 }

@@ -494,6 +494,9 @@ vmi_init_private(
     sym_cache_init(*vmi);
     rva_cache_init(*vmi);
     v2p_cache_init(*vmi);
+#if ENABLE_SHM_SNAPSHOT == 1
+    v2m_cache_init(*vmi);
+#endif
 
     /* connecting to xen, kvm, file, etc */
     if (VMI_FAILURE == set_driver_type(*vmi, access_mode, id, name)) {
@@ -746,7 +749,9 @@ vmi_destroy(
     pid_cache_destroy(vmi);
     sym_cache_destroy(vmi);
     rva_cache_destroy(vmi);
-    v2p_cache_destroy(vmi);
+#if ENABLE_SHM_SNAPSHOT == 1
+    v2m_cache_destroy(vmi);
+#endif
     memory_cache_destroy(vmi);
     if (vmi->image_type)
         free(vmi->image_type);

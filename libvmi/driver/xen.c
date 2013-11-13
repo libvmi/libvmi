@@ -2176,9 +2176,16 @@ xen_destroy_shm_snapshot(
     return xen_setup_live_mode(vmi);
 }
 
-const void * xen_get_dgpma(
-    vmi_instance_t vmi) {
-    return xen_get_instance(vmi)->shm_snapshot_map;
+size_t
+xen_get_dgpma(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void** medial_addr_ptr,
+    size_t count) {
+
+    *medial_addr_ptr = xen_get_instance(vmi)->shm_snapshot_map + paddr;
+    size_t max_size = vmi->size - (paddr - 0);
+    return max_size>count?count:max_size;
 }
 #endif
 
@@ -2362,9 +2369,14 @@ xen_destroy_shm_snapshot(
     return VMI_FAILURE;
 }
 
-const void * xen_get_dgpma(
-    vmi_instance_t vmi) {
-    return NULL;
+size_t
+xen_get_dgpma(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void** medial_addr_ptr,
+    size_t count)
+{
+    return 0;
 }
 #endif
 
