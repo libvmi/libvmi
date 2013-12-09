@@ -104,7 +104,7 @@ clean_cache(
     g_list_foreach(list, remove_entry, vmi->memory_cache);
     g_list_free(list);
 
-    dbprint("--MEMORY cache cleanup round complete (cache size = %u)\n",
+    dbprint(VMI_DEBUG_MEMCACHE, "--MEMORY cache cleanup round complete (cache size = %u)\n",
             g_hash_table_size(vmi->memory_cache));
 }
 
@@ -117,7 +117,7 @@ validate_and_return_data(
 
     if (vmi->memory_cache_age &&
         (now - entry->last_updated > vmi->memory_cache_age)) {
-        dbprint("--MEMORY cache refresh 0x%"PRIx64"\n", entry->paddr);
+        dbprint(VMI_DEBUG_MEMCACHE, "--MEMORY cache refresh 0x%"PRIx64"\n", entry->paddr);
         release_data_callback(entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
         entry->last_updated = now;
@@ -211,11 +211,11 @@ memory_cache_insert(
 
     gint64 *key = &paddr;
     if ((entry = g_hash_table_lookup(vmi->memory_cache, key)) != NULL) {
-        dbprint("--MEMORY cache hit 0x%"PRIx64"\n", paddr);
+        dbprint(VMI_DEBUG_MEMCACHE, "--MEMORY cache hit 0x%"PRIx64"\n", paddr);
         return validate_and_return_data(vmi, entry);
     }
     else {
-        dbprint("--MEMORY cache set 0x%"PRIx64"\n", paddr);
+        dbprint(VMI_DEBUG_MEMCACHE, "--MEMORY cache set 0x%"PRIx64"\n", paddr);
 
         entry = create_new_entry(vmi, paddr, vmi->page_size);
         if (!entry) {

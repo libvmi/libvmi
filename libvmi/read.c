@@ -101,7 +101,7 @@ vmi_read_va(
     size_t buf_offset = 0;
 
     if (NULL == buf) {
-        dbprint("--%s: buf passed as NULL, returning without read\n",
+        dbprint(VMI_DEBUG_READ, "--%s: buf passed as NULL, returning without read\n",
                 __FUNCTION__);
         return 0;
     }
@@ -181,7 +181,7 @@ vmi_read_ksym(
     addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
 
     if (0 == vaddr) {
-        dbprint("--%s: vmi_translate_ksym2v failed for '%s'\n",
+        dbprint(VMI_DEBUG_READ, "--%s: vmi_translate_ksym2v failed for '%s'\n",
                 __FUNCTION__, sym);
         return 0;
     }
@@ -469,7 +469,7 @@ vmi_read_win_unicode_struct_va(
         read = vmi_read_va(vmi, vaddr, pid, &us64, struct_size);
         if (read != struct_size) {
             dbprint
-                ("--%s: failed to read UNICODE_STRING at VA 0x%.16"PRIx64" for pid %d\n",
+                (VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING at VA 0x%.16"PRIx64" for pid %d\n",
                  __FUNCTION__, vaddr, pid);
             goto out_error;
         }   // if
@@ -483,7 +483,7 @@ vmi_read_win_unicode_struct_va(
         read = vmi_read_va(vmi, vaddr, pid, &us32, struct_size);
         if (read != struct_size) {
             dbprint
-                ("--%s: failed to read UNICODE_STRING at VA 0x%.16"PRIx64" for pid %d\n",
+                (VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING at VA 0x%.16"PRIx64" for pid %d\n",
                  __FUNCTION__, vaddr, pid);
             goto out_error;
         }   // if
@@ -500,7 +500,7 @@ vmi_read_win_unicode_struct_va(
     read = vmi_read_va(vmi, buffer_va, pid, us->contents, us->length);
     if (read != us->length) {
         dbprint
-            ("--%s: failed to read buffer at VA 0x%.16"PRIx64" for pid %d\n",
+            (VMI_DEBUG_READ, "--%s: failed to read buffer at VA 0x%.16"PRIx64" for pid %d\n",
              __FUNCTION__, buffer_va, pid);
         goto out_error;
     }   // if
@@ -569,11 +569,11 @@ vmi_convert_str_encoding(
     cd = iconv_open(out->encoding, in->encoding);   // outset, inset
     if ((iconv_t) (-1) == cd) { // init failure
         if (EINVAL == errno) {
-            dbprint("%s: conversion from '%s' to '%s' not supported\n",
+            dbprint(VMI_DEBUG_READ, "%s: conversion from '%s' to '%s' not supported\n",
                     __FUNCTION__, in->encoding, out->encoding);
         }
         else {
-            dbprint("%s: Initializiation failure: %s\n", __FUNCTION__,
+            dbprint(VMI_DEBUG_READ, "%s: Initializiation failure: %s\n", __FUNCTION__,
                     strerror(errno));
         }   // if-else
         goto fail;
@@ -583,21 +583,21 @@ vmi_convert_str_encoding(
 
     iconv_val = iconv(cd, &incurr, &inlen, &outcurr, &outlen);
     if ((size_t) - 1 == iconv_val) {
-        dbprint("%s: iconv failed, in string '%s' length %zu, "
+        dbprint(VMI_DEBUG_READ, "%s: iconv failed, in string '%s' length %zu, "
                 "out string '%s' length %zu\n", __FUNCTION__,
                 in->contents, in->length, out->contents, outlen);
         switch (errno) {
         case EILSEQ:
-            dbprint("invalid multibyte sequence");
+            dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
             break;
         case EINVAL:
-            dbprint("incomplete multibyte sequence");
+            dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
             break;
         case E2BIG:
-            dbprint("no more room");
+            dbprint(VMI_DEBUG_READ, "no more room");
             break;
         default:
-            dbprint("error: %s\n", strerror(errno));
+            dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
             break;
         }   // switch
         goto fail;

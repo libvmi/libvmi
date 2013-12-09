@@ -164,7 +164,7 @@ pid_cache_get(
     if ((entry = g_hash_table_lookup(vmi->pid_cache, &key)) != NULL) {
         entry->last_used = time(NULL);
         *dtb = entry->dtb;
-        dbprint("--PID cache hit %d -- 0x%.16"PRIx64"\n", pid, *dtb);
+        dbprint(VMI_DEBUG_PIDCACHE, "--PID cache hit %d -- 0x%.16"PRIx64"\n", pid, *dtb);
         return VMI_SUCCESS;
     }
 
@@ -183,7 +183,7 @@ pid_cache_set(
     pid_cache_entry_t entry = pid_cache_entry_create(pid, dtb);
 
     g_hash_table_insert(vmi->pid_cache, key, entry);
-    dbprint("--PID cache set %d -- 0x%.16"PRIx64"\n", pid, dtb);
+    dbprint(VMI_DEBUG_PIDCACHE, "--PID cache set %d -- 0x%.16"PRIx64"\n", pid, dtb);
 }
 
 status_t
@@ -193,7 +193,7 @@ pid_cache_del(
 {
     gint key = (gint) pid;
 
-    dbprint("--PID cache del %d\n", pid);
+    dbprint(VMI_DEBUG_PIDCACHE, "--PID cache del %d\n", pid);
     if (TRUE == g_hash_table_remove(vmi->pid_cache, &key)) {
         return VMI_SUCCESS;
     }
@@ -207,7 +207,7 @@ pid_cache_flush(
     vmi_instance_t vmi)
 {
     g_hash_table_remove_all(vmi->pid_cache);
-    dbprint("--PID cache flushed\n");
+    dbprint(VMI_DEBUG_PIDCACHE, "--PID cache flushed\n");
 }
 
 //
@@ -292,7 +292,7 @@ sym_cache_get(
     if ((entry = g_hash_table_lookup(symbol_table, sym)) != NULL) {
         entry->last_used = time(NULL);
         *va = entry->va;
-        dbprint("--SYM cache hit %u:0x%.16"PRIx64":%s -- 0x%.16"PRIx64"\n", pid, base_addr, sym, *va);
+        dbprint(VMI_DEBUG_SYMCACHE, "--SYM cache hit %u:0x%.16"PRIx64":%s -- 0x%.16"PRIx64"\n", pid, base_addr, sym, *va);
         ret=VMI_SUCCESS;
     }
 
@@ -324,7 +324,7 @@ sym_cache_set(
 
     sym_dup = strndup(sym, 100);
     g_hash_table_insert(symbol_table, sym_dup, entry);
-    dbprint("--SYM cache set %s -- 0x%.16"PRIx64"\n", sym, va);
+    dbprint(VMI_DEBUG_SYMCACHE, "--SYM cache set %s -- 0x%.16"PRIx64"\n", sym, va);
 }
 
 status_t
@@ -344,7 +344,7 @@ sym_cache_del(
         return ret;
     }
 
-    dbprint("--SYM cache del %u:0x%.16"PRIx64":%s\n", pid, base_addr, sym);
+    dbprint(VMI_DEBUG_SYMCACHE, "--SYM cache del %u:0x%.16"PRIx64":%s\n", pid, base_addr, sym);
 
     if (TRUE == g_hash_table_remove(symbol_table, sym)) {
         ret=VMI_SUCCESS;
@@ -362,7 +362,7 @@ sym_cache_flush(
     vmi_instance_t vmi)
 {
     g_hash_table_remove_all(vmi->sym_cache);
-    dbprint("--SYM cache flushed\n");
+    dbprint(VMI_DEBUG_SYMCACHE, "--SYM cache flushed\n");
 }
 
 void
@@ -405,7 +405,7 @@ rva_cache_get(
     if ((entry = g_hash_table_lookup(rva_table, GUINT_TO_POINTER(rva))) != NULL) {
         entry->last_used = time(NULL);
         *sym = entry->sym;
-        dbprint("--RVA cache hit %u:0x%.16"PRIx64":%s -- 0x%.16"PRIx64"\n", pid, base_addr, *sym, rva);
+        dbprint(VMI_DEBUG_RVACACHE, "--RVA cache hit %u:0x%.16"PRIx64":%s -- 0x%.16"PRIx64"\n", pid, base_addr, *sym, rva);
         ret=VMI_SUCCESS;
     }
 
@@ -434,7 +434,7 @@ rva_cache_set(
     }
 
     g_hash_table_insert(rva_table, GUINT_TO_POINTER(rva), entry);
-    dbprint("--RVA cache set %s -- 0x%.16"PRIx64"\n", sym, rva);
+    dbprint(VMI_DEBUG_RVACACHE, "--RVA cache set %s -- 0x%.16"PRIx64"\n", sym, rva);
 }
 
 status_t
@@ -454,7 +454,7 @@ rva_cache_del(
         return ret;
     }
 
-    dbprint("--RVA cache del %u:0x%.16"PRIx64":0x%.16"PRIx64"\n",
+    dbprint(VMI_DEBUG_RVACACHE, "--RVA cache del %u:0x%.16"PRIx64":0x%.16"PRIx64"\n",
             pid, base_addr, rva);
 
     if (TRUE == g_hash_table_remove(rva_table, GUINT_TO_POINTER(rva))) {
@@ -473,7 +473,7 @@ rva_cache_flush(
     vmi_instance_t vmi)
 {
     g_hash_table_remove_all(vmi->rva_cache);
-    dbprint("--RVA cache flushed\n");
+    dbprint(VMI_DEBUG_RVACACHE, "--RVA cache flushed\n");
 }
 
 //
@@ -524,7 +524,7 @@ v2p_cache_get(
 
         entry->last_used = time(NULL);
         *pa = entry->pa | ((vmi->page_size - 1) & va);
-        dbprint("--V2P cache hit 0x%.16"PRIx64" -- 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n",
+        dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache hit 0x%.16"PRIx64" -- 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n",
                 va, *pa, key->high, key->low);
         return VMI_SUCCESS;
     }
@@ -545,7 +545,7 @@ v2p_cache_set(
     key_128_t key = key_128_build(vmi, (uint64_t)va, (uint64_t)dtb);
     v2p_cache_entry_t entry = v2p_cache_entry_create(vmi, pa);
     g_hash_table_insert(vmi->v2p_cache, key, entry);
-    dbprint("--V2P cache set 0x%.16"PRIx64" -- 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va,
+    dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache set 0x%.16"PRIx64" -- 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va,
             pa, key->high, key->low);
 }
 
@@ -558,7 +558,7 @@ v2p_cache_del(
     struct key_128 local_key;
     key_128_t key = &local_key;
     key_128_init(vmi, key, (uint64_t)va, (uint64_t)dtb);
-    dbprint("--V2P cache del 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va,
+    dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache del 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va,
             key->high, key->low);
 
     // key collision doesn't really matter here because worst case
@@ -577,7 +577,7 @@ v2p_cache_flush(
     vmi_instance_t vmi)
 {
     g_hash_table_remove_all(vmi->v2p_cache);
-    dbprint("--V2P cache flushed\n");
+    dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache flushed\n");
 }
 
 #if ENABLE_SHM_SNAPSHOT == 1
@@ -633,7 +633,7 @@ v2m_cache_get(
         entry->last_used = time(NULL);
         *ma = entry->ma | ((vmi->page_size - 1) & va);
         *length = entry->length;
-        dbprint("--v2m cache hit 0x%.16"PRIx64" -- 0x%.16"PRIx64" len 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n",
+        dbprint(VMI_DEBUG_V2MCACHE, "--v2m cache hit 0x%.16"PRIx64" -- 0x%.16"PRIx64" len 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n",
                 va, *ma, *length, key->high, key->low);
         return VMI_SUCCESS;
     }
@@ -655,7 +655,7 @@ v2m_cache_set(
     key_128_t key = key_128_build(vmi, (uint64_t)va, (uint64_t)pid);
     v2m_cache_entry_t entry = v2m_cache_entry_create(vmi, ma, length);
     g_hash_table_insert(vmi->v2m_cache, key, entry);
-    dbprint("--v2m cache set 0x%.16"PRIx64" -- 0x%.16"PRIx64" len 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va,
+    dbprint(VMI_DEBUG_V2MCACHE, "--v2m cache set 0x%.16"PRIx64" -- 0x%.16"PRIx64" len 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va,
             ma, length, key->high, key->low);
 }
 
@@ -668,7 +668,7 @@ v2m_cache_del(
     struct key_128 local_key;
     key_128_t key = &local_key;
     key_128_init(vmi, key, (uint64_t)va, (uint64_t)pid);
-    dbprint("--v2m cache del 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va,
+    dbprint(VMI_DEBUG_V2MCACHE, "--v2m cache del 0x%.16"PRIx64" (0x%.16"PRIx64"/0x%.16"PRIx64")\n", va,
             key->high, key->low);
 
     // key collision doesn't really matter here because worst case
@@ -687,7 +687,7 @@ v2m_cache_flush(
     vmi_instance_t vmi)
 {
     g_hash_table_remove_all(vmi->v2m_cache);
-    dbprint("--v2m cache flushed\n");
+    dbprint(VMI_DEBUG_V2MCACHE, "--v2m cache flushed\n");
 }
 #endif
 

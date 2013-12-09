@@ -359,17 +359,17 @@ driver_init_mode(
 
     /* see what systems are accessable */
     if (VMI_SUCCESS == xen_test(id, name)) {
-        dbprint("--found Xen\n");
+        dbprint(VMI_DEBUG_DRIVER, "--found Xen\n");
         vmi->mode = VMI_XEN;
         count++;
     }
     if (VMI_SUCCESS == kvm_test(id, name)) {
-        dbprint("--found KVM\n");
+        dbprint(VMI_DEBUG_DRIVER, "--found KVM\n");
         vmi->mode = VMI_KVM;
         count++;
     }
     if (VMI_SUCCESS == file_test(id, name)) {
-        dbprint("--found file\n");
+        dbprint(VMI_DEBUG_DRIVER, "--found file\n");
         vmi->mode = VMI_FILE;
         count++;
     }
@@ -400,7 +400,7 @@ driver_init(
         return ptrs->init_ptr(vmi);
     }
     else {
-        dbprint("WARNING: driver_init function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_init function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -417,7 +417,7 @@ driver_destroy(
         return;
     }
     else {
-        dbprint("WARNING: driver_destroy function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_destroy function not implemented.\n");
         return;
     }
 }
@@ -434,7 +434,7 @@ driver_get_id_from_name(
     }
     else {
         dbprint
-            ("WARNING: driver_get_id_from_name function not implemented.\n");
+            (VMI_DEBUG_DRIVER, "WARNING: driver_get_id_from_name function not implemented.\n");
         return 0;
     }
 }
@@ -452,7 +452,7 @@ driver_get_name_from_id(
     }
     else {
         dbprint
-            ("WARNING: driver_get_name_from_id function not implemented.\n");
+            (VMI_DEBUG_DRIVER, "WARNING: driver_get_name_from_id function not implemented.\n");
         return 0;
     }
 }
@@ -467,7 +467,7 @@ driver_get_id(
         return ptrs->get_id_ptr(vmi);
     }
     else {
-        dbprint("WARNING: driver_get_id function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_get_id function not implemented.\n");
         return 0;
     }
 }
@@ -483,7 +483,7 @@ driver_set_id(
         return ptrs->set_id_ptr(vmi, id);
     }
     else {
-        dbprint("WARNING: driver_set_id function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_id function not implemented.\n");
         return;
     }
 }
@@ -500,7 +500,7 @@ driver_check_id(
         return;
     }
     else {
-        dbprint("WARNING: driver_check_id function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_check_id function not implemented.\n");
         return;
     }
 }
@@ -516,7 +516,7 @@ driver_get_name(
         return ptrs->get_name_ptr(vmi, name);
     }
     else {
-        dbprint("WARNING: driver_get_name function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_get_name function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -532,7 +532,7 @@ driver_set_name(
         return ptrs->set_name_ptr(vmi, name);
     }
     else {
-        dbprint("WARNING: driver_set_name function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_name function not implemented.\n");
         return;
     }
 }
@@ -549,7 +549,7 @@ driver_get_memsize(
     }
     else {
         dbprint
-            ("WARNING: driver_get_memsize function not implemented.\n");
+            (VMI_DEBUG_DRIVER, "WARNING: driver_get_memsize function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -568,7 +568,7 @@ driver_get_vcpureg(
     }
     else {
         dbprint
-            ("WARNING: driver_get_vcpureg function not implemented.\n");
+            (VMI_DEBUG_DRIVER, "WARNING: driver_get_vcpureg function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -585,7 +585,7 @@ driver_set_vcpureg(
         return ptrs->set_vcpureg_ptr(vmi, value, reg, vcpu);
     }
     else{
-        dbprint("WARNING: driver_set_vcpureg function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_vcpureg function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -602,7 +602,7 @@ driver_get_address_width(
     }
     else {
         dbprint
-            ("WARNING: driver_get_address_width function not implemented.\n");
+            (VMI_DEBUG_DRIVER, "WARNING: driver_get_address_width function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -619,7 +619,7 @@ driver_read_page(
     }
     else {
         dbprint
-            ("WARNING: driver_read_page function not implemented.\n");
+            (VMI_DEBUG_DRIVER, "WARNING: driver_read_page function not implemented.\n");
         return NULL;
     }
 }
@@ -637,7 +637,7 @@ driver_write(
         return ptrs->write_ptr(vmi, paddr, buf, length);
     }
     else {
-        dbprint("WARNING: driver_write function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_write function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -652,7 +652,7 @@ driver_is_pv(
         return ptrs->is_pv_ptr(vmi);
     }
     else {
-        dbprint("WARNING: driver_is_pv function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_is_pv function not implemented.\n");
         return 0;
     }
 }
@@ -667,7 +667,7 @@ driver_pause_vm(
         return ptrs->pause_vm_ptr(vmi);
     }
     else {
-        dbprint("WARNING: driver_pause_vm function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_pause_vm function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -683,7 +683,7 @@ driver_resume_vm(
     }
     else {
         dbprint
-            ("WARNING: driver_resume_vm function not implemented.\n");
+            (VMI_DEBUG_DRIVER, "WARNING: driver_resume_vm function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -698,7 +698,7 @@ status_t driver_shm_snapshot_vm(
         return ptrs->create_shm_snapshot_ptr(vmi);
     }
     else {
-        dbprint("WARNING: driver_shm_snapshot_vm function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_shm_snapshot_vm function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -712,7 +712,7 @@ status_t driver_destroy_shm_snapshot_vm(
         return ptrs->destroy_shm_snapshot_ptr(vmi);
     }
     else {
-        dbprint("WARNING: driver_destroy_shm_snapshot_vm function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_destroy_shm_snapshot_vm function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -729,7 +729,7 @@ size_t driver_get_dgpma(
         return ptrs->get_dgpma_ptr(vmi, paddr, medial_addr_ptr, count);
     }
     else {
-        dbprint("WARNING: get_dgpma_ptr function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: get_dgpma_ptr function not implemented.\n");
         return 0;
     }
     return 0;
@@ -749,7 +749,7 @@ driver_get_dgvma(
         return ptrs->get_dgvma_ptr(vmi, vaddr, pid, medial_addr_ptr, count);
     }
     else {
-        dbprint("WARNING: get_dgvma_ptr function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: get_dgvma_ptr function not implemented.\n");
         return 0;
     }
     return 0;
@@ -765,7 +765,7 @@ status_t driver_events_listen(
         return ptrs->events_listen_ptr(vmi, timeout);
     }
     else{
-        dbprint("WARNING: driver_events_listen function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_events_listen function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -779,7 +779,7 @@ status_t driver_set_reg_access(
         return ptrs->set_reg_access_ptr(vmi, event);
     }
     else{
-        dbprint("WARNING: driver_set_reg_w_access function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_reg_w_access function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -793,7 +793,7 @@ status_t driver_set_intr_access(
         return ptrs->set_intr_access_ptr(vmi, event);
     }
     else{
-        dbprint("WARNING: driver_set_intr_access function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_intr_access function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -808,7 +808,7 @@ status_t driver_set_mem_access(
         return ptrs->set_mem_access_ptr(vmi, event, page_access_flag);
     }
     else{
-        dbprint("WARNING: driver_set_mem_access function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_mem_access function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -822,7 +822,7 @@ status_t driver_start_single_step(
         return ptrs->start_single_step_ptr(vmi, event);
     }
     else{
-        dbprint("WARNING: driver_start_single_step function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_start_single_step function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -836,7 +836,7 @@ status_t driver_stop_single_step(
         return ptrs->stop_single_step_ptr(vmi, vcpu);
     }
     else{
-        dbprint("WARNING: driver_stop_single_step function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_stop_single_step function not implemented.\n");
         return VMI_FAILURE;
     }
 }
@@ -849,7 +849,7 @@ status_t driver_shutdown_single_step(
         return ptrs->shutdown_single_step_ptr(vmi);
     }
     else{
-        dbprint("WARNING: driver_shutdown_single_step function not implemented.\n");
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_shutdown_single_step function not implemented.\n");
         return VMI_FAILURE;
     }
 }

@@ -142,7 +142,7 @@ get_check_magic_func(
     default:
         rtn = &check_magic_unknown;
         dbprint
-            ("--%s: illegal value in vmi->os.windows_instance.version\n",
+            (VMI_DEBUG_MISC, "--%s: illegal value in vmi->os.windows_instance.version\n",
              __FUNCTION__);
         break;
     }
@@ -181,7 +181,7 @@ find_pname_offset(
 
             if (check(value)) { // look for specific magic #
                 dbprint
-                    ("--%s: found magic value 0x%.8"PRIx32" @ offset 0x%.8"PRIx64"\n",
+                    (VMI_DEBUG_MISC, "--%s: found magic value 0x%.8"PRIx32" @ offset 0x%.8"PRIx64"\n",
                      __FUNCTION__, value, block_pa + offset);
 
                 unsigned char haystack[0x500];
@@ -202,7 +202,7 @@ find_pname_offset(
                     vmi->init_task =
                         block_pa + offset;
                     dbprint
-                        ("--%s: found Idle process at 0x%.8"PRIx64" + 0x%x\n",
+                        (VMI_DEBUG_MISC, "--%s: found Idle process at 0x%.8"PRIx64" + 0x%x\n",
                          __FUNCTION__, block_pa + offset, i);
                     boyer_moore_fini(bm);
                     return i;
@@ -277,11 +277,11 @@ windows_find_eprocess(
         windows->pname_offset =
             find_pname_offset(vmi, check);
         if (windows->pname_offset == 0) {
-            dbprint("--failed to find pname_offset\n");
+            dbprint(VMI_DEBUG_MISC, "--failed to find pname_offset\n");
             return 0;
         }
         else {
-            dbprint("**set os.windows_instance.pname_offset (0x%"PRIx64")\n",
+            dbprint(VMI_DEBUG_MISC, "**set os.windows_instance.pname_offset (0x%"PRIx64")\n",
                     windows->pname_offset);
         }
     }

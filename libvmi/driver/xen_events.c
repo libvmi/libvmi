@@ -270,7 +270,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         case INT3:
             /* Reinject (callback may decide) */
             if(event->interrupt_event.reinject) {
-                dbprint("rip %"PRIx64" gfn %"PRIx64"\n",
+                dbprint(VMI_DEBUG_XEN, "rip %"PRIx64" gfn %"PRIx64"\n",
                     event->interrupt_event.gla, event->interrupt_event.gfn);
 
                 /* Undocumented enough to be worth describing at length:
@@ -420,7 +420,7 @@ status_t process_unhandled_mem(vmi_instance_t vmi, memevent_page_t *page,
         }
 
         if (!internal_ss_present) {
-            dbprint("Caught an unprocessed memory event "
+            dbprint(VMI_DEBUG_XEN, "Caught an unprocessed memory event "
                     "but can't automatically step it because "
                     "singlestep is already enabled on vCPU %"PRIx32,
                     req->vcpu_id);
@@ -654,7 +654,7 @@ void xen_events_destroy(vmi_instance_t vmi)
 #ifdef XENEVENT41
         // FIXME41: Xen 4.1.2 apparently mostly returns -1 for any call to this,
         // so just suppress the error for now
-        dbprint("Error %d setting mem_access listener required to not required\n", rc);
+        dbprint(VMI_DEBUG_XEN, "Error %d setting mem_access listener required to not required\n", rc);
 #else
         errprint("Error %d setting mem_access listener not required\n", rc);
 #endif
@@ -739,7 +739,7 @@ status_t xen_events_init(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
-    dbprint("Init xen events with xch == %llx\n", (unsigned long long)xch);
+    dbprint(VMI_DEBUG_XEN, "Init xen events with xch == %llx\n", (unsigned long long)xch);
 
     // Initialise lock
     xen_event_ring_lock_init(&xe->mem_event);
@@ -850,7 +850,7 @@ status_t xen_events_init(vmi_instance_t vmi)
     }
 
     xe->mem_event.port = rc;
-    dbprint("Bound to event channel on port == %d\n", xe->mem_event.port);
+    dbprint(VMI_DEBUG_XEN, "Bound to event channel on port == %d\n", xe->mem_event.port);
 
     // Initialise ring
     SHARED_RING_INIT((mem_event_sring_t *)xe->mem_event.ring_page);
@@ -1013,13 +1013,13 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
         case VMI_MEMACCESS_X_ON_WRITE: access = HVMMEM_access_rx2rw; break;
     }
 
-    dbprint("--Setting memaccess for domain %lu on physical address: %"PRIu64" npages: %"PRIu64"\n",
+    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %lu on physical address: %"PRIu64" npages: %"PRIu64"\n",
         dom, event.physical_address, npages);
     if((rc = xc_hvm_set_mem_access(xch, dom, access, page_key, npages))){
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
-    dbprint("--Done Setting memaccess on physical address: %"PRIu64"\n", event.physical_address);
+    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on physical address: %"PRIu64"\n", event.physical_address);
     return VMI_SUCCESS;
 }
 
@@ -1065,7 +1065,7 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event)
     int rc = -1;
     uint32_t i = 0;
 
-    dbprint("--Starting single step on domain %lu\n", dom);
+    dbprint(VMI_DEBUG_XEN, "--Starting single step on domain %lu\n", dom);
 
     rc = xc_set_hvm_param(
             xen_get_xchandle(vmi), dom,
@@ -1078,7 +1078,7 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event)
 
     for(;i < MAX_SINGLESTEP_VCPUS; i++){
         if(CHECK_VCPU_SINGLESTEP(event, i)) {
-            dbprint("--Setting MTF flag on vcpu %u\n", i);
+            dbprint(VMI_DEBUG_XEN, "--Setting MTF flag on vcpu %u\n", i);
             if(xen_set_domain_debug_control(vmi, i, 1) == VMI_FAILURE) {
                 errprint("Error setting MTF flag on vcpu %u\n", i);
                 goto rewind;
@@ -1101,7 +1101,7 @@ status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu)
     unsigned long dom = xen_get_domainid(vmi);
     status_t ret = VMI_FAILURE;
 
-    dbprint("--Removing MTF flag from vcpu %u\n", vcpu);
+    dbprint(VMI_DEBUG_XEN, "--Removing MTF flag from vcpu %u\n", vcpu);
 
     ret = xen_set_domain_debug_control(vmi, vcpu, 0);
 
@@ -1113,7 +1113,7 @@ status_t xen_shutdown_single_step(vmi_instance_t vmi) {
     int rc = -1;
     uint32_t i=0;
 
-    dbprint("--Shutting down single step on domain %lu\n", dom);
+    dbprint(VMI_DEBUG_XEN, "--Shutting down single step on domain %lu\n", dom);
 
     for(;i<vmi->num_vcpus; i++) {
         xen_stop_single_step(vmi, i);
@@ -1172,14 +1172,14 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 #ifdef XENEVENT41
         // FIXME41: Xen 4.1.2 apparently mostly returns -1 for any call to this,
         // so just suppress the error for now
-        dbprint("Error %d setting mem_access listener required to %d\n", rc, required);
+        dbprint(VMI_DEBUG_XEN, "Error %d setting mem_access listener required to %d\n", rc, required);
 #else
         errprint("Error %d setting mem_access listener required to %d\n", rc, required);
 #endif
     }
 
     if(!vmi->shutting_down && timeout > 0) {
-        dbprint("--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
+        dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
         rc = wait_for_event_or_timeout(xch, xe->mem_event.xce_handle, timeout);
         if ( rc < -1 ) {
             errprint("Error while waiting for event.\n");
@@ -1200,7 +1200,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 
         switch(req.reason){
             case MEM_EVENT_REASON_VIOLATION:
-                dbprint("--Caught mem event!\n");
+                dbprint(VMI_DEBUG_XEN, "--Caught mem event!\n");
                 rsp.gfn = req.gfn;
                 rsp.p2mt = req.p2mt;
 
@@ -1215,13 +1215,13 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 
                 break;
             case MEM_EVENT_REASON_CR0:
-                dbprint("--Caught CR0 event!\n");
+                dbprint(VMI_DEBUG_XEN, "--Caught CR0 event!\n");
                 if(!vmi->shutting_down) {
                     vrc = process_register(vmi, CR0, req);
                 }
                 break;
             case MEM_EVENT_REASON_CR3:
-                dbprint("--Caught CR3 event!\n");
+                dbprint(VMI_DEBUG_XEN, "--Caught CR3 event!\n");
                 if(!vmi->shutting_down) {
                     vrc = process_register(vmi, CR3, req);
                 }
@@ -1229,26 +1229,26 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 #ifdef HVM_PARAM_MEMORY_EVENT_MSR
             case MEM_EVENT_REASON_MSR:
                 if(!vmi->shutting_down) {
-                    dbprint("--Caught MSR event!\n");
+                    dbprint(VMI_DEBUG_XEN, "--Caught MSR event!\n");
                     vrc = process_register(vmi, MSR_ALL, req);
                 }
                 break;
 #endif
             case MEM_EVENT_REASON_CR4:
-                dbprint("--Caught CR4 event!\n");
+                dbprint(VMI_DEBUG_XEN, "--Caught CR4 event!\n");
                 if(!vmi->shutting_down) {
                     vrc = process_register(vmi, CR4, req);
                 }
                 break;
             case MEM_EVENT_REASON_SINGLESTEP:
-                dbprint("--Caught single step event!\n");
+                dbprint(VMI_DEBUG_XEN, "--Caught single step event!\n");
                 if(!vmi->shutting_down) {
                     vrc = process_single_step_event(vmi, req);
                 }
                 break;
             case MEM_EVENT_REASON_INT3:
                 if(!vmi->shutting_down) {
-                    dbprint("--Caught int3 interrupt event!\n");
+                    dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
                     vrc = process_interrupt_event(vmi, INT3, req);
                 }
                 break;
@@ -1265,7 +1265,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
         }
     }
 
-    dbprint("--Finished handling event.\n");
+    dbprint(VMI_DEBUG_XEN, "--Finished handling event.\n");
     return vrc;
 }
 #else

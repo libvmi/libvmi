@@ -49,7 +49,7 @@ windows_kernel_symbol_to_address(
     else {
         driver_get_vcpureg(vmi, &cr3, CR3, 0);
     }
-    dbprint("--windows symbol lookup (%s)\n", symbol);
+    dbprint(VMI_DEBUG_MISC, "--windows symbol lookup (%s)\n", symbol);
 
     if (kernel_base_address) {
         *kernel_base_address = windows->ntoskrnl_va;
@@ -58,11 +58,11 @@ windows_kernel_symbol_to_address(
     /* check kpcr if we have a cr3 */
     if ( /*cr3 && */ VMI_SUCCESS ==
         windows_kpcr_lookup(vmi, symbol, address)) {
-        dbprint("--got symbol from kpcr (%s --> 0x%"PRIx64").\n", symbol,
+        dbprint(VMI_DEBUG_MISC, "--got symbol from kpcr (%s --> 0x%"PRIx64").\n", symbol,
                 *address);
         return VMI_SUCCESS;
     }
-    dbprint("--kpcr lookup failed, trying kernel PE export table\n");
+    dbprint(VMI_DEBUG_MISC, "--kpcr lookup failed, trying kernel PE export table\n");
 
     /* check exports */
     if (VMI_SUCCESS
@@ -71,11 +71,11 @@ windows_kernel_symbol_to_address(
         addr_t rva = *address;
 
         *address = windows->ntoskrnl_va + rva;
-        dbprint("--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
+        dbprint(VMI_DEBUG_MISC, "--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
              symbol, *address);
         return VMI_SUCCESS;
     }
-    dbprint("--kernel PE export table failed, nothing left to try\n");
+    dbprint(VMI_DEBUG_MISC, "--kernel PE export table failed, nothing left to try\n");
 
     return VMI_FAILURE;
 }
