@@ -256,6 +256,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
 
     if(event) {
         event->interrupt_event.gfn = req.gfn;
+        event->interrupt_event.offset = req.offset;
         event->interrupt_event.gla = req.gla;
         event->interrupt_event.intr = intr;
         event->vcpu_id = req.vcpu_id;

@@ -1654,6 +1654,7 @@ typedef enum {
 typedef struct {
     addr_t gla;         /* (Global Linear Address) == RIP of the trapped instruction */
     addr_t gfn;         /* (Guest Frame Number) == 'physical' page where trap occurred */
+    addr_t offset;      /* Offset in bytes (relative to GFN) */
     interrupts_t intr;  /* Specific interrupt intended to trigger the event */
     int reinject:1;     /* Toggle, controls whether interrupt is re-injected after callback */
     int enabled:1;      /* Toggle */
