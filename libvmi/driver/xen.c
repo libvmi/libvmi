@@ -929,9 +929,10 @@ xen_get_memsize(
     // note: may also available through xen_get_instance(vmi)->info.max_memkb
     // or xenstore /local/domain/%d/memory/target
     status_t ret = VMI_FAILURE;
+    uint64_t pages = xen_get_instance(vmi)->info.nr_pages + xen_get_instance(vmi)->info.nr_shared_pages;
 
-    if(xen_get_instance(vmi)->info.nr_pages > 0) {
-        *size = XC_PAGE_SIZE * xen_get_instance(vmi)->info.nr_pages;
+    if(pages > 0) {
+        *size = XC_PAGE_SIZE * pages;
         ret = VMI_SUCCESS;
     }
 
