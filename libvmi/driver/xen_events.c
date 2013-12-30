@@ -259,6 +259,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         event->interrupt_event.offset = req.offset;
         event->interrupt_event.gla = req.gla;
         event->interrupt_event.intr = intr;
+        event->interrupt_event.reinject = -1;
         event->vcpu_id = req.vcpu_id;
 
         /* Will need to refactor if another interrupt is accessible
@@ -268,10 +269,15 @@ status_t process_interrupt_event(vmi_instance_t vmi,
 
         event->callback(vmi, event);
 
+        if(-1 == event->interrupt_event.reinject) {
+            errprint("%s Need to specify reinjection behaviour!\n", __FUNCTION__);
+            return VMI_FAILURE;
+        }
+
         switch(intr){
         case INT3:
             /* Reinject (callback may decide) */
-            if(event->interrupt_event.reinject) {
+            if(1 == event->interrupt_event.reinject) {
                 dbprint(VMI_DEBUG_XEN, "rip %"PRIx64" gfn %"PRIx64"\n",
                     event->interrupt_event.gla, event->interrupt_event.gfn);
 
