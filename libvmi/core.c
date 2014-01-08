@@ -446,16 +446,15 @@ set_id_and_name(
             }
         }
 
-       if(name != NULL) {
-               vmi->image_type = strndup(name, 100);
-               driver_set_name(vmi, name);
-       } else {
-               // create placeholder for image_type
-               char *idstring = malloc(snprintf(NULL, 0, "domid-%lu", id) + 1);
-               sprintf(idstring, "domid-%lu", id);
-               vmi->image_type = idstring;
-       }
-
+        if(name != NULL) {
+            vmi->image_type = name;
+            driver_set_name(vmi, name);
+        } else {
+            // create placeholder for image_type
+            char *idstring = malloc(snprintf(NULL, 0, "domid-%lu", id) + 1);
+            sprintf(idstring, "domid-%lu", id);
+            vmi->image_type = idstring;
+        }
     }
     dbprint("**set image_type = %s\n", vmi->image_type);
     return VMI_SUCCESS;
