@@ -857,14 +857,15 @@ find_kdversionblock_address_faster(
     // Todo:
     // -support matching across frames (can this happen in windows?)
 
+    reg_t cr3;
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+
     status_t ret = VMI_FAILURE;
     addr_t memsize = vmi_get_memsize(vmi);
-    GSList *va_pages = get_va_pages(vmi);
+    GSList *va_pages = get_va_pages(vmi, (addr_t)cr3);
     size_t read = 0;
     void *bm = 0;   // boyer-moore internal state
     int find_ofs = 0;
-    reg_t cr3;
-    driver_get_vcpureg(vmi, &cr3, CR3, 0);
 
     unsigned char haystack[VMI_PS_4KB];
 

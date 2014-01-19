@@ -134,15 +134,15 @@ typedef enum page_mode {
 
 typedef enum page_size {
 
-    VMI_PS_UNKNOWN, /**< page size unknown */
+    VMI_PS_UNKNOWN = 0ULL, /**< page size unknown */
 
-    VMI_PS_4KB = 0x1000, /**< 4Kb */
+    VMI_PS_4KB = 0x1000ULL, /**< 4Kb */
 
-    VMI_PS_2MB = 0x200000, /**< 2Mb */
+    VMI_PS_2MB = 0x200000ULL, /**< 2Mb */
 
-    VMI_PS_4MB = 0x400000, /**< 4Mb */
+    VMI_PS_4MB = 0x400000ULL, /**< 4Mb */
 
-    VMI_PS_1GB = 0x4000000 /**< 1Gb */
+    VMI_PS_1GB = 0x4000000ULL /**< 1Gb */
 
 } page_size_t;
 
@@ -247,6 +247,23 @@ typedef uint64_t addr_t;
 
 /* type def for consistent pid_t usage */
 typedef int32_t vmi_pid_t;
+
+/* Struct for holding page lookup information */
+typedef struct page_info {
+    addr_t vaddr;       // virtual address
+    addr_t dtb;         // dtb used for translation
+    addr_t paddr;       // physical address
+    page_size_t size;   // page size (VMI_PS_*)
+                 //                      NOPAE  PAE    IA32E
+    addr_t l1_a; // the location of the   pte / pte  / pte
+    addr_t l1_v; // the location of the   pte / pte  / pte
+    addr_t l2_a; // the location of the   pgd / pgd  / pde
+    addr_t l2_v; // the value of the      pgd / pgd  / pde
+    addr_t l3_a; // the location of the    -  / pdpe / pdpte
+    addr_t l3_v; // the value of the       -  / pdpe / pdpte
+    addr_t l4_a; // the location of the    -  /  -   / pml4e
+    addr_t l4_v; // the value of the       -  /  -   / pml4e
+} page_info_t;
 
 /**
  * Generic representation of Unicode string to be used within libvmi
@@ -480,6 +497,23 @@ addr_t vmi_pagetable_lookup (
     vmi_instance_t vmi,
     addr_t dtb,
     addr_t vaddr);
+
+/**
+ * Gets the physical address and page size of the VA
+ * as well as the addresses of other paging related structures
+ * depending on the page mode of the VM.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] dtb address of the relevant page directory base
+ * @param[in] vaddr virtual address to translate via dtb
+ * @param[in/out] info Pointer to the struct to store the lookup information in
+ * @return VMI_SUCCESS or VMI_FAILURE of the VA is invalid
+ */
+status_t vmi_pagetable_lookup_extended(
+    vmi_instance_t vmi,
+    addr_t dtb,
+    addr_t vaddr,
+    page_info_t *info);
 
 /*---------------------------------------------------------
  * Memory access functions from util.c
