@@ -65,10 +65,10 @@ test_using_shm_snapshot(
     xen_instance_t *xen)
 {
     if (NULL != xen->shm_snapshot_map && NULL != xen->shm_snapshot_cpu_regs) {
-        dbprint("is using shm-snapshot\n");
+        dbprint(VMI_DEBUG_XEN, "is using shm-snapshot\n");
         return VMI_SUCCESS;
     } else {
-        dbprint("is not using shm-snapshot\n");
+        dbprint(VMI_DEBUG_XEN, "is not using shm-snapshot\n");
         return VMI_FAILURE;
     }
 }
@@ -86,7 +86,7 @@ xen_get_memory_shm_snapshot(
 {
     if (paddr + length > vmi->size) {
         dbprint
-            ("--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of shm-snapshot\n",
+            (VMI_DEBUG_XEN, "--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of shm-snapshot\n",
              __FUNCTION__, paddr, paddr + length);
         return NULL;
     }
@@ -122,7 +122,7 @@ add_pmem_page_to_list(
     xen_pmem_chunk_t* pmem_head,
     uint32_t pfn) {
 
-    dbprint("add pfn %d to list\n", pfn);
+    dbprint(VMI_DEBUG_XEN, "add pfn %d to list\n", pfn);
     // add to list
     if (NULL == *pmem_list) {
         *pmem_list = malloc(sizeof(xen_pmem_chunk));
@@ -174,7 +174,7 @@ probe_mappable_pages(
             munmap(memory, XC_PAGE_SIZE);
         }
         else {
-            dbprint("xc_map_foreign_range failed on pfn_offset=%d\n", i);
+            dbprint(VMI_DEBUG_XEN, "xc_map_foreign_range failed on pfn_offset=%d\n", i);
         }
     }
     return VMI_SUCCESS;
@@ -191,7 +191,7 @@ copy_guest_pmem_chunks(
     xen_instance_t *xen = xen_get_instance(vmi);
     if (NULL != pmem_list) {
         do {
-            dbprint("pmem chunk pfn: %d - %d\n", pmem_list->start_pfn, pmem_list->end_pfn);
+            dbprint(VMI_DEBUG_XEN, "pmem chunk pfn: %d - %d\n", pmem_list->start_pfn, pmem_list->end_pfn);
 
             addr_t addr_offset = pmem_list->start_pfn << XC_PAGE_SHIFT;
             unsigned long pfn_num = pmem_list->end_pfn - pmem_list->start_pfn;
@@ -207,7 +207,7 @@ copy_guest_pmem_chunks(
                 munmap(memory, chunk_size);
             }
             else {
-                dbprint("xc_map_foreign_range failed on pfn %d ~ %d\n",
+                dbprint(VMI_DEBUG_XEN, "xc_map_foreign_range failed on pfn %d ~ %d\n",
                     pmem_list->start_pfn, pmem_list->end_pfn);
                 return VMI_FAILURE;
             }
@@ -366,7 +366,7 @@ xen_setup_shm_snapshot_mode(
     }
 
     if (VMI_SUCCESS != xen_pause_vm(vmi)){
-        dbprint("fail to pause VM, may produce inconsistent shm-snapshot\n");
+        dbprint(VMI_DEBUG_XEN, "fail to pause VM, may produce inconsistent shm-snapshot\n");
     }
 
     // create snapshot: copy physical memory chunks from foreign_mmap
@@ -382,12 +382,12 @@ xen_setup_shm_snapshot_mode(
     }
 
     if (VMI_SUCCESS != xen_resume_vm(vmi)){
-        dbprint("fail to resume VM\n");
+        dbprint(VMI_DEBUG_XEN, "fail to resume VM\n");
     }
 
     // destroy memory chunks link list
     if (VMI_SUCCESS != free_memory_chunks_link_list(&pmem_list)) {
-        dbprint("fail to free pmem_list\n");
+        dbprint(VMI_DEBUG_XEN, "fail to free pmem_list\n");
     }
 
     // setup LibVMI memory_cache
@@ -405,7 +405,7 @@ xen_teardown_shm_snapshot_mode(
     xen_instance_t *xen = xen_get_instance(vmi);
 
     if (VMI_SUCCESS == test_using_shm_snapshot(xen)) {
-        dbprint("--xen: teardown shm-snapshot\n");
+        dbprint(VMI_DEBUG_XEN, "--xen: teardown shm-snapshot\n");
         if (xen->shm_snapshot_map != NULL) {
             free(xen->shm_snapshot_map);
             xen->shm_snapshot_map = NULL;
@@ -441,7 +441,7 @@ xen_get_memory_pfn(
                                         (unsigned long) pfn);
 
     if (MAP_FAILED == memory || NULL == memory) {
-        dbprint("--xen_get_memory_pfn failed on pfn=0x%"PRIx64"\n", pfn);
+        dbprint(VMI_DEBUG_XEN, "--xen_get_memory_pfn failed on pfn=0x%"PRIx64"\n", pfn);
         return NULL;
     }
 
@@ -736,7 +736,7 @@ xen_discover_guest_addr_width(
             goto _bail;
         }
 
-        dbprint("**guest address width is %d bits\n",
+        dbprint(VMI_DEBUG_XEN, "**guest address width is %d bits\n",
                 xen_get_instance(vmi)->addr_width * 8);
     }   // if-else
 
@@ -753,7 +753,7 @@ status_t
 xen_setup_live_mode(
     vmi_instance_t vmi)
 {
-    dbprint("--xen: setup live mode\n");
+    dbprint(VMI_DEBUG_XEN, "--xen: setup live mode\n");
     memory_cache_destroy(vmi);
     memory_cache_init(vmi, xen_get_memory, xen_release_memory,
                           0);
@@ -807,10 +807,10 @@ xen_init(
         xen_get_instance(vmi)->info.hvm;
 #ifdef VMI_DEBUG
     if (xen_get_instance(vmi)->hvm) {
-        dbprint("**set hvm to true (HVM).\n");
+        dbprint(VMI_DEBUG_XEN, "**set hvm to true (HVM).\n");
     }
     else {
-        dbprint("**set hvm to false (PV).\n");
+        dbprint(VMI_DEBUG_XEN, "**set hvm to false (PV).\n");
     }
 #endif /* VMI_DEBUG */
 
@@ -950,7 +950,7 @@ xen_get_vcpureg_hvm(
 #if ENABLE_SHM_SNAPSHOT == 1
     if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
         hvm_cpu = (struct hvm_hw_cpu*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
-        dbprint("read hvm cpu registers from shm-snapshot\n");
+        dbprint(VMI_DEBUG_XEN, "read hvm cpu registers from shm-snapshot\n");
     }
 #endif
     struct hvm_hw_cpu hw_ctxt = { 0 };
@@ -1564,7 +1564,7 @@ xen_get_vcpureg_pv64(
 #if ENABLE_SHM_SNAPSHOT == 1
     if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
         vcpu_ctx = (struct cpu_user_regs_x86_64*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
-        dbprint("read pv_64 cpu registers from shm-snapshot\n");
+        dbprint(VMI_DEBUG_XEN, "read pv_64 cpu registers from shm-snapshot\n");
     }
 #endif
     vcpu_guest_context_any_t ctx = { 0 };
@@ -1831,7 +1831,7 @@ xen_get_vcpureg_pv32(
 #if ENABLE_SHM_SNAPSHOT == 1
     if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
         vcpu_ctx = (struct vcpu_guest_context_x86_32_t*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
-        dbprint("read pv_32 cpu registers from shm-snapshot\n");
+        dbprint(VMI_DEBUG_XEN, "read pv_32 cpu registers from shm-snapshot\n");
     }
 #endif
     vcpu_guest_context_any_t ctx = { 0 };

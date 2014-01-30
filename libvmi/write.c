@@ -39,7 +39,7 @@ vmi_write_pa(
     size_t count)
 {
     if (NULL == buf) {
-        dbprint("--%s: buf passed as NULL, returning without write\n",
+        dbprint(VMI_DEBUG_WRITE, "--%s: buf passed as NULL, returning without write\n",
                 __FUNCTION__);
         return 0;
     }
@@ -65,7 +65,7 @@ vmi_write_va(
     size_t buf_offset = 0;
 
     if (NULL == buf) {
-        dbprint("--%s: buf passed as NULL, returning without write\n",
+        dbprint(VMI_DEBUG_WRITE, "--%s: buf passed as NULL, returning without write\n",
                 __FUNCTION__);
         return 0;
     }

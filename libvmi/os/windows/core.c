@@ -47,14 +47,14 @@ get_ntoskrnl_base(
             continue;
         }
         if (VMI_SUCCESS == peparse_validate_pe_image(image, MAX_HEADER_BYTES)) {
-            dbprint("--FOUND KERNEL at paddr=0x%"PRIx64"\n", paddr);
+            dbprint(VMI_DEBUG_MISC, "--FOUND KERNEL at paddr=0x%"PRIx64"\n", paddr);
             goto normal_exit;
         }
         paddr += vmi->page_size;
     }
 
 error_exit:
-    dbprint("--get_ntoskrnl_base failed\n");
+    dbprint(VMI_DEBUG_MISC, "--get_ntoskrnl_base failed\n");
     return 0;
 normal_exit:
     return paddr;
@@ -70,21 +70,21 @@ find_page_mode(
 
     //TODO This works well for 32-bit snapshots, but it is way too slow for 64-bit.
 
-    dbprint("--trying VMI_PM_LEGACY\n");
+    dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_LEGACY\n");
     vmi->page_mode = VMI_PM_LEGACY;
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)) {
         goto found_pm;
     }
     v2p_cache_flush(vmi);
 
-    dbprint("--trying VMI_PM_PAE\n");
+    dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_PAE\n");
     vmi->page_mode = VMI_PM_PAE;
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)) {
         goto found_pm;
     }
     v2p_cache_flush(vmi);
 
-    dbprint("--trying VMI_PM_IA32E\n");
+    dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_IA32E\n");
     vmi->page_mode = VMI_PM_IA32E;
     if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)) {
         goto found_pm;
@@ -120,14 +120,14 @@ get_kpgd_method2(
     /* get address for System process */
     if (!sysproc) {
         if ((sysproc = windows_find_eprocess(vmi, "System")) == 0) {
-            dbprint("--failed to find System process.\n");
+            dbprint(VMI_DEBUG_MISC, "--failed to find System process.\n");
             goto error_exit;
         }
         printf
             ("LibVMI Suggestion: set win_sysproc=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              sysproc);
     }
-    dbprint("--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
+    dbprint(VMI_DEBUG_MISC, "--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
             sysproc);
 
     /* get address for page directory (from system process) */
@@ -136,25 +136,25 @@ get_kpgd_method2(
                          sysproc +
                          windows->pdbase_offset,
                          &vmi->kpgd)) {
-        dbprint("--failed to resolve PD for Idle process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve PD for Idle process\n");
         goto error_exit;
     }
 
     if (!vmi->kpgd) {
-        dbprint("--kpgd was zero\n");
+        dbprint(VMI_DEBUG_MISC, "--kpgd was zero\n");
         goto error_exit;
     }
-    dbprint("**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
+    dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi,
                      sysproc + windows->tasks_offset,
                      &vmi->init_task)) {
-        dbprint("--failed to resolve address of Idle process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of Idle process\n");
         goto error_exit;
     }
     vmi->init_task -= windows->tasks_offset;
-    dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
+    dbprint(VMI_DEBUG_MISC, "**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
 
@@ -191,11 +191,11 @@ get_kpgd_method1(
 
     if (VMI_FAILURE ==
         vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &sysproc)) {
-        dbprint("--failed to read pointer for system process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to read pointer for system process\n");
         goto error_exit;
     }
     sysproc = vmi_translate_kv2p(vmi, sysproc);
-    dbprint("--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
+    dbprint(VMI_DEBUG_MISC, "--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
             sysproc);
 
     if (VMI_FAILURE ==
@@ -203,25 +203,25 @@ get_kpgd_method1(
                          sysproc +
                          windows->pdbase_offset,
                          &vmi->kpgd)) {
-        dbprint("--failed to resolve pointer for system process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve pointer for system process\n");
         goto error_exit;
     }
 
     if (!vmi->kpgd) {
-        dbprint("--kpgd was zero\n");
+        dbprint(VMI_DEBUG_MISC, "--kpgd was zero\n");
         goto error_exit;
     }
-    dbprint("**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
+    dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi,
                      sysproc + windows->tasks_offset,
                      &vmi->init_task)) {
-        dbprint("--failed to resolve address of Idle process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of Idle process\n");
         goto error_exit;
     }
     vmi->init_task -= windows->tasks_offset;
-    dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
+    dbprint(VMI_DEBUG_MISC, "**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
 
@@ -247,43 +247,43 @@ get_kpgd_method0(
         windows_kernel_symbol_to_address(vmi, "PsActiveProcessHead",
                                   NULL,
                                   &sysproc)) {
-        dbprint("--failed to resolve PsActiveProcessHead\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve PsActiveProcessHead\n");
         goto error_exit;
     }
     if (VMI_FAILURE == vmi_read_addr_va(vmi, sysproc, 0, &sysproc)) {
-        dbprint("--failed to translate PsActiveProcessHead\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to translate PsActiveProcessHead\n");
         goto error_exit;
     }
     sysproc =
         vmi_translate_kv2p(vmi,
                            sysproc) -
         windows->tasks_offset;
-    dbprint("--got PA to PsActiveProcessHead (0x%.16"PRIx64").\n", sysproc);
+    dbprint(VMI_DEBUG_MISC, "--got PA to PsActiveProcessHead (0x%.16"PRIx64").\n", sysproc);
 
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi,
                          sysproc +
                          windows->pdbase_offset,
                          &vmi->kpgd)) {
-        dbprint("--failed to resolve pointer for system process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve pointer for system process\n");
         goto error_exit;
     }
 
     if (!vmi->kpgd) {
-        dbprint("--kpgd was zero\n");
+        dbprint(VMI_DEBUG_MISC, "--kpgd was zero\n");
         goto error_exit;
     }
-    dbprint("**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
+    dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi,
                      sysproc + windows->tasks_offset,
                      &vmi->init_task)){
-        dbprint("--failed to resolve address of Idle process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of Idle process\n");
         goto error_exit;
     }
     vmi->init_task -= windows->tasks_offset;
-    dbprint("**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
+    dbprint(VMI_DEBUG_MISC, "**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
 
@@ -311,7 +311,7 @@ uint64_t windows_get_offset(vmi_instance_t vmi, const char* offset_name) {
             windows->pname_offset = find_pname_offset(vmi,
                     NULL );
             if (windows->pname_offset == 0) {
-                dbprint("--failed to find pname_offset\n");
+                dbprint(VMI_DEBUG_MISC, "--failed to find pname_offset\n");
                 return 0;
             }
         }
@@ -443,12 +443,12 @@ windows_init(
         goto error_exit;
     }
 
-    dbprint("**ntoskrnl @ VA 0x%.16"PRIx64".\n",
+    dbprint(VMI_DEBUG_MISC, "**ntoskrnl @ VA 0x%.16"PRIx64".\n",
             windows->ntoskrnl_va);
 
     windows->ntoskrnl =
         vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
-    dbprint("**set ntoskrnl (0x%.16"PRIx64").\n",
+    dbprint(VMI_DEBUG_MISC, "**set ntoskrnl (0x%.16"PRIx64").\n",
             windows->ntoskrnl);
 
     if (vmi->kpgd) {
@@ -460,15 +460,15 @@ windows_init(
 
     /* get the kernel page directory location */
     if (VMI_SUCCESS == get_kpgd_method0(vmi)) {
-        dbprint("--kpgd method0 success\n");
+        dbprint(VMI_DEBUG_MISC, "--kpgd method0 success\n");
         goto found_kpgd;
     }
     if (VMI_SUCCESS == get_kpgd_method1(vmi)) {
-        dbprint("--kpgd method1 success\n");
+        dbprint(VMI_DEBUG_MISC, "--kpgd method1 success\n");
         goto found_kpgd;
     }
     if (VMI_SUCCESS == get_kpgd_method2(vmi)) {
-        dbprint("--kpgd method1 success\n");
+        dbprint(VMI_DEBUG_MISC, "--kpgd method1 success\n");
         goto found_kpgd;
     }
     /* all methods exhausted */

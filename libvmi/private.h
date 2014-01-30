@@ -39,6 +39,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <inttypes.h>
+#include "debug.h"
 #include "libvmi.h"
 #include "os/os_interface.h"
 
@@ -174,11 +175,12 @@ typedef struct _windows_unicode_string32 {
  * convenience.c
  */
 #ifndef VMI_DEBUG
-#define dbprint(format, args...) ((void)0)
+#define dbprint(category, format, args...) ((void)0)
 #else
     void dbprint(
+    vmi_debug_flag_t category,
     char *format,
-    ...) __attribute__((format(printf,1,2)));
+    ...) __attribute__((format(printf,2,3)));
 #endif
     void errprint(
     char *format,

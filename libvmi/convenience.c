@@ -35,14 +35,17 @@
 #else
 void
 dbprint(
+    vmi_debug_flag_t category,
     char *format,
     ...)
 {
-    va_list args;
+    if(category & VMI_DEBUG) {
+        va_list args;
 
-    va_start(args, format);
-    vfprintf(stdout, format, args);
-    va_end(args);
+        va_start(args, format);
+        vfprintf(stdout, format, args);
+        va_end(args);
+    }
 }
 #endif
 

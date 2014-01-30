@@ -143,13 +143,13 @@ status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 
     if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr)))
     {
-        dbprint("An event is already registered on this interrupt: %d\n",
+        dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this interrupt: %d\n",
                 event->interrupt_event.intr);
     }
     else if (VMI_SUCCESS == driver_set_intr_access(vmi, event->interrupt_event))
     {
         g_hash_table_insert(vmi->interrupt_events, &(event->interrupt_event.intr), event);
-        dbprint("Enabled event on interrupt: %d\n", event->interrupt_event.intr);
+        dbprint(VMI_DEBUG_EVENTS, "Enabled event on interrupt: %d\n", event->interrupt_event.intr);
         rc = VMI_SUCCESS;
     }
 
@@ -163,13 +163,13 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
 
     if (NULL != g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg)))
     {
-        dbprint("An event is already registered on this reg: %d\n",
+        dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this reg: %d\n",
                 event->reg_event.reg);
     }
     else if (VMI_SUCCESS == driver_set_reg_access(vmi, event->reg_event))
     {
         g_hash_table_insert(vmi->reg_events, &(event->reg_event.reg), event);
-        dbprint("Enabled register event on reg: %d\n", event->reg_event.reg);
+        dbprint(VMI_DEBUG_EVENTS, "Enabled register event on reg: %d\n", event->reg_event.reg);
         rc = VMI_SUCCESS;
     }
 
@@ -229,7 +229,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
         {
             if (page->event)
             {
-                dbprint(
+                dbprint(VMI_DEBUG_EVENTS,
                         "An event is already registered on this page: %"PRIu64"\n",
                         page_key);
             }
@@ -253,7 +253,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                         != g_hash_table_lookup(page->byte_events,
                                 &(event->mem_event.physical_address)))
                 {
-                    dbprint(
+                    dbprint(VMI_DEBUG_EVENTS,
                             "An event is already registered on this byte: 0x%"PRIx64"\n",
                             event->mem_event.physical_address);
                 }
@@ -300,14 +300,14 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
         if (granularity == VMI_MEMEVENT_PAGE)
         {
             page->event = event;
-            dbprint("Enabling memory event on page: %"PRIu64"\n", page_key);
+            dbprint(VMI_DEBUG_EVENTS, "Enabling memory event on page: %"PRIu64"\n", page_key);
         }
         else
         {
             page->byte_events = g_hash_table_new(g_int64_hash, g_int64_equal);
             g_hash_table_insert(page->byte_events,
                     &(event->mem_event.physical_address), event);
-            dbprint(
+            dbprint(VMI_DEBUG_EVENTS,
                     "Enabling memory event on byte 0x%"PRIx64", page: %"PRIu64"\n",
                     event->mem_event.physical_address, page_key);
         }
@@ -333,7 +333,7 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
         {
             if (NULL != g_hash_table_lookup(vmi->ss_events, &vcpu))
             {
-                dbprint("An event is already registered on this vcpu: %u\n",
+                dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this vcpu: %u\n",
                         vcpu);
             }
             else
@@ -344,7 +344,7 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
                     vcpu_i = malloc(sizeof(uint32_t));
                     *vcpu_i = vcpu;
                     g_hash_table_insert(vmi->ss_events, vcpu_i, event);
-                    dbprint("Enabling single step\n");
+                    dbprint(VMI_DEBUG_EVENTS, "Enabling single step\n");
                     rc = VMI_SUCCESS;
                 }
             }
@@ -361,7 +361,7 @@ status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 
     if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr)))
     {
-        dbprint("Disabling event on interrupt: %d\n", event->interrupt_event.intr);
+        dbprint(VMI_DEBUG_EVENTS, "Disabling event on interrupt: %d\n", event->interrupt_event.intr);
         event->interrupt_event.enabled = 0;
         rc = driver_set_intr_access(vmi, event->interrupt_event);
         if (!vmi->shutting_down && rc == VMI_SUCCESS)
@@ -382,7 +382,7 @@ status_t clear_reg_event(vmi_instance_t vmi, vmi_event_t *event)
 
     if (NULL != g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg)))
     {
-        dbprint("Disabling register event on reg: %d\n", event->reg_event.reg);
+        dbprint(VMI_DEBUG_EVENTS, "Disabling register event on reg: %d\n", event->reg_event.reg);
         original_in_access = event->reg_event.in_access;
         event->reg_event.in_access = VMI_REGACCESS_N;
         rc = driver_set_reg_access(vmi, event->reg_event);
@@ -423,14 +423,14 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
         {
             if (!page->event)
             {
-                dbprint("Can't disable page-level memevent, non registered!\n");
+                dbprint(VMI_DEBUG_EVENTS, "Can't disable page-level memevent, non registered!\n");
             }
             else
             {
 
                 remove_event = page->event;
 
-                dbprint("Disabling memory event on page: %"PRIu64"\n",
+                dbprint(VMI_DEBUG_EVENTS, "Disabling memory event on page: %"PRIu64"\n",
                         remove_event->mem_event.physical_address);
 
                 // We still have byte-level events registered on this page
@@ -466,7 +466,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
         {
             if (!page->byte_events)
             {
-                dbprint("Can't disable byte-level memevent, non registered!\n");
+                dbprint(VMI_DEBUG_EVENTS, "Can't disable byte-level memevent, non registered!\n");
             }
             else
             {
@@ -477,7 +477,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
 
                 if (NULL == remove_event)
                 {
-                    dbprint(
+                    dbprint(VMI_DEBUG_EVENTS,
                             "Can't disable byte-level memevent, event not found on byte 0x%"PRIx64"!\n",
                             event->mem_event.physical_address);
                 }
@@ -538,7 +538,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     }
     else
     {
-        dbprint("Disabling event failed, no event found on page: %"PRIu64"\n",
+        dbprint(VMI_DEBUG_EVENTS, "Disabling event failed, no event found on page: %"PRIu64"\n",
                 page_key);
     }
 
@@ -557,7 +557,7 @@ status_t clear_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
     {
         if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu))
         {
-            dbprint("Disabling single step on vcpu: %u\n", vcpu);
+            dbprint(VMI_DEBUG_EVENTS, "Disabling single step on vcpu: %u\n", vcpu);
             rc = driver_stop_single_step(vmi, vcpu);
             if (!vmi->shutting_down && rc == VMI_SUCCESS)
             {
@@ -609,17 +609,17 @@ status_t vmi_register_event(vmi_instance_t vmi, vmi_event_t* event)
 
     if (!(vmi->init_mode & VMI_INIT_EVENTS))
     {
-        dbprint("LibVMI wasn't initialized with events!\n");
+        dbprint(VMI_DEBUG_EVENTS, "LibVMI wasn't initialized with events!\n");
         return VMI_FAILURE;
     }
     if (!event)
     {
-        dbprint("No event given!\n");
+        dbprint(VMI_DEBUG_EVENTS, "No event given!\n");
         return VMI_FAILURE;
     }
     if (!event->callback)
     {
-        dbprint("No event callback function specified!\n");
+        dbprint(VMI_DEBUG_EVENTS, "No event callback function specified!\n");
         return VMI_FAILURE;
     }
 
@@ -684,18 +684,18 @@ status_t vmi_step_mem_event(vmi_instance_t vmi, vmi_event_t *event, uint64_t ste
 
     if(VMI_EVENT_MEMORY != event->type)
     {
-        dbprint("This function is only for memory events!\n");
+        dbprint(VMI_DEBUG_EVENTS, "This function is only for memory events!\n");
         goto done;
     }
 
     if(NULL != vmi_get_singlestep_event(vmi, event->vcpu_id))
     {
-        dbprint("Can't step memory event, single-step is already enabled on vCPU %u\n", event->vcpu_id);
+        dbprint(VMI_DEBUG_EVENTS, "Can't step memory event, single-step is already enabled on vCPU %u\n", event->vcpu_id);
         goto done;
     }
 
     if(0 == steps) {
-        dbprint("Minimum number of steps is 1!\n");
+        dbprint(VMI_DEBUG_EVENTS, "Minimum number of steps is 1!\n");
         goto done;
     }
 

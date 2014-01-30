@@ -54,7 +54,7 @@ status_t linux_init(vmi_instance_t vmi) {
     if (VMI_SUCCESS
             == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL,
                     &vmi->kpgd)) {
-        dbprint("--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
+        dbprint(VMI_DEBUG_MISC, "--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
                 vmi->kpgd);
         if (driver_is_pv(vmi)) {
             vmi->kpgd = vmi_translate_kv2p(vmi, vmi->kpgd);
@@ -74,7 +74,7 @@ status_t linux_init(vmi_instance_t vmi) {
         }
     }
 
-    dbprint("**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
+    dbprint(VMI_DEBUG_MISC, "**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     ret = linux_system_map_symbol_to_address(vmi, "init_task", NULL,
             &vmi->init_task);

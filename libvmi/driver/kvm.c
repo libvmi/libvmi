@@ -76,11 +76,11 @@ exec_qmp_cmd(
 
     snprintf(cmd, cmd_length, "virsh qemu-monitor-command %s %s", name,
              query);
-    dbprint("--qmp: %s\n", cmd);
+    dbprint(VMI_DEBUG_KVM, "--qmp: %s\n", cmd);
 
     p = popen(cmd, "r");
     if (NULL == p) {
-        dbprint("--failed to run QMP command\n");
+        dbprint(VMI_DEBUG_KVM, "--failed to run QMP command\n");
         free(cmd);
         return NULL;
     }
@@ -211,7 +211,7 @@ init_domain_socket(
 
     socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (socket_fd < 0) {
-        dbprint("--socket() failed\n");
+        dbprint(VMI_DEBUG_KVM, "--socket() failed\n");
         return VMI_FAILURE;
     }
 
@@ -222,7 +222,7 @@ init_domain_socket(
 
     if (connect(socket_fd, (struct sockaddr *) &address, address_length)
         != 0) {
-        dbprint("--connect() failed to %s\n", kvm->ds_path);
+        dbprint(VMI_DEBUG_KVM, "--connect() failed to %s\n", kvm->ds_path);
         return VMI_FAILURE;
     }
 
@@ -261,10 +261,10 @@ test_using_shm_snapshot(
 {
     if (NULL != kvm->shm_snapshot_path && 0 != kvm->shm_snapshot_fd
         && NULL != kvm->shm_snapshot_map && NULL != kvm->shm_snapshot_cpu_regs) {
-        dbprint("is using shm-snapshot\n");
+        dbprint(VMI_DEBUG_KVM, "is using shm-snapshot\n");
         return VMI_SUCCESS;
     } else {
-        dbprint("is not using shm-snapshot\n");
+        dbprint(VMI_DEBUG_KVM, "is not using shm-snapshot\n");
         return VMI_FAILURE;
     }
 }
@@ -311,7 +311,7 @@ exec_shm_snapshot_success(
         uint64_t shm_snapshot_size = strtoul(status + strlen("{\"return\":"), NULL, 0);
         if (shm_snapshot_size > 0) {
             //qmp status e.g. : {"return":2684354560,"id":"libvirt-812"}
-            dbprint("--kvm: using shm-snapshot support\n");
+            dbprint(VMI_DEBUG_KVM, "--kvm: using shm-snapshot support\n");
             return VMI_SUCCESS;
         } else {
             //qmp status e.g. : {"return":0,"id":"libvirt-812"}
@@ -541,7 +541,7 @@ walkthrough_shm_snapshot_pagetable_nopae(
 
                     //valid entry
                     if (entry_present(vmi->os_type, pte)) {
-                        dbprint("valid page table entry %d, %8x:\n", i, pte);
+                        dbprint(VMI_DEBUG_KVM, "valid page table entry %d, %8x:\n", i, pte);
                         // 4kb page
                         addr_t start_vaddr = i << 22 | j << 12; // left 20 bits
                         addr_t end_vaddr = start_vaddr | 0xFFF; // begin + 4kb
@@ -822,7 +822,7 @@ status_t probe_v2m_medial_addr(
     void** maddr_indicator_export)
 {
     if (NULL != v2m_chunk) {
-        dbprint("probe medial space for va: %016llx - %016llx, size: %dKB\n",
+        dbprint(VMI_DEBUG_KVM, "probe medial space for va: %016llx - %016llx, size: %dKB\n",
             v2m_chunk->vaddr_begin, v2m_chunk->vaddr_end,
             (v2m_chunk->vaddr_end - v2m_chunk->vaddr_begin+1)>>10);
 
@@ -860,7 +860,7 @@ status_t mmap_m2p_chunks(
 {
     size_t map_offset = 0;
      while (NULL != m2p_chunk_list) {
-         dbprint("map va: %016llx - %016llx, pa: %016llx - %016llx, size: %dKB\n",
+         dbprint(VMI_DEBUG_KVM, "map va: %016llx - %016llx, pa: %016llx - %016llx, size: %dKB\n",
              m2p_chunk_list->vaddr_begin, m2p_chunk_list->vaddr_end,
              m2p_chunk_list->paddr_begin, m2p_chunk_list->paddr_end,
              (m2p_chunk_list->vaddr_end - m2p_chunk_list->vaddr_begin+1)>>10);
@@ -1018,7 +1018,7 @@ create_v2m_table(
                 driver_get_vcpureg(vmi, &cr3, CR3, 0);
             }
             if (!cr3) {
-                dbprint("--early bail on TEVAT create because cr3 is zero\n");
+                dbprint(VMI_DEBUG_KVM, "--early bail on TEVAT create because cr3 is zero\n");
                 return VMI_FAILURE;
             }
             else {
@@ -1029,7 +1029,7 @@ create_v2m_table(
             // user process page table
             dtb = vmi_pid_to_dtb(vmi, pid);
             if (!dtb) {
-                dbprint("--early bail on TEVAT create because dtb is zero\n");
+                dbprint(VMI_DEBUG_KVM, "--early bail on TEVAT create because dtb is zero\n");
                 return VMI_FAILURE;
             }
         }
@@ -1208,7 +1208,7 @@ kvm_get_memory_shm_snapshot(
 {
     if (paddr + length > vmi->size) {
         dbprint
-            ("--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of shm-snapshot\n",
+            (VMI_DEBUG_KVM, "--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of shm-snapshot\n",
              __FUNCTION__, paddr, paddr + length);
         goto error_noprint;
     }
@@ -1217,7 +1217,7 @@ kvm_get_memory_shm_snapshot(
     return kvm->shm_snapshot_map + paddr;
 
 error_print:
-    dbprint("%s: failed to read %d bytes at "
+    dbprint(VMI_DEBUG_KVM, "%s: failed to read %d bytes at "
             "PA (offset) 0x%.16"PRIx64" [VM size 0x%.16"PRIx64"]\n", __FUNCTION__,
             length, paddr, vmi->size);
 error_noprint:
@@ -1278,7 +1278,7 @@ kvm_teardown_shm_snapshot_mode(
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
     if (VMI_SUCCESS == test_using_shm_snapshot(kvm)) {
-        dbprint("--kvm: teardown KVM shm-snapshot\n");
+        dbprint(VMI_DEBUG_KVM, "--kvm: teardown KVM shm-snapshot\n");
         munmap_unlink_shm_snapshot_dev(kvm, vmi->size);
         if (kvm->shm_snapshot_cpu_regs != NULL) {
             free(kvm->shm_snapshot_cpu_regs);
@@ -1431,7 +1431,7 @@ kvm_setup_live_mode(
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
     if (VMI_SUCCESS == test_using_kvm_patch(kvm)) {
-        dbprint("--kvm: resume custom patch for fast memory access\n");
+        dbprint(VMI_DEBUG_KVM, "--kvm: resume custom patch for fast memory access\n");
 
         pid_cache_flush(vmi);
         sym_cache_flush(vmi);
@@ -1445,7 +1445,7 @@ kvm_setup_live_mode(
 
     char *status = exec_memory_access(kvm_get_instance(vmi));
     if (VMI_SUCCESS == exec_memory_access_success(status)) {
-        dbprint("--kvm: using custom patch for fast memory access\n");
+        dbprint(VMI_DEBUG_KVM, "--kvm: using custom patch for fast memory access\n");
         memory_cache_destroy(vmi);
         memory_cache_init(vmi, kvm_get_memory_patch, kvm_release_memory,
                           1);
@@ -1455,7 +1455,7 @@ kvm_setup_live_mode(
     }
     else {
         dbprint
-            ("--kvm: didn't find patch, falling back to slower native access\n");
+            (VMI_DEBUG_KVM, "--kvm: didn't find patch, falling back to slower native access\n");
         memory_cache_destroy(vmi);
         memory_cache_init(vmi, kvm_get_memory_native,
                           kvm_release_memory, 1);
@@ -1480,13 +1480,13 @@ kvm_init(
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
                            0);
     if (NULL == conn) {
-        dbprint("--no connection to kvm hypervisor\n");
+        dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
         return VMI_FAILURE;
     }
 
     dom = virDomainLookupByID(conn, kvm_get_instance(vmi)->id);
     if (NULL == dom) {
-        dbprint("--failed to find kvm domain\n");
+        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
     }
 
@@ -1494,10 +1494,10 @@ kvm_init(
     unsigned long libVer = 0;
 
     if (virConnectGetLibVersion(conn, &libVer) != 0) {
-        dbprint("--failed to get libvirt version\n");
+        dbprint(VMI_DEBUG_KVM, "--failed to get libvirt version\n");
         return VMI_FAILURE;
     }
-    dbprint("--libvirt version %lu\n", libVer);
+    dbprint(VMI_DEBUG_KVM, "--libvirt version %lu\n", libVer);
 
     kvm_get_instance(vmi)->conn = conn;
     kvm_get_instance(vmi)->dom = dom;
@@ -1506,7 +1506,7 @@ kvm_init(
 
     //get the VCPU count from virDomainInfo structure
     if (-1 == virDomainGetInfo(kvm_get_instance(vmi)->dom, &info)) {
-        dbprint("--failed to get vm info\n");
+        dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
         return VMI_FAILURE;
     }
     vmi->num_vcpus = info.nrVirtCpu;
@@ -1518,7 +1518,7 @@ kvm_init(
         errprint("Failed to get memory size.\n");
         return VMI_FAILURE;
     }
-    dbprint("**set size = %"PRIu64" [0x%"PRIx64"]\n", vmi->size,
+    dbprint(VMI_DEBUG_KVM, "**set size = %"PRIu64" [0x%"PRIx64"]\n", vmi->size,
             vmi->size);
 
 
@@ -1566,13 +1566,13 @@ kvm_get_id_from_name(
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
                            0);
     if (NULL == conn) {
-        dbprint("--no connection to kvm hypervisor\n");
+        dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
         return -1;
     }
 
     dom = virDomainLookupByName(conn, name);
     if (NULL == dom) {
-        dbprint("--failed to find kvm domain\n");
+        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return -1;
     }
 
@@ -1599,13 +1599,13 @@ kvm_get_name_from_id(
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
                            0);
     if (NULL == conn) {
-        dbprint("--no connection to kvm hypervisor\n");
+        dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
         return VMI_FAILURE;
     }
 
     dom = virDomainLookupByID(conn, domid);
     if (NULL == dom) {
-        dbprint("--failed to find kvm domain\n");
+        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
     }
 
@@ -1646,13 +1646,13 @@ kvm_check_id(
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
                            0);
     if (NULL == conn) {
-        dbprint("--no connection to kvm hypervisor\n");
+        dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
         return VMI_FAILURE;
     }
 
     dom = virDomainLookupByID(conn, id);
     if (NULL == dom) {
-        dbprint("--failed to find kvm domain\n");
+        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
     }
 
@@ -1698,7 +1698,7 @@ kvm_get_memsize(
     virDomainInfo info;
 
     if (-1 == virDomainGetInfo(kvm_get_instance(vmi)->dom, &info)) {
-        dbprint("--failed to get vm info\n");
+        dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
         goto error_exit;
     }
     *size = info.maxMem * 1024; // convert KBytes to bytes
@@ -1721,7 +1721,7 @@ kvm_get_vcpureg(
     // if we have shm-snapshot configuration, then read from the loaded string.
     if (kvm_get_instance(vmi)->shm_snapshot_cpu_regs != NULL) {
         regs = strdup(kvm_get_instance(vmi)->shm_snapshot_cpu_regs);
-        dbprint("read cpu regs from shm-snapshot\n");
+        dbprint(VMI_DEBUG_KVM, "read cpu regs from shm-snapshot\n");
     }
 #endif
 
@@ -1939,7 +1939,7 @@ kvm_test(
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
                            0);
     if (NULL == conn) {
-        dbprint("--no connection to kvm hypervisor\n");
+        dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
         return VMI_FAILURE;
     }
 

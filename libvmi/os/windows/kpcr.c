@@ -736,31 +736,31 @@ find_windows_version(
     vmi_read_16_pa(vmi, KdVersionBlock + 0x14, &size);
 
     if (memcmp(&size, "\x08\x02", 2) == 0) {
-        dbprint("--OS Guess: Windows 2000\n");
+        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 2000\n");
         return VMI_OS_WINDOWS_2000;
     }
     else if (memcmp(&size, "\x90\x02", 2) == 0) {
-        dbprint("--OS Guess: Windows XP\n");
+        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows XP\n");
         return VMI_OS_WINDOWS_XP;
     }
     else if (memcmp(&size, "\x18\x03", 2) == 0) {
-        dbprint("--OS Guess: Windows 2003\n");
+        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 2003\n");
         return VMI_OS_WINDOWS_2003;
     }
     else if (memcmp(&size, "\x28\x03", 2) == 0) {
-        dbprint("--OS Guess: Windows Vista\n");
+        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows Vista\n");
         return VMI_OS_WINDOWS_VISTA;
     }
     else if (memcmp(&size, "\x30\x03", 2) == 0) {
-        dbprint("--OS Guess: Windows 2008\n");
+        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 2008\n");
         return VMI_OS_WINDOWS_2008;
     }
     else if (memcmp(&size, "\x40\x03", 2) == 0) {
-        dbprint("--OS Guess: Windows 7\n");
+        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 7\n");
         return VMI_OS_WINDOWS_7;
     }
     else {
-        dbprint("--OS Guess: Unknown (0x%.4x)\n", size);
+        dbprint(VMI_DEBUG_MISC, "--OS Guess: Unknown (0x%.4x)\n", size);
         return VMI_OS_WINDOWS_UNKNOWN;
     }
 }
@@ -842,7 +842,7 @@ find_kdversionblock_address_fast(
     }   // outer for
 
     if (kdvb_address)
-        dbprint("--Found KD version block at PA %.16"PRIx64"\n",
+        dbprint(VMI_DEBUG_MISC, "--Found KD version block at PA %.16"PRIx64"\n",
                 kdvb_address);
     boyer_moore_fini(bm);
     return kdvb_address;
@@ -924,7 +924,7 @@ done:
     g_slist_free(va_pages);
 
     if (VMI_SUCCESS == ret)
-        dbprint("--Found KD version block at PA %.16"PRIx64" VA %.16"PRIx64"\n",
+        dbprint(VMI_DEBUG_MISC, "--Found KD version block at PA %.16"PRIx64" VA %.16"PRIx64"\n",
                 *kdvb_pa, *kdvb_va);
     boyer_moore_fini(bm);
     return ret;
@@ -947,7 +947,7 @@ init_kdversion_block(
     windows = vmi->os_data;
 
     if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KdVersionBlock_virt)) {
-        dbprint("**Failed to find KdVersionBlock\n");
+        dbprint(VMI_DEBUG_MISC, "**Failed to find KdVersionBlock\n");
         goto error_exit;
     }
 
@@ -957,7 +957,7 @@ init_kdversion_block(
             ("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              windows->kdversion_block);
     }
-    dbprint("**set KdVersionBlock address=0x%"PRIx64"\n",
+    dbprint(VMI_DEBUG_MISC, "**set KdVersionBlock address=0x%"PRIx64"\n",
             windows->kdversion_block);
 
     return VMI_SUCCESS;

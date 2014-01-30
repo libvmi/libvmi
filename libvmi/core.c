@@ -57,7 +57,7 @@ open_config_file(
         if ((pw_entry = getpwnam(sudo_user)) != NULL) {
             snprintf(location, 100, "%s/etc/libvmi.conf\0",
                      pw_entry->pw_dir);
-            dbprint("--looking for config file at %s\n", location);
+            dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
             if ((f = fopen(location, "r")) != NULL) {
                 goto success;
             }
@@ -66,21 +66,21 @@ open_config_file(
 
     /* next check home directory for current user */
     snprintf(location, 100, "%s/etc/libvmi.conf\0", getenv("HOME"));
-    dbprint("--looking for config file at %s\n", location);
+    dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
     if ((f = fopen(location, "r")) != NULL) {
         goto success;
     }
 
     /* finally check in /etc */
     snprintf(location, 100, "/etc/libvmi.conf\0");
-    dbprint("--looking for config file at %s\n", location);
+    dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
     if ((f = fopen(location, "r")) != NULL) {
         goto success;
     }
 
     return NULL;
 success:
-    dbprint("**Using config file at %s\n", location);
+    dbprint(VMI_DEBUG_CORE, "**Using config file at %s\n", location);
     return f;
 }
 
@@ -189,13 +189,13 @@ read_config_file(
 
 #ifdef VMI_DEBUG
     if (vmi->os_type == VMI_OS_LINUX) {
-        dbprint("**set os_type to Linux.\n");
+        dbprint(VMI_DEBUG_CORE, "**set os_type to Linux.\n");
     }
     else if (vmi->os_type == VMI_OS_WINDOWS) {
-        dbprint("**set os_type to Windows.\n");
+        dbprint(VMI_DEBUG_CORE, "**set os_type to Windows.\n");
     }
     else {
-        dbprint("**set os_type to unknown.\n");
+        dbprint(VMI_DEBUG_CORE, "**set os_type to unknown.\n");
     }
 #endif
 
@@ -260,19 +260,19 @@ get_memory_layout(
 
     /* PSE Flag --> CR4, bit 5 */
     pae = vmi_get_bit(cr4, 5);
-    dbprint("**set pae = %d\n", pae);
+    dbprint(VMI_DEBUG_CORE, "**set pae = %d\n", pae);
 
     /* PSE Flag --> CR4, bit 4 */
     pse = vmi_get_bit(cr4, 4);
-    dbprint("**set pse = %d\n", pse);
+    dbprint(VMI_DEBUG_CORE, "**set pse = %d\n", pse);
 
     ret = driver_get_vcpureg(vmi, &efer, MSR_EFER, 0);
     if (VMI_SUCCESS == ret) {
         lme = vmi_get_bit(efer, 8);
-        dbprint("**set lme = %d\n", lme);
+        dbprint(VMI_DEBUG_CORE, "**set lme = %d\n", lme);
     }
     else {
-        dbprint("**failed to get MSR_EFER, trying method #2\n");
+        dbprint(VMI_DEBUG_CORE, "**failed to get MSR_EFER, trying method #2\n");
 
         // does this trick work in all cases?
         ret = driver_get_address_width(vmi, &dom_addr_width);
@@ -283,7 +283,7 @@ get_memory_layout(
         }
         lme = (8 == dom_addr_width);
         dbprint
-            ("**found guest address width is %d bytes; assuming IA32_EFER.LME = %d\n",
+            (VMI_DEBUG_CORE, "**found guest address width is %d bytes; assuming IA32_EFER.LME = %d\n",
              dom_addr_width, lme);
     }   // if
 
@@ -296,26 +296,26 @@ get_memory_layout(
 
     // now determine addressing mode
     if (0 == pae) {
-        dbprint("**32-bit paging\n");
+        dbprint(VMI_DEBUG_CORE, "**32-bit paging\n");
         pm = VMI_PM_LEGACY;
         cr3 &= 0xFFFFF000ull;
     }
     // PAE == 1; determine IA-32e or PAE
     else if (lme) {    // PAE == 1, LME == 1
-        dbprint("**IA-32e paging\n");
+        dbprint(VMI_DEBUG_CORE, "**IA-32e paging\n");
         pm = VMI_PM_IA32E;
         cr3 &= 0xFFFFFFFFFFFFF000ull;
     }
     else {  // PAE == 1, LME == 0
-        dbprint("**PAE paging\n");
+        dbprint(VMI_DEBUG_CORE, "**PAE paging\n");
         pm = VMI_PM_PAE;
         cr3 &= 0xFFFFFFE0;
     }   // if-else
-    dbprint("**sanity checking cr3 = 0x%.16"PRIx64"\n", cr3);
+    dbprint(VMI_DEBUG_CORE, "**sanity checking cr3 = 0x%.16"PRIx64"\n", cr3);
 
     /* testing to see CR3 value */
     if (!driver_is_pv(vmi) && cr3 > vmi->size) {   // sanity check on CR3
-        dbprint("** Note cr3 value [0x%"PRIx64"] exceeds memsize [0x%"PRIx64"]\n",
+        dbprint(VMI_DEBUG_CORE, "** Note cr3 value [0x%"PRIx64"] exceeds memsize [0x%"PRIx64"]\n",
                 cr3, vmi->size);
     }
 
@@ -365,7 +365,7 @@ set_driver_type(
     else {
         vmi->mode = mode;
     }
-    dbprint("LibVMI Mode %d\n", vmi->mode);
+    dbprint(VMI_DEBUG_CORE, "LibVMI Mode %d\n", vmi->mode);
     return VMI_SUCCESS;
 }
 
@@ -409,7 +409,7 @@ set_id_and_name(
         if (VMI_INVALID_DOMID == id) {
             if (name) {
                 if (VMI_INVALID_DOMID != (id = driver_get_id_from_name(vmi, name)) ) {
-                    dbprint("--got id from name (%s --> %lu)\n", name, id);
+                    dbprint(VMI_DEBUG_CORE, "--got id from name (%s --> %lu)\n", name, id);
                     driver_set_id(vmi, id);
                 } else {
                     errprint("Failed to get domain id from name.\n");
@@ -435,9 +435,9 @@ set_id_and_name(
             driver_set_id(vmi, id);
 
             if (VMI_FAILURE != driver_get_name_from_id(vmi, id, &name)) {
-                dbprint("--got name from id (%lu --> %s)\n", id, name);
+                dbprint(VMI_DEBUG_CORE, "--got name from id (%lu --> %s)\n", id, name);
             } else {
-                dbprint("--failed to get domain name from id!\n");
+                dbprint(VMI_DEBUG_CORE, "--failed to get domain name from id!\n");
 
                 // Only under Xen this is OK
                 if(vmi->mode != VMI_XEN) {
@@ -457,7 +457,7 @@ set_id_and_name(
        }
 
     }
-    dbprint("**set image_type = %s\n", vmi->image_type);
+    dbprint(VMI_DEBUG_CORE, "**set image_type = %s\n", vmi->image_type);
     return VMI_SUCCESS;
 }
 
@@ -479,7 +479,7 @@ vmi_init_private(
     memset(*vmi, 0, sizeof(struct vmi_instance));
 
     /* initialize instance struct to default values */
-    dbprint("LibVMI Version 0.11.0\n");  //TODO change this with each release
+    dbprint(VMI_DEBUG_CORE, "LibVMI Version 0.11.0\n");  //TODO change this with each release
 
     /* save the flags and init mode */
     (*vmi)->flags = flags;
@@ -512,7 +512,7 @@ vmi_init_private(
     if (VMI_FAILURE == driver_init(*vmi)) {
         goto error_exit;
     }
-    dbprint("--completed driver init.\n");
+    dbprint(VMI_DEBUG_CORE, "--completed driver init.\n");
 
     /* we check VMI_INIT_COMPLETE first as
        VMI_INIT_PARTIAL is not exclusive */
@@ -542,7 +542,7 @@ vmi_init_private(
         }
 
         if(VMI_FAILURE == set_os_type_from_config(*vmi)) {
-            dbprint("--failed to determind os type from ghashtable\n");
+            dbprint(VMI_DEBUG_CORE, "--failed to determind os type from ghashtable\n");
             goto error_exit;
         }
 
@@ -557,7 +557,7 @@ vmi_init_private(
             errprint("Failed to get memory size.\n");
             goto error_exit;
         }
-        dbprint("**set size = %"PRIu64" [0x%"PRIx64"]\n", (*vmi)->size,
+        dbprint(VMI_DEBUG_CORE, "**set size = %"PRIu64" [0x%"PRIx64"]\n", (*vmi)->size,
                 (*vmi)->size);
 
         /* determine the page sizes and layout for target OS */
@@ -568,14 +568,14 @@ vmi_init_private(
         (*vmi)->page_mode = VMI_PM_UNKNOWN;
 
         if ((*vmi)->mode == VMI_FILE) {
-            dbprint(
+            dbprint(VMI_DEBUG_CORE,
                     "**Can't get memory layout for VMI_FILE. Trying heuristic methods, if any.\n");
         } else {
             status = get_memory_layout(*vmi, &((*vmi)->page_mode),
                     &((*vmi)->pae), &((*vmi)->pse), &((*vmi)->lme));
 
             if (VMI_FAILURE == status) {
-                dbprint(
+                dbprint(VMI_DEBUG_CORE,
                         "**Failed to get memory layout for VM. Trying OS heuristic methods, if any.\n");
                 // fall-through
             }   // if

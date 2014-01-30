@@ -52,9 +52,6 @@ extern "C" {
 #include <errno.h>
 #include <string.h>
 
-/* uncomment this and recompile to enable debug output */
-//#define VMI_DEBUG
-
 /* enable or disable the address cache (v2p, pid, etc) */
 #define ENABLE_ADDRESS_CACHE 1
 
