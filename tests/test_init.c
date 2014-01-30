@@ -161,6 +161,7 @@ END_TEST
 TCase *init_tcase (void)
 {
     TCase *tc_init = tcase_create("LibVMI Init");
+    tcase_set_timeout(tc_init, 120);
     tcase_add_test(tc_init, test_libvmi_init1);
     tcase_add_test(tc_init, test_libvmi_init2);
     tcase_add_test(tc_init, test_libvmi_init3);
