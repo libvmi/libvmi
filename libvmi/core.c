@@ -749,6 +749,7 @@ vmi_destroy(
     pid_cache_destroy(vmi);
     sym_cache_destroy(vmi);
     rva_cache_destroy(vmi);
+    v2p_cache_destroy(vmi);
 #if ENABLE_SHM_SNAPSHOT == 1
     v2m_cache_destroy(vmi);
 #endif
