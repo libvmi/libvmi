@@ -62,13 +62,15 @@ addr_t get_pml4_index (addr_t vaddr)
     return (vaddr & 0x0000FF8000000000ULL) >> 36;
 }
 
-uint64_t get_pml4e (vmi_instance_t vmi, addr_t vaddr, reg_t cr3)
+uint64_t get_pml4e (vmi_instance_t vmi,
+    addr_t vaddr,
+    reg_t cr3,
+    addr_t *pml4e_address)
 {
     uint64_t value = 0;
-    addr_t pml4e_address = get_bits_51to12(cr3) | get_pml4_index(vaddr);
-
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup pml4e_address = 0x%.16"PRIx64"\n", pml4e_address);
-    vmi_read_64_pa(vmi, pml4e_address, &value);
+    *pml4e_address = get_bits_51to12(cr3) | get_pml4_index(vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup pml4e_address = 0x%.16"PRIx64"\n", *pml4e_address);
+    vmi_read_64_pa(vmi, *pml4e_address, &value);
     return value;
 }
 
@@ -83,13 +85,15 @@ uint32_t pdpi_index (uint32_t pdpi)
     return (pdpi >> 30) * sizeof(uint64_t);
 }
 
-uint64_t get_pdpi (vmi_instance_t instance, uint32_t vaddr, uint32_t cr3)
+uint64_t get_pdpi (vmi_instance_t instance,
+    uint32_t vaddr,
+    uint32_t cr3,
+    addr_t *pdpi_entry)
 {
     uint64_t value;
-    uint32_t pdpi_entry = get_pdptb(cr3) + pdpi_index(vaddr);
-
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpi_entry = 0x%.8x\n", pdpi_entry);
-    vmi_read_64_pa(instance, pdpi_entry, &value);
+    *pdpi_entry = get_pdptb(cr3) + pdpi_index(vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpi_entry = 0x%.8x\n", *pdpi_entry);
+    vmi_read_64_pa(instance, *pdpi_entry, &value);
     return value;
 }
 
@@ -98,12 +102,15 @@ addr_t get_pdpt_index_ia32e (addr_t vaddr)
     return (vaddr & 0x0000007FC0000000ULL) >> 27;
 }
 
-uint64_t get_pdpte_ia32e (vmi_instance_t vmi, addr_t vaddr, uint64_t pml4e)
+uint64_t get_pdpte_ia32e (vmi_instance_t vmi,
+    addr_t vaddr,
+    uint64_t pml4e,
+    addr_t *pdpte_address)
 {
     uint64_t value = 0;
-    addr_t pdpte_address = get_bits_51to12(pml4e) | get_pdpt_index_ia32e(vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpte_address = 0x%.16"PRIx64"\n", pdpte_address);
-    vmi_read_64_pa(vmi, pdpte_address, &value);
+    *pdpte_address = get_bits_51to12(pml4e) | get_pdpt_index_ia32e(vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpte_address = 0x%.16"PRIx64"\n", *pdpte_address);
+    vmi_read_64_pa(vmi, *pdpte_address, &value);
     return value;
 }
 
@@ -133,21 +140,27 @@ uint64_t pdba_base_ia32e (uint64_t pdpe)
     return get_bits_51to12(pdpe);
 }
 
-uint32_t get_pgd_nopae (vmi_instance_t instance, uint32_t vaddr, uint32_t pdpe)
+uint32_t get_pgd_nopae (vmi_instance_t instance,
+    uint32_t vaddr,
+    uint32_t pdpe,
+    addr_t *pgd_entry)
 {
     uint32_t value;
-    uint32_t pgd_entry = pdba_base_nopae(pdpe) + pgd_index(instance, vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
-    vmi_read_32_pa(instance, pgd_entry, &value);
+    *pgd_entry = pdba_base_nopae(pdpe) + pgd_index(instance, vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd_entry = 0x%.8x\n", *pgd_entry);
+    vmi_read_32_pa(instance, *pgd_entry, &value);
     return value;
 }
 
-uint64_t get_pgd_pae (vmi_instance_t instance, uint32_t vaddr, uint64_t pdpe)
+uint64_t get_pgd_pae (vmi_instance_t instance,
+    uint32_t vaddr,
+    uint64_t pdpe,
+    addr_t *pgd_entry)
 {
     uint64_t value;
-    uint32_t pgd_entry = pdba_base_pae(pdpe) + pgd_index(instance, vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd_entry = 0x%.8x\n", pgd_entry);
-    vmi_read_64_pa(instance, pgd_entry, &value);
+    *pgd_entry = pdba_base_pae(pdpe) + pgd_index(instance, vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd_entry = 0x%.8x\n", *pgd_entry);
+    vmi_read_64_pa(instance, *pgd_entry, &value);
     return value;
 }
 
@@ -156,12 +169,15 @@ uint64_t get_pd_index_ia32e (addr_t vaddr)
     return (vaddr & 0x000000003FE00000ULL) >> 18;
 }
 
-uint64_t get_pde_ia32e (vmi_instance_t vmi, addr_t vaddr, uint64_t pdpte)
+uint64_t get_pde_ia32e (vmi_instance_t vmi,
+    addr_t vaddr,
+    uint64_t pdpte,
+    addr_t *pde_address)
 {
     uint64_t value = 0;
-    addr_t pde_address = get_bits_51to12(pdpte) | get_pd_index_ia32e(vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_address = 0x%.16"PRIx64"\n", pde_address);
-    vmi_read_64_pa(vmi, pde_address, &value);
+    *pde_address = get_bits_51to12(pdpte) | get_pd_index_ia32e(vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_address = 0x%.16"PRIx64"\n", *pde_address);
+    vmi_read_64_pa(vmi, *pde_address, &value);
     return value;
 }
 
@@ -186,21 +202,27 @@ uint64_t ptba_base_pae (uint64_t pde)
     return pde & 0xFFFFFF000ULL;
 }
 
-uint32_t get_pte_nopae (vmi_instance_t instance, uint32_t vaddr, uint32_t pgd)
+uint32_t get_pte_nopae (vmi_instance_t instance,
+    uint32_t vaddr,
+    uint32_t pgd,
+    addr_t *pte_entry)
 {
     uint32_t value;
-    uint32_t pte_entry = ptba_base_nopae(pgd) + pte_index(instance, vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
-    vmi_read_32_pa(instance, pte_entry, &value);
+    *pte_entry = ptba_base_nopae(pgd) + pte_index(instance, vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_entry = 0x%.8x\n", *pte_entry);
+    vmi_read_32_pa(instance, *pte_entry, &value);
     return value;
 }
 
-uint64_t get_pte_pae (vmi_instance_t instance, uint32_t vaddr, uint64_t pgd)
+uint64_t get_pte_pae (vmi_instance_t instance,
+    uint32_t vaddr,
+    uint64_t pgd,
+    addr_t *pte_entry)
 {
     uint64_t value;
-    uint32_t pte_entry = ptba_base_pae(pgd) + pte_index(instance, vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_entry = 0x%.8x\n", pte_entry);
-    vmi_read_64_pa(instance, pte_entry, &value);
+    *pte_entry = ptba_base_pae(pgd) + pte_index(instance, vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_entry = 0x%.8x\n", *pte_entry);
+    vmi_read_64_pa(instance, *pte_entry, &value);
     return value;
 }
 
@@ -209,12 +231,15 @@ uint64_t get_pt_index_ia32e (addr_t vaddr)
     return (vaddr & 0x00000000001FF000ULL) >> 9;
 }
 
-uint64_t get_pte_ia32e (vmi_instance_t vmi, addr_t vaddr, uint64_t pde)
+uint64_t get_pte_ia32e (vmi_instance_t vmi,
+    addr_t vaddr,
+    uint64_t pde,
+    addr_t *pte_address)
 {
     uint64_t value = 0;
-    addr_t pte_address = get_bits_51to12(pde) | get_pt_index_ia32e(vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_address = 0x%.16"PRIx64"\n", pte_address);
-    vmi_read_64_pa(vmi, pte_address, &value);
+    *pte_address = get_bits_51to12(pde) | get_pt_index_ia32e(vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_address = 0x%.16"PRIx64"\n", *pte_address);
+    vmi_read_64_pa(vmi, *pte_address, &value);
     return value;
 }
 
@@ -329,26 +354,32 @@ void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
 }
 
 /* translation */
-addr_t v2p_nopae (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
+addr_t v2p_nopae (vmi_instance_t vmi,
+    addr_t dtb,
+    addr_t vaddr,
+    page_info_t *info)
 {
-    addr_t paddr = 0;
-    uint32_t pgd, pte;
+    addr_t pgd = 0, pte = 0;
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64"\n", vaddr);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: dtb = 0x%.16"PRIx64"\n", dtb);
-    pgd = get_pgd_nopae(vmi, vaddr, dtb);
+    pgd = get_pgd_nopae(vmi, vaddr, dtb, &info->l2_a);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd = 0x%.8"PRIx32"\n", pgd);
 
     if (entry_present(vmi->os_type, pgd)) {
+        info->l2_v = pgd;
         if (page_size_flag(pgd)) {
-            paddr = get_large_paddr(vmi, vaddr, pgd);
+            info->paddr = get_large_paddr(vmi, vaddr, pgd);
+            info->size = VMI_PS_4MB;
             dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 4MB page 0x%"PRIx32"\n", pgd);
         }
         else {
-            pte = get_pte_nopae(vmi, vaddr, pgd);
+            pte = get_pte_nopae(vmi, vaddr, pgd, &info->l1_a);
             dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte = 0x%.8"PRIx32"\n", pte);
             if (entry_present(vmi->os_type, pte)) {
-                paddr = get_paddr_nopae(vaddr, pte);
+                info->l1_v = pte;
+                info->size = VMI_PS_4KB;
+                info->paddr = get_paddr_nopae(vaddr, pte);
             }
             else {
                 buffalo_nopae(vmi, pte, 1);
@@ -358,45 +389,58 @@ addr_t v2p_nopae (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
     else {
         buffalo_nopae(vmi, pgd, 0);
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", paddr);
-    return paddr;
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
+    return info->paddr;
 }
 
-addr_t v2p_pae (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
+addr_t v2p_pae (vmi_instance_t vmi,
+    addr_t dtb,
+    addr_t vaddr,
+    page_info_t *info)
 {
-    addr_t paddr = 0;
     uint64_t pdpe, pgd, pte;
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64"\n", vaddr);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: dtb = 0x%.16"PRIx64"\n", dtb);
-    pdpe = get_pdpi(vmi, vaddr, dtb);
+    pdpe = get_pdpi(vmi, vaddr, dtb, &info->l3_a);
+
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpe = 0x%.16"PRIx64"\n", pdpe);
     if (!entry_present(vmi->os_type, pdpe)) {
-        return paddr;
+        goto done;
     }
-    pgd = get_pgd_pae(vmi, vaddr, pdpe);
+    info->l3_v = pdpe;
+
+    pgd = get_pgd_pae(vmi, vaddr, pdpe, &info->l2_a);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd = 0x%.16"PRIx64"\n", pgd);
 
     if (entry_present(vmi->os_type, pgd)) {
+        info->l2_v = pgd;
         if (page_size_flag(pgd)) {
-            paddr = get_large_paddr(vmi, vaddr, pgd);
+            info->paddr = get_large_paddr(vmi, vaddr, pgd);
+            info->size = VMI_PS_2MB;
             dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 2MB page\n");
         }
         else {
-            pte = get_pte_pae(vmi, vaddr, pgd);
+            pte = get_pte_pae(vmi, vaddr, pgd, &info->l1_a);
             dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte = 0x%.16"PRIx64"\n", pte);
             if (entry_present(vmi->os_type, pte)) {
-                paddr = get_paddr_pae(vaddr, pte);
+                info->l1_v = pte;
+                info->size = VMI_PS_4KB;
+                info->paddr = get_paddr_pae(vaddr, pte);
             }
         }
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", paddr);
-    return paddr;
+
+done:
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
+    return info->paddr;
 }
 
-addr_t v2p_ia32e (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
+addr_t v2p_ia32e (vmi_instance_t vmi,
+    addr_t dtb,
+    addr_t vaddr,
+    page_info_t *info)
 {
-    addr_t paddr = 0;
     uint64_t pml4e = 0, pdpte = 0, pde = 0, pte = 0;
 
     // are we in compatibility mode OR 64-bit mode ???
@@ -407,52 +451,58 @@ addr_t v2p_ia32e (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64"\n", vaddr);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: dtb = 0x%.16"PRIx64"\n", dtb);
-    pml4e = get_pml4e(vmi, vaddr, dtb);
+    pml4e = get_pml4e(vmi, vaddr, dtb, &info->l4_a);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pml4e = 0x%.16"PRIx64"\n", pml4e);
 
     if (entry_present(vmi->os_type, pml4e)) {
-        pdpte = get_pdpte_ia32e(vmi, vaddr, pml4e);
+        info->l4_v = pml4e;
+
+        pdpte = get_pdpte_ia32e(vmi, vaddr, pml4e, &info->l3_a);
         dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpte = 0x%.16"PRIx64"\n", pdpte);
 
         if (entry_present(vmi->os_type, pdpte)) {
+            info->l3_v = pdpte;
             if (page_size_flag(pdpte)) { // pdpte maps a 1GB page
-                paddr = get_gigpage_ia32e(vaddr, pdpte);
+                info->paddr = get_gigpage_ia32e(vaddr, pdpte);
+                info->size = VMI_PS_1GB;
                 dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 1GB page\n");
             }
             else {
-                pde = get_pde_ia32e(vmi, vaddr, pdpte);
+                pde = get_pde_ia32e(vmi, vaddr, pdpte, &info->l2_a);
                 dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde = 0x%.16"PRIx64"\n", pde);
             }
 
             if (entry_present(vmi->os_type, pde)) {
+                info->l2_v = pde;
                 if (page_size_flag(pde)) { // pde maps a 2MB page
-                    paddr = get_2megpage_ia32e(vaddr, pde);
+                    info->paddr = get_2megpage_ia32e(vaddr, pde);
+                    info->size = VMI_PS_2MB;
                     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 2MB page\n");
                 }
                 else {
-                    pte = get_pte_ia32e(vmi, vaddr, pde);
+                    pte = get_pte_ia32e(vmi, vaddr, pde, &info->l1_a);
                     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte = 0x%.16"PRIx64"\n", pte);
                 }
 
                 if (entry_present(vmi->os_type, pte)) {
-                    paddr = get_paddr_ia32e(vaddr, pte);
+                    info->l1_v = pte;
+                    info->size = VMI_PS_4KB;
+                    info->paddr = get_paddr_ia32e(vaddr, pte);
                 }
             }
         }
     }
 
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", paddr);
-    return paddr;
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
+    return info->paddr;
 }
 
-GSList* get_va_pages_nopae(vmi_instance_t vmi) {
+GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
 
     #define PTRS_PER_PTE 1024
     #define PTRS_PER_PGD 1024
 
-    reg_t cr3;
-    driver_get_vcpureg(vmi, &cr3, CR3, 0);
-    addr_t pgd_curr = cr3;
+    addr_t pgd_curr = dtb;
     uint8_t entry_size = 0x4;
 
     GSList *ret = NULL;
@@ -498,15 +548,13 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi) {
     return ret;
 }
 
-GSList* get_va_pages_pae(vmi_instance_t vmi) {
+GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
 
     #define PTRS_PER_PDPI 4
     #define PTRS_PER_PAE_PTE 512
     #define PTRS_PER_PAE_PGD 512
 
-    reg_t cr3;
-    driver_get_vcpureg(vmi, &cr3, CR3, 0);
-    uint32_t pdpi_base = get_pdptb(cr3);
+    uint32_t pdpi_base = get_pdptb(dtb);
     uint8_t entry_size = 0x8;
 
     GSList *ret = NULL;
@@ -567,10 +615,8 @@ GSList* get_va_pages_pae(vmi_instance_t vmi) {
     return ret;
 }
 
-GSList* get_va_pages_ia32e(vmi_instance_t vmi) {
+GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
 
-    reg_t cr3;
-    driver_get_vcpureg(vmi, &cr3, CR3, 0);
     GSList *ret = NULL;
     uint8_t entry_size = 0x8;
 
@@ -580,7 +626,8 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi) {
     for(pml4e=0;pml4e<PDES_AND_PTES_PER_PAGE;pml4e++) {
 
         addr_t vaddr = pml4e << 39;
-        uint64_t pml4e_value = get_pml4e(vmi, vaddr, cr3);
+        addr_t pml4e_a = 0;
+        uint64_t pml4e_value = get_pml4e(vmi, vaddr, dtb, &pml4e_a);
 
         if(!entry_present(vmi->os_type, pml4e_value)) {
             continue;
@@ -591,7 +638,8 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi) {
 
             vaddr = (pml4e << 39) | (pdpte << 30);
 
-            uint64_t pdpte_value = get_pdpte_ia32e(vmi, vaddr, pml4e_value);
+            addr_t pdpte_a = 0;
+            uint64_t pdpte_value = get_pdpte_ia32e(vmi, vaddr, pml4e_value, &pdpte_a);
             if(!entry_present(vmi->os_type, pdpte_value)) {
                 continue;
             }
@@ -649,16 +697,16 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi) {
     return ret;
 }
 
-GSList* get_va_pages(vmi_instance_t vmi) {
+GSList* get_va_pages(vmi_instance_t vmi, addr_t dtb) {
 
     GSList *ret = NULL;
 
     if (vmi->page_mode == VMI_PM_LEGACY) {
-        ret = get_va_pages_nopae(vmi);
+        ret = get_va_pages_nopae(vmi, dtb);
     } else if (vmi->page_mode == VMI_PM_PAE) {
-        ret = get_va_pages_pae(vmi);
+        ret = get_va_pages_pae(vmi, dtb);
     } else if (vmi->page_mode == VMI_PM_IA32E) {
-        ret = get_va_pages_ia32e(vmi);
+        ret = get_va_pages_ia32e(vmi, dtb);
     }
 
     return ret;
@@ -666,16 +714,17 @@ GSList* get_va_pages(vmi_instance_t vmi) {
 
 addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
 {
-    addr_t paddr = 0;
+
+    page_info_t info = {0};
 
     /* check if entry exists in the cachec */
-    if (VMI_SUCCESS == v2p_cache_get(vmi, vaddr, dtb, &paddr)) {
+    if (VMI_SUCCESS == v2p_cache_get(vmi, vaddr, dtb, &info.paddr)) {
 
         /* verify that address is still valid */
         uint8_t value = 0;
 
-        if (VMI_SUCCESS == vmi_read_8_pa(vmi, paddr, &value)) {
-            return paddr;
+        if (VMI_SUCCESS == vmi_read_8_pa(vmi, info.paddr, &value)) {
+            return info.paddr;
         }
         else {
             v2p_cache_del(vmi, vaddr, dtb);
@@ -684,23 +733,57 @@ addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
 
     /* do the actual page walk in guest memory */
     if (vmi->page_mode == VMI_PM_LEGACY) {
-        paddr = v2p_nopae(vmi, dtb, vaddr);
+        v2p_nopae(vmi, dtb, vaddr, &info);
     }
     else if (vmi->page_mode == VMI_PM_PAE) {
-        paddr = v2p_pae(vmi, dtb, vaddr);
+        v2p_pae(vmi, dtb, vaddr, &info);
     }
     else if (vmi->page_mode == VMI_PM_IA32E) {
-        paddr = v2p_ia32e(vmi, dtb, vaddr);
+        v2p_ia32e(vmi, dtb, vaddr, &info);
     }
     else {
         errprint("Invalid paging mode during vmi_pagetable_lookup\n");
     }
 
     /* add this to the cache */
-    if (paddr) {
-        v2p_cache_set(vmi, vaddr, dtb, paddr);
+    if (info.paddr) {
+        v2p_cache_set(vmi, vaddr, dtb, info.paddr);
     }
-    return paddr;
+    return info.paddr;
+}
+
+status_t vmi_pagetable_lookup_extended(
+    vmi_instance_t vmi,
+    addr_t dtb,
+    addr_t vaddr,
+    page_info_t *info)
+{
+    status_t ret = VMI_FAILURE;
+
+    if(!info) return ret;
+
+    memset(info, 0, sizeof(page_info_t));
+    info->vaddr = vaddr;
+    info->dtb = dtb;
+
+    if (vmi->page_mode == VMI_PM_LEGACY) {
+        v2p_nopae(vmi, dtb, vaddr, info);
+    }
+    else if (vmi->page_mode == VMI_PM_PAE) {
+        v2p_pae(vmi, dtb, vaddr, info);
+    }
+    else if (vmi->page_mode == VMI_PM_IA32E) {
+        v2p_ia32e(vmi, dtb, vaddr, info);
+    }
+    else {
+        errprint("Invalid paging mode during vmi_pagetable_lookup_extended\n");
+    }
+
+    if(info->paddr) {
+        ret = VMI_SUCCESS;
+    }
+
+    return ret;
 }
 
 /* expose virtual to physical mapping for kernel space via api call */

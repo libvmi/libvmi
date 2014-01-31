@@ -318,7 +318,8 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t vmi,
     addr_t frame_num);
     GSList* get_va_pages(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi,
+    addr_t dtb);
 
 /*-----------------------------------------
  * strmatch.c
