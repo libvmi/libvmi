@@ -990,12 +990,12 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
     return VMI_SUCCESS;
 }
 
-status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event)
+status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled)
 {
 
     switch(event.intr){
     case INT3:
-        return xen_set_int3_access(vmi, event);
+        return xen_set_int3_access(vmi, event, enabled);
         break;
     default:
         errprint("Xen driver does not support enabling events for interrupt: %"PRIu32"\n", event.intr);
@@ -1005,7 +1005,7 @@ status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event)
     return VMI_FAILURE;
 }
 
-status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event)
+status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled)
 {
     xc_interface * xch = xen_get_xchandle(vmi);
     unsigned long dom = xen_get_domainid(vmi);
@@ -1015,13 +1015,15 @@ status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event)
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+
     if ( dom == VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
 
-    if(event.enabled)
+    if ( enabled ) {
         param = HVMPME_mode_sync;
+    }
 
     return xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_INT3, param);
 }
@@ -1244,7 +1246,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event){
     return VMI_FAILURE;
 }
 
-status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event){
+status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled){
     return VMI_FAILURE;
 }
 

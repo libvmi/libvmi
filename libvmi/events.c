@@ -173,7 +173,7 @@ status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this interrupt: %d\n",
                 event->interrupt_event.intr);
     }
-    else if (VMI_SUCCESS == driver_set_intr_access(vmi, event->interrupt_event))
+    else if (VMI_SUCCESS == driver_set_intr_access(vmi, event->interrupt_event, 1))
     {
         g_hash_table_insert(vmi->interrupt_events, &(event->interrupt_event.intr), event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled event on interrupt: %d\n", event->interrupt_event.intr);
@@ -406,8 +406,7 @@ status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
     if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr)))
     {
         dbprint(VMI_DEBUG_EVENTS, "Disabling event on interrupt: %d\n", event->interrupt_event.intr);
-        event->interrupt_event.enabled = 0;
-        rc = driver_set_intr_access(vmi, event->interrupt_event);
+        rc = driver_set_intr_access(vmi, event->interrupt_event, 0);
         if (!vmi->shutting_down && rc == VMI_SUCCESS)
         {
             g_hash_table_remove(vmi->interrupt_events, &(event->interrupt_event.intr));

@@ -1656,8 +1656,11 @@ typedef struct {
     addr_t gfn;         /* (Guest Frame Number) == 'physical' page where trap occurred */
     addr_t offset;      /* Offset in bytes (relative to GFN) */
     interrupts_t intr;  /* Specific interrupt intended to trigger the event */
-    int reinject:1;     /* Toggle, controls whether interrupt is re-injected after callback */
-    int enabled:1;      /* Toggle */
+    int reinject;       /* Toggle, controls whether interrupt is re-injected after 
+                         *  callback.
+                         *   set reinject to 1 to deliver it to guest ("pass through" mode)
+                         *   set reinject to 0 to swallow it silently without 
+                         */
 } interrupt_event_t;
 
 typedef struct {
@@ -1756,10 +1759,9 @@ struct vmi_event {
         } while(0)
 
 /* Convenience macro to setup a interrupt event */
-#define SETUP_INTERRUPT_EVENT(_event, _enable, _reinject, _callback) \
+#define SETUP_INTERRUPT_EVENT(_event, _reinject, _callback) \
         do { \
             (_event)->type = VMI_EVENT_INTERRUPT; \
-            (_event)->interrupt_event.enabled = _enable; \
             (_event)->interrupt_event.reinject = _reinject; \
             (_event)->callback = _callback; \
         } while(0)

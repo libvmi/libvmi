@@ -136,7 +136,8 @@ struct driver_instance {
     status_t (
     *set_intr_access_ptr)(
     vmi_instance_t,
-    interrupt_event_t);
+    interrupt_event_t,
+    uint8_t enabled);
     status_t (
     *set_mem_access_ptr)(
     vmi_instance_t,
@@ -786,11 +787,12 @@ status_t driver_set_reg_access(
 
 status_t driver_set_intr_access(
     vmi_instance_t vmi,
-    interrupt_event_t event)
+    interrupt_event_t event,
+    uint8_t enabled)
 {
     driver_instance_t ptrs = driver_get_instance(vmi);
     if (NULL != ptrs && NULL != ptrs->set_intr_access_ptr){
-        return ptrs->set_intr_access_ptr(vmi, event);
+        return ptrs->set_intr_access_ptr(vmi, event, enabled);
     }
     else{
         dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_intr_access function not implemented.\n");
