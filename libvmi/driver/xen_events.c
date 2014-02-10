@@ -256,7 +256,10 @@ status_t process_interrupt_event(vmi_instance_t vmi,
 
     if(event) {
         event->interrupt_event.gfn = req.gfn;
+        event->interrupt_event.offset = req.offset;
         event->interrupt_event.gla = req.gla;
+        event->interrupt_event.intr = intr;
+        event->interrupt_event.reinject = -1;
         event->vcpu_id = req.vcpu_id;
 
         /* Will need to refactor if another interrupt is accessible
@@ -266,10 +269,15 @@ status_t process_interrupt_event(vmi_instance_t vmi,
 
         event->callback(vmi, event);
 
+        if(-1 == event->interrupt_event.reinject) {
+            errprint("%s Need to specify reinjection behaviour!\n", __FUNCTION__);
+            return VMI_FAILURE;
+        }
+
         switch(intr){
         case INT3:
             /* Reinject (callback may decide) */
-            if(event->interrupt_event.reinject) {
+            if(1 == event->interrupt_event.reinject) {
                 dbprint(VMI_DEBUG_XEN, "rip %"PRIx64" gfn %"PRIx64"\n",
                     event->interrupt_event.gla, event->interrupt_event.gfn);
 
@@ -323,7 +331,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                 */
 #if __XEN_INTERFACE_VERSION__ >= 0x00040300
                 if (rc < 0) {
-                    errprint("%s : Xen event error %d re-injecting int3\n", __FUNCTION__, rc);
+                    errprint("%s : Xen event error %d re-injecting int3 (benign result for 4.1 >= Xen < 4.3)\n", __FUNCTION__, rc);
                     status = VMI_FAILURE;
                     break;
                 }
@@ -988,12 +996,12 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
     return VMI_SUCCESS;
 }
 
-status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event)
+status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled)
 {
 
     switch(event.intr){
     case INT3:
-        return xen_set_int3_access(vmi, event);
+        return xen_set_int3_access(vmi, event, enabled);
         break;
     default:
         errprint("Xen driver does not support enabling events for interrupt: %"PRIu32"\n", event.intr);
@@ -1003,7 +1011,7 @@ status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event)
     return VMI_FAILURE;
 }
 
-status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event)
+status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled)
 {
     xc_interface * xch = xen_get_xchandle(vmi);
     unsigned long dom = xen_get_domainid(vmi);
@@ -1013,13 +1021,15 @@ status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event)
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+
     if ( dom == VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
 
-    if(event.enabled)
+    if ( enabled ) {
         param = HVMPME_mode_sync;
+    }
 
     return xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_INT3, param);
 }
@@ -1242,7 +1252,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event){
     return VMI_FAILURE;
 }
 
-status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event){
+status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled){
     return VMI_FAILURE;
 }
 
