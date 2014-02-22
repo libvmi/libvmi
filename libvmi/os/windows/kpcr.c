@@ -852,7 +852,8 @@ find_kdversionblock_address_fast(
 status_t
 find_kdversionblock_address_faster(
     vmi_instance_t vmi,
-    addr_t *kdvb_pa)
+    addr_t *kdvb_pa,
+    addr_t *kernel_va_boundry)
 {
 
     reg_t cr3;
@@ -887,16 +888,22 @@ find_kdversionblock_address_faster(
         addr_t export_header_offset =
             peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
 
+        if(!export_header_offset || page_paddr + export_header_offset > vmi->size)
+            continue;
+
         uint32_t nbytes = vmi_read_pa(vmi, page_paddr + export_header_offset, &et, sizeof(struct export_table));
         if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
-            char *name = vmi_read_str_pa(vmi, page_paddr + et.name);
-            if(name) {
-                if(strcmp("ntoskrnl.exe", name)) {
-                    free(name);
-                    continue;
-                }
-                free(name);
+
+            if(page_paddr + et.name + 12 > vmi->size)
+                continue;
+
+            unsigned char name[13] = {0};
+            vmi_read_pa(vmi, page_paddr + et.name, name, 12);
+            if(strcmp("ntoskrnl.exe", name)) {
+                continue;
             }
+        } else {
+            continue;
         }
 
         uint32_t c;
@@ -913,28 +920,44 @@ find_kdversionblock_address_faster(
             vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header));
 
             // .data check
-            if(memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) == 0) {
-
-                uint8_t *haystack = alloca(section.size_of_raw_data);
-                vmi_read_pa(vmi, page_paddr + section.virtual_address, haystack, section.size_of_raw_data);
-                int match_offset = boyer_moore2(bm, haystack, section.size_of_raw_data);
-
-                if (-1 != match_offset) {
-                    *kdvb_pa = page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
-                    ret = VMI_SUCCESS;
-                    goto done;
-                }
-
-                break;
+            if(memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) != 0) {
+                continue;
             }
+
+            uint8_t *haystack = alloca(section.size_of_raw_data);
+            vmi_read_pa(vmi, page_paddr + section.virtual_address, haystack, section.size_of_raw_data);
+
+            int match_offset = boyer_moore2(bm, haystack, section.size_of_raw_data);
+
+            if (-1 != match_offset) {
+                // We found the structure, but let's verify it.
+                // The kernel is always mapped into VA at the same offset
+                // it is found on physical memory + the kernel boundry.
+                uint64_t *kernbase = (uint64_t *)&haystack[(unsigned int) match_offset + sizeof(uint64_t)];
+                int zeroes = __builtin_clzll(page_paddr);
+
+                if((*kernbase) << zeroes == page_paddr << zeroes) {
+                    *kdvb_pa = page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
+                    *kernel_va_boundry = ((*kernbase) >> (64-zeroes)) << (64-zeroes);
+                    ret = VMI_SUCCESS;
+
+                    dbprint(VMI_DEBUG_MISC,
+                        "--Found KD version block at PA %.16"PRIx64". Kernel boundry at VA %"PRIx64"\n",
+                        *kdvb_pa, *kernel_va_boundry);
+
+                    goto done;
+                } else {
+                    dbprint(VMI_DEBUG_MISC,
+                        "--WARNING: KernBase in KD version block at PA %.16"PRIx64" doesn't point back to this page.\n",
+                        page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs);
+                }
+            }
+
+            break;
         }
     }
 
 done:
-
-    if (VMI_SUCCESS == ret)
-        dbprint(VMI_DEBUG_MISC, "--Found KD version block at PA %.16"PRIx64"\n",
-                *kdvb_pa);
     boyer_moore_fini(bm);
     return ret;
 }
@@ -945,6 +968,7 @@ init_kdversion_block(
     vmi_instance_t vmi)
 {
     addr_t KdVersionBlock_phys = 0;
+    addr_t KernelBoundry = 0;
     addr_t DebuggerDataList = 0, ListPtr = 0;
     windows_instance_t windows = NULL;
 
@@ -954,13 +978,14 @@ init_kdversion_block(
 
     windows = vmi->os_data;
 
-    if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys)) {
+    if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KernelBoundry)) {
         dbprint(VMI_DEBUG_MISC, "**Failed to find KdVersionBlock\n");
         goto error_exit;
     }
 
     if (!windows->kdversion_block) {
         windows->kdversion_block = KdVersionBlock_phys;
+        windows->kernel_boundry = KernelBoundry;
         printf
             ("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              windows->kdversion_block);

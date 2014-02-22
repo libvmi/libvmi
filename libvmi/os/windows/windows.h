@@ -28,7 +28,9 @@ struct windows_instance {
 
     addr_t ntoskrnl_va; /**< base virt address for ntoskrnl image */
 
-    addr_t kdversion_block; /**< kernel virtual address for start of KdVersionBlock structure */
+    addr_t kdversion_block; /**< physical address for start of KdVersionBlock structure */
+
+    addr_t kernel_boundry; /**< VA of kernel boundry */
 
     addr_t sysproc; /**< physical address for the system process */
 
