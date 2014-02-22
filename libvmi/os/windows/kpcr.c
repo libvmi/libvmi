@@ -189,7 +189,7 @@ kpcr_symbol_resolve(
     windows = vmi->os_data;
     symaddr = windows->kdversion_block + offset;
 
-    if (VMI_FAILURE == vmi_read_64_pa(vmi, symaddr, &tmp)) {
+    if (VMI_FAILURE == vmi_read_64_va(vmi, symaddr, 0, &tmp)) {
         return VMI_FAILURE;
     }
     *address = tmp;
@@ -734,7 +734,7 @@ find_windows_version(
 
     uint16_t size = 0;
 
-    vmi_read_16_pa(vmi, KdVersionBlock + 0x14, &size);
+    vmi_read_16_va(vmi, KdVersionBlock + 0x14, 0, &size);
 
     if (memcmp(&size, "\x08\x02", 2) == 0) {
         dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 2000\n");
@@ -853,7 +853,7 @@ status_t
 find_kdversionblock_address_faster(
     vmi_instance_t vmi,
     addr_t *kdvb_pa,
-    addr_t *kernel_va_boundry)
+    addr_t *kernel_va_boundary)
 {
 
     reg_t cr3;
@@ -932,18 +932,18 @@ find_kdversionblock_address_faster(
             if (-1 != match_offset) {
                 // We found the structure, but let's verify it.
                 // The kernel is always mapped into VA at the same offset
-                // it is found on physical memory + the kernel boundry.
+                // it is found on physical memory + the kernel boundary.
                 uint64_t *kernbase = (uint64_t *)&haystack[(unsigned int) match_offset + sizeof(uint64_t)];
                 int zeroes = __builtin_clzll(page_paddr);
 
                 if((*kernbase) << zeroes == page_paddr << zeroes) {
                     *kdvb_pa = page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
-                    *kernel_va_boundry = ((*kernbase) >> (64-zeroes)) << (64-zeroes);
+                    *kernel_va_boundary = ((*kernbase) >> (64-zeroes)) << (64-zeroes);
                     ret = VMI_SUCCESS;
 
                     dbprint(VMI_DEBUG_MISC,
-                        "--Found KD version block at PA %.16"PRIx64". Kernel boundry at VA %"PRIx64"\n",
-                        *kdvb_pa, *kernel_va_boundry);
+                        "--Found KD version block at PA %.16"PRIx64". Kernel boundary at VA %"PRIx64"\n",
+                        *kdvb_pa, *kernel_va_boundary);
 
                     goto done;
                 } else {
@@ -968,7 +968,7 @@ init_kdversion_block(
     vmi_instance_t vmi)
 {
     addr_t KdVersionBlock_phys = 0;
-    addr_t KernelBoundry = 0;
+    addr_t KernelBoundary = 0;
     addr_t DebuggerDataList = 0, ListPtr = 0;
     windows_instance_t windows = NULL;
 
@@ -978,14 +978,14 @@ init_kdversion_block(
 
     windows = vmi->os_data;
 
-    if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KernelBoundry)) {
+    if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KernelBoundary)) {
         dbprint(VMI_DEBUG_MISC, "**Failed to find KdVersionBlock\n");
         goto error_exit;
     }
 
     if (!windows->kdversion_block) {
-        windows->kdversion_block = KdVersionBlock_phys;
-        windows->kernel_boundry = KernelBoundry;
+        windows->kdversion_block = KdVersionBlock_phys + KernelBoundary;
+        windows->kernel_boundary = KernelBoundary;
         printf
             ("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              windows->kdversion_block);
