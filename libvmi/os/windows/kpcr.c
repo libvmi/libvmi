@@ -25,6 +25,7 @@
  */
 
 #include "libvmi.h"
+#include "peparse.h"
 #include "private.h"
 #define _GNU_SOURCE
 #include <string.h>
@@ -188,7 +189,7 @@ kpcr_symbol_resolve(
     windows = vmi->os_data;
     symaddr = windows->kdversion_block + offset;
 
-    if (VMI_FAILURE == vmi_read_64_va(vmi, symaddr, 0, &tmp)) {
+    if (VMI_FAILURE == vmi_read_64_pa(vmi, symaddr, &tmp)) {
         return VMI_FAILURE;
     }
     *address = tmp;
@@ -851,82 +852,89 @@ find_kdversionblock_address_fast(
 status_t
 find_kdversionblock_address_faster(
     vmi_instance_t vmi,
-    addr_t *kdvb_pa,
-    addr_t *kdvb_va)
+    addr_t *kdvb_pa)
 {
-    // Todo:
-    // -support matching across frames (can this happen in windows?)
 
     reg_t cr3;
     driver_get_vcpureg(vmi, &cr3, CR3, 0);
 
     status_t ret = VMI_FAILURE;
-    addr_t memsize = vmi_get_memsize(vmi);
-    GSList *va_pages = get_va_pages(vmi, (addr_t)cr3);
-    size_t read = 0;
-    void *bm = 0;   // boyer-moore internal state
-    int find_ofs = 0;
+    void *bm = boyer_moore_init("KDBG", 4);
+    int find_ofs = 0x10;
 
-    unsigned char haystack[VMI_PS_4KB];
+    // We know that the Windows kernel is page aligned
+    // so we are just checking if the page has a valid PE header
+    // and if the first item in the export table is "ntoskrnl.exe".
+    // Once the kernel is found, we find the .data section
+    // and limit the string search for "KDBG" into that region.
 
-    if (VMI_PM_IA32E == vmi->page_mode) {
-        bm = boyer_moore_init("\x00\xf8\xff\xffKDBG", 8);
-        find_ofs = 0xc;
-    }
-    else {
-        bm = boyer_moore_init("\x00\x00\x00\x00\x00\x00\x00\x00KDBG",
-                              12);
-        find_ofs = 0x8;
-    }   // if-else
+    addr_t page_paddr = 0;
+    for(page_paddr = 0; page_paddr + VMI_PS_4KB - 1 < vmi->size; page_paddr += VMI_PS_4KB) {
 
-    GSList *va_pages_loop = va_pages;
-    while(va_pages_loop) {
+        uint8_t page[VMI_PS_4KB];
+        status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
+        if(VMI_FAILURE == rc) {
+            continue;
+        }
 
-        struct va_page *vap = (struct va_page *)va_pages_loop->data;
+        struct pe_header *pe_header = NULL;
+        struct dos_header *dos_header = NULL;
+        void *optional_pe_header = NULL;
+        uint16_t optional_header_type = 0;
+        struct export_table et;
 
-        // We might get pages that are greater than 4Kb
-        // so we are just going to split them to 4Kb pages
-        while(vap && vap->size >= VMI_PS_4KB) {
+        peparse_assign_headers(page, &dos_header, &pe_header, &optional_header_type, &optional_pe_header, NULL, NULL);
+        addr_t export_header_offset =
+            peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
 
-            vap->size -= VMI_PS_4KB;
-            addr_t page_vaddr = vap->va+vap->size;
-            addr_t page_paddr = vmi_pagetable_lookup(vmi, cr3, page_vaddr);
-
-            if(page_paddr + VMI_PS_4KB - 1 > memsize) {
-                continue;
-            }
-
-            read = vmi_read_pa(vmi, page_paddr, haystack, VMI_PS_4KB);
-
-            if (VMI_PS_4KB != read) {
-                continue;
-            }
-
-            int match_offset = boyer_moore2(bm, haystack, VMI_PS_4KB);
-
-            if (-1 != match_offset) {
-                *kdvb_pa = page_paddr + (unsigned int) match_offset - find_ofs;
-                *kdvb_va = page_vaddr + (unsigned int) match_offset - find_ofs;
-                ret = VMI_SUCCESS;
-                goto done;
+        uint32_t nbytes = vmi_read_pa(vmi, page_paddr + export_header_offset, &et, sizeof(struct export_table));
+        if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
+            char *name = vmi_read_str_pa(vmi, page_paddr + et.name);
+            if(name) {
+                if(strcmp("ntoskrnl.exe", name)) {
+                    free(name);
+                    continue;
+                }
+                free(name);
             }
         }
 
-        g_free(vap);
-        va_pages_loop = va_pages_loop->next;
+        uint32_t c;
+        for(c=0; c < pe_header->number_of_sections; c++) {
+
+            struct section_header section;
+            addr_t section_addr = page_paddr
+                + dos_header->offset_to_pe
+                + sizeof(struct pe_header)
+                + pe_header->size_of_optional_header
+                + c*sizeof(struct section_header);
+
+            // Read the section header from memory
+            vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header));
+
+            // .data check
+            if(memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) == 0) {
+
+                uint8_t *haystack = alloca(section.size_of_raw_data);
+                vmi_read_pa(vmi, page_paddr + section.virtual_address, haystack, section.size_of_raw_data);
+                int match_offset = boyer_moore2(bm, haystack, section.size_of_raw_data);
+
+                if (-1 != match_offset) {
+                    *kdvb_pa = page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
+                    ret = VMI_SUCCESS;
+                    goto done;
+                }
+
+                break;
+            }
+        }
     }
 
 done:
-    // free the rest of the list
-    while(va_pages_loop) {
-        g_free(va_pages_loop->data);
-        va_pages_loop = va_pages_loop->next;
-    }
-    g_slist_free(va_pages);
 
     if (VMI_SUCCESS == ret)
-        dbprint(VMI_DEBUG_MISC, "--Found KD version block at PA %.16"PRIx64" VA %.16"PRIx64"\n",
-                *kdvb_pa, *kdvb_va);
+        dbprint(VMI_DEBUG_MISC, "--Found KD version block at PA %.16"PRIx64"\n",
+                *kdvb_pa);
     boyer_moore_fini(bm);
     return ret;
 }
@@ -937,7 +945,6 @@ init_kdversion_block(
     vmi_instance_t vmi)
 {
     addr_t KdVersionBlock_phys = 0;
-    addr_t KdVersionBlock_virt = 0;
     addr_t DebuggerDataList = 0, ListPtr = 0;
     windows_instance_t windows = NULL;
 
@@ -947,13 +954,13 @@ init_kdversion_block(
 
     windows = vmi->os_data;
 
-    if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KdVersionBlock_virt)) {
+    if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys)) {
         dbprint(VMI_DEBUG_MISC, "**Failed to find KdVersionBlock\n");
         goto error_exit;
     }
 
     if (!windows->kdversion_block) {
-        windows->kdversion_block = KdVersionBlock_virt;
+        windows->kdversion_block = KdVersionBlock_phys;
         printf
             ("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              windows->kdversion_block);
@@ -989,8 +996,7 @@ windows_kpcr_lookup(
     }
 
     // Use heuristic to find windows version
-    addr_t kdvb_p = vmi_translate_kv2p(vmi, windows->kdversion_block);
-    windows->version = find_windows_version(vmi, kdvb_p);
+    windows->version = find_windows_version(vmi, windows->kdversion_block);
 
     if (VMI_FAILURE == kpcr_symbol_offset(vmi, symbol, &offset)) {
         goto error_exit;
