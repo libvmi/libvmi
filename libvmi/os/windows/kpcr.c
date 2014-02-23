@@ -7,6 +7,7 @@
  * retains certain rights in this software.
  *
  * Author: Bryan D. Payne (bdpayne@acm.org)
+ * Author: Tamas K Lengyel(tamas.lengyel@zentific.com)
  *
  * This file is part of LibVMI.
  *
@@ -890,7 +891,7 @@ find_kdversionblock_address_faster(
     // which we get from the GS/FS register on live machines.
     // For file mode this needs to be further investigated.
     if(VMI_FILE == vmi->mode)
-        goto done;
+        return ret;
 
     void *bm = boyer_moore_init("KDBG", 4);
     int find_ofs = 0x10;
@@ -1015,6 +1016,51 @@ done:
     return ret;
 }
 
+status_t
+find_kdversionblok_address_instant(
+    vmi_instance_t vmi,
+    addr_t *kdvb_pa,
+    addr_t *kernel_va_boundary)
+{
+
+    status_t ret = VMI_FAILURE;
+
+    // This approach requires the location of the KPCR
+    // which we get from the GS/FS register on live machines.
+    // Furthermore, we need the config settings for the RVAs
+    if(VMI_FILE == vmi->mode)
+        goto done;
+
+    windows_instance_t windows = NULL;
+    if (vmi->os_data == NULL)
+        goto done;
+
+    windows = vmi->os_data;
+    if(!windows->kpcr_offset || !windows->kdbg_offset)
+        goto done;
+
+    reg_t cr3, fsgs;
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+
+    if (VMI_PM_IA32E == vmi->page_mode) {
+        driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0);
+    } else {
+        driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0);
+    }
+
+    addr_t kernelbase_va = fsgs - windows->kpcr_offset;
+    addr_t kernelbase_pa = vmi_pagetable_lookup(vmi, cr3, kernelbase_va);
+    *kdvb_pa = kernelbase_pa + windows->kdbg_offset;
+
+    int zeroes = __builtin_clzll(kernelbase_pa);
+    *kernel_va_boundary = ((kernelbase_va) >> (64-zeroes)) << (64-zeroes);
+
+    ret = VMI_SUCCESS;
+
+done:
+    return ret;
+
+}
 
 status_t
 init_kdversion_block(
@@ -1031,14 +1077,24 @@ init_kdversion_block(
 
     windows = vmi->os_data;
 
-    if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KernelBoundary)) {
-        dbprint(VMI_DEBUG_MISC, "**Fastest KDBG scan failed, falling back to normal scan\n");
-        if(VMI_FAILURE == find_kdversionblock_address_fast(vmi, &KdVersionBlock_phys, &KernelBoundary)) {
-            dbprint(VMI_DEBUG_MISC, "**Failed to find KdVersionBlock\n");
-            goto error_exit;
-        }
-    }
+    if(VMI_SUCCESS == find_kdversionblok_address_instant(vmi, &KdVersionBlock_phys, &KernelBoundary))
+        goto init_done;
 
+    dbprint(VMI_DEBUG_MISC, "**KdVersionBlock instant init failed\n");
+
+    if(VMI_SUCCESS == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KernelBoundary))
+        goto init_done;
+
+    dbprint(VMI_DEBUG_MISC, "**KdVersionBlock fastest init failed\n");
+
+    if(VMI_SUCCESS == find_kdversionblock_address_fast(vmi, &KdVersionBlock_phys, &KernelBoundary))
+        goto init_done;
+
+    dbprint(VMI_DEBUG_MISC, "**KdVersionBlock init failed all the way\n");
+
+    goto error_exit;
+
+init_done:
     if (!windows->kdversion_block) {
         windows->kdversion_block = KdVersionBlock_phys + KernelBoundary;
         windows->kernel_boundary = KernelBoundary;

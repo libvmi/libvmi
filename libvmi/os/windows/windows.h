@@ -40,6 +40,10 @@ struct windows_instance {
 
     uint64_t pid_offset; /**< EPROCESS->UniqueProcessId */
 
+    uint64_t kpcr_offset; /**< KiInitialPCR (KernelBase->_KPCR) */
+
+    uint64_t kdbg_offset; /**< KdDebuggerDataBlock (KernelBase->KdDebuggerDataBlock) */
+
     uint64_t pname_offset; /**< EPROCESS->ImageFileName */
 
     win_ver_t version; /**< version of Windows */
