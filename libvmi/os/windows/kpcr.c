@@ -796,26 +796,25 @@ find_kdversionblock_address(
     return kdvb_address;
 }
 
-static addr_t
+status_t
 find_kdversionblock_address_fast(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    addr_t *kdvb_pa,
+    addr_t *kernel_va_boundary)
 {
-    // Note: this function has several limitations:
-    // -the KD version block signature cannot cross block (frame) boundaries
-    // -reading PA 0 fails; hope the KD version block is not in frame 0
-    //
     // Todo:
     // -support matching across frames (can this happen in windows?)
 
-    addr_t kdvb_address = 0;
-    addr_t block_pa = 0;
+    reg_t cr3;
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+
+    status_t ret = VMI_FAILURE;
     addr_t memsize = vmi_get_memsize(vmi);
+    GSList *va_pages = get_va_pages(vmi, (addr_t)cr3);
     size_t read = 0;
     void *bm = 0;   // boyer-moore internal state
+    unsigned char haystack[VMI_PS_4KB];
     int find_ofs = 0;
-
-#define BLOCK_SIZE 1024 * 1024 * 1
-    unsigned char haystack[BLOCK_SIZE];
 
     if (VMI_PM_IA32E == vmi->page_mode) {
         bm = boyer_moore_init("\x00\xf8\xff\xffKDBG", 8);
@@ -827,26 +826,55 @@ find_kdversionblock_address_fast(
         find_ofs = 0x8;
     }   // if-else
 
-    for (block_pa = 4096; block_pa + BLOCK_SIZE <= memsize; block_pa += BLOCK_SIZE) {
-        read = vmi_read_pa(vmi, block_pa, haystack, BLOCK_SIZE);
-        if (BLOCK_SIZE != read) {
-            continue;
+    GSList *va_pages_loop = va_pages;
+    while(va_pages_loop) {
+
+        struct va_page *vap = (struct va_page *)va_pages_loop->data;
+
+        // We might get pages that are greater than 4Kb
+        // so we are just going to split them to 4Kb pages
+        while(vap && vap->size >= VMI_PS_4KB) {
+            vap->size -= VMI_PS_4KB;
+            addr_t page_vaddr = vap->va+vap->size;
+            addr_t page_paddr = vmi_pagetable_lookup(vmi, cr3, page_vaddr);
+
+            if(page_paddr + VMI_PS_4KB - 1 > memsize) {
+                continue;
+            }
+
+            read = vmi_read_pa(vmi, page_paddr, haystack, VMI_PS_4KB);
+
+            if (VMI_PS_4KB != read) {
+                continue;
+            }
+
+            int match_offset = boyer_moore2(bm, haystack, VMI_PS_4KB);
+
+            if (-1 != match_offset) {
+                *kdvb_pa = page_paddr + (unsigned int) match_offset - find_ofs;
+                int zeroes = __builtin_clzll(page_paddr);
+                *kernel_va_boundary = (page_vaddr >> (64-zeroes)) << (64-zeroes);
+                ret = VMI_SUCCESS;
+                goto done;
+            }
         }
+        g_free(vap);
+        va_pages_loop = va_pages_loop->next;
+    }
 
-        int match_offset = boyer_moore2(bm, haystack, BLOCK_SIZE);
+done:
+    // free the rest of the list
+    while(va_pages_loop) {
+        g_free(va_pages_loop->data);
+        va_pages_loop = va_pages_loop->next;
+    }
+    g_slist_free(va_pages);
 
-        if (-1 != match_offset) {
-            kdvb_address =
-                block_pa + (unsigned int) match_offset - find_ofs;
-            break;
-        }   // if
-    }   // outer for
-
-    if (kdvb_address)
-        dbprint(VMI_DEBUG_MISC, "--Found KD version block at PA %.16"PRIx64"\n",
-                kdvb_address);
+    if (VMI_SUCCESS == ret)
+        dbprint(VMI_DEBUG_MISC, "--Found KD version block at PA %.16"PRIx64". Kernel boundary %.16"PRIx64"\n",
+                *kdvb_pa, *kernel_va_boundary);
     boyer_moore_fini(bm);
-    return kdvb_address;
+    return ret;
 }
 
 status_t
@@ -856,21 +884,41 @@ find_kdversionblock_address_faster(
     addr_t *kernel_va_boundary)
 {
 
-    reg_t cr3;
-    driver_get_vcpureg(vmi, &cr3, CR3, 0);
-
     status_t ret = VMI_FAILURE;
+
+    // This scan requires the location of the KPCR
+    // which we get from the GS/FS register on live machines.
+    // For file mode this needs to be further investigated.
+    if(VMI_FILE == vmi->mode)
+        goto done;
+
     void *bm = boyer_moore_init("KDBG", 4);
     int find_ofs = 0x10;
 
-    // We know that the Windows kernel is page aligned
+    reg_t cr3, fsgs;
+    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+
+    if (VMI_PM_IA32E == vmi->page_mode) {
+        driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0);
+    } else {
+        driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0);
+    }
+
+    // We start the search from the KPCR, which has to be mapped into the kernel.
+    // We further know that the Windows kernel is page aligned
     // so we are just checking if the page has a valid PE header
     // and if the first item in the export table is "ntoskrnl.exe".
     // Once the kernel is found, we find the .data section
     // and limit the string search for "KDBG" into that region.
 
+    // start searching at the lower part from the kpcr
+    // then switch to the upper part if needed
+    int step = -VMI_PS_4KB;
     addr_t page_paddr = 0;
-    for(page_paddr = 0; page_paddr + VMI_PS_4KB - 1 < vmi->size; page_paddr += VMI_PS_4KB) {
+
+scan:
+    page_paddr = (vmi_pagetable_lookup(vmi, cr3, fsgs) >> 12) << 12;
+    for(; page_paddr + step >= 0 && page_paddr + step < vmi->size ; page_paddr += step) {
 
         uint8_t page[VMI_PS_4KB];
         status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
@@ -942,7 +990,7 @@ find_kdversionblock_address_faster(
                     ret = VMI_SUCCESS;
 
                     dbprint(VMI_DEBUG_MISC,
-                        "--Found KD version block at PA %.16"PRIx64". Kernel boundary at VA %"PRIx64"\n",
+                        "--Found KD version block at PA %.16"PRIx64". Kernel boundary at VA %"PRIx64".\n",
                         *kdvb_pa, *kernel_va_boundary);
 
                     goto done;
@@ -955,6 +1003,11 @@ find_kdversionblock_address_faster(
 
             break;
         }
+    }
+
+    if(step<0) {
+        step = VMI_PS_4KB;
+        goto scan;
     }
 
 done:
@@ -979,8 +1032,11 @@ init_kdversion_block(
     windows = vmi->os_data;
 
     if(VMI_FAILURE == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KernelBoundary)) {
-        dbprint(VMI_DEBUG_MISC, "**Failed to find KdVersionBlock\n");
-        goto error_exit;
+        dbprint(VMI_DEBUG_MISC, "**Fastest KDBG scan failed, falling back to normal scan\n");
+        if(VMI_FAILURE == find_kdversionblock_address_fast(vmi, &KdVersionBlock_phys, &KernelBoundary)) {
+            dbprint(VMI_DEBUG_MISC, "**Failed to find KdVersionBlock\n");
+            goto error_exit;
+        }
     }
 
     if (!windows->kdversion_block) {
