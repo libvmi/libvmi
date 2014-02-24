@@ -100,6 +100,17 @@ status_t linux_init(vmi_instance_t vmi) {
 
     dbprint(VMI_DEBUG_MISC, "**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
+    // We check if the page mode is known
+    // and if no arch interface has been setup yet we do it now
+    if(VMI_PM_UNKNOWN == vmi->page_mode) {
+        errprint("VMI_ERROR: Page mode is still unknown\n");
+        goto _exit;
+    } else if(!vmi->arch_interface) {
+        if(VMI_FAILURE == arch_init(vmi)) {
+            goto _exit;
+        }
+    }
+
     ret = linux_system_map_symbol_to_address(vmi, "init_task", NULL,
             &vmi->init_task);
     if (ret != VMI_SUCCESS) {
@@ -128,6 +139,7 @@ status_t linux_init(vmi_instance_t vmi) {
 
     _exit:
     free(vmi->os_data);
+    vmi->os_data = NULL;
     return VMI_FAILURE;
 }
 

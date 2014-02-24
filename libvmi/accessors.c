@@ -35,13 +35,7 @@ page_mode_t
 vmi_get_page_mode(
     vmi_instance_t vmi)
 {
-    if(vmi->page_mode == VMI_PM_UNKNOWN) {
-        page_mode_t ret=VMI_PM_UNKNOWN;
-        get_memory_layout(vmi, &ret, NULL, NULL, NULL);
-        return ret;
-    } else {
-        return vmi->page_mode;
-    }
+    return vmi->page_mode;
 }
 
 uint8_t vmi_get_address_width(
@@ -231,4 +225,233 @@ vmi_get_vmid(
     }
 
     return domid;
+}
+
+/* convert a kernel symbol into an address */
+addr_t vmi_translate_ksym2v (vmi_instance_t vmi, const char *symbol)
+{
+    status_t status = VMI_FAILURE;
+    addr_t base_vaddr = 0;
+    addr_t address = 0;
+
+    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, 0, symbol, &address)) {
+
+        if (vmi->os_interface && vmi->os_interface->os_ksym2v) {
+            status = vmi->os_interface->os_ksym2v(vmi, symbol, &base_vaddr,
+                    &address);
+            if (status == VMI_SUCCESS) {
+                sym_cache_set(vmi, base_vaddr, 0, symbol, address);
+            }
+        }
+    }
+
+    return address;
+}
+
+/* convert a symbol into an address */
+addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, char *symbol)
+{
+    status_t status = VMI_FAILURE;
+    addr_t rva = 0;
+    addr_t address = 0;
+
+    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, pid, symbol, &address)) {
+
+        if (vmi->os_interface && vmi->os_interface->os_usym2rva) {
+            status  = vmi->os_interface->os_usym2rva(vmi, base_vaddr, pid, symbol, &rva);
+            if (status == VMI_SUCCESS) {
+                address = base_vaddr + rva;
+                sym_cache_set(vmi, base_vaddr, pid, symbol, address);
+            }
+        }
+    }
+
+    return address;
+}
+
+/* convert an RVA into a symbol */
+const char* vmi_translate_v2sym(vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, addr_t rva)
+{
+    char *ret = NULL;
+
+    if (VMI_FAILURE == rva_cache_get(vmi, base_vaddr, pid, rva, &ret)) {
+        if (vmi->os_interface && vmi->os_interface->os_rva2sym) {
+            ret = vmi->os_interface->os_rva2sym(vmi, rva, base_vaddr, pid);
+        }
+
+        if (ret) {
+            rva_cache_set(vmi, base_vaddr, pid, rva, ret);
+        }
+    }
+
+    return ret;
+}
+
+/* finds the address of the page global directory for a given pid */
+addr_t vmi_pid_to_dtb (vmi_instance_t vmi, vmi_pid_t pid)
+{
+    addr_t dtb = 0;
+
+    if (VMI_FAILURE == pid_cache_get(vmi, pid, &dtb)) {
+        if (vmi->os_interface && vmi->os_interface->os_pid_to_pgd) {
+            dtb = vmi->os_interface->os_pid_to_pgd(vmi, pid);
+        }
+
+        if (dtb) {
+            pid_cache_set(vmi, pid, dtb);
+        }
+    }
+
+    return dtb;
+}
+
+/* finds the pid for a given dtb */
+vmi_pid_t vmi_dtb_to_pid (vmi_instance_t vmi, addr_t dtb)
+{
+    vmi_pid_t pid = -1;
+
+    if (vmi->os_interface && vmi->os_interface->os_pgd_to_pid) {
+        pid = vmi->os_interface->os_pgd_to_pid(vmi, dtb);
+    }
+
+    return pid;
+}
+
+void *
+vmi_read_page (vmi_instance_t vmi, addr_t frame_num)
+{
+    if (!frame_num) {
+        return NULL ;
+    }
+    else {
+        return driver_read_page(vmi, frame_num);
+    }
+}
+
+GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb) {
+    if(vmi->arch_interface && vmi->arch_interface->get_va_pages) {
+        return vmi->arch_interface->get_va_pages(vmi, dtb);
+    } else {
+        errprint("Invalid or not supported paging mode during get_va_pages\n");
+        return NULL;
+    }
+}
+
+addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
+{
+
+    page_info_t info = {0};
+
+    /* check if entry exists in the cachec */
+    if (VMI_SUCCESS == v2p_cache_get(vmi, vaddr, dtb, &info.paddr)) {
+
+        /* verify that address is still valid */
+        uint8_t value = 0;
+
+        if (VMI_SUCCESS == vmi_read_8_pa(vmi, info.paddr, &value)) {
+            return info.paddr;
+        }
+        else {
+            v2p_cache_del(vmi, vaddr, dtb);
+        }
+    }
+
+    if(vmi->arch_interface && vmi->arch_interface->v2p) {
+        vmi->arch_interface->v2p(vmi, dtb, vaddr, &info);
+    } else {
+        errprint("Arch interface not initialized, can't use vmi_pagetable_lookup!\n");
+    }
+
+    /* add this to the cache */
+    if (info.paddr) {
+        v2p_cache_set(vmi, vaddr, dtb, info.paddr);
+    }
+    return info.paddr;
+}
+
+status_t vmi_pagetable_lookup_extended(
+    vmi_instance_t vmi,
+    addr_t dtb,
+    addr_t vaddr,
+    page_info_t *info)
+{
+    status_t ret = VMI_FAILURE;
+
+    if(!info) return ret;
+
+    memset(info, 0, sizeof(page_info_t));
+    info->vaddr = vaddr;
+    info->dtb = dtb;
+
+    if(vmi->arch_interface && vmi->arch_interface->v2p) {
+        vmi->arch_interface->v2p(vmi, dtb, vaddr, info);
+    } else {
+        errprint("Invalid paging mode during vmi_pagetable_lookup\n");
+    }
+
+    if(info->paddr) {
+        ret = VMI_SUCCESS;
+    }
+
+    return ret;
+}
+
+/* expose virtual to physical mapping for kernel space via api call */
+addr_t vmi_translate_kv2p (vmi_instance_t vmi, addr_t virt_address)
+{
+    reg_t cr3 = 0;
+
+    if (vmi->kpgd) {
+        cr3 = vmi->kpgd;
+    }
+    else {
+        driver_get_vcpureg(vmi, &cr3, CR3, 0);
+    }
+    if (!cr3) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because cr3 is zero\n");
+        return 0;
+    }
+    else {
+        return vmi_pagetable_lookup(vmi, cr3, virt_address);
+    }
+}
+
+/* expose virtual to physical mapping for user space via api call */
+addr_t vmi_translate_uv2p_nocache (vmi_instance_t vmi, addr_t virt_address,
+        vmi_pid_t pid)
+{
+    addr_t dtb = vmi_pid_to_dtb(vmi, pid);
+
+    if (!dtb) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because dtb is zero\n");
+        return 0;
+    }
+    else {
+        addr_t rtnval = vmi_pagetable_lookup(vmi, dtb, virt_address);
+
+        if (!rtnval) {
+            pid_cache_del(vmi, pid);
+        }
+        return rtnval;
+    }
+}
+
+addr_t vmi_translate_uv2p (vmi_instance_t vmi, addr_t virt_address, vmi_pid_t pid)
+{
+    addr_t dtb = vmi_pid_to_dtb(vmi, pid);
+
+    if (!dtb) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because dtb is zero\n");
+        return 0;
+    }
+    else {
+        addr_t rtnval = vmi_pagetable_lookup(vmi, dtb, virt_address);
+
+        if (!rtnval) {
+            if (VMI_SUCCESS == pid_cache_del(vmi, pid)) {
+                return vmi_translate_uv2p_nocache(vmi, virt_address, pid);
+            }
+        }
+        return rtnval;
+    }
 }

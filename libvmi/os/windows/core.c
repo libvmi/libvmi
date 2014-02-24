@@ -87,34 +87,42 @@ find_page_mode(
     vmi_instance_t vmi)
 {
 
+    status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
 
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_LEGACY\n");
     vmi->page_mode = VMI_PM_LEGACY;
 
-    if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
-        goto found_pm;
+    if (VMI_SUCCESS == arch_init(vmi)) {
+        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+            goto found_pm;
+        }
     }
-    v2p_cache_flush(vmi);
 
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_PAE\n");
     vmi->page_mode = VMI_PM_PAE;
-    if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
-        goto found_pm;
+
+    if (VMI_SUCCESS == arch_init(vmi)) {
+        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+            goto found_pm;
+        }
     }
-    v2p_cache_flush(vmi);
 
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_IA32E\n");
     vmi->page_mode = VMI_PM_IA32E;
-    if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
-        goto found_pm;
+
+    if (VMI_SUCCESS == arch_init(vmi)) {
+        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+            goto found_pm;
+        }
     }
 
-    v2p_cache_flush(vmi);
-    return VMI_FAILURE;
+    goto done;
 
-found_pm:
-    return VMI_SUCCESS;
+    found_pm:
+        ret = VMI_SUCCESS;
+
+    done: return ret;
 }
 
 /* Tries to find the kernel page directory by doing an exhaustive search
