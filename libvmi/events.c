@@ -779,6 +779,19 @@ done:
     return rc;
 }
 
+int vmi_are_events_pending(vmi_instance_t vmi)
+{
+
+    if (!(vmi->init_mode & VMI_INIT_EVENTS))
+    {
+        return -1;
+    }
+
+    return driver_are_events_pending(vmi);
+
+}
+
+
 status_t vmi_events_listen(vmi_instance_t vmi, uint32_t timeout)
 {
 

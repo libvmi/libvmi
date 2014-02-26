@@ -109,6 +109,8 @@ size_t driver_get_dgvma(
 status_t driver_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout);
+int driver_are_events_pending(
+    vmi_instance_t vmi);
 status_t driver_set_mem_access(
     vmi_instance_t vmi,
     mem_event_t event,

@@ -1867,6 +1867,9 @@ status_t vmi_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout);
 
+int vmi_are_events_pending(
+    vmi_instance_t vmi);
+
 /**
  * Return the pointer to the vmi_event_t if one is set on the given vcpu.
  *
