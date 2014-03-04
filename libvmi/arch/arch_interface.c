@@ -48,6 +48,9 @@ status_t arch_init(vmi_instance_t vmi) {
         case VMI_PM_IA32E:
             ret = amd64_init(vmi);
             break;
+        case VMI_PM_AARCH32:
+            ret = aarch32_init(vmi);
+            break;
         case VMI_PM_UNKNOWN: /* fallthrough */
         default:
             ret = VMI_FAILURE;

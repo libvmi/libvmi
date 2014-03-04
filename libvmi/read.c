@@ -267,6 +267,7 @@ vmi_read_addr(
         case VMI_PM_IA32E:
             ret = vmi_read_X(vmi, ctx, value, 8);
             break;
+        case VMI_PM_AARCH32:// intentional fall-through
         case VMI_PM_LEGACY: // intentional fall-through
         case VMI_PM_PAE: {
             uint32_t tmp = 0;
@@ -436,6 +437,7 @@ vmi_read_addr_pa(
         case VMI_PM_IA32E:
             ret = vmi_read_X_pa(vmi, paddr, value, 8);
             break;
+        case VMI_PM_AARCH32:// intentional fall-through
         case VMI_PM_LEGACY: // intentional fall-through
         case VMI_PM_PAE: {
             uint32_t tmp = 0;
@@ -539,6 +541,7 @@ vmi_read_addr_va(
         case VMI_PM_IA32E:
             ret = vmi_read_X_va(vmi, vaddr, pid, value, 8);
             break;
+        case VMI_PM_AARCH32:// intentional fall-through
         case VMI_PM_LEGACY: // intentional fall-through
         case VMI_PM_PAE: {
             uint32_t tmp = 0;
@@ -648,6 +651,7 @@ vmi_read_addr_ksym(
         case VMI_PM_IA32E:
             ret = vmi_read_X_ksym(vmi, sym, value, 8);
             break;
+        case VMI_PM_AARCH32:// intentional fall-through
         case VMI_PM_LEGACY: // intentional fall-through
         case VMI_PM_PAE: {
             uint32_t tmp = 0;

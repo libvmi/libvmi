@@ -7,6 +7,7 @@ h_private = \
     arch/arch_interface.h \
     arch/intel.h \
     arch/amd64.h \
+    arch/arm_aarch32.h \
     os/os_interface.h \
     driver/driver_interface.h \
     driver/driver_wrapper.h \
@@ -26,6 +27,7 @@ c_sources = \
     arch/arch_interface.c \
     arch/intel.c \
     arch/amd64.c \
+    arch/arm_aarch32.c \
     driver/driver_interface.c \
     driver/memory_cache.c \
     os/os_interface.c

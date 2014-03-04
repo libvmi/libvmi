@@ -33,7 +33,8 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
         vmi_instance_t vmi);
 
 status_t linux_init(vmi_instance_t vmi) {
-    status_t ret = VMI_FAILURE;
+
+    status_t rc;
     os_interface_t os_interface = NULL;
 
     if (vmi->config == NULL) {
@@ -61,8 +62,8 @@ status_t linux_init(vmi_instance_t vmi) {
         linux_system_map_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
         linux_system_map_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
     } else if (vmi->page_mode == VMI_PM_UNKNOWN) {
-        ret = linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
-        if(VMI_SUCCESS == ret) {
+        rc = linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
+        if(VMI_SUCCESS == rc) {
             linux_system_map_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
             vmi->page_mode = VMI_PM_IA32E;
         } else {
@@ -74,16 +75,17 @@ status_t linux_init(vmi_instance_t vmi) {
 
     if(phys_start && virt_start && phys_start < virt_start) {
         boundary = virt_start - phys_start;
-    } else {
-        // Just guess the boundary
-        boundary = 0xc0000000UL;
+        linux_instance->kernel_boundary = boundary;
+        dbprint(VMI_DEBUG_MISC, "--got kernel boundary (0x%.16"PRIx64").\n", boundary);
     }
 
-    linux_instance->kernel_boundary = boundary;
-    dbprint(VMI_DEBUG_MISC, "--got kernel boundary (0x%.16"PRIx64").\n", boundary);
+#if defined(ARM)
+    rc = driver_get_vcpureg(vmi, &vmi->kpgd, TTBR1, 0);
+#elif defined(I386) || defined(X86_64)
+    rc = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);
+#endif
 
-    if(VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
-
+    if(VMI_FAILURE == rc) {
         if (VMI_SUCCESS == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL, &vmi->kpgd)) {
             dbprint(VMI_DEBUG_MISC, "--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
                     vmi->kpgd);
@@ -102,6 +104,13 @@ status_t linux_init(vmi_instance_t vmi) {
     }
 
     dbprint(VMI_DEBUG_MISC, "**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
+
+    rc = linux_system_map_symbol_to_address(vmi, "init_task", NULL,
+            &vmi->init_task);
+    if (VMI_FAILURE == rc) {
+        errprint("Could not get init_task from System.map\n");
+        goto _exit;
+    }
 
     // We check if the page mode is known
     // and if no arch interface has been setup yet we do it now
@@ -124,6 +133,14 @@ status_t linux_init(vmi_instance_t vmi) {
             }
         }
 
+        vmi->page_mode = VMI_PM_AARCH32;
+        if(VMI_SUCCESS == arch_init(vmi)) {
+            if(vmi_pagetable_lookup(vmi, vmi->kpgd, vmi->init_task)) {
+                // PM found
+                goto done;
+            }
+        }
+
         errprint("VMI_ERROR: Page mode is still unknown\n");
         goto _exit;
     }
@@ -135,18 +152,6 @@ status_t linux_init(vmi_instance_t vmi) {
     }
 
 done:
-    ret = linux_system_map_symbol_to_address(vmi, "init_task", NULL,
-            &vmi->init_task);
-    if (ret != VMI_SUCCESS) {
-        errprint("Could not get init_task from System.map\n");
-        goto _exit;
-    }
-
-    if(!vmi_pagetable_lookup(vmi, vmi->kpgd, vmi->init_task)) {
-        errprint("Failed to translate init_task VA using the kpgd!\n");
-        goto _exit;
-    }
-
     os_interface = safe_malloc(sizeof(struct os_interface));
     bzero(os_interface, sizeof(struct os_interface));
     os_interface->os_get_offset = linux_get_offset;

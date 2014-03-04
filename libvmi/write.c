@@ -240,6 +240,7 @@ vmi_write_addr(
     switch(vmi->page_mode) {
         case VMI_PM_IA32E:
             return vmi_write_X(vmi, ctx, value, 8);
+        case VMI_PM_AARCH32:// intentional fall-through
         case VMI_PM_LEGACY: // intentional fall-through
         case VMI_PM_PAE:
             return vmi_write_X(vmi, ctx, value, 4);

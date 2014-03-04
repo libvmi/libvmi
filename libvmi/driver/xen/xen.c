@@ -414,6 +414,7 @@ xen_get_memory_pfn(
     addr_t pfn,
     int prot)
 {
+
     void *memory = xc_map_foreign_range(xen_get_xchandle(vmi),
                                         xen_get_instance(vmi)->domainid,
                                         XC_PAGE_SIZE,
@@ -423,6 +424,8 @@ xen_get_memory_pfn(
     if (MAP_FAILED == memory || NULL == memory) {
         dbprint(VMI_DEBUG_XEN, "--xen_get_memory_pfn failed on pfn=0x%"PRIx64"\n", pfn);
         return NULL;
+    } else {
+        dbprint(VMI_DEBUG_XEN, "--xen_get_memory_pfn success on pfn=0x%"PRIx64"\n", pfn);
     }
 
 #ifdef VMI_DEBUG
@@ -661,10 +664,17 @@ _done:
     return ret;
 }
 
-static status_t
+status_t
 xen_discover_guest_addr_width(
     vmi_instance_t vmi)
 {
+#if defined(ARM)
+
+    xen_get_instance(vmi)->addr_width = 4;
+    return VMI_SUCCESS;
+
+#elif defined(I386) || defined(X86_64)
+
     int rc;
     status_t ret = VMI_FAILURE;
 
@@ -727,6 +737,7 @@ xen_discover_guest_addr_width(
 
 _bail:
     return ret;
+#endif
 }
 
 /**
@@ -942,6 +953,7 @@ xen_get_memsize(
     return ret;
 }
 
+#if defined(I386) || defined(X86_64)
 static status_t
 xen_get_vcpureg_hvm(
     vmi_instance_t vmi,
@@ -2049,6 +2061,307 @@ xen_set_vcpureg_pv32(
 _bail:
     return ret;
 }
+#endif
+
+#if defined(ARM)
+static status_t
+xen_get_vcpureg_arm(
+    vmi_instance_t vmi,
+    reg_t *value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    status_t ret = VMI_SUCCESS;
+    vcpu_guest_context_any_t ctx = { 0 };
+    xen_domctl_t domctl = { 0 };
+
+    if (xc_vcpu_getcontext
+        (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
+        errprint("Failed to get context information (ARM domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    switch (reg) {
+    case SCTLR:
+        *value = ctx.c.sctlr;
+        break;
+    case TTBCR:
+        *value = ctx.c.ttbcr;
+        break;
+    case TTBR0:
+        *value = ctx.c.ttbr0;
+        break;
+    case TTBR1:
+        *value = ctx.c.ttbr1;
+        break;
+    case R0_USR:
+        *value = ctx.c.user_regs.r0_usr;
+        break;
+    case R1_USR:
+        *value = ctx.c.user_regs.r1_usr;
+        break;
+    case R2_USR:
+        *value = ctx.c.user_regs.r2_usr;
+        break;
+    case R3_USR:
+        *value = ctx.c.user_regs.r3_usr;
+        break;
+    case R4_USR:
+        *value = ctx.c.user_regs.r4_usr;
+        break;
+    case R5_USR:
+        *value = ctx.c.user_regs.r5_usr;
+        break;
+    case R6_USR:
+        *value = ctx.c.user_regs.r6_usr;
+        break;
+    case R7_USR:
+        *value = ctx.c.user_regs.r7_usr;
+        break;
+    case R8_USR:
+        *value = ctx.c.user_regs.r8_usr;
+        break;
+    case R9_USR:
+        *value = ctx.c.user_regs.r9_usr;
+        break;
+    case R10_USR:
+        *value = ctx.c.user_regs.r10_usr;
+        break;
+    case R11_USR:
+        *value = ctx.c.user_regs.r11_usr;
+        break;
+    case R12_USR:
+        *value = ctx.c.user_regs.r12_usr;
+        break;
+    case SP_USR:
+        *value = ctx.c.user_regs.sp_usr;
+        break;
+    case LR_USR:
+        *value = ctx.c.user_regs.lr_usr;
+        break;
+    case LR_IRQ:
+        *value = ctx.c.user_regs.lr_irq;
+        break;
+    case SP_IRQ:
+        *value = ctx.c.user_regs.sp_irq;
+        break;
+    case LR_SVC:
+        *value = ctx.c.user_regs.lr_svc;
+        break;
+    case SP_SVC:
+        *value = ctx.c.user_regs.sp_svc;
+        break;
+    case LR_ABT:
+        *value = ctx.c.user_regs.lr_abt;
+        break;
+    case SP_ABT:
+        *value = ctx.c.user_regs.sp_abt;
+        break;
+    case LR_UND:
+        *value = ctx.c.user_regs.lr_und;
+        break;
+    case SP_UND:
+        *value = ctx.c.user_regs.sp_und;
+        break;
+    case R8_FIQ:
+        *value = ctx.c.user_regs.r8_fiq;
+        break;
+    case R9_FIQ:
+        *value = ctx.c.user_regs.r9_fiq;
+        break;
+    case R10_FIQ:
+        *value = ctx.c.user_regs.r10_fiq;
+        break;
+    case R11_FIQ:
+        *value = ctx.c.user_regs.r11_fiq;
+        break;
+    case R12_FIQ:
+        *value = ctx.c.user_regs.r12_fiq;
+        break;
+    case SP_FIQ:
+        *value = ctx.c.user_regs.sp_fiq;
+        break;
+    case LR_FIQ:
+        *value = ctx.c.user_regs.lr_fiq;
+        break;
+    case SPSR_SVC:
+        *value = ctx.c.user_regs.spsr_svc;
+        break;
+    case SPSR_FIQ:
+        *value = ctx.c.user_regs.spsr_fiq;
+        break;
+    case SPSR_IRQ:
+        *value = ctx.c.user_regs.spsr_irq;
+        break;
+    case SPSR_UND:
+        *value = ctx.c.user_regs.spsr_und;
+        break;
+    case SPSR_ABT:
+        *value = ctx.c.user_regs.spsr_abt;
+        break;
+    default:
+        ret = VMI_FAILURE;
+        break;
+    }
+
+_bail:
+    return ret;
+}
+
+static status_t
+xen_set_vcpureg_arm(
+    vmi_instance_t vmi,
+    reg_t value,
+    registers_t reg,
+    unsigned long vcpu)
+{
+    status_t ret = VMI_SUCCESS;
+    vcpu_guest_context_any_t ctx = { 0 };
+    xen_domctl_t domctl = { 0 };
+
+    if (xc_vcpu_getcontext
+        (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
+        errprint("Failed to get context information (ARM domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    switch (reg) {
+    case SCTLR:
+        ctx.c.sctlr = value;
+        break;
+    case TTBCR:
+        ctx.c.ttbcr = value;
+        break;
+    case TTBR0:
+        ctx.c.ttbr0 = value;
+        break;
+    case TTBR1:
+        ctx.c.ttbr1 = value;
+        break;
+    case R0_USR:
+        ctx.c.user_regs.r0_usr = value;
+        break;
+    case R1_USR:
+        ctx.c.user_regs.r1_usr = value;
+        break;
+    case R2_USR:
+        ctx.c.user_regs.r2_usr = value;
+        break;
+    case R3_USR:
+        ctx.c.user_regs.r3_usr = value;
+        break;
+    case R4_USR:
+        ctx.c.user_regs.r4_usr = value;
+        break;
+    case R5_USR:
+        ctx.c.user_regs.r5_usr = value;
+        break;
+    case R6_USR:
+        ctx.c.user_regs.r6_usr = value;
+        break;
+    case R7_USR:
+        ctx.c.user_regs.r7_usr = value;
+        break;
+    case R8_USR:
+        ctx.c.user_regs.r8_usr = value;
+        break;
+    case R9_USR:
+        ctx.c.user_regs.r9_usr = value;
+        break;
+    case R10_USR:
+        ctx.c.user_regs.r10_usr = value;
+        break;
+    case R11_USR:
+        ctx.c.user_regs.r11_usr = value;
+        break;
+    case R12_USR:
+        ctx.c.user_regs.r12_usr = value;
+        break;
+    case SP_USR:
+        ctx.c.user_regs.sp_usr = value;
+        break;
+    case LR_USR:
+        ctx.c.user_regs.lr_usr = value;
+        break;
+    case LR_IRQ:
+        ctx.c.user_regs.lr_irq = value;
+        break;
+    case SP_IRQ:
+        ctx.c.user_regs.sp_irq = value;
+        break;
+    case LR_SVC:
+        ctx.c.user_regs.lr_svc = value;
+        break;
+    case SP_SVC:
+        ctx.c.user_regs.sp_svc = value;
+        break;
+    case LR_ABT:
+        ctx.c.user_regs.lr_abt = value;
+        break;
+    case SP_ABT:
+        ctx.c.user_regs.sp_abt = value;
+        break;
+    case LR_UND:
+        ctx.c.user_regs.lr_und = value;
+        break;
+    case SP_UND:
+        ctx.c.user_regs.sp_und = value;
+        break;
+    case R8_FIQ:
+        ctx.c.user_regs.r8_fiq = value;
+        break;
+    case R9_FIQ:
+        ctx.c.user_regs.r9_fiq = value;
+        break;
+    case R10_FIQ:
+        ctx.c.user_regs.r10_fiq = value;
+        break;
+    case R11_FIQ:
+        ctx.c.user_regs.r11_fiq = value;
+        break;
+    case R12_FIQ:
+        ctx.c.user_regs.r12_fiq = value;
+        break;
+    case SP_FIQ:
+        ctx.c.user_regs.sp_fiq = value;
+        break;
+    case LR_FIQ:
+        ctx.c.user_regs.lr_fiq = value;
+        break;
+    case SPSR_SVC:
+        ctx.c.user_regs.spsr_svc = value;
+        break;
+    case SPSR_FIQ:
+        ctx.c.user_regs.spsr_fiq = value;
+        break;
+    case SPSR_IRQ:
+        ctx.c.user_regs.spsr_irq = value;
+        break;
+    case SPSR_UND:
+        ctx.c.user_regs.spsr_und = value;
+        break;
+    case SPSR_ABT:
+        ctx.c.user_regs.spsr_abt = value;
+        break;
+    default:
+        ret = VMI_FAILURE;
+        goto _bail;
+        break;
+    }
+
+    if (xc_vcpu_setcontext
+        (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
+        errprint("Failed to set context information (ARM domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+_bail:
+    return ret;
+}
+#endif
 
 status_t
 xen_get_vcpureg(
@@ -2057,6 +2370,9 @@ xen_get_vcpureg(
     registers_t reg,
     unsigned long vcpu)
 {
+#if defined(ARM)
+    return xen_get_vcpureg_arm(vmi, value, reg, vcpu);
+#elif defined(I386) || defined (X86_64)
     if (!xen_get_instance(vmi)->hvm) {
         if (8 == xen_get_instance(vmi)->addr_width) {
             return xen_get_vcpureg_pv64(vmi, value, reg, vcpu);
@@ -2067,6 +2383,7 @@ xen_get_vcpureg(
     }
 
     return xen_get_vcpureg_hvm(vmi, value, reg, vcpu);
+#endif
 }
 
 status_t
@@ -2076,6 +2393,10 @@ xen_set_vcpureg(
     registers_t reg,
     unsigned long vcpu)
 {
+
+#if defined(ARM)
+    return xen_set_vcpureg_arm(vmi, value, reg, vcpu);
+#elif defined(I386) || defined (X86_64)
     if (!xen_get_instance(vmi)->hvm) {
         if (8 == xen_get_instance(vmi)->addr_width) {
             return xen_set_vcpureg_pv64(vmi, value, reg, vcpu);
@@ -2085,6 +2406,7 @@ xen_set_vcpureg(
     }
 
     return xen_set_vcpureg_hvm (vmi, value, reg, vcpu);
+#endif
 }
 
 status_t
