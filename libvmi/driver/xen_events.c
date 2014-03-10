@@ -718,6 +718,7 @@ status_t xen_events_init(vmi_instance_t vmi)
     xen_event_ring_lock_init(&xe->mem_event);
 
     /* Initialize the shared pages and enable mem events */
+    int tries = 0;
 #ifdef XENEVENT42
     // Initialise shared page
     xc_get_hvm_param(xch, dom, HVM_PARAM_ACCESS_RING_PFN, &ring_pfn);
@@ -746,8 +747,14 @@ status_t xen_events_init(vmi_instance_t vmi)
             goto err;
         }
     }
-
+enable:
     rc = xc_mem_access_enable(xch, dom, &(xe->mem_event.evtchn_port));
+    goto enable_done;
+
+reinit:
+    tries++;
+    xc_mem_access_disable(xch, dom);
+    goto enable;
 #elif XENEVENT41
     rc = posix_memalign((void**)&xe->mem_event.ring_page, getpagesize(),
             getpagesize());
@@ -779,15 +786,27 @@ status_t xen_events_init(vmi_instance_t vmi)
         goto err;
     }
 
+enable:
     rc = xc_mem_event_enable(xch, dom, xe->mem_event.shared_page,
                                  xe->mem_event.ring_page);
+    goto enable_done;
+
+reinit:
+    tries++;
+    xc_mem_event_disable(xch, dom);
+    goto enable;
 #endif
 
+enable_done:
     if ( rc != 0 )
     {
         switch ( errno ) {
             case EBUSY:
                 errprint("events are (or were) active on this domain\n");
+                if(!tries) {
+                    errprint("trying to disable and re-enable events\n");
+                    goto reinit;
+                }
                 break;
             case ENODEV:
                 errprint("EPT not supported for this guest\n");
