@@ -27,6 +27,8 @@
 struct linux_instance {
     char *sysmap;           /**< system map file for domain's running kernel */
 
+    uint64_t kernel_boundary; /**< the VA where the kernel is mapped */
+
     uint64_t tasks_offset; /**< task_struct->tasks */
 
     uint64_t mm_offset; /**< task_struct->mm */
