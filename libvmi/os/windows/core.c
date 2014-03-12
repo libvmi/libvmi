@@ -363,6 +363,16 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
+    if (strncmp(key, "win_kpcr", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->kpcr_offset = *(addr_t *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "win_kdbg", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->kdbg_offset = *(addr_t *)value;
+        goto _done;
+    }
+
     if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0 || strncmp(key, "os_type", CONFIG_STR_LENGTH) == 0) {
         goto _done;
     }

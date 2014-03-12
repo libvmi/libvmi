@@ -28,7 +28,9 @@ struct windows_instance {
 
     addr_t ntoskrnl_va; /**< base virt address for ntoskrnl image */
 
-    addr_t kdversion_block; /**< kernel virtual address for start of KdVersionBlock structure */
+    addr_t kdversion_block; /**< Kernel VA of the KdVersionBlock structure */
+
+    addr_t kernel_boundary; /**< VA of kernel boundary */
 
     addr_t sysproc; /**< physical address for the system process */
 
@@ -37,6 +39,10 @@ struct windows_instance {
     uint64_t pdbase_offset; /**< EPROCESS->Pcb.DirectoryTableBase */
 
     uint64_t pid_offset; /**< EPROCESS->UniqueProcessId */
+
+    uint64_t kpcr_offset; /**< KiInitialPCR (KernelBase->_KPCR) */
+
+    uint64_t kdbg_offset; /**< KdDebuggerDataBlock (KernelBase->KdDebuggerDataBlock) */
 
     uint64_t pname_offset; /**< EPROCESS->ImageFileName */
 

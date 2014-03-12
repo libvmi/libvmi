@@ -280,6 +280,8 @@ int vmi_parse_config (const char *target_name)
 %token<str>    WIN_PH
 %token<str>    WIN_PNAME
 %token<str>    WIN_KDVB
+%token<str>    WIN_KDBG
+%token<str>    WIN_KPCR
 %token<str>    WIN_SYSPROC
 %token<str>    SYSMAPTOK
 %token<str>    OSTYPETOK
@@ -347,6 +349,10 @@ assignment:
         win_pname_assignment
         |
         win_kdvb_assignment
+        |
+        win_kdbg_assignment
+        |
+        win_kpcr_assignment
         |
         win_sysproc_assignment
         ;
@@ -503,6 +509,28 @@ win_pname_assignment:
 
 win_kdvb_assignment:
         WIN_KDVB EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+
+win_kdbg_assignment:
+        WIN_KDBG EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+
+win_kpcr_assignment:
+        WIN_KPCR EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
             uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
