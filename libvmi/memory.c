@@ -75,9 +75,9 @@ uint64_t get_pml4e (vmi_instance_t vmi,
 }
 
 /* page directory pointer table */
-uint32_t get_pdptb (uint32_t pdpr)
+uint64_t get_pdptb (uint64_t pdpr)
 {
-    return pdpr & 0xFFFFFFE0;
+    return pdpr & 0xFFFFFFFFFFFFFFE0;
 }
 
 uint32_t pdpi_index (uint32_t pdpi)
@@ -87,7 +87,7 @@ uint32_t pdpi_index (uint32_t pdpi)
 
 uint64_t get_pdpi (vmi_instance_t instance,
     uint32_t vaddr,
-    uint32_t cr3,
+    addr_t cr3,
     addr_t *pdpi_entry)
 {
     uint64_t value;
