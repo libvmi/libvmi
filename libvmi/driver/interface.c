@@ -33,130 +33,100 @@
 #include <string.h>
 
 struct driver_instance {
-    status_t (
-    *init_ptr) (
-    vmi_instance_t);
-    void (
-    *destroy_ptr) (
-    vmi_instance_t);
-    unsigned long (
-    *get_id_from_name_ptr) (
-    vmi_instance_t,
-    char *);
-    status_t (
-    *get_name_from_id_ptr) (
-    vmi_instance_t,
-    unsigned long,
-    char **);
-    unsigned long (
-    *get_id_ptr) (
-    vmi_instance_t);
-    void (
-    *set_id_ptr) (
-    vmi_instance_t,
-    unsigned long);
-    status_t (
-    *check_id_ptr) (
-    vmi_instance_t,
-    unsigned long);
-    status_t (
-    *get_name_ptr) (
-    vmi_instance_t,
-    char **);
-    void (
-    *set_name_ptr) (
-    vmi_instance_t,
-    char *);
-    status_t (
-    *get_memsize_ptr) (
-    vmi_instance_t,
-    uint64_t *);
-    status_t (
-    *get_vcpureg_ptr) (
-    vmi_instance_t,
-    reg_t *,
-    registers_t,
-    unsigned long);
-    status_t(
-    *set_vcpureg_ptr) (
-    vmi_instance_t,
-    reg_t,
-    registers_t,
-    unsigned long);
-    status_t (
-    *get_address_width_ptr) (
-    vmi_instance_t vmi,
-    uint8_t * width);
-    void *(
-    *read_page_ptr) (
-    vmi_instance_t,
-    addr_t);
-    status_t (
-    *write_ptr) (
-    vmi_instance_t,
-    addr_t,
-    void *,
-    uint32_t);
-    int (
-    *is_pv_ptr) (
-    vmi_instance_t);
-    status_t (
-    *pause_vm_ptr) (
-    vmi_instance_t);
-    status_t (
-    *resume_vm_ptr) (
-    vmi_instance_t);
-    status_t (
-    *create_shm_snapshot_ptr) (
-    vmi_instance_t);
-    status_t (
-    *destroy_shm_snapshot_ptr) (
-    vmi_instance_t);
-    size_t (
-    *get_dgpma_ptr) (
-    vmi_instance_t ,
-    addr_t,
-    void **,
-    size_t);
-    size_t (
-    *get_dgvma_ptr) (
-    vmi_instance_t,
-    addr_t,
-    pid_t,
-    void**,
-    size_t);
-    status_t (
-    *events_listen_ptr)(
-    vmi_instance_t,
-    uint32_t);
-    int (
-    *are_events_pending_ptr)(
-    vmi_instance_t);
-    status_t (
-    *set_reg_access_ptr)(
-    vmi_instance_t,
-    reg_event_t);
-    status_t (
-    *set_intr_access_ptr)(
-    vmi_instance_t,
-    interrupt_event_t,
-    uint8_t enabled);
-    status_t (
-    *set_mem_access_ptr)(
-    vmi_instance_t,
-    mem_event_t,
-    vmi_mem_access_t);
-    status_t (
-    *start_single_step_ptr)(
-    vmi_instance_t,
-    single_step_event_t);
-    status_t (
-    *stop_single_step_ptr)(
-    vmi_instance_t,
-    uint32_t);
-    status_t (
-    *shutdown_single_step_ptr)(
-    vmi_instance_t);
+    status_t (*init_ptr) (
+        vmi_instance_t);
+    void (*destroy_ptr) (
+        vmi_instance_t);
+    unsigned long (*get_id_from_name_ptr) (
+        vmi_instance_t,
+        char *);
+    status_t (*get_name_from_id_ptr) (
+        vmi_instance_t,
+        unsigned long,
+        char **);
+    unsigned long (*get_id_ptr) (
+        vmi_instance_t);
+    void (*set_id_ptr) (
+        vmi_instance_t,
+        unsigned long);
+    status_t (*check_id_ptr) (
+        vmi_instance_t,
+        unsigned long);
+    status_t (*get_name_ptr) (
+        vmi_instance_t,
+        char **);
+    void (*set_name_ptr) (
+        vmi_instance_t,
+        char *);
+    status_t (*get_memsize_ptr) (
+        vmi_instance_t,
+        uint64_t *);
+    status_t (*get_vcpureg_ptr) (
+        vmi_instance_t,
+        reg_t *,
+        registers_t,
+        unsigned long);
+    status_t(*set_vcpureg_ptr) (
+        vmi_instance_t,
+        reg_t,
+        registers_t,
+        unsigned long);
+    status_t (*get_address_width_ptr) (
+        vmi_instance_t vmi,
+        uint8_t * width);
+    void *(*read_page_ptr) (
+        vmi_instance_t,
+        addr_t);
+    status_t (*write_ptr) (
+        vmi_instance_t,
+        addr_t,
+        void *,
+        uint32_t);
+    int (*is_pv_ptr) (
+        vmi_instance_t);
+    status_t (*pause_vm_ptr) (
+        vmi_instance_t);
+    status_t (*resume_vm_ptr) (
+        vmi_instance_t);
+    status_t (*create_shm_snapshot_ptr) (
+        vmi_instance_t);
+    status_t (*destroy_shm_snapshot_ptr) (
+        vmi_instance_t);
+    size_t (*get_dgpma_ptr) (
+        vmi_instance_t,
+        addr_t,
+        void **,
+        size_t);
+    size_t (*get_dgvma_ptr) (
+        vmi_instance_t,
+        addr_t,
+        pid_t,
+        void**,
+        size_t);
+    status_t (*events_listen_ptr)(
+        vmi_instance_t,
+        uint32_t);
+    int (*are_events_pending_ptr)(
+        vmi_instance_t);
+    status_t (*set_reg_access_ptr)(
+        vmi_instance_t,
+        reg_event_t);
+    status_t (*set_intr_access_ptr)(
+        vmi_instance_t,
+        interrupt_event_t,
+        uint8_t enabled);
+    status_t (*set_mem_access_ptr)(
+        vmi_instance_t,
+        mem_event_t,
+        vmi_mem_access_t);
+    status_t (*start_single_step_ptr)(
+        vmi_instance_t,
+        single_step_event_t);
+    status_t (*stop_single_step_ptr)(
+        vmi_instance_t,
+        uint32_t);
+    status_t (*shutdown_single_step_ptr)(
+        vmi_instance_t);
 };
 typedef struct driver_instance *driver_instance_t;
 

@@ -69,9 +69,6 @@ status_t driver_set_vcpureg(
     reg_t value,
     registers_t reg,
     unsigned long vcpu);
-status_t xen_get_address_width(
-    vmi_instance_t vmi,
-    uint8_t * width);
 void *driver_read_page(
     vmi_instance_t vmi,
     addr_t page);
