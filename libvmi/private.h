@@ -41,6 +41,7 @@
 #include <inttypes.h>
 #include "debug.h"
 #include "libvmi.h"
+#include "libvmi_extra.h"
 #include "os/os_interface.h"
 
 /**
@@ -152,12 +153,6 @@ typedef struct step_and_reg_event_wrapper {
     uint64_t steps;
     event_callback_t cb;
 } step_and_reg_event_wrapper_t;
-
-/** structure to hold virtual address and page size during get_va_pages */
-struct va_page {
-    addr_t va;
-    page_size_t size;
-};
 
 /** Windows' UNICODE_STRING structure (x86) */
 typedef struct _windows_unicode_string32 {
@@ -317,9 +312,6 @@ typedef struct _windows_unicode_string32 {
     void *vmi_read_page(
     vmi_instance_t vmi,
     addr_t frame_num);
-    GSList* get_va_pages(
-    vmi_instance_t vmi,
-    addr_t dtb);
 
 /*-----------------------------------------
  * strmatch.c

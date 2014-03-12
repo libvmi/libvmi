@@ -811,7 +811,7 @@ find_kdversionblock_address_fast(
 
     status_t ret = VMI_FAILURE;
     addr_t memsize = vmi_get_memsize(vmi);
-    GSList *va_pages = get_va_pages(vmi, (addr_t)cr3);
+    GSList *va_pages = vmi_get_va_pages(vmi, (addr_t)cr3);
     size_t read = 0;
     void *bm = 0;   // boyer-moore internal state
     unsigned char haystack[VMI_PS_4KB];

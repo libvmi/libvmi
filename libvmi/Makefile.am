@@ -1,6 +1,6 @@
 SUBDIRS = config
 
-h_sources = libvmi.h peparse.h
+h_sources = libvmi.h libvmi_extra.h peparse.h
 c_sources = \
     accessors.c \
     cache.c \

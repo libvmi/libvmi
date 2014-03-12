@@ -697,7 +697,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
     return ret;
 }
 
-GSList* get_va_pages(vmi_instance_t vmi, addr_t dtb) {
+GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb) {
 
     GSList *ret = NULL;
 
