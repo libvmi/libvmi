@@ -129,6 +129,9 @@ struct driver_instance {
     *events_listen_ptr)(
     vmi_instance_t,
     uint32_t);
+    int (
+    *are_events_pending_ptr)(
+    vmi_instance_t);
     status_t (
     *set_reg_access_ptr)(
     vmi_instance_t,
@@ -196,6 +199,7 @@ driver_xen_setup(
 #endif
 #if ENABLE_XEN_EVENTS==1
     instance->events_listen_ptr = &xen_events_listen;
+    instance->are_events_pending_ptr = &xen_are_events_pending;
     instance->set_reg_access_ptr = &xen_set_reg_access;
     instance->set_intr_access_ptr = &xen_set_intr_access;
     instance->set_mem_access_ptr = &xen_set_mem_access;
@@ -204,6 +208,7 @@ driver_xen_setup(
     instance->shutdown_single_step_ptr = &xen_shutdown_single_step;
 #else
     instance->events_listen_ptr = NULL;
+    instance->are_events_pending_ptr = NULL;
     instance->set_reg_access_ptr = NULL;
     instance->set_mem_access_ptr = NULL;
     instance->start_single_step_ptr = NULL;
@@ -767,6 +772,19 @@ status_t driver_events_listen(
     }
     else{
         dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_events_listen function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+int driver_are_events_pending(
+    vmi_instance_t vmi)
+{
+    driver_instance_t ptrs = driver_get_instance(vmi);
+    if (NULL != ptrs && NULL != ptrs->are_events_pending_ptr){
+        return ptrs->are_events_pending_ptr(vmi);
+    }
+    else{
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_are_events_pending function not implemented.\n");
         return VMI_FAILURE;
     }
 }

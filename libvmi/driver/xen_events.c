@@ -198,7 +198,7 @@ static int put_mem_response(xen_mem_event_t *mem_event, mem_event_response_t *rs
     return 0;
 }
 
-static int resume_domain(vmi_instance_t vmi, mem_event_response_t *rsp)
+static int resume_domain(vmi_instance_t vmi)
 {
     xc_interface * xch;
     xen_events_t * xe;
@@ -223,13 +223,9 @@ static int resume_domain(vmi_instance_t vmi, mem_event_response_t *rsp)
         return -1;
     }
 
-    // Put the page info on the ring
-    ret = put_mem_response(&xe->mem_event, rsp);
-    if ( ret != 0 )
-        return ret;
-
-    // Tell Xen page is ready
-    ret = xc_mem_access_resume(xch, dom, rsp->gfn);
+    // Tell Xen we have finished processing the requests
+    // The last argument is actually ignored by Xen.
+    ret = xc_mem_access_resume(xch, dom, 0);
     ret = xc_evtchn_notify(xe->mem_event.xce_handle, xe->mem_event.port);
     return ret;
 }
@@ -533,7 +529,8 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
      *       the second violation on the other vCPU would not get delivered..
      */
 
-    errprint("Caught a memory event that had no handler registered in LibVMI\n");
+    errprint("Caught a memory event that had no handler registered in LibVMI @ GFN %"PRIu32" (0x%"PRIx64"), access: %u\n",
+        req.gfn, (req.gfn<<12) + req.offset, out_access);
 
 errdone:
     return VMI_FAILURE;
@@ -567,6 +564,7 @@ status_t process_single_step_event(vmi_instance_t vmi, mem_event_request_t req)
         return VMI_SUCCESS;
     }
 
+    errprint("%s error: no singlestep handler is registered in LibVMI\n", __FUNCTION__);
     return VMI_FAILURE;
 }
 
@@ -1125,6 +1123,19 @@ status_t xen_shutdown_single_step(vmi_instance_t vmi) {
     return VMI_SUCCESS;
 }
 
+int xen_are_events_pending(vmi_instance_t vmi)
+{
+    xen_events_t *xe = xen_get_events(vmi);
+
+    if ( !xe ) {
+        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
+        return -1;
+    }
+
+    return RING_HAS_UNCONSUMED_REQUESTS(&xe->mem_event.back_ring);
+
+}
+
 status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 {
     xc_interface * xch;
@@ -1252,14 +1263,23 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
                 break;
         }
 
-        rc = resume_domain(vmi, &rsp);
+        // Put the response on the ring
+        rc = put_mem_response(&xe->mem_event, &rsp);
         if ( rc != 0 ) {
-            errprint("Error resuming domain.\n");
+            errprint("Error putting event response on the ring.\n");
             return VMI_FAILURE;
         }
+
+        dbprint(VMI_DEBUG_XEN, "--Finished handling event.\n");
     }
 
-    dbprint(VMI_DEBUG_XEN, "--Finished handling event.\n");
+    // We only resume the domain once all requests are processed from the ring
+    rc = resume_domain(vmi);
+    if ( rc != 0 ) {
+        errprint("Error resuming domain.\n");
+        return VMI_FAILURE;
+    }
+
     return vrc;
 }
 #else
