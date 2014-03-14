@@ -1,0 +1,8 @@
+include tox.ini
+include LICENSE
+
+# Remove CFFI files
+global-exclude __pycache__/*
+
+# Add header files
+include pyvmi/interface.h
