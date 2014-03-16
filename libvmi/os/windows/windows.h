@@ -24,13 +24,11 @@
 #include "libvmi.h"
 
 struct windows_instance {
-    addr_t ntoskrnl; /**< base phys address for ntoskrnl image */
+    addr_t ntoskrnl; /**< phys address for ntoskrnl image */
 
-    addr_t ntoskrnl_va; /**< base virt address for ntoskrnl image */
+    addr_t ntoskrnl_va; /**< virtual address for ntoskrnl image */
 
-    addr_t kdversion_block; /**< Kernel VA of the KdVersionBlock structure */
-
-    addr_t kernel_boundary; /**< VA of kernel boundary */
+    addr_t kdbg_va; /**< virtual address of the KdDebuggerDataBlock */
 
     addr_t sysproc; /**< physical address for the system process */
 
@@ -40,9 +38,9 @@ struct windows_instance {
 
     uint64_t pid_offset; /**< EPROCESS->UniqueProcessId */
 
-    uint64_t kpcr_offset; /**< KiInitialPCR (KernelBase->_KPCR) */
+    uint64_t kpcr_offset; /**< KiInitialPCR (ntoskrnl + offset) */
 
-    uint64_t kdbg_offset; /**< KdDebuggerDataBlock (KernelBase->KdDebuggerDataBlock) */
+    uint64_t kdbg_offset; /**< KdDebuggerDataBlock (ntoskrnl + offset) */
 
     uint64_t pname_offset; /**< EPROCESS->ImageFileName */
 

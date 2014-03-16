@@ -33,64 +33,83 @@ addr_t windows_find_eprocess(vmi_instance_t instance, char *name);
 
 addr_t
 get_ntoskrnl_base(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    addr_t page_paddr)
 {
-#define MAX_HEADER_BYTES 1024
-    uint8_t image[MAX_HEADER_BYTES];
-    size_t nbytes = 0;
-    addr_t paddr = 0;
+    uint8_t page[VMI_PS_4KB];
+    addr_t ret = 0;
     int i = 0;
 
-    while (paddr < vmi_get_memsize(vmi)) {
-        nbytes = vmi_read_pa(vmi, paddr, image, MAX_HEADER_BYTES);
-        if (MAX_HEADER_BYTES != nbytes) {
+    for(; page_paddr + VMI_PS_4KB < vmi->size ; page_paddr += VMI_PS_4KB) {
+
+        uint8_t page[VMI_PS_4KB];
+        status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
+        if(VMI_FAILURE == rc) {
             continue;
         }
-        if (VMI_SUCCESS == peparse_validate_pe_image(image, MAX_HEADER_BYTES)) {
-            dbprint(VMI_DEBUG_MISC, "--FOUND KERNEL at paddr=0x%"PRIx64"\n", paddr);
-            goto normal_exit;
+
+        struct pe_header *pe_header = NULL;
+        struct dos_header *dos_header = NULL;
+        void *optional_pe_header = NULL;
+        uint16_t optional_header_type = 0;
+        struct export_table et;
+
+        peparse_assign_headers(page, &dos_header, &pe_header, &optional_header_type, &optional_pe_header, NULL, NULL);
+        addr_t export_header_offset =
+            peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
+
+        if(!export_header_offset || page_paddr + export_header_offset > vmi->size)
+            continue;
+
+        uint32_t nbytes = vmi_read_pa(vmi, page_paddr + export_header_offset, &et, sizeof(struct export_table));
+        if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
+
+            if(page_paddr + et.name + 12 > vmi->size) {
+                continue;
+            }
+
+            unsigned char name[13] = {0};
+            vmi_read_pa(vmi, page_paddr + et.name, name, 12);
+            if(!strcmp("ntoskrnl.exe", name)) {
+                ret = page_paddr;
+                break;
+            }
+        } else {
+            continue;
         }
-        paddr += vmi->page_size;
     }
 
-error_exit:
-    dbprint(VMI_DEBUG_MISC, "--get_ntoskrnl_base failed\n");
-    return 0;
-normal_exit:
-    return paddr;
+    return ret;
 }
 
 static status_t
 find_page_mode(
     vmi_instance_t vmi)
 {
-    addr_t proc = 0;
 
-    //get_ntoskrnl_base(vmi);
-
-    //TODO This works well for 32-bit snapshots, but it is way too slow for 64-bit.
+    windows_instance_t windows = vmi->os_data;
 
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_LEGACY\n");
     vmi->page_mode = VMI_PM_LEGACY;
-    if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)) {
+
+    if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
         goto found_pm;
     }
     v2p_cache_flush(vmi);
 
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_PAE\n");
     vmi->page_mode = VMI_PM_PAE;
-    if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)) {
+    if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
         goto found_pm;
     }
     v2p_cache_flush(vmi);
 
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_IA32E\n");
     vmi->page_mode = VMI_PM_IA32E;
-    if (VMI_SUCCESS == vmi_read_addr_ksym(vmi, "KernBase", &proc)) {
+    if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
         goto found_pm;
     }
 
-    // KernBase was NOT found ////////////////
     v2p_cache_flush(vmi);
     return VMI_FAILURE;
 
@@ -119,12 +138,11 @@ get_kpgd_method2(
 
     /* get address for System process */
     if (!sysproc) {
-        if ((sysproc = windows_find_eprocess(vmi, "System")) == 0) {
-            dbprint(VMI_DEBUG_MISC, "--failed to find System process.\n");
+        if ((sysproc = windows_find_eprocess(vmi, "Idle")) == 0) {
+            dbprint(VMI_DEBUG_MISC, "--failed to find Idle process.\n");
             goto error_exit;
         }
-        printf
-            ("LibVMI Suggestion: set win_sysproc=0x%"PRIx64" in libvmi.conf for faster startup.\n",
+        printf("LibVMI Suggestion: set win_sysproc=0x%"PRIx64" in libvmi.conf for faster startup.\n",
              sysproc);
     }
     dbprint(VMI_DEBUG_MISC, "--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
@@ -243,10 +261,7 @@ get_kpgd_method0(
 
     windows = vmi->os_data;
 
-    if (VMI_FAILURE ==
-        windows_kernel_symbol_to_address(vmi, "PsActiveProcessHead",
-                                  NULL,
-                                  &sysproc)) {
+    if (VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsActiveProcessHead", &sysproc)) {
         dbprint(VMI_DEBUG_MISC, "--failed to resolve PsActiveProcessHead\n");
         goto error_exit;
     }
@@ -254,10 +269,7 @@ get_kpgd_method0(
         dbprint(VMI_DEBUG_MISC, "--failed to translate PsActiveProcessHead\n");
         goto error_exit;
     }
-    sysproc =
-        vmi_translate_kv2p(vmi,
-                           sysproc) -
-        windows->tasks_offset;
+    sysproc = vmi_translate_kv2p(vmi, sysproc) - windows->tasks_offset;
     dbprint(VMI_DEBUG_MISC, "--got PA to PsActiveProcessHead (0x%.16"PRIx64").\n", sysproc);
 
     if (VMI_FAILURE ==
@@ -354,7 +366,7 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
     }
 
     if (strncmp(key, "win_kdvb", CONFIG_STR_LENGTH) == 0) {
-        windows_instance->kdversion_block = *(addr_t *)value;
+        windows_instance->kdbg_va = *(addr_t *)value;
         goto _done;
     }
 
@@ -405,13 +417,14 @@ windows_init(
     }
 
     if (vmi->os_data != NULL) {
-        errprint("VMI_ERROR: os data already initialized, reinitializing\n");
-        free(vmi->os_data);
+        errprint("VMI_ERROR: os data already initialized, resetting\n");
+    } else {
+        vmi->os_data = safe_malloc(sizeof(struct windows_instance));
     }
 
-    vmi->os_data = safe_malloc(sizeof(struct windows_instance));
     bzero(vmi->os_data, sizeof(struct windows_instance));
     windows = vmi->os_data;
+    windows->version = VMI_OS_WINDOWS_UNKNOWN;
 
     g_hash_table_foreach(vmi->config, (GHFunc)windows_read_config_ghashtable_entries, vmi);
 
@@ -428,65 +441,47 @@ windows_init(
 
     vmi->os_interface = os_interface;
 
-    /* get base address for kernel image in memory */
     if (VMI_PM_UNKNOWN == vmi->page_mode) {
-        if (!vmi->kpgd) {
-            status = get_kpgd_method2(vmi);
-            if (status == VMI_FAILURE) {
-                errprint("Could not get_kpgd, will not be able to determine page mode\n");
-                goto error_exit;
-            }
+        if(VMI_FAILURE == get_kpgd_method2(vmi)) {
+          errprint("Could not get kpgd, will not be able to determine page mode\n");
+          goto error_exit;
+        }
+
+        if(VMI_FAILURE == init_kdbg(vmi)) {
+            goto error_exit;
         }
 
         if (VMI_FAILURE == find_page_mode(vmi)) {
             errprint("Failed to find correct page mode.\n");
             goto error_exit;
         }
-    }
-
-
-    if (VMI_FAILURE ==
-        windows_kernel_symbol_to_address(vmi, "KernBase",
-                                  NULL,
-                                  &windows->ntoskrnl_va)) {
-        errprint("Address translation failure.\n");
+    } else if(VMI_FAILURE == init_kdbg(vmi)) {
         goto error_exit;
     }
 
-    dbprint(VMI_DEBUG_MISC, "**ntoskrnl @ VA 0x%.16"PRIx64".\n",
-            windows->ntoskrnl_va);
-
-    windows->ntoskrnl =
-        vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
-    dbprint(VMI_DEBUG_MISC, "**set ntoskrnl (0x%.16"PRIx64").\n",
-            windows->ntoskrnl);
-
     if (vmi->kpgd) {
         /* This can happen for file because find_cr3() is called and this
-         * is set via get_kpgd_method2() /
-         */
-        goto found_kpgd;
-    }
-
-    /* get the kernel page directory location */
+         * is set via get_kpgd_method2() */
+        status = VMI_SUCCESS;
+    } else
     if (VMI_SUCCESS == get_kpgd_method0(vmi)) {
         dbprint(VMI_DEBUG_MISC, "--kpgd method0 success\n");
-        goto found_kpgd;
-    }
+        status = VMI_SUCCESS;
+    } else
     if (VMI_SUCCESS == get_kpgd_method1(vmi)) {
         dbprint(VMI_DEBUG_MISC, "--kpgd method1 success\n");
-        goto found_kpgd;
-    }
+        status = VMI_SUCCESS;
+    } else
     if (VMI_SUCCESS == get_kpgd_method2(vmi)) {
-        dbprint(VMI_DEBUG_MISC, "--kpgd method1 success\n");
-        goto found_kpgd;
+        dbprint(VMI_DEBUG_MISC, "--kpgd method2 success\n");
+        status = VMI_SUCCESS;
+    } else {
+        errprint("Failed to find kernel page directory.\n");
+        goto error_exit;
     }
-    /* all methods exhausted */
-    errprint("Failed to find kernel page directory.\n");
-    goto error_exit;
 
-found_kpgd:
-    return VMI_SUCCESS;
+    return status;
+
 error_exit:
     free(vmi->os_interface);
     vmi->os_interface = NULL;

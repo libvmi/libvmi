@@ -83,10 +83,9 @@ vmi_get_winver(
 
     windows_instance = vmi->os_data;
 
-    if (!windows_instance->version
-            || windows_instance->version == VMI_OS_WINDOWS_UNKNOWN) {
-        windows_instance->version = find_windows_version(vmi,
-                windows_instance->kdversion_block);
+    if (!windows_instance->version || windows_instance->version == VMI_OS_WINDOWS_UNKNOWN) {
+        addr_t kdbg = windows_instance->ntoskrnl + windows_instance->kdbg_offset;
+        windows_instance->version = find_windows_version(vmi, kdbg);
     }
     return windows_instance->version;
 }
@@ -122,9 +121,9 @@ vmi_get_winver_str(
 win_ver_t
 vmi_get_winver_manual(
     vmi_instance_t vmi,
-    addr_t kdvb_pa)
+    addr_t kdbg_pa)
 {
-    return find_windows_version(vmi, kdvb_pa);
+    return find_windows_version(vmi, kdbg_pa);
 }
 
 uint64_t
