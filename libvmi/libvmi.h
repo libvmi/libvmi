@@ -117,7 +117,8 @@ typedef enum win_ver {
     VMI_OS_WINDOWS_2003,
     VMI_OS_WINDOWS_VISTA,
     VMI_OS_WINDOWS_2008,
-    VMI_OS_WINDOWS_7
+    VMI_OS_WINDOWS_7,
+    VMI_OS_WINDOWS_8
 } win_ver_t;
 
 /* Three paging modes from Intel Vol3a Section 4.1.1 */
