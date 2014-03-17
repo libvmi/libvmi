@@ -29,6 +29,7 @@ c_sources = \
     os/windows/core.c \
     os/windows/kdbg.c \
     os/windows/memory.c \
+    os/windows/symbols.c \
     os/windows/peparse.c \
     os/windows/process.c
 
@@ -40,6 +41,6 @@ AM_CPPFLAGS = -I$(top_srcdir)
 lib_LTLIBRARIES= libvmi.la
 libvmi_la_SOURCES= $(h_sources) $(c_sources)
 libvmi_la_LIBADD= config/libconfig.la
-libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS)
-libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS)
+libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JANSSON_CFLAGS)
+libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS) $(JANSSON_LIBS)
 libvmi_la_DEPENDENCIES= libvmi.h

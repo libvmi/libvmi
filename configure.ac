@@ -288,6 +288,20 @@ AC_SUBST([GLIB_LIBS])
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 
+missing='no'
+have_jansson='no'
+PKG_CHECK_MODULES([JANSSON], [jansson >= 2.1], [], [missing="yes"])
+[if test "$missing" = "no"]
+[then]
+        have_jansson='yes'
+        AC_SUBST([JANSSON_LIBS])
+        AC_SUBST([JANSSON_CFLAGS])
+        AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when working Jansson library was found to parse Rekall profiles.])
+[else]
+    have_jansson='Disabled, missing libjansson-dev.'
+    [echo "No working Jansson library found (libjansson-dev), Rekall system profiles won't be supported."]
+[fi]
+
 dnl -----------------------------------------------
 dnl Generates Makefile's, configuration files and scripts
 dnl -----------------------------------------------
@@ -326,6 +340,10 @@ Shm-snapshot | --enable-shm-snapshot=$enable_shm_snapshot$shm_snapshot_space | $
 Tools        | Option                    | Reason
 -------------|---------------------------|----------------------------
 VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space         | $have_vmifs
+
+Extra features
+----------------------------------------------------------------------
+Support of Rekall profiles: $have_jansson
  
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.

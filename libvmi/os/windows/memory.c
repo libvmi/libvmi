@@ -36,13 +36,28 @@ windows_kernel_symbol_to_address(
     addr_t *address)
 {
     status_t ret = VMI_FAILURE;
+    addr_t rva = 0;
     windows_instance_t windows = vmi->os_data;
 
-    if (vmi->os_data == NULL) {
+    if (windows == NULL || !windows->ntoskrnl_va) {
         goto exit;
     }
 
     dbprint(VMI_DEBUG_MISC, "--windows symbol lookup (%s)\n", symbol);
+
+    if (windows->sysmap) {
+        dbprint(VMI_DEBUG_MISC, "--trying kernel sysmap\n");
+
+        if (VMI_SUCCESS == windows_system_map_symbol_to_address(vmi, symbol, NULL, &rva)) {
+            *address = windows->ntoskrnl_va + rva;
+            dbprint(VMI_DEBUG_MISC, "--got symbol from kernel sysmap (%s --> 0x%.16"PRIx64").\n",
+                 symbol, *address);
+            ret = VMI_SUCCESS;
+            goto success;
+        }
+
+        dbprint(VMI_DEBUG_MISC, "--kernel sysmap lookup failed\n");
+    }
 
     if (VMI_SUCCESS == windows_kdbg_lookup(vmi, symbol, address)) {
         dbprint(VMI_DEBUG_MISC, "--got symbol from kdbg (%s --> 0x%"PRIx64").\n", symbol, *address);
@@ -50,14 +65,10 @@ windows_kernel_symbol_to_address(
         goto success;
     }
 
-    if(!windows->ntoskrnl_va) {
-        goto exit;
-    }
-
-    dbprint(VMI_DEBUG_MISC, "--kdbg lookup failed, trying kernel PE export table\n");
+    dbprint(VMI_DEBUG_MISC, "--kdbg lookup failed\n");
+    dbprint(VMI_DEBUG_MISC, "--trying kernel PE export table\n");
 
     /* check exports */
-    addr_t rva;
     if (VMI_SUCCESS == windows_export_to_rva(vmi, windows->ntoskrnl_va, 0, symbol, &rva)) {
         *address = windows->ntoskrnl_va + rva;
         dbprint(VMI_DEBUG_MISC, "--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
@@ -66,7 +77,8 @@ windows_kernel_symbol_to_address(
         goto success;
     }
 
-    dbprint(VMI_DEBUG_MISC, "--kernel PE export table failed, nothing left to try\n");
+    dbprint(VMI_DEBUG_MISC, "--kernel PE export table failed\n");
+
     goto exit;
 
 success:

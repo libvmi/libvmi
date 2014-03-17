@@ -720,8 +720,6 @@ find_windows_version(
     addr_t kdbg)
 {
 
-    dbprint(VMI_DEBUG_MISC, "--Find Windows version from KDBG @ 0x%lx\n", kdbg);
-
     windows_instance_t windows = NULL;
 
     if (vmi->os_data == NULL) {
@@ -737,7 +735,7 @@ find_windows_version(
     }
 
     win_ver_t version = VMI_OS_WINDOWS_UNKNOWN;
-    vmi_read_16_pa(vmi, kdbg + 0x14, (uint16_t *)&version);
+    vmi_read_16_pa(vmi, kdbg + 0x14, (uint16_t*)&version);
 
     // Check if it's a version we know about.
     // The known KDBG magic values are defined in win_ver_t

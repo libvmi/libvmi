@@ -29,7 +29,31 @@
 #include "peparse.h"
 #include "os/windows/windows.h"
 
-addr_t windows_find_eprocess(vmi_instance_t instance, char *name);
+// See http://en.wikipedia.org/wiki/Windows_NT
+static inline
+win_ver_t ntbuild2version(uint16_t ntbuildnumber)
+{
+    switch(ntbuildnumber) {
+        case 2195:
+            return VMI_OS_WINDOWS_2000;
+        case 2600:
+        case 3790:
+            return VMI_OS_WINDOWS_XP;
+        case 6000:
+        case 6001:
+        case 6002:
+            return VMI_OS_WINDOWS_VISTA;
+        case 7600:
+        case 7601:
+            return VMI_OS_WINDOWS_7;
+        case 9200:
+        case 9600:
+            return VMI_OS_WINDOWS_8;
+        default:
+            break;
+    }
+    return VMI_OS_WINDOWS_UNKNOWN;
+};
 
 addr_t
 get_ntoskrnl_base(
@@ -397,6 +421,13 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
+#ifdef REKALL_PROFILES
+    if (strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->sysmap = (char *)value;
+        goto _done;
+    }
+#endif
+
     if (strncmp(key, "name", CONFIG_STR_LENGTH) == 0) {
         goto _done;
     }
@@ -410,6 +441,98 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
     _done: return;
 }
 
+static status_t
+init_from_sysmap(vmi_instance_t vmi)
+{
+
+    status_t ret = VMI_FAILURE;
+    windows_instance_t windows = vmi->os_data;
+    if (!windows->sysmap) {
+        goto done;
+    }
+
+    reg_t kpcr = 0;
+    addr_t kpcr_rva = 0;
+
+    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "KiInitialPCR", NULL, &kpcr_rva)) {
+        goto done;
+    }
+
+    // Let's first try to get the kernbase from the KPCR (FS/GS registers)
+    if (vmi->page_mode == VMI_PM_IA32E) {
+        if (VMI_SUCCESS == driver_get_vcpureg(vmi, &kpcr, GS_BASE, 0)) {
+            windows->ntoskrnl_va = kpcr - kpcr_rva;
+            windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+        }
+    } else if (vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE) {
+        if (VMI_SUCCESS == driver_get_vcpureg(vmi, &kpcr, FS_BASE, 0)) {
+            windows->ntoskrnl_va = kpcr - kpcr_rva;
+            windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+        }
+    }
+
+    // This could happen if we are in file mode
+    if (!windows->ntoskrnl) {
+        windows->ntoskrnl = get_ntoskrnl_base(vmi, 0);
+
+        // get KdVersionBlock/"_DBGKD_GET_VERSION64"->KernBase
+        addr_t kdvb = 0, kernbase_offset = 0;
+        windows_system_map_symbol_to_address(vmi, "KdVersionBlock", NULL, &kdvb);
+        windows_system_map_symbol_to_address(vmi, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset);
+
+        if (kdvb && kernbase_offset) {
+            vmi_read_addr_pa(vmi, windows->ntoskrnl + kdvb + kernbase_offset, &windows->ntoskrnl_va);
+        } else {
+            goto done;
+        }
+    }
+
+    dbprint(VMI_DEBUG_MISC, "**KernBase VA=0x%"PRIx64"\n", windows->ntoskrnl_va);
+    dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
+
+    addr_t ntbuildnumber_rva;
+    uint16_t ntbuildnumber = 0;
+
+    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
+        goto done;
+    }
+    vmi_read_16_pa(vmi, windows->ntoskrnl + ntbuildnumber_rva, &ntbuildnumber);
+
+    win_ver_t version = ntbuild2version(ntbuildnumber);
+    if (version == VMI_OS_WINDOWS_UNKNOWN) {
+        dbprint(VMI_DEBUG_MISC, "Unknown Windows NtBuildNumber: %u\n", ntbuildnumber);
+        goto done;
+    }
+
+    // The system map seems to be good, lets grab all the required offsets
+    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
+        goto done;
+    }
+    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ActiveProcessLinks", &windows->tasks_offset)) {
+        goto done;
+    }
+    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "UniqueProcessId", &windows->pid_offset)) {
+        goto done;
+    }
+    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset)) {
+        goto done;
+    }
+
+    ret = VMI_SUCCESS;
+
+    done: return ret;
+
+}
+
+static status_t
+init_core(vmi_instance_t vmi)
+{
+    if(VMI_SUCCESS == init_from_sysmap(vmi)) {
+        return VMI_SUCCESS;
+    }
+
+    return init_kdbg(vmi);
+}
 
 status_t
 windows_init(
@@ -445,7 +568,7 @@ windows_init(
     os_interface->os_ksym2v = windows_kernel_symbol_to_address;
     os_interface->os_usym2rva = windows_export_to_rva;
     os_interface->os_rva2sym = windows_rva_to_export;
-    os_interface->os_teardown = NULL;
+    os_interface->os_teardown = windows_teardown;
 
     vmi->os_interface = os_interface;
 
@@ -455,7 +578,7 @@ windows_init(
           goto error_exit;
         }
 
-        if(VMI_FAILURE == init_kdbg(vmi)) {
+        if(VMI_FAILURE == init_core(vmi)) {
             goto error_exit;
         }
 
@@ -463,7 +586,7 @@ windows_init(
             errprint("Failed to find correct page mode.\n");
             goto error_exit;
         }
-    } else if(VMI_FAILURE == init_kdbg(vmi)) {
+    } else if(VMI_FAILURE == init_core(vmi)) {
         goto error_exit;
     }
 
@@ -491,7 +614,25 @@ windows_init(
     return status;
 
 error_exit:
-    free(vmi->os_interface);
-    vmi->os_interface = NULL;
+    windows_teardown(vmi);
     return VMI_FAILURE;
 }
+
+status_t windows_teardown(vmi_instance_t vmi) {
+
+    status_t ret = VMI_SUCCESS;
+    windows_instance_t windows = vmi->os_data;
+
+    if (!windows) {
+        goto done;
+    }
+
+    g_free(windows->sysmap);
+
+    free(vmi->os_data);
+    vmi->os_data = NULL;
+
+done:
+    return ret;
+}
+
