@@ -761,6 +761,10 @@ find_windows_version(
         dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 7\n");
         return VMI_OS_WINDOWS_7;
     }
+    else if (memcmp(&size, "\x60\x03", 2) == 0) {
+        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 8\n");
+        return VMI_OS_WINDOWS_8;
+    }
     else {
         dbprint(VMI_DEBUG_MISC, "--OS Guess: Unknown (0x%.4x)\n", size);
         return VMI_OS_WINDOWS_UNKNOWN;
