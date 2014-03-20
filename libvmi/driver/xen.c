@@ -2011,7 +2011,15 @@ xen_set_vcpureg_pv32(
         break;
     default:
         ret = VMI_FAILURE;
+        goto _bail;
         break;
+    }
+
+    if (xc_vcpu_setcontext
+        (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
+        errprint("Failed to set context information (PV domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
     }
 
 _bail:
