@@ -1606,6 +1606,8 @@ typedef struct {
 
     reg_t value;                 /* Register value read or written */
 
+    reg_t previous;              /* Previous value of register (only for CR0/CR3/CR4) */
+
     vmi_reg_access_t out_access; /* Type of register access that triggered
                                   * the event
                                   */

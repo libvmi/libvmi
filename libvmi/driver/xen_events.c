@@ -371,6 +371,10 @@ status_t process_register(vmi_instance_t vmi,
             event->reg_event.value = req.gfn;
             event->vcpu_id = req.vcpu_id;
 
+#ifdef __XEN_INTERFACE_VERSION__ >= 0x00040400
+            if(event->reg_event.reg != MSR_ALL)
+                event->reg_event.previous = req.gla;
+#endif
 #ifdef HVM_PARAM_MEMORY_EVENT_MSR
             /* Special case: indicate which MSR is being written */
             if(event->reg_event.reg == MSR_ALL)
