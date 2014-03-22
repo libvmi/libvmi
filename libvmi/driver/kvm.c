@@ -25,6 +25,7 @@
  */
 
 #include "libvmi.h"
+#include "libvmi_extra.h"
 #include "private.h"
 #include "driver/kvm.h"
 #include "driver/interface.h"
@@ -493,288 +494,6 @@ void insert_v2p_page_pair_to_v2m_chunk_list(
     }
 }
 
-status_t
-walkthrough_shm_snapshot_pagetable_nopae(
-    vmi_instance_t vmi,
-    addr_t dtb,
-    v2m_chunk_t* v2m_chunk_list_ptr,
-    v2m_chunk_t* v2m_chunk_head_ptr)
-{
-    v2m_chunk_t v2m_chunk_list = *v2m_chunk_list_ptr;
-    v2m_chunk_t v2m_chunk_head = *v2m_chunk_head_ptr;
-    m2p_mapping_clue_chunk_t m2p_chunk_list = NULL;
-    m2p_mapping_clue_chunk_t m2p_chunk_head = NULL;
-
-    //read page directory (1 page size)
-    addr_t pd_pfn = dtb >> vmi->page_shift;
-    unsigned char *pd = vmi_read_page(vmi, pd_pfn); // page directory
-
-    // walk through page directory entries (1024 entries)
-    addr_t i;
-    for (i = 0; i < 1024; i++) {
-        uint32_t pde = *(uint32_t*) (pd + sizeof(uint32_t) * i); // pd entry
-
-        // valid entry
-        if (entry_present(vmi->os_type, pde)) {
-
-            // large page (4mb)
-            if (page_size_flag(pde)) {
-                addr_t start_vaddr = i << 22; // left 10 bits
-                addr_t end_vaddr = start_vaddr | 0x3FFFFF; // begin + 4mb
-                addr_t start_paddr = pde & 0xFFC00000; // left 10 bits
-                addr_t end_paddr = start_paddr | 0x3FFFFF; // begin + 4mb
-                if (start_paddr < vmi->size) {
-                    insert_v2p_page_pair_to_v2m_chunk_list(vmi, &v2m_chunk_list, &v2m_chunk_head,
-                        &m2p_chunk_list, &m2p_chunk_head,
-                        start_vaddr, end_vaddr, start_paddr, end_paddr);
-                }
-            }
-            else {
-                // read page table (1 page size)
-                addr_t pt_pfn = ptba_base_nopae(pde) >> vmi->page_shift;
-                unsigned char *pt = vmi_read_page(vmi, pt_pfn); // page talbe
-
-                // walk through page table entries (1024 entries)
-                addr_t j;
-                for (j = 0; j < 1024; j++) {
-                    uint32_t pte = *(uint32_t*) (pt + sizeof(uint32_t) * j); // page table entry
-
-                    //valid entry
-                    if (entry_present(vmi->os_type, pte)) {
-                        dbprint(VMI_DEBUG_KVM, "valid page table entry %d, %8x:\n", i, pte);
-                        // 4kb page
-                        addr_t start_vaddr = i << 22 | j << 12; // left 20 bits
-                        addr_t end_vaddr = start_vaddr | 0xFFF; // begin + 4kb
-                        addr_t start_paddr = pte_pfn_nopae(pte); // left 20 bits
-                        addr_t end_paddr = start_paddr | 0xFFF; // begin + 4kb
-                        if (start_paddr < vmi->size) {
-                            insert_v2p_page_pair_to_v2m_chunk_list(vmi, &v2m_chunk_list, &v2m_chunk_head,
-                                &m2p_chunk_list, &m2p_chunk_head,
-                                start_vaddr, end_vaddr, start_paddr, end_paddr);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    *v2m_chunk_list_ptr = v2m_chunk_list;
-    *v2m_chunk_head_ptr = v2m_chunk_head;
-    return VMI_SUCCESS;
-}
-
-status_t
-walkthrough_shm_snapshot_pagetable_pae(
-    vmi_instance_t vmi,
-    addr_t dtb,
-    v2m_chunk_t* v2m_chunk_list_ptr,
-    v2m_chunk_t* v2m_chunk_head_ptr)
-{
-    v2m_chunk_t v2m_chunk_list = *v2m_chunk_list_ptr;
-    v2m_chunk_t v2m_chunk_head = *v2m_chunk_head_ptr;
-    m2p_mapping_clue_chunk_t m2p_chunk_list = NULL;
-    m2p_mapping_clue_chunk_t m2p_chunk_head = NULL;
-
-    // read page directory pointer page (4 entries, 64bit per entry)
-    addr_t pdpt_pfn = dtb >> vmi->page_shift;
-    unsigned char *pdpt = vmi_read_page(vmi, pdpt_pfn); // pdp table
-
-    // walk through page directory pointer entries (4 entries, 64bit per entry)
-    addr_t i;
-    for (i = 0; i < 4; i++) {
-        uint64_t pdpte = *(uint64_t *) (pdpt + sizeof(uint64_t) * i); // pdp table entry
-
-        // valid page directory pointer entry
-        if (entry_present(vmi->os_type, pdpte)) {
-
-            //read page directory  (1 page size)
-            addr_t pd_pfn = pdba_base_pae(pdpte) >> vmi->page_shift; // 24 (35th ~ 12th) bits
-            unsigned char *pd = vmi_read_page(vmi, pd_pfn); // page directory
-
-            // walk through page directory entry (512 entries, 64 bit per entry)
-            addr_t j;
-            for (j = 0; j < 512; j++) {
-                uint64_t pde = *(uint64_t *) (pd + sizeof(uint64_t) * j); // page directory entry
-
-                // valid page directory entry
-                if (entry_present(vmi->os_type, pde)) {
-
-                    if (page_size_flag(pde)) { // 2MB large page
-
-                        addr_t start_vaddr = i << 30 | j << 21; // left 11 bits
-                        addr_t end_vaddr = start_vaddr | 0x1FFFFF; // begin + 2mb
-                        addr_t start_paddr = pde & 0xFFFE00000; // 11 bits,  should be 15 (35th - 21th) bits
-                        addr_t end_paddr = start_paddr | 0x1FFFFF; // begin + 2mb
-
-                        if (start_paddr < vmi->size) {
-                            insert_v2p_page_pair_to_v2m_chunk_list(vmi, &v2m_chunk_list, &v2m_chunk_head,
-                                &m2p_chunk_list, &m2p_chunk_head,
-                                start_vaddr, end_vaddr, start_paddr, end_paddr);
-                        }
-                    }
-                    else {
-                        // read page tables
-                        addr_t pt_pfn = ptba_base_pae(pde) >> vmi->page_shift; // 24 (35th ~ 12th) bits
-                        unsigned char *pt = vmi_read_page(vmi, pt_pfn); // page table
-
-                        // walk through page table entry (512 entries, 64bit per entry)
-                        addr_t k;
-                        for (k = 0; k < 512; k++) {
-                            uint64_t pte = *(uint64_t *) (pt
-                                + sizeof(uint64_t) * k); // page table entry
-
-                            // valid page table entry
-                            if (entry_present(vmi->os_type, pte)) {
-                                // 4kb page
-                                addr_t start_vaddr = i << 30 | j << 21
-                                    | k << 12; // left 20 bits
-                                addr_t end_vaddr = start_vaddr | 0xFFF; // begin + 4kb
-                                addr_t start_paddr = pte_pfn_pae(pte); // 24 (35th ~ 12th) bits
-                                addr_t end_paddr = start_paddr | 0xFFF; // begin + 4kb
-
-                                if (start_paddr < vmi->size) {
-                                    insert_v2p_page_pair_to_v2m_chunk_list(vmi, &v2m_chunk_list,
-                                        &v2m_chunk_head,
-                                        &m2p_chunk_list, &m2p_chunk_head,
-                                        start_vaddr, end_vaddr,
-                                        start_paddr, end_paddr);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    *v2m_chunk_list_ptr = v2m_chunk_list;
-    *v2m_chunk_head_ptr = v2m_chunk_head;
-    return VMI_SUCCESS;
-}
-
-status_t
-walkthrough_shm_snapshot_pagetable_ia32e(
-    vmi_instance_t vmi,
-    addr_t dtb,
-    v2m_chunk_t* v2m_chunk_list_ptr,
-    v2m_chunk_t* v2m_chunk_head_ptr)
-{
-    v2m_chunk_t v2m_chunk_list = *v2m_chunk_list_ptr;
-    v2m_chunk_t v2m_chunk_head = *v2m_chunk_head_ptr;
-    m2p_mapping_clue_chunk_t m2p_chunk_list = NULL;
-    m2p_mapping_clue_chunk_t m2p_chunk_head = NULL;
-
-    // read PML4 table (512 * 64-bit entries)
-    addr_t pml4t_pfn = get_bits_51to12(dtb) >> vmi->page_shift;
-    unsigned char* pml4t = vmi_read_page(vmi, pml4t_pfn); // pml4 table
-
-    // walk through PML4 entries (512 * 64-bit entries)
-    addr_t i;
-    for (i = 0; i < 512; i++) {
-        uint64_t pml4e = *(uint64_t *) (pml4t + sizeof(uint64_t) * i);
-
-        // valid page directory pointer entry
-        if (entry_present(vmi->os_type, pml4e)) {
-            // read page directory pointer table (512 * 64-bit entries)
-            addr_t pdpt_pfn = get_bits_51to12(pml4e) >> vmi->page_shift;
-            unsigned char *pdpt = vmi_read_page(vmi, pdpt_pfn); // pdp table
-
-            // walk through page directory pointer entries (512 * 64-bit entries)
-            addr_t j;
-            for (j = 0; j < 512; j++) {
-                uint64_t pdpte = *(uint64_t *) (pdpt + sizeof(uint64_t) * j); // pdp table entry
-
-                // valid page directory pointer entry
-                if (entry_present(vmi->os_type, pdpte)) {
-                    if (page_size_flag(pdpte)) { // 1GB large page
-                        addr_t start_vaddr = i << 39 | j << 30; // 47th ~ 30th bits
-                        addr_t end_vaddr = start_vaddr | 0xFFFFFFFF; // begin + 1GB
-                        addr_t start_paddr = pdpte & 0x000FFFFFC0000000ULL; //  22 (51th - 30th) bits
-                        addr_t end_paddr = start_paddr | 0xFFFFFFFF; // begin + 1GB
-
-                        if (start_paddr < vmi->size) {
-                            insert_v2p_page_pair_to_v2m_chunk_list(vmi, &v2m_chunk_list, &v2m_chunk_head,
-                                &m2p_chunk_list, &m2p_chunk_head,
-                                start_vaddr, end_vaddr, start_paddr, end_paddr);
-                        }
-
-                    }
-                    else {
-                        //read page directory  (1 page size)
-                        addr_t pd_pfn = get_bits_51to12(pdpte)
-                            >> vmi->page_shift; // 40 (51th ~ 12th) bits
-                        unsigned char *pd = vmi_read_page(vmi, pd_pfn); // page directory
-
-                        // walk through page directory entry (512 entries, 64 bit per entry)
-                        addr_t k;
-                        for (k = 0; k < 512; k++) {
-                            uint64_t pde = *(uint64_t *) (pd
-                                + sizeof(uint64_t) * k); // pd entry
-
-                            // valid page directory entry
-                            if (entry_present(vmi->os_type, pde)) {
-                                if (page_size_flag(pde)) { // 2MB large page
-
-                                    addr_t start_vaddr = i << 39 | j << 30
-                                        | k << 21; //
-                                    addr_t end_vaddr = start_vaddr | 0x1FFFFF; // begin + 2mb
-                                    addr_t start_paddr = pde
-                                        & 0x000FFFFFFFE00000ULL; // 31 (51th - 21th) bits
-                                    addr_t end_paddr = start_paddr | 0x1FFFFF; // begin + 2mb
-
-                                    if (start_paddr < vmi->size) {
-                                        insert_v2p_page_pair_to_v2m_chunk_list(vmi, &v2m_chunk_list,
-                                            &v2m_chunk_head,
-                                            &m2p_chunk_list, &m2p_chunk_head,
-                                            start_vaddr, end_vaddr,
-                                            start_paddr, end_paddr);
-                                    }
-                                }
-                                else {
-                                    // read page tables
-                                    addr_t pt_pfn = get_bits_51to12(pde)
-                                        >> vmi->page_shift; // 40 (51th ~ 12th) bits
-                                    unsigned char *pt = vmi_read_page(vmi,
-                                        pt_pfn); // page table
-
-                                    // walk through page table entry (512 entries, 64bit per entry)
-                                    addr_t l;
-                                    for (l = 0; l < 512; l++) {
-                                        uint64_t pte = *(uint64_t *) (pt
-                                            + sizeof(uint64_t) * l); // pt entry
-
-                                        // valid page table entry
-                                        if (entry_present(vmi->os_type, pte)) {
-                                            // 4kb page
-                                            addr_t start_vaddr = i << 39
-                                                | j << 30 | k << 21 | l << 12; // 47th - 12th bits
-                                            addr_t end_vaddr = start_vaddr
-                                                | 0xFFF; // begin + 4kb
-                                            addr_t start_paddr =
-                                                get_bits_51to12(pte); // 40 (51th ~ 12th) bits
-                                            addr_t end_paddr = start_paddr
-                                                | 0xFFF; // begin + 4kb
-
-                                            if (start_paddr < vmi->size) {
-                                                insert_v2p_page_pair_to_v2m_chunk_list(vmi,
-                                                    &v2m_chunk_list, &v2m_chunk_head,
-                                                    &m2p_chunk_list, &m2p_chunk_head,
-                                                    start_vaddr, end_vaddr,
-                                                    start_paddr, end_paddr);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    *v2m_chunk_list_ptr = v2m_chunk_list;
-    *v2m_chunk_head_ptr = v2m_chunk_head;
-    return VMI_SUCCESS;
-}
-
 /**
  * Walk through the page table to gather v2m chunks.
  * @param[in] vmi LibVMI instance
@@ -789,23 +508,36 @@ walkthrough_shm_snapshot_pagetable(
     v2m_chunk_t* v2m_chunk_list_ptr,
     v2m_chunk_t* v2m_chunk_head_ptr)
 {
-    if (vmi->page_mode == VMI_PM_LEGACY) {
-        return walkthrough_shm_snapshot_pagetable_nopae(vmi, dtb,
-            v2m_chunk_list_ptr, v2m_chunk_head_ptr);
+
+    v2m_chunk_t v2m_chunk_list = *v2m_chunk_list_ptr;
+    v2m_chunk_t v2m_chunk_head = *v2m_chunk_head_ptr;
+    m2p_mapping_clue_chunk_t m2p_chunk_list = NULL;
+    m2p_mapping_clue_chunk_t m2p_chunk_head = NULL;
+
+    GSList *pages = vmi_get_va_pages(vmi, dtb);
+    GSList *loop = pages;
+    while(loop) {
+        va_page_t *page = pages->data;
+        addr_t start_vaddr = page->va;
+        addr_t start_paddr = vmi_pagetable_lookup(vmi, dtb, start_vaddr);
+        addr_t end_vaddr = start_vaddr | (page->size-1);
+        addr_t end_paddr = start_paddr | (page->size-1);
+        if (start_paddr < vmi->size) {
+            insert_v2p_page_pair_to_v2m_chunk_list(vmi, &v2m_chunk_list, &v2m_chunk_head,
+                &m2p_chunk_list, &m2p_chunk_head,
+                start_vaddr, end_vaddr, start_paddr, end_paddr);
+        }
+
+        free(page);
+        loop = loop->next;
     }
-    else if (vmi->page_mode == VMI_PM_PAE) {
-        return  walkthrough_shm_snapshot_pagetable_pae(vmi, dtb,
-            v2m_chunk_list_ptr, v2m_chunk_head_ptr);
+
+    if(pages) {
+        g_slist_free(pages);
+        return VMI_SUCCESS;
     }
-    else if (vmi->page_mode == VMI_PM_IA32E) {
-        return  walkthrough_shm_snapshot_pagetable_ia32e(vmi, dtb,
-            v2m_chunk_list_ptr, v2m_chunk_head_ptr);
-    }
-    else {
-        errprint(
-            "Invalid paging mode during walkthrough_shm_snapshot_pagetable\n");
-        return VMI_FAILURE;
-    }
+
+    return VMI_FAILURE;
 }
 
 /**
