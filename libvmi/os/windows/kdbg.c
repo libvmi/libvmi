@@ -853,14 +853,14 @@ find_kdbg_address_fast(
     GSList *va_pages_loop = va_pages;
     while(va_pages_loop) {
 
-        struct va_page *vap = (struct va_page *)va_pages_loop->data;
+        page_info_t *vap = (page_info_t *)va_pages_loop->data;
 
         // We might get pages that are greater than 4Kb
         // so we are just going to split them to 4Kb pages
         while(vap && vap->size >= VMI_PS_4KB) {
             vap->size -= VMI_PS_4KB;
-            addr_t page_vaddr = vap->va+vap->size;
-            addr_t page_paddr = vmi_pagetable_lookup(vmi, cr3, page_vaddr);
+            addr_t page_vaddr = vap->vaddr+vap->size;
+            addr_t page_paddr = vap->paddr+vap->size;
 
             if(page_paddr + VMI_PS_4KB - 1 > memsize) {
                 continue;
