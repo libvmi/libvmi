@@ -58,23 +58,11 @@ windows_get_eprocess_name(
 
 #define MAGIC1 0x1b0003
 #define MAGIC2 0x200003
-#define MAGIC3 0x580003
+#define MAGIC3 0x300003
+#define MAGIC4 0x580003
+#define MAGIC5 0x260003
 static inline int
 check_magic_2k(
-    uint32_t a)
-{
-    return (a == MAGIC1);
-}
-
-static inline int
-check_magic_xp(
-    uint32_t a)
-{
-    return (a == MAGIC1);
-}
-
-static inline int
-check_magic_2k3(
     uint32_t a)
 {
     return (a == MAGIC1);
@@ -84,28 +72,21 @@ static inline int
 check_magic_vista(
     uint32_t a)
 {
-    return (a == MAGIC2);
+    return (a == MAGIC2 || a == MAGIC3);
 }
-
-static inline int
-check_magic_2k8(
-    uint32_t a)
-{
-    return (a == MAGIC1 || a == MAGIC2 || a == MAGIC3);
-}  // not sure what this is, check all
 
 static inline int
 check_magic_7(
     uint32_t a)
 {
-    return (a == MAGIC3);
+    return (a == MAGIC4 || a == MAGIC5);
 }
 
 static inline int
 check_magic_unknown(
     uint32_t a)
 {
-    return (a == MAGIC1 || a == MAGIC2 || a == MAGIC3);
+    return (a == MAGIC1 || a == MAGIC2 || a == MAGIC3 || a == MAGIC4 || a == MAGIC5);
 }
 
 static check_magic_func
@@ -119,23 +100,17 @@ get_check_magic_func(
 
     switch (((windows_instance_t)vmi->os_data)->version) {
     case VMI_OS_WINDOWS_2000:
-        rtn = &check_magic_2k;
-        break;
     case VMI_OS_WINDOWS_XP:
-        rtn = &check_magic_xp;
-        break;
     case VMI_OS_WINDOWS_2003:
-        rtn = &check_magic_2k3;
+        rtn = &check_magic_2k;
         break;
     case VMI_OS_WINDOWS_VISTA:
         rtn = &check_magic_vista;
         break;
-    case VMI_OS_WINDOWS_2008:
-        rtn = &check_magic_2k8;
-        break;
     case VMI_OS_WINDOWS_7:
         rtn = &check_magic_7;
         break;
+    case VMI_OS_WINDOWS_2008:
     case VMI_OS_WINDOWS_UNKNOWN:
         rtn = &check_magic_unknown;
         break;
@@ -221,32 +196,33 @@ find_process_by_name(
     addr_t start_address,
     const char *name)
 {
+
+    dbprint(VMI_DEBUG_MISC, "--searching for process by name: %s\n", name);
+
     addr_t block_pa = 0;
     addr_t offset = 0;
     uint32_t value = 0;
     size_t read = 0;
 
-#define BLOCK_SIZE 1024 * 1024 * 1
-    unsigned char block_buffer[BLOCK_SIZE];
+    unsigned char block_buffer[VMI_PS_4KB];
 
     if (NULL == check) {
         check = get_check_magic_func(vmi);
     }
 
-    for (block_pa = start_address; block_pa + BLOCK_SIZE <= vmi->size;
-         block_pa += BLOCK_SIZE) {
-        read = vmi_read_pa(vmi, block_pa, block_buffer, BLOCK_SIZE);
-        if (BLOCK_SIZE != read) {
+    for (block_pa = start_address; block_pa + VMI_PS_4KB <= vmi->size;
+         block_pa += VMI_PS_4KB) {
+        read = vmi_read_pa(vmi, block_pa, block_buffer, VMI_PS_4KB);
+        if (VMI_PS_4KB != read) {
             continue;
         }
 
-        for (offset = 0; offset < BLOCK_SIZE; offset += 8) {
+        for (offset = 0; offset < VMI_PS_4KB; offset += 8) {
             memcpy(&value, block_buffer + offset, 4);
 
             if (check(value)) { // look for specific magic #
 
-                char *procname =
-                    windows_get_eprocess_name(vmi, block_pa + offset);
+                char *procname = windows_get_eprocess_name(vmi, block_pa + offset);
                 if (procname) {
                     if (strncmp(procname, name, 50) == 0) {
                         free(procname);
@@ -263,8 +239,9 @@ find_process_by_name(
 addr_t
 windows_find_eprocess(
     vmi_instance_t vmi,
-    char *name)
+    const char *name)
 {
+
     addr_t start_address = 0;
     windows_instance_t windows = vmi->os_data;
     check_magic_func check = get_check_magic_func(vmi);
@@ -273,22 +250,19 @@ windows_find_eprocess(
         return 0;
     }
 
-    if (windows->pname_offset == 0) {
-        windows->pname_offset =
-            find_pname_offset(vmi, check);
-        if (windows->pname_offset == 0) {
+    if (!windows->pname_offset) {
+        windows->pname_offset = find_pname_offset(vmi, check);
+        if (!windows->pname_offset) {
             dbprint(VMI_DEBUG_MISC, "--failed to find pname_offset\n");
             return 0;
-        }
-        else {
+        } else {
             dbprint(VMI_DEBUG_MISC, "**set os.windows_instance.pname_offset (0x%"PRIx64")\n",
                     windows->pname_offset);
         }
     }
 
     if (vmi->init_task) {
-        start_address =
-            vmi->init_task;
+        start_address = vmi->init_task;
     }
 
     return find_process_by_name(vmi, check, start_address, name);

@@ -174,7 +174,7 @@ struct _KDDEBUGGER_DATA64 {
 typedef struct _KDDEBUGGER_DATA64 KDDEBUGGER_DATA64;
 
 static status_t
-kpcr_symbol_resolve(
+kdbg_symbol_resolve(
     vmi_instance_t vmi,
     unsigned long offset,
     addr_t *address)
@@ -188,7 +188,7 @@ kpcr_symbol_resolve(
     }
 
     windows = vmi->os_data;
-    symaddr = windows->kdversion_block + offset;
+    symaddr = windows->kdbg_va + offset;
 
     if (VMI_FAILURE == vmi_read_64_va(vmi, symaddr, 0, &tmp)) {
         return VMI_FAILURE;
@@ -198,9 +198,9 @@ kpcr_symbol_resolve(
 }
 
 static status_t
-kpcr_symbol_offset(
+kdbg_symbol_offset(
     vmi_instance_t vmi,
-    char *symbol,
+    const char *symbol,
     unsigned long *offset)
 {
     KDDEBUGGER_DATA64 d;
@@ -717,8 +717,11 @@ kpcr_symbol_offset(
 win_ver_t
 find_windows_version(
     vmi_instance_t vmi,
-    addr_t KdVersionBlock)
+    addr_t kdbg)
 {
+
+    dbprint(VMI_DEBUG_MISC, "--Find Windows version from KDBG @ 0x%lx\n", kdbg);
+
     windows_instance_t windows = NULL;
 
     if (vmi->os_data == NULL) {
@@ -733,87 +736,103 @@ find_windows_version(
         return windows->version;
     }
 
-    uint16_t size = 0;
+    win_ver_t version = VMI_OS_WINDOWS_UNKNOWN;
+    vmi_read_16_pa(vmi, kdbg + 0x14, (uint16_t *)&version);
 
-    vmi_read_16_va(vmi, KdVersionBlock + 0x14, 0, &size);
+    // Check if it's a version we know about.
+    // The known KDBG magic values are defined in win_ver_t
+    switch(version) {
+        case VMI_OS_WINDOWS_2000:
+        case VMI_OS_WINDOWS_XP:
+        case VMI_OS_WINDOWS_2003:
+        case VMI_OS_WINDOWS_VISTA:
+        case VMI_OS_WINDOWS_2008:
+        case VMI_OS_WINDOWS_7:
+        case VMI_OS_WINDOWS_8:
+            break;
+        default:
+            version = VMI_OS_WINDOWS_UNKNOWN;
+            break;
+    }
 
-    if (memcmp(&size, "\x08\x02", 2) == 0) {
-        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 2000\n");
-        return VMI_OS_WINDOWS_2000;
-    }
-    else if (memcmp(&size, "\x90\x02", 2) == 0) {
-        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows XP\n");
-        return VMI_OS_WINDOWS_XP;
-    }
-    else if (memcmp(&size, "\x18\x03", 2) == 0) {
-        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 2003\n");
-        return VMI_OS_WINDOWS_2003;
-    }
-    else if (memcmp(&size, "\x28\x03", 2) == 0) {
-        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows Vista\n");
-        return VMI_OS_WINDOWS_VISTA;
-    }
-    else if (memcmp(&size, "\x30\x03", 2) == 0) {
-        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 2008\n");
-        return VMI_OS_WINDOWS_2008;
-    }
-    else if (memcmp(&size, "\x40\x03", 2) == 0) {
-        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 7\n");
-        return VMI_OS_WINDOWS_7;
-    }
-    else if (memcmp(&size, "\x60\x03", 2) == 0) {
-        dbprint(VMI_DEBUG_MISC, "--OS Guess: Windows 8\n");
-        return VMI_OS_WINDOWS_8;
-    }
-    else {
-        dbprint(VMI_DEBUG_MISC, "--OS Guess: Unknown (0x%.4x)\n", size);
-        return VMI_OS_WINDOWS_UNKNOWN;
-    }
+    return version;
 }
 
-static addr_t
-find_kdversionblock_address(
-    vmi_instance_t vmi)
+status_t find_kdbg_address(
+    vmi_instance_t vmi,
+    addr_t *kdbg_pa,
+    addr_t *kernel_va)
 {
-    addr_t kdvb_address = 0;
-    addr_t paddr = 0;
-    unsigned char buf[12];
 
-    for (paddr = 0; paddr + 12 <= vmi_get_memsize(vmi); paddr += 4) {
-        if (12 == vmi_read_pa(vmi, paddr, buf, 12)) {
-            if (VMI_PM_IA32E == vmi->page_mode) {
-                if (memcmp(buf, "\x00\xf8\xff\xffKDBG", 8) == 0) {
-                    kdvb_address = paddr - 0xc;
-                    break;
-                }
+    dbprint(VMI_DEBUG_MISC, "**Trying find_kdbg_address\n");
+
+    status_t ret = VMI_FAILURE;
+    *kdbg_pa = 0;
+    addr_t paddr = 0;
+    unsigned char haystack[VMI_PS_4KB];
+    addr_t memsize = vmi_get_memsize(vmi);
+
+    void *bm64 = boyer_moore_init("\x00\xf8\xff\xffKDBG", 8);
+    void *bm32 = boyer_moore_init("\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12);
+    uint32_t find_ofs_64 = 0xc, find_ofs_32 = 0x8, find_ofs = 0;
+
+    for(;paddr<memsize;paddr+=VMI_PS_4KB) {
+
+        find_ofs = 0;
+
+        if(VMI_PS_4KB != vmi_read_pa(vmi, paddr, &haystack, VMI_PS_4KB)) {
+            continue;
+        }
+
+        int match_offset = boyer_moore2(bm64, haystack, VMI_PS_4KB);
+        if (-1 != match_offset) {
+            find_ofs = find_ofs_64;
+        } else {
+            match_offset = boyer_moore2(bm32, haystack, VMI_PS_4KB);
+        }
+
+        if (-1 != match_offset) {
+
+            if(!find_ofs) {
+                find_ofs = find_ofs_32;
             }
-            else {
-                if (memcmp
-                    (buf, "\x00\x00\x00\x00\x00\x00\x00\x00KDBG",
-                     12) == 0) {
-                    kdvb_address = paddr - 0x8;
-                    break;
-                }
-            }
+
+            // Read "KernBase" from the haystack
+            long unsigned int kernbase_offset = 0;
+            kdbg_symbol_offset(vmi, "KernBase", &kernbase_offset);
+            *kernel_va = *(uint64_t *)&haystack[(unsigned int) match_offset - find_ofs + kernbase_offset];
+            *kdbg_pa = paddr + (unsigned int) match_offset - find_ofs;
+
+            ret = VMI_SUCCESS;
+
+            break;
         }
     }
 
-    return kdvb_address;
+    dbprint(VMI_DEBUG_MISC, "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
+
+    ret = VMI_SUCCESS;
+
+exit:
+    return ret;
 }
 
 status_t
-find_kdversionblock_address_fast(
+find_kdbg_address_fast(
     vmi_instance_t vmi,
-    addr_t *kdvb_pa,
-    addr_t *kernel_va_boundary)
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
 {
-    // Todo:
-    // -support matching across frames (can this happen in windows?)
 
-    reg_t cr3;
-    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+    dbprint(VMI_DEBUG_MISC, "**Trying find_kdbg_address_fast\n");
 
     status_t ret = VMI_FAILURE;
+    reg_t cr3;
+    if(VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
+        return ret;
+    }
+
     addr_t memsize = vmi_get_memsize(vmi);
     GSList *va_pages = vmi_get_va_pages(vmi, (addr_t)cr3);
     size_t read = 0;
@@ -856,10 +875,18 @@ find_kdversionblock_address_fast(
             int match_offset = boyer_moore2(bm, haystack, VMI_PS_4KB);
 
             if (-1 != match_offset) {
-                *kdvb_pa = page_paddr + (unsigned int) match_offset - find_ofs;
-                int zeroes = __builtin_clzll(page_paddr);
-                *kernel_va_boundary = (page_vaddr >> (64-zeroes)) << (64-zeroes);
+
+                addr_t k_va = 0;
+                if(VMI_FAILURE == vmi_read_addr_pa(vmi, page_paddr + (unsigned int) match_offset + sizeof(uint64_t), &k_va)) {
+                    continue;
+                }
+
+                *kernel_va = k_va;
+                *kernel_pa = vmi_pagetable_lookup(vmi, cr3, *kernel_va);
+                *kdbg_pa = page_paddr + (unsigned int) match_offset - find_ofs;
+
                 ret = VMI_SUCCESS;
+
                 goto done;
             }
         }
@@ -876,37 +903,46 @@ done:
     g_slist_free(va_pages);
 
     if (VMI_SUCCESS == ret)
-        dbprint(VMI_DEBUG_MISC, "--Found KD version block at PA %.16"PRIx64". Kernel boundary %.16"PRIx64"\n",
-                *kdvb_pa, *kernel_va_boundary);
+        dbprint(VMI_DEBUG_MISC, "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
     boyer_moore_fini(bm);
     return ret;
 }
 
 status_t
-find_kdversionblock_address_faster(
+find_kdbg_address_faster(
     vmi_instance_t vmi,
-    addr_t *kdvb_pa,
-    addr_t *kernel_va_boundary)
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
 {
+
+    dbprint(VMI_DEBUG_MISC, "**Trying find_kdbg_address_faster\n");
 
     status_t ret = VMI_FAILURE;
 
     // This scan requires the location of the KPCR
     // which we get from the GS/FS register on live machines.
     // For file mode this needs to be further investigated.
-    if(VMI_FILE == vmi->mode)
+    if(VMI_FILE == vmi->mode) {
         return ret;
+    }
 
     void *bm = boyer_moore_init("KDBG", 4);
     int find_ofs = 0x10;
 
     reg_t cr3, fsgs;
-    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+    if(VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
+        return ret;
+    }
 
     if (VMI_PM_IA32E == vmi->page_mode) {
-        driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0);
-    } else {
-        driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0);
+        if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0)) {
+            return ret;
+        }
+    } else if(VMI_PM_LEGACY == vmi->page_mode || VMI_PM_PAE == vmi->page_mode) {
+        if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0)) {
+            return ret;
+        }
     }
 
     // We start the search from the KPCR, which has to be mapped into the kernel.
@@ -986,22 +1022,26 @@ scan:
                 // We found the structure, but let's verify it.
                 // The kernel is always mapped into VA at the same offset
                 // it is found on physical memory + the kernel boundary.
+
+                // Read "KernBase" from the haystack
                 uint64_t *kernbase = (uint64_t *)&haystack[(unsigned int) match_offset + sizeof(uint64_t)];
                 int zeroes = __builtin_clzll(page_paddr);
 
                 if((*kernbase) << zeroes == page_paddr << zeroes) {
-                    *kdvb_pa = page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
-                    *kernel_va_boundary = ((*kernbase) >> (64-zeroes)) << (64-zeroes);
+
+                    *kernel_pa = page_paddr;
+                    *kernel_va = *kernbase;
+                    *kdbg_pa = page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
+
                     ret = VMI_SUCCESS;
 
                     dbprint(VMI_DEBUG_MISC,
-                        "--Found KD version block at PA %.16"PRIx64". Kernel boundary at VA %"PRIx64".\n",
-                        *kdvb_pa, *kernel_va_boundary);
+                        "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
 
                     goto done;
                 } else {
                     dbprint(VMI_DEBUG_MISC,
-                        "--WARNING: KernBase in KD version block at PA %.16"PRIx64" doesn't point back to this page.\n",
+                        "--WARNING: KernBase in KdDebuggerDataBlock at PA %.16"PRIx64" doesn't point back to this page.\n",
                         page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs);
                 }
             }
@@ -1021,30 +1061,39 @@ done:
 }
 
 status_t
-find_kdversionblok_address_instant(
+find_kdbg_address_instant(
     vmi_instance_t vmi,
-    addr_t *kdvb_pa,
-    addr_t *kernel_va_boundary)
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
 {
 
+    dbprint(VMI_DEBUG_MISC, "**Trying find_kdbg_address_instant\n");
+
     status_t ret = VMI_FAILURE;
-
-    // This approach requires the location of the KPCR
-    // which we get from the GS/FS register on live machines.
-    // Furthermore, we need the config settings for the RVAs
-    if(VMI_FILE == vmi->mode)
-        goto done;
-
     windows_instance_t windows = NULL;
-    if (vmi->os_data == NULL)
+    if (vmi->os_data == NULL) {
         goto done;
+    }
 
     windows = vmi->os_data;
-    if(!windows->kpcr_offset || !windows->kdbg_offset)
+
+    // If the kernel base is unknown this approach requires the
+    // location of the KPCR which we get from the GS/FS register,
+    // available only on live machines.
+    if (VMI_FILE == vmi->mode) {
         goto done;
+    }
+
+    // We also need the config settings for the RVAs
+    if (!windows->kdbg_offset || !windows->kpcr_offset) {
+        goto done;
+    }
 
     reg_t cr3, fsgs;
-    driver_get_vcpureg(vmi, &cr3, CR3, 0);
+    if (VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
+        goto done;
+    }
 
     if (VMI_PM_IA32E == vmi->page_mode) {
         driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0);
@@ -1054,10 +1103,14 @@ find_kdversionblok_address_instant(
 
     addr_t kernelbase_va = fsgs - windows->kpcr_offset;
     addr_t kernelbase_pa = vmi_pagetable_lookup(vmi, cr3, kernelbase_va);
-    *kdvb_pa = kernelbase_pa + windows->kdbg_offset;
 
-    int zeroes = __builtin_clzll(kernelbase_pa);
-    *kernel_va_boundary = ((kernelbase_va) >> (64-zeroes)) << (64-zeroes);
+    if (!kernelbase_pa) {
+        goto done;
+    }
+
+    *kernel_pa = kernelbase_pa;
+    *kernel_va = kernelbase_va;
+    *kdbg_pa = kernelbase_pa + windows->kdbg_offset;
 
     ret = VMI_SUCCESS;
 
@@ -1067,86 +1120,136 @@ done:
 }
 
 status_t
-init_kdversion_block(
-    vmi_instance_t vmi)
-{
-    addr_t KdVersionBlock_phys = 0;
-    addr_t KernelBoundary = 0;
-    addr_t DebuggerDataList = 0, ListPtr = 0;
-    windows_instance_t windows = NULL;
-
-    if (vmi->os_data == NULL) {
-        return VMI_FAILURE;
-    }
-
-    windows = vmi->os_data;
-
-    if(VMI_SUCCESS == find_kdversionblok_address_instant(vmi, &KdVersionBlock_phys, &KernelBoundary))
-        goto init_done;
-
-    dbprint(VMI_DEBUG_MISC, "**KdVersionBlock instant init failed\n");
-
-    if(VMI_SUCCESS == find_kdversionblock_address_faster(vmi, &KdVersionBlock_phys, &KernelBoundary))
-        goto init_done;
-
-    dbprint(VMI_DEBUG_MISC, "**KdVersionBlock fastest init failed\n");
-
-    if(VMI_SUCCESS == find_kdversionblock_address_fast(vmi, &KdVersionBlock_phys, &KernelBoundary))
-        goto init_done;
-
-    dbprint(VMI_DEBUG_MISC, "**KdVersionBlock init failed all the way\n");
-
-    goto error_exit;
-
-init_done:
-    if (!windows->kdversion_block) {
-        windows->kdversion_block = KdVersionBlock_phys + KernelBoundary;
-        windows->kernel_boundary = KernelBoundary;
-        printf
-            ("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
-             windows->kdversion_block);
-    }
-    dbprint(VMI_DEBUG_MISC, "**set KdVersionBlock address=0x%"PRIx64"\n",
-            windows->kdversion_block);
-
-    return VMI_SUCCESS;
-
-error_exit:
-    return VMI_FAILURE;
-}
-
-status_t
-windows_kpcr_lookup(
+windows_kdbg_lookup(
     vmi_instance_t vmi,
-    char *symbol,
+    const char *symbol,
     addr_t *address)
 {
+    status_t ret = VMI_FAILURE;
     unsigned long offset = 0;
-    windows_instance_t windows = NULL;
+
+    if (VMI_FAILURE == kdbg_symbol_offset(vmi, symbol, &offset)) {
+        goto done;
+    }
+    if (VMI_FAILURE == kdbg_symbol_resolve(vmi, offset, address)) {
+        goto done;
+    }
+
+    ret = VMI_SUCCESS;
+
+done:
+    return ret;
+}
+
+/*
+ * This functions is responsible for setting up
+ * Windows specific variables:
+ *  - ntoskrnl (*)
+ *  - ntoskrnl_va
+ *  - kdbg_offset (*)
+ *  - kdbg_va (*)
+ * The variables marked with (*) can be also specified
+ * in the libvmi config.
+ */
+status_t
+init_kdbg(
+    vmi_instance_t vmi)
+{
+    status_t ret = VMI_FAILURE;
 
     if (vmi->os_data == NULL) {
-        return VMI_FAILURE;
+        goto exit;
     }
 
-    windows = vmi->os_data;
+    windows_instance_t windows = vmi->os_data;
 
-    if (!windows->kdversion_block) {
-        if (VMI_FAILURE == init_kdversion_block(vmi)) {
-            goto error_exit;
+    // Lets try to init from the config settings passed to us by the user
+    if(windows->kdbg_va) {
+        if(VMI_SUCCESS == windows_kdbg_lookup(vmi, "KernBase", &windows->ntoskrnl_va)) {
+
+            dbprint(VMI_DEBUG_MISC, "**KernBase VA=0x%"PRIx64"\n", windows->ntoskrnl_va);
+
+            if(!windows->ntoskrnl) {
+                windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+                dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->kdbg_offset);
+            }
+
+            if(!windows->kdbg_offset) {
+                windows->kdbg_offset = windows->kdbg_va - windows->ntoskrnl_va;
+                dbprint(VMI_DEBUG_MISC, "**kdbg_offset=0x%"PRIx64"\n", windows->kdbg_offset);
+            }
+
+            ret = VMI_SUCCESS;
+
+            goto exit;
+        } else {
+            dbprint(VMI_DEBUG_MISC, "**Failed to get KernBase from KDBG set in config\n");
         }
+    } else
+    if(windows->ntoskrnl && windows->kdbg_offset) {
+        if(!windows->ntoskrnl_va) {
+            unsigned long offset;
+            kdbg_symbol_offset(vmi, "KernBase", &offset);
+            if(VMI_FAILURE == vmi_read_addr_pa(vmi, windows->ntoskrnl + windows->kdbg_offset + offset, &windows->ntoskrnl_va)) {
+                errprint("Inconsistent addresses passed in the config!\n");
+                goto exit;
+            }
+
+            if(vmi_translate_kv2p(vmi, windows->ntoskrnl_va) != windows->ntoskrnl) {
+                errprint("Inconsistent addresses passed in the config!\n");
+                goto exit;
+            }
+        }
+        if(!windows->kdbg_va) {
+            windows->kdbg_va = windows->ntoskrnl_va + windows->kdbg_offset;
+        }
+        ret = VMI_SUCCESS;
+        goto exit;
     }
 
-    // Use heuristic to find windows version
-    windows->version = find_windows_version(vmi, windows->kdversion_block);
+    // We don't have the standard config informations
+    // so lets try our kdbg search methods
+    addr_t kernbase_pa = 0, kernbase_va = 0, kdbg_pa = 0;
 
-    if (VMI_FAILURE == kpcr_symbol_offset(vmi, symbol, &offset)) {
-        goto error_exit;
+    if(VMI_SUCCESS == find_kdbg_address_instant(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
+        goto found;
     }
-    if (VMI_FAILURE == kpcr_symbol_resolve(vmi, offset, address)) {
-        goto error_exit;
+    if(VMI_SUCCESS == find_kdbg_address_faster(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
+        goto found;
+    }
+    if(VMI_SUCCESS == find_kdbg_address_fast(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
+        goto found;
+    }
+    if(VMI_SUCCESS == find_kdbg_address(vmi, &kdbg_pa, &kernbase_va)) {
+        goto found;
     }
 
-    return VMI_SUCCESS;
-error_exit:
-    return VMI_FAILURE;
+    dbprint(VMI_DEBUG_MISC, "**KdDebuggerDataBlock init failed\n");
+    goto exit;
+
+found:
+    windows->version = find_windows_version(vmi, kdbg_pa);
+    if(VMI_OS_WINDOWS_UNKNOWN == windows->version) {
+        goto exit;
+    }
+
+    if(!kernbase_pa) {
+        kernbase_pa = get_ntoskrnl_base(vmi, 0);
+    }
+
+    windows->ntoskrnl = kernbase_pa;
+    windows->ntoskrnl_va = kernbase_va;
+    windows->kdbg_offset = kdbg_pa - windows->ntoskrnl;
+    windows->kdbg_va = windows->ntoskrnl_va + windows->kdbg_offset;
+
+    printf("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
+             windows->ntoskrnl_va + windows->kdbg_offset);
+
+    dbprint(VMI_DEBUG_MISC, "**set KdDebuggerDataBlock address=0x%"PRIx64"\n",
+            windows->kdbg_va);
+
+    ret = VMI_SUCCESS;
+
+exit:
+    return ret;
 }

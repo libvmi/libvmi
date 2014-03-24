@@ -793,8 +793,7 @@ addr_t vmi_translate_kv2p (vmi_instance_t vmi, addr_t virt_address)
 
     if (vmi->kpgd) {
         cr3 = vmi->kpgd;
-    }
-    else {
+    } else {
         driver_get_vcpureg(vmi, &cr3, CR3, 0);
     }
     if (!cr3) {

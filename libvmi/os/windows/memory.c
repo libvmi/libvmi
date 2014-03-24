@@ -35,49 +35,47 @@ windows_kernel_symbol_to_address(
     addr_t *kernel_base_address,
     addr_t *address)
 {
-    /* see if we have a cr3 value */
-    reg_t cr3 = 0;
+    status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
 
     if (vmi->os_data == NULL) {
-        return VMI_FAILURE;
+        goto exit;
     }
 
-    if (vmi->kpgd) {
-        cr3 = vmi->kpgd;
-    }
-    else {
-        driver_get_vcpureg(vmi, &cr3, CR3, 0);
-    }
     dbprint(VMI_DEBUG_MISC, "--windows symbol lookup (%s)\n", symbol);
 
+    if (VMI_SUCCESS == windows_kdbg_lookup(vmi, symbol, address)) {
+        dbprint(VMI_DEBUG_MISC, "--got symbol from kdbg (%s --> 0x%"PRIx64").\n", symbol, *address);
+        ret = VMI_SUCCESS;
+        goto success;
+    }
+
+    if(!windows->ntoskrnl_va) {
+        goto exit;
+    }
+
+    dbprint(VMI_DEBUG_MISC, "--kdbg lookup failed, trying kernel PE export table\n");
+
+    /* check exports */
+    addr_t rva;
+    if (VMI_SUCCESS == windows_export_to_rva(vmi, windows->ntoskrnl_va, 0, symbol, &rva)) {
+        *address = windows->ntoskrnl_va + rva;
+        dbprint(VMI_DEBUG_MISC, "--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
+             symbol, *address);
+        ret = VMI_SUCCESS;
+        goto success;
+    }
+
+    dbprint(VMI_DEBUG_MISC, "--kernel PE export table failed, nothing left to try\n");
+    goto exit;
+
+success:
     if (kernel_base_address) {
         *kernel_base_address = windows->ntoskrnl_va;
     }
 
-    /* check kpcr if we have a cr3 */
-    if ( /*cr3 && */ VMI_SUCCESS ==
-        windows_kpcr_lookup(vmi, symbol, address)) {
-        dbprint(VMI_DEBUG_MISC, "--got symbol from kpcr (%s --> 0x%"PRIx64").\n", symbol,
-                *address);
-        return VMI_SUCCESS;
-    }
-    dbprint(VMI_DEBUG_MISC, "--kpcr lookup failed, trying kernel PE export table\n");
-
-    /* check exports */
-    if (VMI_SUCCESS
-            == windows_export_to_rva(vmi, windows->ntoskrnl_va, 0, symbol,
-                    address)) {
-        addr_t rva = *address;
-
-        *address = windows->ntoskrnl_va + rva;
-        dbprint(VMI_DEBUG_MISC, "--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
-             symbol, *address);
-        return VMI_SUCCESS;
-    }
-    dbprint(VMI_DEBUG_MISC, "--kernel PE export table failed, nothing left to try\n");
-
-    return VMI_FAILURE;
+exit:
+    return ret;
 }
 
 /* finds the address of the page global directory for a given pid */

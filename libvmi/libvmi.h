@@ -110,15 +110,15 @@ typedef enum os {
 typedef enum win_ver {
 
     VMI_OS_WINDOWS_NONE,    /**< Not Windows */
-
     VMI_OS_WINDOWS_UNKNOWN, /**< Is Windows, not sure which */
-    VMI_OS_WINDOWS_2000,
-    VMI_OS_WINDOWS_XP,
-    VMI_OS_WINDOWS_2003,
-    VMI_OS_WINDOWS_VISTA,
-    VMI_OS_WINDOWS_2008,
-    VMI_OS_WINDOWS_7,
-    VMI_OS_WINDOWS_8
+
+    VMI_OS_WINDOWS_2000     = 0x0208U,
+    VMI_OS_WINDOWS_XP       = 0x0290U,
+    VMI_OS_WINDOWS_2003     = 0x0318U,
+    VMI_OS_WINDOWS_VISTA    = 0x0328U,
+    VMI_OS_WINDOWS_2008     = 0x0330U,
+    VMI_OS_WINDOWS_7        = 0x0340U,
+    VMI_OS_WINDOWS_8        = 0x0360U
 } win_ver_t;
 
 /* Three paging modes from Intel Vol3a Section 4.1.1 */

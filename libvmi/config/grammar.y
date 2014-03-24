@@ -275,9 +275,6 @@ int vmi_parse_config (const char *target_name)
 %token<str>    WIN_TASKS
 %token<str>    WIN_PDBASE
 %token<str>    WIN_PID
-%token<str>    WIN_PEB
-%token<str>    WIN_IBA
-%token<str>    WIN_PH
 %token<str>    WIN_PNAME
 %token<str>    WIN_KDVB
 %token<str>    WIN_KDBG
@@ -339,12 +336,6 @@ assignment:
         win_pdbase_assignment
         |
         win_pid_assignment
-        |
-        win_peb_assignment
-        |
-        win_iba_assignment
-        |
-        win_ph_assignment
         |
         win_pname_assignment
         |
@@ -454,39 +445,6 @@ win_pdbase_assignment:
 
 win_pid_assignment:
         WIN_PID EQUALS NUM
-        {
-            uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
-            (*tmp_ptr) = tmp;
-            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
-            free($3);
-        }
-        ;
-
-win_peb_assignment:
-        WIN_PEB EQUALS NUM
-        {
-            uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
-            (*tmp_ptr) = tmp;
-            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
-            free($3);
-        }
-        ;
-
-win_iba_assignment:
-        WIN_IBA EQUALS NUM
-        {
-            uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
-            (*tmp_ptr) = tmp;
-            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
-            free($3);
-        }
-        ;
-
-win_ph_assignment:
-        WIN_PH EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
             uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));

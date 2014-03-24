@@ -24,7 +24,7 @@ c_sources = \
     os/linux/memory.c \
     os/linux/symbols.c \
     os/windows/core.c \
-    os/windows/kpcr.c \
+    os/windows/kdbg.c \
     os/windows/memory.c \
     os/windows/peparse.c \
     os/windows/process.c
