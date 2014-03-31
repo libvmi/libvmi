@@ -7,12 +7,15 @@ c_sources = \
     convenience.c \
     core.c \
     events.c \
-    memory.c \
     performance.c \
     pretty_print.c \
     read.c \
     strmatch.c \
     write.c \
+    memory.c \
+    arch/arch_interface.c \
+    arch/intel.c \
+    arch/amd64.c \
     driver/file.c \
     driver/interface.c \
     driver/kvm.c \

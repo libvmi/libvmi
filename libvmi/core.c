@@ -205,137 +205,6 @@ error_exit:
     return ret;
 }
 
-/*
- * check that this vm uses a paging method that we support
- * and set pm/cr3/pae/pse/lme flags optionally on the given pointers
- */
-status_t
-get_memory_layout(
-    vmi_instance_t vmi,
-    page_mode_t *set_pm,
-    int *set_pae,
-    int *set_pse,
-    int *set_lme)
-{
-    // To get the paging layout, the following bits are needed:
-    // 1. CR0.PG
-    // 2. CR4.PAE
-    // 3. Either (a) IA32_EFER.LME, or (b) the guest's address width (32 or
-    //    64). Not all backends allow us to read an MSR; in particular, Xen's PV
-    //    backend doessn't.
-
-    status_t ret = VMI_FAILURE;
-    page_mode_t pm = VMI_PM_UNKNOWN;
-    uint8_t dom_addr_width = 0; // domain address width (bytes)
-
-    /* pull info from registers, if we can */
-    reg_t cr0, cr3, cr4, efer;
-    int pae, pse, lme;
-    uint8_t msr_efer_lme = 0;   // LME bit in MSR_EFER
-
-    /* skip all of this for files */
-    if (VMI_FILE == vmi->mode) {
-        goto _exit;
-    }
-
-    /* get the control register values */
-    if (driver_get_vcpureg(vmi, &cr0, CR0, 0) == VMI_FAILURE) {
-        errprint("**failed to get CR0\n");
-        goto _exit;
-    }
-
-    /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
-    if (!vmi_get_bit(cr0, 31)) {
-        errprint("Paging disabled for this VM, not supported.\n");
-        goto _exit;
-    }
-
-    //
-    // Paging enabled (PG==1)
-    //
-    if (driver_get_vcpureg(vmi, &cr4, CR4, 0) == VMI_FAILURE) {
-        errprint("**failed to get CR4\n");
-        goto _exit;
-    }
-
-    /* PSE Flag --> CR4, bit 5 */
-    pae = vmi_get_bit(cr4, 5);
-    dbprint(VMI_DEBUG_CORE, "**set pae = %d\n", pae);
-
-    /* PSE Flag --> CR4, bit 4 */
-    pse = vmi_get_bit(cr4, 4);
-    dbprint(VMI_DEBUG_CORE, "**set pse = %d\n", pse);
-
-    ret = driver_get_vcpureg(vmi, &efer, MSR_EFER, 0);
-    if (VMI_SUCCESS == ret) {
-        lme = vmi_get_bit(efer, 8);
-        dbprint(VMI_DEBUG_CORE, "**set lme = %d\n", lme);
-    }
-    else {
-        dbprint(VMI_DEBUG_CORE, "**failed to get MSR_EFER, trying method #2\n");
-
-        // does this trick work in all cases?
-        ret = driver_get_address_width(vmi, &dom_addr_width);
-        if (VMI_FAILURE == ret) {
-            errprint
-                ("Failed to get domain address width. Giving up.\n");
-            goto _exit;
-        }
-        lme = (8 == dom_addr_width);
-        dbprint
-            (VMI_DEBUG_CORE, "**found guest address width is %d bytes; assuming IA32_EFER.LME = %d\n",
-             dom_addr_width, lme);
-    }   // if
-
-
-    // Get current cr3 for sanity checking
-    if (driver_get_vcpureg(vmi, &cr3, CR3, 0) == VMI_FAILURE) {
-        errprint("**failed to get CR3\n");
-        goto _exit;
-    }
-
-    // now determine addressing mode
-    if (0 == pae) {
-        dbprint(VMI_DEBUG_CORE, "**32-bit paging\n");
-        pm = VMI_PM_LEGACY;
-        cr3 &= 0xFFFFF000ull;
-    }
-    // PAE == 1; determine IA-32e or PAE
-    else if (lme) {    // PAE == 1, LME == 1
-        dbprint(VMI_DEBUG_CORE, "**IA-32e paging\n");
-        pm = VMI_PM_IA32E;
-        cr3 &= 0xFFFFFFFFFFFFF000ull;
-    }
-    else {  // PAE == 1, LME == 0
-        dbprint(VMI_DEBUG_CORE, "**PAE paging\n");
-        pm = VMI_PM_PAE;
-        cr3 &= 0xFFFFFFE0;
-    }   // if-else
-    dbprint(VMI_DEBUG_CORE, "**sanity checking cr3 = 0x%.16"PRIx64"\n", cr3);
-
-    /* testing to see CR3 value */
-    if (!driver_is_pv(vmi) && cr3 > vmi->size) {   // sanity check on CR3
-        dbprint(VMI_DEBUG_CORE, "** Note cr3 value [0x%"PRIx64"] exceeds memsize [0x%"PRIx64"]\n",
-                cr3, vmi->size);
-    }
-
-    if(set_pm != NULL) {
-        *set_pm=pm;
-    }
-    if(set_pae != NULL) {
-        *set_pae=pae;
-    }
-    if(set_pse != NULL) {
-        *set_pse=pse;
-    }
-    if(set_lme != NULL) {
-         *set_lme=lme;
-    }
-
-_exit:
-    return ret;
-}
-
 static status_t
 init_page_offset(
     vmi_instance_t vmi)
@@ -489,6 +358,9 @@ vmi_init_private(
     /* the config hash table is set up later based on mode */
     (*vmi)->config = NULL;
 
+    /* set page mode to unknown */
+    (*vmi)->page_mode = VMI_PM_UNKNOWN;
+
     /* setup the caches */
     pid_cache_init(*vmi);
     sym_cache_init(*vmi);
@@ -514,97 +386,97 @@ vmi_init_private(
     }
     dbprint(VMI_DEBUG_CORE, "--completed driver init.\n");
 
+    /* setup the page offset size */
+    if (VMI_FAILURE == init_page_offset(*vmi)) {
+        goto error_exit;
+    }
+
+    /* get the memory size */
+    if (driver_get_memsize(*vmi, &(*vmi)->size) == VMI_FAILURE) {
+        errprint("Failed to get memory size.\n");
+        goto error_exit;
+    }
+    dbprint(VMI_DEBUG_CORE, "**set size = %"PRIu64" [0x%"PRIx64"]\n", (*vmi)->size,
+        (*vmi)->size);
+
+    // for file mode we need os-specific heuristics to deduce the architecture
+    if (VMI_FILE != (*vmi)->mode) {
+        /* architecture specific initilization */
+        if(VMI_FAILURE == arch_init(*vmi)) {
+           dbprint(VMI_DEBUG_CORE, "--failed to determine architecture.\n");
+           goto error_exit;
+        }
+
+        dbprint(VMI_DEBUG_CORE, "--completed architecture init.\n");
+    }
+
     /* we check VMI_INIT_COMPLETE first as
        VMI_INIT_PARTIAL is not exclusive */
     if (init_mode & VMI_INIT_COMPLETE) {
 
-        /* init_complete requires configuration */
-        if(VMI_CONFIG_NONE & (*vmi)->config_mode) {
-            /* falling back to VMI_CONFIG_GLOBAL_FILE_ENTRY is unsafe here
-                as the config pointer is probably NULL */
-            goto error_exit;
-        }
-
-        /* read and parse the config file */
-        if ( (VMI_CONFIG_STRING & (*vmi)->config_mode)
-                 && VMI_FAILURE == read_config_string(*vmi, (char*)config)) {
-            goto error_exit;
-        }
-
-        if ( (VMI_CONFIG_GLOBAL_FILE_ENTRY & (*vmi)->config_mode)
-                 && VMI_FAILURE == read_config_file_entry(*vmi)) {
-            goto error_exit;
-        }
-
-        /* read and parse the ghashtable */
-        if ((VMI_CONFIG_GHASHTABLE & (*vmi)->config_mode)) {
-            (*vmi)->config = (GHashTable*)config;
+        switch((*vmi)->config_mode) {
+            case VMI_CONFIG_STRING:
+                /* read and parse the config string */
+                if(VMI_FAILURE == read_config_string(*vmi, (char*)config)) {
+                    goto error_exit;
+                }
+                break;
+            case VMI_CONFIG_GLOBAL_FILE_ENTRY:
+                /* read and parse the config file */
+                if(VMI_FAILURE == read_config_file_entry(*vmi)) {
+                    goto error_exit;
+                }
+                break;
+            case VMI_CONFIG_GHASHTABLE:
+                /* read and parse the ghashtable */
+                if (!config) {
+                    goto error_exit;
+                }
+                (*vmi)->config = (GHashTable*)config;
+                break;
+            case VMI_CONFIG_NONE:
+            default:
+                /* init_complete requires configuration
+                   falling back to VMI_CONFIG_GLOBAL_FILE_ENTRY is unsafe here
+                   as the config pointer is probably NULL */
+                goto error_exit;
         }
 
         if(VMI_FAILURE == set_os_type_from_config(*vmi)) {
-            dbprint(VMI_DEBUG_CORE, "--failed to determind os type from ghashtable\n");
+            dbprint(VMI_DEBUG_CORE, "--failed to determine os type from config\n");
             goto error_exit;
-        }
-
-
-        /* setup the correct page offset size for the target OS */
-        if (VMI_FAILURE == init_page_offset(*vmi)) {
-            goto error_exit;
-        }
-
-        /* get the memory size */
-        if (driver_get_memsize(*vmi, &(*vmi)->size) == VMI_FAILURE) {
-            errprint("Failed to get memory size.\n");
-            goto error_exit;
-        }
-        dbprint(VMI_DEBUG_CORE, "**set size = %"PRIu64" [0x%"PRIx64"]\n", (*vmi)->size,
-                (*vmi)->size);
-
-        /* determine the page sizes and layout for target OS */
-
-        // Find the memory layout. If this fails, then proceed with the
-        // OS-specific heuristic techniques.
-        (*vmi)->pae = (*vmi)->pse = (*vmi)->lme = 0;
-        (*vmi)->page_mode = VMI_PM_UNKNOWN;
-
-        if ((*vmi)->mode == VMI_FILE) {
-            dbprint(VMI_DEBUG_CORE,
-                    "**Can't get memory layout for VMI_FILE. Trying heuristic methods, if any.\n");
-        } else {
-            status = get_memory_layout(*vmi, &((*vmi)->page_mode),
-                    &((*vmi)->pae), &((*vmi)->pse), &((*vmi)->lme));
-
-            if (VMI_FAILURE == status) {
-                dbprint(VMI_DEBUG_CORE,
-                        "**Failed to get memory layout for VM. Trying OS heuristic methods, if any.\n");
-                // fall-through
-            }   // if
         }
 
         /* setup OS specific stuff */
         if (VMI_OS_LINUX == (*vmi)->os_type) {
-            status = linux_init(*vmi);
+            if(VMI_FAILURE == linux_init(*vmi)) {
+                goto error_exit;
+            }
         }
         else if (VMI_OS_WINDOWS == (*vmi)->os_type) {
-            status = windows_init(*vmi);
+            if(VMI_FAILURE == windows_init(*vmi)) {
+                goto error_exit;
+            }
+        } else {
+            goto error_exit;
         }
 
-        /* Enable event handlers only if we're in a consistent state */
-        if((status == VMI_SUCCESS) && (init_mode & VMI_INIT_EVENTS)){
-            events_init(*vmi);
-        }
+        status = VMI_SUCCESS;
 
-        return status;
     } else if (init_mode & VMI_INIT_PARTIAL) {
-        init_page_offset(*vmi);
-        driver_get_memsize(*vmi, &(*vmi)->size);
 
-        /* Enable event handlers */
-        if(init_mode & VMI_INIT_EVENTS){
-            events_init(*vmi);
-        }
+        status = VMI_SUCCESS;
 
-        return VMI_SUCCESS;
+    } else {
+
+        errprint("Need to specify either VMI_INIT_PARTIAL or VMI_INIT_COMPLETE.\n");
+        goto error_exit;
+
+    }
+
+    /* Enable event handlers */
+    if(init_mode & VMI_INIT_EVENTS){
+        events_init(*vmi);
     }
 
 error_exit:
@@ -744,6 +616,9 @@ vmi_destroy(
     }
     if (vmi->os_data) {
         free(vmi->os_data);
+    }
+    if (vmi->arch_interface) {
+        free(vmi->arch_interface);
     }
     vmi->os_data = NULL;
     pid_cache_destroy(vmi);

@@ -42,6 +42,7 @@
 #include "debug.h"
 #include "libvmi.h"
 #include "libvmi_extra.h"
+#include "arch/arch_interface.h"
 #include "os/os_interface.h"
 
 /**
@@ -76,8 +77,6 @@ struct vmi_instance {
 
     addr_t init_task;       /**< address of task struct for init */
 
-    os_t os_type;           /**< type of os: VMI_OS_LINUX, etc */
-
     int pae;                /**< nonzero if PAE is enabled */
 
     int pse;                /**< nonzero if PSE is enabled */
@@ -86,9 +85,13 @@ struct vmi_instance {
 
     page_mode_t page_mode;  /**< paging mode in use */
 
+    arch_interface_t arch_interface; /**< architecture specific functions */
+
     uint64_t size;          /**< total size of target's memory */
 
     int hvm;                /**< nonzero if HVM */
+
+    os_t os_type;           /**< type of os: VMI_OS_LINUX, etc */
 
     os_interface_t os_interface; /**< Guest OS specific functions */
 
@@ -205,6 +208,15 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t vmi,
     addr_t addr);
 
+#define VMI_GET_BIT(reg, bit) ((reg & (1<<bit)) ? 1:0)
+
+/*-------------------------------------
+ * accessors.c
+ */
+    void *vmi_read_page(
+    vmi_instance_t vmi,
+    addr_t frame_num);
+
 /*-------------------------------------
  * cache.c
  */
@@ -296,22 +308,11 @@ typedef struct _windows_unicode_string32 {
 #endif
 
 /*-----------------------------------------
- * core.c
- */
-    status_t
-    get_memory_layout(
-    vmi_instance_t vmi,
-    page_mode_t *set_pm,
-    int *set_pae,
-    int *set_pse,
-    int *set_lme);
-
-/*-----------------------------------------
  * memory.c
  */
-    void *vmi_read_page(
-    vmi_instance_t vmi,
-    addr_t frame_num);
+
+    status_t find_page_mode_live(
+    vmi_instance_t vmi);
 
 /*-----------------------------------------
  * strmatch.c
