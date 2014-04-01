@@ -22,6 +22,7 @@
 
 #include <check.h>
 #include "../libvmi/libvmi.h"
+#include "../libvmi/libvmi_extra.h"
 #include "check_tests.h"
 
 #include <stdlib.h>
@@ -41,30 +42,15 @@ START_TEST (test_get_va_pages)
     GHashTable *config = NULL;
 
     if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-
-        config = g_hash_table_new(g_str_hash, g_str_equal);
-        uint64_t win_tasks = vmi_get_offset(vmi, "win_tasks");
-        uint64_t win_pdbase = vmi_get_offset(vmi, "win_pdbase");
-        uint64_t win_pid = vmi_get_offset(vmi, "win_pid");
-        uint64_t win_pname = vmi_get_offset(vmi, "win_pname");
-        char *name = vmi_get_name(vmi);
-        char *win = "Windows";
-
-        vmi_destroy(vmi);
-
-        g_hash_table_insert(config, "name", name);
-        g_hash_table_insert(config, "os_type", win);
-        g_hash_table_insert(config, "win_tasks", &win_tasks);
-        g_hash_table_insert(config, "win_pdbase", &win_pdbase);
-        g_hash_table_insert(config, "win_pid", &win_pid);
-        g_hash_table_insert(config, "win_pname", &win_pname);
-
-        if(VMI_FAILURE == vmi_init_custom(&vmi, VMI_AUTO | VMI_INIT_COMPLETE | VMI_CONFIG_GHASHTABLE, config)) {
-            fail_unless(0, "Failed to initialize Windows using KDBG scan");
+        addr_t dtb = vmi_pid_to_dtb(vmi, 4);
+        GSList *list = vmi_get_va_pages(vmi, dtb);
+        fail_unless(list != NULL, "vmi_get_va_pages failed");
+        GSList *loop = list;
+        while(loop) {
+            free(loop->data);
+            loop=loop->next;
         }
-
-        g_hash_table_destroy(config);
-
+        g_slist_free(list);
     }
 
     /* cleanup any memory associated with the LibVMI instance */
