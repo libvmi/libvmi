@@ -36,18 +36,12 @@ extern "C" {
 #include <glib.h>
 #include <libvmi/libvmi.h>
 
-/** structure to hold virtual address and page size via vmi_get_va_pages */
-typedef struct va_page {
-    addr_t va;
-    page_size_t size;
-} va_page_t;
-
 /**
  * Retrieve the pages mapped into the address space of a process.
  * @param[in] vmi Instance
  * @param[in] dtb The directory table base of the process
  *
- * @return GSList of va_page_t structures, or NULL on error.
+ * @return GSList of page_info_t structures, or NULL on error.
  * The caller is responsible for freeing the list and the structs.
  */
 GSList* vmi_get_va_pages(

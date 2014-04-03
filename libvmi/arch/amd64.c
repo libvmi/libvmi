@@ -246,9 +246,14 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
             }
 
             if(PAGE_SIZE_FLAG(pdpte_value)) {
-                struct va_page *p = g_malloc0(sizeof(struct va_page));
-                p->va = vaddr;
+                page_info_t *p = g_malloc0(sizeof(page_info_t));
+                p->vaddr = vaddr;
+                p->paddr = get_gigpage_ia32e(vaddr, pdpte_value);
                 p->size = VMI_PS_1GB;
+                p->l4_a = pml4e_a;
+                p->l4_v = pml4e_value;
+                p->l3_a = pdpte_a;
+                p->l3_v = pdpte_value;
                 ret = g_slist_append(ret, p);
                 continue;
             }
@@ -267,9 +272,16 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                 if(ENTRY_PRESENT(vmi->os_type, entry)) {
 
                     if(PAGE_SIZE_FLAG(entry)) {
-                        struct va_page *p = g_malloc0(sizeof(struct va_page));
-                        p->va = soffset;
+                        page_info_t *p = g_malloc0(sizeof(page_info_t));
+                        p->vaddr = soffset;
+                        p->paddr = get_2megpage_ia32e(vaddr, entry);
                         p->size = VMI_PS_2MB;
+                        p->l4_a = pml4e_a;
+                        p->l4_v = pml4e_value;
+                        p->l3_a = pdpte_a;
+                        p->l3_v = pdpte_value;
+                        p->l2_a = pgd_curr;
+                        p->l2_v = entry;
                         ret = g_slist_append(ret, p);
                         continue;
                     }
@@ -283,9 +295,18 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                         }
 
                         if(ENTRY_PRESENT(vmi->os_type, pte_entry)) {
-                            struct va_page *p = g_malloc0(sizeof(struct va_page));
-                            p->va = soffset + k * VMI_PS_4KB;
+                            page_info_t *p = g_malloc0(sizeof(page_info_t));
+                            p->vaddr = soffset + k * VMI_PS_4KB;
+                            p->paddr = get_paddr_ia32e(vaddr, pte_entry);
                             p->size = VMI_PS_4KB;
+                            p->l4_a = pml4e_a;
+                            p->l4_v = pml4e_value;
+                            p->l3_a = pdpte_a;
+                            p->l3_v = pdpte_value;
+                            p->l2_a = pgd_curr;
+                            p->l2_v = entry;
+                            p->l1_a = pte_curr;
+                            p->l1_v = pte_entry;
                             ret = g_slist_append(ret, p);
                             continue;
                         }

@@ -517,9 +517,9 @@ walkthrough_shm_snapshot_pagetable(
     GSList *pages = vmi_get_va_pages(vmi, dtb);
     GSList *loop = pages;
     while(loop) {
-        va_page_t *page = pages->data;
-        addr_t start_vaddr = page->va;
-        addr_t start_paddr = vmi_pagetable_lookup(vmi, dtb, start_vaddr);
+        page_info_t *page = pages->data;
+        addr_t start_vaddr = data->vaddr;
+        addr_t start_paddr = data->paddr;
         addr_t end_vaddr = start_vaddr | (page->size-1);
         addr_t end_paddr = start_paddr | (page->size-1);
         if (start_paddr < vmi->size) {

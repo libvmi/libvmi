@@ -369,9 +369,12 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
         if(ENTRY_PRESENT(vmi->os_type, entry)) {
 
             if(PAGE_SIZE_FLAG(entry)) {
-                struct va_page *p = g_malloc0(sizeof(struct va_page));
-                p->va = soffset;
+                page_info_t *p = g_malloc0(sizeof(page_info_t));
+                p->vaddr = soffset;
+                p->paddr = get_large_paddr_nopae(p->vaddr, soffset);
                 p->size = VMI_PS_4MB;
+                p->l2_a = pgd_curr;
+                p->l2_v = entry;
                 ret = g_slist_append(ret, p);
                 continue;
             }
@@ -386,9 +389,14 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
                 }
 
                 if(ENTRY_PRESENT(vmi->os_type, pte_entry)) {
-                    struct va_page *p = g_malloc0(sizeof(struct va_page));
-                    p->va = soffset + k * VMI_PS_4KB;
+                    page_info_t *p = g_malloc0(sizeof(page_info_t));
+                    p->vaddr = soffset + k * VMI_PS_4KB;
+                    p->paddr = get_paddr_nopae(p->vaddr, pte_entry);
                     p->size = VMI_PS_4KB;
+                    p->l2_a = pgd_curr;
+                    p->l2_v = entry;
+                    p->l1_a = pte_curr;
+                    p->l1_v = pte_entry;
                     ret = g_slist_append(ret, p);
                 }
             }
@@ -432,9 +440,14 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
             if(ENTRY_PRESENT(vmi->os_type, entry)) {
 
                 if(PAGE_SIZE_FLAG(entry)) {
-                    struct va_page *p = g_malloc0(sizeof(struct va_page));
-                    p->va = soffset;
+                    page_info_t *p = g_malloc0(sizeof(page_info_t));
+                    p->vaddr = soffset;
+                    p->paddr = get_large_paddr_pae(p->vaddr, pgd_curr);
                     p->size = VMI_PS_2MB;
+                    p->l3_a = pdpi_entry;
+                    p->l3_v = pdpe;
+                    p->l2_a = pgd_curr;
+                    p->l2_v = entry;
                     ret = g_slist_append(ret, p);
                     continue;
                 }
@@ -448,9 +461,16 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
                     }
 
                     if(ENTRY_PRESENT(vmi->os_type, pte_entry)) {
-                        struct va_page *p = g_malloc0(sizeof(struct va_page));
-                        p->va = soffset + k * VMI_PS_4KB;
+                        page_info_t *p = g_malloc0(sizeof(page_info_t));
+                        p->vaddr = soffset + k * VMI_PS_4KB;
+                        p->paddr = get_paddr_pae(p->vaddr, pte_entry);
                         p->size = VMI_PS_4KB;
+                        p->l3_a = pdpi_entry;
+                        p->l3_v = pdpe;
+                        p->l2_a = pgd_curr;
+                        p->l2_v = entry;
+                        p->l1_a = pte_curr;
+                        p->l1_v = pte_entry;
                         ret = g_slist_append(ret, p);
                     }
                 }
