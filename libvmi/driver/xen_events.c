@@ -371,7 +371,7 @@ status_t process_register(vmi_instance_t vmi,
             event->reg_event.value = req.gfn;
             event->vcpu_id = req.vcpu_id;
 
-#ifdef __XEN_INTERFACE_VERSION__ >= 0x00040400
+#if __XEN_INTERFACE_VERSION__ >= 0x00040400
             if(event->reg_event.reg != MSR_ALL)
                 event->reg_event.previous = req.gla;
 #endif
