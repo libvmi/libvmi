@@ -1,0 +1,5 @@
+libvmi (0.11) unstable; urgency=low
+
+  * Started using debian packaging.
+
+ -- Bryan D. Payne <bdpayne@acm.org>  Thu, 03 Apr 2014 12:34:17 -0700

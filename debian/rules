@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment these for more verbosity
+#export DH_VERBOSE=1
+#export DH_OPTIONS=-v
+
+%:
+	dh $@ --with autoreconf
+
+# make sure we call autogen.sh to setup the build scripts
+override_dh_autoreconf:
+	dh_autoreconf ./autogen.sh
+
+# skip running 'make check' since we don't have a running VM
+override_dh_auto_test:

@@ -11,7 +11,7 @@ AC_CONFIG_HEADERS(config.h)
 
 LIBRARY_NAME=libvmi
 MAJOR_VERSION=0
-MINOR_VERSION=9
+MINOR_VERSION=11
 MICRO_VERSION=0
 VERSION=$MAJOR_VERSION.$MINOR_VERSION.$MICRO_VERSION
 RELEASE=$MAJOR_VERSION.$MINOR_VERSION
@@ -214,6 +214,8 @@ kvm_space='      '
         [fi]
     [fi]
 [fi]
+
+AC_CHECK_LIB(m, ceil, [], [])
 
 have_shm_snapshot='no'
 shm_snapshot_space=' '
