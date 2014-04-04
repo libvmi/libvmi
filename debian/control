@@ -1,0 +1,40 @@
+Source: libvmi
+Priority: optional
+Maintainer: Bryan D. Payne <bdpayne@acm.org>
+Build-Depends: debhelper (>= 8.0.0),
+ build-essential,
+ libtool,
+ automake,
+ autotools-dev,
+ dh-autoreconf,
+ flex,
+ bison,
+ libglib2.0-dev,
+ libvirt-dev,
+ check
+Standards-Version: 3.9.3
+Section: libs
+Homepage: https://github.com/bdpayne/libvmi
+
+Package: libvmi-dev
+Section: libdevel
+Architecture: any
+Depends: libvmi0 (= ${binary:Version})
+Description: Virtual machine introspection library development files
+ Development files, header files, etc for use with LibVMI.
+
+Package: libvmi0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Virtual machine introspection library
+ LibVMI is a virtual machine introspection library. This means that it helps
+ you access the memory of a running virtual machine. LibVMI provides primatives
+ for accessing this memory using physical or virtual addresses and kernel
+ symbols. LibVMI also supports accessing memory from a physical memory
+ snapshot, which is helpful for debugging or forensic analysis.
+ .
+ In addition to memory access, LibVMI supports memory events. Events provide
+ notifications when registered regions of memory are executed, written to, or
+ read. Memory events require hypervisor support and are currently only
+ available with Xen.
