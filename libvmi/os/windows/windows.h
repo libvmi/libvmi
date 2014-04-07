@@ -80,4 +80,6 @@ addr_t windows_find_eprocess(vmi_instance_t instance, const char *name);
 addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, vmi_pid_t pid);
 addr_t windows_find_eprocess_list_pgd(vmi_instance_t vmi, addr_t pgd);
 
+status_t init_from_kdbg(vmi_instance_t vmi);
+status_t windows_kdbg_lookup(vmi_instance_t vmi, const char *symbol, addr_t *address);
 #endif /* OS_WINDOWS_H_ */

@@ -231,7 +231,7 @@ get_aon_index(
 
     if (-1 == index) {
         dbprint
-            (VMI_DEBUG_MISC, "--PEParse: Falling back to linear search for aon index\n");
+            (VMI_DEBUG_PEPARSE, "--PEParse: Falling back to linear search for aon index\n");
         // This could be useful for malformed PE headers where the list isn't
         // in alpha order (e.g., malware)
         index = get_aon_index_linear(vmi, symbol, et, base_addr, pid);
@@ -252,21 +252,21 @@ peparse_validate_pe_image(
     //vmi_print_hex (image, MAX_HEADER_BYTES);
 
     if (IMAGE_DOS_HEADER != dos_header->signature) {
-        dbprint(VMI_DEBUG_MISC, "--PEPARSE: DOS header signature not found\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: DOS header signature not found\n");
         return VMI_FAILURE;
     }
 
     uint32_t ofs_to_pe = dos_header->offset_to_pe;
 
     if (ofs_to_pe > len - fixed_header_sz) {
-        dbprint(VMI_DEBUG_MISC, "--PEPARSE: DOS header offset to PE value too big\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: DOS header offset to PE value too big\n");
         return VMI_FAILURE;
     }
 
     struct pe_header *pe_header =
         (struct pe_header *) (image + ofs_to_pe);
     if (IMAGE_NT_SIGNATURE != pe_header->signature) {
-        dbprint(VMI_DEBUG_MISC, "--PEPARSE: PE header signature invalid\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: PE header signature invalid\n");
         return VMI_FAILURE;
     }
 
@@ -277,7 +277,7 @@ peparse_validate_pe_image(
 
     if (IMAGE_PE32_MAGIC != pe_opt_header->magic &&
         IMAGE_PE32_PLUS_MAGIC != pe_opt_header->magic) {
-        dbprint(VMI_DEBUG_MISC, "--PEPARSE: Optional header magic value unknown\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: Optional header magic value unknown\n");
         return VMI_FAILURE;
     }
 
@@ -295,14 +295,14 @@ peparse_get_image_phys(
     uint32_t nbytes = vmi_read_pa(vmi, base_paddr, (void *)image, len);
 
     if(nbytes != len) {
-        dbprint(VMI_DEBUG_MISC, "--PEPARSE: failed to read a continuous PE header\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to read a continuous PE header\n");
         return VMI_FAILURE;
     }
 
     if(VMI_SUCCESS != peparse_validate_pe_image(image, len)) {
-        dbprint(VMI_DEBUG_MISC, "--PEPARSE: failed to validate a continuous PE header\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to validate a continuous PE header\n");
         if(vmi->init_mode & VMI_INIT_COMPLETE) {
-            dbprint(VMI_DEBUG_MISC, "--PEPARSE: You might want to use peparse_get_image_virt here!\n");
+            dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: You might want to use peparse_get_image_virt here!\n");
         }
 
         return VMI_FAILURE;
@@ -323,12 +323,12 @@ peparse_get_image_virt(
     uint32_t nbytes = vmi_read_va(vmi, base_vaddr, pid, (void *)image, len);
 
     if(nbytes != len) {
-        dbprint(VMI_DEBUG_MISC, "--PEPARSE: failed to read PE header\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to read PE header\n");
         return VMI_FAILURE;
     }
 
     if(VMI_SUCCESS != peparse_validate_pe_image(image, len)) {
-        dbprint(VMI_DEBUG_MISC, "--PEPARSE: failed to validate PE header(s)\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to validate PE header(s)\n");
         return VMI_FAILURE;
     }
 
@@ -366,7 +366,7 @@ peparse_assign_headers(
         *optional_header_type = magic;
     }
 
-    dbprint(VMI_DEBUG_MISC, "--PEParse: magic is 0x%"PRIx16"\n", magic);
+    dbprint(VMI_DEBUG_PEPARSE, "--PEParse: magic is 0x%"PRIx16"\n", magic);
 
     if(magic == IMAGE_PE32_MAGIC && oh_pe32 != NULL) {
         *oh_pe32 = (struct optional_header_pe32 *) op_h_t;
@@ -417,7 +417,7 @@ peparse_get_idd_rva(
 done:
     if(rva == 0) {
         // Could this be legit? If not, we might want to switch this to a status_t function
-        dbprint(VMI_DEBUG_MISC, "--PEParse: Image data directory RVA is 0\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: Image data directory RVA is 0\n");
     }
 
     return rva;
@@ -509,19 +509,19 @@ peparse_get_export_table(
     export_header_va = base_vaddr + export_header_rva;
 
     dbprint
-        (VMI_DEBUG_MISC, "--PEParse: found export table at [VA] 0x%.16"PRIx64" = 0x%.16"PRIx64" + 0x%"PRIx64"\n",
+        (VMI_DEBUG_PEPARSE, "--PEParse: found export table at [VA] 0x%.16"PRIx64" = 0x%.16"PRIx64" + 0x%"PRIx64"\n",
          export_header_va, ((windows_instance_t)vmi->os_data)->ntoskrnl_va,
          export_header_rva);
 
     nbytes = vmi_read_va(vmi, export_header_va, pid, et, sizeof(*et));
     if (nbytes != sizeof(struct export_table)) {
-        dbprint(VMI_DEBUG_MISC, "--PEParse: failed to map export header\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to map export header\n");
         return VMI_FAILURE;
     }
 
     /* sanity check */
     if (et->export_flags || !et->name) {
-        dbprint(VMI_DEBUG_MISC, "--PEParse: bad export directory table\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: bad export directory table\n");
         return VMI_FAILURE;
     }
 
@@ -545,19 +545,19 @@ windows_export_to_rva(
 
     // get export table structure
     if (peparse_get_export_table(vmi, base_vaddr, pid, &et, &et_rva, &et_size) != VMI_SUCCESS) {
-        dbprint(VMI_DEBUG_MISC, "--PEParse: failed to get export table\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to get export table\n");
         return VMI_FAILURE;
     }
 
     // find AddressOfNames index for export symbol
     if ((aon_index = get_aon_index(vmi, symbol, &et, base_vaddr, pid)) == -1) {
-        dbprint(VMI_DEBUG_MISC, "--PEParse: failed to get aon index\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to get aon index\n");
         return VMI_FAILURE;
     }
 
     // find AddressOfFunctions index for export symbol
     if ((aof_index = get_aof_index(vmi, aon_index, &et, base_vaddr, pid)) == -1) {
-        dbprint(VMI_DEBUG_MISC, "--PEParse: failed to get aof index\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to get aof index\n");
         return VMI_FAILURE;
     }
 
@@ -568,7 +568,7 @@ windows_export_to_rva(
         // If the function's RVA is inside the exports section (as given by the
         // VirtualAddress and Size fields in the idd), the symbol is forwarded.
         if(*rva>=et_rva && *rva < et_rva+et_size) {
-            dbprint(VMI_DEBUG_MISC, "--PEParse: %s @ %u:0x%"PRIx64" is forwarded\n", symbol, pid, base_vaddr);
+            dbprint(VMI_DEBUG_PEPARSE, "--PEParse: %s @ %u:0x%"PRIx64" is forwarded\n", symbol, pid, base_vaddr);
             return VMI_FAILURE;
         } else {
             return VMI_SUCCESS;
@@ -595,12 +595,12 @@ windows_rva_to_export(
 
     // get export table structure
     if (peparse_get_export_table(vmi, base_vaddr, pid, &et, &et_rva, &et_size) != VMI_SUCCESS) {
-        dbprint(VMI_DEBUG_MISC, "--PEParse: failed to get export table\n");
+        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to get export table\n");
         return NULL;
     }
 
     if(rva>=et_rva && rva < et_rva+et_size) {
-        dbprint(VMI_DEBUG_MISC, "--PEParse: symbol @ %u:0x%"PRIx64" is forwarded\n", pid, base_vaddr+rva);
+        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: symbol @ %u:0x%"PRIx64" is forwarded\n", pid, base_vaddr+rva);
         return NULL;
     }
 
@@ -627,7 +627,7 @@ windows_rva_to_export(
                 return symbol;
             }
 
-            dbprint(VMI_DEBUG_MISC, "--PEParse: symbol @ %u:0x%"PRIx64" is exported by ordinal only\n", pid, base_vaddr+rva);
+            dbprint(VMI_DEBUG_PEPARSE, "--PEParse: symbol @ %u:0x%"PRIx64" is exported by ordinal only\n", pid, base_vaddr+rva);
             break;
         }
     }

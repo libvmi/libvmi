@@ -26,7 +26,7 @@
 #define CHECK_TESTS_H
 
 /* vm name access */
-char *get_testvm();
+const char *get_testvm();
 
 /* test cases */
 TCase *init_tcase (void);

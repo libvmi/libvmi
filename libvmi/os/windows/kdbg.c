@@ -1150,7 +1150,7 @@ done:
  * in the libvmi config.
  */
 status_t
-init_kdbg(
+init_from_kdbg(
     vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;

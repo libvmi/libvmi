@@ -27,9 +27,50 @@
 #include <string.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <unistd.h>
+#include <glib.h>
 #include "../libvmi/libvmi.h"
 #include "check_tests.h"
 
+/* test init_complete for Windows from Rekall sysmap */
+START_TEST (test_libvmi_init4)
+{
+    const char *name = get_testvm();
+    vmi_instance_t vmi = NULL;
+    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name);
+    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi) && VMI_OS_WINDOWS_XP == vmi_get_winver(vmi))
+    {
+
+        char location[100];
+        getcwd(location, sizeof(location));
+
+#define XP_REKALL_PROFILE_LIVE "ntkrnlpa.pdb.bd8f451f3e754ed8a34b50560ceb08e31.rekall.json"
+#define XP_REKALL_PROFILE_FILE "ntoskrnl.pdb.32962337f0f646388b39535cd8dd70e82.rekall.json"
+
+        char *sysmap = NULL;
+        if(vmi_get_access_mode(vmi) == VMI_FILE) {
+            sysmap = g_malloc0(snprintf(NULL,0,"%s/%s", location, XP_REKALL_PROFILE_FILE)+1);
+            sprintf(sysmap, "%s/%s", location, XP_REKALL_PROFILE_FILE);
+        } else {
+            sysmap = g_malloc0(snprintf(NULL,0,"%s/%s", location, XP_REKALL_PROFILE_LIVE)+1);
+            sprintf(sysmap, "%s/%s", location, XP_REKALL_PROFILE_LIVE);
+        }
+
+        vmi_destroy(vmi);
+
+        GHashTable *config = g_hash_table_new(g_str_hash, g_str_equal);
+        g_hash_table_insert(config, "ostype", "Windows");
+        g_hash_table_insert(config, "name", name);
+        g_hash_table_insert(config, "sysmap", sysmap);
+        if(VMI_FAILURE == vmi_init_custom(&vmi, VMI_AUTO | VMI_INIT_COMPLETE | VMI_CONFIG_GHASHTABLE, config)) {
+            fail_unless(0, "failed to init XP test domain from Rekall profile %s.", sysmap);
+        }
+        g_hash_table_destroy(config);
+        g_free(sysmap);
+    }
+    vmi_destroy(vmi);
+}
+END_TEST
 
 /* test init_complete with passed config */
 START_TEST (test_libvmi_init3)
@@ -41,7 +82,7 @@ START_TEST (test_libvmi_init3)
     struct passwd *pw_entry = NULL;
     vmi_instance_t vmi = NULL;
     status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_PARTIAL, get_testvm());
-    
+
     /* read the config entry from the config file */
 
     /* first check home directory of sudo user */
@@ -164,5 +205,10 @@ TCase *init_tcase (void)
     tcase_add_test(tc_init, test_libvmi_init1);
     tcase_add_test(tc_init, test_libvmi_init2);
     tcase_add_test(tc_init, test_libvmi_init3);
+
+#ifdef REKALL_PROFILES
+    tcase_add_test(tc_init, test_libvmi_init4);
+#endif
+
     return tc_init;
 }

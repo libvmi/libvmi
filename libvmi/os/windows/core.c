@@ -55,6 +55,27 @@ win_ver_t ntbuild2version(uint16_t ntbuildnumber)
     return VMI_OS_WINDOWS_UNKNOWN;
 };
 
+static inline
+status_t check_pdbase_offset(vmi_instance_t vmi) {
+    status_t ret = VMI_FAILURE;
+    windows_instance_t windows = vmi->os_data;
+
+    if(!windows->pdbase_offset) {
+        if(windows->sysmap) {
+            if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
+                goto done;
+            }
+        } else {
+            dbprint(VMI_DEBUG_MISC, "--win_pdbase is undefined\n");
+            goto done;
+        }
+    }
+
+    ret = VMI_SUCCESS;
+
+    done: return ret;
+}
+
 addr_t
 get_ntoskrnl_base(
     vmi_instance_t vmi,
@@ -62,9 +83,8 @@ get_ntoskrnl_base(
 {
     uint8_t page[VMI_PS_4KB];
     addr_t ret = 0;
-    int i = 0;
 
-    for(; page_paddr + VMI_PS_4KB < vmi->size ; page_paddr += VMI_PS_4KB) {
+    for(; page_paddr + VMI_PS_4KB < vmi->size; page_paddr += VMI_PS_4KB) {
 
         uint8_t page[VMI_PS_4KB];
         status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
@@ -170,8 +190,8 @@ get_kpgd_method2(
 
     /* get address for System process */
     if (!sysproc) {
-        if ((sysproc = windows_find_eprocess(vmi, "Idle")) == 0) {
-            dbprint(VMI_DEBUG_MISC, "--failed to find Idle process.\n");
+        if ((sysproc = windows_find_eprocess(vmi, "System")) == 0) {
+            dbprint(VMI_DEBUG_MISC, "--failed to find System process.\n");
             goto error_exit;
         }
         printf("LibVMI Suggestion: set win_sysproc=0x%"PRIx64" in libvmi.conf for faster startup.\n",
@@ -186,7 +206,7 @@ get_kpgd_method2(
                          sysproc +
                          windows->pdbase_offset,
                          &vmi->kpgd)) {
-        dbprint(VMI_DEBUG_MISC, "--failed to resolve PD for Idle process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve PD for System process\n");
         goto error_exit;
     }
 
@@ -200,7 +220,7 @@ get_kpgd_method2(
         vmi_read_addr_pa(vmi,
                      sysproc + windows->tasks_offset,
                      &vmi->init_task)) {
-        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of Idle process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of System process\n");
         goto error_exit;
     }
     vmi->init_task -= windows->tasks_offset;
@@ -267,7 +287,7 @@ get_kpgd_method1(
         vmi_read_addr_pa(vmi,
                      sysproc + windows->tasks_offset,
                      &vmi->init_task)) {
-        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of Idle process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of System process\n");
         goto error_exit;
     }
     vmi->init_task -= windows->tasks_offset;
@@ -323,7 +343,7 @@ get_kpgd_method0(
         vmi_read_addr_pa(vmi,
                      sysproc + windows->tasks_offset,
                      &vmi->init_task)){
-        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of Idle process\n");
+        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of System process\n");
         goto error_exit;
     }
     vmi->init_task -= windows->tasks_offset;
@@ -421,12 +441,10 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
-#ifdef REKALL_PROFILES
     if (strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
-        windows_instance->sysmap = (char *)value;
+        windows_instance->sysmap = g_strdup((char *)value);
         goto _done;
     }
-#endif
 
     if (strncmp(key, "name", CONFIG_STR_LENGTH) == 0) {
         goto _done;
@@ -447,78 +465,117 @@ init_from_sysmap(vmi_instance_t vmi)
 
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
-    if (!windows->sysmap) {
-        goto done;
-    }
+    dbprint(VMI_DEBUG_MISC, "**Trying to init from sysmap\n");
 
     reg_t kpcr = 0;
     addr_t kpcr_rva = 0;
 
-    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "KiInitialPCR", NULL, &kpcr_rva)) {
-        goto done;
-    }
+    if(vmi->mode != VMI_FILE) {
 
-    // Let's first try to get the kernbase from the KPCR (FS/GS registers)
-    if (vmi->page_mode == VMI_PM_IA32E) {
-        if (VMI_SUCCESS == driver_get_vcpureg(vmi, &kpcr, GS_BASE, 0)) {
+        if (vmi->page_mode == VMI_PM_IA32E) {
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, GS_BASE, 0)) {
+                goto done;
+            }
+        } else if (vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE) {
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, FS_BASE, 0)) {
+                goto done;
+            }
+        }
+
+        if (VMI_SUCCESS == windows_system_map_symbol_to_address(vmi, "KiInitialPCR", NULL, &kpcr_rva)) {
+            // If the sysmap has KiInitialPCR we have Win 7+
             windows->ntoskrnl_va = kpcr - kpcr_rva;
             windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
-        }
-    } else if (vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE) {
-        if (VMI_SUCCESS == driver_get_vcpureg(vmi, &kpcr, FS_BASE, 0)) {
-            windows->ntoskrnl_va = kpcr - kpcr_rva;
+        } else if(kpcr == 0x00000000ffdff000) {
+            // If we are in live mode without KiInitialPCR, the KPCR has to be
+            // at this VA (XP/Vista) and the KPCR trick [1] is still valid.
+            // [1] http://moyix.blogspot.de/2008/04/finding-kernel-global-variables-in.html
+            addr_t kdvb = 0, kdvb_offset = 0, kernbase_offset = 0;
+            windows_system_map_symbol_to_address(vmi, "_KPCR", "KdVersionBlock", &kdvb_offset);
+            windows_system_map_symbol_to_address(vmi, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset);
+            vmi_read_addr_va(vmi, kpcr+kdvb_offset, 0, &kdvb);
+            vmi_read_addr_va(vmi, kdvb+kernbase_offset, 0, &windows->ntoskrnl_va);
             windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+        } else {
+            goto done;
         }
+
+        dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
+
     }
 
-    // This could happen if we are in file mode
+    // This could happen if we are in file mode or for Win XP
     if (!windows->ntoskrnl) {
-        windows->ntoskrnl = get_ntoskrnl_base(vmi, 0);
+
+        windows->ntoskrnl = get_ntoskrnl_base(vmi, vmi->kpgd);
 
         // get KdVersionBlock/"_DBGKD_GET_VERSION64"->KernBase
         addr_t kdvb = 0, kernbase_offset = 0;
         windows_system_map_symbol_to_address(vmi, "KdVersionBlock", NULL, &kdvb);
         windows_system_map_symbol_to_address(vmi, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset);
 
-        if (kdvb && kernbase_offset) {
+        dbprint(VMI_DEBUG_MISC, "**KdVersionBlock RVA 0x%lx. KernBase RVA: 0x%lx\n", kdvb, kernbase_offset);
+        dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
+
+        if (windows->ntoskrnl && kdvb && kernbase_offset) {
             vmi_read_addr_pa(vmi, windows->ntoskrnl + kdvb + kernbase_offset, &windows->ntoskrnl_va);
+
+            if(!windows->ntoskrnl_va) {
+                vmi_read_32_pa(vmi, windows->ntoskrnl + kdvb + kernbase_offset, (uint32_t*)&windows->ntoskrnl_va);
+            }
+
+            if(!windows->ntoskrnl_va) {
+                dbprint(VMI_DEBUG_MISC, "**failed to find Windows kernel VA via KdVersionBlock\n");
+                goto done;
+            }
         } else {
+            dbprint(VMI_DEBUG_MISC, "**Failed to find required offsets and/or kernel base PA\n");
             goto done;
         }
     }
 
     dbprint(VMI_DEBUG_MISC, "**KernBase VA=0x%"PRIx64"\n", windows->ntoskrnl_va);
-    dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
 
     addr_t ntbuildnumber_rva;
     uint16_t ntbuildnumber = 0;
 
+    // Let's do some sanity checking
     if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
         goto done;
     }
-    vmi_read_16_pa(vmi, windows->ntoskrnl + ntbuildnumber_rva, &ntbuildnumber);
+    if (VMI_FAILURE == vmi_read_16_pa(vmi, windows->ntoskrnl + ntbuildnumber_rva, &ntbuildnumber)) {
+        goto done;
+    }
 
-    win_ver_t version = ntbuild2version(ntbuildnumber);
-    if (version == VMI_OS_WINDOWS_UNKNOWN) {
-        dbprint(VMI_DEBUG_MISC, "Unknown Windows NtBuildNumber: %u\n", ntbuildnumber);
+    if (ntbuild2version(ntbuildnumber) == VMI_OS_WINDOWS_UNKNOWN) {
+        dbprint(VMI_DEBUG_MISC, "Unknown Windows NtBuildNumber: %u. The Rekall Profile may be incorrect for this Windows!\n", ntbuildnumber);
         goto done;
     }
 
     // The system map seems to be good, lets grab all the required offsets
-    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
-        goto done;
+    if(!windows->pdbase_offset) {
+        if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
+            goto done;
+        }
     }
-    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ActiveProcessLinks", &windows->tasks_offset)) {
-        goto done;
+    if(!windows->tasks_offset) {
+        if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ActiveProcessLinks", &windows->tasks_offset)) {
+            goto done;
+        }
     }
-    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "UniqueProcessId", &windows->pid_offset)) {
-        goto done;
+    if(!windows->pid_offset) {
+        if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "UniqueProcessId", &windows->pid_offset)) {
+            goto done;
+        }
     }
-    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset)) {
-        goto done;
+    if(!windows->pname_offset) {
+        if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset)) {
+            goto done;
+        }
     }
 
     ret = VMI_SUCCESS;
+    dbprint(VMI_DEBUG_MISC, "**init from sysmap success\n");
 
     done: return ret;
 
@@ -527,11 +584,13 @@ init_from_sysmap(vmi_instance_t vmi)
 static status_t
 init_core(vmi_instance_t vmi)
 {
-    if(VMI_SUCCESS == init_from_sysmap(vmi)) {
-        return VMI_SUCCESS;
-    }
+    windows_instance_t windows = vmi->os_data;
 
-    return init_kdbg(vmi);
+    if (windows->sysmap) {
+        return init_from_sysmap(vmi);
+    } else {
+        return init_from_kdbg(vmi);
+    }
 }
 
 status_t
@@ -571,6 +630,10 @@ windows_init(
     os_interface->os_teardown = windows_teardown;
 
     vmi->os_interface = os_interface;
+
+    if(VMI_FAILURE == check_pdbase_offset(vmi)) {
+        goto error_exit;
+    }
 
     if (VMI_PM_UNKNOWN == vmi->page_mode) {
         if(VMI_FAILURE == get_kpgd_method2(vmi)) {

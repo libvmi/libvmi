@@ -201,7 +201,7 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
        return VMI_FAILURE;
     }
 
-     /*printf("\tGUID: ");
+     printf("\tGUID: ");
      printf("%.8x", pdb_header->signature.data1);
      printf("%.4x", pdb_header->signature.data2);
      printf("%.4x", pdb_header->signature.data3);
@@ -211,7 +211,7 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
 
      printf("%.1x", pdb_header->age & 0xf);
      printf("\n");
-     printf("\tKernel filename: %s\n", pdb_header->pdb_file_name);*/
+     printf("\tKernel filename: %s\n", pdb_header->pdb_file_name);
 
      free(pdb_header);
      return VMI_SUCCESS;
