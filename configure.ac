@@ -102,6 +102,8 @@ AM_PROG_CC_C_O
 AM_PROG_LIBTOOL
 AM_SANITY_CHECK
 
+AC_CHECK_TYPE([__int128_t],[], [AC_ERROR(__int128_t not supported by the compiler!)], [])
+
 have_xen='no'
 xen_space='      '
 have_xen_events='no'

@@ -319,7 +319,7 @@ windows_find_eprocess_list_pid(
         vmi_instance_t vmi,
         vmi_pid_t pid)
 {
-    size_t len = sizeof(vmi_pid_t);
+    size_t len = sizeof(int32_t);
     int pid_offset = 0;
 
     if (vmi->os_data == NULL) {

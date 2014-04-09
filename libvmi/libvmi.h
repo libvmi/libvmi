@@ -247,7 +247,19 @@ typedef enum registers {
 typedef uint64_t addr_t;
 
 /* type def for consistent pid_t usage */
-typedef int32_t vmi_pid_t;
+typedef __int128_t vmi_pid_t;
+
+/* Struct for holding process context for VA translation */
+typedef struct process_context {
+    union {
+        vmi_pid_t __pid;
+        struct {
+            int32_t pid;
+            addr_t dtb;
+        };
+    };
+} __attribute__ ((packed))
+process_context_t;
 
 /* Struct for holding page lookup information */
 typedef struct page_info {

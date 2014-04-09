@@ -153,7 +153,7 @@ windows_pgd_to_pid(
 
     /* now follow the pointer to the memory descriptor and grab the pgd value */
     vmi_read_32_va(vmi, eprocess + pid_offset - tasks_offset, 0,
-                     &pid);
+                     (uint32_t*)&pid);
 
 error_exit:
     return pid;

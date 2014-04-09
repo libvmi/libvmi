@@ -99,6 +99,7 @@ vmi_read_va(
     addr_t pfn = 0;
     addr_t offset = 0;
     size_t buf_offset = 0;
+    process_context_t *ctx = (process_context_t *)&pid;
 
     if (NULL == buf) {
         dbprint(VMI_DEBUG_READ, "--%s: buf passed as NULL, returning without read\n",
@@ -109,11 +110,12 @@ vmi_read_va(
     while (count > 0) {
         size_t read_len = 0;
 
-        if (pid) {
-            paddr = vmi_translate_uv2p(vmi, vaddr + buf_offset, pid);
-        }
-        else {
+        if (!ctx->pid) {
             paddr = vmi_translate_kv2p(vmi, vaddr + buf_offset);
+        } else if(ctx->pid > 0) {
+            paddr = vmi_translate_uv2p(vmi, vaddr + buf_offset, pid);
+        } else {
+            paddr = vmi_pagetable_lookup(vmi, vaddr, ctx->dtb);
         }
 
         if (!paddr) {
