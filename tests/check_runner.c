@@ -30,7 +30,7 @@
 
 char *testvm = NULL;
 
-char *get_testvm (void)
+const char *get_testvm (void)
 {
     return testvm;
 }

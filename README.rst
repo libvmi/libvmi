@@ -206,7 +206,42 @@ following:
     process_anything(buf, size);
   For vmi_read_va(), the replacement is very similar, but only capable for
   KVM at present.
-    
+
+Rekall profiles
+------------------------------
+LibVMI also supports the use of Rekall profiles for introspecting Windows. By using Rekall
+profiles, LibVMI is able to bypass the use if the in-memory KdDebuggerData (KDBG) structure
+normally used by memory forensics tools and thus allows introspecting domains
+where this structure is either corrupted, or encoded (like in the case of Windows 8 x64).
+However, Rekall profiles have to be created for each kernel version, and therefore if an
+update is made to the kernel, the profile has to be re-generated, thus its a bit less stable
+as the standard LibVMI configuration entries which are generally stable for specific releases
+of Windows.
+
+Rekall is available at https://code.google.com/p/rekall
+
+To create a Rekall profile for Windows you need to determine the PDB filename and GUID of the
+kernel. This can be done either by running the win-guid example shipped with LibVMI, or by
+accessing the kernel executable on disk (normally found at C:\Windows\System32\ntoskrnl.exe).
+
+If you need to examine an on-disk version of the kernel (or any other PE executable), you can run
+the following the Rekall command:
+
+.. code::
+
+    rekall peinfo <path/to/file>
+
+
+Once the PDB filename and GUID is known, creating the Rekall profile is done in two steps:
+
+.. code::
+
+    rekall fetch_pdb -f <PDB filename> --guid <GUID> -D .
+    rekall parse_pdb -f <PDB filename> --output <GUID>
+
+The Rekall profile can be used directly in the LibVMI config via the sysmap entry, without having
+to specify any of the offsets normally required for Windows as those offsets will be available
+via the profile itself.
 
 Building
 --------

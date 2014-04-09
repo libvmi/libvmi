@@ -251,7 +251,12 @@ windows_find_eprocess(
     }
 
     if (!windows->pname_offset) {
-        windows->pname_offset = find_pname_offset(vmi, check);
+        if(windows->sysmap) {
+            windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset);
+        } else {
+            windows->pname_offset = find_pname_offset(vmi, check);
+        }
+
         if (!windows->pname_offset) {
             dbprint(VMI_DEBUG_MISC, "--failed to find pname_offset\n");
             return 0;

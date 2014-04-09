@@ -332,7 +332,7 @@ GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb) {
     if(vmi->arch_interface && vmi->arch_interface->get_va_pages) {
         return vmi->arch_interface->get_va_pages(vmi, dtb);
     } else {
-        errprint("Invalid or not supported paging mode during get_va_pages\n");
+        dbprint(VMI_DEBUG_PTLOOKUP, "Invalid or not supported paging mode during get_va_pages\n");
         return NULL;
     }
 }
