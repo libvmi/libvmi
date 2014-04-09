@@ -60,7 +60,7 @@ linux_get_taskstruct_addr_from_pid(
     list_head = next_process;
 
     do {
-        vmi_read_32_va(vmi, next_process + pid_offset, 0, &task_pid);
+        vmi_read_32_va(vmi, next_process + pid_offset, 0, (uint32_t*)&task_pid);
 
         /* if pid matches, then we found what we want */
         if (task_pid == pid) {
@@ -202,7 +202,7 @@ error_exit:
     return pgd;
 }
 
-int
+vmi_pid_t
 linux_pgd_to_pid(
     vmi_instance_t vmi,
     addr_t pgd)
@@ -228,7 +228,7 @@ linux_pgd_to_pid(
     }
 
     /* now follow the pointer to the memory descriptor and grab the pid value */
-    vmi_read_32_va(vmi, ts_addr + pid_offset, 0, &pid);
+    vmi_read_32_va(vmi, ts_addr + pid_offset, 0, (uint32_t*)&pid);
 
 error_exit:
     return pid;

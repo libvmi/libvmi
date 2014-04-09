@@ -81,7 +81,7 @@ void list_processes(vmi_instance_t vmi, addr_t current_process,
 
         /* NOTE: _EPROCESS.UniqueProcessId is a really VOID*, but is never > 32 bits,
          * so this is safe enough for x64 Windows for example purposes */
-        vmi_read_32_va(vmi, current_process + pid_offset, 0, &pid);
+        vmi_read_32_va(vmi, current_process + pid_offset, 0, (uint32_t*)&pid);
 
         procname = vmi_read_str_va(vmi, current_process + name_offset, 0);
 
