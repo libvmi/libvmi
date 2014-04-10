@@ -627,6 +627,7 @@ windows_init(
     os_interface->os_ksym2v = windows_kernel_symbol_to_address;
     os_interface->os_usym2rva = windows_export_to_rva;
     os_interface->os_rva2sym = windows_rva_to_export;
+    os_interface->os_read_unicode_struct = windows_read_unicode_struct;
     os_interface->os_teardown = windows_teardown;
 
     vmi->os_interface = os_interface;
