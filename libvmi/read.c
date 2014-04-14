@@ -256,16 +256,22 @@ vmi_read_addr(
     access_context_t *ctx,
     addr_t *value)
 {
-    if (vmi->page_mode == VMI_PM_IA32E) {
-        return vmi_read_X(vmi, ctx, value, 8);
-    }
-    else {
-        uint32_t tmp = 0;
-        status_t ret = vmi_read_X(vmi, ctx, &tmp, 4);
+    switch(vmi->page_mode) {
+        case VMI_PM_IA32E:
+            return vmi_read_X(vmi, ctx, value, 8);
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE: {
+            uint32_t tmp = 0;
+            status_t ret = vmi_read_X(vmi, ctx, &tmp, 4);
 
-        *value = (uint64_t) tmp;
-        return ret;
+            *value = (uint64_t) tmp;
+            return ret;
+        }
+        default:
+            break;
     }
+
+    return VMI_FAILURE;
 }
 
 unicode_string_t *
@@ -357,16 +363,12 @@ vmi_read_addr_pa(
     addr_t paddr,
     addr_t *value)
 {
-    if (vmi->page_mode == VMI_PM_IA32E) {
-        return vmi_read_X_pa(vmi, paddr, value, 8);
-    }
-    else {
-        uint32_t tmp = 0;
-        status_t ret = vmi_read_X_pa(vmi, paddr, &tmp, 4);
+    access_context_t ctx = {
+        .as = VMI_AS_PHYSICAL,
+        .addr = paddr
+    };
 
-        *value = (uint64_t) tmp;
-        return ret;
-    }
+    return vmi_read_addr(vmi, &ctx, value);
 }
 
 char *
@@ -467,16 +469,14 @@ vmi_read_addr_va(
     vmi_pid_t pid,
     addr_t *value)
 {
-    if (vmi->page_mode == VMI_PM_IA32E) {
-        return vmi_read_X_va(vmi, vaddr, pid, value, 8);
-    }
-    else {
-        uint32_t tmp = 0;
-        status_t ret = vmi_read_X_va(vmi, vaddr, pid, &tmp, 4);
+    access_context_t ctx = {
+        .as = VMI_AS_VIRTUAL,
+        .addr = vaddr,
+        .translate.type = VMI_PROCESS_PID,
+        .translate.pid = pid
+    };
 
-        *value = (uint64_t) tmp;
-        return ret;
-    }
+    return vmi_read_addr(vmi, &ctx, value);
 }
 
 char *
@@ -588,16 +588,13 @@ vmi_read_addr_ksym(
     char *sym,
     addr_t *value)
 {
-    if (vmi->page_mode == VMI_PM_IA32E) {
-        return vmi_read_X_ksym(vmi, sym, value, 8);
-    }
-    else {
-        uint32_t tmp = 0;
-        status_t ret = vmi_read_X_ksym(vmi, sym, &tmp, 4);
+    access_context_t ctx = {
+        .as = VMI_AS_VIRTUAL,
+        .translate.type = VMI_KERNEL_SYMBOL,
+        .translate.ksym = sym
+    };
 
-        *value = (uint64_t) tmp;
-        return ret;
-    }
+    return vmi_read_addr(vmi, &ctx, value);
 }
 
 char *
@@ -605,9 +602,13 @@ vmi_read_str_ksym(
     vmi_instance_t vmi,
     char *sym)
 {
-    addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
+    access_context_t ctx = {
+        .as = VMI_AS_VIRTUAL,
+        .translate.type = VMI_KERNEL_SYMBOL,
+        .translate.ksym = sym
+    };
 
-    return vmi_read_str_va(vmi, vaddr, 0);
+    return vmi_read_str(vmi, &ctx);
 }
 
 #if ENABLE_SHM_SNAPSHOT == 1
