@@ -61,18 +61,8 @@ windows_system_map_symbol_to_address(
         json_t *constants = json_object_get(root, "$CONSTANTS");
         json_t *jsymbol = json_object_get(constants, symbol);
         if(!jsymbol) {
-            if(symbol[0] != '_') {
-                char *new_symbol = safe_malloc(snprintf(NULL, 0, "_%s", symbol)+1);
-                sprintf(new_symbol, "_%s",  symbol);
-                jsymbol = json_object_get(constants, new_symbol);
-                free(new_symbol);
-
-                if(!jsymbol) {
-                    goto err_exit;
-                }
-            } else {
-                goto err_exit;
-            }
+            dbprint(VMI_DEBUG_MISC, "Rekall profile: symbol '%s' not found\n", symbol);
+            goto err_exit;
         }
 
         *address = json_integer_value(jsymbol);
@@ -82,12 +72,14 @@ windows_system_map_symbol_to_address(
         json_t *structs = json_object_get(root, "$STRUCTS");
         json_t *jstruct = json_object_get(structs, symbol);
         if(!jstruct) {
+            dbprint(VMI_DEBUG_MISC, "Rekall profile: structure '%s' not found\n", symbol);
             goto err_exit;
         }
 
         json_t *jstruct2 = json_array_get(jstruct, 1);
         json_t *jmember = json_object_get(jstruct2, subsymbol);
         if(!jmember) {
+            dbprint(VMI_DEBUG_MISC, "Rekall profile: structure member '%s' not found\n", subsymbol);
             goto err_exit;
         }
         json_t *jvalue = json_array_get(jmember, 0);
