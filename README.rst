@@ -214,7 +214,7 @@ profiles, LibVMI is able to bypass the use if the in-memory KdDebuggerData (KDBG
 normally used by memory forensics tools and thus allows introspecting domains
 where this structure is either corrupted, or encoded (like in the case of Windows 8 x64).
 However, Rekall profiles have to be created for each kernel version, and therefore if an
-update is made to the kernel, the profile has to be re-generated, thus its a bit less stable
+update is made to the kernel, the profile has to be re-generated, thus it's a bit less stable
 as the standard LibVMI configuration entries which are generally stable for specific releases
 of Windows.
 
@@ -222,7 +222,7 @@ Rekall is available at https://code.google.com/p/rekall
 
 To create a Rekall profile for Windows you need to determine the PDB filename and GUID of the
 kernel. This can be done either by running the win-guid example shipped with LibVMI, or by
-accessing the kernel executable on disk (normally found at C:\Windows\System32\ntoskrnl.exe).
+accessing the kernel executable on disk (normally found in Windows' System32 folder as ntoskrnl.exe).
 
 If you need to examine an on-disk version of the kernel (or any other PE executable), you can run
 the following the Rekall command:
