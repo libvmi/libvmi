@@ -72,7 +72,7 @@
  *  on 4.0.x which had some memory event functions defined, yet lacked
  *  all of the features LibVMI needs.
  */
-#if ENABLE_XEN==1 && ENABLE_XEN_EVENTS==1 && XENCTRL_HAS_XC_INTERFACE
+#if ENABLE_XEN==1 && ENABLE_XEN_EVENTS==1 && XENCTRL_HAS_XC_INTERFACE && XEN_MEMACCESS_VERSION >= 44
 static xen_events_t *xen_get_events(vmi_instance_t vmi)
 {
     return xen_get_instance(vmi)->events;
@@ -224,8 +224,13 @@ static int resume_domain(vmi_instance_t vmi)
     }
 
     // Tell Xen we have finished processing the requests
+#if XEN_MEMACCESS_VERSION == 44
     // The last argument is actually ignored by Xen.
     ret = xc_mem_access_resume(xch, dom, 0);
+#elif XEN_MEMACCESS_VERSION == 45
+    // The last (unused) argument is now removed.
+    ret = xc_mem_access_resume(xch, dom);
+#endif
     ret = xc_evtchn_notify(xe->mem_event.xce_handle, xe->mem_event.port);
     return ret;
 }
@@ -604,8 +609,13 @@ void xen_events_destroy(vmi_instance_t vmi)
     xen_shutdown_single_step(vmi);
 
     /* Unregister for all events */
-    rc = xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, ~0ull, 0);
-    rc = xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, 0, xe->mem_event.max_pages);
+#if XEN_MEMACCESS_VERSION == 44
+    rc = xc_hvm_set_mem_access(xch, dom, MEMACCESS_RWX, ~0ull, 0);
+    rc = xc_hvm_set_mem_access(xch, dom, MEMACCESS_RWX, 0, xe->mem_event.max_pages);
+#elif XEN_MEMACCESS_VERSION == 45
+    rc = xc_set_mem_access(xch, dom, MEMACCESS_RWX, ~0ull, 0);
+    rc = xc_set_mem_access(xch, dom, MEMACCESS_RWX, 0, xe->mem_event.max_pages);
+#endif
     rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_INT3, HVMPME_mode_disabled);
     rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR0, HVMPME_mode_disabled);
     rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR3, HVMPME_mode_disabled);
@@ -955,7 +965,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
 status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_access_t page_access_flag)
 {
     int rc;
-    hvmmem_access_t access;
+    mem_access_t access;
     xc_interface * xch = xen_get_xchandle(vmi);
     xen_events_t * xe = xen_get_events(vmi);
     unsigned long dom = xen_get_domainid(vmi);
@@ -992,24 +1002,32 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
     uint64_t npages = page_key + event.npages > xe->mem_event.max_pages
         ? xe->mem_event.max_pages - page_key: event.npages;
 
-    // Convert betwen vmi_mem_access_t and hvmmem_access_t
+    // Convert betwen vmi_mem_access_t and mem_access_t
     // Xen does them backwards....
     switch(page_access_flag){
         case VMI_MEMACCESS_INVALID: return VMI_FAILURE;
-        case VMI_MEMACCESS_N: access = HVMMEM_access_rwx; break;
-        case VMI_MEMACCESS_R: access = HVMMEM_access_wx; break;
-        case VMI_MEMACCESS_W: access = HVMMEM_access_rx; break;
-        case VMI_MEMACCESS_X: access = HVMMEM_access_rw; break;
-        case VMI_MEMACCESS_RW: access = HVMMEM_access_x; break;
-        case VMI_MEMACCESS_RX: access = HVMMEM_access_w; break;
-        case VMI_MEMACCESS_WX: access = HVMMEM_access_r; break;
-        case VMI_MEMACCESS_RWX: access = HVMMEM_access_n; break;
-        case VMI_MEMACCESS_X_ON_WRITE: access = HVMMEM_access_rx2rw; break;
+        case VMI_MEMACCESS_N: access = MEMACCESS_RWX; break;
+        case VMI_MEMACCESS_R: access = MEMACCESS_WX; break;
+        case VMI_MEMACCESS_W: access = MEMACCESS_RX; break;
+        case VMI_MEMACCESS_X: access = MEMACCESS_RW; break;
+        case VMI_MEMACCESS_RW: access = MEMACCESS_X; break;
+        case VMI_MEMACCESS_RX: access = MEMACCESS_W; break;
+        case VMI_MEMACCESS_WX: access = MEMACCESS_WX; break;
+        case VMI_MEMACCESS_RWX: access = MEMACCESS_RWX; break;
+        case VMI_MEMACCESS_RX2RW: access = MEMACCESS_RX2RW; break;
+        case VMI_MEMACCESS_N2RWX: access = MEMACCESS_N2RWX; break;
     }
 
     dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %lu on physical address: %"PRIu64" npages: %"PRIu64"\n",
         dom, event.physical_address, npages);
-    if((rc = xc_hvm_set_mem_access(xch, dom, access, page_key, npages))){
+
+#if XEN_MEMACCESS_VERSION == 44
+    rc = xc_hvm_set_mem_access(xch, dom, access, page_key, npages);
+#elif XEN_MEMACCESS_VERSION == 45
+    rc = xc_set_mem_access(xch, dom, access, page_key, npages);
+#endif
+
+    if(rc) {
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
@@ -1197,7 +1215,11 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     }
 
     while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->mem_event.back_ring) ) {
-        rc = get_mem_event(&xe->mem_event, &req);
+#if XEN_MEMACCESS_VERSION == 44
+        rc = xc_hvm_get_mem_event(&xe->mem_event, &req);
+#elif XEN_MEMACCESS_VERSION == 45
+        rc = xc_get_mem_event(&xe->mem_event, &req);
+#endif
         if ( rc != 0 ) {
             errprint("Error getting event.\n");
             return VMI_FAILURE;

@@ -61,7 +61,12 @@
 #if ENABLE_XEN == 1 && ENABLE_XEN_EVENTS==1
 #include <xenctrl.h>
 #include <xen/mem_event.h>
+
+#if XEN_MEMACCESS_VERSION == 44
 #include <xen/hvm/save.h>
+#elif XEN_MEMACCESS_VERSION == 45
+#include <xen/memory.h>
+#endif
 
 typedef int spinlock_t;
 #ifdef XENCTRL_HAS_XC_INTERFACE
@@ -89,6 +94,61 @@ typedef struct {
     spinlock_t ring_lock;
     unsigned long long max_pages;
 } xen_mem_event_t;
+
+// Compatibility wrapper around mem_access versions
+#if XEN_MEMACCESS_VERSION == 44
+typedef enum {
+    // Xen 4.0-4.4 type flags
+    MEMACCESS_N = HVMMEM_access_n,
+    MEMACCESS_R = HVMMEM_access_r,
+    MEMACCESS_W = HVMMEM_access_w,
+    MEMACCESS_RW = HVMMEM_access_rw,
+    MEMACCESS_X = HVMMEM_access_x,
+    MEMACCESS_RX = HVMMEM_access_rx,
+    MEMACCESS_WX = HVMMEM_access_wx,
+    MEMACCESS_RWX = HVMMEM_access_rwx,
+    /*
+     * Page starts off as r-x, but automatically
+     * change to r-w on a write
+     */
+    MEMACCESS_RX2RW = HVMMEM_access_rx2rw,
+    /*
+     * Log access: starts off as n, automatically
+     * goes to rwx, generating an event without
+     * pausing the vcpu
+     */
+    MEMACCESS_N2RWX = HVMMEM_access_n2rwx
+} compat_memaccess_t;
+
+typedef hvmmem_access_t mem_access_t;
+
+#elif XEN_MEMACCESS_VERSION == 45
+typedef enum {
+    // Xen 4.5+ type flags
+    MEMACCESS_N = XENMEM_access_n,
+    MEMACCESS_R = XENMEM_access_r,
+    MEMACCESS_W = XENMEM_access_w,
+    MEMACCESS_RW = XENMEM_access_rw,
+    MEMACCESS_X = XENMEM_access_x,
+    MEMACCESS_RX = XENMEM_access_rx,
+    MEMACCESS_WX = XENMEM_access_wx,
+    MEMACCESS_RWX = XENMEM_access_rwx,
+    /*
+     * Page starts off as r-x, but automatically
+     * change to r-w on a write
+     */
+    MEMACCESS_RX2RW = XENMEM_access_rx2rw,
+    /*
+     * Log access: starts off as n, automatically
+     * goes to rwx, generating an event without
+     * pausing the vcpu
+     */
+    MEMACCESS_N2RWX = XENMEM_access_n2rwx
+} compat_memaccess_t;
+typedef xenmem_access_t mem_access_t;
+
+#endif
+
 #else
 typedef struct {
 } xen_mem_event_t;
