@@ -141,7 +141,19 @@ xen_event_space=' '
                 AC_CHECK_LIB(xenctrl, [xc_mem_event_enable], [AC_DEFINE([XENEVENT41], [1], "Xen memory event 4.1 style")], [no41events="1"])
                 AC_CHECK_LIB(xenctrl, [xc_mem_access_enable], [AC_DEFINE([XENEVENT42], [1], "Xen memory event 4.2 style")], [no42events="1"])
                 AC_CHECK_DEFINE(XENCTRL_HAS_XC_INTERFACE, xenctrl.h) 
-                
+
+                AC_CHECK_TYPE(
+                    [hvmmem_access_t],
+                    AC_DEFINE([XEN_MEMACCESS_VERSION], [44], [Define the Xen mem_access version.]),
+                    [],
+                    [#include <xenctrl.h> #include <xen/hvm/save.h>])
+
+                AC_CHECK_TYPE(
+                    [xenmem_access_t],
+                    AC_DEFINE([XEN_MEMACCESS_VERSION], [45], [Define the Xen mem_access_version.]),
+                    [],
+                    [#include <xenctrl.h> #include <xen/memory.h>])
+
                 # MSR events are only available in Xen 4.3+
                 AC_CHECK_DEFINE(MEM_EVENT_REASON_MSR, xen/mem_event.h) 
 
