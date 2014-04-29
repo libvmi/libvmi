@@ -1548,8 +1548,10 @@ typedef enum {
     VMI_MEMACCESS_RX         = (VMI_MEMACCESS_R | VMI_MEMACCESS_X),
     VMI_MEMACCESS_WX         = (VMI_MEMACCESS_W | VMI_MEMACCESS_X),
     VMI_MEMACCESS_RWX        = (VMI_MEMACCESS_R | VMI_MEMACCESS_W | VMI_MEMACCESS_X),
-    VMI_MEMACCESS_RX2RW      = (1 << 4),
-    VMI_MEMACCESS_N2RWX      = (1 << 5)
+
+    // Special cases
+    VMI_MEMACCESS_W2X        = (1 << 4),
+    VMI_MEMACCESS_RWX2N      = (1 << 5)
 } vmi_mem_access_t;
 
 /* The level of granularity used in the configuration of a memory event.

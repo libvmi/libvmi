@@ -45,9 +45,9 @@ vmi_mem_access_t combine_mem_access(vmi_mem_access_t base, vmi_mem_access_t add)
         return add;
 
     // Can't combine rights with X_ON_WRITE
-    if (add == VMI_MEMACCESS_RX2RW || add == VMI_MEMACCESS_N2RWX)
+    if (add == VMI_MEMACCESS_W2X || add == VMI_MEMACCESS_RWX2N)
         return VMI_MEMACCESS_INVALID;
-    if (base == VMI_MEMACCESS_RX2RW || base == VMI_MEMACCESS_N2RWX)
+    if (base == VMI_MEMACCESS_W2X || base == VMI_MEMACCESS_RWX2N)
         return VMI_MEMACCESS_INVALID;
 
     return (base | add);
