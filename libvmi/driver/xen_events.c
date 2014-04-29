@@ -1012,10 +1012,10 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
         case VMI_MEMACCESS_X: access = MEMACCESS_RW; break;
         case VMI_MEMACCESS_RW: access = MEMACCESS_X; break;
         case VMI_MEMACCESS_RX: access = MEMACCESS_W; break;
-        case VMI_MEMACCESS_WX: access = MEMACCESS_WX; break;
-        case VMI_MEMACCESS_RWX: access = MEMACCESS_RWX; break;
-        case VMI_MEMACCESS_RX2RW: access = MEMACCESS_RX2RW; break;
-        case VMI_MEMACCESS_N2RWX: access = MEMACCESS_N2RWX; break;
+        case VMI_MEMACCESS_WX: access = MEMACCESS_R; break;
+        case VMI_MEMACCESS_RWX: access = MEMACCESS_N; break;
+        case VMI_MEMACCESS_W2X: access = MEMACCESS_RX2RW; break;
+        case VMI_MEMACCESS_RWX2N: access = MEMACCESS_N2RWX; break;
     }
 
     dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %lu on physical address: %"PRIu64" npages: %"PRIu64"\n",
