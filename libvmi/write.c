@@ -32,30 +32,9 @@
 // Classic write functions for access to memory
 
 size_t
-vmi_write_pa(
+vmi_write(
     vmi_instance_t vmi,
-    addr_t paddr,
-    void *buf,
-    size_t count)
-{
-    if (NULL == buf) {
-        dbprint(VMI_DEBUG_WRITE, "--%s: buf passed as NULL, returning without write\n",
-                __FUNCTION__);
-        return 0;
-    }
-    if (VMI_SUCCESS == driver_write(vmi, paddr, buf, count)) {
-        return count;
-    }
-    else {
-        return 0;
-    }
-}
-
-size_t
-vmi_write_va(
-    vmi_instance_t vmi,
-    addr_t vaddr,
-    vmi_pid_t pid,
+    access_context_t *ctx,
     void *buf,
     size_t count)
 {
@@ -70,14 +49,37 @@ vmi_write_va(
         return 0;
     }
 
+    if(VMI_AS_VIRTUAL == ctx->as && VMI_KERNEL_SYMBOL == ctx->translate.type) {
+        ctx->translate.pid = 0;
+        ctx->translate.type = VMI_PROCESS_PID;
+        ctx->addr = vmi_translate_ksym2v(vmi, ctx->translate.ksym);
+    }
+
     while (count > 0) {
         size_t write_len = 0;
 
-        if (pid) {
-            paddr = vmi_translate_uv2p(vmi, vaddr + buf_offset, pid);
-        }
-        else {
-            paddr = vmi_translate_kv2p(vmi, vaddr + buf_offset);
+        if(VMI_AS_PHYSICAL == ctx->as) {
+            //TODO not sure how to best handle this with respect to page size.  Is this hypervisor dependent?
+            //  For example, the pfn for a given paddr should vary based on the size of the page where the
+            //  paddr resides.  However, it is hard to know the page size from just the paddr.  For now, just
+            //  assuming 4k pages and doing the read from there.
+            paddr = ctx->addr + buf_offset;
+        } else if(VMI_AS_VIRTUAL == ctx->as) {
+            switch(ctx->translate.type) {
+                case VMI_PROCESS_PID:
+                    if(ctx->translate.pid) {
+                        paddr = vmi_translate_uv2p(vmi, ctx->addr + buf_offset, ctx->translate.pid);
+                    } else {
+                        paddr = vmi_translate_kv2p(vmi, ctx->addr + buf_offset);
+                    }
+                    break;
+                case VMI_PROCESS_DTB:
+                    paddr = vmi_pagetable_lookup(vmi, ctx->addr + buf_offset, ctx->translate.dtb);
+                    break;
+                default:
+                    paddr = 0;
+                    break;
+            }
         }
 
         if (!paddr) {
@@ -109,22 +111,102 @@ vmi_write_va(
     return buf_offset;
 }
 
-size_t
-vmi_write_ksym(
+static inline
+status_t vmi_write_X(
     vmi_instance_t vmi,
-    char *sym,
-    void *buf,
-    size_t count)
+    access_context_t *ctx,
+    void *value,
+    int size)
 {
-    addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
+    size_t len_write = vmi_write(vmi, ctx, value, size);
 
-    return vmi_write_va(vmi, vaddr, 0, buf, count);
+    if (len_write == size) {
+        return VMI_SUCCESS;
+    }
+    else {
+        return VMI_FAILURE;
+    }
+}
+
+status_t
+vmi_write_8(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint8_t * value)
+{
+    return vmi_write_X(vmi, ctx, value, 1);
+}
+
+status_t
+vmi_write_16(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint16_t * value)
+{
+    return vmi_write_X(vmi, ctx, value, 2);
+}
+
+status_t
+vmi_write_32(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint32_t * value)
+{
+    return vmi_write_X(vmi, ctx, value, 4);
+}
+
+status_t
+vmi_write_64(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint64_t * value)
+{
+    return vmi_write_X(vmi, ctx, value, 8);
+}
+
+status_t
+vmi_write_addr(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    addr_t * value)
+{
+    switch(vmi->page_mode) {
+        case VMI_PM_IA32E:
+            return vmi_write_X(vmi, ctx, value, 8);
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE:
+            return vmi_write_X(vmi, ctx, value, 4);
+        default:
+            break;
+    }
+
+    return VMI_FAILURE;
 }
 
 ///////////////////////////////////////////////////////////
 // Easy write to physical memory
-static status_t
-vmi_write_X_pa(
+size_t
+vmi_write_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void *buf,
+    size_t count)
+{
+    if (NULL == buf) {
+        dbprint(VMI_DEBUG_WRITE, "--%s: buf passed as NULL, returning without write\n",
+                __FUNCTION__);
+        return 0;
+    }
+    if (VMI_SUCCESS == driver_write(vmi, paddr, buf, count)) {
+        return count;
+    }
+    else {
+        return 0;
+    }
+}
+
+static inline
+status_t vmi_write_X_pa(
     vmi_instance_t vmi,
     addr_t paddr,
     void *value,
@@ -176,10 +258,41 @@ vmi_write_64_pa(
     return vmi_write_X_pa(vmi, paddr, value, 8);
 }
 
+status_t
+vmi_write_addr_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    uint64_t * value)
+{
+    access_context_t ctx = {
+        .as = VMI_AS_PHYSICAL,
+        .addr = paddr
+    };
+
+    return vmi_write_addr(vmi, &ctx, value);
+}
+
 ///////////////////////////////////////////////////////////
 // Easy write to virtual memory
-static status_t
-vmi_write_X_va(
+size_t
+vmi_write_va(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    vmi_pid_t pid,
+    void *buf,
+    size_t count)
+{
+    access_context_t ctx = {
+        .as = VMI_AS_VIRTUAL,
+        .addr = vaddr,
+        .translate.type = VMI_PROCESS_PID,
+        .translate.pid = pid
+    };
+    return vmi_write(vmi, &ctx, buf, count);
+}
+
+static inline
+status_t vmi_write_X_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
@@ -236,10 +349,41 @@ vmi_write_64_va(
     return vmi_write_X_va(vmi, vaddr, pid, value, 8);
 }
 
+status_t
+vmi_write_addr_va(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    vmi_pid_t pid,
+    uint64_t * value)
+{
+    access_context_t ctx = {
+        .as = VMI_AS_VIRTUAL,
+        .addr = vaddr,
+        .translate.type = VMI_PROCESS_PID,
+        .translate.pid = pid
+    };
+    return vmi_write_addr(vmi, &ctx, value);
+}
+
 ///////////////////////////////////////////////////////////
 // Easy write to memory using kernel symbols
-static status_t
-vmi_write_X_ksym(
+size_t
+vmi_write_ksym(
+    vmi_instance_t vmi,
+    char *sym,
+    void *buf,
+    size_t count)
+{
+    access_context_t ctx = {
+        .as = VMI_AS_VIRTUAL,
+        .translate.type = VMI_KERNEL_SYMBOL,
+        .translate.ksym = sym
+    };
+    return vmi_write(vmi, &ctx, buf, count);
+}
+
+static inline
+status_t vmi_write_X_ksym(
     vmi_instance_t vmi,
     char *sym,
     void *value,
@@ -289,4 +433,19 @@ vmi_write_64_ksym(
     uint64_t * value)
 {
     return vmi_write_X_ksym(vmi, sym, value, 8);
+}
+
+status_t
+vmi_write_addr_ksym(
+    vmi_instance_t vmi,
+    char *sym,
+    uint64_t * value)
+{
+    access_context_t ctx = {
+        .as = VMI_AS_VIRTUAL,
+        .translate.type = VMI_KERNEL_SYMBOL,
+        .translate.ksym = sym
+    };
+
+    return vmi_write_addr(vmi, &ctx, value);
 }

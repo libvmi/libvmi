@@ -126,6 +126,7 @@ get_ntoskrnl_base(
     return ret;
 }
 
+/* Tries to determine the page mode based on the kpgd found via heuristics */
 static status_t
 find_page_mode(
     vmi_instance_t vmi)
@@ -133,12 +134,17 @@ find_page_mode(
 
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
+    uint32_t mask = ~0;
 
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_LEGACY\n");
     vmi->page_mode = VMI_PM_LEGACY;
 
     if (VMI_SUCCESS == arch_init(vmi)) {
         if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+            goto found_pm;
+        }
+        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
+            vmi->kpgd &= mask;
             goto found_pm;
         }
     }
@@ -148,6 +154,10 @@ find_page_mode(
 
     if (VMI_SUCCESS == arch_init(vmi)) {
         if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+            goto found_pm;
+        }
+        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
+            vmi->kpgd &= mask;
             goto found_pm;
         }
     }
@@ -201,8 +211,10 @@ get_kpgd_method2(
             sysproc);
 
     /* get address for page directory (from system process) */
+    /* We can't use vmi_read_addr_pa here because we might not know the pointer width yet! */
+    /* Just read 64-bit and we will fix the address later if it turns out to be a 32-bit address */
     if (VMI_FAILURE ==
-        vmi_read_addr_pa(vmi,
+        vmi_read_64_pa(vmi,
                          sysproc +
                          windows->pdbase_offset,
                          &vmi->kpgd)) {
@@ -214,16 +226,26 @@ get_kpgd_method2(
         dbprint(VMI_DEBUG_MISC, "--kpgd was zero\n");
         goto error_exit;
     }
-    dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     if (VMI_FAILURE ==
-        vmi_read_addr_pa(vmi,
+        vmi_read_64_pa(vmi,
                      sysproc + windows->tasks_offset,
                      &vmi->init_task)) {
         dbprint(VMI_DEBUG_MISC, "--failed to resolve address of System process\n");
         goto error_exit;
     }
     vmi->init_task -= windows->tasks_offset;
+
+    uint32_t mask = ~0;
+    switch(vmi->page_mode) {
+        VMI_PM_LEGACY:
+        VMI_PM_PAE:
+            vmi->kpgd &= mask;
+            vmi->init_task &= mask;
+            break;
+    }
+
+    dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
     dbprint(VMI_DEBUG_MISC, "**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
@@ -627,6 +649,7 @@ windows_init(
     os_interface->os_ksym2v = windows_kernel_symbol_to_address;
     os_interface->os_usym2rva = windows_export_to_rva;
     os_interface->os_rva2sym = windows_rva_to_export;
+    os_interface->os_read_unicode_struct = windows_read_unicode_struct;
     os_interface->os_teardown = windows_teardown;
 
     vmi->os_interface = os_interface;

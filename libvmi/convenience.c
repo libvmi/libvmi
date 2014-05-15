@@ -29,6 +29,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <iconv.h>  // conversion between character sets
 
 #ifndef VMI_DEBUG
 /* Nothing */
@@ -134,6 +135,86 @@ is_addr_aligned(
     addr_t addr)
 {
     return (addr == aligned_addr(vmi, addr));
+}
+
+status_t
+vmi_convert_str_encoding(
+    const unicode_string_t *in,
+    unicode_string_t *out,
+    const char *outencoding)
+{
+    iconv_t cd = 0;
+    size_t iconv_val = 0;
+
+    size_t inlen = in->length;
+    size_t outlen = 2 * (inlen + 1);
+
+    char *instart = in->contents;
+    char *incurr = in->contents;
+
+    memset(out, 0, sizeof(*out));
+    out->contents = safe_malloc(outlen);
+    memset(out->contents, 0, outlen);
+
+    char *outstart = out->contents;
+    char *outcurr = out->contents;
+
+    out->encoding = outencoding;
+
+    cd = iconv_open(out->encoding, in->encoding);   // outset, inset
+    if ((iconv_t) (-1) == cd) { // init failure
+        if (EINVAL == errno) {
+            dbprint(VMI_DEBUG_READ, "%s: conversion from '%s' to '%s' not supported\n",
+                    __FUNCTION__, in->encoding, out->encoding);
+        }
+        else {
+            dbprint(VMI_DEBUG_READ, "%s: Initializiation failure: %s\n", __FUNCTION__,
+                    strerror(errno));
+        }   // if-else
+        goto fail;
+    }   // if
+
+    // init success
+
+    iconv_val = iconv(cd, &incurr, &inlen, &outcurr, &outlen);
+    if ((size_t) - 1 == iconv_val) {
+        dbprint(VMI_DEBUG_READ, "%s: iconv failed, in string '%s' length %zu, "
+                "out string '%s' length %zu\n", __FUNCTION__,
+                in->contents, in->length, out->contents, outlen);
+        switch (errno) {
+        case EILSEQ:
+            dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
+            break;
+        case EINVAL:
+            dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
+            break;
+        case E2BIG:
+            dbprint(VMI_DEBUG_READ, "no more room");
+            break;
+        default:
+            dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
+            break;
+        }   // switch
+        goto fail;
+    }   // if failure
+
+    // conversion success
+    out->length = (size_t) (outcurr - outstart);
+    (void) iconv_close(cd);
+    return VMI_SUCCESS;
+
+fail:
+    if (out->contents) {
+        free(out->contents);
+    }
+    // make failure really obvious
+    memset(out, 0, sizeof(*out));
+
+    if ((iconv_t) (-1) != cd) { // init succeeded
+        (void) iconv_close(cd);
+    }   // if
+
+    return VMI_FAILURE;
 }
 
 void

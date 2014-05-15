@@ -131,6 +131,7 @@ status_t linux_init(vmi_instance_t vmi) {
     os_interface->os_ksym2v = linux_system_map_symbol_to_address;
     os_interface->os_usym2rva = NULL;
     os_interface->os_rva2sym = NULL;
+    os_interface->os_read_unicode_struct = NULL;
     os_interface->os_teardown = linux_teardown;
 
     vmi->os_interface = os_interface;
