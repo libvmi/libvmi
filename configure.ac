@@ -93,6 +93,18 @@ AC_ARG_WITH([xenstore],
       [with_xenstore=yes])
 AM_CONDITIONAL([XENSTORE], [test x$with_xenstore = xyes])
 
+AC_ARG_ENABLE([address-cache],
+      [AS_HELP_STRING([--disable-address-cache],
+         [Disable address caching (v2p, pid, etc])],
+      [enable_address_cache=$enableval],
+      [enable_address_cache=yes])
+
+AC_ARG_ENABLE([page-cache],
+      [AS_HELP_STRING([--disable-page-cache],
+         [Disable page caching])],
+      [enable_page_cache=$enableval],
+      [enable_page_cache=yes])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -312,6 +324,17 @@ PKG_CHECK_MODULES([JANSSON], [jansson >= 2.1], [], [missing="yes"])
 [else]
     have_jansson='Disabled, missing libjansson-dev.'
     [echo "No working Jansson library found (libjansson-dev), Rekall system profiles won't be supported."]
+[fi]
+
+[if test "$enable_address_cache" = "yes"]
+[then]
+    AC_DEFINE([ENABLE_ADDRESS_CACHE], [1], [Enable or disable the address cache (v2p, pid, etc)])
+[fi]
+
+[if test "$enable_page_cache" = "yes"]
+[then]
+    AC_DEFINE([ENABLE_PAGE_CACHE], [1], [Enable or disable the page cache])
+    AC_DEFINE([MAX_PAGE_CACHE_SIZE], [512], [Max number of pages held in page cache])
 [fi]
 
 dnl -----------------------------------------------

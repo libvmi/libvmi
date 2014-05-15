@@ -52,44 +52,41 @@ extern "C" {
 #include <errno.h>
 #include <string.h>
 
-/* enable or disable the address cache (v2p, pid, etc) */
-#define ENABLE_ADDRESS_CACHE 1
-
-/* enable or disable the page cache */
-#define ENABLE_PAGE_CACHE 1
-
-/* max number of pages held in page cache */
-#define MAX_PAGE_CACHE_SIZE 512
-
+/* vmi_mode_t is used as a bitfield during initialization */
 typedef uint32_t vmi_mode_t;
 
-/* These will be used in conjuction with vmi_mode_t variables */
+/* These are the flags that can be set in the bitfield vmi_mode_t */
+typedef enum vmi_mode_flags {
+    VMI_AUTO = (1 << 0),  /**< libvmi should detect what to monitor or view */
 
-#define VMI_AUTO (1 << 0)  /**< libvmi should detect what to monitor or view */
+    VMI_XEN = (1 << 1),  /**< libvmi is monitoring a Xen VM */
 
-#define VMI_XEN  (1 << 1)  /**< libvmi is monitoring a Xen VM */
+    VMI_KVM = (1 << 2),  /**< libvmi is monitoring a KVM VM */
 
-#define VMI_KVM  (1 << 2)  /**< libvmi is monitoring a KVM VM */
+    VMI_FILE = (1 << 3),  /**< libvmi is viewing a file on disk */
 
-#define VMI_FILE (1 << 3)  /**< libvmi is viewing a file on disk */
+    VMI_INIT_PARTIAL = (1 << 16), /**< init enough to view physical addresses */
 
-#define VMI_INIT_PARTIAL  (1 << 16) /**< init enough to view physical addresses */
+    VMI_INIT_COMPLETE = (1 << 17), /**< full initialization */
 
-#define VMI_INIT_COMPLETE (1 << 17) /**< full initialization */
+    VMI_INIT_EVENTS = (1 << 18), /**< init support for memory events */
 
-#define VMI_INIT_EVENTS (1 << 18) /**< init support for memory events */
+    VMI_INIT_SHM_SNAPSHOT = (1 << 19), /**< setup shm-snapshot in vmi_init() if the feature is activated */
 
-#define VMI_INIT_SHM_SNAPSHOT (1 << 19) /**< setup shm-snapshot in vmi_init() if the feature is activated */
+    VMI_CONFIG_NONE = (1 << 24), /**< no config provided */
 
-#define VMI_CONFIG_NONE (1 << 24) /**< no config provided */
+    VMI_CONFIG_GLOBAL_FILE_ENTRY = (1 << 25), /**< config in file provided */
 
-#define VMI_CONFIG_GLOBAL_FILE_ENTRY (1 << 25) /**< config in file provided */
+    VMI_CONFIG_STRING = (1 << 26), /**< config string provided */
 
-#define VMI_CONFIG_STRING (1 << 26) /**< config string provided */
+    VMI_CONFIG_GHASHTABLE = (1 << 27), /**< config GHashTable provided */
 
-#define VMI_CONFIG_GHASHTABLE (1 << 27) /**< config GHashTable provided */
+} vmi_mode_flags_t;
 
-#define VMI_INVALID_DOMID ~0 /**< invalid domain id */
+typedef enum vmi_misc_flags {
+
+    VMI_INVALID_DOMID = ~0 /**< invalid domain id */
+} vmi_misc_flags_t;
 
 typedef enum status {
 
