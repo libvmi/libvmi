@@ -1215,11 +1215,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     }
 
     while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->mem_event.back_ring) ) {
-#if XEN_MEMACCESS_VERSION == 44
-        rc = xc_hvm_get_mem_event(&xe->mem_event, &req);
-#elif XEN_MEMACCESS_VERSION == 45
-        rc = xc_get_mem_event(&xe->mem_event, &req);
-#endif
+        rc = get_mem_event(&xe->mem_event, &req);
         if ( rc != 0 ) {
             errprint("Error getting event.\n");
             return VMI_FAILURE;
