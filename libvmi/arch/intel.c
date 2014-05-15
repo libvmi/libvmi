@@ -274,7 +274,7 @@ addr_t v2p_nopae (vmi_instance_t vmi,
 
     if (ENTRY_PRESENT(vmi->os_type, pgd)) {
         info->l2_v = pgd;
-        if (PAGE_SIZE_FLAG(pgd)) {
+        if (PAGE_SIZE_FLAG(pgd) && (VMI_FILE == vmi->mode || vmi->pse)) {
             info->paddr = get_large_paddr_nopae(vaddr, pgd);
             info->size = VMI_PS_4MB;
             dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 4MB page 0x%"PRIx32"\n", pgd);
@@ -368,7 +368,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
 
         if(ENTRY_PRESENT(vmi->os_type, entry)) {
 
-            if(PAGE_SIZE_FLAG(entry)) {
+            if(PAGE_SIZE_FLAG(entry) && (VMI_FILE == vmi->mode || vmi->pse)) {
                 page_info_t *p = g_malloc0(sizeof(page_info_t));
                 p->vaddr = soffset;
                 p->paddr = get_large_paddr_nopae(p->vaddr, soffset);
