@@ -181,7 +181,7 @@ addr_t v2p_ia32e (vmi_instance_t vmi,
 
         if (ENTRY_PRESENT(vmi->os_type, pdpte)) {
             info->l3_v = pdpte;
-            if (PAGE_SIZE_FLAG(pdpte)) { // pdpte maps a 1GB page
+            if (PAGE_SIZE(pdpte)) { // pdpte maps a 1GB page
                 info->paddr = get_gigpage_ia32e(vaddr, pdpte);
                 info->size = VMI_PS_1GB;
                 dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 1GB page\n");
@@ -193,7 +193,7 @@ addr_t v2p_ia32e (vmi_instance_t vmi,
 
             if (ENTRY_PRESENT(vmi->os_type, pde)) {
                 info->l2_v = pde;
-                if (PAGE_SIZE_FLAG(pde)) { // pde maps a 2MB page
+                if (PAGE_SIZE(pde)) { // pde maps a 2MB page
                     info->paddr = get_2megpage_ia32e(vaddr, pde);
                     info->size = VMI_PS_2MB;
                     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 2MB page\n");
@@ -245,7 +245,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                 continue;
             }
 
-            if(PAGE_SIZE_FLAG(pdpte_value)) {
+            if(PAGE_SIZE(pdpte_value)) {
                 page_info_t *p = g_malloc0(sizeof(page_info_t));
                 p->vaddr = vaddr;
                 p->paddr = get_gigpage_ia32e(vaddr, pdpte_value);
@@ -271,7 +271,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
 
                 if(ENTRY_PRESENT(vmi->os_type, entry)) {
 
-                    if(PAGE_SIZE_FLAG(entry)) {
+                    if(PAGE_SIZE(entry)) {
                         page_info_t *p = g_malloc0(sizeof(page_info_t));
                         p->vaddr = soffset;
                         p->paddr = get_2megpage_ia32e(vaddr, entry);

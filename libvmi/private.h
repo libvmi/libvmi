@@ -208,8 +208,6 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t vmi,
     addr_t addr);
 
-#define VMI_GET_BIT(reg, bit) ((reg & (1<<bit)) ? 1:0)
-
 /*-------------------------------------
  * accessors.c
  */

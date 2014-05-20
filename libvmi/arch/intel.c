@@ -33,12 +33,6 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-/* "buffalo" routines
- * see "Using Every Part of the Buffalo in Windows Memory Analysis" by
- * Jesse D. Kornblum for details. */
-#define GET_TRANSITION_BIT(entry) VMI_GET_BIT(entry, 11)
-#define GET_PROTOTYPE_BIT(entry) VMI_GET_BIT(entry, 10)
-
 /* page directory pointer table */
 static inline
 uint64_t get_pdptb (uint64_t pdpr)
@@ -223,7 +217,7 @@ void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
         return;
     }
 
-    if (!GET_TRANSITION_BIT(entry) && !GET_PROTOTYPE_BIT(entry)) {
+    if (!TRANSITION(entry) && !PROTOTYPE(entry)) {
         uint32_t pfnum = (entry >> 1) & 0xF;
         uint32_t pfframe = entry & 0xFFFFF000UL;
 
@@ -238,12 +232,12 @@ void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
         }
     }
 
-    else if (GET_TRANSITION_BIT(entry) && !GET_PROTOTYPE_BIT(entry)) {
+    else if (TRANSITION(entry) && !PROTOTYPE(entry)) {
         /* transition */
         dbprint(VMI_DEBUG_PTLOOKUP, "--Buffalo: page in transition\n");
     }
 
-    else if (!pde && GET_PROTOTYPE_BIT(entry)) {
+    else if (!pde && PROTOTYPE(entry)) {
         /* prototype */
         dbprint(VMI_DEBUG_PTLOOKUP, "--Buffalo: prototype entry\n");
     }
@@ -274,7 +268,7 @@ addr_t v2p_nopae (vmi_instance_t vmi,
 
     if (ENTRY_PRESENT(vmi->os_type, pgd)) {
         info->l2_v = pgd;
-        if (PAGE_SIZE_FLAG(pgd) && (VMI_FILE == vmi->mode || vmi->pse)) {
+        if (PAGE_SIZE(pgd) && (VMI_FILE == vmi->mode || vmi->pse)) {
             info->paddr = get_large_paddr_nopae(vaddr, pgd);
             info->size = VMI_PS_4MB;
             dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 4MB page 0x%"PRIx32"\n", pgd);
@@ -326,7 +320,7 @@ addr_t v2p_pae (vmi_instance_t vmi,
 
     if (ENTRY_PRESENT(vmi->os_type, pgd)) {
         info->l2_v = pgd;
-        if (PAGE_SIZE_FLAG(pgd)) {
+        if (PAGE_SIZE(pgd)) {
             info->paddr = get_large_paddr_pae(vaddr, pgd);
             info->size = VMI_PS_2MB;
             dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: 2MB page\n");
@@ -368,7 +362,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
 
         if(ENTRY_PRESENT(vmi->os_type, entry)) {
 
-            if(PAGE_SIZE_FLAG(entry) && (VMI_FILE == vmi->mode || vmi->pse)) {
+            if(PAGE_SIZE(entry) && (VMI_FILE == vmi->mode || vmi->pse)) {
                 page_info_t *p = g_malloc0(sizeof(page_info_t));
                 p->vaddr = soffset;
                 p->paddr = get_large_paddr_nopae(p->vaddr, soffset);
@@ -439,7 +433,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
 
             if(ENTRY_PRESENT(vmi->os_type, entry)) {
 
-                if(PAGE_SIZE_FLAG(entry)) {
+                if(PAGE_SIZE(entry)) {
                     page_info_t *p = g_malloc0(sizeof(page_info_t));
                     p->vaddr = soffset;
                     p->paddr = get_large_paddr_pae(p->vaddr, pgd_curr);
