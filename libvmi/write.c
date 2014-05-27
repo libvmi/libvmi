@@ -144,54 +144,12 @@ vmi_write_va(
     void *buf,
     size_t count)
 {
-    addr_t paddr = 0;
-    addr_t pfn = 0;
-    addr_t offset = 0;
-    size_t buf_offset = 0;
-
-    if (NULL == buf) {
-        dbprint(VMI_DEBUG_WRITE, "--%s: buf passed as NULL, returning without write\n",
-                __FUNCTION__);
-        return 0;
-    }
-
-    while (count > 0) {
-        size_t write_len = 0;
-
-        if (pid) {
-            paddr = vmi_translate_uv2p(vmi, vaddr + buf_offset, pid);
-        }
-        else {
-            paddr = vmi_translate_kv2p(vmi, vaddr + buf_offset);
-        }
-
-        if (!paddr) {
-            return buf_offset;
-        }
-
-        /* determine how much we can write to this page */
-        offset = (vmi->page_size - 1) & paddr;
-        if ((offset + count) > vmi->page_size) {
-            write_len = vmi->page_size - offset;
-        }
-        else {
-            write_len = count;
-        }
-
-        /* do the write */
-        if (VMI_FAILURE ==
-            driver_write(vmi, paddr,
-                         ((char *) buf + (addr_t) buf_offset),
-                         write_len)) {
-            return buf_offset;
-        }
-
-        /* set variables for next loop */
-        count -= write_len;
-        buf_offset += write_len;
-    }
-
-    return buf_offset;
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid
+    };
+    return vmi_write(vmi, &ctx, buf, count);
 }
 
 size_t
