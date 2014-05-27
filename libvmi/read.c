@@ -128,47 +128,12 @@ vmi_read_pa(
     void *buf,
     size_t count)
 {
-    //TODO not sure how to best handle this with respect to page size.  Is this hypervisor dependent?
-    //  For example, the pfn for a given paddr should vary based on the size of the page where the
-    //  paddr resides.  However, it is hard to know the page size from just the paddr.  For now, just
-    //  assuming 4k pages and doing the read from there.
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+        .addr = paddr
+    };
 
-    unsigned char *memory = NULL;
-    addr_t phys_address = 0;
-    addr_t pfn = 0;
-    addr_t offset = 0;
-    size_t buf_offset = 0;
-
-    while (count > 0) {
-        size_t read_len = 0;
-
-        /* access the memory */
-        phys_address = paddr + buf_offset;
-        pfn = phys_address >> vmi->page_shift;
-        offset = (vmi->page_size - 1) & phys_address;
-        memory = vmi_read_page(vmi, pfn);
-        if (NULL == memory) {
-            return buf_offset;
-        }
-
-        /* determine how much we can read */
-        if ((offset + count) > vmi->page_size) {
-            read_len = vmi->page_size - offset;
-        }
-        else {
-            read_len = count;
-        }
-
-        /* do the read */
-        memcpy(((char *) buf) + (addr_t) buf_offset,
-               memory + (addr_t) offset, read_len);
-
-        /* set variables for next loop */
-        count -= read_len;
-        buf_offset += read_len;
-    }
-
-    return buf_offset;
+    return vmi_read(vmi, &ctx, buf, count);
 }
 
 size_t
@@ -179,58 +144,13 @@ vmi_read_va(
     void *buf,
     size_t count)
 {
-    unsigned char *memory = NULL;
-    addr_t paddr = 0;
-    addr_t pfn = 0;
-    addr_t offset = 0;
-    size_t buf_offset = 0;
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid
+    };
 
-    if (NULL == buf) {
-        dbprint(VMI_DEBUG_READ, "--%s: buf passed as NULL, returning without read\n",
-                __FUNCTION__);
-        return 0;
-    }
-
-    while (count > 0) {
-        size_t read_len = 0;
-
-        if (pid) {
-            paddr = vmi_translate_uv2p(vmi, vaddr + buf_offset, pid);
-        }
-        else {
-            paddr = vmi_translate_kv2p(vmi, vaddr + buf_offset);
-        }
-
-        if (!paddr) {
-            return buf_offset;
-        }
-
-        /* access the memory */
-        pfn = paddr >> vmi->page_shift;
-        offset = (vmi->page_size - 1) & paddr;
-        memory = vmi_read_page(vmi, pfn);
-        if (NULL == memory) {
-            return buf_offset;
-        }
-
-        /* determine how much we can read */
-        if ((offset + count) > vmi->page_size) {
-            read_len = vmi->page_size - offset;
-        }
-        else {
-            read_len = count;
-        }
-
-        /* do the read */
-        memcpy(((char *) buf) + (addr_t) buf_offset,
-               memory + (addr_t) offset, read_len);
-
-        /* set variables for next loop */
-        count -= read_len;
-        buf_offset += read_len;
-    }
-
-    return buf_offset;
+    return vmi_read(vmi, &ctx, buf, count);
 }
 
 #if ENABLE_SHM_SNAPSHOT == 1
@@ -263,14 +183,12 @@ vmi_read_ksym(
     void *buf,
     size_t count)
 {
-    addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_KERNEL_SYMBOL,
+        .ksym = sym,
+    };
 
-    if (0 == vaddr) {
-        dbprint(VMI_DEBUG_READ, "--%s: vmi_translate_ksym2v failed for '%s'\n",
-                __FUNCTION__, sym);
-        return 0;
-    }
-    return vmi_read_va(vmi, vaddr, 0, buf, count);
+    return vmi_read(vmi, &ctx, buf, count);
 }
 
 ///////////////////////////////////////////////////////////
@@ -336,11 +254,13 @@ vmi_read_addr(
     switch (vmi->page_mode) {
         case VMI_PM_IA32E:
             ret = vmi_read_X(vmi, ctx, value, 8);
+            break;
         case VMI_PM_LEGACY:
         case VMI_PM_PAE: {
             uint32_t tmp = 0;
             ret = vmi_read_X(vmi, ctx, &tmp, 4);
             *value = (uint64_t) tmp;
+            break;
         }
         default: break;
     }
@@ -434,7 +354,7 @@ vmi_read_str(
 
 ///////////////////////////////////////////////////////////
 // Easy access to physical memory
-static status_t
+static inline status_t
 vmi_read_X_pa(
     vmi_instance_t vmi,
     addr_t paddr,
@@ -517,44 +437,17 @@ vmi_read_str_pa(
     vmi_instance_t vmi,
     addr_t paddr)
 {
-    char *rtnval = NULL;
-    size_t chunk_size = vmi->page_size - ((vmi->page_size - 1) & paddr);
-    char *buf = (char *) safe_malloc(chunk_size);
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+        .addr = paddr
+    };
 
-    // read in chunk of data
-    if (chunk_size != vmi_read_pa(vmi, paddr, buf, chunk_size)) {
-        goto exit;
-    }
-
-    // look for \0 character, expand as needed
-    size_t len = strnlen(buf, chunk_size);
-    size_t buf_size = chunk_size;
-
-    while (len == buf_size) {
-        size_t offset = buf_size;
-
-        buf_size += chunk_size;
-        buf = realloc(buf, buf_size);
-        if (chunk_size !=
-            vmi_read_pa(vmi, paddr + offset, buf + offset,
-                        chunk_size)) {
-            goto exit;
-        }
-        len = strnlen(buf, buf_size);
-    }
-
-    rtnval = (char *) safe_malloc(len + 1);
-    memcpy(rtnval, buf, len);
-    rtnval[len] = '\0';
-
-exit:
-    free(buf);
-    return rtnval;
+    return vmi_read_str(vmi, &ctx);
 }
 
 ///////////////////////////////////////////////////////////
 // Easy access to virtual memory
-static status_t
+static inline status_t
 vmi_read_X_va(
     vmi_instance_t vmi,
     addr_t vaddr,
@@ -644,58 +537,13 @@ vmi_read_str_va(
     addr_t vaddr,
     vmi_pid_t pid)
 {
-    unsigned char *memory = NULL;
-    char *rtnval = NULL;
-    addr_t paddr = 0;
-    addr_t pfn = 0;
-    addr_t offset = 0;
-    int len = 0;
-    size_t read_len = 0;
-    int read_more = 1;
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid
+    };
 
-    rtnval = NULL;
-
-    while (read_more) {
-        if (pid) {
-            paddr = vmi_translate_uv2p(vmi, vaddr + len, pid);
-        }
-        else {
-            paddr = vmi_translate_kv2p(vmi, vaddr + len);
-        }
-
-        if (!paddr) {
-            return rtnval;
-        }
-
-        /* access the memory */
-        pfn = paddr >> vmi->page_shift;
-        offset = (vmi->page_size - 1) & paddr;
-        memory = vmi_read_page(vmi, pfn);
-        if (NULL == memory) {
-            return rtnval;
-        }
-
-        /* Count new non-null characters */
-        read_len = 0;
-        while (offset + read_len < vmi->page_size) {
-            if (memory[offset + read_len] == '\0') {
-                read_more = 0;
-                break;
-            }
-
-            read_len++;
-        }
-
-        /* Otherwise, realloc, tack on the '\0' in case of errors and
-         * get ready to read the next page.
-         */
-        rtnval = realloc(rtnval, len + 1 + read_len);
-        memcpy(&rtnval[len], &memory[offset], read_len);
-        len += read_len;
-        rtnval[len] = '\0';
-    }
-
-    return rtnval;
+    return vmi_read_str(vmi, &ctx);
 }
 
 unicode_string_t *
