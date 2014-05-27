@@ -249,16 +249,23 @@ vmi_read_addr_pa(
     addr_t paddr,
     addr_t *value)
 {
-    if (vmi->page_mode == VMI_PM_IA32E) {
-        return vmi_read_64_pa(vmi, paddr, value);
-    }
-    else {
-        uint32_t tmp = 0;
-        status_t ret = vmi_read_32_pa(vmi, paddr, &tmp);
+    status_t ret = VMI_FAILURE;
 
-        *value = (uint64_t) tmp;
-        return ret;
+    switch(vmi->page_mode) {
+        case VMI_PM_IA32E:
+            ret = vmi_read_X_pa(vmi, paddr, value, 8);
+            break;
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE: {
+            uint32_t tmp = 0;
+            status_t ret = vmi_read_X_pa(vmi, paddr, &tmp, 4);
+            *value = (uint64_t) tmp;
+            break;
+        }
+        default: break;
     }
+
+    return ret;
 }
 
 char *
@@ -368,16 +375,23 @@ vmi_read_addr_va(
     vmi_pid_t pid,
     addr_t *value)
 {
-    if (vmi->page_mode == VMI_PM_IA32E) {
-        return vmi_read_64_va(vmi, vaddr, pid, value);
-    }
-    else {
-        uint32_t tmp = 0;
-        status_t ret = vmi_read_32_va(vmi, vaddr, pid, &tmp);
+    status_t ret = VMI_FAILURE;
 
-        *value = (uint64_t) tmp;
-        return ret;
+    switch(vmi->page_mode) {
+        case VMI_PM_IA32E:
+            ret = vmi_read_X_va(vmi, vaddr, pid, value, 8);
+            break;
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE: {
+            uint32_t tmp = 0;
+            ret = vmi_read_X_va(vmi, vaddr, pid, &tmp, 4);
+            *value = (uint64_t) tmp;
+            break;
+        }
+        default: break;
     }
+
+    return ret;
 }
 
 char *
@@ -683,16 +697,23 @@ vmi_read_addr_ksym(
     char *sym,
     addr_t *value)
 {
-    if (vmi->page_mode == VMI_PM_IA32E) {
-        return vmi_read_64_ksym(vmi, sym, value);
-    }
-    else {
-        uint32_t tmp = 0;
-        status_t ret = vmi_read_32_ksym(vmi, sym, &tmp);
+    status_t ret = VMI_FAILURE;
 
-        *value = (uint64_t) tmp;
-        return ret;
+    switch(vmi->page_mode) {
+        case VMI_PM_IA32E:
+            ret = vmi_read_X_ksym(vmi, sym, value, 8);
+            break;
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE: {
+            uint32_t tmp = 0;
+            status_t ret = vmi_read_X_ksym(vmi, sym, &tmp, 4);
+            *value = (uint64_t) tmp;
+            break;
+        }
+        default: break;
     }
+
+    return ret;
 }
 
 char *
