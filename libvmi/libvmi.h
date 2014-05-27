@@ -266,6 +266,27 @@ typedef struct page_info {
     addr_t l4_v; // the value of the       -  /  -   / pml4e
 } page_info_t;
 
+/* Available translation mechanism for v2p conversion. */
+typedef enum translation_mechanism {
+    VMI_TM_NONE,            /* No translation is required, address is physical address */
+    VMI_TM_PROCESS_DTB,     /* Translate addr via specified directory table base. */
+    VMI_TM_PROCESS_PID,     /* Translate addr by finding process first to use its DTB. */
+    VMI_TM_KERNEL_SYMBOL    /* Find virtual address of kernel symbol and translate it via kernel DTB. */
+} translation_mechanism_t;
+
+/**
+ * Structure to use as input to accessor functions
+ * detailing how the access should be performed.
+ */
+typedef struct {
+    translation_mechanism_t translate_mechanism;
+
+    addr_t addr; /**< specify iff using VMI_TM_NONE, VMI_TM_PROCESS_DTB or VMI_TM_PROCESS_PID */
+    char *ksym; /**< specify iff using VMI_TM_KERNEL_SYMBOL */
+    addr_t dtb; /**< specify iff using VMI_TM_PROCESS_DTB */
+    vmi_pid_t pid; /**< specify iff using VMI_TM_PROCESS_PID */
+} access_context_t;
+
 /**
  * Macro to test bitfield values
  */
@@ -522,8 +543,88 @@ status_t vmi_pagetable_lookup_extended(
     page_info_t *info);
 
 /*---------------------------------------------------------
- * Memory access functions from util.c
+ * Memory access functions
  */
+
+/**
+ * Reads 8 bits from memory.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_8(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint8_t * value);
+
+/**
+ * Reads 16 bits from memory, given a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_16(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint16_t * value);
+
+/**
+ * Reads 32 bits from memory, given a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_32(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint32_t * value);
+
+/**
+ * Reads 64 bits from memory, given a virtual address.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address to read from
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_64(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint64_t * value);
+
+/**
+ * Reads an address from memory, given a virtual address.  The number of
+ * bytes read is 8 for 64-bit systems and 4 for 32-bit systems.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[out] value The value read from memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_addr(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    addr_t *value);
+
+/**
+ * Reads a null terminated string from memory, starting at
+ * the given virtual address.  The returned value must be
+ * freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @return String read from memory or NULL on error
+ */
+char *vmi_read_str(
+    vmi_instance_t vmi,
+    access_context_t *ctx);
 
 /**
  * Reads \a count bytes from memory located at the kernel symbol \a sym
@@ -864,6 +965,22 @@ char *vmi_read_str_pa(
     vmi_instance_t vmi,
     addr_t paddr);
 
+
+/**
+ * Writes \a count bytes to memory
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[in] buf The data written to memory
+ * @param[in] count The number of bytes to write
+ * @return The number of bytes written.
+ */
+size_t vmi_write(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    void *buf,
+    size_t count);
+
 /**
  * Writes \a count bytes to memory located at the kernel symbol \a sym
  * from \a buf.
@@ -913,6 +1030,58 @@ size_t vmi_write_pa(
     addr_t paddr,
     void *buf,
     size_t count);
+
+/**
+ * Writes 8 bits to memory
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_8(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint8_t * value);
+
+/**
+ * Writes 16 bits to memory
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_16(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint16_t * value);
+
+/**
+ * Writes 32 bits to memory
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_32(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint32_t * value);
+
+/**
+ * Writes 64 bits to memory
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[in] value The value written to memory
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_write_64(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint64_t * value);
 
 /**
  * Writes 8 bits to memory, given a kernel symbol.
