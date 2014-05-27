@@ -219,6 +219,25 @@ vmi_write_64(
     return vmi_write_X(vmi, ctx, value, 8);
 }
 
+status_t
+vmi_write_addr(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    addr_t * value)
+{
+    switch(vmi->page_mode) {
+        case VMI_PM_IA32E:
+            return vmi_write_X(vmi, ctx, value, 8);
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE:
+            return vmi_write_X(vmi, ctx, value, 4);
+        default:
+            break;
+    }
+
+    return VMI_FAILURE;
+}
+
 ///////////////////////////////////////////////////////////
 // Easy write to physical memory
 static status_t
@@ -272,6 +291,20 @@ vmi_write_64_pa(
     uint64_t * value)
 {
     return vmi_write_X_pa(vmi, paddr, value, 8);
+}
+
+status_t
+vmi_write_addr_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    addr_t * value)
+{
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+        .addr = paddr
+    };
+
+    return vmi_write_addr(vmi, &ctx, value);
 }
 
 ///////////////////////////////////////////////////////////
@@ -334,6 +367,21 @@ vmi_write_64_va(
     return vmi_write_X_va(vmi, vaddr, pid, value, 8);
 }
 
+status_t
+vmi_write_addr_va(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    vmi_pid_t pid,
+    addr_t * value)
+{
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid
+    };
+    return vmi_write_addr(vmi, &ctx, value);
+}
+
 ///////////////////////////////////////////////////////////
 // Easy write to memory using kernel symbols
 static status_t
@@ -388,3 +436,18 @@ vmi_write_64_ksym(
 {
     return vmi_write_X_ksym(vmi, sym, value, 8);
 }
+
+status_t
+vmi_write_addr_ksym(
+    vmi_instance_t vmi,
+    char *sym,
+    addr_t * value)
+{
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_KERNEL_SYMBOL,
+        .ksym = sym
+    };
+
+    return vmi_write_addr(vmi, &ctx, value);
+}
+
