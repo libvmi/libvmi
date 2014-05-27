@@ -31,7 +31,8 @@ c_sources = \
     os/windows/memory.c \
     os/windows/symbols.c \
     os/windows/peparse.c \
-    os/windows/process.c
+    os/windows/process.c \
+    os/windows/unicode.c
 
 library_includedir=$(includedir)/$(LIBRARY_NAME)
 library_include_HEADERS = $(h_sources)
