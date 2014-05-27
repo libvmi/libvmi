@@ -126,6 +126,7 @@ get_ntoskrnl_base(
     return ret;
 }
 
+/* Tries to determine the page mode based on the kpgd found via heuristics */
 static status_t
 find_page_mode(
     vmi_instance_t vmi)
@@ -133,6 +134,7 @@ find_page_mode(
 
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
+    uint32_t mask = ~0;
 
     if (!windows) {
         errprint("Windows functions not initialized in %s\n", __FUNCTION__);
@@ -153,7 +155,8 @@ find_page_mode(
     vmi->page_mode = VMI_PM_LEGACY;
 
     if (VMI_SUCCESS == arch_init(vmi)) {
-        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
+            vmi->kpgd &= mask;
             goto found_pm;
         }
     }
@@ -162,7 +165,8 @@ find_page_mode(
     vmi->page_mode = VMI_PM_PAE;
 
     if (VMI_SUCCESS == arch_init(vmi)) {
-        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
+            vmi->kpgd &= mask;
             goto found_pm;
         }
     }
@@ -215,9 +219,10 @@ get_kpgd_method2(
     dbprint(VMI_DEBUG_MISC, "--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
             sysproc);
 
-    /* get address for page directory (from system process) */
+    /* Get address for page directory (from system process).
+       We are reading 64-bit value here deliberately as we might not know the page mode yet */
     if (VMI_FAILURE ==
-        vmi_read_addr_pa(vmi,
+        vmi_read_64_pa(vmi,
                          sysproc +
                          windows->pdbase_offset,
                          &vmi->kpgd)) {
@@ -229,16 +234,31 @@ get_kpgd_method2(
         dbprint(VMI_DEBUG_MISC, "--kpgd was zero\n");
         goto error_exit;
     }
-    dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     if (VMI_FAILURE ==
-        vmi_read_addr_pa(vmi,
+        vmi_read_64_pa(vmi,
                      sysproc + windows->tasks_offset,
                      &vmi->init_task)) {
         dbprint(VMI_DEBUG_MISC, "--failed to resolve address of System process\n");
         goto error_exit;
     }
+
     vmi->init_task -= windows->tasks_offset;
+
+    /* If the page mode is already known to be 32-bit we just mask the value here.
+       If don't know the page mode yet it will be determined using heuristics in find_page_mode later. */
+    switch(vmi->page_mode) {
+        VMI_PM_LEGACY:
+        VMI_PM_PAE: {
+            uint32_t mask = ~0;
+            vmi->kpgd &= mask;
+            vmi->init_task &= mask;
+            break;
+        }
+        default: break;
+    }
+
+    dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
     dbprint(VMI_DEBUG_MISC, "**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
