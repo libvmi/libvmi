@@ -615,6 +615,7 @@ windows_init(
     status_t status = VMI_FAILURE;
     windows_instance_t windows = NULL;
     os_interface_t os_interface = NULL;
+    status_t real_kpgd_found = VMI_FAILURE;
 
     if (vmi->config == NULL) {
         errprint("VMI_ERROR: No config table found\n");
@@ -651,45 +652,51 @@ windows_init(
         goto error_exit;
     }
 
-    if (VMI_PM_UNKNOWN == vmi->page_mode) {
+    /* At this point we still don't have a directory table base,
+     * so first we try to get it via the driver (fastest way).
+     * If the driver gets us a dtb, it will be used _only_ during the init phase,
+     * and will be replaced by the real kpgd later. */
+    if(VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
         if(VMI_FAILURE == get_kpgd_method2(vmi)) {
-          errprint("Could not get kpgd, will not be able to determine page mode\n");
-          goto error_exit;
-        }
-
-        if(VMI_FAILURE == init_core(vmi)) {
+            errprint("Could not get kpgd, will not be able to determine page mode\n");
             goto error_exit;
+        } else {
+            real_kpgd_found = VMI_SUCCESS;
         }
+    }
 
+    if(VMI_FAILURE == init_core(vmi)) {
+        goto error_exit;
+    }
+
+    if (VMI_PM_UNKNOWN == vmi->page_mode) {
         if (VMI_FAILURE == find_page_mode(vmi)) {
             errprint("Failed to find correct page mode.\n");
             goto error_exit;
         }
-    } else if(VMI_FAILURE == init_core(vmi)) {
-        goto error_exit;
     }
 
-    if (vmi->kpgd) {
-        /* This can happen for file because find_cr3() is called and this
-         * is set via get_kpgd_method2() */
+    if (VMI_SUCCESS == real_kpgd_found) {
         status = VMI_SUCCESS;
-    } else
+        goto done;
+    }
+
+    /* If we have a dtb via the driver we need to get the real kpgd */
     if (VMI_SUCCESS == get_kpgd_method0(vmi)) {
         dbprint(VMI_DEBUG_MISC, "--kpgd method0 success\n");
         status = VMI_SUCCESS;
-    } else
+        goto done;
+    }
     if (VMI_SUCCESS == get_kpgd_method1(vmi)) {
         dbprint(VMI_DEBUG_MISC, "--kpgd method1 success\n");
         status = VMI_SUCCESS;
-    } else
-    if (VMI_SUCCESS == get_kpgd_method2(vmi)) {
-        dbprint(VMI_DEBUG_MISC, "--kpgd method2 success\n");
-        status = VMI_SUCCESS;
-    } else {
-        errprint("Failed to find kernel page directory.\n");
-        goto error_exit;
+        goto done;
     }
 
+    errprint("Failed to find kernel page directory.\n");
+    goto error_exit;
+
+done:
     return status;
 
 error_exit:
