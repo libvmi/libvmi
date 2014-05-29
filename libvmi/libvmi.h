@@ -267,6 +267,11 @@ typedef struct page_info {
 } page_info_t;
 
 /**
+ * Macro to test bitfield values
+ */
+#define VMI_GET_BIT(reg, bit) ((reg & (1<<bit)) ? 1:0)
+
+/**
  * Generic representation of Unicode string to be used within libvmi
  */
 typedef struct _ustring {
