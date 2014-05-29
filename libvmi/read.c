@@ -29,7 +29,6 @@
 #include "driver/interface.h"
 #include <string.h>
 #include <wchar.h>
-#include <iconv.h>  // conversion between character sets
 #include <errno.h>
 
 ///////////////////////////////////////////////////////////
@@ -440,186 +439,14 @@ vmi_read_str_va(
     return rtnval;
 }
 
-static unicode_string_t *
-vmi_read_linux_unicode_str_va(
-    vmi_instance_t vmi,
-    addr_t vaddr,
-    vmi_pid_t pid)
-{
-    // not implemented
-    return 0;
-}
-
-static unicode_string_t *
-vmi_read_win_unicode_struct_va(
-    vmi_instance_t vmi,
-    addr_t vaddr,
-    vmi_pid_t pid)
-{
-    unicode_string_t *us = 0;   // return val
-    size_t struct_size = 0;
-    size_t read = 0;
-    addr_t buffer_va = 0;
-    uint16_t buffer_len = 0;
-
-    if (VMI_PM_IA32E == vmi_get_page_mode(vmi)) {   // 64 bit guest
-        win64_unicode_string_t us64 = { 0 };
-        struct_size = sizeof(us64);
-        // read the UNICODE_STRING struct
-        read = vmi_read_va(vmi, vaddr, pid, &us64, struct_size);
-        if (read != struct_size) {
-            dbprint
-                (VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING at VA 0x%.16"PRIx64" for pid %d\n",
-                 __FUNCTION__, vaddr, pid);
-            goto out_error;
-        }   // if
-        buffer_va = (vaddr & 0xFFFFFFFF00000000) + (us64.pBuffer >> 32);
-        buffer_len = us64.length;
-    }
-    else {
-        win32_unicode_string_t us32 = { 0 };
-        struct_size = sizeof(us32);
-        // read the UNICODE_STRING struct
-        read = vmi_read_va(vmi, vaddr, pid, &us32, struct_size);
-        if (read != struct_size) {
-            dbprint
-                (VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING at VA 0x%.16"PRIx64" for pid %d\n",
-                 __FUNCTION__, vaddr, pid);
-            goto out_error;
-        }   // if
-        buffer_va = us32.pBuffer;
-        buffer_len = us32.length;
-    }   // if-else
-
-    // allocate the return value
-    us = safe_malloc(sizeof(unicode_string_t));
-
-    us->length = buffer_len;
-    us->contents = safe_malloc(sizeof(uint8_t) * (buffer_len + 2));
-
-    read = vmi_read_va(vmi, buffer_va, pid, us->contents, us->length);
-    if (read != us->length) {
-        dbprint
-            (VMI_DEBUG_READ, "--%s: failed to read buffer at VA 0x%.16"PRIx64" for pid %d\n",
-             __FUNCTION__, buffer_va, pid);
-        goto out_error;
-    }   // if
-
-    // end with NULL (needed?)
-    us->contents[buffer_len] = 0;
-    us->contents[buffer_len + 1] = 0;
-
-    us->encoding = "UTF-16";
-
-    return us;
-
-out_error:
-    if (us) {
-        if (us->contents) {
-            free(us->contents);
-        }
-        free(us);
-    }
-    return 0;
-}
-
 unicode_string_t *
-vmi_read_unicode_str_va(
-    vmi_instance_t vmi,
-    addr_t vaddr,
-    vmi_pid_t pid)
-{
-    os_t os = vmi_get_ostype(vmi);
-
-    if (VMI_OS_LINUX == os) {
-        return vmi_read_linux_unicode_str_va(vmi, vaddr, pid);
+vmi_read_unicode_str_va(vmi_instance_t vmi, addr_t vaddr, vmi_pid_t pid) {
+    unicode_string_t *ret = NULL;
+    if (vmi->os_interface && vmi->os_interface->os_read_unicode_struct) {
+        ret = vmi->os_interface->os_read_unicode_struct(vmi, vaddr, pid);
     }
-    else if (VMI_OS_WINDOWS == os) {
-        return vmi_read_win_unicode_struct_va(vmi, vaddr, pid);
-    }
-    else {
-        return 0;
-    }
-}
 
-status_t
-vmi_convert_str_encoding(
-    const unicode_string_t *in,
-    unicode_string_t *out,
-    const char *outencoding)
-{
-    iconv_t cd = 0;
-    size_t iconv_val = 0;
-
-    size_t inlen = in->length;
-    size_t outlen = 2 * (inlen + 1);
-
-    char *instart = in->contents;
-    char *incurr = in->contents;
-
-    memset(out, 0, sizeof(*out));
-    out->contents = safe_malloc(outlen);
-    memset(out->contents, 0, outlen);
-
-    char *outstart = out->contents;
-    char *outcurr = out->contents;
-
-    out->encoding = outencoding;
-
-    cd = iconv_open(out->encoding, in->encoding);   // outset, inset
-    if ((iconv_t) (-1) == cd) { // init failure
-        if (EINVAL == errno) {
-            dbprint(VMI_DEBUG_READ, "%s: conversion from '%s' to '%s' not supported\n",
-                    __FUNCTION__, in->encoding, out->encoding);
-        }
-        else {
-            dbprint(VMI_DEBUG_READ, "%s: Initializiation failure: %s\n", __FUNCTION__,
-                    strerror(errno));
-        }   // if-else
-        goto fail;
-    }   // if
-
-    // init success
-
-    iconv_val = iconv(cd, &incurr, &inlen, &outcurr, &outlen);
-    if ((size_t) - 1 == iconv_val) {
-        dbprint(VMI_DEBUG_READ, "%s: iconv failed, in string '%s' length %zu, "
-                "out string '%s' length %zu\n", __FUNCTION__,
-                in->contents, in->length, out->contents, outlen);
-        switch (errno) {
-        case EILSEQ:
-            dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
-            break;
-        case EINVAL:
-            dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
-            break;
-        case E2BIG:
-            dbprint(VMI_DEBUG_READ, "no more room");
-            break;
-        default:
-            dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
-            break;
-        }   // switch
-        goto fail;
-    }   // if failure
-
-    // conversion success
-    out->length = (size_t) (outcurr - outstart);
-    (void) iconv_close(cd);
-    return VMI_SUCCESS;
-
-fail:
-    if (out->contents) {
-        free(out->contents);
-    }
-    // make failure really obvious
-    memset(out, 0, sizeof(*out));
-
-    if ((iconv_t) (-1) != cd) { // init succeeded
-        (void) iconv_close(cd);
-    }   // if
-
-    return VMI_FAILURE;
+    return ret;
 }
 
 ///////////////////////////////////////////////////////////
