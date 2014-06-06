@@ -518,8 +518,8 @@ walkthrough_shm_snapshot_pagetable(
     GSList *loop = pages;
     while(loop) {
         page_info_t *page = pages->data;
-        addr_t start_vaddr = data->vaddr;
-        addr_t start_paddr = data->paddr;
+        addr_t start_vaddr = page->vaddr;
+        addr_t start_paddr = page->paddr;
         addr_t end_vaddr = start_vaddr | (page->size-1);
         addr_t end_paddr = start_paddr | (page->size-1);
         if (start_paddr < vmi->size) {
