@@ -726,6 +726,24 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     dbprint(VMI_DEBUG_XEN, "Init xen events with xch == %llx\n", (unsigned long long)xch);
 
+    rc = xc_domain_getinfolist(xch, dom, 1, dom_info);
+    if ( rc != 1 )
+    {
+        errprint("Error getting domain info\n");
+        dom_info = NULL;
+        goto err;
+    }
+
+    if(!(dom_info->flags & XEN_DOMINF_paused) && VMI_FAILURE == vmi_pause_vm(vmi))
+    {
+        errprint("Failed to pause VM\n");
+        goto err;
+    }
+
+    // This is mostly nice for setting global access.
+    // There may be a better way to manage this.
+    xe->mem_event.max_pages = dom_info->max_pages;
+
     // Initialise lock
     xen_event_ring_lock_init(&xe->mem_event);
 
@@ -830,6 +848,17 @@ enable_done:
         goto err;
     }
 
+    /* This causes errors when going from VMI_PARTIAL->VMI_COMPLETE on Xen 4.1.2 */
+#ifndef XENEVENT41
+    /* Now that the ring is set, remove it from the guest's physmap */
+    if ( xc_domain_decrease_reservation_exact(xch,
+                    dom, 1, 0, &ring_pfn) )
+    {
+        errprint("Failed to remove ring from guest physmap\n");
+        goto err;
+    }
+#endif
+
     // Open event channel
     xe->mem_event.xce_handle = xc_evtchn_open(NULL, 0);
     if ( xe->mem_event.xce_handle == NULL )
@@ -862,14 +891,6 @@ enable_done:
                    (mem_event_sring_t *)xe->mem_event.ring_page,
                    getpagesize());
 
-    /* This causes errors when going from VMI_PARTIAL->VMI_COMPLETE on Xen 4.1.2 */
-#ifndef XENEVENT41
-    /* Now that the ring is set, remove it from the guest's physmap */
-    if ( xc_domain_decrease_reservation_exact(xch,
-                    dom, 1, 0, &ring_pfn) )
-        errprint("Failed to remove ring from guest physmap\n");
-#endif
-
     // Get domaininfo
     /* TODO MARESCA non allocated would work fine here via &dominfo below */
     dom_info = malloc(sizeof(xc_domaininfo_t));
@@ -879,24 +900,29 @@ enable_done:
         goto err;
     }
 
-    rc = xc_domain_getinfolist(xch, dom, 1, dom_info);
-    if ( rc != 1 )
+    xen_get_instance(vmi)->events = xe;
+
+    if(!(dom_info->flags & XEN_DOMINF_paused))
     {
-        errprint("Error getting domain info\n");
-        goto err;
+        vmi_resume_vm(vmi);
     }
 
-    // This is mostly nice for setting global access.
-    // There may be a better way to manage this.
-    xe->mem_event.max_pages = dom_info->max_pages;
     free(dom_info);
-
-    xen_get_instance(vmi)->events = xe;
     return VMI_SUCCESS;
 
  err:
     errprint("Failed initialize xen events.\n");
     xen_events_destroy(vmi);
+
+    if(dom_info)
+    {
+        if(!(dom_info->flags & XEN_DOMINF_paused))
+        {
+            vmi_resume_vm(vmi);
+        }
+
+        free(dom_info);
+    }
     return VMI_FAILURE;
 }
 
