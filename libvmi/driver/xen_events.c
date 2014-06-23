@@ -689,7 +689,7 @@ status_t xen_events_init(vmi_instance_t vmi)
 {
     xen_events_t * xe = NULL;
     xc_interface * xch = NULL;
-    xc_domaininfo_t * dom_info = NULL;
+    xc_domaininfo_t dom_info = {0};
     unsigned long dom = 0;
     unsigned long ring_pfn = 0;
     unsigned long mmap_pfn = 0;
@@ -726,15 +726,14 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     dbprint(VMI_DEBUG_XEN, "Init xen events with xch == %llx\n", (unsigned long long)xch);
 
-    rc = xc_domain_getinfolist(xch, dom, 1, dom_info);
+    rc = xc_domain_getinfolist(xch, dom, 1, &dom_info);
     if ( rc != 1 )
     {
         errprint("Error getting domain info\n");
-        dom_info = NULL;
         goto err;
     }
 
-    if(!(dom_info->flags & XEN_DOMINF_paused) && VMI_FAILURE == vmi_pause_vm(vmi))
+    if(!(dom_info.flags & XEN_DOMINF_paused) && VMI_FAILURE == vmi_pause_vm(vmi))
     {
         errprint("Failed to pause VM\n");
         goto err;
@@ -742,7 +741,7 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     // This is mostly nice for setting global access.
     // There may be a better way to manage this.
-    xe->mem_event.max_pages = dom_info->max_pages;
+    xe->mem_event.max_pages = dom_info.max_pages;
 
     // Initialise lock
     xen_event_ring_lock_init(&xe->mem_event);
@@ -891,37 +890,21 @@ enable_done:
                    (mem_event_sring_t *)xe->mem_event.ring_page,
                    getpagesize());
 
-    // Get domaininfo
-    /* TODO MARESCA non allocated would work fine here via &dominfo below */
-    dom_info = malloc(sizeof(xc_domaininfo_t));
-    if ( dom_info == NULL )
-    {
-        errprint("Error allocating memory for domain info\n");
-        goto err;
-    }
-
     xen_get_instance(vmi)->events = xe;
 
-    if(!(dom_info->flags & XEN_DOMINF_paused))
+    if(!(dom_info.flags & XEN_DOMINF_paused))
     {
         vmi_resume_vm(vmi);
     }
-
-    free(dom_info);
     return VMI_SUCCESS;
 
  err:
     errprint("Failed initialize xen events.\n");
     xen_events_destroy(vmi);
 
-    if(dom_info)
+    if(!(dom_info.flags & XEN_DOMINF_paused))
     {
-        if(!(dom_info->flags & XEN_DOMINF_paused))
-        {
-            vmi_resume_vm(vmi);
-        }
-
-        free(dom_info);
+        vmi_resume_vm(vmi);
     }
     return VMI_FAILURE;
 }
