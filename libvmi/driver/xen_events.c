@@ -72,8 +72,9 @@
  *  on 4.0.x which had some memory event functions defined, yet lacked
  *  all of the features LibVMI needs.
  */
-#if ENABLE_XEN==1 && ENABLE_XEN_EVENTS==1 && XENCTRL_HAS_XC_INTERFACE && XEN_MEMACCESS_VERSION >= 44
-static xen_events_t *xen_get_events(vmi_instance_t vmi)
+#if ENABLE_XEN==1 && ENABLE_XEN_EVENTS==1 && defined(XENCTRL_HAS_XC_INTERFACE) && defined(XEN_EVENTS_VERSION)
+
+static inline xen_events_t *xen_get_events(vmi_instance_t vmi)
 {
     return xen_get_instance(vmi)->events;
 }
@@ -224,10 +225,10 @@ static int resume_domain(vmi_instance_t vmi)
     }
 
     // Tell Xen we have finished processing the requests
-#if XEN_MEMACCESS_VERSION == 44
+#if XEN_EVENTS_VERSION < 450
     // The last argument is actually ignored by Xen.
     ret = xc_mem_access_resume(xch, dom, 0);
-#elif XEN_MEMACCESS_VERSION == 45
+#else
     // The last (unused) argument is now removed.
     ret = xc_mem_access_resume(xch, dom);
 #endif
@@ -609,10 +610,10 @@ void xen_events_destroy(vmi_instance_t vmi)
     xen_shutdown_single_step(vmi);
 
     /* Unregister for all events */
-#if XEN_MEMACCESS_VERSION == 44
+#if XEN_EVENTS_VERSION < 450
     rc = xc_hvm_set_mem_access(xch, dom, MEMACCESS_RWX, ~0ull, 0);
     rc = xc_hvm_set_mem_access(xch, dom, MEMACCESS_RWX, 0, xe->mem_event.max_pages);
-#elif XEN_MEMACCESS_VERSION == 45
+#else
     rc = xc_set_mem_access(xch, dom, MEMACCESS_RWX, ~0ull, 0);
     rc = xc_set_mem_access(xch, dom, MEMACCESS_RWX, 0, xe->mem_event.max_pages);
 #endif
@@ -628,21 +629,14 @@ void xen_events_destroy(vmi_instance_t vmi)
     xen_events_listen(vmi, 0);
 
     // Turn off mem events
-#ifdef XENEVENT42
-    munmap(xe->mem_event.ring_page, getpagesize());
-    rc = xc_mem_access_disable(xch, dom);
-#elif XENEVENT41
+#if XEN_EVENTS_VERSION == 410
     // FIXME: Force this here until logic in event listen for "required"
     // is figured out.
     rc = xc_domain_set_access_required(xch, dom, 0);
     if (rc < 0) {
-#ifdef XENEVENT41
         // FIXME41: Xen 4.1.2 apparently mostly returns -1 for any call to this,
         // so just suppress the error for now
         dbprint(VMI_DEBUG_XEN, "Error %d setting mem_access listener required to not required\n", rc);
-#else
-        errprint("Error %d setting mem_access listener not required\n", rc);
-#endif
     }
 
     if (xe->mem_event.ring_page != NULL) {
@@ -656,6 +650,9 @@ void xen_events_destroy(vmi_instance_t vmi)
     }
 
     rc = xc_mem_event_disable(xch, dom);
+#else
+    munmap(xe->mem_event.ring_page, getpagesize());
+    rc = xc_mem_access_disable(xch, dom);
 #endif
 
     if ( rc != 0 )
@@ -748,43 +745,8 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     /* Initialize the shared pages and enable mem events */
     int tries = 0;
-#ifdef XENEVENT42
-    // Initialise shared page
-    xc_get_hvm_param(xch, dom, HVM_PARAM_ACCESS_RING_PFN, &ring_pfn);
-    mmap_pfn = ring_pfn;
-    xe->mem_event.ring_page =
-        xc_map_foreign_batch(xch, dom, PROT_READ | PROT_WRITE, &mmap_pfn, 1);
-    if ( mmap_pfn & XEN_DOMCTL_PFINFO_XTAB )
-    {
-        /* Map failed, populate ring page */
-        rc = xc_domain_populate_physmap_exact(xch,
-                                              dom,
-                                              1, 0, 0, &ring_pfn);
-        if ( rc != 0 )
-        {
-            errprint("Failed to populate ring gfn\n");
-            goto err;
-        }
 
-        mmap_pfn = ring_pfn;
-        xe->mem_event.ring_page =
-            xc_map_foreign_batch(xch, dom,
-                                    PROT_READ | PROT_WRITE, &mmap_pfn, 1);
-        if ( mmap_pfn & XEN_DOMCTL_PFINFO_XTAB )
-        {
-            errprint("Could not map the ring page\n");
-            goto err;
-        }
-    }
-enable:
-    rc = xc_mem_access_enable(xch, dom, &(xe->mem_event.evtchn_port));
-    goto enable_done;
-
-reinit:
-    tries++;
-    xc_mem_access_disable(xch, dom);
-    goto enable;
-#elif XENEVENT41
+#if XEN_EVENTS_VERSION == 410
     rc = posix_memalign((void**)&xe->mem_event.ring_page, getpagesize(),
             getpagesize());
     if (rc != 0 ) {
@@ -821,8 +783,56 @@ enable:
     goto enable_done;
 
 reinit:
-    tries++;
     xc_mem_event_disable(xch, dom);
+    goto enable;
+
+#elif XEN_EVENTS_VERSION < 450
+    // Initialise shared page
+    xc_get_hvm_param(xch, dom, HVM_PARAM_ACCESS_RING_PFN, &ring_pfn);
+    mmap_pfn = ring_pfn;
+    xe->mem_event.ring_page =
+        xc_map_foreign_batch(xch, dom, PROT_READ | PROT_WRITE, &mmap_pfn, 1);
+    if ( mmap_pfn & XEN_DOMCTL_PFINFO_XTAB )
+    {
+        /* Map failed, populate ring page */
+        rc = xc_domain_populate_physmap_exact(xch,
+                                              dom,
+                                              1, 0, 0, &ring_pfn);
+        if ( rc != 0 )
+        {
+            errprint("Failed to populate ring gfn\n");
+            goto err;
+        }
+
+        mmap_pfn = ring_pfn;
+        xe->mem_event.ring_page =
+            xc_map_foreign_batch(xch, dom,
+                                    PROT_READ | PROT_WRITE, &mmap_pfn, 1);
+        if ( mmap_pfn & XEN_DOMCTL_PFINFO_XTAB )
+        {
+            errprint("Could not map the ring page\n");
+            goto err;
+        }
+    }
+enable:
+    rc = xc_mem_access_enable(xch, dom, &(xe->mem_event.evtchn_port));
+    goto enable_done;
+
+reinit:
+    xc_mem_access_disable(xch, dom);
+    goto enable;
+
+#else // 4.5 style
+enable:
+    /* Enable mem access and map the ring page */
+    xe->mem_event.ring_page =
+            xc_mem_access_enable(xch, dom, &(xe->mem_event.evtchn_port));
+
+    rc = xe->mem_event.ring_page ? 0 : 1;
+    goto enable_done;
+
+reinit:
+    xc_mem_access_disable(xch, dom);
     goto enable;
 #endif
 
@@ -834,6 +844,7 @@ enable_done:
                 errprint("events are (or were) active on this domain\n");
                 if(!tries) {
                     errprint("trying to disable and re-enable events\n");
+                    tries++;
                     goto reinit;
                 }
                 break;
@@ -848,7 +859,8 @@ enable_done:
     }
 
     /* This causes errors when going from VMI_PARTIAL->VMI_COMPLETE on Xen 4.1.2 */
-#ifndef XENEVENT41
+    /* No longer required on Xen 4.5 */
+#if XEN_EVENTS_VERSION == 420
     /* Now that the ring is set, remove it from the guest's physmap */
     if ( xc_domain_decrease_reservation_exact(xch,
                     dom, 1, 0, &ring_pfn) )
@@ -867,12 +879,12 @@ enable_done:
     }
 
     // Bind event notification
-#ifdef XENEVENT42
-    rc = xc_evtchn_bind_interdomain(
-          xe->mem_event.xce_handle, dom, xe->mem_event.evtchn_port);
-#elif XENEVENT41
+#if XEN_EVENTS_VERSION == 410
     rc = xc_evtchn_bind_interdomain(
           xe->mem_event.xce_handle, dom, xe->mem_event.shared_page->port);
+#else
+    rc = xc_evtchn_bind_interdomain(
+          xe->mem_event.xce_handle, dom, xe->mem_event.evtchn_port);
 #endif
 
     if ( rc < 0 )
@@ -1030,9 +1042,9 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
     dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %lu on physical address: %"PRIu64" npages: %"PRIu64"\n",
         dom, event.physical_address, npages);
 
-#if XEN_MEMACCESS_VERSION == 44
+#if XEN_EVENTS_VERSION < 450
     rc = xc_hvm_set_mem_access(xch, dom, access, page_key, npages);
-#elif XEN_MEMACCESS_VERSION == 45
+#else
     rc = xc_set_mem_access(xch, dom, access, page_key, npages);
 #endif
 
