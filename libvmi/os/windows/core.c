@@ -134,6 +134,21 @@ find_page_mode(
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
 
+    if (!windows) {
+        errprint("Windows functions not initialized in %s\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    if (!windows->ntoskrnl || !windows->ntoskrnl_va) {
+        errprint("Windows kernel virtual and physical address required for determining page mode\n");
+        return VMI_FAILURE;
+    }
+
+    if (!vmi->kpgd) {
+        errprint("Windows kernel directory table base not set, can't determine page mode\n");
+        return VMI_FAILURE;
+    }
+
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_LEGACY\n");
     vmi->page_mode = VMI_PM_LEGACY;
 
