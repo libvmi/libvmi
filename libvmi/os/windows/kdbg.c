@@ -1154,6 +1154,10 @@ init_from_kdbg(
     vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
+    addr_t kernbase_pa = 0;
+    addr_t kernbase_va = 0;
+    addr_t kdbg_va = 0;
+    addr_t kdbg_pa = 0;
 
     if (vmi->os_data == NULL) {
         goto exit;
@@ -1161,53 +1165,83 @@ init_from_kdbg(
 
     windows_instance_t windows = vmi->os_data;
 
-    // Lets try to init from the config settings passed to us by the user
-    if(windows->kdbg_va) {
-        if(VMI_SUCCESS == windows_kdbg_lookup(vmi, "KernBase", &windows->ntoskrnl_va)) {
+    /* If all 3 values are specified in the config, we can calculate ntoskrnl_va,
+     * but can't verify if there is no arch for doing translations.
+     */
+    if (windows->kdbg_va && windows->kdbg_offset && windows->ntoskrnl
+            && !vmi->arch_interface) {
+        /* All values were user specified, so set them, but we can't use
+         * translations to verify them */
+        windows->ntoskrnl_va = windows->kdbg_va - windows->kdbg_offset;
+        goto done;
+    }
 
-            dbprint(VMI_DEBUG_MISC, "**KernBase VA=0x%"PRIx64"\n", windows->ntoskrnl_va);
+    if (!vmi->arch_interface) {
+        /* nothing that requires a virtual-to-physical translation will work
+         * so skip straight to the physical only methods. */
+        goto find_kdbg;
+    }
 
-            if(!windows->ntoskrnl) {
-                windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
-                dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->kdbg_offset);
+    /* Otherwise, look up what we need and check for consistency */
+
+    if (windows->kdbg_va) {
+        dbprint(VMI_DEBUG_MISC, "**using KdDebuggerDataBlock address=0x%"PRIx64" from config\n",
+            windows->kdbg_va);
+
+        if(VMI_SUCCESS != windows_kdbg_lookup(vmi, "KernBase", &windows->ntoskrnl_va)) {
+            dbprint(VMI_DEBUG_MISC, "**Error reading KernBase value, falling back to search methods\n");
+            goto find_kdbg;
+        }
+
+        dbprint(VMI_DEBUG_MISC, "**KernBase VA=0x%"PRIx64"\n", windows->ntoskrnl_va);
+
+        if (windows->kdbg_offset) {
+            /* only needed ntoskrnl_va, verify the other values */
+            if (windows->kdbg_va != (windows->ntoskrnl_va + windows->kdbg_offset)) {
+                errprint("Invalid configuration values for win_kdvb and win_kdbg\n");
+                goto exit;
             }
 
-            if(!windows->kdbg_offset) {
-                windows->kdbg_offset = windows->kdbg_va - windows->ntoskrnl_va;
-                dbprint(VMI_DEBUG_MISC, "**kdbg_offset=0x%"PRIx64"\n", windows->kdbg_offset);
-            }
-
-            ret = VMI_SUCCESS;
-
-            goto exit;
         } else {
-            dbprint(VMI_DEBUG_MISC, "**Failed to get KernBase from KDBG set in config\n");
+            windows->kdbg_offset = windows->kdbg_va - windows->ntoskrnl_va;
         }
-    } else
-    if(windows->ntoskrnl && windows->kdbg_offset) {
-        if(!windows->ntoskrnl_va) {
-            unsigned long offset;
-            kdbg_symbol_offset(vmi, "KernBase", &offset);
-            if(VMI_FAILURE == vmi_read_addr_pa(vmi, windows->ntoskrnl + windows->kdbg_offset + offset, &windows->ntoskrnl_va)) {
-                errprint("Inconsistent addresses passed in the config!\n");
-                goto exit;
-            }
+    } else if (windows->ntoskrnl && windows->kdbg_offset) {
+        /* Calculate ntoskrnl_va and kdbg_va */
+        unsigned long offset = 0;
+        kdbg_symbol_offset(vmi, "KernBase", &offset);
+        if(VMI_FAILURE == vmi_read_addr_pa(vmi, windows->ntoskrnl + windows->kdbg_offset + offset, &windows->ntoskrnl_va)) {
+            errprint("Inconsistent addresses passed in the config!\n");
+            goto exit;
+        }
 
-            if(vmi_translate_kv2p(vmi, windows->ntoskrnl_va) != windows->ntoskrnl) {
-                errprint("Inconsistent addresses passed in the config!\n");
-                goto exit;
-            }
+        dbprint(VMI_DEBUG_MISC, "**KernBase VA=0x%"PRIx64"\n", windows->ntoskrnl_va);
+
+        windows->kdbg_va = windows->ntoskrnl_va - windows->kdbg_offset;
+        dbprint(VMI_DEBUG_MISC, "**set KdDebuggerDataBlock address=0x%"PRIx64"\n",
+            windows->kdbg_va);
+    } else {
+        /* only ntoskrnl or kdbg_offset were given, which are not
+         * enough to find and calculate the others, so fall back to search methods. */
+        goto find_kdbg;
+    }
+
+    if (!windows->ntoskrnl) {
+        windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+        if (windows->ntoskrnl == 0) {
+            goto find_kdbg;
         }
-        if(!windows->kdbg_va) {
-            windows->kdbg_va = windows->ntoskrnl_va + windows->kdbg_offset;
-        }
-        ret = VMI_SUCCESS;
+        dbprint(VMI_DEBUG_MISC, "**set KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
+    } else if(vmi_translate_kv2p(vmi, windows->ntoskrnl_va) != windows->ntoskrnl) {
+        errprint("Invalid configuration values, win_ntoskrnl not match translated KernBase physical address\n");
         goto exit;
     }
 
+    goto done;
+
     // We don't have the standard config informations
-    // so lets try our kdbg search methods
-    addr_t kernbase_pa = 0, kernbase_va = 0, kdbg_pa = 0;
+    // so lets try our kdbg search method
+find_kdbg:
+    dbprint(VMI_DEBUG_MISC, "**Attempting KdDebuggerDataBlock search methods\n");
 
     if(VMI_SUCCESS == find_kdbg_address_instant(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
         goto found;
@@ -1218,36 +1252,60 @@ init_from_kdbg(
     if(VMI_SUCCESS == find_kdbg_address_fast(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
         goto found;
     }
+
+    /* NOTE: This is the only method that does anything for VMI_FILE */
     if(VMI_SUCCESS == find_kdbg_address(vmi, &kdbg_pa, &kernbase_va)) {
+        kernbase_pa = get_ntoskrnl_base(vmi, 0);
         goto found;
     }
 
-    dbprint(VMI_DEBUG_MISC, "**KdDebuggerDataBlock init failed\n");
+    dbprint(VMI_DEBUG_MISC, "**All KdDebuggerDataBlock search methods failed\n");
     goto exit;
 
 found:
-    windows->version = find_windows_version(vmi, kdbg_pa);
-    if(VMI_OS_WINDOWS_UNKNOWN == windows->version) {
+    windows->ntoskrnl_va = kernbase_va;
+    dbprint(VMI_DEBUG_MISC, "**set KernBase VA=0x%"PRIx64"\n", windows->ntoskrnl_va);
+
+    if (!windows->ntoskrnl) {
+        windows->ntoskrnl = kernbase_pa;
+        printf("LibVMI Suggestion: set win_ntoskrnl=0x%"PRIx64" in libvmi.conf for faster startup.\n",
+                windows->ntoskrnl);
+    } else if (windows->ntoskrnl != kernbase_pa) {
+        errprint("LibVMI found physical kernel base address 0x%"PRIx64" that conflicts with provided value from config file!\n",
+                kernbase_pa);
         goto exit;
     }
 
-    if(!kernbase_pa) {
-        kernbase_pa = get_ntoskrnl_base(vmi, 0);
+    if (!windows->kdbg_offset) {
+        windows->kdbg_offset = kdbg_pa - windows->ntoskrnl;
+        printf("LibVMI Suggestion: set win_kdbg=0x%"PRIx64" in libvmi.conf for faster startup.\n",
+                windows->kdbg_offset);
+    } else if (windows->kdbg_offset != kdbg_pa - kernbase_pa) {
+        errprint("LibVMI found win_kdbg offset 0x%"PRIx64" that conflicts with provided value from config file!\n",
+            kdbg_pa - kernbase_pa);
+        goto exit;
     }
 
-    windows->ntoskrnl = kernbase_pa;
-    windows->ntoskrnl_va = kernbase_va;
-    windows->kdbg_offset = kdbg_pa - windows->ntoskrnl;
-    windows->kdbg_va = windows->ntoskrnl_va + windows->kdbg_offset;
+    if (!windows->kdbg_va) {
+        windows->kdbg_va = windows->ntoskrnl_va + windows->kdbg_offset;
+        printf("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
+                windows->kdbg_va);
+    } else if (windows->kdbg_va != windows->ntoskrnl_va + windows->kdbg_offset) {
+        errprint("LibVMI found win_kdvb offset 0x%"PRIx64" that conflicts with provided value from config file!\n",
+            windows->ntoskrnl_va + windows->kdbg_offset);
+        goto exit;
+    }
 
-    printf("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
-             windows->ntoskrnl_va + windows->kdbg_offset);
-
-    dbprint(VMI_DEBUG_MISC, "**set KdDebuggerDataBlock address=0x%"PRIx64"\n",
-            windows->kdbg_va);
+done:
+    if (!kdbg_pa) {
+        kdbg_pa = windows->ntoskrnl + windows->kdbg_offset;
+    }
+    windows->version = find_windows_version(vmi, kdbg_pa);
+    if(VMI_OS_WINDOWS_UNKNOWN == windows->version) {
+        errprint("Unsupported Windows version or incorrect configuration\n");
+    }
 
     ret = VMI_SUCCESS;
-
 exit:
     return ret;
 }
