@@ -726,24 +726,6 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     dbprint(VMI_DEBUG_XEN, "Init xen events with xch == %llx\n", (unsigned long long)xch);
 
-    rc = xc_domain_getinfolist(xch, dom, 1, dom_info);
-    if ( rc != 1 )
-    {
-        errprint("Error getting domain info\n");
-        dom_info = NULL;
-        goto err;
-    }
-
-    if(!(dom_info->flags & XEN_DOMINF_paused) && VMI_FAILURE == vmi_pause_vm(vmi))
-    {
-        errprint("Failed to pause VM\n");
-        goto err;
-    }
-
-    // This is mostly nice for setting global access.
-    // There may be a better way to manage this.
-    xe->mem_event.max_pages = dom_info->max_pages;
-
     // Initialise lock
     xen_event_ring_lock_init(&xe->mem_event);
 
@@ -899,6 +881,24 @@ enable_done:
         errprint("Error allocating memory for domain info\n");
         goto err;
     }
+
+    rc = xc_domain_getinfolist(xch, dom, 1, dom_info);
+    if ( rc != 1 )
+    {
+        errprint("Error getting domain info\n");
+        dom_info = NULL;
+        goto err;
+    }
+
+    if(!(dom_info->flags & XEN_DOMINF_paused) && VMI_FAILURE == vmi_pause_vm(vmi))
+    {
+        errprint("Failed to pause VM\n");
+        goto err;
+    }
+
+    // This is mostly nice for setting global access.
+    // There may be a better way to manage this.
+    xe->mem_event.max_pages = dom_info->max_pages;
 
     xen_get_instance(vmi)->events = xe;
 
