@@ -268,6 +268,7 @@ typedef struct page_info {
 
 /* Available translation mechanism for v2p conversion. */
 typedef enum translation_mechanism {
+    VMI_TM_INVALID,         /* Invalid translation mechanism */
     VMI_TM_NONE,            /* No translation is required, address is physical address */
     VMI_TM_PROCESS_DTB,     /* Translate addr via specified directory table base. */
     VMI_TM_PROCESS_PID,     /* Translate addr by finding process first to use its DTB. */
@@ -276,7 +277,7 @@ typedef enum translation_mechanism {
 
 /**
  * Structure to use as input to accessor functions
- * detailing how the access should be performed.
+ * specifying how the access should be performed.
  */
 typedef struct {
     translation_mechanism_t translate_mechanism;

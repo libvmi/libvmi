@@ -57,25 +57,28 @@ vmi_write(
     }
 
     switch (ctx->translate_mechanism) {
-    case VMI_TM_NONE:
-        start_addr = ctx->addr;
-        break;
-    case VMI_TM_KERNEL_SYMBOL:
-        dtb = vmi->kpgd;
-        start_addr = vmi_translate_ksym2v(vmi, ctx->ksym);
-        break;
-    case VMI_TM_PROCESS_PID:
-        if(ctx->pid) {
-            dtb = vmi_pid_to_dtb(vmi, ctx->pid);
-        } else {
+        case VMI_TM_NONE:
+            start_addr = ctx->addr;
+            break;
+        case VMI_TM_KERNEL_SYMBOL:
             dtb = vmi->kpgd;
-        }
-        start_addr = ctx->addr;
-        break;
-    case VMI_TM_PROCESS_DTB:
-        dtb = ctx->dtb;
-        start_addr = ctx->addr;
-        break;
+            start_addr = vmi_translate_ksym2v(vmi, ctx->ksym);
+            break;
+        case VMI_TM_PROCESS_PID:
+            if(ctx->pid) {
+                dtb = vmi_pid_to_dtb(vmi, ctx->pid);
+            } else {
+                dtb = vmi->kpgd;
+            }
+            start_addr = ctx->addr;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            start_addr = ctx->addr;
+            break;
+        default:
+            errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
+            return 0;
     }
 
     while (count > 0) {
@@ -228,10 +231,13 @@ vmi_write_addr(
     switch(vmi->page_mode) {
         case VMI_PM_IA32E:
             return vmi_write_X(vmi, ctx, value, 8);
-        case VMI_PM_LEGACY:
+        case VMI_PM_LEGACY: // intentional fall-through
         case VMI_PM_PAE:
             return vmi_write_X(vmi, ctx, value, 4);
         default:
+            dbprint(VMI_DEBUG_WRITE,
+                "--%s: unknown page mode, can't write addr as pointer width is unknown\n",
+                __FUNCTION__);
             break;
     }
 

@@ -154,6 +154,7 @@ find_page_mode(
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_LEGACY\n");
     vmi->page_mode = VMI_PM_LEGACY;
 
+    /* As the size of vmi->kpgd is 64-bit, we mask it to be 32-bit here */
     if (VMI_SUCCESS == arch_init(vmi)) {
         if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
             vmi->kpgd &= mask;
@@ -164,6 +165,7 @@ find_page_mode(
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_PAE\n");
     vmi->page_mode = VMI_PM_PAE;
 
+    /* As the size of vmi->kpgd is 64-bit, we mask it to be only 32-bit here */
     if (VMI_SUCCESS == arch_init(vmi)) {
         if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
             vmi->kpgd &= mask;
