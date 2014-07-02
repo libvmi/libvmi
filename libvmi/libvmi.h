@@ -512,7 +512,7 @@ addr_t vmi_pagetable_lookup (
  * @param[in] vmi LibVMI instance
  * @param[in] dtb address of the relevant page directory base
  * @param[in] vaddr virtual address to translate via dtb
- * @param[in/out] info Pointer to the struct to store the lookup information in
+ * @param[in,out] info Pointer to the struct to store the lookup information in
  * @return VMI_SUCCESS or VMI_FAILURE of the VA is invalid
  */
 status_t vmi_pagetable_lookup_extended(
