@@ -62,19 +62,15 @@
 #include <xenctrl.h>
 #include <xen/mem_event.h>
 
-#if XEN_MEMACCESS_VERSION == 44
+#if XEN_EVENTS_VERSION < 450
 #include <xen/hvm/save.h>
-#elif XEN_MEMACCESS_VERSION == 45
+#else
 #include <xen/memory.h>
 #endif
 
 typedef int spinlock_t;
 #ifdef XENCTRL_HAS_XC_INTERFACE
-#if XENCTRL_HAS_XC_INTERFACE==1
 typedef xc_evtchn* xc_evtchn_t;
-#else
-#error Unknown libxenctrl interface version! This constitutes a bug and requires an update to the LibVMI Xen driver.
-#endif
 #else
 typedef int xc_evtchn_t;
 #endif
@@ -83,12 +79,10 @@ typedef struct {
     xc_evtchn_t xce_handle;
     int port;
     mem_event_back_ring_t back_ring;
-#ifdef XENEVENT42
-    uint32_t evtchn_port;
-#elif XENEVENT41
+#if XEN_EVENTS_VERSION < 420
     mem_event_shared_page_t *shared_page;
 #else
-#error "Unsupported Xen version for events"
+    uint32_t evtchn_port;
 #endif
     void *ring_page;
     spinlock_t ring_lock;
@@ -96,7 +90,7 @@ typedef struct {
 } xen_mem_event_t;
 
 // Compatibility wrapper around mem_access versions
-#if XEN_MEMACCESS_VERSION == 44
+#if XEN_EVENTS_VERSION < 450
 typedef enum {
     // Xen 4.0-4.4 type flags
     MEMACCESS_N = HVMMEM_access_n,
@@ -122,9 +116,9 @@ typedef enum {
 
 typedef hvmmem_access_t mem_access_t;
 
-#elif XEN_MEMACCESS_VERSION == 45
+#else
+// Xen 4.5+ type flags
 typedef enum {
-    // Xen 4.5+ type flags
     MEMACCESS_N = XENMEM_access_n,
     MEMACCESS_R = XENMEM_access_r,
     MEMACCESS_W = XENMEM_access_w,

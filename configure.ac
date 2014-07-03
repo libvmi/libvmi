@@ -137,36 +137,92 @@ xen_event_space=' '
 
             [if test "$enable_xen_events" = "yes"]
             [then]
+
+                have_xc_mem_event_enable='no'
+                have_xc_mem_access_enable='no'
+                have_hvmmem_access_t='no'
+                have_xenmem_access_t='no'
+
                 # Check for xen events capability (only relevant if Xen is enabled).
-                AC_CHECK_LIB(xenctrl, [xc_mem_event_enable], [AC_DEFINE([XENEVENT41], [1], "Xen memory event 4.1 style")], [no41events="1"])
-                AC_CHECK_LIB(xenctrl, [xc_mem_access_enable], [AC_DEFINE([XENEVENT42], [1], "Xen memory event 4.2 style")], [no42events="1"])
+                AC_CHECK_LIB(xenctrl,
+                    [xc_mem_event_enable],
+                    [
+                        have_xc_mem_event_enable='yes'
+                        AC_DEFINE([HAVE_XC_MEM_EVENT_ENABLE], [1], "xenctrl has xc_mem_event_enable")
+                    ],
+                    [])
+                AC_CHECK_LIB(xenctrl,
+                    [xc_mem_access_enable],
+                    [
+                        have_xc_mem_access_enable='yes'
+                        AC_DEFINE([HAVE_XC_MEM_ACCESS_ENABLE], [1], "xenctrl has xc_mem_access_enable")],
+                    [])
+
                 AC_CHECK_DEFINE(XENCTRL_HAS_XC_INTERFACE, xenctrl.h) 
+
+                # MSR events are only available in Xen 4.3+
+                AC_CHECK_DEFINE(MEM_EVENT_REASON_MSR, xen/mem_event.h) 
 
                 AC_CHECK_TYPE(
                     [hvmmem_access_t],
-                    AC_DEFINE([XEN_MEMACCESS_VERSION], [44], [Define the Xen mem_access version.]),
+                    [
+                        have_hvmmem_access_t='yes'
+                        AC_DEFINE([HAVE_HVMMEM_ACCESS_T], [1], [xenctrl defines hvmmem_access_t])],
                     [],
                     [#include <xenctrl.h> #include <xen/hvm/save.h>])
 
                 AC_CHECK_TYPE(
                     [xenmem_access_t],
-                    AC_DEFINE([XEN_MEMACCESS_VERSION], [45], [Define the Xen mem_access_version.]),
+                    [
+                        have_xenmem_access_t='yes'
+                        AC_DEFINE([HAVE_XENMEM_ACCESS_T], [1], [xenctrl defines xenmem_access_t])],
                     [],
                     [#include <xenctrl.h> #include <xen/memory.h>])
 
-                # MSR events are only available in Xen 4.3+
-                AC_CHECK_DEFINE(MEM_EVENT_REASON_MSR, xen/mem_event.h) 
-
                 #validate that Xen events are in fact possible
-                [if (test "x$no41events" = "x1" || test "x$no42events" = "x1") && (test "$have_XENCTRL_HAS_XC_INTERFACE" = "yes") ]
+                [if (test "$have_XENCTRL_HAS_XC_INTERFACE" != "yes")]
                 [then]
-                    have_xen_events='yes'
-                    xen_event_space=''
-                    AC_DEFINE([ENABLE_XEN_EVENTS], [1], [Define to 1 to enable Xen mem events support.])
-                [else]
-                    AC_MSG_WARN([Xen event support not detected and has been disabled.])
+                    AC_MSG_WARN([XENCTRL_HAS_XC_INTERFACE undefined, event support disabled.])
                     have_xen_events='missing event support'
                     enable_xen_events='no'
+                [else] 
+                    [if (test "$have_xc_mem_event_enable" = "yes" && test "$have_hvmmem_access_t" = "yes")]
+                    [then]
+                        have_xen_events='yes'
+                        xen_event_space=''
+                        AC_DEFINE([ENABLE_XEN_EVENTS], [1], [Define to 1 to enable Xen mem events support.])
+                        AC_DEFINE([XEN_EVENTS_VERSION], [410], [Define the xen events version.])
+                        AC_MSG_NOTICE([4.1 style events enabled.])
+                    [else]
+                        [if (test "$have_xc_mem_access_enable" = "yes")]
+                        [then]
+                            [if (test "$have_hvmmem_access_t" = "yes")]
+                            [then]
+                                have_xen_events='yes'
+                                xen_event_space=''
+                                AC_DEFINE([ENABLE_XEN_EVENTS], [1], [Define to 1 to enable Xen mem events support.])
+                                AC_DEFINE([XEN_EVENTS_VERSION], [420], [Define the xen events version.])
+                                AC_MSG_NOTICE([4.2 style events enabled.])
+                            [else]
+                                [if (test "$have_xenmem_access_t" = "yes")]
+                                [then]
+                                    have_xen_events='yes'
+                                    xen_event_space=''
+                                    AC_DEFINE([ENABLE_XEN_EVENTS], [1], [Define to 1 to enable Xen mem events support.])
+                                    AC_DEFINE([XEN_EVENTS_VERSION], [450], [Define the xen events version.])
+                                    AC_MSG_NOTICE([4.5 style events enabled.])
+                                [else]
+                                    AC_MSG_WARN([Xen event support missing.])
+                                    have_xen_events='missing event support'
+                                    enable_xen_events='no'
+                                [fi]
+                            [fi]
+                        [else]
+                            AC_MSG_WARN([Xen event support missing.])
+                            have_xen_events='missing event support'
+                            enable_xen_events='no'
+                        [fi]    
+                    [fi]
                 [fi]
             [fi]
         [fi]
