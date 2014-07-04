@@ -874,14 +874,21 @@ find_kdbg_address_fast(
 
             if (-1 != match_offset) {
 
-                addr_t k_va = 0;
-                if(VMI_FAILURE == vmi_read_addr_pa(vmi, page_paddr + (unsigned int) match_offset + sizeof(uint64_t), &k_va)) {
+                addr_t tmp_kva = 0, tmp_kpa = 0;
+                addr_t tmp_kdbg = page_paddr + (unsigned int) match_offset - find_ofs;
+
+                if(VMI_FAILURE == vmi_read_64_pa(vmi, tmp_kdbg + sizeof(DBGKD_DEBUG_DATA_HEADER64), &tmp_kva)) {
                     continue;
                 }
 
-                *kernel_va = k_va;
-                *kernel_pa = vmi_pagetable_lookup(vmi, cr3, *kernel_va);
-                *kdbg_pa = page_paddr + (unsigned int) match_offset - find_ofs;
+                tmp_kpa = vmi_pagetable_lookup(vmi, cr3, tmp_kva);
+                if(!tmp_kpa) {
+                    continue;
+                }
+
+                *kdbg_pa = tmp_kdbg;
+                *kernel_va = tmp_kva;
+                *kernel_pa = tmp_kpa;
 
                 ret = VMI_SUCCESS;
 
