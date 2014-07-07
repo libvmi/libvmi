@@ -682,7 +682,7 @@ status_t vmi_register_event(vmi_instance_t vmi, vmi_event_t* event)
         rc = register_interrupt_event(vmi, event);
         break;
     default:
-        errprint("Unknown event type: %d\n", event->type);
+        dbprint(VMI_DEBUG_EVENTS, "Unknown event type: %d\n", event->type);
         break;
     }
 
@@ -713,7 +713,7 @@ status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event)
         rc = clear_mem_event(vmi, event);
         break;
     default:
-        errprint("Cannot clear unknown event: %d\n", event->type);
+        dbprint(VMI_DEBUG_EVENTS, "Cannot clear unknown event: %d\n", event->type);
         return VMI_FAILURE;
     }
 
