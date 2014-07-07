@@ -118,8 +118,12 @@ int main (int argc, char **argv)
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
 
         // find PEPROCESS PsInitialSystemProcess
-        vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &current_process);
+        if(VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsActiveProcessHead", &current_process)) {
+            printf("Failed to find PsActiveProcessHead\n");
+            goto error_exit;
+        }
 
+        current_process -= tasks_offset;
     }
 
     /* walk the task list */
