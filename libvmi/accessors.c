@@ -399,20 +399,12 @@ status_t vmi_pagetable_lookup_extended(
 /* expose virtual to physical mapping for kernel space via api call */
 addr_t vmi_translate_kv2p (vmi_instance_t vmi, addr_t virt_address)
 {
-    reg_t cr3 = 0;
-
-    if (vmi->kpgd) {
-        cr3 = vmi->kpgd;
-    }
-    else {
-        driver_get_vcpureg(vmi, &cr3, CR3, 0);
-    }
-    if (!cr3) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because cr3 is zero\n");
+    if (!vmi->kpgd) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because the kernel page global directory is unknown\n");
         return 0;
     }
     else {
-        return vmi_pagetable_lookup(vmi, cr3, virt_address);
+        return vmi_pagetable_lookup(vmi, vmi->kpgd, virt_address);
     }
 }
 

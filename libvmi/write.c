@@ -30,35 +30,15 @@
 
 ///////////////////////////////////////////////////////////
 // Classic write functions for access to memory
-
 size_t
-vmi_write_pa(
+vmi_write(
     vmi_instance_t vmi,
-    addr_t paddr,
+    access_context_t *ctx,
     void *buf,
     size_t count)
 {
-    if (NULL == buf) {
-        dbprint(VMI_DEBUG_WRITE, "--%s: buf passed as NULL, returning without write\n",
-                __FUNCTION__);
-        return 0;
-    }
-    if (VMI_SUCCESS == driver_write(vmi, paddr, buf, count)) {
-        return count;
-    }
-    else {
-        return 0;
-    }
-}
-
-size_t
-vmi_write_va(
-    vmi_instance_t vmi,
-    addr_t vaddr,
-    vmi_pid_t pid,
-    void *buf,
-    size_t count)
-{
+    addr_t start_addr = 0;
+    addr_t dtb = 0;
     addr_t paddr = 0;
     addr_t pfn = 0;
     addr_t offset = 0;
@@ -70,14 +50,44 @@ vmi_write_va(
         return 0;
     }
 
+    if (NULL == ctx) {
+        dbprint(VMI_DEBUG_WRITE, "--%s: ctx passed as NULL, returning without write\n",
+                __FUNCTION__);
+        return 0;
+    }
+
+    switch (ctx->translate_mechanism) {
+        case VMI_TM_NONE:
+            start_addr = ctx->addr;
+            break;
+        case VMI_TM_KERNEL_SYMBOL:
+            dtb = vmi->kpgd;
+            start_addr = vmi_translate_ksym2v(vmi, ctx->ksym);
+            break;
+        case VMI_TM_PROCESS_PID:
+            if(ctx->pid) {
+                dtb = vmi_pid_to_dtb(vmi, ctx->pid);
+            } else {
+                dtb = vmi->kpgd;
+            }
+            start_addr = ctx->addr;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            start_addr = ctx->addr;
+            break;
+        default:
+            errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
+            return 0;
+    }
+
     while (count > 0) {
         size_t write_len = 0;
 
-        if (pid) {
-            paddr = vmi_translate_uv2p(vmi, vaddr + buf_offset, pid);
-        }
-        else {
-            paddr = vmi_translate_kv2p(vmi, vaddr + buf_offset);
+        if(dtb) {
+            paddr = vmi_pagetable_lookup(vmi, dtb, start_addr + buf_offset);
+        } else {
+            paddr = start_addr + buf_offset;
         }
 
         if (!paddr) {
@@ -110,6 +120,42 @@ vmi_write_va(
 }
 
 size_t
+vmi_write_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void *buf,
+    size_t count)
+{
+    if (NULL == buf) {
+        dbprint(VMI_DEBUG_WRITE, "--%s: buf passed as NULL, returning without write\n",
+                __FUNCTION__);
+        return 0;
+    }
+    if (VMI_SUCCESS == driver_write(vmi, paddr, buf, count)) {
+        return count;
+    }
+    else {
+        return 0;
+    }
+}
+
+size_t
+vmi_write_va(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    vmi_pid_t pid,
+    void *buf,
+    size_t count)
+{
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid
+    };
+    return vmi_write(vmi, &ctx, buf, count);
+}
+
+size_t
 vmi_write_ksym(
     vmi_instance_t vmi,
     char *sym,
@@ -119,6 +165,83 @@ vmi_write_ksym(
     addr_t vaddr = vmi_translate_ksym2v(vmi, sym);
 
     return vmi_write_va(vmi, vaddr, 0, buf, count);
+}
+
+///////////////////////////////////////////////////////////
+// Easy write to memory
+static inline
+status_t vmi_write_X(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    void *value,
+    int size)
+{
+    size_t len_write = vmi_write(vmi, ctx, value, size);
+
+    if (len_write == size) {
+        return VMI_SUCCESS;
+    }
+    else {
+        return VMI_FAILURE;
+    }
+}
+
+status_t
+vmi_write_8(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint8_t * value)
+{
+    return vmi_write_X(vmi, ctx, value, 1);
+}
+
+status_t
+vmi_write_16(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint16_t * value)
+{
+    return vmi_write_X(vmi, ctx, value, 2);
+}
+
+status_t
+vmi_write_32(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint32_t * value)
+{
+    return vmi_write_X(vmi, ctx, value, 4);
+}
+
+status_t
+vmi_write_64(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    uint64_t * value)
+{
+    return vmi_write_X(vmi, ctx, value, 8);
+}
+
+status_t
+vmi_write_addr(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    addr_t * value)
+{
+    switch(vmi->page_mode) {
+        case VMI_PM_IA32E:
+            return vmi_write_X(vmi, ctx, value, 8);
+        case VMI_PM_LEGACY: // intentional fall-through
+        case VMI_PM_PAE:
+            return vmi_write_X(vmi, ctx, value, 4);
+        default:
+            dbprint(VMI_DEBUG_WRITE,
+                "--%s: unknown page mode, can't write addr as pointer width is unknown\n",
+                __FUNCTION__);
+            break;
+    }
+
+    return VMI_FAILURE;
 }
 
 ///////////////////////////////////////////////////////////
@@ -174,6 +297,20 @@ vmi_write_64_pa(
     uint64_t * value)
 {
     return vmi_write_X_pa(vmi, paddr, value, 8);
+}
+
+status_t
+vmi_write_addr_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    addr_t * value)
+{
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+        .addr = paddr
+    };
+
+    return vmi_write_addr(vmi, &ctx, value);
 }
 
 ///////////////////////////////////////////////////////////
@@ -236,6 +373,21 @@ vmi_write_64_va(
     return vmi_write_X_va(vmi, vaddr, pid, value, 8);
 }
 
+status_t
+vmi_write_addr_va(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    vmi_pid_t pid,
+    addr_t * value)
+{
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid
+    };
+    return vmi_write_addr(vmi, &ctx, value);
+}
+
 ///////////////////////////////////////////////////////////
 // Easy write to memory using kernel symbols
 static status_t
@@ -290,3 +442,18 @@ vmi_write_64_ksym(
 {
     return vmi_write_X_ksym(vmi, sym, value, 8);
 }
+
+status_t
+vmi_write_addr_ksym(
+    vmi_instance_t vmi,
+    char *sym,
+    addr_t * value)
+{
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_KERNEL_SYMBOL,
+        .ksym = sym
+    };
+
+    return vmi_write_addr(vmi, &ctx, value);
+}
+

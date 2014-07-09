@@ -126,6 +126,7 @@ get_ntoskrnl_base(
     return ret;
 }
 
+/* Tries to determine the page mode based on the kpgd found via heuristics */
 static status_t
 find_page_mode(
     vmi_instance_t vmi)
@@ -133,6 +134,7 @@ find_page_mode(
 
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
+    uint32_t mask = ~0;
 
     if (!windows) {
         errprint("Windows functions not initialized in %s\n", __FUNCTION__);
@@ -152,8 +154,10 @@ find_page_mode(
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_LEGACY\n");
     vmi->page_mode = VMI_PM_LEGACY;
 
+    /* As the size of vmi->kpgd is 64-bit, we mask it to be 32-bit here */
     if (VMI_SUCCESS == arch_init(vmi)) {
-        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
+            vmi->kpgd &= mask;
             goto found_pm;
         }
     }
@@ -161,8 +165,10 @@ find_page_mode(
     dbprint(VMI_DEBUG_MISC, "--trying VMI_PM_PAE\n");
     vmi->page_mode = VMI_PM_PAE;
 
+    /* As the size of vmi->kpgd is 64-bit, we mask it to be only 32-bit here */
     if (VMI_SUCCESS == arch_init(vmi)) {
-        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
+            vmi->kpgd &= mask;
             goto found_pm;
         }
     }
@@ -215,9 +221,10 @@ get_kpgd_method2(
     dbprint(VMI_DEBUG_MISC, "--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
             sysproc);
 
-    /* get address for page directory (from system process) */
+    /* Get address for page directory (from system process).
+       We are reading 64-bit value here deliberately as we might not know the page mode yet */
     if (VMI_FAILURE ==
-        vmi_read_addr_pa(vmi,
+        vmi_read_64_pa(vmi,
                          sysproc +
                          windows->pdbase_offset,
                          &vmi->kpgd)) {
@@ -229,16 +236,31 @@ get_kpgd_method2(
         dbprint(VMI_DEBUG_MISC, "--kpgd was zero\n");
         goto error_exit;
     }
-    dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
     if (VMI_FAILURE ==
-        vmi_read_addr_pa(vmi,
+        vmi_read_64_pa(vmi,
                      sysproc + windows->tasks_offset,
                      &vmi->init_task)) {
         dbprint(VMI_DEBUG_MISC, "--failed to resolve address of System process\n");
         goto error_exit;
     }
+
     vmi->init_task -= windows->tasks_offset;
+
+    /* If the page mode is already known to be 32-bit we just mask the value here.
+       If don't know the page mode yet it will be determined using heuristics in find_page_mode later. */
+    switch(vmi->page_mode) {
+        VMI_PM_LEGACY:
+        VMI_PM_PAE: {
+            uint32_t mask = ~0;
+            vmi->kpgd &= mask;
+            vmi->init_task &= mask;
+            break;
+        }
+        default: break;
+    }
+
+    dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
     dbprint(VMI_DEBUG_MISC, "**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;
@@ -615,6 +637,7 @@ windows_init(
     status_t status = VMI_FAILURE;
     windows_instance_t windows = NULL;
     os_interface_t os_interface = NULL;
+    status_t real_kpgd_found = VMI_FAILURE;
 
     if (vmi->config == NULL) {
         errprint("VMI_ERROR: No config table found\n");
@@ -651,45 +674,51 @@ windows_init(
         goto error_exit;
     }
 
-    if (VMI_PM_UNKNOWN == vmi->page_mode) {
+    /* At this point we still don't have a directory table base,
+     * so first we try to get it via the driver (fastest way).
+     * If the driver gets us a dtb, it will be used _only_ during the init phase,
+     * and will be replaced by the real kpgd later. */
+    if(VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
         if(VMI_FAILURE == get_kpgd_method2(vmi)) {
-          errprint("Could not get kpgd, will not be able to determine page mode\n");
-          goto error_exit;
-        }
-
-        if(VMI_FAILURE == init_core(vmi)) {
+            errprint("Could not get kpgd, will not be able to determine page mode\n");
             goto error_exit;
+        } else {
+            real_kpgd_found = VMI_SUCCESS;
         }
+    }
 
+    if(VMI_FAILURE == init_core(vmi)) {
+        goto error_exit;
+    }
+
+    if (VMI_PM_UNKNOWN == vmi->page_mode) {
         if (VMI_FAILURE == find_page_mode(vmi)) {
             errprint("Failed to find correct page mode.\n");
             goto error_exit;
         }
-    } else if(VMI_FAILURE == init_core(vmi)) {
-        goto error_exit;
     }
 
-    if (vmi->kpgd) {
-        /* This can happen for file because find_cr3() is called and this
-         * is set via get_kpgd_method2() */
+    if (VMI_SUCCESS == real_kpgd_found) {
         status = VMI_SUCCESS;
-    } else
+        goto done;
+    }
+
+    /* If we have a dtb via the driver we need to get the real kpgd */
     if (VMI_SUCCESS == get_kpgd_method0(vmi)) {
         dbprint(VMI_DEBUG_MISC, "--kpgd method0 success\n");
         status = VMI_SUCCESS;
-    } else
+        goto done;
+    }
     if (VMI_SUCCESS == get_kpgd_method1(vmi)) {
         dbprint(VMI_DEBUG_MISC, "--kpgd method1 success\n");
         status = VMI_SUCCESS;
-    } else
-    if (VMI_SUCCESS == get_kpgd_method2(vmi)) {
-        dbprint(VMI_DEBUG_MISC, "--kpgd method2 success\n");
-        status = VMI_SUCCESS;
-    } else {
-        errprint("Failed to find kernel page directory.\n");
-        goto error_exit;
+        goto done;
     }
 
+    errprint("Failed to find kernel page directory.\n");
+    goto error_exit;
+
+done:
     return status;
 
 error_exit:

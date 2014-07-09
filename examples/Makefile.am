@@ -17,7 +17,8 @@ bin_PROGRAMS =  module-list \
                 msr-event-example \
                 singlestep-event-example \
                 interrupt-event-example \
-                step-event-example
+                step-event-example \
+                va-pages
 
 module_list_SOURCES = module-list.c
 process_list_SOURCES = process-list.c
@@ -31,3 +32,4 @@ singlestep_event_example_SOURCES = singlestep-event-example.c
 interrupt_event_example_SOURCES = interrupt-event-example.c
 win_guid_SOURCES = win-guid.c
 step_event_example_SOURCES = step-event-example.c
+va_pages_SOURCES = va-pages.c
