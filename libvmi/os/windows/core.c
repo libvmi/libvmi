@@ -250,8 +250,8 @@ get_kpgd_method2(
     /* If the page mode is already known to be 32-bit we just mask the value here.
        If don't know the page mode yet it will be determined using heuristics in find_page_mode later. */
     switch(vmi->page_mode) {
-        VMI_PM_LEGACY:
-        VMI_PM_PAE: {
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE: {
             uint32_t mask = ~0;
             vmi->kpgd &= mask;
             vmi->init_task &= mask;
@@ -715,6 +715,13 @@ windows_init(
         goto done;
     }
 
+    if (VMI_SUCCESS == get_kpgd_method2(vmi)) {
+        dbprint(VMI_DEBUG_MISC, "--kpgd method2 success\n");
+        status = VMI_SUCCESS;
+        goto done;
+    }
+
+    vmi->kpgd = 0;
     errprint("Failed to find kernel page directory.\n");
     goto error_exit;
 
