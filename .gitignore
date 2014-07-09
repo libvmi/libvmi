@@ -1,3 +1,4 @@
+**/TAGS
 INSTALL
 Makefile
 Makefile.in
@@ -14,6 +15,7 @@ config.sub
 configure
 ylwrap
 depcomp
+test-driver
 doc/html/
 examples/.deps/
 examples/.libs/
@@ -37,6 +39,14 @@ examples/singlestep-event-example
 examples/singlestep-event-example.o
 examples/win-guid
 examples/win-guid.o
+examples/interrupt-event-example
+examples/interrupt-event-example.o
+examples/shm-snapshot-process-list
+examples/shm-snapshot-process-list.o
+examples/step-event-example
+examples/step-event-example.o
+examples/va-pages
+examples/va-pages.o
 install-sh
 libtool
 libvmi.pc
@@ -44,6 +54,15 @@ libvmi/.deps/
 libvmi/.libs/
 libvmi/Makefile
 libvmi/Makefile.in
+libvmi/arch/.deps/
+libvmi/arch/.dirstamp
+libvmi/arch/.libs/
+libvmi/arch/libvmi_la-amd64.lo
+libvmi/arch/libvmi_la-amd64.o
+libvmi/arch/libvmi_la-arch_interface.lo
+libvmi/arch/libvmi_la-arch_interface.o
+libvmi/arch/libvmi_la-intel.lo
+libvmi/arch/libvmi_la-intel.o
 libvmi/config/.deps/
 libvmi/config/.libs/
 libvmi/config/Makefile
@@ -56,6 +75,10 @@ libvmi/config/lexicon.c
 libvmi/config/lexicon.lo
 libvmi/config/lexicon.o
 libvmi/config/libconfig.la
+libvmi/config/libconfig_la-grammar.lo
+libvmi/config/libconfig_la-grammar.o
+libvmi/config/libconfig_la-lexicon.lo
+libvmi/config/libconfig_la-lexicon.o
 libvmi/driver/.deps/
 libvmi/driver/.dirstamp
 libvmi/driver/.libs/
@@ -99,7 +122,6 @@ libvmi/os/.dirstamp
 libvmi/os/.libs/
 libvmi/os/libvmi_la-os_interface.lo
 libvmi/os/libvmi_la-os_interface.o
-libvmi/os/os_interface.h.orig
 libvmi/os/linux/.deps/
 libvmi/os/linux/.dirstamp
 libvmi/os/linux/.libs/
@@ -124,6 +146,12 @@ libvmi/os/windows/libvmi_la-peparse.lo
 libvmi/os/windows/libvmi_la-peparse.o
 libvmi/os/windows/libvmi_la-process.lo
 libvmi/os/windows/libvmi_la-process.o
+libvmi/os/windows/libvmi_la-kdbg.lo
+libvmi/os/windows/libvmi_la-kdbg.o
+libvmi/os/windows/libvmi_la-symbols.lo
+libvmi/os/windows/libvmi_la-symbols.o
+libvmi/os/windows/libvmi_la-unicode.lo
+libvmi/os/windows/libvmi_la-unicode.o
 ltmain.sh
 m4/
 missing
