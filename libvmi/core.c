@@ -400,20 +400,25 @@ vmi_init_private(
         (*vmi)->size);
 
     // for file mode we need os-specific heuristics to deduce the architecture
+    // for live mode, having arch_interface set even in VMI_PARTIAL mode
+    // allows use of dtb-based translation methods.
     if (VMI_FILE != (*vmi)->mode) {
-        /* architecture specific initilization */
         if(VMI_FAILURE == arch_init(*vmi)) {
-           dbprint(VMI_DEBUG_CORE, "--failed to determine architecture.\n");
-           goto error_exit;
+            if (init_mode & VMI_INIT_COMPLETE) {
+                dbprint(VMI_DEBUG_CORE, "--failed to determine architecture of live vm and INIT_COMPLETE.\n");
+                goto error_exit;
+            } else {
+                dbprint(VMI_DEBUG_CORE, "--failed to determine architecture of live vm and INIT_PARTIAL, continuing.\n");
+            }
+        } else {
+            dbprint(VMI_DEBUG_CORE, "--succesfully completed architecture init.\n");
         }
-
-        dbprint(VMI_DEBUG_CORE, "--completed architecture init.\n");
     }
+
 
     /* we check VMI_INIT_COMPLETE first as
        VMI_INIT_PARTIAL is not exclusive */
     if (init_mode & VMI_INIT_COMPLETE) {
-
         switch((*vmi)->config_mode) {
             case VMI_CONFIG_STRING:
                 /* read and parse the config string */

@@ -41,14 +41,16 @@ status_t arch_init(vmi_instance_t vmi) {
     }
 
     switch(vmi->page_mode) {
-        case VMI_PM_LEGACY:
+        case VMI_PM_LEGACY: /* fallthrough */
         case VMI_PM_PAE:
             ret = intel_init(vmi);
             break;
         case VMI_PM_IA32E:
             ret = amd64_init(vmi);
             break;
+        case VMI_PM_UNKNOWN: /* fallthrough */
         default:
+            ret = VMI_FAILURE;
             break;
     }
 
