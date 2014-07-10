@@ -548,6 +548,21 @@ status_t vmi_pagetable_lookup_extended(
  */
 
 /**
+ * Reads \a count bytes from memory and stores the output in \a buf.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[out] buf The data read from memory
+ * @param[in] count The number of bytes to read
+ * @return The number of bytes read.
+ */
+size_t vmi_read(
+    vmi_instance_t vmi,
+    access_context_t *ctx,
+    void *buf,
+    size_t count);
+
+/**
  * Reads 8 bits from memory.
  *
  * @param[in] vmi LibVMI instance
