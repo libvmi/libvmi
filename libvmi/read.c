@@ -63,10 +63,16 @@ vmi_read(
             start_addr = ctx->addr;
             break;
         case VMI_TM_KERNEL_SYMBOL:
+            if (!vmi->arch_interface || !vmi->os_interface) {
+              return 0;
+            }
             dtb = vmi->kpgd;
             start_addr = vmi_translate_ksym2v(vmi, ctx->ksym);
             break;
         case VMI_TM_PROCESS_PID:
+            if (!vmi->arch_interface || !vmi->os_interface) {
+              return 0;
+            }
             if(ctx->pid) {
                 dtb = vmi_pid_to_dtb(vmi, ctx->pid);
             } else {
@@ -75,6 +81,9 @@ vmi_read(
             start_addr = ctx->addr;
             break;
         case VMI_TM_PROCESS_DTB:
+            if (!vmi->arch_interface) {
+              return 0;
+            }
             dtb = ctx->dtb;
             start_addr = ctx->addr;
             break;
