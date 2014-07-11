@@ -110,7 +110,7 @@ struct vmi_instance {
 #endif
 
     void *driver;           /**< driver-specific information */
-
+#if ENABLE_PAGE_CACHE == 1
     GHashTable *memory_cache;  /**< hash table for memory cache */
 
     GList *memory_cache_lru;  /**< list holding the most recently used pages */
@@ -120,6 +120,11 @@ struct vmi_instance {
     uint32_t memory_cache_size;/**< current size of memory cache */
 
     uint32_t memory_cache_size_max;/**< max size of memory cache */
+#else
+    void *last_used_page;   /**< the last used page */
+
+    addr_t last_used_page_key; /**< the key (addr) of the last used page */
+#endif
 
     unsigned int num_vcpus; /**< number of VCPUs used by this instance */
 
