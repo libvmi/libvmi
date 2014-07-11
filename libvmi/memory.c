@@ -59,7 +59,13 @@ status_t probe_memory_layout_x86(vmi_instance_t vmi) {
 
     /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
     if (!VMI_GET_BIT(cr0, 31)) {
-        errprint("Paging disabled for this VM, not supported.\n");
+        dbprint(VMI_DEBUG_CORE, "Paging disabled for this VM, only physical addresses supported.\n");
+        vmi->page_mode = VMI_PM_UNKNOWN;
+        vmi->pae = 0;
+        vmi->pse = 0;
+        vmi->lme = 0;
+
+        ret = VMI_SUCCESS;
         goto _exit;
     }
 
