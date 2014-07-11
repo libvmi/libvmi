@@ -51,6 +51,16 @@ static void (
     void *,
     size_t) = NULL;
 
+static inline
+void *get_memory_data(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    uint32_t length)
+{
+    return get_data_callback(vmi, paddr, length);
+}
+
+#if ENABLE_PAGE_CACHE == 1
 //---------------------------------------------------------
 // Internal implementation functions
 
@@ -64,15 +74,6 @@ memory_cache_entry_free(
         release_data_callback(entry->data, entry->length);
         free(entry);
     }
-}
-
-static void *
-get_memory_data(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    uint32_t length)
-{
-    return get_data_callback(vmi, paddr, length);
 }
 
 static void
@@ -194,8 +195,6 @@ memory_cache_init(
     release_data_callback = release_data;
 }
 
-
-#if ENABLE_PAGE_CACHE == 1
 void *
 memory_cache_insert(
     vmi_instance_t vmi,
@@ -237,15 +236,6 @@ memory_cache_insert(
         return entry->data;
     }
 }
-#else
-void *
-memory_cache_insert(
-    vmi_instance_t vmi,
-    addr_t paddr)
-{
-    return get_memory_data(vmi, paddr, vmi->page_size);
-}
-#endif
 
 void
 memory_cache_destroy(
@@ -274,3 +264,49 @@ memory_cache_destroy(
     get_data_callback = NULL;
     release_data_callback = NULL;
 }
+
+#else
+void
+memory_cache_init(
+    vmi_instance_t vmi,
+    void *(*get_data) (vmi_instance_t,
+                       addr_t,
+                       uint32_t),
+    void (*release_data) (void *,
+                          size_t),
+    unsigned long age_limit)
+{
+    get_data_callback = get_data;
+    release_data_callback = release_data;
+}
+
+void *
+memory_cache_insert(
+    vmi_instance_t vmi,
+    addr_t paddr)
+{
+    if(paddr == vmi->last_used_page_key && vmi->last_used_page) {
+        return vmi->last_used_page;
+    } else {
+        if(vmi->last_used_page_key && vmi->last_used_page) {
+            release_data_callback(vmi->last_used_page, vmi->page_size);
+        }
+        vmi->last_used_page = get_memory_data(vmi, paddr, vmi->page_size);
+        vmi->last_used_page_key = paddr;
+        return vmi->last_used_page;
+    }
+}
+
+void
+memory_cache_destroy(
+    vmi_instance_t vmi)
+{
+    if(vmi->last_used_page_key && vmi->last_used_page) {
+        release_data_callback(vmi->last_used_page, vmi->page_size);
+    }
+    vmi->last_used_page_key = 0;
+    vmi->last_used_page = NULL;
+    get_data_callback = NULL;
+    release_data_callback = NULL;
+}
+#endif
