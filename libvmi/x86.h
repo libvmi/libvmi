@@ -79,6 +79,13 @@ extern "C" {
 #define PAGE_SIZE(entry)        VMI_GET_BIT(entry, 7)
 
 /*
+ * The GLOBAL_PAGE bit determines if the PT/PTE is used across address spaces,
+ * to prevent frequently used pages from being flushed from the TLB cache.
+ * Only valid if CR4.PGE is set, ignored otherwised.
+ */
+#define GLOBAL_PAGE(entry)      VMI_GET_BIT(entry, 8)
+
+/*
  * Bits 9-11 are available bits for the OS to use as it sees fit
  */
 
