@@ -607,6 +607,23 @@ vmi_init_complete_custom(
     return vmi_init_custom(vmi, flags, config);
 }
 
+page_mode_t
+vmi_init_paging(
+    vmi_instance_t vmi,
+    uint8_t force_reinit)
+{
+    if (VMI_PM_UNKNOWN != vmi->page_mode) {
+        if(!force_reinit) {
+            return vmi->page_mode;
+        } else {
+            vmi->page_mode = VMI_PM_UNKNOWN;
+        }
+    }
+
+    arch_init(vmi);
+    return vmi->page_mode;
+}
+
 status_t
 vmi_destroy(
     vmi_instance_t vmi)

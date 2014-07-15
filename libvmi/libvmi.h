@@ -402,6 +402,20 @@ status_t vmi_init_complete_custom(
     vmi_config_t config);
 
 /**
+ * Initialize or reinitialize the paging specific functionality of LibVMI.
+ * This function is most useful when dynamically monitoring the booting of
+ * an OS in VMI_INIT_PARTIAL mode.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] force_reinit Force the reinitialization of the paging mode
+ *  even if one was already setup previously.
+ * @return The current page mode of the architecture or VMI_PM_UNKNOWN.
+ */
+page_mode_t vmi_init_paging(
+    vmi_instance_t vmi,
+    uint8_t force_reinit);
+
+/**
  * Destroys an instance by freeing memory and closing any open handles.
  *
  * @param[in] vmi Instance to destroy

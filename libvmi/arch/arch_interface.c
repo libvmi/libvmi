@@ -54,5 +54,9 @@ status_t arch_init(vmi_instance_t vmi) {
             break;
     }
 
+    if(VMI_FAILURE == ret) {
+        vmi->page_mode = VMI_PM_UNKNOWN;
+    }
+
     return ret;
 }
