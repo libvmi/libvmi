@@ -291,7 +291,7 @@ typedef struct {
 /**
  * Macro to test bitfield values
  */
-#define VMI_GET_BIT(reg, bit) ((reg & (1ULL<<bit)) ? 1:0)
+#define VMI_GET_BIT(reg, bit) (!!(reg & (1ULL<<bit)))
 
 /**
  * Generic representation of Unicode string to be used within libvmi
