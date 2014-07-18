@@ -3,7 +3,7 @@
 SUBDIRS = 
 
 AM_CPPFLAGS = -I$(top_srcdir) $(GLIB_CFLAGS)
-AM_LDFLAGS = -L$(top_srcdir)/libvmi/.libs/
+AM_LDFLAGS = -L$(top_builddir)/libvmi/.libs/
 LDADD = -lvmi -lm $(LIBS) $(GLIB_LIBS)
 
 bin_PROGRAMS =  module-list \
@@ -30,6 +30,6 @@ event_example_SOURCES = event-example.c
 msr_event_example_SOURCES = msr-event-example.c
 singlestep_event_example_SOURCES = singlestep-event-example.c
 interrupt_event_example_SOURCES = interrupt-event-example.c
-win_guid_SOURCES = win-guid.c
+win_guid_SOURCES = win-guid.c win-guid.h
 step_event_example_SOURCES = step-event-example.c
 va_pages_SOURCES = va-pages.c
