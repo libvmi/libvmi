@@ -242,7 +242,7 @@ void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
         }
         else
         {
-            remain = g_slist_append(remain, wrap);
+            remain = g_slist_prepend(remain, wrap);
         }
 
         reg_list = reg_list->next;
@@ -770,7 +770,7 @@ status_t vmi_step_event(vmi_instance_t vmi, vmi_event_t *event,
     wrap->vcpu_id = vcpu_id;
     wrap->steps = steps;
     wrap->cb = cb;
-    vmi->step_events = g_slist_append(vmi->step_events, wrap);
+    vmi->step_events = g_slist_prepend(vmi->step_events, wrap);
     vmi->step_vcpus[vcpu_id]++;
 
     rc = VMI_SUCCESS;

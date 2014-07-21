@@ -254,7 +254,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                 p->l4_v = pml4e_value;
                 p->l3_a = pdpte_a;
                 p->l3_v = pdpte_value;
-                ret = g_slist_append(ret, p);
+                ret = g_slist_prepend(ret, p);
                 continue;
             }
 
@@ -282,7 +282,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                         p->l3_v = pdpte_value;
                         p->l2_a = pgd_curr;
                         p->l2_v = entry;
-                        ret = g_slist_append(ret, p);
+                        ret = g_slist_prepend(ret, p);
                         continue;
                     }
 
@@ -307,7 +307,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                             p->l2_v = entry;
                             p->l1_a = pte_curr;
                             p->l1_v = pte_entry;
-                            ret = g_slist_append(ret, p);
+                            ret = g_slist_prepend(ret, p);
                             continue;
                         }
                     }

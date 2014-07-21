@@ -369,7 +369,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
                 p->size = VMI_PS_4MB;
                 p->l2_a = pgd_curr;
                 p->l2_v = entry;
-                ret = g_slist_append(ret, p);
+                ret = g_slist_prepend(ret, p);
                 continue;
             }
 
@@ -391,7 +391,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
                     p->l2_v = entry;
                     p->l1_a = pte_curr;
                     p->l1_v = pte_entry;
-                    ret = g_slist_append(ret, p);
+                    ret = g_slist_prepend(ret, p);
                 }
             }
         }
@@ -442,7 +442,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
                     p->l3_v = pdpe;
                     p->l2_a = pgd_curr;
                     p->l2_v = entry;
-                    ret = g_slist_append(ret, p);
+                    ret = g_slist_prepend(ret, p);
                     continue;
                 }
 
@@ -465,7 +465,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
                         p->l2_v = entry;
                         p->l1_a = pte_curr;
                         p->l1_v = pte_entry;
-                        ret = g_slist_append(ret, p);
+                        ret = g_slist_prepend(ret, p);
                     }
                 }
             }
