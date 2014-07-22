@@ -114,6 +114,13 @@ extern "C" {
         ) \
     )
 
+/*
+ * NX (No eXecute) bit refers to the most significant bit (i.e. the 63th, or leftmost) of a 64-
+ * bit Page Table Entry. If this bit is set to 0, then code can be executed from that particular page. If it’s set to 1, then the
+ * page is assumed to only retain data, and code execution should be prevented.
+ */
+#define NX(entry)               VMI_GET_BIT(entry, 63)
+
 #pragma GCC visibility pop
 
 #ifdef __cplusplus
