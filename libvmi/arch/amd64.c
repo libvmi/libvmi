@@ -55,7 +55,7 @@ uint64_t get_pml4e (vmi_instance_t vmi,
 {
     uint64_t value;
     *pml4e_address = get_bits_51to12(cr3) | get_pml4_index(vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup pml4e_address = 0x%.16"PRIx64"\n", *pml4e_address);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pml4e_address = 0x%.16"PRIx64"\n", *pml4e_address);
     if(VMI_FAILURE == vmi_read_64_pa(vmi, *pml4e_address, &value)) {
         value = 0;
     }
@@ -265,6 +265,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                 uint64_t soffset = vaddr + (j * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size);
 
                 uint64_t entry;
+                dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_address = 0x%.16"PRIx64"\n", pgd_curr);
                 if(VMI_FAILURE == vmi_read_64_pa(vmi, pgd_curr, &entry)) {
                     continue;
                 }
@@ -290,6 +291,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                     uint64_t k;
                     for(k=0;k<PTRS_PER_PAE_PTE;k++,pte_curr+=entry_size) {
                         uint64_t pte_entry;
+                        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_address = 0x%.16"PRIx64"\n", pte_curr);
                         if(VMI_FAILURE == vmi_read_64_pa(vmi, pte_curr, &pte_entry)) {
                             continue;
                         }
