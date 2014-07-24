@@ -37,7 +37,7 @@ int main (int argc, char **argv)
     vmi_instance_t vmi;
     unsigned char *memory = NULL;
     uint32_t offset;
-    addr_t list_head = 0, current_list_entry = 0, next_list_entry = 0;
+    addr_t list_head = 0, next_list_entry = 0;
     addr_t current_process = 0;
     addr_t tmp_next = 0;
     char *procname = NULL;
@@ -113,33 +113,24 @@ int main (int argc, char **argv)
          *  utilities, but it is indeed part of the task list and useful to
          *  display as such.
          */
-        current_process = vmi_translate_ksym2v(vmi, "init_task");
+        list_head = vmi_translate_ksym2v(vmi, "init_task") + tasks_offset;
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
 
         // find PEPROCESS PsInitialSystemProcess
-        if(VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsActiveProcessHead", &current_process)) {
+        if(VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsActiveProcessHead", &list_head)) {
             printf("Failed to find PsActiveProcessHead\n");
             goto error_exit;
         }
-
-        current_process -= tasks_offset;
     }
+
+    next_list_entry = list_head;
 
     /* walk the task list */
-    list_head = current_process + tasks_offset;
-    current_list_entry = list_head;
-
-    status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
-    if (status == VMI_FAILURE) {
-        printf("Failed to read next pointer at 0x%"PRIx64" before entering loop\n",
-                current_list_entry);
-        goto error_exit;
-    }
-
-    printf("Next list entry is at: %"PRIx64"\n", next_list_entry);
-
     do {
+
+        current_process = next_list_entry - tasks_offset;
+
         /* Note: the task_struct that we are looking at has a lot of
          * information.  However, the process name and id are burried
          * nice and deep.  Instead of doing something sane like mapping
@@ -167,18 +158,15 @@ int main (int argc, char **argv)
             procname = NULL;
         }
 
-        current_list_entry = next_list_entry;
-        current_process = current_list_entry - tasks_offset;
-
         /* follow the next pointer */
 
-        status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
+        status = vmi_read_addr_va(vmi, next_list_entry, 0, &next_list_entry);
         if (status == VMI_FAILURE) {
-            printf("Failed to read next pointer in loop at %"PRIx64"\n", current_list_entry);
+            printf("Failed to read next pointer in loop at %"PRIx64"\n", next_list_entry);
             goto error_exit;
         }
 
-    } while (next_list_entry != list_head);
+    } while(next_list_entry != list_head);
 
     error_exit: if (procname)
         free(procname);
