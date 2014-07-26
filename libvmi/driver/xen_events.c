@@ -961,6 +961,11 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
 
     switch(event.reg){
         case CR0:
+#if XEN_EVENTS_VERSION == 420
+            /* More info as to why:
+             * http://xenbits.xen.org/gitweb/?p=xen.git;a=commit;h=5d570c1d0274cac3b333ef378af3325b3b69905e */
+            errprint("The majority of events on CR0 are unavailable for Xen 4.2 - 4.4.\n");
+#endif
             hvm_param = HVM_PARAM_MEMORY_EVENT_CR0;
             break;
         case CR3:
@@ -1217,7 +1222,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     // Set whether the access listener is required
     rc = xc_domain_set_access_required(xch, dom, required);
     if ( rc < 0 ) {
-#ifdef XENEVENT41
+#if XEN_EVENTS_VERSION == 410
         // FIXME41: Xen 4.1.2 apparently mostly returns -1 for any call to this,
         // so just suppress the error for now
         dbprint(VMI_DEBUG_XEN, "Error %d setting mem_access listener required to %d\n", rc, required);
