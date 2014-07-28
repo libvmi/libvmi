@@ -257,7 +257,7 @@ typedef struct page_info {
     page_size_t size;   // page size (VMI_PS_*)
                  //                      NOPAE  PAE    IA32E
     addr_t l1_a; // the location of the   pte / pte  / pte
-    addr_t l1_v; // the location of the   pte / pte  / pte
+    addr_t l1_v; // the value of the      pte / pte  / pte
     addr_t l2_a; // the location of the   pgd / pgd  / pde
     addr_t l2_v; // the value of the      pgd / pgd  / pde
     addr_t l3_a; // the location of the    -  / pdpe / pdpte
