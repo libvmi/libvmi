@@ -309,9 +309,14 @@ typedef struct {
 } access_context_t;
 
 /**
- * Macro to test bitfield values
+ * Macro to test bitfield values (up to 64-bits)
  */
 #define VMI_GET_BIT(reg, bit) (!!(reg & (1ULL<<bit)))
+
+/**
+ * Macro to compute bitfield masks (up to 64-bits)
+ */
+#define VMI_BIT_MASK(a, b) (((unsigned long long) -1 >> (63 - (b))) & ~((1ULL << (a)) - 1))
 
 /**
  * Generic representation of Unicode string to be used within libvmi

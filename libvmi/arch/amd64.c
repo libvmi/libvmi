@@ -33,18 +33,11 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-/* utility bit grabbing functions */
-static inline
-uint64_t get_bits_51to12 (uint64_t value)
-{
-    return value & 0x000FFFFFFFFFF000ULL;
-}
-
 /* PML4 Table  */
 static inline
 addr_t get_pml4_index (addr_t vaddr)
 {
-    return (vaddr & 0x0000FF8000000000ULL) >> 36;
+    return (vaddr & VMI_BIT_MASK(39,47)) >> 36;
 }
 
 static inline
@@ -54,7 +47,7 @@ uint64_t get_pml4e (vmi_instance_t vmi,
     addr_t *pml4e_address)
 {
     uint64_t value;
-    *pml4e_address = get_bits_51to12(cr3) | get_pml4_index(vaddr);
+    *pml4e_address = (cr3 & VMI_BIT_MASK(12,51)) | get_pml4_index(vaddr);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pml4e_address = 0x%.16"PRIx64"\n", *pml4e_address);
     if(VMI_FAILURE == vmi_read_64_pa(vmi, *pml4e_address, &value)) {
         value = 0;
@@ -65,7 +58,7 @@ uint64_t get_pml4e (vmi_instance_t vmi,
 static inline
 addr_t get_pdpt_index_ia32e (addr_t vaddr)
 {
-    return (vaddr & 0x0000007FC0000000ULL) >> 27;
+    return (vaddr & VMI_BIT_MASK(30,38)) >> 27;
 }
 
 static inline
@@ -75,7 +68,7 @@ uint64_t get_pdpte_ia32e (vmi_instance_t vmi,
     addr_t *pdpte_address)
 {
     uint64_t value;
-    *pdpte_address = get_bits_51to12(pml4e) | get_pdpt_index_ia32e(vaddr);
+    *pdpte_address = (pml4e & VMI_BIT_MASK(12,51)) | get_pdpt_index_ia32e(vaddr);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpte_address = 0x%.16"PRIx64"\n", *pdpte_address);
     if(VMI_FAILURE == vmi_read_64_pa(vmi, *pdpte_address, &value)) {
         value = 0;
@@ -84,15 +77,9 @@ uint64_t get_pdpte_ia32e (vmi_instance_t vmi,
 }
 
 static inline
-uint64_t pdba_base_ia32e (uint64_t pdpe)
-{
-    return get_bits_51to12(pdpe);
-}
-
-static inline
 uint64_t get_pd_index_ia32e (addr_t vaddr)
 {
-    return (vaddr & 0x000000003FE00000ULL) >> 18;
+    return (vaddr & VMI_BIT_MASK(21,29)) >> 18;
 }
 
 static inline
@@ -102,7 +89,7 @@ uint64_t get_pde_ia32e (vmi_instance_t vmi,
     addr_t *pde_address)
 {
     uint64_t value;
-    *pde_address = get_bits_51to12(pdpte) | get_pd_index_ia32e(vaddr);
+    *pde_address = (pdpte & VMI_BIT_MASK(12,51)) | get_pd_index_ia32e(vaddr);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_address = 0x%.16"PRIx64"\n", *pde_address);
     if(VMI_FAILURE == vmi_read_64_pa(vmi, *pde_address, &value)) {
         value = 0;
@@ -113,7 +100,7 @@ uint64_t get_pde_ia32e (vmi_instance_t vmi,
 static inline
 uint64_t get_pt_index_ia32e (addr_t vaddr)
 {
-    return (vaddr & 0x00000000001FF000ULL) >> 9;
+    return (vaddr & VMI_BIT_MASK(12,20)) >> 9;
 }
 
 static inline
@@ -123,7 +110,7 @@ uint64_t get_pte_ia32e (vmi_instance_t vmi,
     addr_t *pte_address)
 {
     uint64_t value;
-    *pte_address = get_bits_51to12(pde) | get_pt_index_ia32e(vaddr);
+    *pte_address = (pde & VMI_BIT_MASK(12,51)) | get_pt_index_ia32e(vaddr);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_address = 0x%.16"PRIx64"\n", *pte_address);
     if(VMI_FAILURE == vmi_read_64_pa(vmi, *pte_address, &value)) {
         value = 0;
@@ -132,27 +119,21 @@ uint64_t get_pte_ia32e (vmi_instance_t vmi,
 }
 
 static inline
-uint64_t pte_pfn_ia32e (uint64_t pte)
-{
-    return get_bits_51to12(pte);
-}
-
-static inline
 uint64_t get_paddr_ia32e (addr_t vaddr, uint64_t pte)
 {
-    return get_bits_51to12(pte) | (vaddr & 0x0000000000000FFFULL);
+    return (pte & VMI_BIT_MASK(12,51)) | (vaddr & VMI_BIT_MASK(0,11));
 }
 
 static inline
 uint64_t get_gigpage_ia32e (addr_t vaddr, uint64_t pdpte)
 {
-    return (pdpte & 0x000FFFFFC0000000ULL) | (vaddr & 0x000000003FFFFFFFULL);
+    return (pdpte & VMI_BIT_MASK(30,51)) | (vaddr & VMI_BIT_MASK(0,29));
 }
 
 static inline
 uint64_t get_2megpage_ia32e (addr_t vaddr, uint64_t pde)
 {
-    return (pde & 0x000FFFFFFFE00000ULL) | (vaddr & 0x00000000001FFFFFULL);
+    return (pde & VMI_BIT_MASK(21,51)) | (vaddr & VMI_BIT_MASK(0,20));
 }
 
 addr_t v2p_ia32e (vmi_instance_t vmi,
@@ -261,7 +242,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                 continue;
             }
 
-            uint64_t pgd_curr = pdba_base_ia32e(pdpte_value);
+            uint64_t pgd_curr = (pdpte_value & VMI_BIT_MASK(12,51));
             uint64_t j;
             for(j=0;j<PTRS_PER_PAE_PGD;j++,pgd_curr+=entry_size) {
 
@@ -290,7 +271,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                         continue;
                     }
 
-                    uint64_t pte_curr = pte_pfn_ia32e(entry);
+                    uint64_t pte_curr = (entry & VMI_BIT_MASK(12,51));
                     uint64_t k;
                     for(k=0;k<PTRS_PER_PAE_PTE;k++,pte_curr+=entry_size) {
                         uint64_t pte_entry;

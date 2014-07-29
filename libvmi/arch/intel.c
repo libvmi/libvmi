@@ -37,7 +37,7 @@
 static inline
 uint64_t get_pdptb (uint64_t pdpr)
 {
-    return pdpr & 0xFFFFFFFFFFFFFFE0UL;
+    return pdpr & VMI_BIT_MASK(5,63);
 }
 
 static inline
@@ -66,25 +66,25 @@ uint64_t get_pdpi (vmi_instance_t instance,
 static inline
 uint32_t pgd_index_nopae (uint32_t address)
 {
-    return (((address) >> 22) & 0x3FFUL) * sizeof(uint32_t);
+    return (((address) >> 22) & VMI_BIT_MASK(0,9)) * sizeof(uint32_t);
 }
 
 static inline
 uint32_t pgd_index_pae (uint32_t address)
 {
-    return (((address) >> 21) & 0x1FFUL) * sizeof(uint64_t);
+    return (((address) >> 21) & VMI_BIT_MASK(0,8)) * sizeof(uint64_t);
 }
 
 static inline
 uint32_t pdba_base_nopae (uint32_t pdpe)
 {
-    return pdpe & 0xFFFFF000UL;
+    return pdpe & VMI_BIT_MASK(12,31);
 }
 
 static inline
 uint64_t pdba_base_pae (uint64_t pdpe)
 {
-    return pdpe & 0xFFFFFFFFFF000ULL;
+    return pdpe & VMI_BIT_MASK(12,51);
 }
 
 static inline
@@ -121,25 +121,25 @@ uint64_t get_pgd_pae (vmi_instance_t instance,
 static inline
 uint32_t pte_index_nopae (uint32_t address)
 {
-    return (((address) >> 12) & 0x3FFUL) * sizeof(uint32_t);
+    return (((address) >> 12) & VMI_BIT_MASK(0,9)) * sizeof(uint32_t);
 }
 
 static inline
 uint32_t pte_index_pae (uint32_t address)
 {
-    return (((address) >> 12) & 0x1FFUL) * sizeof(uint64_t);
+    return (((address) >> 12) & VMI_BIT_MASK(0,8)) * sizeof(uint64_t);
 }
 
 static inline
 uint32_t ptba_base_nopae (uint32_t pde)
 {
-    return pde & 0xFFFFF000UL;
+    return pde & VMI_BIT_MASK(12,31);
 }
 
 static inline
 uint64_t ptba_base_pae (uint64_t pde)
 {
-    return pde & 0xFFFFFF000ULL;
+    return pde & VMI_BIT_MASK(12,35);
 }
 
 static inline
@@ -176,37 +176,37 @@ uint64_t get_pte_pae (vmi_instance_t instance,
 static inline
 uint32_t pte_pfn_nopae (uint32_t pte)
 {
-    return pte & 0xFFFFF000UL;
+    return pte & VMI_BIT_MASK(12,31);
 }
 
 static inline
 uint64_t pte_pfn_pae (uint64_t pte)
 {
-    return pte & 0xFFFFFF000ULL;
+    return pte & VMI_BIT_MASK(12,35);
 }
 
 static inline
 uint32_t get_paddr_nopae (uint32_t vaddr, uint32_t pte)
 {
-    return pte_pfn_nopae(pte) | (vaddr & 0xFFFUL);
+    return pte_pfn_nopae(pte) | (vaddr & VMI_BIT_MASK(0,11));
 }
 
 static inline
 uint64_t get_paddr_pae (uint32_t vaddr, uint64_t pte)
 {
-    return pte_pfn_pae(pte) | (vaddr & 0xFFFUL);
+    return pte_pfn_pae(pte) | (vaddr & VMI_BIT_MASK(0,11));
 }
 
 static inline
 uint32_t get_large_paddr_nopae (uint32_t vaddr, uint32_t pgd_entry)
 {
-    return (pgd_entry & 0xFFC00000UL) | (vaddr & 0x3FFFFFUL);
+    return (pgd_entry & VMI_BIT_MASK(22,31)) | (vaddr & VMI_BIT_MASK(0,21));
 }
 
 static inline
 uint32_t get_large_paddr_pae (uint32_t vaddr, uint32_t pgd_entry)
 {
-    return (pgd_entry & 0xFFE00000UL) | (vaddr & 0x1FFFFFUL);
+    return (pgd_entry & VMI_BIT_MASK(21,31)) | (vaddr & VMI_BIT_MASK(0,20));
 }
 
 void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
@@ -218,8 +218,8 @@ void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
     }
 
     if (!TRANSITION(entry) && !PROTOTYPE(entry)) {
-        uint32_t pfnum = (entry >> 1) & 0xF;
-        uint32_t pfframe = entry & 0xFFFFF000UL;
+        uint32_t pfnum = (entry >> 1) & VMI_BIT_MASK(0,3);
+        uint32_t pfframe = entry & VMI_BIT_MASK(12,31);
 
         /* pagefile */
         if (pfnum != 0 && pfframe != 0) {
