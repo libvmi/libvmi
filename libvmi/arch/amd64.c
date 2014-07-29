@@ -160,7 +160,6 @@ addr_t v2p_ia32e (vmi_instance_t vmi,
     addr_t vaddr,
     page_info_t *info)
 {
-    uint64_t pml4e = 0, pdpte = 0, pde = 0, pte = 0;
 
     // are we in compatibility mode OR 64-bit mode ???
 
@@ -170,48 +169,52 @@ addr_t v2p_ia32e (vmi_instance_t vmi,
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64"\n", vaddr);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: dtb = 0x%.16"PRIx64"\n", dtb);
-    pml4e = get_pml4e(vmi, vaddr, dtb, &info->l4_a);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pml4e = 0x%.16"PRIx64"\n", pml4e);
+    info->x86_ia32e.pml4e_value = get_pml4e(vmi, vaddr, dtb, &info->x86_ia32e.pml4e_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pml4e = 0x%.16"PRIx64"\n", info->x86_ia32e.pml4e_value);
 
-    if (ENTRY_PRESENT(vmi->os_type, pml4e)) {
-        info->l4_v = pml4e;
-
-        pdpte = get_pdpte_ia32e(vmi, vaddr, pml4e, &info->l3_a);
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpte = 0x%.16"PRIx64"\n", pdpte);
-
-        if (ENTRY_PRESENT(vmi->os_type, pdpte)) {
-            info->l3_v = pdpte;
-            if (PAGE_SIZE(pdpte)) { // pdpte maps a 1GB page
-                info->paddr = get_gigpage_ia32e(vaddr, pdpte);
-                info->size = VMI_PS_1GB;
-                dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 1GB page\n");
-            }
-            else {
-                pde = get_pde_ia32e(vmi, vaddr, pdpte, &info->l2_a);
-                dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde = 0x%.16"PRIx64"\n", pde);
-            }
-
-            if (ENTRY_PRESENT(vmi->os_type, pde)) {
-                info->l2_v = pde;
-                if (PAGE_SIZE(pde)) { // pde maps a 2MB page
-                    info->paddr = get_2megpage_ia32e(vaddr, pde);
-                    info->size = VMI_PS_2MB;
-                    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 2MB page\n");
-                }
-                else {
-                    pte = get_pte_ia32e(vmi, vaddr, pde, &info->l1_a);
-                    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte = 0x%.16"PRIx64"\n", pte);
-                }
-
-                if (ENTRY_PRESENT(vmi->os_type, pte)) {
-                    info->l1_v = pte;
-                    info->size = VMI_PS_4KB;
-                    info->paddr = get_paddr_ia32e(vaddr, pte);
-                }
-            }
-        }
+    if (!ENTRY_PRESENT(vmi->os_type, info->x86_ia32e.pml4e_value)) {
+        goto done;
     }
 
+    info->x86_ia32e.pdpte_value = get_pdpte_ia32e(vmi, vaddr, info->x86_ia32e.pml4e_value, &info->x86_ia32e.pdpte_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpte = 0x%.16"PRIx64"\n", info->x86_ia32e.pdpte_value);
+
+    if (!ENTRY_PRESENT(vmi->os_type, info->x86_ia32e.pdpte_value)) {
+        goto done;
+    }
+
+    if (PAGE_SIZE(info->x86_ia32e.pdpte_value)) { // pdpte maps a 1GB page
+        info->size = VMI_PS_1GB;
+        info->paddr = get_gigpage_ia32e(vaddr, info->x86_ia32e.pdpte_value);
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 1GB page\n");
+        goto done;
+    }
+
+    info->x86_ia32e.pgd_value = get_pde_ia32e(vmi, vaddr, info->x86_ia32e.pdpte_value, &info->x86_ia32e.pgd_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde = 0x%.16"PRIx64"\n", info->x86_ia32e.pgd_value);
+
+    if (!ENTRY_PRESENT(vmi->os_type, info->x86_ia32e.pgd_value)) {
+        goto done;
+    }
+
+    if (PAGE_SIZE(info->x86_ia32e.pgd_value)) { // pde maps a 2MB page
+        info->size = VMI_PS_2MB;
+        info->paddr = get_2megpage_ia32e(vaddr, info->x86_ia32e.pgd_value);
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 2MB page\n");
+        goto done;
+    }
+
+    info->x86_ia32e.pte_value = get_pte_ia32e(vmi, vaddr, info->x86_ia32e.pgd_value, &info->x86_ia32e.pte_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte = 0x%.16"PRIx64"\n", info->x86_ia32e.pte_value);
+
+    if (!ENTRY_PRESENT(vmi->os_type, info->x86_ia32e.pte_value)) {
+        goto done;
+    }
+
+    info->size = VMI_PS_4KB;
+    info->paddr = get_paddr_ia32e(vaddr, info->x86_ia32e.pte_value);
+
+done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
     return info->paddr;
 }
@@ -246,15 +249,15 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
             }
 
             if(PAGE_SIZE(pdpte_value)) {
-                page_info_t *p = g_malloc0(sizeof(page_info_t));
-                p->vaddr = vaddr;
-                p->paddr = get_gigpage_ia32e(vaddr, pdpte_value);
-                p->size = VMI_PS_1GB;
-                p->l4_a = pml4e_a;
-                p->l4_v = pml4e_value;
-                p->l3_a = pdpte_a;
-                p->l3_v = pdpte_value;
-                ret = g_slist_prepend(ret, p);
+                page_info_t *info = g_malloc0(sizeof(page_info_t));
+                info->vaddr = vaddr;
+                info->paddr = get_gigpage_ia32e(vaddr, pdpte_value);
+                info->size = VMI_PS_1GB;
+                info->x86_ia32e.pml4e_location = pml4e_a;
+                info->x86_ia32e.pml4e_value = pml4e_value;
+                info->x86_ia32e.pdpte_location = pdpte_a;
+                info->x86_ia32e.pdpte_value = pdpte_value;
+                ret = g_slist_prepend(ret, info);
                 continue;
             }
 
@@ -273,17 +276,17 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                 if(ENTRY_PRESENT(vmi->os_type, entry)) {
 
                     if(PAGE_SIZE(entry)) {
-                        page_info_t *p = g_malloc0(sizeof(page_info_t));
-                        p->vaddr = soffset;
-                        p->paddr = get_2megpage_ia32e(vaddr, entry);
-                        p->size = VMI_PS_2MB;
-                        p->l4_a = pml4e_a;
-                        p->l4_v = pml4e_value;
-                        p->l3_a = pdpte_a;
-                        p->l3_v = pdpte_value;
-                        p->l2_a = pgd_curr;
-                        p->l2_v = entry;
-                        ret = g_slist_prepend(ret, p);
+                        page_info_t *info = g_malloc0(sizeof(page_info_t));
+                        info->vaddr = soffset;
+                        info->paddr = get_2megpage_ia32e(vaddr, entry);
+                        info->size = VMI_PS_2MB;
+                        info->x86_ia32e.pml4e_location = pml4e_a;
+                        info->x86_ia32e.pml4e_value = pml4e_value;
+                        info->x86_ia32e.pdpte_location = pdpte_a;
+                        info->x86_ia32e.pdpte_value = pdpte_value;
+                        info->x86_ia32e.pgd_location = pgd_curr;
+                        info->x86_ia32e.pgd_value = entry;
+                        ret = g_slist_prepend(ret, info);
                         continue;
                     }
 
@@ -297,19 +300,19 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
                         }
 
                         if(ENTRY_PRESENT(vmi->os_type, pte_entry)) {
-                            page_info_t *p = g_malloc0(sizeof(page_info_t));
-                            p->vaddr = soffset + k * VMI_PS_4KB;
-                            p->paddr = get_paddr_ia32e(vaddr, pte_entry);
-                            p->size = VMI_PS_4KB;
-                            p->l4_a = pml4e_a;
-                            p->l4_v = pml4e_value;
-                            p->l3_a = pdpte_a;
-                            p->l3_v = pdpte_value;
-                            p->l2_a = pgd_curr;
-                            p->l2_v = entry;
-                            p->l1_a = pte_curr;
-                            p->l1_v = pte_entry;
-                            ret = g_slist_prepend(ret, p);
+                            page_info_t *info = g_malloc0(sizeof(page_info_t));
+                            info->vaddr = soffset + k * VMI_PS_4KB;
+                            info->paddr = get_paddr_ia32e(vaddr, pte_entry);
+                            info->size = VMI_PS_4KB;
+                            info->x86_ia32e.pml4e_location = pml4e_a;
+                            info->x86_ia32e.pml4e_value = pml4e_value;
+                            info->x86_ia32e.pdpte_location = pdpte_a;
+                            info->x86_ia32e.pdpte_value = pdpte_value;
+                            info->x86_ia32e.pgd_location = pgd_curr;
+                            info->x86_ia32e.pgd_value = entry;
+                            info->x86_ia32e.pte_location = pte_curr;
+                            info->x86_ia32e.pte_value = pte_entry;
+                            ret = g_slist_prepend(ret, info);
                             continue;
                         }
                     }
