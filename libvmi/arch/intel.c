@@ -37,7 +37,7 @@
 static inline
 uint64_t get_pdptb (uint64_t pdpr)
 {
-    return pdpr & 0xFFFFFFFFFFFFFFE0UL;
+    return pdpr & VMI_BIT_MASK(5,63);
 }
 
 static inline
@@ -66,25 +66,25 @@ uint64_t get_pdpi (vmi_instance_t instance,
 static inline
 uint32_t pgd_index_nopae (uint32_t address)
 {
-    return (((address) >> 22) & 0x3FFUL) * sizeof(uint32_t);
+    return (((address) >> 22) & VMI_BIT_MASK(0,9)) * sizeof(uint32_t);
 }
 
 static inline
 uint32_t pgd_index_pae (uint32_t address)
 {
-    return (((address) >> 21) & 0x1FFUL) * sizeof(uint64_t);
+    return (((address) >> 21) & VMI_BIT_MASK(0,8)) * sizeof(uint64_t);
 }
 
 static inline
 uint32_t pdba_base_nopae (uint32_t pdpe)
 {
-    return pdpe & 0xFFFFF000UL;
+    return pdpe & VMI_BIT_MASK(12,31);
 }
 
 static inline
 uint64_t pdba_base_pae (uint64_t pdpe)
 {
-    return pdpe & 0xFFFFFFFFFF000ULL;
+    return pdpe & VMI_BIT_MASK(12,51);
 }
 
 static inline
@@ -121,25 +121,25 @@ uint64_t get_pgd_pae (vmi_instance_t instance,
 static inline
 uint32_t pte_index_nopae (uint32_t address)
 {
-    return (((address) >> 12) & 0x3FFUL) * sizeof(uint32_t);
+    return (((address) >> 12) & VMI_BIT_MASK(0,9)) * sizeof(uint32_t);
 }
 
 static inline
 uint32_t pte_index_pae (uint32_t address)
 {
-    return (((address) >> 12) & 0x1FFUL) * sizeof(uint64_t);
+    return (((address) >> 12) & VMI_BIT_MASK(0,8)) * sizeof(uint64_t);
 }
 
 static inline
 uint32_t ptba_base_nopae (uint32_t pde)
 {
-    return pde & 0xFFFFF000UL;
+    return pde & VMI_BIT_MASK(12,31);
 }
 
 static inline
 uint64_t ptba_base_pae (uint64_t pde)
 {
-    return pde & 0xFFFFFF000ULL;
+    return pde & VMI_BIT_MASK(12,35);
 }
 
 static inline
@@ -176,37 +176,37 @@ uint64_t get_pte_pae (vmi_instance_t instance,
 static inline
 uint32_t pte_pfn_nopae (uint32_t pte)
 {
-    return pte & 0xFFFFF000UL;
+    return pte & VMI_BIT_MASK(12,31);
 }
 
 static inline
 uint64_t pte_pfn_pae (uint64_t pte)
 {
-    return pte & 0xFFFFFF000ULL;
+    return pte & VMI_BIT_MASK(12,35);
 }
 
 static inline
 uint32_t get_paddr_nopae (uint32_t vaddr, uint32_t pte)
 {
-    return pte_pfn_nopae(pte) | (vaddr & 0xFFFUL);
+    return pte_pfn_nopae(pte) | (vaddr & VMI_BIT_MASK(0,11));
 }
 
 static inline
 uint64_t get_paddr_pae (uint32_t vaddr, uint64_t pte)
 {
-    return pte_pfn_pae(pte) | (vaddr & 0xFFFUL);
+    return pte_pfn_pae(pte) | (vaddr & VMI_BIT_MASK(0,11));
 }
 
 static inline
 uint32_t get_large_paddr_nopae (uint32_t vaddr, uint32_t pgd_entry)
 {
-    return (pgd_entry & 0xFFC00000UL) | (vaddr & 0x3FFFFFUL);
+    return (pgd_entry & VMI_BIT_MASK(22,31)) | (vaddr & VMI_BIT_MASK(0,21));
 }
 
 static inline
 uint32_t get_large_paddr_pae (uint32_t vaddr, uint32_t pgd_entry)
 {
-    return (pgd_entry & 0xFFE00000UL) | (vaddr & 0x1FFFFFUL);
+    return (pgd_entry & VMI_BIT_MASK(21,31)) | (vaddr & VMI_BIT_MASK(0,20));
 }
 
 void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
@@ -218,8 +218,8 @@ void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
     }
 
     if (!TRANSITION(entry) && !PROTOTYPE(entry)) {
-        uint32_t pfnum = (entry >> 1) & 0xF;
-        uint32_t pfframe = entry & 0xFFFFF000UL;
+        uint32_t pfnum = (entry >> 1) & VMI_BIT_MASK(0,3);
+        uint32_t pfframe = entry & VMI_BIT_MASK(12,31);
 
         /* pagefile */
         if (pfnum != 0 && pfframe != 0) {
@@ -260,35 +260,35 @@ addr_t v2p_nopae (vmi_instance_t vmi,
     page_info_t *info)
 {
 
-    addr_t pgd = 0, pte = 0;
-
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64", dtb = 0x%.16"PRIx64"\n", vaddr, dtb);
-    pgd = get_pgd_nopae(vmi, vaddr, dtb, &info->l2_a);
+    info->x86_legacy.pgd_value = get_pgd_nopae(vmi, vaddr, dtb, &info->x86_legacy.pgd_location);
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd = 0x%.8"PRIx32"\n", pgd);
 
-    if (ENTRY_PRESENT(vmi->os_type, pgd)) {
-        info->l2_v = pgd;
-        if (PAGE_SIZE(pgd) && (VMI_FILE == vmi->mode || vmi->pse)) {
-            info->paddr = get_large_paddr_nopae(vaddr, pgd);
-            info->size = VMI_PS_4MB;
-            dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 4MB page 0x%"PRIx32"\n", pgd);
-        }
-        else {
-            pte = get_pte_nopae(vmi, vaddr, pgd, &info->l1_a);
-            dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte = 0x%.8"PRIx32"\n", pte);
-            if (ENTRY_PRESENT(vmi->os_type, pte)) {
-                info->l1_v = pte;
-                info->size = VMI_PS_4KB;
-                info->paddr = get_paddr_nopae(vaddr, pte);
-            }
-            else {
-                buffalo_nopae(vmi, pte, 1);
-            }
-        }
+    if (!ENTRY_PRESENT(vmi->os_type, info->x86_legacy.pgd_value)) {
+        buffalo_nopae(vmi, info->x86_legacy.pgd_value, 0);
+        goto done;
     }
-    else {
-        buffalo_nopae(vmi, pgd, 0);
+
+    if (PAGE_SIZE(info->x86_legacy.pgd_value) && (VMI_FILE == vmi->mode || vmi->pse)) {
+        info->paddr = get_large_paddr_nopae(vaddr, info->x86_legacy.pgd_value);
+        info->size = VMI_PS_4MB;
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 4MB page 0x%"PRIx32"\n", info->x86_legacy.pgd_value);
+        goto done;
     }
+
+    info->x86_legacy.pte_value = get_pte_nopae(vmi, vaddr, info->x86_legacy.pgd_value, &info->x86_legacy.pte_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte = 0x%.8"PRIx32"\n", info->x86_legacy.pte_value);
+
+    if (!ENTRY_PRESENT(vmi->os_type, info->x86_legacy.pte_value)) {
+        buffalo_nopae(vmi, info->x86_legacy.pte_value, 1);
+        goto done;
+    }
+
+    info->size = VMI_PS_4KB;
+    info->paddr = get_paddr_nopae(vaddr, info->x86_legacy.pte_value);
+    goto done;
+
+done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
     return info->paddr;
 }
@@ -298,43 +298,43 @@ addr_t v2p_pae (vmi_instance_t vmi,
     addr_t vaddr,
     page_info_t *info)
 {
-    uint64_t pdpe = 0, pgd = 0, pte = 0;
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: lookup vaddr = 0x%.16"PRIx64" dtb = 0x%.16"PRIx64"\n", vaddr, dtb);
-    pdpe = get_pdpi(vmi, vaddr, dtb, &info->l3_a);
+    info->x86_pae.pdpe_value = get_pdpi(vmi, vaddr, dtb, &info->x86_pae.pdpe_location);
 
-    if(!pdpe) {
+    if(!info->x86_pae.pdpe_value) {
         dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: failed to read pdpe\n");
         goto done;
     }
 
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pdpe = 0x%"PRIx64"\n", pdpe);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pdpe = 0x%"PRIx64"\n", info->x86_pae.pdpe_value);
 
-    if (!ENTRY_PRESENT(vmi->os_type, pdpe)) {
+    if (!ENTRY_PRESENT(vmi->os_type, info->x86_pae.pdpe_value)) {
         goto done;
     }
-    info->l3_v = pdpe;
 
-    pgd = get_pgd_pae(vmi, vaddr, pdpe, &info->l2_a);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pgd = 0x%.16"PRIx64"\n", pgd);
+    info->x86_pae.pgd_value = get_pgd_pae(vmi, vaddr, info->x86_pae.pdpe_value, &info->x86_pae.pgd_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pgd = 0x%.16"PRIx64"\n", info->x86_pae.pgd_value);
 
-    if (ENTRY_PRESENT(vmi->os_type, pgd)) {
-        info->l2_v = pgd;
-        if (PAGE_SIZE(pgd)) {
-            info->paddr = get_large_paddr_pae(vaddr, pgd);
-            info->size = VMI_PS_2MB;
-            dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: 2MB page\n");
-        }
-        else {
-            pte = get_pte_pae(vmi, vaddr, pgd, &info->l1_a);
-            dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pte = 0x%.16"PRIx64"\n", pte);
-            if (ENTRY_PRESENT(vmi->os_type, pte)) {
-                info->l1_v = pte;
-                info->size = VMI_PS_4KB;
-                info->paddr = get_paddr_pae(vaddr, pte);
-            }
-        }
+    if (!ENTRY_PRESENT(vmi->os_type, info->x86_pae.pgd_value)) {
+        goto done;
     }
+
+    if (PAGE_SIZE(info->x86_pae.pgd_value)) {
+        info->paddr = get_large_paddr_pae(vaddr, info->x86_pae.pgd_value);
+        info->size = VMI_PS_2MB;
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: 2MB page\n");
+        goto done;
+    }
+
+    info->x86_pae.pte_value = get_pte_pae(vmi, vaddr, info->x86_pae.pgd_value, &info->x86_pae.pte_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pte = 0x%.16"PRIx64"\n", info->x86_pae.pte_value);
+    if (!ENTRY_PRESENT(vmi->os_type, info->x86_pae.pte_value)) {
+        goto done;
+    }
+
+    info->size = VMI_PS_4KB;
+    info->paddr = get_paddr_pae(vaddr, info->x86_pae.pte_value);
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
@@ -367,8 +367,8 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
                 p->vaddr = soffset;
                 p->paddr = get_large_paddr_nopae(p->vaddr, soffset);
                 p->size = VMI_PS_4MB;
-                p->l2_a = pgd_curr;
-                p->l2_v = entry;
+                p->x86_legacy.pgd_location = pgd_curr;
+                p->x86_legacy.pgd_value = entry;
                 ret = g_slist_prepend(ret, p);
                 continue;
             }
@@ -387,10 +387,10 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
                     p->vaddr = soffset + k * VMI_PS_4KB;
                     p->paddr = get_paddr_nopae(p->vaddr, pte_entry);
                     p->size = VMI_PS_4KB;
-                    p->l2_a = pgd_curr;
-                    p->l2_v = entry;
-                    p->l1_a = pte_curr;
-                    p->l1_v = pte_entry;
+                    p->x86_legacy.pgd_location = pgd_curr;
+                    p->x86_legacy.pgd_value = entry;
+                    p->x86_legacy.pte_location = pte_curr;
+                    p->x86_legacy.pte_value = pte_entry;
                     ret = g_slist_prepend(ret, p);
                 }
             }
@@ -438,10 +438,10 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
                     p->vaddr = soffset;
                     p->paddr = get_large_paddr_pae(p->vaddr, pgd_curr);
                     p->size = VMI_PS_2MB;
-                    p->l3_a = pdpi_entry;
-                    p->l3_v = pdpe;
-                    p->l2_a = pgd_curr;
-                    p->l2_v = entry;
+                    p->x86_pae.pdpe_location = pdpi_entry;
+                    p->x86_pae.pdpe_value = pdpe;
+                    p->x86_pae.pgd_location = pgd_curr;
+                    p->x86_pae.pgd_value = entry;
                     ret = g_slist_prepend(ret, p);
                     continue;
                 }
@@ -459,12 +459,12 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
                         p->vaddr = soffset + k * VMI_PS_4KB;
                         p->paddr = get_paddr_pae(p->vaddr, pte_entry);
                         p->size = VMI_PS_4KB;
-                        p->l3_a = pdpi_entry;
-                        p->l3_v = pdpe;
-                        p->l2_a = pgd_curr;
-                        p->l2_v = entry;
-                        p->l1_a = pte_curr;
-                        p->l1_v = pte_entry;
+                        p->x86_pae.pdpe_location = pdpi_entry;
+                        p->x86_pae.pdpe_value = pdpe;
+                        p->x86_pae.pgd_location = pgd_curr;
+                        p->x86_pae.pgd_value = entry;
+                        p->x86_pae.pte_location = pte_curr;
+                        p->x86_pae.pte_value = pte_entry;
                         ret = g_slist_prepend(ret, p);
                     }
                 }

@@ -255,15 +255,35 @@ typedef struct page_info {
     addr_t dtb;         // dtb used for translation
     addr_t paddr;       // physical address
     page_size_t size;   // page size (VMI_PS_*)
-                 //                      NOPAE  PAE    IA32E
-    addr_t l1_a; // the location of the   pte / pte  / pte
-    addr_t l1_v; // the location of the   pte / pte  / pte
-    addr_t l2_a; // the location of the   pgd / pgd  / pde
-    addr_t l2_v; // the value of the      pgd / pgd  / pde
-    addr_t l3_a; // the location of the    -  / pdpe / pdpte
-    addr_t l3_v; // the value of the       -  / pdpe / pdpte
-    addr_t l4_a; // the location of the    -  /  -   / pml4e
-    addr_t l4_v; // the value of the       -  /  -   / pml4e
+
+    union {
+        struct {
+            addr_t pte_location;
+            addr_t pte_value;
+            addr_t pgd_location;
+            addr_t pgd_value;
+        } x86_legacy;
+
+        struct {
+            addr_t pte_location;
+            addr_t pte_value;
+            addr_t pgd_location;
+            addr_t pgd_value;
+            addr_t pdpe_location;
+            addr_t pdpe_value;
+        } x86_pae;
+
+        struct {
+            addr_t pte_location;
+            addr_t pte_value;
+            addr_t pgd_location;
+            addr_t pgd_value;
+            addr_t pdpte_location;
+            addr_t pdpte_value;
+            addr_t pml4e_location;
+            addr_t pml4e_value;
+        } x86_ia32e;
+    };
 } page_info_t;
 
 /* Available translation mechanism for v2p conversion. */
@@ -289,9 +309,14 @@ typedef struct {
 } access_context_t;
 
 /**
- * Macro to test bitfield values
+ * Macro to test bitfield values (up to 64-bits)
  */
 #define VMI_GET_BIT(reg, bit) (!!(reg & (1ULL<<bit)))
+
+/**
+ * Macro to compute bitfield masks (up to 64-bits)
+ */
+#define VMI_BIT_MASK(a, b) (((unsigned long long) -1 >> (63 - (b))) & ~((1ULL << (a)) - 1))
 
 /**
  * Generic representation of Unicode string to be used within libvmi
