@@ -83,19 +83,22 @@ status_t linux_init(vmi_instance_t vmi) {
     dbprint(VMI_DEBUG_MISC, "--got kernel boundary (0x%.16"PRIx64").\n", boundary);
 
     if(VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
-        if (VMI_FAILURE == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL, &vmi->kpgd)) {
+
+        if (VMI_SUCCESS == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL, &vmi->kpgd)) {
+            dbprint(VMI_DEBUG_MISC, "--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
+                    vmi->kpgd);
+            //We don't know if VMI_PM_LEGACY or VMI_PM_PAE yet
+            //so we do some heuristics below
+        } else if (VMI_SUCCESS == linux_system_map_symbol_to_address(vmi, "init_level4_pgt", NULL, &vmi->kpgd)) {
+            dbprint(VMI_DEBUG_MISC, "--got vaddr for init_level4_pgt (0x%.16"PRIx64").\n",
+                    vmi->kpgd);
+            //Set page mode to VMI_PM_IA32E
+            vmi->page_mode = VMI_PM_IA32E;
+        } else {
             goto _exit;
         }
 
-        dbprint(VMI_DEBUG_MISC, "--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
-                vmi->kpgd);
-
         vmi->kpgd -= boundary;
-    }
-
-    if(!vmi->kpgd) {
-        errprint("Failed to determine kpgd\n");
-        goto _exit;
     }
 
     dbprint(VMI_DEBUG_MISC, "**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
@@ -103,14 +106,35 @@ status_t linux_init(vmi_instance_t vmi) {
     // We check if the page mode is known
     // and if no arch interface has been setup yet we do it now
     if(VMI_PM_UNKNOWN == vmi->page_mode) {
+
+        //Try to check 32-bit paging modes
+        vmi->page_mode = VMI_PM_LEGACY;
+        if(VMI_SUCCESS == arch_init(vmi)) {
+            if(phys_start == vmi_pagetable_lookup(vmi, vmi->kpgd, virt_start)) {
+                // PM found
+                goto done;
+            }
+        }
+
+        vmi->page_mode = VMI_PM_PAE;
+        if(VMI_SUCCESS == arch_init(vmi)) {
+            if(phys_start == vmi_pagetable_lookup(vmi, vmi->kpgd, virt_start)) {
+                // PM found
+                goto done;
+            }
+        }
+
         errprint("VMI_ERROR: Page mode is still unknown\n");
         goto _exit;
-    } else if(!vmi->arch_interface) {
+    }
+
+    if(!vmi->arch_interface) {
         if(VMI_FAILURE == arch_init(vmi)) {
             goto _exit;
         }
     }
 
+done:
     ret = linux_system_map_symbol_to_address(vmi, "init_task", NULL,
             &vmi->init_task);
     if (ret != VMI_SUCCESS) {
