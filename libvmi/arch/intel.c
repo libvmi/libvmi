@@ -262,7 +262,7 @@ addr_t v2p_nopae (vmi_instance_t vmi,
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64", dtb = 0x%.16"PRIx64"\n", vaddr, dtb);
     info->x86_legacy.pgd_value = get_pgd_nopae(vmi, vaddr, dtb, &info->x86_legacy.pgd_location);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd = 0x%.8"PRIx32"\n", pgd);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd = 0x%.8"PRIx32"\n", info->x86_legacy.pgd_value);
 
     if (!ENTRY_PRESENT(vmi->os_type, info->x86_legacy.pgd_value)) {
         buffalo_nopae(vmi, info->x86_legacy.pgd_value, 0);
