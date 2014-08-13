@@ -2160,6 +2160,23 @@ status_t vmi_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout);
 
+/**
+ * Set wether to pause the domain if the event listener is no longer present.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] required Set to 0 if not required, 1 if required.
+ * @return VMI_FAILURE or VMI_SUCCESS
+ */
+status_t vmi_event_listener_required(
+    vmi_instance_t vmi,
+    int required);
+
+/**
+ * Check if there are events pending to be processed.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return The number of pending events, or 0 if there are non, -1 on error.
+ */
 int vmi_are_events_pending(
     vmi_instance_t vmi);
 

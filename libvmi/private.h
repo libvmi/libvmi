@@ -128,6 +128,8 @@ struct vmi_instance {
 
     unsigned int num_vcpus; /**< number of VCPUs used by this instance */
 
+    int event_listener_required; /**< Non-zero if event listener is required for the domain to run */
+
     GHashTable *interrupt_events; /**< interrupt event to function mapping (key: interrupt) */
 
     GHashTable *mem_events; /**< mem event to functions mapping (key: physical address) */

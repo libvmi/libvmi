@@ -630,15 +630,6 @@ void xen_events_destroy(vmi_instance_t vmi)
 
     // Turn off mem events
 #if XEN_EVENTS_VERSION == 410
-    // FIXME: Force this here until logic in event listen for "required"
-    // is figured out.
-    rc = xc_domain_set_access_required(xch, dom, 0);
-    if (rc < 0) {
-        // FIXME41: Xen 4.1.2 apparently mostly returns -1 for any call to this,
-        // so just suppress the error for now
-        dbprint(VMI_DEBUG_XEN, "Error %d setting mem_access listener required to not required\n", rc);
-    }
-
     if (xe->mem_event.ring_page != NULL) {
         munlock(xe->mem_event.ring_page, getpagesize());
         free(xe->mem_event.ring_page);
@@ -1195,12 +1186,6 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     int rc = -1;
     status_t vrc = VMI_SUCCESS;
 
-    /* TODO determine whether we should force the required=1 for
-     *   singlestep and int3, for which that is a necessity.
-     * Alternatively, an error could be issued
-     */
-    int required = 0;
-
     // Get xen handle and domain.
     xch = xen_get_xchandle(vmi);
     dom = xen_get_domainid(vmi);
@@ -1220,14 +1205,16 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     }
 
     // Set whether the access listener is required
-    rc = xc_domain_set_access_required(xch, dom, required);
+    rc = xc_domain_set_access_required(xch, dom, vmi->event_listener_required);
     if ( rc < 0 ) {
 #if XEN_EVENTS_VERSION == 410
         // FIXME41: Xen 4.1.2 apparently mostly returns -1 for any call to this,
         // so just suppress the error for now
-        dbprint(VMI_DEBUG_XEN, "Error %d setting mem_access listener required to %d\n", rc, required);
+        dbprint(VMI_DEBUG_XEN, "Error %d setting mem_access listener required to %d\n",
+            rc, vmi->event_listener_required);
 #else
-        errprint("Error %d setting mem_access listener required to %d\n", rc, required);
+        errprint("Error %d setting mem_access listener required to %d\n",
+            rc, vmi->event_listener_required);
 #endif
     }
 

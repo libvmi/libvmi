@@ -803,6 +803,17 @@ status_t vmi_events_listen(vmi_instance_t vmi, uint32_t timeout)
     return driver_events_listen(vmi, timeout);
 }
 
+status_t vmi_event_listener_required(vmi_instance_t vmi, int required)
+{
+
+    if ( required )
+        vmi->event_listener_required = 1;
+    else
+        vmi->event_listener_required = 0;
+
+    return VMI_SUCCESS;
+}
+
 vmi_event_t *vmi_get_singlestep_event(vmi_instance_t vmi, uint32_t vcpu)
 {
     return g_hash_table_lookup(vmi->ss_events, &vcpu);
