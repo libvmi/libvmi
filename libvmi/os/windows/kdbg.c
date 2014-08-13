@@ -809,8 +809,6 @@ status_t find_kdbg_address(
 
     dbprint(VMI_DEBUG_MISC, "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
 
-    ret = VMI_SUCCESS;
-
 exit:
     return ret;
 }
