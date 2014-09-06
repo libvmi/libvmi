@@ -64,11 +64,11 @@ status_t linux_init(vmi_instance_t vmi) {
         ret = linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
         if(VMI_SUCCESS == ret) {
             linux_system_map_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
-            vmi->page_mode == VMI_PM_IA32E;
+            vmi->page_mode = VMI_PM_IA32E;
         } else {
             linux_system_map_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
             linux_system_map_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
-            vmi->page_mode == VMI_PM_PAE; // it's just a guess
+            vmi->page_mode = VMI_PM_PAE; // it's just a guess
         }
     }
 
