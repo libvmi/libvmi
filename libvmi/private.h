@@ -205,9 +205,6 @@ typedef struct _windows_unicode_string32 {
     int line);
     unsigned long get_reg32(
     reg_t r);
-    int vmi_get_bit(
-    reg_t reg,
-    int bit);
     addr_t aligned_addr(
     vmi_instance_t vmi,
     addr_t addr);

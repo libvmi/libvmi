@@ -703,7 +703,7 @@ xen_discover_guest_addr_width(
             goto _bail;
         }
         xen_get_instance(vmi)->addr_width =
-            (vmi_get_bit(hw_ctxt.msr_efer, 8) == 0 ? 4 : 8);
+            (VMI_GET_BIT(hw_ctxt.msr_efer, 8) == 0 ? 4 : 8);
     }
     else {  // PV
         xen_domctl_t domctl = { 0 };
