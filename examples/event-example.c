@@ -138,8 +138,8 @@ void cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
 
     printf("one_task callback\n");
     if(event->reg_event.value == cr3){
-        printf("My process with PID %i, CR3="PRIx64" is executing on vcpu %"PRIu32". Previous CR3="PRIx64"\n",
-            pid, event->reg_event.value, event->vcpu_id, event->reg_event.previous);
+        printf("My process with PID %"PRIi32", CR3=%"PRIx64" is executing on vcpu %"PRIu32". Previous CR3=%"PRIx64"\n",
+               pid, event->reg_event.value, event->vcpu_id, event->reg_event.previous);
         msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
         msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
         kernel_sysenter_target_event.mem_event.in_access = VMI_MEMACCESS_X;

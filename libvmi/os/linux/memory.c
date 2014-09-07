@@ -29,6 +29,7 @@
 #include <sys/mman.h>
 #include "private.h"
 #include "os/linux/linux.h"
+#include "driver/interface.h"
 
 /* finds the task struct for a given pid */
 static addr_t
@@ -60,7 +61,7 @@ linux_get_taskstruct_addr_from_pid(
     list_head = next_process;
 
     do {
-        vmi_read_32_va(vmi, next_process + pid_offset, 0, &task_pid);
+        vmi_read_32_va(vmi, next_process + pid_offset, 0, (uint32_t*)&task_pid);
 
         /* if pid matches, then we found what we want */
         if (task_pid == pid) {
@@ -228,7 +229,7 @@ linux_pgd_to_pid(
     }
 
     /* now follow the pointer to the memory descriptor and grab the pid value */
-    vmi_read_32_va(vmi, ts_addr + pid_offset, 0, &pid);
+    vmi_read_32_va(vmi, ts_addr + pid_offset, 0, (uint32_t*)&pid);
 
 error_exit:
     return pid;

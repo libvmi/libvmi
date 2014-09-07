@@ -267,6 +267,28 @@ typedef struct _windows_unicode_string32 {
     void sym_cache_flush(
     vmi_instance_t vmi);
 
+    void rva_cache_init(
+        vmi_instance_t vmi);
+    void rva_cache_destroy(
+        vmi_instance_t vmi);
+    status_t rva_cache_get(
+        vmi_instance_t vmi,
+        addr_t base_addr,
+        vmi_pid_t pid,
+        addr_t rva,
+        char **sym);
+    void rva_cache_set(
+        vmi_instance_t vmi,
+        addr_t base_addr,
+        vmi_pid_t pid,
+        addr_t rva,
+        char *sym);
+    status_t rva_cache_del(
+        vmi_instance_t vmi,
+        addr_t base_addr,
+        vmi_pid_t pid,
+        addr_t rva);
+
     void v2p_cache_init(
     vmi_instance_t vmi);
     void v2p_cache_destroy(
@@ -362,5 +384,19 @@ typedef struct _windows_unicode_string32 {
     #define for_each_event(vmi, iter, table, key, val) \
         g_hash_table_iter_init(&iter, table); \
         while(g_hash_table_iter_next(&iter,(void**)key,(void**)val))
+
+/*----------------------------------------------
+ * os/windows/core.c
+ */
+    addr_t get_ntoskrnl_base(
+        vmi_instance_t vmi,
+        addr_t page_paddr);
+
+/*----------------------------------------------
+ * os/windows/kdbg.c
+ */
+    win_ver_t find_windows_version(
+        vmi_instance_t vmi,
+        addr_t kdbg);
 
 #endif /* PRIVATE_H */

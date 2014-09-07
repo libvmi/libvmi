@@ -208,7 +208,7 @@ memory_cache_insert(
         return NULL;
     }
 
-    gint64 *key = &paddr;
+    gint64 *key = (gint64*)&paddr;
     if ((entry = g_hash_table_lookup(vmi->memory_cache, key)) != NULL) {
         dbprint(VMI_DEBUG_MEMCACHE, "--MEMORY cache hit 0x%"PRIx64"\n", paddr);
         return validate_and_return_data(vmi, entry);

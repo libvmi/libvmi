@@ -48,33 +48,45 @@ open_config_file(
     )
 {
     FILE *f = NULL;
-    char location[100];
+    char *location;
     char *sudo_user = NULL;
     struct passwd *pw_entry = NULL;
 
     /* first check home directory of sudo user */
     if ((sudo_user = getenv("SUDO_USER")) != NULL) {
         if ((pw_entry = getpwnam(sudo_user)) != NULL) {
-            snprintf(location, 100, "%s/etc/libvmi.conf\0",
+            location = g_malloc0(snprintf(NULL,0,"%s/etc/libvmi.conf",
+                                          pw_entry->pw_dir)+1);
+            sprintf(location, "%s/etc/libvmi.conf",
                      pw_entry->pw_dir);
             dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
-            if ((f = fopen(location, "r")) != NULL) {
+
+            f = fopen(location, "r");
+            free(location);
+
+            if (f) {
                 goto success;
             }
         }
     }
 
     /* next check home directory for current user */
-    snprintf(location, 100, "%s/etc/libvmi.conf\0", getenv("HOME"));
+    location = g_malloc0(snprintf(NULL,0,"%s/etc/libvmi.conf",
+                                  getenv("HOME"))+1);
+    sprintf(location, "%s/etc/libvmi.conf", getenv("HOME"));
     dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
-    if ((f = fopen(location, "r")) != NULL) {
+
+    f = fopen(location, "r");
+    free(location);
+
+    if (f) {
         goto success;
     }
 
     /* finally check in /etc */
-    snprintf(location, 100, "/etc/libvmi.conf\0");
-    dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
-    if ((f = fopen(location, "r")) != NULL) {
+    dbprint(VMI_DEBUG_CORE, "--looking for config file at /etc/libvmi.conf\n");
+    f = fopen("/etc/libvmi.conf", "r");
+    if (f) {
         goto success;
     }
 
@@ -136,14 +148,16 @@ status_t read_config_string(vmi_instance_t vmi,
         return VMI_FAILURE;
     }
 
-    int length = strlen(config) + strlen(vmi->image_type) + 2;
-    char *config_str = safe_malloc(length);
+    int length = snprintf(NULL, 0, "%s %s", vmi->image_type, config) + 1;
+    char *config_str = g_malloc0(length);
 
-    sprintf(config_str, "%s %s\0", vmi->image_type, config);
+    sprintf(config_str, "%s %s", vmi->image_type, config);
 
-    config_file = fmemopen(config_str, strlen(config_str), "r");
+    config_file = fmemopen(config_str, length, "r");
 
     ret = read_config_file(vmi, config_file);
+
+    free(config_str);
 
     return ret;
 }
@@ -320,7 +334,7 @@ set_id_and_name(
                driver_set_name(vmi, name);
        } else {
                // create placeholder for image_type
-               char *idstring = malloc(snprintf(NULL, 0, "domid-%lu", id) + 1);
+               char *idstring = g_malloc0(snprintf(NULL, 0, "domid-%lu", id) + 1);
                sprintf(idstring, "domid-%lu", id);
                vmi->image_type = idstring;
        }

@@ -41,6 +41,9 @@
 int debug = 0;
 #endif /* VMI_DEBUG */
 
+extern int yylex (void);
+extern int yyparse (void);
+
 GHashTable *entry = NULL;
 GHashTable *tmp_entry = NULL;
 char *target_domain = NULL;
