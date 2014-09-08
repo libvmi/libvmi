@@ -200,18 +200,18 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
 
      printf("%.1x", pdb_header->age & 0xf);
      printf("\n");
-     printf("\tKernel filename: %s\n", pdb_header->pdb_file_name);
+     printf("\tKernel filename: %s\n", (char*)pdb_header->pdb_file_name);
 
-     if(!strcmp("ntoskrnl.pdb", pdb_header->pdb_file_name)) {
+     if(!strcmp("ntoskrnl.pdb", (char*)pdb_header->pdb_file_name)) {
         printf("\tSingle-processor without PAE\n");
      } else
-     if(!strcmp("ntkrnlmp.pdb", pdb_header->pdb_file_name)) {
+     if(!strcmp("ntkrnlmp.pdb", (char*)pdb_header->pdb_file_name)) {
         printf("\tMulti-processor without PAE\n");
      } else
-     if(!strcmp("ntkrnlpa.pdb", pdb_header->pdb_file_name)) {
+     if(!strcmp("ntkrnlpa.pdb", (char*)pdb_header->pdb_file_name)) {
         printf("\tSingle-processor with PAE (version 5.0 and higher)\n");
      } else
-     if(!strcmp("ntkrpamp.pdb", pdb_header->pdb_file_name)) {
+     if(!strcmp("ntkrpamp.pdb", (char*)pdb_header->pdb_file_name)) {
         printf("\tMulti-processor with PAE (version 5.0 and higher)\n");
      }
 

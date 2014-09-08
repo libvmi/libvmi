@@ -136,7 +136,7 @@ find_pname_offset(
     size_t read = 0;
     void *bm = 0;
 
-    bm = boyer_moore_init("Idle", 4);
+    bm = boyer_moore_init((unsigned char *)"Idle", 4);
 
 #define BLOCK_SIZE 1024 * 1024 * 1
     unsigned char block_buffer[BLOCK_SIZE];

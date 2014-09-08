@@ -1644,7 +1644,7 @@ xen_get_vcpureg_pv64(
         break;
     case CR3:
         *value = (reg_t) vcpu_ctx->ctrlreg[3];
-        *value = (reg_t) xen_cr3_to_pfn_x86_64(*value) << XC_PAGE_SHIFT;
+        *value = (reg_t) (xen_cr3_to_pfn_x86_64(*value) << XC_PAGE_SHIFT);
         break;
     case CR4:
         *value = (reg_t) vcpu_ctx->ctrlreg[4];

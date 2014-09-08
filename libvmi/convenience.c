@@ -150,15 +150,15 @@ vmi_convert_str_encoding(
     size_t inlen = in->length;
     size_t outlen = 2 * (inlen + 1);
 
-    char *instart = in->contents;
-    char *incurr = in->contents;
+    char *instart = (char*)in->contents;
+    char *incurr = (char*)in->contents;
 
     memset(out, 0, sizeof(*out));
     out->contents = safe_malloc(outlen);
     memset(out->contents, 0, outlen);
 
-    char *outstart = out->contents;
-    char *outcurr = out->contents;
+    char *outstart = (char*)out->contents;
+    char *outcurr = (char*)out->contents;
 
     out->encoding = outencoding;
 

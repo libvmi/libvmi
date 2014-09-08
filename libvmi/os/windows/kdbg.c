@@ -28,6 +28,7 @@
 #include "libvmi.h"
 #include "peparse.h"
 #include "private.h"
+#include "driver/interface.h"
 #define _GNU_SOURCE
 #include <string.h>
 
@@ -723,7 +724,7 @@ find_windows_version(
     windows_instance_t windows = NULL;
 
     if (vmi->os_data == NULL) {
-        return VMI_FAILURE;
+        return VMI_OS_WINDOWS_UNKNOWN;
     }
 
     windows = vmi->os_data;
@@ -770,8 +771,9 @@ status_t find_kdbg_address(
     unsigned char haystack[VMI_PS_4KB];
     addr_t memsize = vmi_get_memsize(vmi);
 
-    void *bm64 = boyer_moore_init("\x00\xf8\xff\xffKDBG", 8);
-    void *bm32 = boyer_moore_init("\x00\x00\x00\x00\x00\x00\x00\x00KDBG", 12);
+    void *bm64 = boyer_moore_init((unsigned char *)"\x00\xf8\xff\xffKDBG", 8);
+    void *bm32 = boyer_moore_init((unsigned char *)"\x00\x00\x00\x00\x00\x00\x00\x00KDBG",
+                                  12);
     uint32_t find_ofs_64 = 0xc, find_ofs_32 = 0x8, find_ofs = 0;
 
     for(;paddr<memsize;paddr+=VMI_PS_4KB) {
@@ -839,11 +841,11 @@ find_kdbg_address_fast(
     int find_ofs = 0;
 
     if (VMI_PM_IA32E == vmi->page_mode) {
-        bm = boyer_moore_init("\x00\xf8\xff\xffKDBG", 8);
+        bm = boyer_moore_init((unsigned char *)"\x00\xf8\xff\xffKDBG", 8);
         find_ofs = 0xc;
     }
     else {
-        bm = boyer_moore_init("\x00\x00\x00\x00\x00\x00\x00\x00KDBG",
+        bm = boyer_moore_init((unsigned char *)"\x00\x00\x00\x00\x00\x00\x00\x00KDBG",
                               12);
         find_ofs = 0x8;
     }   // if-else
@@ -932,7 +934,7 @@ find_kdbg_address_faster(
         return ret;
     }
 
-    void *bm = boyer_moore_init("KDBG", 4);
+    void *bm = boyer_moore_init((unsigned char *)"KDBG", 4);
     int find_ofs = 0x10;
 
     reg_t cr3, fsgs;
@@ -993,7 +995,7 @@ scan:
 
             unsigned char name[13] = {0};
             vmi_read_pa(vmi, page_paddr + et.name, name, 12);
-            if(strcmp("ntoskrnl.exe", name)) {
+            if(strcmp("ntoskrnl.exe", (const char *)name)) {
                 continue;
             }
         } else {

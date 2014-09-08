@@ -28,6 +28,7 @@
 #include "private.h"
 #include "peparse.h"
 #include "os/windows/windows.h"
+#include "driver/interface.h"
 
 // See http://en.wikipedia.org/wiki/Windows_NT
 static inline
@@ -114,7 +115,7 @@ get_ntoskrnl_base(
 
             unsigned char name[13] = {0};
             vmi_read_pa(vmi, page_paddr + et.name, name, 12);
-            if(!strcmp("ntoskrnl.exe", name)) {
+            if(!strcmp("ntoskrnl.exe", (char*)name)) {
                 ret = page_paddr;
                 break;
             }

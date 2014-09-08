@@ -37,6 +37,8 @@
     }
 #endif
 
+extern void BeginToken (char *t);
+
 %}
 
 %%
