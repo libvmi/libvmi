@@ -42,7 +42,7 @@ int main (int argc, char **argv)
     addr_t tmp_next = 0;
     char *procname = NULL;
     vmi_pid_t pid = 0;
-    unsigned long tasks_offset, pid_offset, name_offset;
+    unsigned long tasks_offset = 0, pid_offset = 0, name_offset = 0;
     status_t status;
 
     /* this is the VM or file that we are looking at */
@@ -64,28 +64,24 @@ int main (int argc, char **argv)
         tasks_offset = vmi_get_offset(vmi, "linux_tasks");
         name_offset = vmi_get_offset(vmi, "linux_name");
         pid_offset = vmi_get_offset(vmi, "linux_pid");
-
-        /* NOTE: 
-         *  name_offset is no longer hard-coded. Rather, it is now set 
-         *  via libvmi.conf.
-         */
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         tasks_offset = vmi_get_offset(vmi, "win_tasks");
-        if (0 == tasks_offset) {
-            printf("Failed to find win_tasks\n");
-            goto error_exit;
-        }
         name_offset = vmi_get_offset(vmi, "win_pname");
-        if (0 == name_offset) {
-            printf("Failed to find win_pname\n");
-            goto error_exit;
-        }
         pid_offset = vmi_get_offset(vmi, "win_pid");
-        if (0 == pid_offset) {
-            printf("Failed to find win_pid\n");
-            goto error_exit;
-        }
+    }
+
+    if (0 == tasks_offset) {
+        printf("Failed to find win_tasks\n");
+        goto error_exit;
+    }
+    if (0 == pid_offset) {
+        printf("Failed to find win_pid\n");
+        goto error_exit;
+    }
+    if (0 == name_offset) {
+        printf("Failed to find win_pname\n");
+        goto error_exit;
     }
 
     /* pause the vm for consistent memory access */
@@ -168,9 +164,7 @@ int main (int argc, char **argv)
 
     } while(next_list_entry != list_head);
 
-    error_exit: if (procname)
-        free(procname);
-
+error_exit:
     /* resume the vm */
     vmi_resume_vm(vmi);
 

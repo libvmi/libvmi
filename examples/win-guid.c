@@ -139,19 +139,20 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
     peparse_assign_headers(pe, NULL, &pe_header, &optional_header_type, NULL, &oh32, &oh32plus);
     addr_t debug_offset = peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_DEBUG, NULL, NULL, oh32, oh32plus);
 
-    if(optional_header_type == IMAGE_PE32_MAGIC) {
-
+    switch(optional_header_type)
+    {
+    case IMAGE_PE32_MAGIC:
         major_os_version=oh32->major_os_version;
         minor_os_version=oh32->minor_os_version;
         size_of_image=oh32->size_of_image;
-
-    } else
-    if(optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
-
+        break;
+    case IMAGE_PE32_PLUS_MAGIC:
         major_os_version=oh32plus->major_os_version;
         minor_os_version=oh32plus->minor_os_version;
         size_of_image=oh32plus->size_of_image;
-
+        break;
+    default:
+        return;
     }
 
     struct image_debug_directory debug_directory;
@@ -159,23 +160,34 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
 
     printf("\tPE GUID: %.8x%.5x\n",pe_header->time_date_stamp,size_of_image);
 
-    if(debug_directory.type == IMAGE_DEBUG_TYPE_MISC) {
+    switch(debug_directory.type)
+    {
+    case IMAGE_DEBUG_TYPE_CODEVIEW:
+        // OK
+        break;
+    case IMAGE_DEBUG_TYPE_MISC:
         printf("This operating system uses .dbg instead of .pdb\n");
         return;
-    } else
-    if(debug_directory.type != IMAGE_DEBUG_TYPE_CODEVIEW) {
+    default:
         printf("The header is not in CodeView format, unable to deal with that!\n");
         return;
     }
 
-    struct cv_info_pdb70 *pdb_header = malloc(debug_directory.size_of_data);
+    if(debug_directory.size_of_data > VMI_PS_4KB/4) {
+        // Normal size of the debug directory on Windows 7 for example is 0x25 bytes.
+        printf("The size of the debug directory is huge, something might be wrong.\n");
+        return;
+    }
+
+    struct cv_info_pdb70 *pdb_header = g_malloc0(debug_directory.size_of_data);
     vmi_read_pa(vmi, kernel_base_p + debug_directory.address_of_raw_data, pdb_header, debug_directory.size_of_data);
 
     // The PDB header has to be PDB 7.0
     // http://www.debuginfo.com/articles/debuginfomatch.html
-    if(pdb_header->cv_signature != RSDS) {
-       printf("The CodeView debug information has to be in PDB 7.0 for the kernel!\n");
-       return;
+    if(RSDS != pdb_header->cv_signature) {
+        printf("The CodeView debug information has to be in PDB 7.0 for the kernel!\n");
+        free(pdb_header);
+        return;
     }
 
      printf("\tPDB GUID: ");
