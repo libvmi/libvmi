@@ -901,7 +901,7 @@ xen_get_domainname(
     *name = xs_read(xen_get_instance(vmi)->xshandle, xth, tmp, NULL);
     free(tmp);
 
-    if (NULL == name) {
+    if (*name == NULL) {
         errprint("Couldn't get name of domain %lu from Xenstore\n",
                  xen_get_domainid(vmi));
         goto _bail;
