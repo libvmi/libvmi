@@ -810,6 +810,8 @@ status_t find_kdbg_address(
     dbprint(VMI_DEBUG_MISC, "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
 
 exit:
+    boyer_moore_fini(bm32);
+    boyer_moore_fini(bm64);
     return ret;
 }
 
@@ -935,16 +937,16 @@ find_kdbg_address_faster(
 
     reg_t cr3, fsgs;
     if(VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
-        return ret;
+        goto done;
     }
 
     if (VMI_PM_IA32E == vmi->page_mode) {
         if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0)) {
-            return ret;
+            goto done;
         }
     } else if(VMI_PM_LEGACY == vmi->page_mode || VMI_PM_PAE == vmi->page_mode) {
         if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0)) {
-            return ret;
+            goto done;
         }
     }
 
@@ -962,7 +964,7 @@ find_kdbg_address_faster(
 
 scan:
     page_paddr = (vmi_pagetable_lookup(vmi, cr3, fsgs) >> 12) << 12;
-    for(; page_paddr + step >= 0 && page_paddr + step < vmi->size ; page_paddr += step) {
+    for(; page_paddr + step < vmi->size ; page_paddr += step) {
 
         uint8_t page[VMI_PS_4KB];
         status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
@@ -1099,9 +1101,11 @@ find_kdbg_address_instant(
     }
 
     if (VMI_PM_IA32E == vmi->page_mode) {
-        driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0);
+        if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0))
+            goto done;
     } else {
-        driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0);
+        if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0))
+            goto done;
     }
 
     addr_t kernelbase_va = fsgs - windows->kpcr_offset;
