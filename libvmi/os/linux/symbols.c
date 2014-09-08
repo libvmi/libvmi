@@ -97,18 +97,18 @@ linux_system_map_symbol_to_address(
 {
     FILE *f = NULL;
     char *row = NULL;
-    status_t ret;
+    status_t ret = VMI_FAILURE;
 
     linux_instance_t linux_instance = vmi->os_data;
 
     if (linux_instance == NULL) {
         errprint("VMI_ERROR: OS instance not initialized\n");
-        return 0;
+        goto done;
     }
 
     if ((NULL == linux_instance->sysmap) || (strlen(linux_instance->sysmap) == 0)) {
         errprint("VMI_WARNING: No linux sysmap configured\n");
-        return 0;
+        goto done;
     }
 
     row = safe_malloc(MAX_ROW_LENGTH);
@@ -119,11 +119,11 @@ linux_system_map_symbol_to_address(
         fprintf(stderr,
                 "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
         address = 0;
-        goto error_exit;
+        goto done;
     }
     if (get_symbol_row(f, row, symbol, 2) == VMI_FAILURE) {
         address = 0;
-        goto error_exit;
+        goto done;
     }
 
     if (kernel_base_vaddr) {
@@ -131,11 +131,12 @@ linux_system_map_symbol_to_address(
     }
     (*address) = (addr_t) strtoull(row, NULL, 16);
 
-    return VMI_SUCCESS;
-error_exit:
+    ret = VMI_SUCCESS;
+
+done:
     if (row)
         free(row);
     if (f)
         fclose(f);
-    return VMI_FAILURE;
+    return ret;
 }
