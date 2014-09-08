@@ -213,7 +213,7 @@ void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
 {
     /* similar techniques are surely doable in linux, but for now
      * this is only testing for windows domains */
-    if (!instance->os_type == VMI_OS_WINDOWS) {
+    if (instance->os_type != VMI_OS_WINDOWS) {
         return;
     }
 
@@ -414,7 +414,9 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
         uint32_t pdpi_entry = pdpi_base + i * entry_size;
 
         uint64_t pdpe;
-        vmi_read_64_pa(vmi, pdpi_entry, &pdpe);
+        if(VMI_FAILURE == vmi_read_64_pa(vmi, pdpi_entry, &pdpe)) {
+            continue;
+        }
 
         if(!ENTRY_PRESENT(vmi->os_type, pdpe)) {
             continue;
