@@ -620,7 +620,7 @@ vmi_init_paging(
         }
     }
 
-    arch_init(vmi);
+    (void)arch_init(vmi);
     return vmi->page_mode;
 }
 
@@ -628,6 +628,9 @@ status_t
 vmi_destroy(
     vmi_instance_t vmi)
 {
+    if (!vmi)
+        return VMI_FAILURE;
+
     vmi->shutting_down = TRUE;
     if(vmi->init_mode & VMI_INIT_EVENTS){
         events_destroy(vmi);
@@ -653,7 +656,6 @@ vmi_destroy(
     memory_cache_destroy(vmi);
     if (vmi->image_type)
         free(vmi->image_type);
-    if (vmi)
-        free(vmi);
+    free(vmi);
     return VMI_SUCCESS;
 }
