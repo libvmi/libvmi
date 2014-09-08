@@ -438,9 +438,6 @@ status_t process_unhandled_mem(vmi_instance_t vmi, memevent_page_t *page,
     g_hash_table_remove(vmi->mem_events, &page->key);
 
     return VMI_SUCCESS;
-
-errdone:
-    return VMI_FAILURE;
 }
 
 void issue_mem_cb(vmi_instance_t vmi, vmi_event_t *event,
@@ -476,10 +473,10 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
             HVM_SAVE_CODE(CPU), req.vcpu_id, &ctx, sizeof(ctx));
 
     memevent_page_t * page = g_hash_table_lookup(vmi->mem_events, &req.gfn);
-    vmi_mem_access_t out_access;
-    if(req.access_r) out_access = VMI_MEMACCESS_R;
-    else if(req.access_w) out_access = VMI_MEMACCESS_W;
-    else if(req.access_x) out_access = VMI_MEMACCESS_X;
+    vmi_mem_access_t out_access = VMI_MEMACCESS_INVALID;
+    if(req.access_r) out_access |= VMI_MEMACCESS_R;
+    if(req.access_w) out_access |= VMI_MEMACCESS_W;
+    if(req.access_x) out_access |= VMI_MEMACCESS_X;
 
     if (page)
     {
@@ -671,6 +668,7 @@ void xen_events_destroy(vmi_instance_t vmi)
     //xe->mem_event.xce_handle = NULL;
 
     free(xe);
+    xen_get_instance(vmi)->events = NULL;
 }
 
 status_t xen_events_init(vmi_instance_t vmi)
