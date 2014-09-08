@@ -102,21 +102,6 @@ get_reg32(
     return (unsigned long) r;
 }
 
-int
-vmi_get_bit(
-    reg_t reg,
-    int bit)
-{
-    reg_t mask = 1 << bit;
-
-    if (reg & mask) {
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-
 addr_t
 aligned_addr(
     vmi_instance_t vmi,
