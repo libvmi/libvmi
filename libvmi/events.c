@@ -221,6 +221,8 @@ void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
 
         if (0 == wrap->steps)
         {
+            --(vmi->step_vcpus[wrap->vcpu_id]);
+
             if (wrap->cb)
             {
                 wrap->cb(vmi, wrap->event);
@@ -230,7 +232,6 @@ void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
                 vmi_register_event(vmi, wrap->event);
             }
 
-            --(vmi->step_vcpus[wrap->vcpu_id]);
             if (!vmi->step_vcpus[wrap->vcpu_id])
             {
                 // No more events on this vcpu need registering
