@@ -810,7 +810,7 @@ status_t
 rva_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t rva,
     char **sym)
 {
@@ -832,7 +832,7 @@ status_t
 rva_cache_del(
     vmi_instance_t vmi,
     addr_t base_addr,
-    uint32_t pid,
+    vmi_pid_t pid,
     addr_t rva)
 {
     return VMI_FAILURE;
