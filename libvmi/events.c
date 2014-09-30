@@ -206,11 +206,21 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
 void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
 {
 
-    GSList *reg_list = vmi->step_events;
+    /* We copy the list here as the user may add to it in the callback. */
+    GSList *reg_list = NULL, *loop = NULL;
+    for(loop = vmi->step_events; loop; loop = loop->next) {
+        reg_list = g_slist_prepend(reg_list, loop->data);
+    }
+
+    /* Clean the existing list preemptively. */
+    g_slist_free(vmi->step_events);
+    vmi->step_events = NULL;
+
+    GSList *reg_list_head = reg_list;
     GSList *remain = NULL;
+
     while (reg_list)
     {
-
         step_and_reg_event_wrapper_t *wrap =
                 (step_and_reg_event_wrapper_t *) reg_list->data;
 
@@ -221,8 +231,6 @@ void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
 
         if (0 == wrap->steps)
         {
-            --(vmi->step_vcpus[wrap->vcpu_id]);
-
             if (wrap->cb)
             {
                 wrap->cb(vmi, wrap->event);
@@ -232,6 +240,7 @@ void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
                 vmi_register_event(vmi, wrap->event);
             }
 
+            --(vmi->step_vcpus[wrap->vcpu_id]);
             if (!vmi->step_vcpus[wrap->vcpu_id])
             {
                 // No more events on this vcpu need registering
@@ -249,8 +258,13 @@ void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
         reg_list = reg_list->next;
     }
 
-    g_slist_free(vmi->step_events);
-    vmi->step_events = remain;
+    g_slist_free(reg_list_head);
+
+    /* Concat the remainder of this list with whatever the user set. */
+    if (vmi->step_events)
+        vmi->step_events = g_slist_concat(remain, vmi->step_events);
+    else
+        vmi->step_events = remain;
 }
 
 status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
