@@ -24,6 +24,9 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef XEN_H
+#define XEN_H
+
 #include "driver/xen_events.h"
 
 #if ENABLE_XEN == 1
@@ -176,3 +179,5 @@ size_t xen_get_dgpma(
     void** medial_addr_ptr,
     size_t count);
 #endif
+
+#endif /* XEN_H */

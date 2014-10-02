@@ -27,14 +27,21 @@
 #define XEN_PRIVATE_H
 
 #include "libvmi.h"
+#include "driver/xen.h"
 
-xen_instance_t *xen_get_instance (vmi_instance_t vmi);
+static inline
+xen_instance_t *xen_get_instance(
+    vmi_instance_t vmi)
+{
+    return ((xen_instance_t *) vmi->driver);
+}
 
-#ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
-xc_interface *
-#else
-int
-#endif
-xen_get_xchandle (vmi_instance_t vmi);
 
-#endif
+static inline
+libvmi_xenctrl_handle_t xen_get_xchandle(
+    vmi_instance_t vmi)
+{
+    return xen_get_instance(vmi)->xchandle;
+}
+
+#endif /* XEN_PRIVATE_H */

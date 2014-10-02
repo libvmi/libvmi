@@ -54,11 +54,6 @@
 
 #include "libvmi.h"
 #include "private.h"
-#include "driver/xen.h"
-#include "driver/xen_private.h"
-#include "driver/xen_events.h"
-
-#include <string.h>
 
 /*----------------------------------------------------------------------------
  * Helper functions
@@ -73,6 +68,12 @@
  *  all of the features LibVMI needs.
  */
 #if ENABLE_XEN==1 && ENABLE_XEN_EVENTS==1 && defined(XENCTRL_HAS_XC_INTERFACE) && defined(XEN_EVENTS_VERSION)
+
+#include "driver/xen.h"
+#include "driver/xen_private.h"
+#include "driver/xen_events.h"
+
+#include <string.h>
 
 static inline xen_events_t *xen_get_events(vmi_instance_t vmi)
 {
