@@ -276,6 +276,14 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     vmi_memevent_granularity_t granularity = event->mem_event.granularity;
     addr_t page_key = event->mem_event.physical_address >> 12;
 
+    if (event->mem_event.in_access >= __VMI_MEMACCESS_MAX ||
+        event->mem_event.in_access == VMI_MEMACCESS_INVALID)
+    {
+        dbprint(VMI_DEBUG_EVENTS, "Invalid VMI_MEMACCESS requested: %d\n",
+                event->mem_event.in_access);
+        return VMI_FAILURE;
+    }
+
     // Page already has event(s) registered
     page = g_hash_table_lookup(vmi->mem_events, &page_key);
     if (NULL != page)

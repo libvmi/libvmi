@@ -1803,7 +1803,9 @@ typedef enum {
     VMI_EVENT_MEMORY,    /* Read/write/execute on a region of memory */
     VMI_EVENT_REGISTER,  /* Read/write of a specific register */
     VMI_EVENT_SINGLESTEP,/* Instructions being executed on a set of VCPUs */
-    VMI_EVENT_INTERRUPT  /* Interrupts being delivered */
+    VMI_EVENT_INTERRUPT,  /* Interrupts being delivered */
+
+    __VMI_EVENT_MAX
 } vmi_event_type_t;
 
 /* max number of vcpus we can set single step on at one time for a domain */
@@ -1819,6 +1821,8 @@ typedef enum {
     VMI_REGACCESS_R = (1 << 1),
     VMI_REGACCESS_W = (1 << 2),
     VMI_REGACCESS_RW = (VMI_REGACCESS_R | VMI_REGACCESS_W),
+
+    __VMI_REGACCESS_MAX
 } vmi_reg_access_t;
 
 /* Page permissions used both for configuring type of memory operations to
@@ -1838,7 +1842,9 @@ typedef enum {
 
     // Special cases
     VMI_MEMACCESS_W2X        = (1 << 4),
-    VMI_MEMACCESS_RWX2N      = (1 << 5)
+    VMI_MEMACCESS_RWX2N      = (1 << 5),
+
+    __VMI_MEMACCESS_MAX
 } vmi_mem_access_t;
 
 /* The level of granularity used in the configuration of a memory event.
@@ -1850,7 +1856,9 @@ typedef enum {
 typedef enum {
     VMI_MEMEVENT_INVALID,
     VMI_MEMEVENT_BYTE,
-    VMI_MEMEVENT_PAGE
+    VMI_MEMEVENT_PAGE,
+
+    __VMI_MEMEVENT_MAX
 } vmi_memevent_granularity_t;
 
 typedef struct {
