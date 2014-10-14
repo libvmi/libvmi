@@ -341,8 +341,13 @@ static status_t
 get_kpgd_method0(
     vmi_instance_t vmi)
 {
-    addr_t sysproc = 0;
+    addr_t sysproc_va = 0;
+    addr_t sysproc_pa = 0;
+    addr_t active_process_head = 0;
     windows_instance_t windows = NULL;
+    vmi_pid_t pid = 4;
+    size_t len = sizeof(vmi_pid_t);
+    addr_t kpgd = 0;
 
     if (vmi->os_data == NULL) {
         errprint("VMI_ERROR: No OS data initialized\n");
@@ -351,40 +356,49 @@ get_kpgd_method0(
 
     windows = vmi->os_data;
 
-    if (VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsActiveProcessHead", &sysproc)) {
+    if (VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsActiveProcessHead", &active_process_head)) {
         dbprint(VMI_DEBUG_MISC, "--failed to resolve PsActiveProcessHead\n");
         goto error_exit;
     }
-    if (VMI_FAILURE == vmi_read_addr_va(vmi, sysproc, 0, &sysproc)) {
-        dbprint(VMI_DEBUG_MISC, "--failed to translate PsActiveProcessHead\n");
+
+    dbprint(VMI_DEBUG_MISC, "--starting search from PsActiveProcessHead (0x%.16"PRIx64") using kpgd (0x%.16"PRIx64").\n",
+            active_process_head, vmi->kpgd);
+
+    sysproc_va = eprocess_list_search(vmi, active_process_head - windows->tasks_offset, windows->pid_offset, len, &pid);
+
+    if (sysproc_va == 0) {
+        dbprint(VMI_DEBUG_MISC, "--failed to find system process with pid 4\n");
         goto error_exit;
     }
-    sysproc = vmi_translate_kv2p(vmi, sysproc) - windows->tasks_offset;
-    dbprint(VMI_DEBUG_MISC, "--got PA to PsActiveProcessHead (0x%.16"PRIx64").\n", sysproc);
+
+    sysproc_va -= windows->tasks_offset;
+    dbprint(VMI_DEBUG_MISC, "--Found System process at %lx\n", sysproc_va);
+    sysproc_pa = vmi_translate_kv2p(vmi, sysproc_va);
+
+    if (sysproc_pa == 0) {
+        dbprint(VMI_DEBUG_MISC, "--failed to translate System process\n");
+        goto error_exit;
+    }
+
+    dbprint(VMI_DEBUG_MISC, "--Found System process physical address at %lx\n", sysproc_pa);
 
     if (VMI_FAILURE ==
         vmi_read_addr_pa(vmi,
-                         sysproc +
+                         sysproc_pa +
                          windows->pdbase_offset,
-                         &vmi->kpgd)) {
+                         &kpgd)) {
         dbprint(VMI_DEBUG_MISC, "--failed to resolve pointer for system process\n");
         goto error_exit;
     }
 
-    if (!vmi->kpgd) {
+    if (!kpgd) {
         dbprint(VMI_DEBUG_MISC, "--kpgd was zero\n");
         goto error_exit;
     }
+    vmi->kpgd = kpgd;
     dbprint(VMI_DEBUG_MISC, "**set kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
-    if (VMI_FAILURE ==
-        vmi_read_addr_pa(vmi,
-                     sysproc + windows->tasks_offset,
-                     &vmi->init_task)){
-        dbprint(VMI_DEBUG_MISC, "--failed to resolve address of System process\n");
-        goto error_exit;
-    }
-    vmi->init_task -= windows->tasks_offset;
+    vmi->init_task = sysproc_va;
     dbprint(VMI_DEBUG_MISC, "**set init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     return VMI_SUCCESS;

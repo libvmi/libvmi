@@ -77,6 +77,7 @@ status_t windows_system_map_symbol_to_address(
 typedef int (*check_magic_func)(uint32_t);
 int find_pname_offset(vmi_instance_t vmi, check_magic_func check);
 addr_t windows_find_eprocess(vmi_instance_t instance, const char *name);
+addr_t eprocess_list_search(vmi_instance_t vmi, addr_t list_head, int offset, size_t len, void *value);
 addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, vmi_pid_t pid);
 addr_t windows_find_eprocess_list_pgd(vmi_instance_t vmi, addr_t pgd);
 
