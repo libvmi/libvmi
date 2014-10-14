@@ -292,8 +292,16 @@ addr_t vmi_pid_to_dtb (vmi_instance_t vmi, vmi_pid_t pid)
 {
     addr_t dtb = 0;
 
+    if (!vmi->os_interface) {
+        return 0;
+    }
+
+    if (pid == 0) {
+        return vmi->kpgd;
+    }
+
     if (VMI_FAILURE == pid_cache_get(vmi, pid, &dtb)) {
-        if (vmi->os_interface && vmi->os_interface->os_pid_to_pgd) {
+        if (vmi->os_interface->os_pid_to_pgd) {
             dtb = vmi->os_interface->os_pid_to_pgd(vmi, pid);
         }
 
