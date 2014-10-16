@@ -1322,18 +1322,27 @@ status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event, uint8_
 status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_access_t page_access_flag){
     return VMI_FAILURE;
 }
+
 status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event){
     return VMI_FAILURE;
 }
+
 status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu){
     return VMI_FAILURE;
 }
+
 status_t xen_shutdown_single_step(vmi_instance_t vmi){
     return VMI_FAILURE;
 }
+
 status_t xen_events_init(vmi_instance_t vmi){
     return VMI_FAILURE;
 }
+
 void xen_events_destroy(vmi_instance_t vmi){
+}
+
+int xen_are_events_pending(vmi_instance_t vmi) {
+	return 0;
 }
 #endif /* ENABLE_XEN */

@@ -27,6 +27,7 @@
 #include "libvmi.h"
 #include "private.h"
 #include "driver/xen.h"
+#include "driver/xen_events.h"
 #include "driver/kvm.h"
 #include "driver/file.h"
 #include <stdlib.h>
