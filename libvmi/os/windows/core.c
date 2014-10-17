@@ -28,7 +28,7 @@
 #include "private.h"
 #include "peparse.h"
 #include "os/windows/windows.h"
-#include "driver/interface.h"
+#include "driver/driver_wrapper.h"
 
 // See http://en.wikipedia.org/wiki/Windows_NT
 static inline

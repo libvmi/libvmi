@@ -56,7 +56,14 @@ AC_ARG_ENABLE([xen_events],
          [Support use of Xen memory events (default is no)])],
       [enable_xen_events=$enableval],
       [enable_xen_events=no])
-AM_CONDITIONAL([XEN], [test x$enable_xen_events = xyes])
+AM_CONDITIONAL([XEN_EVENTS], [test x$enable_xen_events = xyes])
+
+AC_ARG_WITH([xenstore],
+      [AS_HELP_STRING([--without-xenstore],
+         [Build LibVMI without Xenstore])],
+      [with_xenstore=$withval],
+      [with_xenstore=yes])
+AM_CONDITIONAL([XENSTORE], [test x$with_xenstore = xyes])
 
 AC_ARG_ENABLE([kvm],
       [AS_HELP_STRING([--disable-kvm],
@@ -70,7 +77,7 @@ AC_ARG_ENABLE([shm_snapshot],
          [Support shm-snapshot with KVM VMs (Xen is pending) (default is no)])],
       [enable_shm_snapshot=$enableval],
       [enable_shm_snapshot=no])
-AM_CONDITIONAL([KVM], [test x$enable_shm_snapshot = xyes])
+AM_CONDITIONAL([SHM], [test x$enable_shm_snapshot = xyes])
 
 AC_ARG_ENABLE([file],
       [AS_HELP_STRING([--disable-file],
@@ -79,19 +86,13 @@ AC_ARG_ENABLE([file],
       [enable_file=yes])
 AM_CONDITIONAL([FILE], [test x$enable_file = xyes])
 
+have_vmifs='no'
 AC_ARG_ENABLE([vmifs],
       [AS_HELP_STRING([--disable-vmifs],
          [Build VMIFS tool: maps memory to a file through FUSE])],
       [enable_vmifs=$enableval],
       [enable_vmifs=yes])
 AM_CONDITIONAL([VMIFS], [test x$enable_vmifs = xyes])
-
-AC_ARG_WITH([xenstore],
-      [AS_HELP_STRING([--without-xenstore],
-         [Build LibVMI without Xenstore])],
-      [with_xenstore=$withval],
-      [with_xenstore=yes])
-AM_CONDITIONAL([XENSTORE], [test x$with_xenstore = xyes])
 
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
@@ -234,6 +235,8 @@ xen_event_space=' '
         [],
         [#include "xenctrl.h"])
 [fi]
+AM_CONDITIONAL([HAVE_XEN], [test x$have_xen = xyes])
+AM_CONDITIONAL([HAVE_XEN_EVENTS], [test x$have_xen_events = xyes])
 
 have_kvm='no'
 kvm_space='      '
@@ -282,6 +285,7 @@ kvm_space='      '
         [fi]
     [fi]
 [fi]
+AM_CONDITIONAL([HAVE_KVM], [test x$have_kvm = xyes])
 
 AC_CHECK_LIB(m, ceil, [], [])
 
@@ -302,8 +306,8 @@ file_space='      '
     file_space='     '
     have_file='yes'
 [fi]
+AM_CONDITIONAL([HAVE_FILE], [test x$have_file = xyes])
 
-have_vmifs='no'
 vmifs_space='      '
 [if test "$enable_vmifs" = "yes"]
 [then]

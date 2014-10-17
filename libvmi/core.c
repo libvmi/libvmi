@@ -26,7 +26,7 @@
 
 #include "libvmi.h"
 #include "private.h"
-#include "driver/interface.h"
+#include "driver/driver_wrapper.h"
 #include "driver/memory_cache.h"
 #include "os/os_interface.h"
 #include "os/windows/windows.h"
@@ -389,16 +389,21 @@ vmi_init_private(
         goto error_exit;
     }
 
-    /* resolve the id and name */
-    if (VMI_FAILURE == set_id_and_name(*vmi, access_mode, id, name)) {
-        goto error_exit;
-    }
-
     /* driver-specific initilization */
     if (VMI_FAILURE == driver_init(*vmi)) {
         goto error_exit;
     }
     dbprint(VMI_DEBUG_CORE, "--completed driver init.\n");
+
+    /* resolve the id and name */
+    if (VMI_FAILURE == set_id_and_name(*vmi, access_mode, id, name)) {
+        goto error_exit;
+    }
+
+    /* init vmi for specific file/domain through the driver */
+    if (VMI_FAILURE == driver_init_vmi(*vmi)) {
+        goto error_exit;
+    }
 
     /* setup the page offset size */
     if (VMI_FAILURE == init_page_offset(*vmi)) {

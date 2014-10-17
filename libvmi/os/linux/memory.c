@@ -29,7 +29,7 @@
 #include <sys/mman.h>
 #include "private.h"
 #include "os/linux/linux.h"
-#include "driver/interface.h"
+#include "driver/driver_wrapper.h"
 
 /* finds the task struct for a given pid */
 static addr_t

@@ -28,7 +28,7 @@
 
 #include "libvmi.h"
 #include "private.h"
-#include "driver/interface.h"
+#include "driver/driver_wrapper.h"
 
 #define _GNU_SOURCE
 #include <glib.h>

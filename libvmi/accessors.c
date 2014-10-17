@@ -26,7 +26,7 @@
 
 #include "libvmi.h"
 #include "private.h"
-#include "driver/interface.h"
+#include "driver/driver_wrapper.h"
 
 /* NB: Necessary for windows specific API functions */
 #include "os/windows/windows.h"

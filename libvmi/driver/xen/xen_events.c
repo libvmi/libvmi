@@ -54,27 +54,16 @@
 
 #include "libvmi.h"
 #include "private.h"
+#include "driver/xen/xen.h"
+#include "driver/xen/xen_private.h"
+#include "driver/xen/xen_events.h"
+#include "driver/xen/xen_events_private.h"
+
+#include <string.h>
 
 /*----------------------------------------------------------------------------
  * Helper functions
  */
-
-/* Only build if Xen and Xen memory events are explicitly enabled by the
- *  configure script.
- *
- * Use the xenctrl interface version defined (from xenctrl.h) to validate
- *  that all the features we expect are present. This avoids build failures
- *  on 4.0.x which had some memory event functions defined, yet lacked
- *  all of the features LibVMI needs.
- */
-#if ENABLE_XEN==1 && ENABLE_XEN_EVENTS==1 && defined(XENCTRL_HAS_XC_INTERFACE) && defined(XEN_EVENTS_VERSION)
-
-#include "driver/xen.h"
-#include "driver/xen_private.h"
-#include "driver/xen_events.h"
-
-#include <string.h>
-
 static inline xen_events_t *xen_get_events(vmi_instance_t vmi)
 {
     return xen_get_instance(vmi)->events;
@@ -1306,43 +1295,3 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 
     return vrc;
 }
-#else
-status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout){
-    return VMI_FAILURE;
-}
-
-status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event){
-    return VMI_FAILURE;
-}
-
-status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled){
-    return VMI_FAILURE;
-}
-
-status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_access_t page_access_flag){
-    return VMI_FAILURE;
-}
-
-status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event){
-    return VMI_FAILURE;
-}
-
-status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu){
-    return VMI_FAILURE;
-}
-
-status_t xen_shutdown_single_step(vmi_instance_t vmi){
-    return VMI_FAILURE;
-}
-
-status_t xen_events_init(vmi_instance_t vmi){
-    return VMI_FAILURE;
-}
-
-void xen_events_destroy(vmi_instance_t vmi){
-}
-
-int xen_are_events_pending(vmi_instance_t vmi) {
-	return 0;
-}
-#endif /* ENABLE_XEN */

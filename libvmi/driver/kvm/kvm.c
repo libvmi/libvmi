@@ -7,6 +7,7 @@
  * retains certain rights in this software.
  *
  * Author: Bryan D. Payne (bdpayne@acm.org)
+ * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
  *
  * This file is part of LibVMI.
  *
@@ -27,11 +28,11 @@
 #include "libvmi.h"
 #include "libvmi_extra.h"
 #include "private.h"
-#include "driver/kvm.h"
-#include "driver/interface.h"
+#include "driver/driver_wrapper.h"
 #include "driver/memory_cache.h"
+#include "driver/kvm/kvm.h"
+#include "driver/kvm/kvm_private.h"
 
-#if ENABLE_KVM == 1
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
@@ -247,13 +248,6 @@ destroy_domain_socket(
 
 //----------------------------------------------------------------------------
 // KVM-Specific Interface Functions (no direction mapping to driver_*)
-
-static kvm_instance_t *
-kvm_get_instance(
-    vmi_instance_t vmi)
-{
-    return ((kvm_instance_t *) vmi->driver);
-}
 
 #if ENABLE_SHM_SNAPSHOT == 1
 status_t
@@ -1204,19 +1198,31 @@ status_t
 kvm_init(
     vmi_instance_t vmi)
 {
+    kvm_instance_t *kvm = g_malloc0(sizeof(kvm_instance_t));
     virConnectPtr conn = NULL;
-    virDomainPtr dom = NULL;
-    virDomainInfo info;
 
     conn =
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
                            0);
     if (NULL == conn) {
         dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
+        free(kvm);
         return VMI_FAILURE;
     }
 
-    dom = virDomainLookupByID(conn, kvm_get_instance(vmi)->id);
+    kvm->conn = conn;
+
+    vmi->driver.driver_data = (void*)kvm;
+    return VMI_SUCCESS;
+}
+
+status_t
+kvm_init_vmi(
+    vmi_instance_t vmi)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    virDomainInfo info;
+    virDomainPtr dom = virDomainLookupByID(kvm->conn, kvm->id);
     if (NULL == dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
@@ -1225,19 +1231,18 @@ kvm_init(
     // get the libvirt version
     unsigned long libVer = 0;
 
-    if (virConnectGetLibVersion(conn, &libVer) != 0) {
+    if (virConnectGetLibVersion(kvm->conn, &libVer) != 0) {
         dbprint(VMI_DEBUG_KVM, "--failed to get libvirt version\n");
         return VMI_FAILURE;
     }
     dbprint(VMI_DEBUG_KVM, "--libvirt version %lu\n", libVer);
 
-    kvm_get_instance(vmi)->conn = conn;
-    kvm_get_instance(vmi)->dom = dom;
-    kvm_get_instance(vmi)->socket_fd = 0;
+    kvm->dom = dom;
+    kvm->socket_fd = 0;
     vmi->hvm = 1;
 
     //get the VCPU count from virDomainInfo structure
-    if (-1 == virDomainGetInfo(kvm_get_instance(vmi)->dom, &info)) {
+    if (-1 == virDomainGetInfo(kvm->dom, &info)) {
         dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
         return VMI_FAILURE;
     }
@@ -1250,17 +1255,15 @@ kvm_init(
         errprint("Failed to get memory size.\n");
         return VMI_FAILURE;
     }
+
     dbprint(VMI_DEBUG_KVM, "**set size = %"PRIu64" [0x%"PRIx64"]\n", vmi->size,
             vmi->size);
 
-
-    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
+    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT)
         return kvm_create_shm_snapshot(vmi);
-    } else
 #endif
-    {
-        return kvm_setup_live_mode(vmi);
-    }
+
+    return kvm_setup_live_mode(vmi);
 }
 
 void
@@ -1288,7 +1291,7 @@ kvm_destroy(
 unsigned long
 kvm_get_id_from_name(
     vmi_instance_t vmi,
-    char *name)
+    const char *name)
 {
     virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
@@ -1662,7 +1665,7 @@ kvm_is_pv(
 status_t
 kvm_test(
     unsigned long id,
-    char *name)
+    const char *name)
 {
     virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
@@ -1792,183 +1795,4 @@ kvm_get_dgvma(
 
     return v2m_size>count?count:v2m_size;
 }
-
-#endif
-
-//////////////////////////////////////////////////////////////////////
-#else
-
-status_t
-kvm_init(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-void
-kvm_destroy(
-    vmi_instance_t vmi)
-{
-    return;
-}
-
-unsigned long
-kvm_get_id_from_name(
-    vmi_instance_t vmi,
-    char *name)
-{
-    return 0;
-}
-
-status_t
-kvm_get_name_from_id(
-    vmi_instance_t vmi,
-    unsigned long domid,
-    char **name)
-{
-    return VMI_FAILURE;
-}
-
-unsigned long
-kvm_get_id(
-    vmi_instance_t vmi)
-{
-    return 0;
-}
-
-void
-kvm_set_id(
-    vmi_instance_t vmi,
-    unsigned long id)
-{
-    return;
-}
-
-status_t
-kvm_check_id(
-    vmi_instance_t vmi,
-    unsigned long id)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-kvm_get_name(
-    vmi_instance_t vmi,
-    char **name)
-{
-    return VMI_FAILURE;
-}
-
-void
-kvm_set_name(
-    vmi_instance_t vmi,
-    char *name)
-{
-    return;
-}
-
-status_t
-kvm_get_memsize(
-    vmi_instance_t vmi,
-    uint64_t *size)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-kvm_get_vcpureg(
-    vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
-    unsigned long vcpu)
-{
-    return VMI_FAILURE;
-}
-
-void *
-kvm_read_page(
-    vmi_instance_t vmi,
-    addr_t page)
-{
-    return NULL;
-}
-
-status_t
-kvm_write(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void *buf,
-    uint32_t length)
-{
-    return VMI_FAILURE;
-}
-
-int
-kvm_is_pv(
-    vmi_instance_t vmi)
-{
-    return 0;
-}
-
-status_t
-kvm_test(
-    unsigned long id,
-    char *name)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-kvm_pause_vm(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-kvm_resume_vm(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-#if ENABLE_SHM_SNAPSHOT == 1
-status_t
-kvm_create_shm_snapshot(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-kvm_destroy_shm_snapshot(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-size_t
-kvm_get_dgpma(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void** medial_addr_ptr,
-    size_t count)
-{
-    return NULL;
-}
-
-size_t
-kvm_get_dgvma(
-    vmi_instance_t vmi,
-    addr_t vaddr,
-    pid_t pid,
-    void** guest_mapping_vaddr,
-    size_t count)
-{
-    return NULL;
-}
-
-#endif
-
-#endif /* ENABLE_KVM */
+#endif /* ENABLE_SHM_SNAPSHOT */

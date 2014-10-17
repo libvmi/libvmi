@@ -7,6 +7,7 @@
  * retains certain rights in this software.
  *
  * Author: Bryan D. Payne (bdpayne@acm.org)
+ * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
  *
  * This file is part of LibVMI.
  *
@@ -24,110 +25,111 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include <stdlib.h>
+#ifndef KVM_H
+#define KVM_H
 
-status_t driver_init_mode(
-    vmi_instance_t vmi,
-    unsigned long id,
-    char *name);
-status_t driver_init(
+status_t kvm_init(
     vmi_instance_t vmi);
-void driver_destroy(
+status_t kvm_init_vmi(
     vmi_instance_t vmi);
-unsigned long driver_get_id_from_name(
+void kvm_destroy(
+    vmi_instance_t vmi);
+unsigned long kvm_get_id_from_name(
     vmi_instance_t vmi,
-    char *name);
-status_t driver_get_name_from_id(
+    const char *name);
+status_t kvm_get_name_from_id(
     vmi_instance_t vmi,
     unsigned long domid,
     char **name);
-unsigned long driver_get_id(
+unsigned long kvm_get_id(
     vmi_instance_t vmi);
-void driver_set_id(
+void kvm_set_id(
     vmi_instance_t vmi,
     unsigned long id);
-status_t driver_check_id(
+status_t kvm_check_id(
     vmi_instance_t vmi,
     unsigned long id);
-status_t driver_get_name(
+status_t kvm_get_name(
     vmi_instance_t vmi,
     char **name);
-void driver_set_name(
+void kvm_set_name(
     vmi_instance_t vmi,
     char *name);
-status_t driver_get_memsize(
+status_t kvm_get_memsize(
     vmi_instance_t vmi,
     uint64_t *size);
-status_t driver_get_vcpureg(
+status_t kvm_get_vcpureg(
     vmi_instance_t vmi,
     reg_t *value,
     registers_t reg,
     unsigned long vcpu);
-status_t driver_set_vcpureg(
+addr_t kvm_pfn_to_mfn(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
-    unsigned long vcpu);
-void *driver_read_page(
+    addr_t pfn);
+void *kvm_read_page(
     vmi_instance_t vmi,
     addr_t page);
-status_t driver_write(
+status_t kvm_write(
     vmi_instance_t vmi,
     addr_t paddr,
     void *buf,
     uint32_t length);
-int driver_is_pv(
+int kvm_is_pv(
     vmi_instance_t vmi);
-status_t driver_pause_vm(
+status_t kvm_test(
+    unsigned long id,
+    const char *name);
+status_t kvm_pause_vm(
     vmi_instance_t vmi);
-status_t driver_resume_vm(
+status_t kvm_resume_vm(
     vmi_instance_t vmi);
-#if ENABLE_SHM_SNAPSHOT == 1
-/* "shm-snapshot" feature is applicable to
- * hypervisor drivers (e.g. KVM, Xen), but not to the
- * other drivers (e.g. File). */
-status_t driver_shm_snapshot_vm(
+
+status_t kvm_create_shm_snapshot(
     vmi_instance_t vmi);
-status_t driver_destroy_shm_snapshot_vm(
+status_t kvm_destroy_shm_snapshot(
     vmi_instance_t vmi);
-size_t driver_get_dgpma(
+size_t kvm_get_dgpma(
     vmi_instance_t vmi,
     addr_t paddr,
-    void** guest_mapping_paddr,
+    void** medial_addr_ptr,
     size_t count);
-size_t driver_get_dgvma(
+size_t kvm_get_dgvma(
     vmi_instance_t vmi,
     addr_t vaddr,
     pid_t pid,
-    void** guest_mapping_vaddr,
+    void** medial_addr_ptr,
     size_t count);
+
+static inline status_t
+driver_kvm_setup(vmi_instance_t vmi)
+{
+    driver_interface_t driver = { 0 };
+    driver.initialized = true;
+    driver.init_ptr = &kvm_init;
+    driver.init_vmi_ptr = &kvm_init_vmi;
+    driver.destroy_ptr = &kvm_destroy;
+    driver.get_id_from_name_ptr = &kvm_get_id_from_name;
+    driver.get_name_from_id_ptr = &kvm_get_name_from_id;
+    driver.get_id_ptr = &kvm_get_id;
+    driver.set_id_ptr = &kvm_set_id;
+    driver.check_id_ptr = &kvm_check_id;
+    driver.get_name_ptr = &kvm_get_name;
+    driver.set_name_ptr = &kvm_set_name;
+    driver.get_memsize_ptr = &kvm_get_memsize;
+    driver.get_vcpureg_ptr = &kvm_get_vcpureg;
+    driver.read_page_ptr = &kvm_read_page;
+    driver.write_ptr = &kvm_write;
+    driver.is_pv_ptr = &kvm_is_pv;
+    driver.pause_vm_ptr = &kvm_pause_vm;
+    driver.resume_vm_ptr = &kvm_resume_vm;
+#ifdef ENABLE_SHM_SNAPSHOT
+    driver.create_shm_snapshot_ptr = &kvm_create_shm_snapshot;
+    driver.destroy_shm_snapshot_ptr = &kvm_destroy_shm_snapshot;
+    driver.get_dgpma_ptr = &kvm_get_dgpma;
+    driver.get_dgvma_ptr = &kvm_get_dgvma;
 #endif
-status_t driver_events_listen(
-    vmi_instance_t vmi,
-    uint32_t timeout);
-int driver_are_events_pending(
-    vmi_instance_t vmi);
-status_t driver_set_mem_access(
-    vmi_instance_t vmi,
-    mem_event_t event,
-    vmi_mem_access_t page_access_flag);
-status_t driver_set_intr_access(
-    vmi_instance_t vmi,
-    interrupt_event_t event,
-    uint8_t enabled);
-status_t driver_set_reg_access(
-    vmi_instance_t vmi,
-    reg_event_t event);
-status_t driver_start_single_step(
-    vmi_instance_t vmi,
-    single_step_event_t event);
-status_t driver_stop_single_step(
-    vmi_instance_t vmi,
-    unsigned long vcpu);
-status_t driver_shutdown_single_step(
-    vmi_instance_t vmi);
-status_t
-driver_get_address_width(
-    vmi_instance_t vmi,
-    uint8_t * width);
+    vmi->driver = driver;
+    return VMI_SUCCESS;
+}
+
+#endif /* KVM_H */
