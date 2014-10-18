@@ -101,7 +101,7 @@ AM_PROG_CC_C_O
 AM_PROG_LIBTOOL
 AM_SANITY_CHECK
 
-PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16])
 AC_SUBST([GLIB_CFLAGS])
 AC_SUBST([GLIB_LIBS])
@@ -375,9 +375,13 @@ AC_CONFIG_FILES(Makefile \
                 libvmi.pc \
                 libvmi/Makefile \
                 libvmi/config/Makefile \
-                examples/Makefile \
-                tests/Makefile
+                examples/Makefile
 )
+
+[if test "$have_check" = "yes"]
+[then]
+    AC_CONFIG_FILES(tests/Makefile)
+[fi]
 
 AC_OUTPUT
 
