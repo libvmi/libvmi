@@ -30,7 +30,7 @@ status_t arch_init(vmi_instance_t vmi) {
     status_t ret = VMI_FAILURE;
 
     if (vmi->arch_interface != NULL) {
-        dbprint(VMI_DEBUG_CORE, "Resetting architecture interface");
+        dbprint(VMI_DEBUG_CORE, "-- Clearing and setting new architecture interface\n");
         bzero(vmi->arch_interface, sizeof(struct arch_interface));
     }
 

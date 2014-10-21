@@ -276,18 +276,18 @@ windows_find_eprocess(
 addr_t
 eprocess_list_search(
         vmi_instance_t vmi,
+        addr_t list_head,
         int offset,
         size_t len,
         void *value)
 {
-    addr_t next_process, list_head;
-    int tasks_offset;
+    addr_t next_process = 0;
+    int tasks_offset = 0;
     void *buf = alloca(len);
     addr_t rtnval = 0;
 
     tasks_offset = vmi_get_offset(vmi, "win_tasks");
 
-    vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head);
     vmi_read_addr_va(vmi, list_head + tasks_offset, 0, &next_process);
     vmi_read_va(vmi, list_head + offset, 0, buf, len);
     if (memcmp(buf, value, len) == 0) {
@@ -321,14 +321,19 @@ windows_find_eprocess_list_pid(
 {
     size_t len = sizeof(vmi_pid_t);
     int pid_offset = 0;
+    addr_t list_head = 0;
 
     if (vmi->os_data == NULL) {
         return 0;
     }
 
+    if (VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head)) {
+        return 0;
+    }
+
     pid_offset = ((windows_instance_t)vmi->os_data)->pid_offset;
 
-    return eprocess_list_search(vmi, pid_offset, len, &pid);
+    return eprocess_list_search(vmi, list_head, pid_offset, len, &pid);
 }
 
 addr_t
@@ -338,8 +343,13 @@ windows_find_eprocess_list_pgd(
 {
     int pdbase_offset = 0;
     size_t len = 0;
+    addr_t list_head = 0;
 
     if (vmi->os_data == NULL) {
+        return 0;
+    }
+
+    if (VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head)) {
         return 0;
     }
 
@@ -350,6 +360,6 @@ windows_find_eprocess_list_pgd(
     else
         len = sizeof(addr_t);
 
-    return eprocess_list_search(vmi, pdbase_offset, len, &pgd);
+    return eprocess_list_search(vmi, list_head, pdbase_offset, len, &pgd);
 }
 
