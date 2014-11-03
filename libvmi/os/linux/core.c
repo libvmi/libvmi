@@ -26,7 +26,7 @@
 
 #include "libvmi.h"
 #include "private.h"
-#include "driver/interface.h"
+#include "driver/driver_wrapper.h"
 #include "os/linux/linux.h"
 
 void linux_read_config_ghashtable_entries(char* key, gpointer value,

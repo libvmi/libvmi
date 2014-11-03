@@ -26,7 +26,7 @@
 
 #include "libvmi.h"
 #include "private.h"
-#include "driver/interface.h"
+#include "driver/driver_wrapper.h"
 
 ///////////////////////////////////////////////////////////
 // Classic write functions for access to memory

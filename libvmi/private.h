@@ -35,6 +35,7 @@
 #include <glib.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <math.h>
 #include <ctype.h>
 #include <time.h>
@@ -42,6 +43,7 @@
 #include "debug.h"
 #include "libvmi.h"
 #include "libvmi_extra.h"
+#include "driver/driver_interface.h"
 #include "arch/arch_interface.h"
 #include "os/os_interface.h"
 
@@ -56,6 +58,8 @@
 struct vmi_instance {
 
     vmi_mode_t mode;        /**< VMI_FILE, VMI_XEN, VMI_KVM */
+
+    driver_interface_t driver; /**< The driver supporting the chosen mode */
 
     uint32_t flags;         /**< flags passed to init function */
 
@@ -109,7 +113,6 @@ struct vmi_instance {
     GHashTable *v2m_cache;  /**< hash table to hold the v2m cache data */
 #endif
 
-    void *driver;           /**< driver-specific information */
 #if ENABLE_PAGE_CACHE == 1
     GHashTable *memory_cache;  /**< hash table for memory cache */
 

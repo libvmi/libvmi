@@ -7,6 +7,7 @@
  * retains certain rights in this software.
  *
  * Author: Bryan D. Payne (bdpayne@acm.org)
+ * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
  *
  * This file is part of LibVMI.
  *
@@ -23,25 +24,38 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef XEN_PRIVATE_H
-#define XEN_PRIVATE_H
 
-#include "libvmi.h"
-#include "driver/xen.h"
+#ifndef KVM_PRIVATE_H
+#define KVM_PRIVATE_H
 
-static inline
-xen_instance_t *xen_get_instance(
+#include <libvirt/libvirt.h>
+#include <libvirt/virterror.h>
+
+#if ENABLE_SHM_SNAPSHOT == 1
+#include "driver/kvm/kvm_shm.h"
+#endif
+
+typedef struct kvm_instance {
+    virConnectPtr conn;
+    virDomainPtr dom;
+    unsigned long id;
+    char *name;
+    char *ds_path;
+    int socket_fd;
+#if ENABLE_SHM_SNAPSHOT == 1
+    char *shm_snapshot_path;  /** shared memory snapshot device path in /dev/shm directory */
+    int   shm_snapshot_fd;    /** file description of the shared memory snapshot device */
+    void *shm_snapshot_map;   /** mapped shared memory region */
+    char *shm_snapshot_cpu_regs;  /** string of dumped CPU registers */
+    v2m_table_t shm_snapshot_v2m_tables; /** V2m tables of all pids */
+#endif /* ENABLE_SHM_SNAPSHOT */
+} kvm_instance_t;
+
+static inline kvm_instance_t *
+kvm_get_instance(
     vmi_instance_t vmi)
 {
-    return ((xen_instance_t *) vmi->driver);
+    return ((kvm_instance_t *) vmi->driver.driver_data);
 }
 
-
-static inline
-libvmi_xenctrl_handle_t xen_get_xchandle(
-    vmi_instance_t vmi)
-{
-    return xen_get_instance(vmi)->xchandle;
-}
-
-#endif /* XEN_PRIVATE_H */
+#endif

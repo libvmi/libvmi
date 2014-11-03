@@ -39,7 +39,6 @@ YES_IS_DEFINED
         have_$1="no"
     fi
 ])dnl
-AC_DEFINE([HAVE_$1],[],[Added by AC_CHECK_DEFINE])
 
 dnl -----------------------------------------------
 dnl Check package options
@@ -49,49 +48,49 @@ AC_ARG_ENABLE([xen],
          [Support memory introspection with live Xen domains (default is yes)])],
       [enable_xen=$enableval],
       [enable_xen=yes])
-AM_CONDITIONAL([XEN], [test x$enable_xen = xyes])
+AM_CONDITIONAL([XEN], [test x"$enable_xen" = xyes])
 
 AC_ARG_ENABLE([xen_events],
       [AS_HELP_STRING([--enable-xen-events],
          [Support use of Xen memory events (default is no)])],
       [enable_xen_events=$enableval],
       [enable_xen_events=no])
-AM_CONDITIONAL([XEN], [test x$enable_xen_events = xyes])
-
-AC_ARG_ENABLE([kvm],
-      [AS_HELP_STRING([--disable-kvm],
-         [Support memory introspection with live KVM VMs (default is yes)])],
-      [enable_kvm=$enableval],
-      [enable_kvm=yes])
-AM_CONDITIONAL([KVM], [test x$enable_kvm = xyes])
-
-AC_ARG_ENABLE([shm_snapshot],
-      [AS_HELP_STRING([--disable-shm-snapshot],
-         [Support shm-snapshot with KVM VMs (Xen is pending) (default is no)])],
-      [enable_shm_snapshot=$enableval],
-      [enable_shm_snapshot=no])
-AM_CONDITIONAL([KVM], [test x$enable_shm_snapshot = xyes])
-
-AC_ARG_ENABLE([file],
-      [AS_HELP_STRING([--disable-file],
-         [Support memory introspection with physical memory dumps in a file (default is yes)])],
-      [enable_file=$enableval],
-      [enable_file=yes])
-AM_CONDITIONAL([FILE], [test x$enable_file = xyes])
-
-AC_ARG_ENABLE([vmifs],
-      [AS_HELP_STRING([--disable-vmifs],
-         [Build VMIFS tool: maps memory to a file through FUSE])],
-      [enable_vmifs=$enableval],
-      [enable_vmifs=yes])
-AM_CONDITIONAL([VMIFS], [test x$enable_vmifs = xyes])
+AM_CONDITIONAL([XEN_EVENTS], [test x"$enable_xen_events" = xyes])
 
 AC_ARG_WITH([xenstore],
       [AS_HELP_STRING([--without-xenstore],
          [Build LibVMI without Xenstore])],
       [with_xenstore=$withval],
       [with_xenstore=yes])
-AM_CONDITIONAL([XENSTORE], [test x$with_xenstore = xyes])
+AM_CONDITIONAL([XENSTORE], [test x"$with_xenstore" = xyes])
+
+AC_ARG_ENABLE([kvm],
+      [AS_HELP_STRING([--disable-kvm],
+         [Support memory introspection with live KVM VMs (default is yes)])],
+      [enable_kvm=$enableval],
+      [enable_kvm=yes])
+AM_CONDITIONAL([KVM], [test x"$enable_kvm" = xyes])
+
+AC_ARG_ENABLE([shm_snapshot],
+      [AS_HELP_STRING([--disable-shm-snapshot],
+         [Support shm-snapshot with KVM VMs (Xen is pending) (default is no)])],
+      [enable_shm_snapshot=$enableval],
+      [enable_shm_snapshot=no])
+AM_CONDITIONAL([SHM], [test x"$enable_shm_snapshot" = xyes])
+
+AC_ARG_ENABLE([file],
+      [AS_HELP_STRING([--disable-file],
+         [Support memory introspection with physical memory dumps in a file (default is yes)])],
+      [enable_file=$enableval],
+      [enable_file=yes])
+AM_CONDITIONAL([FILE], [test x"$enable_file" = xyes])
+
+AC_ARG_ENABLE([vmifs],
+      [AS_HELP_STRING([--disable-vmifs],
+         [Build VMIFS tool: maps memory to a file through FUSE])],
+      [enable_vmifs=$enableval],
+      [enable_vmifs=yes])
+AM_CONDITIONAL([VMIFS], [test x"$enable_vmifs" = xyes])
 
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
@@ -101,6 +100,12 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 AM_PROG_LIBTOOL
 AM_SANITY_CHECK
+
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16])
+AC_SUBST([GLIB_CFLAGS])
+AC_SUBST([GLIB_LIBS])
+AC_CHECK_LIB(m, ceil)
 
 have_xen='no'
 xen_space='      '
@@ -234,33 +239,33 @@ xen_event_space=' '
         [],
         [#include "xenctrl.h"])
 [fi]
+AM_CONDITIONAL([HAVE_XEN], [test x"$have_xen" = "xyes"])
+AM_CONDITIONAL([HAVE_XEN_EVENTS], [test x"$have_xen_events" = "xyes"])
 
 have_kvm='no'
 kvm_space='      '
 [if test "$enable_kvm" = "yes"]
 [then]
     AC_PATH_PROG(GREP, grep)
-    [if test "x$GREP" = "x"]
+    [if test x"$GREP" = "x"]
     [then]
         AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
-        missing='no'
         enable_kvm='no'
         have_kvm='grep missing'
     [fi]
 
     AC_PATH_PROG(LSMOD, lsmod)
-    [if test "x$LSMOD" = "x"]
+    [if test x"$LSMOD" = "x"]
     [then]
         AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
-        missing='no'
         enable_kvm='no'
         have_kvm='lsmod missing'
     [fi]
     
-    [if test "x$LSMOD" != "x" && test "x$GREP" != "x"]
+    [if test x"$LSMOD" != "x" && test x"$GREP" != "x"]
     [then]
         KVM_PRESENT=$($LSMOD | $GREP kvm)
-        [if test "x$KVM_PRESENT" != "x"]
+        [if test x"$KVM_PRESENT" != "x"]
         [then]
             AC_CHECK_LIB(virt, virConnectOpen, [], [missing="yes"])
             [if test "$missing" = "yes"]
@@ -271,19 +276,18 @@ kvm_space='      '
                 have_kvm='libvirt missing'
             [else]
                 AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
+                missing='no'
                 have_kvm='yes'
                 kvm_space='     '
             [fi]
         [else]
             AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
-            missing='no'
             enable_kvm='no'
             have_kvm='kernel module is not loaded'
         [fi]
     [fi]
 [fi]
-
-AC_CHECK_LIB(m, ceil, [], [])
+AM_CONDITIONAL([HAVE_KVM], [test x"$have_kvm" = "xyes"])
 
 have_shm_snapshot='no'
 shm_snapshot_space=' '
@@ -302,14 +306,14 @@ file_space='      '
     file_space='     '
     have_file='yes'
 [fi]
+AM_CONDITIONAL([HAVE_FILE], [test x"$have_file" = "xyes"])
 
 have_vmifs='no'
-vmifs_space='      '
+vmifs_space='       '
 [if test "$enable_vmifs" = "yes"]
 [then]
-    vmifs_space=''
-    PKG_CHECK_MODULES([FUSE], [fuse >= 2.2], [], [missing="yes"])
-    [if test "$missing" = "yes"]
+    PKG_CHECK_MODULES([FUSE], [fuse >= 2.2], [missing="no"], [missing="yes"])
+    [if test x"$missing" = "xyes"]
     [then]
         AC_DEFINE([ENABLE_VMIFS], [0], [Define to 1 to build VMIFS.])
         have_vmifs='FUSE library missing (libfuse-dev)'
@@ -321,12 +325,12 @@ vmifs_space='      '
         vmifs_dir="tools/vmifs"
         AC_SUBST(vmifs_dir)
         have_vmifs='yes'
-        vmifs_space='     '
+        vmifs_space='      '
         AC_CONFIG_FILES(tools/vmifs/Makefile)
     [fi]
 [fi]
 
-AC_CHECK_PROGS(YACC,bison yacc byacc,[no],[path = $PATH])
+AC_CHECK_PROGS(YACC, bison yacc byacc, [no], [path = $PATH])
 [if test "$YACC" = "no"]
 [then]
     [echo "yacc not found in the search path. Please ensure that it is"]
@@ -338,7 +342,7 @@ AC_CHECK_PROGS(YACC,bison yacc byacc,[no],[path = $PATH])
 [fi]
 AC_PROG_YACC
 
-AC_CHECK_PROGS(LEX,lex flex ,[no],[path = $PATH])
+AC_CHECK_PROGS(LEX, lex flex , [no], [path = $PATH])
 [if test "$LEX" = "no"]
 [then]
     [echo "lex not found in the search path. Please ensure that it is"]
@@ -350,16 +354,9 @@ AC_CHECK_PROGS(LEX,lex flex ,[no],[path = $PATH])
 [fi]
 AC_PROG_LEX
 
-PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16])
-AC_SUBST([GLIB_CFLAGS])
-AC_SUBST([GLIB_LIBS])
-
-PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
-
-missing='no'
 have_jansson='no'
-PKG_CHECK_MODULES([JANSSON], [jansson >= 2.1], [], [missing="yes"])
-[if test "$missing" = "no"]
+PKG_CHECK_MODULES([JANSSON], [jansson >= 2.1], [missing="no"], [missing="yes"])
+[if test x"$missing" = "xno"]
 [then]
         have_jansson='yes'
         AC_SUBST([JANSSON_LIBS])
@@ -378,9 +375,13 @@ AC_CONFIG_FILES(Makefile \
                 libvmi.pc \
                 libvmi/Makefile \
                 libvmi/config/Makefile \
-                examples/Makefile \
-                tests/Makefile
+                examples/Makefile
 )
+
+[if test "$have_check" = "yes"]
+[then]
+    AC_CONFIG_FILES(tests/Makefile)
+[fi]
 
 AC_OUTPUT
 
@@ -407,7 +408,7 @@ Shm-snapshot | --enable-shm-snapshot=$enable_shm_snapshot$shm_snapshot_space | $
 
 Tools        | Option                    | Reason
 -------------|---------------------------|----------------------------
-VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space         | $have_vmifs
+VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space  | $have_vmifs
 
 Extra features
 ----------------------------------------------------------------------

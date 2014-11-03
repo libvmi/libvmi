@@ -10,13 +10,9 @@ h_private = \
     os/os_interface.h \
     os/windows/windows.h \
     os/linux/linux.h \
-    driver/interface.h \
-    driver/memory_cache.h \
-    driver/file.h \
-    driver/xen.h \
-    driver/xen_events.h \
-    driver/xen_private.h \
-    driver/kvm.h
+    driver/driver_interface.h \
+    driver/driver_wrapper.h \
+    driver/memory_cache.h
 c_sources = \
     accessors.c \
     cache.c \
@@ -32,12 +28,8 @@ c_sources = \
     arch/arch_interface.c \
     arch/intel.c \
     arch/amd64.c \
-    driver/file.c \
-    driver/interface.c \
-    driver/kvm.c \
+    driver/driver_interface.c \
     driver/memory_cache.c \
-    driver/xen.c \
-    driver/xen_events.c \
     os/os_interface.c \
     os/linux/core.c \
     os/linux/memory.c \
@@ -50,13 +42,38 @@ c_sources = \
     os/windows/process.c \
     os/windows/unicode.c
 
+drivers =
+if HAVE_FILE
+drivers += driver/file/file.h \
+           driver/file/file_private.h \
+           driver/file/file.c
+endif
+if HAVE_KVM
+drivers += driver/kvm/kvm.h \
+           driver/kvm/kvm_private.h \
+           driver/kvm/kvm.c
+if SHM
+drivers += driver/kvm/kvm_shm.h
+endif
+endif
+if HAVE_XEN
+drivers += driver/xen/xen.h \
+           driver/xen/xen_private.h \
+           driver/xen/xen.c
+if HAVE_XEN_EVENTS
+drivers += driver/xen/xen_events.h \
+           driver/xen/xen_events_private.h \
+           driver/xen/xen_events.c
+endif
+endif
+
 library_includedir=$(includedir)/$(LIBRARY_NAME)
 library_include_HEADERS = $(h_sources)
 
 AM_CPPFLAGS = -I$(top_srcdir)
 
 lib_LTLIBRARIES= libvmi.la
-libvmi_la_SOURCES= $(h_sources) $(h_private) $(c_sources)
+libvmi_la_SOURCES= $(h_sources) $(h_private) $(drivers) $(c_sources)
 libvmi_la_LIBADD= config/libconfig.la
 libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JANSSON_CFLAGS)
 libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS) $(JANSSON_LIBS)

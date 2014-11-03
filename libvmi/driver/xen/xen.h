@@ -7,6 +7,7 @@
  * retains certain rights in this software.
  *
  * Author: Bryan D. Payne (bdpayne@acm.org)
+ * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
  *
  * This file is part of LibVMI.
  *
@@ -24,94 +25,22 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef XEN_H
-#define XEN_H
+#ifndef XEN_DRIVER_H
+#define XEN_DRIVER_H
 
-#include "driver/xen_events.h"
-
-#if ENABLE_XEN == 1
-#include <xenctrl.h>
-
-/* compatibility checks */
-#ifndef xen_cr3_to_pfn_x86_32
-#define xen_pfn_to_cr3_x86_64(pfn) ((__align8__ uint64_t)(pfn) << 12)
-#define xen_cr3_to_pfn_x86_64(cr3) ((__align8__ uint64_t)(cr3) >> 12)
-
-#define xen_pfn_to_cr3_x86_32(pfn) (((unsigned)(pfn) << 12) | ((unsigned)(pfn) >> 20))
-#define xen_cr3_to_pfn_x86_32(cr3) (((unsigned)(cr3) >> 12) | ((unsigned)(cr3) << 20))
-
-#include <xen/memory.h>
-#define xc_domain_maximum_gpfn(xch, domid) xc_memory_op(xch, XENMEM_maximum_gpfn, &domid)
+#if ENABLE_XEN_EVENTS == 1
+ #include "driver/xen/xen_events.h"
 #endif
-
-#ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
-typedef xc_interface *libvmi_xenctrl_handle_t;
-
-#define XENCTRL_HANDLE_INVALID NULL
-
-    // new way to open/close XS daemon
-#ifdef HAVE_LIBXENSTORE
-#define OPEN_XS_DAEMON()    xs_open(0)
-#define CLOSE_XS_DAEMON(h)  xs_close(h)
-#endif
-#else
-typedef int libvmi_xenctrl_handle_t;
-
-#define XENCTRL_HANDLE_INVALID (-1)
-
-#ifdef HAVE_LIBXENSTORE
-    // these are supported, but deprecated in xen 4.1
-#define OPEN_XS_DAEMON()     xs_daemon_open()
-#define CLOSE_XS_DAEMON(h)   xs_daemon_close(h)
-#endif
-#endif
-
-typedef struct xen_instance {
-
-    libvmi_xenctrl_handle_t xchandle; /**< handle to xenctrl library (libxc) */
-
-    unsigned long domainid; /**< domid that we are accessing */
-
-    int xen_version;        /**< version of Xen libxa is running on */
-
-    int hvm;                /**< nonzero if HVM */
-
-    xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
-
-    uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
-
-#ifdef HAVE_LIBXENSTORE
-    struct xs_handle *xshandle;  /**< handle to xenstore daemon */
-#endif
-
-    char *name;
-
-#if ENABLE_XEN_EVENTS==1
-    xen_events_t *events; /**< handle to events data */
-#endif
-
-#if ENABLE_SHM_SNAPSHOT == 1
-    char *shm_snapshot_path;  /** reserved for shared memory snapshot device path in /dev/shm directory */
-    int   shm_snapshot_fd;    /** reserved for file description of the shared memory snapshot device */
-    void *shm_snapshot_map;   /** reserved mapped shared memory region. It's currently malloc() regions */
-    void *shm_snapshot_cpu_regs;  /** structure of dumped CPU registers */
-#endif
-} xen_instance_t;
-
-#else
-
-typedef struct xen_instance {
-} xen_instance_t;
-
-#endif /* ENABLE_XEN */
 
 status_t xen_init(
+    vmi_instance_t vmi);
+status_t xen_init_vmi(
     vmi_instance_t vmi);
 void xen_destroy(
     vmi_instance_t vmi);
 unsigned long xen_get_domainid_from_name(
     vmi_instance_t vmi,
-    char *name);
+    const char *name);
 status_t xen_get_name_from_domainid(
     vmi_instance_t vmi,
     unsigned long domid,
@@ -159,7 +88,7 @@ int xen_is_pv(
     vmi_instance_t vmi);
 status_t xen_test(
     unsigned long id,
-    char *name);
+    const char *name);
 status_t xen_pause_vm(
     vmi_instance_t vmi);
 status_t xen_resume_vm(
@@ -168,7 +97,6 @@ status_t xen_set_domain_debug_control(
     vmi_instance_t vmi,
     unsigned long vcpu,
     int enable);
-#if ENABLE_SHM_SNAPSHOT == 1
 status_t xen_create_shm_snapshot(
     vmi_instance_t vmi);
 status_t xen_destroy_shm_snapshot(
@@ -178,6 +106,48 @@ size_t xen_get_dgpma(
     addr_t paddr,
     void** medial_addr_ptr,
     size_t count);
-#endif
 
-#endif /* XEN_H */
+static inline status_t
+driver_xen_setup(vmi_instance_t vmi)
+{
+    driver_interface_t driver = { 0 };
+    driver.initialized = true;
+    driver.init_ptr = &xen_init;
+    driver.init_vmi_ptr = &xen_init_vmi;
+    driver.destroy_ptr = &xen_destroy;
+    driver.get_id_from_name_ptr = &xen_get_domainid_from_name;
+    driver.get_name_from_id_ptr = &xen_get_name_from_domainid;
+    driver.get_id_ptr = &xen_get_domainid;
+    driver.set_id_ptr = &xen_set_domainid;
+    driver.check_id_ptr = &xen_check_domainid;
+    driver.get_name_ptr = &xen_get_domainname;
+    driver.set_name_ptr = &xen_set_domainname;
+    driver.get_memsize_ptr = &xen_get_memsize;
+    driver.get_vcpureg_ptr = &xen_get_vcpureg;
+    driver.set_vcpureg_ptr = &xen_set_vcpureg;
+    driver.get_address_width_ptr = &xen_get_address_width;
+    driver.read_page_ptr = &xen_read_page;
+    driver.write_ptr = &xen_write;
+    driver.is_pv_ptr = &xen_is_pv;
+    driver.pause_vm_ptr = &xen_pause_vm;
+    driver.resume_vm_ptr = &xen_resume_vm;
+#if ENABLE_SHM_SNAPSHOT == 1
+    driver.create_shm_snapshot_ptr = &xen_create_shm_snapshot;
+    driver.destroy_shm_snapshot_ptr = &xen_destroy_shm_snapshot;
+    driver.get_dgpma_ptr = &xen_get_dgpma;
+#endif
+#if ENABLE_XEN_EVENTS == 1
+    driver.events_listen_ptr = &xen_events_listen;
+    driver.are_events_pending_ptr = &xen_are_events_pending;
+    driver.set_reg_access_ptr = &xen_set_reg_access;
+    driver.set_intr_access_ptr = &xen_set_intr_access;
+    driver.set_mem_access_ptr = &xen_set_mem_access;
+    driver.start_single_step_ptr = &xen_start_single_step;
+    driver.stop_single_step_ptr = &xen_stop_single_step;
+    driver.shutdown_single_step_ptr = &xen_shutdown_single_step;
+#endif
+    vmi->driver = driver;
+    return VMI_SUCCESS;
+}
+
+#endif /* XEN_DRIVER_H */

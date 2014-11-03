@@ -26,7 +26,7 @@
 
 #include "libvmi.h"
 #include "private.h"
-#include "driver/interface.h"
+#include "driver/driver_wrapper.h"
 #include "x86.h"
 #include "amd64.h"
 #include <glib.h>

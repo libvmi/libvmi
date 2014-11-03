@@ -7,6 +7,7 @@
  * retains certain rights in this software.
  *
  * Author: Bryan D. Payne (bdpayne@acm.org)
+ * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
  *
  * This file is part of LibVMI.
  *
@@ -27,25 +28,10 @@
 #include "libvmi.h"
 #include "private.h"
 
-#if ENABLE_XEN == 1
-#include "driver/xen.h"
-#include "driver/xen_private.h"
-#include "driver/xen_events.h"
-#include "driver/interface.h"
+#include "driver/xen/xen.h"
+#include "driver/xen/xen_private.h"
+#include "driver/driver_interface.h"
 #include "driver/memory_cache.h"
-
-#define _GNU_SOURCE
-#include <fnmatch.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdint.h>
-#if HAVE_XENSTORE_H
-  #include <xenstore.h>
-#elif HAVE_XS_H
-  #include <xs.h>
-#endif
-#include <xen/hvm/save.h>
 
 //----------------------------------------------------------------------------
 // Helper functions
@@ -523,7 +509,7 @@ xen_put_memory(
 unsigned long
 xen_get_domainid_from_name(
     vmi_instance_t vmi,
-    char *name)
+    const char *name)
 {
 
 // This function is only usable with xenstore
@@ -762,6 +748,7 @@ xen_init(
     vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
+    xen_instance_t *xen = g_malloc0(sizeof(xen_instance_t));
     libvmi_xenctrl_handle_t xchandle = XENCTRL_HANDLE_INVALID;
     int rc = 0; // return codes from xc_* calls
 
@@ -774,38 +761,54 @@ xen_init(
 
     if (XENCTRL_HANDLE_INVALID == xchandle) {
         errprint("Failed to open libxc interface.\n");
-        goto _bail;
+        free(xen);
+        goto exit;
     }
-    xen_get_instance(vmi)->xchandle = xchandle;
+    xen->xchandle = xchandle;
 
     /* initialize other xen-specific values */
 
+#ifdef HAVE_LIBXENSTORE
+    xen->xshandle = OPEN_XS_DAEMON();
+    if (!xen->xshandle) {
+        errprint("xs_domain_open failed\n");
+        xc_interface_close(xchandle);
+        free(xen);
+        goto exit;
+    }
+#endif
+
+    vmi->driver.driver_data = (void *)xen;
+    ret = VMI_SUCCESS;
+
+exit:
+    return ret;
+}
+
+status_t
+xen_init_vmi(
+    vmi_instance_t vmi)
+{
+    status_t ret;
+    xen_instance_t *xen = xen_get_instance(vmi);
     /* setup the info struct */
-    rc = xc_domain_getinfo(xchandle,
-                           xen_get_instance(vmi)->domainid,
+    int rc = xc_domain_getinfo(xen->xchandle,
+                           xen->domainid,
                            1,
-                           &(xen_get_instance(vmi)->info));
+                           &xen->info);
     if (rc != 1) {
         errprint("Failed to get domain info for Xen.\n");
         goto _bail;
     }
 
-#ifdef HAVE_LIBXENSTORE
-    xen_get_instance(vmi)->xshandle = OPEN_XS_DAEMON();
-    if (!xen_get_instance(vmi)->xshandle) {
-        errprint("xs_domain_open failed\n");
-        goto _bail;
-    }
-#endif
-
     /* record the count of VCPUs used by this instance */
-    vmi->num_vcpus = xen_get_instance(vmi)->info.max_vcpu_id + 1;
+    vmi->num_vcpus = xen->info.max_vcpu_id + 1;
 
     /* determine if target is hvm or pv */
-    vmi->hvm = xen_get_instance(vmi)->hvm =
-        xen_get_instance(vmi)->info.hvm;
+    vmi->hvm = xen->hvm =
+        xen->info.hvm;
 #ifdef VMI_DEBUG
-    if (xen_get_instance(vmi)->hvm) {
+    if (xen->hvm) {
         dbprint(VMI_DEBUG_XEN, "**set hvm to true (HVM).\n");
     }
     else {
@@ -827,13 +830,13 @@ xen_init(
 
 #if ENABLE_SHM_SNAPSHOT == 1
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
-        return xen_create_shm_snapshot(vmi);
+        ret = xen_create_shm_snapshot(vmi);
     }
     else {
-        return xen_setup_live_mode(vmi);
+        ret = xen_setup_live_mode(vmi);
     }
 #else
-    xen_setup_live_mode(vmi);
+    ret = xen_setup_live_mode(vmi);
 #endif
 
     // Determine the guest address width
@@ -847,19 +850,17 @@ void
 xen_destroy(
     vmi_instance_t vmi)
 {
-#if ENABLE_XEN_EVENTS==1
+#if ENABLE_XEN_EVENTS == 1
     if(xen_get_instance(vmi)->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
         xen_events_destroy(vmi);
     }
 #endif
 
-#if ENABLE_SHM_SNAPSHOT == 1
+#if ENABLE_SHM_SNAPSHOP == 1
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
         xen_teardown_shm_snapshot_mode(vmi);
     }
 #endif
-
-    xen_get_instance(vmi)->domainid = VMI_INVALID_DOMID;
 
     libvmi_xenctrl_handle_t xchandle = xen_get_xchandle(vmi);
     if(xchandle != XENCTRL_HANDLE_INVALID) {
@@ -872,8 +873,8 @@ xen_destroy(
     }
 #endif
 
-    free(xen_get_instance(vmi)->name);
-
+    g_free(xen_get_instance(vmi)->name);
+    free(xen_get_instance(vmi));
 }
 
 status_t
@@ -1570,12 +1571,13 @@ xen_get_vcpureg_pv64(
 {
     status_t ret = VMI_SUCCESS;
     vcpu_guest_context_x86_64_t* vcpu_ctx = NULL;
+
 #if ENABLE_SHM_SNAPSHOT == 1
     if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
-        vcpu_ctx = (struct cpu_user_regs_x86_64*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
+        vcpu_ctx = (vcpu_guest_context_x86_64_t*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
         dbprint(VMI_DEBUG_XEN, "read pv_64 cpu registers from shm-snapshot\n");
     }
-#endif
+#else
     vcpu_guest_context_any_t ctx = { 0 };
     xen_domctl_t domctl = { 0 };
     if (NULL == vcpu_ctx) {
@@ -1588,6 +1590,7 @@ xen_get_vcpureg_pv64(
         }
         vcpu_ctx = &ctx.x64;
     }
+#endif
 
     switch (reg) {
     case RAX:
@@ -1841,12 +1844,13 @@ xen_get_vcpureg_pv32(
 {
     status_t ret = VMI_SUCCESS;
     vcpu_guest_context_x86_32_t* vcpu_ctx = NULL;
+
 #if ENABLE_SHM_SNAPSHOT == 1
     if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
-        vcpu_ctx = (struct vcpu_guest_context_x86_32_t*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
+        vcpu_ctx = (vcpu_guest_context_x86_32_t*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
         dbprint(VMI_DEBUG_XEN, "read pv_32 cpu registers from shm-snapshot\n");
     }
-#endif
+#else
     vcpu_guest_context_any_t ctx = { 0 };
     xen_domctl_t domctl = { 0 };
     if (NULL == vcpu_ctx) {
@@ -1860,6 +1864,7 @@ xen_get_vcpureg_pv32(
         }
         vcpu_ctx = &ctx.x32;
     }
+#endif
 
     switch (reg) {
     case RAX:
@@ -2121,7 +2126,7 @@ xen_is_pv(
 status_t
 xen_test(
     unsigned long id,
-    char *name)
+    const char *name)
 {
     if (id == VMI_INVALID_DOMID && name == NULL) {
         errprint("VMI_ERROR: xen_test: domid or name must be specified\n");
@@ -2241,196 +2246,3 @@ xen_get_dgpma(
     return max_size>count?count:max_size;
 }
 #endif
-
-//////////////////////////////////////////////////////////////////////////////
-#else
-
-status_t
-xen_init(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-void
-xen_destroy(
-    vmi_instance_t vmi)
-{
-    return;
-}
-
-unsigned long
-xen_get_domainid_from_name(
-    vmi_instance_t vmi,
-    char *name)
-{
-    return 0;
-}
-
-status_t
-xen_get_name_from_domainid(
-    vmi_instance_t vmi,
-    unsigned long domid,
-    char **name)
-{
-    return VMI_FAILURE;
-}
-
-unsigned long
-xen_get_domainid(
-    vmi_instance_t vmi)
-{
-    return VMI_INVALID_DOMID;
-}
-
-void
-xen_set_domainid(
-    vmi_instance_t vmi,
-    unsigned long domainid)
-{
-    return;
-}
-
-status_t
-xen_check_domainid(
-    vmi_instance_t vmi,
-    unsigned long domainid)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-xen_get_domainname(
-    vmi_instance_t vmi,
-    char **name)
-{
-    return VMI_FAILURE;
-}
-
-void
-xen_set_domainname(
-    vmi_instance_t vmi,
-    char *name)
-{
-    return;
-}
-
-status_t
-xen_get_memsize(
-    vmi_instance_t vmi,
-    uint64_t *size)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-xen_get_vcpureg(
-    vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
-    unsigned long vcpu)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-xen_set_vcpureg(
-    vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
-    unsigned long vcpu)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-xen_get_address_width(
-    vmi_instance_t vmi,
-    uint8_t * width)
-{
-    return VMI_FAILURE;
-}
-
-void *
-xen_read_page(
-    vmi_instance_t vmi,
-    addr_t page)
-{
-    return NULL;
-}
-
-status_t
-xen_write(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void *buf,
-    uint32_t length)
-{
-    return VMI_FAILURE;
-}
-
-int
-xen_is_pv(
-    vmi_instance_t vmi)
-{
-    return 0;
-}
-
-status_t
-xen_test(
-    unsigned long id,
-    char *name)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-xen_pause_vm(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-xen_resume_vm(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-xen_set_domain_debug_control(
-    vmi_instance_t vmi,
-    unsigned long vcpu,
-    int enable)
-{
-    return VMI_FAILURE;
-}
-
-#if ENABLE_SHM_SNAPSHOT == 1
-status_t
-xen_create_shm_snapshot(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-xen_destroy_shm_snapshot(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-size_t
-xen_get_dgpma(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void** medial_addr_ptr,
-    size_t count)
-{
-    return 0;
-}
-#endif
-
-#endif /* ENABLE_XEN */

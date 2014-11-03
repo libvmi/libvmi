@@ -7,6 +7,7 @@
  * retains certain rights in this software.
  *
  * Author: Bryan D. Payne (bdpayne@acm.org)
+ * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
  *
  * This file is part of LibVMI.
  *
@@ -26,11 +27,11 @@
 
 #include "libvmi.h"
 #include "private.h"
-#include "driver/file.h"
-#include "driver/interface.h"
+#include "driver/file/file.h"
+#include "driver/file/file_private.h"
+#include "driver/driver_interface.h"
 #include "driver/memory_cache.h"
 
-#if ENABLE_FILE == 1
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
@@ -50,14 +51,7 @@
 #endif
 
 //----------------------------------------------------------------------------
-// File-Specific Interface Functions (no direction mapping to driver_*)
-
-static file_instance_t *
-file_get_instance(
-    vmi_instance_t vmi)
-{
-    return ((file_instance_t *) vmi->driver);
-}
+// File-Specific Interface Functions
 
 void *
 file_get_memory(
@@ -117,13 +111,20 @@ status_t
 file_init(
     vmi_instance_t vmi)
 {
+    vmi->driver.driver_data = g_malloc0(sizeof(file_instance_t));
+    return VMI_SUCCESS;
+}
+
+status_t
+file_init_vmi(
+    vmi_instance_t vmi)
+{
+    file_instance_t *fi = file_get_instance(vmi);
     FILE *fhandle = NULL;
     int fd = -1;
-    file_instance_t *fi = file_get_instance(vmi);
-
     /* open handle to memory file */
     if ((fhandle = fopen(fi->filename, "rb")) == NULL) {
-        errprint("Failed to open file for reading.\n");
+        errprint("Failed to open file '%s' for reading.\n", fi->filename);
         goto fail;
     }
     fd = fileno(fhandle);
@@ -192,6 +193,7 @@ file_destroy(
         fi->fhandle = 0;
         fi->fd = 0;
     }
+    free(fi);
 }
 
 status_t
@@ -287,7 +289,7 @@ file_is_pv(
 status_t
 file_test(
     unsigned long id,
-    char *name)
+    const char *name)
 {
     status_t ret = VMI_FAILURE;
     FILE *f = NULL;
@@ -326,103 +328,3 @@ file_resume_vm(
 {
     return VMI_SUCCESS;
 }
-
-//////////////////////////////////////////////////////////////////////
-#else
-
-status_t
-file_init(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-void
-file_destroy(
-    vmi_instance_t vmi)
-{
-    return;
-}
-
-status_t
-file_get_name(
-    vmi_instance_t vmi,
-    char **name)
-{
-    return VMI_FAILURE;
-}
-
-void
-file_set_name(
-    vmi_instance_t vmi,
-    char *name)
-{
-    return;
-}
-
-status_t
-file_get_memsize(
-    vmi_instance_t vmi,
-    uint64_t *size)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-file_get_vcpureg(
-    vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
-    unsigned long vcpu)
-{
-    return VMI_FAILURE;
-}
-
-void *
-file_read_page(
-    vmi_instance_t vmi,
-    unsigned long page)
-{
-    return NULL;
-}
-
-status_t
-file_write(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void *buf,
-    uint32_t length)
-{
-    return VMI_FAILURE;
-}
-
-int
-file_is_pv(
-    vmi_instance_t vmi)
-{
-    return 0;
-}
-
-status_t
-file_test(
-    unsigned long id,
-    char *name)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-file_pause_vm(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-status_t
-file_resume_vm(
-    vmi_instance_t vmi)
-{
-    return VMI_FAILURE;
-}
-
-#endif /* ENABLE_FILE */
