@@ -1,5 +1,5 @@
 SUBDIRS = config
-h_sources = libvmi.h libvmi_extra.h peparse.h x86.h
+h_sources = libvmi.h libvmi_extra.h x86.h
 h_private = \
     private.h \
     debug.h \
@@ -8,8 +8,6 @@ h_private = \
     arch/intel.h \
     arch/amd64.h \
     os/os_interface.h \
-    os/windows/windows.h \
-    os/linux/linux.h \
     driver/driver_interface.h \
     driver/driver_wrapper.h \
     driver/memory_cache.h
@@ -30,17 +28,7 @@ c_sources = \
     arch/amd64.c \
     driver/driver_interface.c \
     driver/memory_cache.c \
-    os/os_interface.c \
-    os/linux/core.c \
-    os/linux/memory.c \
-    os/linux/symbols.c \
-    os/windows/core.c \
-    os/windows/kdbg.c \
-    os/windows/memory.c \
-    os/windows/symbols.c \
-    os/windows/peparse.c \
-    os/windows/process.c \
-    os/windows/unicode.c
+    os/os_interface.c
 
 drivers =
 if HAVE_FILE
@@ -67,13 +55,32 @@ drivers += driver/xen/xen_events.h \
 endif
 endif
 
+os =
+if WINDOWS
+h_sources += peparse.h
+os += os/windows/windows.h \
+      os/windows/core.c \
+      os/windows/kdbg.c \
+      os/windows/memory.c \
+      os/windows/symbols.c \
+      os/windows/peparse.c \
+      os/windows/process.c \
+      os/windows/unicode.c
+endif
+if LINUX
+os += os/linux/linux.h \
+      os/linux/core.c \
+      os/linux/memory.c \
+      os/linux/symbols.c
+endif
+
 library_includedir=$(includedir)/$(LIBRARY_NAME)
 library_include_HEADERS = $(h_sources)
 
 AM_CPPFLAGS = -I$(top_srcdir)
 
 lib_LTLIBRARIES= libvmi.la
-libvmi_la_SOURCES= $(h_sources) $(h_private) $(drivers) $(c_sources)
+libvmi_la_SOURCES= $(h_sources) $(h_private) $(drivers) $(os) $(c_sources)
 libvmi_la_LIBADD= config/libconfig.la
 libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JANSSON_CFLAGS)
 libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS) $(JANSSON_LIBS)

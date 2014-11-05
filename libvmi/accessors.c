@@ -66,6 +66,10 @@ win_ver_t
 vmi_get_winver(
     vmi_instance_t vmi)
 {
+#ifndef ENABLE_WINDOWS
+    errprint("**LibVMI wasn't compiled with Windows support!\n");
+    return VMI_OS_WINDOWS_NONE;
+#else
     windows_instance_t windows_instance = NULL;
 
     if (VMI_OS_WINDOWS != vmi->os_type || (VMI_INIT_PARTIAL & vmi->init_mode))
@@ -82,6 +86,7 @@ vmi_get_winver(
         windows_instance->version = find_windows_version(vmi, kdbg);
     }
     return windows_instance->version;
+#endif
 }
 
 const char *
@@ -117,7 +122,12 @@ vmi_get_winver_manual(
     vmi_instance_t vmi,
     addr_t kdbg_pa)
 {
+#ifdef ENABLE_WINDOWS
     return find_windows_version(vmi, kdbg_pa);
+#else
+    errprint("**LibVMI wasn't compiled with Windows support!\n");
+    return VMI_OS_WINDOWS_NONE;
+#endif
 }
 
 uint64_t
