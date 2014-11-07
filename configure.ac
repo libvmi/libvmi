@@ -85,6 +85,20 @@ AC_ARG_ENABLE([file],
       [enable_file=yes])
 AM_CONDITIONAL([FILE], [test x"$enable_file" = xyes])
 
+AC_ARG_ENABLE([windows],
+      [AS_HELP_STRING([--disable-windows],
+         [Support introspecting Windows (XP - 8)])],
+      [enable_windows=$enableval],
+      [enable_windows=yes])
+AM_CONDITIONAL([WINDOWS], [test x"$enable_windows" = xyes])
+
+AC_ARG_ENABLE([linux],
+      [AS_HELP_STRING([--disable-linux],
+         [Support introspecting Linux])],
+      [enable_linux=$enableval],
+      [enable_linux=yes])
+AM_CONDITIONAL([LINUX], [test x"$enable_linux" = xyes])
+
 AC_ARG_ENABLE([vmifs],
       [AS_HELP_STRING([--disable-vmifs],
          [Build VMIFS tool: maps memory to a file through FUSE])],
@@ -308,6 +322,16 @@ file_space='      '
 [fi]
 AM_CONDITIONAL([HAVE_FILE], [test x"$have_file" = "xyes"])
 
+[if test "$enable_windows" = "yes"]
+[then]
+    AC_DEFINE([ENABLE_WINDOWS], [1], [Define to 1 to Windows support.])
+[fi]
+
+[if test "$enable_linux" = "yes"]
+[then]
+    AC_DEFINE([ENABLE_LINUX], [1], [Define to 1 to Linux support.])
+[fi]
+
 have_vmifs='no'
 vmifs_space='       '
 [if test "$enable_vmifs" = "yes"]
@@ -405,6 +429,12 @@ KVM Support  | --enable-kvm=$enable_kvm$kvm_space     | $have_kvm
 File Support | --enable-file=$enable_file$file_space    | $have_file
 Shm-snapshot | --enable-shm-snapshot=$enable_shm_snapshot$shm_snapshot_space | $have_shm_snapshot
 -------------|---------------------------|----------------------------
+
+OS           | Option                    
+-------------|--------------------------------------------------------
+Windows      | --enable-windows=$enable_windows
+Linux        | --enable-linux=$enable_linux
+
 
 Tools        | Option                    | Reason
 -------------|---------------------------|----------------------------

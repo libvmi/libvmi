@@ -472,16 +472,23 @@ vmi_init_private(
         }
 
         /* setup OS specific stuff */
-        if (VMI_OS_LINUX == (*vmi)->os_type) {
+        switch ( (*vmi)->os_type )
+        {
+#ifdef ENABLE_LINUX
+        case VMI_OS_LINUX:
             if(VMI_FAILURE == linux_init(*vmi)) {
                 goto error_exit;
             }
-        }
-        else if (VMI_OS_WINDOWS == (*vmi)->os_type) {
+            break;
+#endif
+#ifdef ENABLE_WINDOWS
+        case VMI_OS_WINDOWS:
             if(VMI_FAILURE == windows_init(*vmi)) {
                 goto error_exit;
             }
-        } else {
+            break;
+#endif
+        default:
             goto error_exit;
         }
 
