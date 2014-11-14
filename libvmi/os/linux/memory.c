@@ -171,11 +171,6 @@ linux_pid_to_pgd(
     mm_offset = linux_instance->mm_offset;
     pgd_offset = linux_instance->pgd_offset;
 
-    /* May fail for some drivers, but handle gracefully below by
-     * testing width
-     */
-    rc = driver_get_address_width(vmi, &width);
-
     /* first we the address of this PID's task_struct */
     ts_addr = linux_get_taskstruct_addr_from_pid(vmi, pid);
     if (!ts_addr) {
@@ -192,8 +187,30 @@ linux_pid_to_pgd(
      * a fallback. task_struct->active_mm can be found very reliably
      * at task_struct->mm + 1 pointer width
      */
-    if(!ptr && width)
-        vmi_read_addr_va(vmi, ts_addr + mm_offset + width, 0, &ptr);
+    if(!ptr)
+    {
+        switch(vmi->page_mode)
+        {
+            case VMI_PM_IA32E:
+                width = 8;
+                break;
+            case VMI_PM_AARCH32:// intentional fall-through
+            case VMI_PM_LEGACY: // intentional fall-through
+            case VMI_PM_PAE:
+                width = 4;
+                break;
+            default:
+                goto error_exit;
+        };
+
+        rc = vmi_read_addr_va(vmi, ts_addr + mm_offset + width, 0, &ptr);
+
+        if( rc == VMI_FAILURE || !ptr )
+        {
+            goto error_exit;
+        }
+    }
+
     vmi_read_addr_va(vmi, ptr + pgd_offset, 0, &pgd);
 
     /* convert pgd into a machine address */
