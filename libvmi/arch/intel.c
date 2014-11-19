@@ -286,7 +286,10 @@ addr_t v2p_nopae (vmi_instance_t vmi,
 
     info->size = VMI_PS_4KB;
     info->paddr = get_paddr_nopae(vaddr, info->x86_legacy.pte_value);
-    goto done;
+
+    if(info->paddr) {
+        info->page = vmi_read_page(vmi, info->paddr >> vmi->page_shift);
+    }
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
@@ -335,6 +338,10 @@ addr_t v2p_pae (vmi_instance_t vmi,
 
     info->size = VMI_PS_4KB;
     info->paddr = get_paddr_pae(vaddr, info->x86_pae.pte_value);
+
+    if(info->paddr) {
+        info->page = vmi_read_page(vmi, info->paddr >> vmi->page_shift);
+    }
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);

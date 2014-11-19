@@ -43,6 +43,7 @@ extern "C" {
  *
  * @return GSList of page_info_t structures, or NULL on error.
  * The caller is responsible for freeing the list and the structs.
+ * The page_info_t instances do not contain valid page pointers.
  */
 GSList* vmi_get_va_pages(
     vmi_instance_t vmi,

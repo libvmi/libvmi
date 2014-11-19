@@ -251,6 +251,8 @@ typedef int32_t vmi_pid_t;
 
 /* Struct for holding page lookup information */
 typedef struct page_info {
+    void  *page;        // pointer to the page for performance sensitive operations
+                        // WARNING: the pointer is only valid as long as no other pages are accessed by LibVMI
     addr_t vaddr;       // virtual address
     addr_t dtb;         // dtb used for translation
     addr_t paddr;       // physical address
