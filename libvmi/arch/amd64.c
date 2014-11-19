@@ -195,6 +195,10 @@ addr_t v2p_ia32e (vmi_instance_t vmi,
     info->size = VMI_PS_4KB;
     info->paddr = get_paddr_ia32e(vaddr, info->x86_ia32e.pte_value);
 
+    if(info->paddr) {
+        info->page = vmi_read_page(vmi, info->paddr >> vmi->page_shift);
+    }
+
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
     return info->paddr;
