@@ -143,6 +143,21 @@ _exit:
     return ret;
 }
 
+status_t probe_memory_layout_arm(vmi_instance_t vmi) {
+    //Note: this will need to be a more comprehensive check when we start supporting AArch64
+    status_t ret = VMI_FAILURE;
+    page_mode_t pm = VMI_PM_UNKNOWN;
+
+    reg_t ttbr1;
+    if (VMI_SUCCESS == driver_get_vcpureg(vmi, &ttbr1, TTBR1, 0)) {
+        pm = VMI_PM_AARCH32;
+        ret = VMI_SUCCESS;
+    }
+
+    vmi->page_mode = pm;
+    return ret;
+}
+
 /*
  * This function attempts to probe the memory layout
  * of a live VM to find the correct page mode.
@@ -153,9 +168,15 @@ status_t find_page_mode_live(vmi_instance_t vmi) {
         return VMI_FAILURE;
     }
 
+#if defined(I386) || defined(X86_64)
     if (VMI_SUCCESS == probe_memory_layout_x86(vmi)) {
         return VMI_SUCCESS;
     }
+#elif defined(ARM)
+    if (VMI_SUCCESS == probe_memory_layout_arm(vmi)) {
+        return VMI_SUCCESS;
+    }
+#endif
 
     return VMI_FAILURE;
 }

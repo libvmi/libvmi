@@ -9,6 +9,8 @@ AC_CONFIG_SRCDIR(libvmi/core.c)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS(config.h)
 
+AC_CANONICAL_HOST
+
 LIBRARY_NAME=libvmi
 MAJOR_VERSION=0
 MINOR_VERSION=11
@@ -19,6 +21,23 @@ RELEASE=$MAJOR_VERSION.$MINOR_VERSION
 AC_SUBST(LIBRARY_NAME)
 AC_SUBST(VERSION)
 AC_SUBST(RELEASE)
+
+AC_MSG_CHECKING([for supported architecture])
+case "$host_cpu" in
+i[[3456]]86|pentium)
+    arch=i386
+    AC_DEFINE([I386], 1, [Define for the i386 architecture.])
+    ;;
+x86?64*)
+    arch=x86_64
+    AC_DEFINE([X86_64], 1, [Define for the AMD x86-64 architecture.])
+    ;;
+arm*)
+    arch=arm
+    AC_DEFINE([ARM], 1, [Define for the ARM architecture.])
+    ;;
+esac
+AC_MSG_RESULT($arch)
 
 dnl -----------------------------------------------
 dnl Helper function to check presence of a define
@@ -342,6 +361,7 @@ vmifs_space='       '
         AC_DEFINE([ENABLE_VMIFS], [0], [Define to 1 to build VMIFS.])
         have_vmifs='FUSE library missing (libfuse-dev)'
         enable_vmifs='no'
+	vmifs_space=' '
     [else]
         AC_DEFINE([ENABLE_VMIFS], [1], [Define to 1 to build VMIFS.])
         AC_SUBST([FUSE_CFLAGS])

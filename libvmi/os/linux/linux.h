@@ -27,17 +27,15 @@
 struct linux_instance {
     char *sysmap;           /**< system map file for domain's running kernel */
 
-    uint64_t kernel_boundary; /**< the VA where the kernel is mapped */
+    addr_t tasks_offset; /**< task_struct->tasks */
 
-    uint64_t tasks_offset; /**< task_struct->tasks */
+    addr_t mm_offset; /**< task_struct->mm */
 
-    uint64_t mm_offset; /**< task_struct->mm */
+    addr_t pid_offset; /**< task_struct->pid */
 
-    uint64_t pid_offset; /**< task_struct->pid */
+    addr_t pgd_offset; /**< mm_struct->pgd */
 
-    uint64_t pgd_offset; /**< mm_struct->pgd */
-
-    uint64_t name_offset; /**< task_struct->comm */
+    addr_t name_offset; /**< task_struct->comm */
 };
 typedef struct linux_instance *linux_instance_t;
 

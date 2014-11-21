@@ -32,8 +32,149 @@
 void linux_read_config_ghashtable_entries(char* key, gpointer value,
         vmi_instance_t vmi);
 
+static status_t linux_filemode_32bit_init(vmi_instance_t vmi,
+                                          uint32_t swapper_pg_dir,
+                                          uint32_t boundary,
+                                          uint32_t pa, uint32_t va)
+{
+    vmi->page_mode = VMI_PM_LEGACY;
+    if (VMI_SUCCESS == arch_init(vmi)) {
+        if (pa == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va)) {
+            vmi->kpgd = swapper_pg_dir - boundary;
+            return VMI_SUCCESS;
+        }
+    }
+
+    vmi->page_mode = VMI_PM_PAE;
+    if (VMI_SUCCESS == arch_init(vmi)) {
+        if (pa == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va)) {
+            vmi->kpgd = swapper_pg_dir - boundary;
+            return VMI_SUCCESS;
+        }
+    }
+
+    vmi->page_mode = VMI_PM_AARCH32;
+    if (VMI_SUCCESS == arch_init(vmi)) {
+        if (pa == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va)) {
+            vmi->kpgd = swapper_pg_dir - boundary;
+            return VMI_SUCCESS;
+        }
+    }
+
+    return VMI_FAILURE;
+}
+
+static status_t linux_filemode_init(vmi_instance_t vmi)
+{
+    status_t rc;
+    addr_t swapper_pg_dir = 0, init_level4_pgt = 0;
+    addr_t boundary = 0, phys_start = 0, virt_start = 0;
+
+    switch (vmi->page_mode)
+    {
+    case VMI_PM_IA32E:
+        linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
+        linux_system_map_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
+        break;
+    case VMI_PM_LEGACY:
+    case VMI_PM_PAE:
+        linux_system_map_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
+        linux_system_map_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
+        break;
+    case VMI_PM_UNKNOWN:
+        linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
+        linux_system_map_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
+
+        if (phys_start && virt_start) break;
+        phys_start = virt_start = 0;
+
+        linux_system_map_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
+        linux_system_map_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
+        break;
+    }
+
+    if(phys_start && virt_start && phys_start < virt_start) {
+        boundary = virt_start - phys_start;
+        dbprint(VMI_DEBUG_MISC, "--got kernel boundary (0x%.16"PRIx64").\n", boundary);
+    }
+
+    rc = linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL, &swapper_pg_dir);
+
+    if (VMI_SUCCESS == rc) {
+
+        dbprint(VMI_DEBUG_MISC, "--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
+                swapper_pg_dir);
+
+        /* We don't know if VMI_PM_LEGACY, VMI_PM_PAE or VMI_PM_AARCH32 yet
+         * so we do some heuristics below. */
+        if (boundary)
+        {
+        rc = linux_filemode_32bit_init(vmi, swapper_pg_dir, boundary,
+                                       phys_start, virt_start);
+        if (VMI_SUCCESS == rc)
+            return rc;
+        }
+
+        /*
+         * So we have a swapper but don't know the physical page of it.
+         * We will make some educated guesses now.
+         */
+        boundary = 0xC0000000;
+        dbprint(VMI_DEBUG_MISC, "--trying boundary 0x%.16"PRIx64".\n",
+                boundary);
+        rc = linux_filemode_32bit_init(vmi, swapper_pg_dir, boundary,
+                                       swapper_pg_dir-boundary, swapper_pg_dir);
+        if (VMI_SUCCESS == rc)
+        {
+            return rc;
+        }
+
+        boundary = 0x80000000;
+        dbprint(VMI_DEBUG_MISC, "--trying boundary 0x%.16"PRIx64".\n",
+                boundary);
+        rc = linux_filemode_32bit_init(vmi, swapper_pg_dir, boundary,
+                                       swapper_pg_dir-boundary, swapper_pg_dir);
+        if (VMI_SUCCESS == rc)
+        {
+        return rc;
+        }
+
+        boundary = 0x40000000;
+        dbprint(VMI_DEBUG_MISC, "--trying boundary 0x%.16"PRIx64".\n",
+            boundary);
+        rc = linux_filemode_32bit_init(vmi, swapper_pg_dir, boundary,
+                                       swapper_pg_dir-boundary, swapper_pg_dir);
+        if (VMI_SUCCESS == rc)
+        {
+            return rc;
+        }
+
+        return VMI_FAILURE;
+    }
+
+    rc = linux_system_map_symbol_to_address(vmi, "init_level4_pgt", NULL, &init_level4_pgt);
+    if (rc == VMI_SUCCESS) {
+
+        dbprint(VMI_DEBUG_MISC, "--got vaddr for init_level4_pgt (0x%.16"PRIx64").\n",
+                init_level4_pgt);
+
+        if (boundary) {
+            vmi->page_mode = VMI_PM_IA32E;
+            if (VMI_SUCCESS == arch_init(vmi)) {
+                if (phys_start == vmi_pagetable_lookup(vmi, init_level4_pgt - boundary, virt_start)) {
+                    vmi->kpgd = init_level4_pgt - boundary;
+                    return VMI_SUCCESS;
+                }
+            }
+        }
+    }
+
+    return VMI_FAILURE;
+}
+
 status_t linux_init(vmi_instance_t vmi) {
-    status_t ret = VMI_FAILURE;
+
+    status_t rc;
     os_interface_t os_interface = NULL;
 
     if (vmi->config == NULL) {
@@ -52,101 +193,31 @@ status_t linux_init(vmi_instance_t vmi) {
 
     g_hash_table_foreach(vmi->config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
 
-    addr_t boundary = 0, phys_start = 0, virt_start = 0;
+#if defined(ARM)
+    rc = driver_get_vcpureg(vmi, &vmi->kpgd, TTBR1, 0);
+#elif defined(I386) || defined(X86_64)
+    rc = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);
+#endif
 
-    if(vmi->page_mode == VMI_PM_IA32E) {
-        linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
-        linux_system_map_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
-    } else if (vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE) {
-        linux_system_map_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
-        linux_system_map_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
-    } else if (vmi->page_mode == VMI_PM_UNKNOWN) {
-        ret = linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
-        if(VMI_SUCCESS == ret) {
-            linux_system_map_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
-            vmi->page_mode = VMI_PM_IA32E;
-        } else {
-            linux_system_map_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
-            linux_system_map_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
-            vmi->page_mode = VMI_PM_PAE; // it's just a guess
-        }
-    }
-
-    if(phys_start && virt_start && phys_start < virt_start) {
-        boundary = virt_start - phys_start;
-    } else {
-        // Just guess the boundary
-        boundary = 0xc0000000UL;
-    }
-
-    linux_instance->kernel_boundary = boundary;
-    dbprint(VMI_DEBUG_MISC, "--got kernel boundary (0x%.16"PRIx64").\n", boundary);
-
-    if(VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
-
-        if (VMI_SUCCESS == linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL, &vmi->kpgd)) {
-            dbprint(VMI_DEBUG_MISC, "--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
-                    vmi->kpgd);
-            //We don't know if VMI_PM_LEGACY or VMI_PM_PAE yet
-            //so we do some heuristics below
-        } else if (VMI_SUCCESS == linux_system_map_symbol_to_address(vmi, "init_level4_pgt", NULL, &vmi->kpgd)) {
-            dbprint(VMI_DEBUG_MISC, "--got vaddr for init_level4_pgt (0x%.16"PRIx64").\n",
-                    vmi->kpgd);
-            //Set page mode to VMI_PM_IA32E
-            vmi->page_mode = VMI_PM_IA32E;
-        } else {
+    /*
+     * The driver failed to get us a pagetable.
+     * As a fall-back, try to init using heuristics.
+     * This path is taken in FILE mode as well.
+     */
+    if (VMI_FAILURE == rc)
+        if (VMI_FAILURE == linux_filemode_init(vmi))
             goto _exit;
-        }
-
-        vmi->kpgd -= boundary;
-    }
 
     dbprint(VMI_DEBUG_MISC, "**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
-    // We check if the page mode is known
-    // and if no arch interface has been setup yet we do it now
-    if(VMI_PM_UNKNOWN == vmi->page_mode) {
-
-        //Try to check 32-bit paging modes
-        vmi->page_mode = VMI_PM_LEGACY;
-        if(VMI_SUCCESS == arch_init(vmi)) {
-            if(phys_start == vmi_pagetable_lookup(vmi, vmi->kpgd, virt_start)) {
-                // PM found
-                goto done;
-            }
-        }
-
-        vmi->page_mode = VMI_PM_PAE;
-        if(VMI_SUCCESS == arch_init(vmi)) {
-            if(phys_start == vmi_pagetable_lookup(vmi, vmi->kpgd, virt_start)) {
-                // PM found
-                goto done;
-            }
-        }
-
-        errprint("VMI_ERROR: Page mode is still unknown\n");
-        goto _exit;
-    }
-
-    if(!vmi->arch_interface) {
-        if(VMI_FAILURE == arch_init(vmi)) {
-            goto _exit;
-        }
-    }
-
-done:
-    ret = linux_system_map_symbol_to_address(vmi, "init_task", NULL,
+    rc = linux_system_map_symbol_to_address(vmi, "init_task", NULL,
             &vmi->init_task);
-    if (ret != VMI_SUCCESS) {
+    if (VMI_FAILURE == rc) {
         errprint("Could not get init_task from System.map\n");
         goto _exit;
     }
 
-    if(!vmi_pagetable_lookup(vmi, vmi->kpgd, vmi->init_task)) {
-        errprint("Failed to translate init_task VA using the kpgd!\n");
-        goto _exit;
-    }
-
+done:
     os_interface = safe_malloc(sizeof(struct os_interface));
     bzero(os_interface, sizeof(struct os_interface));
     os_interface->os_get_offset = linux_get_offset;
@@ -179,27 +250,27 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
     }
 
     if (strncmp(key, "linux_tasks", CONFIG_STR_LENGTH) == 0) {
-        linux_instance->tasks_offset = *(int *)value;
+        linux_instance->tasks_offset = *(addr_t *)value;
         goto _done;
     }
 
     if (strncmp(key, "linux_mm", CONFIG_STR_LENGTH) == 0) {
-        linux_instance->mm_offset = *(int *)value;
+        linux_instance->mm_offset = *(addr_t *)value;
         goto _done;
     }
 
     if (strncmp(key, "linux_pid", CONFIG_STR_LENGTH) == 0) {
-        linux_instance->pid_offset = *(int *)value;
+        linux_instance->pid_offset = *(addr_t *)value;
         goto _done;
     }
 
     if (strncmp(key, "linux_name", CONFIG_STR_LENGTH) == 0) {
-        linux_instance->name_offset = *(int *)value;
+        linux_instance->name_offset = *(addr_t *)value;
         goto _done;
     }
 
     if (strncmp(key, "linux_pgd", CONFIG_STR_LENGTH) == 0) {
-        linux_instance->pgd_offset = *(int *)value;
+        linux_instance->pgd_offset = *(addr_t *)value;
         goto _done;
     }
 
@@ -212,6 +283,10 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
     }
 
     if (strncmp(key, "domid", CONFIG_STR_LENGTH) == 0) {
+        goto _done;
+    }
+
+    if (strncmp(key, "physoffset", CONFIG_STR_LENGTH) == 0) {
         goto _done;
     }
 

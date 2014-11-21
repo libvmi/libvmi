@@ -24,6 +24,7 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <libvmi/libvmi.h>
 #define _GNU_SOURCE
 #include <stdlib.h>
@@ -47,6 +48,7 @@ main(
     memset(zeros, 0, PAGE_SIZE);
     uint32_t offset = 0;
     addr_t address = 0;
+    addr_t size = 0;
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
@@ -67,7 +69,9 @@ main(
         goto error_exit;
     }
 
-    while (address < vmi_get_memsize(vmi)) {
+    size = vmi_get_memsize(vmi);
+
+    while (address < size) {
 
         /* write memory to file */
         if (PAGE_SIZE == vmi_read_pa(vmi, address, memory, PAGE_SIZE)) {
