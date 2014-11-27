@@ -700,6 +700,8 @@ status_t xen_events_init(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
+    xen_get_instance(vmi)->events = xe;
+
     dbprint(VMI_DEBUG_XEN, "Init xen events with xch == %llx\n", (unsigned long long)xch);
 
     rc = xc_domain_getinfolist(xch, dom, 1, &dom_info);
@@ -880,8 +882,6 @@ enable_done:
     BACK_RING_INIT(&xe->mem_event.back_ring,
                    (mem_event_sring_t *)xe->mem_event.ring_page,
                    getpagesize());
-
-    xen_get_instance(vmi)->events = xe;
 
     if(!(dom_info.flags & XEN_DOMINF_paused))
     {
