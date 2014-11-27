@@ -76,6 +76,7 @@ static status_t linux_filemode_init(vmi_instance_t vmi)
         linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
         linux_system_map_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
         break;
+    case VMI_PM_AARCH32:
     case VMI_PM_LEGACY:
     case VMI_PM_PAE:
         linux_system_map_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
