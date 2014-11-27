@@ -598,11 +598,11 @@ void xen_events_destroy(vmi_instance_t vmi)
 
     /* Unregister for all events */
 #if XEN_EVENTS_VERSION < 450
-    rc = xc_hvm_set_mem_access(xch, dom, MEMACCESS_RWX, ~0ull, 0);
-    rc = xc_hvm_set_mem_access(xch, dom, MEMACCESS_RWX, 0, xe->mem_event.max_pages);
+    rc = xc_hvm_set_mem_access(xch, dom, (mem_access_t)MEMACCESS_RWX, ~0ull, 0);
+    rc = xc_hvm_set_mem_access(xch, dom, (mem_access_t)MEMACCESS_RWX, 0, xe->mem_event.max_pages);
 #else
-    rc = xc_set_mem_access(xch, dom, MEMACCESS_RWX, ~0ull, 0);
-    rc = xc_set_mem_access(xch, dom, MEMACCESS_RWX, 0, xe->mem_event.max_pages);
+    rc = xc_set_mem_access(xch, dom, (mem_access_t)MEMACCESS_RWX, ~0ull, 0);
+    rc = xc_set_mem_access(xch, dom, (mem_access_t)MEMACCESS_RWX, 0, xe->mem_event.max_pages);
 #endif
     rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_INT3, HVMPME_mode_disabled);
     rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR0, HVMPME_mode_disabled);
@@ -987,6 +987,10 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+    if ( page_access_flag >= __VMI_MEMACCESS_MAX || page_access_flag <= VMI_MEMACCESS_INVALID ) {
+        errprint("%s error: invalid memaccess setting requested\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
 
     /*
      * Setting a page write-only or write-execute in EPT triggers and EPT misconfiguration error
@@ -1010,8 +1014,6 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
     // Convert betwen vmi_mem_access_t and mem_access_t
     // Xen does them backwards....
     access = memaccess_conversion[page_access_flag];
-    if (access == MEMACCESS_INVALID)
-        return VMI_FAILURE;
 
     dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %lu on physical address: %"PRIu64" npages: %"PRIu64"\n",
         dom, event.physical_address, npages);

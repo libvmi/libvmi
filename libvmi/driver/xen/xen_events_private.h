@@ -118,7 +118,6 @@ typedef enum {
     MEMACCESS_N2RWX = MEMACCESS_INVALID
 #endif
 } compat_memaccess_t;
-
 typedef hvmmem_access_t mem_access_t;
 
 #else /* XEN_EVENTS_VERSION */
