@@ -34,7 +34,7 @@ status_t file_get_name(
     char **name);
 void file_set_name(
     vmi_instance_t vmi,
-    char *name);
+    const char *name);
 status_t file_get_memsize(
     vmi_instance_t vmi,
     uint64_t *size);

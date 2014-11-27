@@ -930,7 +930,7 @@ _bail:
 
 void xen_set_domainname(
     vmi_instance_t vmi,
-    char *name)
+    const char *name)
 {
     xen_get_instance(vmi)->name = strndup(name, 500);
 }
