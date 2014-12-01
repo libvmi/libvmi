@@ -208,7 +208,7 @@ file_get_name(
 void
 file_set_name(
     vmi_instance_t vmi,
-    char *name)
+    const char *name)
 {
     file_get_instance(vmi)->filename = strndup(name, 500);
 }

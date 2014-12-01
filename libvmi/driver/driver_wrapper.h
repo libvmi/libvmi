@@ -49,7 +49,7 @@ driver_destroy(
 static inline unsigned long
 driver_get_id_from_name(
     vmi_instance_t vmi,
-    char *name)
+    const char *name)
 {
     if (vmi->driver.initialized && vmi->driver.get_id_from_name_ptr) {
         return vmi->driver.get_id_from_name_ptr(vmi, name);
@@ -135,7 +135,7 @@ driver_get_name(
 static inline void
 driver_set_name(
     vmi_instance_t vmi,
-    char *name)
+    const char *name)
 {
     if (vmi->driver.initialized && vmi->driver.set_name_ptr) {
         return vmi->driver.set_name_ptr(vmi, name);

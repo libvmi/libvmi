@@ -54,7 +54,7 @@ status_t kvm_get_name(
     char **name);
 void kvm_set_name(
     vmi_instance_t vmi,
-    char *name);
+    const char *name);
 status_t kvm_get_memsize(
     vmi_instance_t vmi,
     uint64_t *size);

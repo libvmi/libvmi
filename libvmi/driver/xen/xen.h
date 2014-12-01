@@ -58,7 +58,7 @@ status_t xen_get_domainname(
     char **name);
 void xen_set_domainname(
     vmi_instance_t vmi,
-    char *name);
+    const char *name);
 status_t xen_get_memsize(
     vmi_instance_t vmi,
     uint64_t *size);

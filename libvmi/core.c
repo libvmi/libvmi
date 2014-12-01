@@ -237,7 +237,7 @@ set_driver_type(
     vmi_instance_t vmi,
     vmi_mode_t mode,
     unsigned long id,
-    char *name)
+    const char *name)
 {
     if (VMI_AUTO == mode) {
         if (VMI_FAILURE == driver_init_mode(vmi, id, name)) {
@@ -256,9 +256,9 @@ set_driver_type(
 static void
 set_image_type_for_file(
     vmi_instance_t vmi,
-    char *name)
+    const char *name)
 {
-    char *ptr = NULL;
+    const char *ptr = NULL;
 
     if ((ptr = strrchr(name, '/')) == NULL) {
         ptr = name;
@@ -275,71 +275,77 @@ set_id_and_name(
     vmi_instance_t vmi,
     vmi_mode_t mode,
     unsigned long id,
-    char *name)
+    const char *name)
 {
+
+    if (!name && id == VMI_INVALID_DOMID) {
+        errprint("Specifying either id or name.\n");
+        return VMI_FAILURE;
+    }
+
+    if (name && id != VMI_INVALID_DOMID) {
+        errprint("Specifying both id and name is undefined.\n");
+        return VMI_FAILURE;
+    }
+
     if (VMI_FILE == vmi->mode) {
         if (name) {
             set_image_type_for_file(vmi, name);
             driver_set_name(vmi, name);
+            goto done;
         }
-        else {
-            errprint("Must specify name for file mode.\n");
-            return VMI_FAILURE;
-        }
+
+        errprint("Must specify name for file mode.\n");
+        return VMI_FAILURE;
     }
-    else {
-        /* resolve and set id and name */
-        if (VMI_INVALID_DOMID == id) {
-            if (name) {
-                if (VMI_INVALID_DOMID != (id = driver_get_id_from_name(vmi, name)) ) {
-                    dbprint(VMI_DEBUG_CORE, "--got id from name (%s --> %lu)\n", name, id);
-                    driver_set_id(vmi, id);
-                } else {
-                    errprint("Failed to get domain id from name.\n");
-                    return VMI_FAILURE;
-                }
-            }
-            else {
-                errprint("Must specifiy either id or name.\n");
-                return VMI_FAILURE;
-            }
-        }
-        else {
-            if (name) {
-                errprint("Specifying both id and name is undefined.\n");
-                return VMI_FAILURE;
-            }
 
-            if(VMI_FAILURE == driver_check_id(vmi,id)) {
-                errprint("Invalid id.\n");
-                return VMI_FAILURE;
-            }
-
+    /* resolve and set id from name */
+    if (name) {
+        if (VMI_INVALID_DOMID != (id = driver_get_id_from_name(vmi, name)) ) {
+            dbprint(VMI_DEBUG_CORE, "--got id from name (%s --> %lu)\n", name, id);
             driver_set_id(vmi, id);
-
-            if (VMI_FAILURE != driver_get_name_from_id(vmi, id, &name)) {
-                dbprint(VMI_DEBUG_CORE, "--got name from id (%lu --> %s)\n", id, name);
-            } else {
-                dbprint(VMI_DEBUG_CORE, "--failed to get domain name from id!\n");
-
-                // Only under Xen this is OK
-                if(vmi->mode != VMI_XEN) {
-                    return VMI_FAILURE;
-                }
-            }
+            vmi->image_type = strndup(name, 100);
+            driver_set_name(vmi, name);
+            goto done;
         }
 
-       if(name != NULL) {
-               vmi->image_type = strndup(name, 100);
-               driver_set_name(vmi, name);
-       } else {
-               // create placeholder for image_type
-               char *idstring = g_malloc0(snprintf(NULL, 0, "domid-%lu", id) + 1);
-               sprintf(idstring, "domid-%lu", id);
-               vmi->image_type = idstring;
-       }
-
+        errprint("Failed to get domain id from name.\n");
+        return VMI_FAILURE;
     }
+
+    /* resolve and set name from id */
+    if (VMI_FAILURE == driver_check_id(vmi,id)) {
+        errprint("Invalid id.\n");
+        return VMI_FAILURE;
+    }
+
+    driver_set_id(vmi, id);
+
+    char *tmp_name = NULL;
+    if (VMI_SUCCESS == driver_get_name_from_id(vmi, id, &tmp_name)) {
+        dbprint(VMI_DEBUG_CORE, "--got name from id (%lu --> %s)\n", id, tmp_name);
+        vmi->image_type = strndup(tmp_name, 100);
+        driver_set_name(vmi, tmp_name);
+        free(tmp_name);
+        goto done;
+    }
+
+    dbprint(VMI_DEBUG_CORE, "--failed to get domain name from id!\n");
+
+#if !defined(HAVE_XS_H) && !defined(HAVE_XENSTORE_H)
+    // Only under Xen this is OK without Xenstore
+    if (vmi->mode == VMI_XEN) {
+        // create placeholder for image_type
+        char *idstring = g_malloc0(snprintf(NULL, 0, "domid-%lu", id) + 1);
+        sprintf(idstring, "domid-%lu", id);
+        vmi->image_type = idstring;
+        goto done;
+    }
+#endif
+
+    return VMI_FAILURE;
+
+done:
     dbprint(VMI_DEBUG_CORE, "**set image_type = %s\n", vmi->image_type);
     return VMI_SUCCESS;
 }
@@ -349,8 +355,8 @@ vmi_init_private(
     vmi_instance_t *vmi,
     uint32_t flags,
     unsigned long id,
-    char *name,
-    vmi_config_t *config)
+    const char *name,
+    vmi_config_t config)
 {
     uint32_t access_mode = flags & 0x0000FFFF;
     uint32_t init_mode = flags & 0x00FF0000;
@@ -518,7 +524,7 @@ status_t
 vmi_init(
     vmi_instance_t *vmi,
     uint32_t flags,
-    char *name)
+    const char *name)
 {
     return vmi_init_private(vmi, flags | VMI_CONFIG_GLOBAL_FILE_ENTRY, VMI_INVALID_DOMID, name, NULL);
 }
@@ -588,7 +594,7 @@ _done:
 status_t
 vmi_init_complete(
     vmi_instance_t *vmi,
-    char *config)
+    const char *config)
 {
     uint32_t flags = VMI_INIT_COMPLETE | (*vmi)->mode;
 

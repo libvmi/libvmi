@@ -436,7 +436,7 @@ typedef struct vmi_instance *vmi_instance_t;
 status_t vmi_init(
     vmi_instance_t *vmi,
     uint32_t flags,
-    char *name);
+    const char *name);
 
 /**
  * Initializes access to a specific VM with a custom configuration source.  All
@@ -476,7 +476,7 @@ status_t vmi_init_custom(
  */
 status_t vmi_init_complete(
     vmi_instance_t *vmi,
-    char *config);
+    const char *config);
 
 /**
  * Completes initialization.  Call this after calling vmi_init or vmi_init_custom

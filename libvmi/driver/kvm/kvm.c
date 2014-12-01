@@ -1420,7 +1420,7 @@ kvm_get_name(
 void
 kvm_set_name(
     vmi_instance_t vmi,
-    char *name)
+    const char *name)
 {
     kvm_get_instance(vmi)->name = strndup(name, 500);
 }
