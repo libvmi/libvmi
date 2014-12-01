@@ -800,7 +800,7 @@ status_t
 xen_init_vmi(
     vmi_instance_t vmi)
 {
-    status_t ret;
+    status_t ret = VMI_FAILURE;
     xen_instance_t *xen = xen_get_instance(vmi);
     /* setup the info struct */
     int rc = xc_domain_getinfo(xen->xchandle,
