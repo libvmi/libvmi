@@ -23,6 +23,7 @@
 #include "arch_interface.h"
 #include "intel.h"
 #include "amd64.h"
+#include "arm_aarch32.h"
 #include <stdlib.h>
 
 status_t arch_init(vmi_instance_t vmi) {
