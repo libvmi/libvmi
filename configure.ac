@@ -425,6 +425,8 @@ AC_CONFIG_FILES(Makefile \
 [if test "$have_check" = "yes"]
 [then]
     AC_CONFIG_FILES(tests/Makefile)
+    test_dir="tests"
+    AC_SUBST([test_dir])
 [fi]
 
 AC_OUTPUT

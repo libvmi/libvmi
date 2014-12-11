@@ -20,6 +20,6 @@ check_libvmi_SOURCES = \
     $(top_builddir)/libvmi/cache.c \
     $(top_builddir)/libvmi/convenience.c
 
-check_libvmi_CFLAGS = @CHECK_CFLAGS@ @GLIB_CFLAGS@ -I$(top_srcdir)/libvmi/
-check_libvmi_LDADD = $(top_builddir)/libvmi/libvmi.la @CHECK_LIBS@
+check_libvmi_CFLAGS = @CHECK_CFLAGS@ @GLIB_CFLAGS@ -I$(top_srcdir) -I$(top_srcdir)/libvmi/
+check_libvmi_LDADD = $(top_builddir)/libvmi/libvmi.la @CHECK_LIBS@ @GLIB_LIBS@
 check_libvmi_DEPENDENCIES = $(top_srcdir)/libvmi/cache.c $(top_srcdir)/libvmi/convenience.c
