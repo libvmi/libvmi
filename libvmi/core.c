@@ -62,11 +62,11 @@ open_config_file(
             dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
 
             f = fopen(location, "r");
-            free(location);
 
             if (f) {
                 goto success;
             }
+            free(location);
         }
     }
 
@@ -77,22 +77,26 @@ open_config_file(
     dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
 
     f = fopen(location, "r");
-    free(location);
 
     if (f) {
         goto success;
     }
+    free(location);
 
     /* finally check in /etc */
     dbprint(VMI_DEBUG_CORE, "--looking for config file at /etc/libvmi.conf\n");
-    f = fopen("/etc/libvmi.conf", "r");
+    location = g_malloc0(strlen("/etc/libvmi.conf")+1);
+    sprintf(location, "/etc/libvmi.conf");
+    f = fopen(location, "r");
     if (f) {
         goto success;
     }
+    free(location);
 
     return NULL;
 success:
     dbprint(VMI_DEBUG_CORE, "**Using config file at %s\n", location);
+    free(location);
     return f;
 }
 
