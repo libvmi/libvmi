@@ -1,3 +1,35 @@
+Release 0.12
+    New Features:
+        Support for ARM on Xen, and ARM raw memory dumps
+        KVM shared memory shapshot and direct memory access support
+        Rekall profiles for Windows target config
+        Support for 64-bit linux raw memory dumps
+        Ability to disable selected OS support at compile time
+        Compile-time cache configuration
+    API enhancements:
+        Added vmi_step_mem_event for single stepping over mem events
+        Added vmi_read and vmi_write functions
+        Added vmi_init_paging to re-init paging mode via API
+        Allow VMI_PARTIAL init mode for live VMs
+    Code refactoring:
+        Significant refactoring in driver and arch modules
+        Windows code cleanup (for Win8 support)
+        Fixed some code duplications in read/write modules
+    Bug Fixes:
+        Fixed bug in byte-level mem events
+        Fixed unicode string read function for Windows x64
+        Fixed initialization bugs
+        Fixed bounds checking bugs
+        Fixed some memory leaks
+        Fixed LRU page tracking in cache
+        Whitespace cleanup
+        Reduced compiler warnings
+        Address XSA-99
+    Other:
+        Updated Qemu patch for LibVMI+Qemu
+        Improved error messages
+        General improvements to Xen events code
+
 Release 0.10 
     Build system improvements:
         Compiling on OS X now possible
@@ -33,7 +65,7 @@ Release 0.10
     Hypervisor support:
         Xen improvements tracking 4.1.x, 4.2.x, and 4.3.x 
         Qemu 1.2.0 patch for KVM integration
-    Bugfixes:
+    Bug Fixes:
         Volatility integration via Pyvmiaddressspace
         Small Linux offset finder updates
         Linux PID to PGD/PGD to PID lookups
