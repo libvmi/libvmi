@@ -52,15 +52,6 @@ extern "C" {
 #include <errno.h>
 #include <string.h>
 
-/* enable or disable the address cache (v2p, pid, etc) */
-#define ENABLE_ADDRESS_CACHE 1
-
-/* enable or disable the page cache */
-#define ENABLE_PAGE_CACHE 1
-
-/* max number of pages held in page cache */
-#define MAX_PAGE_CACHE_SIZE 512
-
 typedef uint32_t vmi_mode_t;
 
 /* These will be used in conjuction with vmi_mode_t variables */
