@@ -125,6 +125,18 @@ AC_ARG_ENABLE([vmifs],
       [enable_vmifs=yes])
 AM_CONDITIONAL([VMIFS], [test x"$enable_vmifs" = xyes])
 
+AC_ARG_ENABLE([address_cache],
+      [AS_HELP_STRING([--disable-address-cache],
+         [Cache addresses (v2p, pid, etc)])],
+      [enable_address_cache=$enableval],
+      [enable_address_cache=yes])
+
+AC_ARG_ENABLE([page_cache],
+      [AS_HELP_STRING([--disable-page-cache],
+         [Cache pages])],
+      [enable_page_cache=$enableval],
+      [enable_page_cache=512])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -409,6 +421,17 @@ PKG_CHECK_MODULES([JANSSON], [jansson >= 2.1], [missing="no"], [missing="yes"])
 [else]
     have_jansson='Disabled, missing libjansson-dev.'
     [echo "No working Jansson library found (libjansson-dev), Rekall system profiles won't be supported."]
+[fi]
+
+[if test "$enable_address_cache" = "yes"]
+[then]
+        AC_DEFINE([ENABLE_ADDRESS_CACHE], [1], [Enable or disable the address cache (v2p, pid, etc)])
+[fi]
+
+[if test x"$enable_page_cache" != "x"]
+[then]
+        AC_DEFINE([ENABLE_PAGE_CACHE], [1], [Enable or disable the page cache])
+        AC_DEFINE_UNQUOTED([MAX_PAGE_CACHE_SIZE], [$enable_page_cache], [Max number of pages held in page cache])
 [fi]
 
 dnl -----------------------------------------------
