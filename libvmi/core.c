@@ -372,7 +372,7 @@ vmi_init_private(
     memset(*vmi, 0, sizeof(struct vmi_instance));
 
     /* initialize instance struct to default values */
-    dbprint(VMI_DEBUG_CORE, "LibVMI Version 0.11.0\n");  //TODO change this with each release
+    dbprint(VMI_DEBUG_CORE, "LibVMI Version 0.12.0\n");  //TODO change this with each release
 
     /* save the flags and init mode */
     (*vmi)->flags = flags;
