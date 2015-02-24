@@ -1,7 +1,7 @@
 LibVMI: Simplified Virtual Machine Introspection
 ================================================
 LibVMI is a virtual machine introspection library.  This means that it helps 
-you access the memory of a running virtual machine.  LibVMI provides primatives
+you access the memory of a running virtual machine.  LibVMI provides primitives
 for accessing this memory using physical or virtual addresses and kernel
 symbols.  LibVMI also supports accessing memory from a physical memory snapshot,
 which is helpful for debugging or forensic analysis.
