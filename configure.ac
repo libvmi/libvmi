@@ -428,7 +428,7 @@ PKG_CHECK_MODULES([JANSSON], [jansson >= 2.1], [missing="no"], [missing="yes"])
         AC_DEFINE([ENABLE_ADDRESS_CACHE], [1], [Enable or disable the address cache (v2p, pid, etc)])
 [fi]
 
-[if test x"$enable_page_cache" != "x"]
+[if test x"$enable_page_cache" != "xno"]
 [then]
         AC_DEFINE([ENABLE_PAGE_CACHE], [1], [Enable or disable the page cache])
         AC_DEFINE_UNQUOTED([MAX_PAGE_CACHE_SIZE], [$enable_page_cache], [Max number of pages held in page cache])
