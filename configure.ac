@@ -2,7 +2,7 @@ dnl --------------------------------
 dnl Initialization macros.
 dnl --------------------------------
 
-AC_INIT([libvmi], [0.11.0])
+AC_INIT([libvmi], [0.12.0])
 AM_INIT_AUTOMAKE([subdir-objects])
 
 AC_CONFIG_SRCDIR(libvmi/core.c)
@@ -13,7 +13,7 @@ AC_CANONICAL_HOST
 
 LIBRARY_NAME=libvmi
 MAJOR_VERSION=0
-MINOR_VERSION=11
+MINOR_VERSION=12
 MICRO_VERSION=0
 VERSION=$MAJOR_VERSION.$MINOR_VERSION.$MICRO_VERSION
 RELEASE=$MAJOR_VERSION.$MINOR_VERSION
