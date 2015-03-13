@@ -493,6 +493,14 @@ xen_put_memory(
         /* do the write */
         memcpy(memory + offset, ((char *) buf) + buf_offset, write_len);
 
+        /*
+         * We need to refresh the page cache after a page is written to
+         * because it might have had been a copy-on-write page. After this
+         * write the mapping changes but the cached reference is to the
+         * old (origin) page.
+         */
+        memory_cache_remove(vmi, (phys_address >> vmi->page_shift) << vmi->page_shift);
+
         /* set variables for next loop */
         count -= write_len;
         buf_offset += write_len;
