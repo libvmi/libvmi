@@ -21,8 +21,7 @@
 #ifndef ARCH_INTERFACE_H_
 #define ARCH_INTERFACE_H_
 
-#include "libvmi.h"
-#include <stdlib.h>
+#include "private.h"
 
 typedef addr_t  (*arch_v2p_t)(vmi_instance_t vmi, addr_t dtb, addr_t vaddr, page_info_t *info);
 typedef GSList* (*arch_get_va_pages_t)(vmi_instance_t vmi, addr_t dtb);

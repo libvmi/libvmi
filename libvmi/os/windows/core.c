@@ -24,11 +24,11 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
 #include "private.h"
-#include "peparse.h"
+#include "libvmi/peparse.h"
 #include "os/windows/windows.h"
 #include "driver/driver_wrapper.h"
+#include "config/config_parser.h"
 
 // See http://en.wikipedia.org/wiki/Windows_NT
 static inline

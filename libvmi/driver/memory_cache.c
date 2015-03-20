@@ -24,13 +24,11 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
-
 #define _GNU_SOURCE
 #include <glib.h>
 #include <time.h>
 
+#include "private.h"
 #include "glib_compat.h"
 
 struct memory_cache_entry {

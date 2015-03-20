@@ -25,7 +25,7 @@
 #ifndef INTEL_H
 #define INTEL_H
 
-#include "libvmi.h"
+#include "private.h"
 
 status_t intel_init(vmi_instance_t vmi);
 

@@ -28,7 +28,6 @@
 #ifndef DRIVER_WRAPPER_H
 #define DRIVER_WRAPPER_H
 
-#include "libvmi.h"
 #include "private.h"
 
 /*

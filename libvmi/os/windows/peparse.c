@@ -24,11 +24,11 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "peparse.h"
-#include "private.h"
 #define _GNU_SOURCE
 #include <string.h>
+
+#include "private.h"
+#include "peparse.h"
 
 // takes an rva and looks up a null terminated string at that location
 char *

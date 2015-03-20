@@ -24,9 +24,9 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
 #include <string.h>
+
+#include "private.h"
 
 // Code below modified from the Handbook of Exact String-Matching Algorithms by
 // Christian Charras and Thierry Lecroq.

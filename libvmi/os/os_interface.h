@@ -21,11 +21,9 @@
 #ifndef OS_INTERFACE_H_
 #define OS_INTERFACE_H_
 
-#include "libvmi.h"
+#include "private.h"
 #include "os/windows/windows.h"
 #include "os/linux/linux.h"
-#include <stdlib.h>
-
 
 typedef uint64_t (*os_get_offset_t)(vmi_instance_t vmi,
         const char* offset_name);
@@ -48,7 +46,7 @@ typedef unicode_string_t* (*os_read_unicode_struct_t)(vmi_instance_t vmi,
 
 typedef status_t (*os_teardown_t)(vmi_instance_t vmi);
 
-struct os_interface {
+typedef struct os_interface {
     os_get_offset_t os_get_offset;
     os_pgd_to_pid_t os_pgd_to_pid;
     os_pid_to_pgd_t os_pid_to_pgd;
@@ -57,8 +55,7 @@ struct os_interface {
     os_rva_to_symbol_t os_rva2sym;
     os_read_unicode_struct_t os_read_unicode_struct;
     os_teardown_t os_teardown;
-};
-typedef struct os_interface *os_interface_t;
+} *os_interface_t;
 
 /**
  * A util method to call os_teardown if it exists and free resources.

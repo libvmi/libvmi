@@ -34,7 +34,6 @@ extern "C" {
 #pragma GCC visibility push(default)
 
 #include <glib.h>
-#include <libvmi/libvmi.h>
 
 /**
  * Retrieve the pages mapped into the address space of a process.

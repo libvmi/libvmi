@@ -25,7 +25,7 @@
 #ifndef AMD64_H
 #define AMD64_H
 
-#include "libvmi.h"
+#include "private.h"
 
 status_t amd64_init(vmi_instance_t vmi);
 

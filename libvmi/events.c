@@ -26,12 +26,11 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
-#include "driver/driver_wrapper.h"
-
 #define _GNU_SOURCE
 #include <glib.h>
+
+#include "private.h"
+#include "driver/driver_wrapper.h"
 
 vmi_mem_access_t combine_mem_access(vmi_mem_access_t base, vmi_mem_access_t add)
 {
@@ -112,11 +111,6 @@ void memevent_page_free(gpointer value)
 
 void events_init(vmi_instance_t vmi)
 {
-    if (!(vmi->init_mode & VMI_INIT_EVENTS))
-    {
-        return;
-    }
-
     vmi->interrupt_events = g_hash_table_new(g_int_hash, g_int_equal);
     vmi->mem_events = g_hash_table_new_full(g_int64_hash, g_int64_equal, NULL,
             memevent_page_free);

@@ -1,5 +1,9 @@
 SUBDIRS = config
-h_sources = libvmi.h libvmi_extra.h x86.h
+
+h_public =  libvmi.h \
+            libvmi_extra.h \
+            x86.h
+
 h_private = \
     private.h \
     debug.h \
@@ -12,6 +16,7 @@ h_private = \
     driver/driver_interface.h \
     driver/driver_wrapper.h \
     driver/memory_cache.h
+
 c_sources = \
     accessors.c \
     cache.c \
@@ -32,58 +37,65 @@ c_sources = \
     driver/memory_cache.c \
     os/os_interface.c
 
+if SHM
+h_public    += shm.h
+c_sources   += shm.c
+endif
+
 drivers =
 if HAVE_FILE
-drivers += driver/file/file.h \
-           driver/file/file_private.h \
-           driver/file/file.c
+drivers     += driver/file/file.h \
+               driver/file/file_private.h \
+               driver/file/file.c
 endif
 if HAVE_KVM
-drivers += driver/kvm/kvm.h \
-           driver/kvm/kvm_private.h \
-           driver/kvm/kvm.c
+drivers     += driver/kvm/kvm.h \
+               driver/kvm/kvm_private.h \
+               driver/kvm/kvm.c
 if SHM
-drivers += driver/kvm/kvm_shm.h
+drivers     += driver/kvm/kvm_shm.h
 endif
 endif
+
 if HAVE_XEN
-drivers += driver/xen/xen.h \
-           driver/xen/xen_private.h \
-           driver/xen/xen.c
+drivers     += driver/xen/xen.h \
+               driver/xen/xen_private.h \
+               driver/xen/xen.c
 if HAVE_XEN_EVENTS
-drivers += driver/xen/xen_events.h \
-           driver/xen/xen_events_private.h \
-           driver/xen/xen_events.c
+h_public    += events.h
+drivers     += driver/xen/xen_events.h \
+               driver/xen/xen_events_private.h \
+               driver/xen/xen_events.c
 endif
 endif
 
 os =
 if WINDOWS
-h_sources += peparse.h
-os += os/windows/windows.h \
-      os/windows/core.c \
-      os/windows/kdbg.c \
-      os/windows/memory.c \
-      os/windows/symbols.c \
-      os/windows/peparse.c \
-      os/windows/process.c \
-      os/windows/unicode.c
+h_public    += peparse.h
+os          += os/windows/windows.h \
+               os/windows/core.c \
+               os/windows/kdbg.c \
+               os/windows/memory.c \
+               os/windows/symbols.c \
+               os/windows/peparse.c \
+               os/windows/process.c \
+               os/windows/unicode.c
 endif
 if LINUX
-os += os/linux/linux.h \
-      os/linux/core.c \
-      os/linux/memory.c \
-      os/linux/symbols.c
+os          += os/linux/linux.h \
+               os/linux/core.c \
+               os/linux/memory.c \
+               os/linux/symbols.c
 endif
 
 library_includedir=$(includedir)/$(LIBRARY_NAME)
 library_include_HEADERS = $(h_sources)
 
+AM_CFLAGS = -I$(top_srcdir)
 AM_CPPFLAGS = -I$(top_srcdir)
 
 lib_LTLIBRARIES= libvmi.la
-libvmi_la_SOURCES= $(h_sources) $(h_private) $(drivers) $(os) $(c_sources)
+libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
 libvmi_la_LIBADD= config/libconfig.la
 libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JANSSON_CFLAGS)
 libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS) $(JANSSON_LIBS)
-libvmi_la_DEPENDENCIES= libvmi.h

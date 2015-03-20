@@ -20,9 +20,7 @@
 #ifndef OS_LINUX_H_
 #define OS_LINUX_H_
 
-#include "libvmi.h"
-#include "config/config_parser.h"
-#include <stdlib.h>
+#include "private.h"
 
 struct linux_instance {
     char *sysmap;           /**< system map file for domain's running kernel */
