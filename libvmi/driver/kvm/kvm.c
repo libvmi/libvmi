@@ -25,14 +25,6 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "libvmi_extra.h"
-#include "private.h"
-#include "driver/driver_wrapper.h"
-#include "driver/memory_cache.h"
-#include "driver/kvm/kvm.h"
-#include "driver/kvm/kvm_private.h"
-
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
@@ -50,6 +42,12 @@
 #include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
+
+#include "private.h"
+#include "driver/driver_wrapper.h"
+#include "driver/memory_cache.h"
+#include "driver/kvm/kvm.h"
+#include "driver/kvm/kvm_private.h"
 
 // request struct matches a definition in qemu source code
 struct request {

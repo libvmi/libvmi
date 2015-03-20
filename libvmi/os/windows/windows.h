@@ -21,7 +21,7 @@
 #ifndef OS_WINDOWS_H_
 #define OS_WINDOWS_H_
 
-#include "libvmi.h"
+#include "private.h"
 
 struct windows_instance {
 

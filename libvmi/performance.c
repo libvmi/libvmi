@@ -24,10 +24,10 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
 #include <math.h>
 #include <sys/time.h>
+
+#include "private.h"
 
 static struct timeval startTime;
 static struct timeval stopTime;

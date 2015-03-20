@@ -18,8 +18,8 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef X86_H
-#define X86_H
+#ifndef LIBVMI_X86_H
+#define LIBVMI_X86_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -127,4 +127,4 @@ extern "C" {
 }
 #endif
 
-#endif /* X86_H */
+#endif /* LIBMVI_X86_H */

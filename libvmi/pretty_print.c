@@ -25,7 +25,7 @@
  */
 
 #include <stdlib.h>
-#include "libvmi.h"
+
 #include "private.h"
 
 void

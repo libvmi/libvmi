@@ -25,7 +25,6 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
 #include "private.h"
 #include "driver/file/file.h"
 #include "driver/file/file_private.h"

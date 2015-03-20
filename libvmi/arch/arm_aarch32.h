@@ -23,7 +23,7 @@
 #ifndef ARM_H
 #define ARM_H
 
-#include "libvmi.h"
+#include "private.h"
 
 status_t aarch32_init(vmi_instance_t vmi);
 

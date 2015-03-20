@@ -28,7 +28,7 @@
 #ifndef DRIVER_INTERFACE_H
 #define DRIVER_INTERFACE_H
 
-#include "libvmi.h"
+#include "private.h"
 
 typedef struct driver_interface {
     status_t (*init_ptr) (

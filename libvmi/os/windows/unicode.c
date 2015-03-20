@@ -24,12 +24,12 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
 #include <string.h>
 #include <wchar.h>
 #include <iconv.h>  // conversion between character sets
 #include <errno.h>
+
+#include "private.h"
 
 unicode_string_t *
 windows_read_unicode_struct(

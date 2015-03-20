@@ -24,13 +24,16 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libvmi/libvmi.h>
+#include <config.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
 #include <inttypes.h>
+
+#include <libvmi/libvmi.h>
+#include <libvmi/shm.h>
 
 void list_processes(vmi_instance_t vmi, addr_t current_process,
     addr_t list_head, unsigned long tasks_offset, addr_t current_list_entry,

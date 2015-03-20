@@ -24,14 +24,6 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
-#include "driver/driver_wrapper.h"
-#include "driver/memory_cache.h"
-#include "os/os_interface.h"
-#include "os/windows/windows.h"
-#include "os/linux/linux.h"
-#include "config/config_parser.h"
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -40,6 +32,14 @@
 #include <fnmatch.h>
 #include <sys/types.h>
 #include <pwd.h>
+
+#include "private.h"
+#include "driver/driver_wrapper.h"
+#include "driver/memory_cache.h"
+#include "os/os_interface.h"
+#include "os/windows/windows.h"
+#include "os/linux/linux.h"
+#include "config/config_parser.h"
 
 extern FILE *yyin;
 
@@ -390,9 +390,16 @@ vmi_init_private(
     sym_cache_init(*vmi);
     rva_cache_init(*vmi);
     v2p_cache_init(*vmi);
+
+    if ( init_mode & VMI_INIT_SHM_SNAPSHOT ) {
 #if ENABLE_SHM_SNAPSHOT == 1
-    v2m_cache_init(*vmi);
+        v2m_cache_init(*vmi);
+#else
+        errprint("LibVMI wasn't compiled with SHM support!\n");
+        status = VMI_FAILURE;
+        goto error_exit;
 #endif
+    }
 
     /* connecting to xen, kvm, file, etc */
     if (VMI_FAILURE == set_driver_type(*vmi, access_mode, id, name)) {
@@ -515,9 +522,14 @@ vmi_init_private(
 
     }
 
-    /* Enable event handlers */
-    if(init_mode & VMI_INIT_EVENTS){
+    if(init_mode & VMI_INIT_EVENTS) {
+#if ENABLE_XEN_EVENTS == 1
+        /* Enable event handlers */
         events_init(*vmi);
+#else
+        errprint("LibVMI wasn't compiled with events support!\n");
+        status = VMI_FAILURE;
+#endif
     }
 
 error_exit:
@@ -668,9 +680,7 @@ vmi_destroy(
         return VMI_FAILURE;
 
     vmi->shutting_down = TRUE;
-    if(vmi->init_mode & VMI_INIT_EVENTS){
-        events_destroy(vmi);
-    }
+    events_destroy(vmi);
     driver_destroy(vmi);
     if (vmi->os_interface) {
         os_destroy(vmi);
@@ -686,9 +696,12 @@ vmi_destroy(
     sym_cache_destroy(vmi);
     rva_cache_destroy(vmi);
     v2p_cache_destroy(vmi);
+
 #if ENABLE_SHM_SNAPSHOT == 1
-    v2m_cache_destroy(vmi);
+    if ( vmi->init_mode & VMI_INIT_SHM_SNAPSHOT )
+        v2m_cache_destroy(vmi);
 #endif
+
     memory_cache_destroy(vmi);
     if (vmi->image_type)
         free(vmi->image_type);

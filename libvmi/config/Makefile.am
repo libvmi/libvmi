@@ -2,7 +2,9 @@ h_sources = config_parser.h
 c_sources = grammar.y lexicon.l
 
 CLEANFILES = lexicon.c grammar.c grammar.h
+AM_CFLAGS = -I$(top_srcdir)
 AM_CPPFLAGS = -I$(top_srcdir)
+
 AM_YFLAGS = -y -d
 
 noinst_LTLIBRARIES= libconfig.la

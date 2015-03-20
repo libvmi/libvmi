@@ -28,7 +28,7 @@
 #ifndef FILE_PRIVATE_H
 #define FILE_PRIVATE_H
 
-#include "libvmi.h"
+#include "private.h"
 #include "driver/file/file.h"
 
 typedef struct file_instance {

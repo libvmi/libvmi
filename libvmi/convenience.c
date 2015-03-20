@@ -24,13 +24,12 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <iconv.h>  // conversion between character sets
+
+#include "private.h"
 
 #ifndef VMI_DEBUG
 /* Nothing */
