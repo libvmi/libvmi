@@ -235,6 +235,23 @@ memory_cache_insert(
     }
 }
 
+void memory_cache_remove(
+    vmi_instance_t vmi,
+    addr_t paddr)
+{
+    memory_cache_entry_t entry = NULL;
+    addr_t paddr_aligned = paddr & ~(((addr_t) vmi->page_size) - 1);
+
+    if (paddr != paddr_aligned) {
+        errprint("Memory cache request for non-aligned page\n");
+        return;
+    }
+
+    gint64 *key = (gint64*)&paddr;
+
+    g_hash_table_remove(vmi->memory_cache, key);
+}
+
 void
 memory_cache_destroy(
     vmi_instance_t vmi)
@@ -292,6 +309,15 @@ memory_cache_insert(
         vmi->last_used_page = get_memory_data(vmi, paddr, vmi->page_size);
         vmi->last_used_page_key = paddr;
         return vmi->last_used_page;
+    }
+}
+
+void memory_cache_remove(
+    vmi_instance_t vmi,
+    addr_t paddr)
+{
+    if(paddr == vmi->last_used_page_key && vmi->last_used_page) {
+        release_data_callback(vmi->last_used_page, vmi->page_size);
     }
 }
 
