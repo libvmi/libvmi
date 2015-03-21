@@ -89,7 +89,7 @@ os          += os/linux/linux.h \
 endif
 
 library_includedir=$(includedir)/$(LIBRARY_NAME)
-library_include_HEADERS = $(h_sources)
+library_include_HEADERS = $(h_public)
 
 AM_CFLAGS = -I$(top_srcdir)
 AM_CPPFLAGS = -I$(top_srcdir)
