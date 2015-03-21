@@ -52,14 +52,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "libvmi.h"
+#include <string.h>
+
 #include "private.h"
 #include "driver/xen/xen.h"
 #include "driver/xen/xen_private.h"
 #include "driver/xen/xen_events.h"
 #include "driver/xen/xen_events_private.h"
-
-#include <string.h>
 
 /*----------------------------------------------------------------------------
  * Helper functions

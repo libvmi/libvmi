@@ -24,8 +24,8 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
 #include "private.h"
+#include "config/config_parser.h"
 #include "driver/driver_wrapper.h"
 #include "os/linux/linux.h"
 

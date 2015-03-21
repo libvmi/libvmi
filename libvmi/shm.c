@@ -20,25 +20,37 @@
 
 #include "private.h"
 
-status_t os_destroy(vmi_instance_t vmi) {
-    status_t status = VMI_SUCCESS;
+status_t
+vmi_shm_snapshot_create(
+    vmi_instance_t vmi)
+{
+    return driver_shm_snapshot_vm(vmi);
+}
 
-    if (vmi->os_interface == NULL ) {
-        errprint("VMI_ERROR: No OS initialized\n");
-        status = VMI_FAILURE;
-    } else if (vmi->os_interface->os_teardown != NULL ) {
-        status = vmi->os_interface->os_teardown(vmi);
-    }
+status_t
+vmi_shm_snapshot_destroy(
+    vmi_instance_t vmi)
+{
+    return driver_destroy_shm_snapshot_vm(vmi);
+}
 
-    if (vmi->os_interface != NULL ) {
-        free(vmi->os_interface);
-    }
-    vmi->os_interface = NULL;
+size_t
+vmi_get_dgpma(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void **buf_ptr,
+    size_t count)
+{
+    return driver_get_dgpma(vmi, paddr, buf_ptr, count);
+}
 
-    if (vmi->os_data != NULL ) {
-        free(vmi->os_data);
-    }
-    vmi->os_data = NULL;
-
-    return VMI_SUCCESS;
+size_t
+vmi_get_dgvma(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    pid_t pid,
+    void **buf_ptr,
+    size_t count)
+{
+    return driver_get_dgvma(vmi, vaddr, pid, buf_ptr, count);
 }

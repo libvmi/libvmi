@@ -24,11 +24,11 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
+#include <stdlib.h>
+
 #include "private.h"
 #include "driver/driver_wrapper.h"
 #include "arch/arch_interface.h"
-#include <stdlib.h>
 
 /*
  * check that this vm uses a paging method that we support

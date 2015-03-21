@@ -26,7 +26,6 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libvmi/libvmi.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -34,6 +33,9 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <signal.h>
+
+#include <libvmi/libvmi.h>
+#include <libvmi/events.h>
 
 #define PAGE_SIZE 1 << 12
 

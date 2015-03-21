@@ -30,14 +30,12 @@
 //  3) Virtual address --> physical address
 //  4) Virtual address --> Medial address (for dgvma of shm-snapshot)
 
-#include "libvmi.h"
-#include "private.h"
-
 #define _GNU_SOURCE
 #include <glib.h>
 #include <time.h>
 #include <string.h>
 
+#include "private.h"
 #include "glib_compat.h"
 
 #if ENABLE_ADDRESS_CACHE == 1

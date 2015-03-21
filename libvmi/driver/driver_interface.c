@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libvmi.h"
 #include "private.h"
 #include "driver/driver_interface.h"
 

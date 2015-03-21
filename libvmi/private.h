@@ -40,12 +40,14 @@
 #include <ctype.h>
 #include <time.h>
 #include <inttypes.h>
-#include "debug.h"
 #include "libvmi.h"
 #include "libvmi_extra.h"
+#include "events.h"
+#include "shm.h"
 #include "driver/driver_interface.h"
 #include "arch/arch_interface.h"
 #include "os/os_interface.h"
+#include "debug.h"
 
 /**
  * @brief LibVMI Instance.

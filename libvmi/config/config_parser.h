@@ -23,8 +23,6 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
-#include "../libvmi.h"
 
 #ifndef CONFIG_PARSER_H_
 #define CONFIG_PARSER_H_
@@ -32,6 +30,7 @@
 #define CONFIG_STR_LENGTH 1024
 
 #include <glib.h>
+#include <libvmi/libvmi.h>
 
 int vmi_parse_config(const char *target_name);
 GHashTable* vmi_get_config();

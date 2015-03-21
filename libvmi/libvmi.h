@@ -39,11 +39,6 @@ extern "C" {
 
 #pragma GCC visibility push(default)
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
-
-#define _GNU_SOURCE
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
@@ -68,7 +63,7 @@ typedef uint32_t vmi_mode_t;
 
 #define VMI_INIT_COMPLETE (1 << 17) /**< full initialization */
 
-#define VMI_INIT_EVENTS (1 << 18) /**< init support for memory events */
+#define VMI_INIT_EVENTS (1 << 18) /**< init support for VM events */
 
 #define VMI_INIT_SHM_SNAPSHOT (1 << 19) /**< setup shm-snapshot in vmi_init() if the feature is activated */
 
@@ -103,16 +98,15 @@ typedef enum win_ver {
     VMI_OS_WINDOWS_NONE,    /**< Not Windows */
     VMI_OS_WINDOWS_UNKNOWN, /**< Is Windows, not sure which */
 
-    VMI_OS_WINDOWS_2000     = 0x0208U,
-    VMI_OS_WINDOWS_XP       = 0x0290U,
-    VMI_OS_WINDOWS_2003     = 0x0318U,
-    VMI_OS_WINDOWS_VISTA    = 0x0328U,
-    VMI_OS_WINDOWS_2008     = 0x0330U,
-    VMI_OS_WINDOWS_7        = 0x0340U,
-    VMI_OS_WINDOWS_8        = 0x0360U
+    VMI_OS_WINDOWS_2000     = 0x0208U, /**< Magic value for Windows 2000 */
+    VMI_OS_WINDOWS_XP       = 0x0290U, /**< Magic value for Windows XP */
+    VMI_OS_WINDOWS_2003     = 0x0318U, /**< Magic value for Windows 2003 */
+    VMI_OS_WINDOWS_VISTA    = 0x0328U, /**< Magic value for Windows Vista */
+    VMI_OS_WINDOWS_2008     = 0x0330U, /**< Magic value for Windows 2008 */
+    VMI_OS_WINDOWS_7        = 0x0340U, /**< Magic value for Windows 7 */
+    VMI_OS_WINDOWS_8        = 0x0360U  /**< Magic value for Windows 8 */
 } win_ver_t;
 
-/* Three paging modes from Intel Vol3a Section 4.1.1 */
 typedef enum page_mode {
 
     VMI_PM_UNKNOWN, /**< page mode unknown */
@@ -128,29 +122,31 @@ typedef enum page_mode {
 
 typedef enum page_size {
 
-    VMI_PS_UNKNOWN  = 0ULL, /**< page size unknown */
+    VMI_PS_UNKNOWN  = 0ULL,         /**< page size unknown */
 
-    VMI_PS_1KB      = 0x400ULL, /**< 1Kb */
+    VMI_PS_1KB      = 0x400ULL,     /**< 1KB */
 
-    VMI_PS_4KB      = 0x1000ULL, /**< 4Kb */
+    VMI_PS_4KB      = 0x1000ULL,    /**< 4KB */
 
-    VMI_PS_64KB     = 0x10000ULL, /**< 64Kb */
+    VMI_PS_64KB     = 0x10000ULL,   /**< 64KB */
 
-    VMI_PS_1MB      = 0x100000ULL, /**< 1Mb */
+    VMI_PS_1MB      = 0x100000ULL,  /**< 1MB */
 
-    VMI_PS_2MB      = 0x200000ULL, /**< 2Mb */
+    VMI_PS_2MB      = 0x200000ULL,  /**< 2MB */
 
-    VMI_PS_4MB      = 0x400000ULL, /**< 4Mb */
+    VMI_PS_4MB      = 0x400000ULL,  /**< 4MB */
 
-    VMI_PS_16MB     = 0x1000000ULL, /**< 16Mb */
+    VMI_PS_16MB     = 0x1000000ULL, /**< 16MB */
 
-    VMI_PS_1GB      = 0x4000000ULL /**< 1GGb */
+    VMI_PS_1GB      = 0x4000000ULL  /**< 1GB */
 
 } page_size_t;
 
 typedef uint64_t reg_t;
 typedef enum registers {
-    //x86* registers
+    /**
+     * x86* registers
+     */
     RAX,
     RBX,
     RCX,
@@ -236,15 +232,18 @@ typedef enum registers {
     MSR_EFER,
     MSR_TSC_AUX,
 
-    /* special generic case for handling MSRs, given their understandably
-     *  generic treatment for events in Xen and elsewhere. Not relevant for
-     *  vCPU get/set of register data.
+    /**
+     * Special generic case for handling MSRs, given their understandably
+     * generic treatment for events in Xen and elsewhere. Not relevant for
+     * vCPU get/set of register data.
      */
     MSR_ALL,
 
     TSC,
 
-    // ARM32 Registers
+    /**
+     * ARM32 Registers
+     */
     SCTLR,
 
     TTBCR,
@@ -299,18 +298,24 @@ typedef enum registers {
     SPSR_ABT
 } registers_t;
 
-/* type def for forward compatibility with 64-bit guests */
+/**
+ * typedef for forward compatibility with 64-bit guests
+ */
 typedef uint64_t addr_t;
 
-/* type def for consistent pid_t usage */
+/**
+ * type def for consistent pid_t usage
+ */
 typedef int32_t vmi_pid_t;
 
-/* Struct for holding page lookup information */
+/**
+ * Struct for holding page lookup information
+ */
 typedef struct page_info {
-    addr_t vaddr;       // virtual address
-    addr_t dtb;         // dtb used for translation
-    addr_t paddr;       // physical address
-    page_size_t size;   // page size (VMI_PS_*)
+    addr_t vaddr;       /**< virtual address */
+    addr_t dtb;         /**< dtb used for translation */
+    addr_t paddr;       /**< physical address */
+    page_size_t size;   /**< page size (VMI_PS_*) */
 
     union {
         struct {
@@ -349,13 +354,15 @@ typedef struct page_info {
     };
 } page_info_t;
 
-/* Available translation mechanism for v2p conversion. */
+/**
+ * Available translation mechanism for v2p conversion.
+ */
 typedef enum translation_mechanism {
-    VMI_TM_INVALID,         /* Invalid translation mechanism */
-    VMI_TM_NONE,            /* No translation is required, address is physical address */
-    VMI_TM_PROCESS_DTB,     /* Translate addr via specified directory table base. */
-    VMI_TM_PROCESS_PID,     /* Translate addr by finding process first to use its DTB. */
-    VMI_TM_KERNEL_SYMBOL    /* Find virtual address of kernel symbol and translate it via kernel DTB. */
+    VMI_TM_INVALID,         /**< Invalid translation mechanism */
+    VMI_TM_NONE,            /**< No translation is required, address is physical address */
+    VMI_TM_PROCESS_DTB,     /**< Translate addr via specified directory table base. */
+    VMI_TM_PROCESS_PID,     /**< Translate addr by finding process first to use its DTB. */
+    VMI_TM_KERNEL_SYMBOL    /**< Find virtual address of kernel symbol and translate it via kernel DTB. */
 } translation_mechanism_t;
 
 /**
@@ -365,10 +372,10 @@ typedef enum translation_mechanism {
 typedef struct {
     translation_mechanism_t translate_mechanism;
 
-    addr_t addr; /**< specify iff using VMI_TM_NONE, VMI_TM_PROCESS_DTB or VMI_TM_PROCESS_PID */
-    char *ksym; /**< specify iff using VMI_TM_KERNEL_SYMBOL */
-    addr_t dtb; /**< specify iff using VMI_TM_PROCESS_DTB */
-    vmi_pid_t pid; /**< specify iff using VMI_TM_PROCESS_PID */
+    addr_t addr;    /**< specify iff using VMI_TM_NONE, VMI_TM_PROCESS_DTB or VMI_TM_PROCESS_PID */
+    char *ksym;     /**< specify iff using VMI_TM_KERNEL_SYMBOL */
+    addr_t dtb;     /**< specify iff using VMI_TM_PROCESS_DTB */
+    vmi_pid_t pid;  /**< specify iff using VMI_TM_PROCESS_PID */
 } access_context_t;
 
 /**
@@ -393,7 +400,9 @@ typedef struct _ustring {
     const char *encoding;  /**< holds iconv-compatible encoding of contents; do not free */
 } unicode_string_t;
 
-/* custom config input source */
+/**
+ * Custom config input source
+ */
 typedef void* vmi_config_t;
 
 /**
@@ -1688,70 +1697,6 @@ status_t vmi_pause_vm(
 status_t vmi_resume_vm(
     vmi_instance_t vmi);
 
-#if ENABLE_SHM_SNAPSHOT == 1
-/**
- * Create a shm-snapshot and enter "shm-snapshot" mode.
- *  (KVM only, Xen support is pending.)
- *  (This API requires a patch to KVM.)
- * If LibVMI is in "live" mode (i.e. KVM patch or KVM native), this will
- * switch it to "shm-snapshot" mode; If LibVMI is already in "shm-snapshot" mode,
- * this will destroy the old shm-snapshot and create a new one.
- *
- * @param[in] vmi LibVMI instance
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_shm_snapshot_create(
-    vmi_instance_t vmi);
-
-/**
- * Destroy existed shm-snapshot and exit "shm-snapshot" mode.
- *  (KVM only, Xen support is pending.)
- *  (This API requires a patch to KVM.)
- * If LibVMI is in "shm-snapshot", this API will switch it to "live" mode
- * (i.e. KVM patch or KVM native); if LibVMI is already in "live" mode,
- * this API does nothing.
- *
- * @param[in] vmi LibVMI instance
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_shm_snapshot_destroy(
-    vmi_instance_t vmi);
-
-/**
- * Direct Guest Physical Memory Access:  A similar memory read semantic to
- *  vmi_read_pa() but a non-copy direct access.
- * Note that it is only capable for shm-snapshot.
- * @param[in] vmi LibVMI instance
- * @param[in] paddr
- * @param[out] medial_addr_ptr
- * @param[in] count the expected count of bytes
- * @return the actual count that less or equal than count[in]
- */
-size_t vmi_get_dgpma(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void **buf_ptr,
-    size_t count);
-
-/**
- * Direct Guest Virtual Memory Access:  A similar memory read semantic to
- *  vmi_read_pa() but a non-copy direct access.
- * Note that it is only capable for shm-snapshot.
- * @param[in] vmi LibVMI instance
- * @param[in] vaddr
- * @param[in] pid
- * @param[out] medial_addr_ptr
- * @param[in] count the expected count of bytes
- * @return the actual count that less or equal than count[in]
- */
-size_t vmi_get_dgvma(
-    vmi_instance_t vmi,
-    addr_t vaddr,
-    pid_t pid,
-    void **buf_ptr,
-    size_t count);
-#endif
-
 /**
  * Removes all entries from LibVMI's internal virtual to physical address
  * cache.  This is generally only useful if you believe that an entry in
@@ -1853,440 +1798,6 @@ void vmi_pidcache_add(
     vmi_instance_t vmi,
     vmi_pid_t pid,
     addr_t dtb);
-
-/*---------------------------------------------------------
- * Event management
- */
-
-/* The types of events that can be requested of hypervisors with requisite
- *  features.
- */
-typedef enum {
-    VMI_EVENT_INVALID,
-    VMI_EVENT_MEMORY,    /* Read/write/execute on a region of memory */
-    VMI_EVENT_REGISTER,  /* Read/write of a specific register */
-    VMI_EVENT_SINGLESTEP,/* Instructions being executed on a set of VCPUs */
-    VMI_EVENT_INTERRUPT,  /* Interrupts being delivered */
-
-    __VMI_EVENT_MAX
-} vmi_event_type_t;
-
-/* max number of vcpus we can set single step on at one time for a domain */
-#define MAX_SINGLESTEP_VCPUS 32
-
-/* Register operations used both for configuring type of register operations to
- *  monitor and also to determine the type of access causing an event to be
- *  recorded.
- */
-typedef enum {
-    VMI_REGACCESS_INVALID = 0,
-    VMI_REGACCESS_N = (1 << 0),
-    VMI_REGACCESS_R = (1 << 1),
-    VMI_REGACCESS_W = (1 << 2),
-    VMI_REGACCESS_RW = (VMI_REGACCESS_R | VMI_REGACCESS_W),
-
-    __VMI_REGACCESS_MAX
-} vmi_reg_access_t;
-
-/* Page permissions used both for configuring type of memory operations to
- *  monitor and also to determine the type of access causing an event to be
- *  recorded.
- */
-typedef enum {
-    VMI_MEMACCESS_INVALID    = 0,
-    VMI_MEMACCESS_N          = (1 << 0),
-    VMI_MEMACCESS_R          = (1 << 1),
-    VMI_MEMACCESS_W          = (1 << 2),
-    VMI_MEMACCESS_X          = (1 << 3),
-    VMI_MEMACCESS_RW         = (VMI_MEMACCESS_R | VMI_MEMACCESS_W),
-    VMI_MEMACCESS_RX         = (VMI_MEMACCESS_R | VMI_MEMACCESS_X),
-    VMI_MEMACCESS_WX         = (VMI_MEMACCESS_W | VMI_MEMACCESS_X),
-    VMI_MEMACCESS_RWX        = (VMI_MEMACCESS_R | VMI_MEMACCESS_W | VMI_MEMACCESS_X),
-
-    // Special cases
-    VMI_MEMACCESS_W2X        = (1 << 4),
-    VMI_MEMACCESS_RWX2N      = (1 << 5),
-
-    __VMI_MEMACCESS_MAX
-} vmi_mem_access_t;
-
-/* The level of granularity used in the configuration of a memory event.
- *  VMI_MEMEVENT_PAGE granularity delivers an event for any operation
- *   matching the access permission on the relevant page.
- *  VMI_MEMEVENT_BYTE granularity is more specific, deliving an event
- *   if an operation occurs involving the specific byte within a page
- */
-typedef enum {
-    VMI_MEMEVENT_INVALID,
-    VMI_MEMEVENT_BYTE,
-    VMI_MEMEVENT_PAGE,
-
-    __VMI_MEMEVENT_MAX
-} vmi_memevent_granularity_t;
-
-typedef struct {
-    // IN
-    registers_t reg; /* Register for which write event is configured.
-                      * Hypervisors offering register events tend to
-                      *  have a limited number available for monitoring.
-                      * These registers tend to be those defined as
-                      * 'sensitive register instructions' by Popek and
-                      *  Goldberg, meaning that the registers trigger
-                      *  a VMEXIT, trap, or equivalent.
-                      */
-
-    reg_t equal;     /* Event filter: callback triggers IFF register==value */
-
-    reg_t mask;      /* Unused at the moment */
-
-    int async:1;     /* IFF set to 1, events are delivered asynchronously and
-                      *  without pausing the originating VCPU
-                      * Default : 0
-                      *  (i.e., VCPU is paused at time of event delivery).
-                      */
-
-    int onchange:1;  /* IFF set to 1, events are only delivered if the written
-                      *  value differs from the previously held value.
-                      * Default : 0.
-                      *  (i.e., All write events are delivered).
-                      */
-
-    vmi_reg_access_t in_access; /* Type of register event being monitored.
-                                 * Hypervisors offering register events tend
-                                 *  to do so only for those that trigger a
-                                 *  VMEXIT or similar trap. This predominantly
-                                 *  means that only write events are supported
-                                 *  by the corresponding LibVMI driver
-                                 */
-
-    // OUT
-    reg_t context;               /* MSR register operations only: holds the
-                                  *  specific MSR for which the event occurred.
-                                  * Unused for other register event types.
-                                  */
-
-    reg_t value;                 /* Register value read or written */
-
-    reg_t previous;              /* Previous value of register (only for CR0/CR3/CR4) */
-
-    vmi_reg_access_t out_access; /* Type of register access that triggered
-                                  * the event
-                                  */
-} reg_event_t;
-
-typedef struct {
-    // IN
-    vmi_memevent_granularity_t granularity; /* VMI_MEMEVENT_BYTE/PAGE */
-
-    addr_t physical_address;                /* Physical address to set event on.
-                                             * With granularity of
-                                             *  VMI_MEMEVENT_PAGE, this can any
-                                             *  byte on the target page.
-                                             */
-
-    uint64_t npages;                        /* Unsupported at the moment */
-
-    vmi_mem_access_t in_access;             /* Page permissions used to trigger
-                                             *  memory events. See enum
-                                             *  definition for valid values
-                                             */
-    // OUT
-    addr_t gla;                             /* Specific virtual address at which
-                                             *  event occurred.
-                                             */
-
-    addr_t gfn;                             /* Page number at which event
-                                             *  occurred
-                                             */
-
-    uint64_t offset;                        /* Offset in bytes (relative to
-                                             *  page base) at which event
-                                             *  occurred
-                                             */
-
-    vmi_mem_access_t out_access;            /* Type of page access that
-                                             *  caused event to be triggered.
-                                             *  Typically a subset of in_access
-                                             */
-} mem_event_t;
-
-typedef enum {
-    INT_INVALID,
-    INT3                /* The only one supported today by the only capable-driver */
-} interrupts_t;
-
-typedef struct {
-    addr_t gla;         /* (Global Linear Address) == RIP of the trapped instruction */
-    addr_t gfn;         /* (Guest Frame Number) == 'physical' page where trap occurred */
-    addr_t offset;      /* Offset in bytes (relative to GFN) */
-    interrupts_t intr;  /* Specific interrupt intended to trigger the event */
-    int reinject;       /* Toggle, controls whether interrupt is re-injected after 
-                         *  callback.
-                         *   set reinject to 1 to deliver it to guest ("pass through" mode)
-                         *   set reinject to 0 to swallow it silently without 
-                         */
-} interrupt_event_t;
-
-typedef struct {
-    addr_t gla;      /* The IP of the current instruction */
-    addr_t gfn;      /* The physical page of the current instruction */
-    uint32_t vcpus;  /* A packed int, with each bit representing the state of
-                      *  the corresponding VCPU. E.g., if the 0th bit is 1,
-                      *  single-stepping is enabled for the 0th VCPU via
-                      *  whatever mechanism the hypervisor driver supports.
-                      * See also helper macros SET_VCPU_SINGLESTEP,
-                      *  UNSET_VCPU_SINGLESTEP, and CHECK_VCPU_SINGLESTEP
-                      */
-} single_step_event_t;
-
-struct vmi_event;
-typedef struct vmi_event vmi_event_t;
-
-/* Event callback function prototype, taking two parameters:
- *  The vmi_instance_t passed by the library itself, and the vmi_event_t
- *   object provided by the library user.
- */
-typedef void (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *event);
-
-/* The event structure used during configuration of events and their delivery */
-struct vmi_event {
-    vmi_event_type_t type;  /* The specific type of event */
-
-    /* The specific event type structure (per event type above)
-     *  "IN" members of the *_event_t are set by the library user during event
-     *      registration to configure LibVMI and the hypervisor.
-     *  "OUT" members are set by LibVMI upon observation of an event with
-     *      contextual information helpful to the callback.
-     */
-    union {
-        reg_event_t reg_event;
-        mem_event_t mem_event;
-        single_step_event_t ss_event;
-        interrupt_event_t interrupt_event;
-    };
-
-    uint32_t vcpu_id; /* The VCPU relative to which the event occurred. */
-
-    void * data;   /* An open-ended mechanism allowing a library user to
-                    *  associate external data to the event.
-                    * Metadata assigned to this pointer at any time (prior to
-                    *  or following registration) is delivered to the callback,
-                    *  for each matching event. The callback is also free to
-                    *  modify in any way. The library user assumes all memory
-                    *  management for this referenced data.
-                    */
-
-    event_callback_t callback;  /* The callback function that is invoked
-                                 *  when the relevant is observed
-                                 */
-};
-
-/* Enables the correct bit for the given vcpu number x */
-#define SET_VCPU_SINGLESTEP(ss_event, x) \
-        ss_event.vcpus |= (1 << x)
-
-/* Disables the correct bit for a given vcpu number x */
-#define UNSET_VCPU_SINGLESTEP(ss_event, x) \
-        ss_event.vcpus &= ~(1 << x)
-
-/* Check to see if a vcpu number has single step enabled */
-#define CHECK_VCPU_SINGLESTEP(ss_event, x) \
-        (ss_event.vcpus) & (1 << x)
-
-/* Convenience macro to setup a singlestep event */
-#define SETUP_SINGLESTEP_EVENT(_event, _vcpu_mask, _callback) \
-        do { \
-            (_event)->type = VMI_EVENT_SINGLESTEP; \
-            (_event)->ss_event.vcpus = _vcpu_mask; \
-            (_event)->callback = _callback; \
-        } while(0)
-
-/* Convenience macro to setup a memory event */
-#define SETUP_MEM_EVENT(_event, _addr, _granularity, _access, _callback) \
-        do { \
-            (_event)->type = VMI_EVENT_MEMORY; \
-            (_event)->mem_event.physical_address = _addr; \
-            (_event)->mem_event.granularity = _granularity; \
-            (_event)->mem_event.in_access = _access; \
-            (_event)->mem_event.npages = 1; \
-            (_event)->callback = _callback; \
-        } while(0)
-
-/* Convenience macro to setup a register event */
-#define SETUP_REG_EVENT(_event, _reg, _access, _equal, _callback) \
-        do { \
-            (_event)->type = VMI_EVENT_REGISTER; \
-            (_event)->reg_event.reg = _reg; \
-            (_event)->reg_event.in_access = _access; \
-            (_event)->reg_event.equal = _equal; \
-            (_event)->callback = _callback; \
-        } while(0)
-
-/* Convenience macro to setup a interrupt event */
-#define SETUP_INTERRUPT_EVENT(_event, _reinject, _callback) \
-        do { \
-            (_event)->type = VMI_EVENT_INTERRUPT; \
-            (_event)->interrupt_event.reinject = _reinject; \
-            (_event)->callback = _callback; \
-        } while(0)
-
-/**
- * Register to handle the event specified by the vmi_event object.
- *
- * Callback receives one event as input.
- * Callback is invoked while within the event listener loop, so
- *  actions taken by the callback must take into account that other
- *  events may have been delivered and not yet processed. This is
- *  especially important when events have been configured in an
- *  asyncronous manner (i.e., events delivered are not necessarily
- *  in lockstep with the VM state).
- *
- * Memory management of the vmi_event_t being registered remains the
- *  responsibility of the caller.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] event Definition of event to monitor
- * @param[in] callback Function to call when the event occurs
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_register_event(
-    vmi_instance_t vmi,
-    vmi_event_t *event);
-
-/**
- * Clear the event specified by the vmi_event_t object.
- *
- * For memory events, this operation resets page permissions so that
- *  execution relative to related page or pages can continue without
- *  further interaction.
- * For register and single-step events, this action disables monitoring
- *  of the given event type via the hypervisor driver.
- * In all cases, the event is removed from hashtables internal to LibVMI,
- *  but the memory related to the vmi_event_t is not freed. Memory management
- *  remains the responsibility of the caller.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] event Definition of event to clear
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_clear_event(
-    vmi_instance_t vmi,
-    vmi_event_t *event);
-
-/**
- * Return the pointer to the vmi_event_t if one is set on the given register.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] reg Register to check
- * @return vmi_event_t* or NULL if none found
- */
-vmi_event_t *vmi_get_reg_event(
-    vmi_instance_t vmi,
-    registers_t reg);
-
-/**
- * Return the pointer to the vmi_event_t if one is set on the given page.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] physical_address Physical address of byte/page to check
- * @param[in] granularity VMI_MEMEVENT_BYTE or VMI_MEMEVENT_PAGE
- * @return vmi_event_t* or NULL if none found
- */
-vmi_event_t *vmi_get_mem_event(
-    vmi_instance_t vmi,
-    addr_t physical_address,
-    vmi_memevent_granularity_t granularity);
-
-/**
- * Setup single-stepping to register the given event
- * after the specified number of steps.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] event The event to register
- * @param[in] vcpu_id The vCPU ID to step the event on.
- * @param[in] steps The number of steps to take before registering the event
- * @param[in] cb Optional: A callback function to call after the specified number of steps.
- *                         If no callback is provided, the event will be re-registered
-                           automatically. If a callback is provided, event re-registration
-                           is not automatic, but can be done in the callback.
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_step_event(
-    vmi_instance_t vmi,
-    vmi_event_t *event,
-    uint32_t vcpu_id,
-    uint64_t steps,
-    event_callback_t cb);
-
-/**
- * Listen for events until one occurs or a timeout.
- * If the timeout is given as 0, it will process leftover events
- * in the ring-buffer (if there are any).
- *
- * @param[in] vmi LibVMI instance
- * @param[in] timeout Number of ms.
- * @return VMI_FAILURE or VMI_SUCCESS (timeout w/ 0 events returns VMI_SUCCESS)
- */
-status_t vmi_events_listen(
-    vmi_instance_t vmi,
-    uint32_t timeout);
-
-/**
- * Set wether to pause the domain if the event listener is no longer present.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] required Set to 0 if not required, 1 if required.
- * @return VMI_FAILURE or VMI_SUCCESS
- */
-status_t vmi_event_listener_required(
-    vmi_instance_t vmi,
-    int required);
-
-/**
- * Check if there are events pending to be processed.
- *
- * @param[in] vmi LibVMI instance
- * @return The number of pending events, or 0 if there are non, -1 on error.
- */
-int vmi_are_events_pending(
-    vmi_instance_t vmi);
-
-/**
- * Return the pointer to the vmi_event_t if one is set on the given vcpu.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] vcpu the vcpu to check
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-vmi_event_t *vmi_get_singlestep_event (vmi_instance_t vmi,
-    uint32_t vcpu);
-
-/**
- * Disables the MTF single step flag from a vcpu as well as the
- * libvmi event object's bitfield position.
- * This does not disable single step for the whole domain.
- *
- * @param[in] vmi LibVMI instance
- * @param[in] event the event to disable the vcpu on
- * @param[in] vcpu the vcpu to stop single stepping on
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_stop_single_step_vcpu(
-    vmi_instance_t vmi,
-    vmi_event_t* event,
-    uint32_t vcpu);
-
-/**
- * Cleans up any domain wide single step settings.
- * This should be called when the caller is completely
- * finished with single step, as it implicitly disables
- * single-step on all VM VCPUs.
- *
- * @param[in] vmi LibVMI instance
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t vmi_shutdown_single_step(
-    vmi_instance_t);
 
 #pragma GCC visibility pop
 

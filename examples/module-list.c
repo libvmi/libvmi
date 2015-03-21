@@ -24,12 +24,13 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libvmi/libvmi.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
+
+#include <libvmi/libvmi.h>
 
 int
 main(

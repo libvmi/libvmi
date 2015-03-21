@@ -24,7 +24,9 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
+#ifndef MEMORY_CACHE_H
+#define MEMORY_CACHE_H
+
 #include "private.h"
 
 void memory_cache_init(
@@ -40,5 +42,11 @@ void *memory_cache_insert(
     vmi_instance_t vmi,
     addr_t paddr);
 
+void memory_cache_remove(
+    vmi_instance_t vmi,
+    addr_t paddr);
+
 void memory_cache_destroy(
     vmi_instance_t vmi);
+
+#endif
