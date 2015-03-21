@@ -24,14 +24,14 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
-#include "driver/driver_wrapper.h"
-#include "x86.h"
-#include "amd64.h"
 #include <glib.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+
+#include "private.h"
+#include "x86.h"
+#include "driver/driver_wrapper.h"
+#include "arch/amd64.h"
 
 /* PML4 Table  */
 static inline

@@ -20,7 +20,6 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libvmi/libvmi.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -28,6 +27,9 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <signal.h>
+
+#include <libvmi/libvmi.h>
+#include <libvmi/events.h>
 
 #ifdef HAVE_MEM_EVENT_REASON_MSR
 vmi_event_t msr_event;

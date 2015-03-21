@@ -27,7 +27,6 @@
 #ifndef XEN_PRIVATE_H
 #define XEN_PRIVATE_H
 
-#include "libvmi.h"
 #define _GNU_SOURCE
 #include <fnmatch.h>
 #include <stdlib.h>
@@ -41,6 +40,8 @@
   #include <xs.h>
 #endif
 #include <xen/hvm/save.h>
+
+#include "private.h"
 
 #if ENABLE_XEN_EVENTS == 1
   #include "driver/xen/xen_events_private.h"

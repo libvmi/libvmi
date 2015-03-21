@@ -2,7 +2,8 @@
 
 SUBDIRS = 
 
-AM_CPPFLAGS = -I$(top_srcdir) $(GLIB_CFLAGS)
+AM_CFLAGS = -I$(top_builddir) $(GLIB_CFLAGS)
+AM_CPPFLAGS = -I$(top_builddir) $(GLIB_CFLAGS)
 AM_LDFLAGS = -L$(top_builddir)/libvmi/.libs/
 LDADD = -lvmi -lm $(LIBS) $(GLIB_LIBS)
 

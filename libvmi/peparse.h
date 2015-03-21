@@ -24,8 +24,8 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PEPARSE_H
-#define PEPARSE_H
+#ifndef LIBVMI_PEPARSE_H
+#define LIBVMI_PEPARSE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -323,5 +323,5 @@ peparse_get_export_table(
 }
 #endif
 
-#endif /* PEPARSE_H */
+#endif /* LIBVMI_PEPARSE_H */
 

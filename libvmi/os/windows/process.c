@@ -24,13 +24,12 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
-
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+
+#include "private.h"
 
 char *
 windows_get_eprocess_name(

@@ -24,11 +24,12 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libvmi/libvmi.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <stdio.h>
+
+#include <libvmi/libvmi.h>
 
 #define PAGE_SIZE 1 << 12
 

@@ -20,13 +20,13 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
-#include "driver/driver_wrapper.h"
-#include "arch/arm_aarch32.h"
 #include <glib.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+
+#include "private.h"
+#include "driver/driver_wrapper.h"
+#include "arch/arm_aarch32.h"
 
 static inline
 uint32_t first_level_table_index(uint32_t vaddr) {

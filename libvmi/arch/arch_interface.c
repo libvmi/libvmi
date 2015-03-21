@@ -18,13 +18,13 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvmi.h"
-#include "private.h"
-#include "arch_interface.h"
-#include "intel.h"
-#include "amd64.h"
-#include "arm_aarch32.h"
 #include <stdlib.h>
+
+#include "private.h"
+#include "arch/arch_interface.h"
+#include "arch/intel.h"
+#include "arch/amd64.h"
+#include "arch/arm_aarch32.h"
 
 status_t arch_init(vmi_instance_t vmi) {
 
