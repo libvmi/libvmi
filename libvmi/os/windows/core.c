@@ -554,6 +554,15 @@ init_from_sysmap(vmi_instance_t vmi)
 
         dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
 
+        /*
+         * If the CR3 value points to a pagetable that hasn't been setup yet
+         * we need to resort to finding a valid pagetable the old fashioned way.
+         */
+        if (windows->ntoskrnl_va && !windows->ntoskrnl)
+        {
+            windows_find_cr3(vmi);
+            windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+        }
     }
 
     // This could happen if we are in file mode or for Win XP
