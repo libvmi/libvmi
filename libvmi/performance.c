@@ -78,6 +78,7 @@ stddev(
         total += sq_data[i];
     }
     mean = total / (double) count;
+    free(sq_data);
 
     return sqrt(mean);
 }
