@@ -321,12 +321,7 @@ vmi_pid_t vmi_dtb_to_pid (vmi_instance_t vmi, addr_t dtb)
 void *
 vmi_read_page (vmi_instance_t vmi, addr_t frame_num)
 {
-    if (!frame_num) {
-        return NULL ;
-    }
-    else {
-        return driver_read_page(vmi, frame_num);
-    }
+    return driver_read_page(vmi, frame_num);
 }
 
 GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb) {
