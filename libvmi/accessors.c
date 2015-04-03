@@ -335,17 +335,46 @@ GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb) {
 
 addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
 {
+    addr_t paddr = 0;
 
-    page_info_t info = {0};
+    status_t status = vmi_pagetable_lookup_cache(vmi, dtb, vaddr, &paddr);
 
-    /* check if entry exists in the cachec */
-    if (VMI_SUCCESS == v2p_cache_get(vmi, vaddr, dtb, &info.paddr)) {
+    if (status != VMI_SUCCESS) {
+        return 0;
+    }
+
+    return paddr;
+}
+
+/*
+ * Return a status when page_info is not needed, but also use the cache,
+ * which vmi_pagetable_lookup_extended() does not do.
+ *
+ * TODO: Should this eventually replace vmi_pagetable_lookup() in the API?
+ */
+status_t vmi_pagetable_lookup_cache(
+    vmi_instance_t vmi,
+    addr_t dtb,
+    addr_t vaddr,
+    addr_t *paddr)
+{
+    status_t ret = VMI_FAILURE;
+    page_info_t info = { .vaddr = vaddr,
+                         .dtb = dtb
+                       };
+
+    if(!paddr) return ret;
+
+    *paddr = 0;
+
+    /* check if entry exists in the cache */
+    if (VMI_SUCCESS == v2p_cache_get(vmi, vaddr, dtb, paddr)) {
 
         /* verify that address is still valid */
         uint8_t value = 0;
 
-        if (VMI_SUCCESS == vmi_read_8_pa(vmi, info.paddr, &value)) {
-            return info.paddr;
+        if (VMI_SUCCESS == vmi_read_8_pa(vmi, *paddr, &value)) {
+            return VMI_SUCCESS;
         }
         else {
             v2p_cache_del(vmi, vaddr, dtb);
@@ -353,17 +382,20 @@ addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
     }
 
     if(vmi->arch_interface && vmi->arch_interface->v2p) {
-        vmi->arch_interface->v2p(vmi, dtb, vaddr, &info);
+        ret = vmi->arch_interface->v2p(vmi, dtb, vaddr, &info);
     } else {
-        errprint("Arch interface not initialized, can't use vmi_pagetable_lookup!\n");
+        errprint("Invalid paging mode during vmi_pagetable_lookup\n");
+        ret = VMI_FAILURE;
     }
 
     /* add this to the cache */
-    if (info.paddr) {
+    if (ret == VMI_SUCCESS) {
+        *paddr = info.paddr;
         v2p_cache_set(vmi, vaddr, dtb, info.paddr);
     }
-    return info.paddr;
+    return ret;
 }
+
 
 status_t vmi_pagetable_lookup_extended(
     vmi_instance_t vmi,
@@ -380,15 +412,15 @@ status_t vmi_pagetable_lookup_extended(
     info->dtb = dtb;
 
     if(vmi->arch_interface && vmi->arch_interface->v2p) {
-        vmi->arch_interface->v2p(vmi, dtb, vaddr, info);
+        ret = vmi->arch_interface->v2p(vmi, dtb, vaddr, info);
     } else {
         errprint("Invalid paging mode during vmi_pagetable_lookup\n");
     }
 
-    if(info->paddr) {
-        ret = VMI_SUCCESS;
+    /* add this to the cache */
+    if (ret == VMI_SUCCESS) {
+        v2p_cache_set(vmi, vaddr, dtb, info->paddr);
     }
-
     return ret;
 }
 
@@ -404,42 +436,27 @@ addr_t vmi_translate_kv2p (vmi_instance_t vmi, addr_t virt_address)
     }
 }
 
-/* expose virtual to physical mapping for user space via api call */
-addr_t vmi_translate_uv2p_nocache (vmi_instance_t vmi, addr_t virt_address,
-        vmi_pid_t pid)
-{
-    addr_t dtb = vmi_pid_to_dtb(vmi, pid);
-
-    if (!dtb) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because dtb is zero\n");
-        return 0;
-    }
-    else {
-        addr_t rtnval = vmi_pagetable_lookup(vmi, dtb, virt_address);
-
-        if (!rtnval) {
-            pid_cache_del(vmi, pid);
-        }
-        return rtnval;
-    }
-}
-
 addr_t vmi_translate_uv2p (vmi_instance_t vmi, addr_t virt_address, vmi_pid_t pid)
 {
+    addr_t paddr = 0;
     addr_t dtb = vmi_pid_to_dtb(vmi, pid);
 
     if (!dtb) {
         dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because dtb is zero\n");
         return 0;
     }
-    else {
-        addr_t rtnval = vmi_pagetable_lookup(vmi, dtb, virt_address);
 
-        if (!rtnval) {
-            if (VMI_SUCCESS == pid_cache_del(vmi, pid)) {
-                return vmi_translate_uv2p_nocache(vmi, virt_address, pid);
+    if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, virt_address, &paddr)) {
+        pid_cache_del(vmi, pid);
+
+        dtb = vmi_pid_to_dtb(vmi, pid);
+        if (dtb) {
+            page_info_t info = {0};
+            /* _extended() skips the v2p_cache lookup that must have already failed */
+            if (VMI_SUCCESS == vmi_pagetable_lookup_extended(vmi, dtb, virt_address, &info)) {
+                paddr = info.paddr;
             }
         }
-        return rtnval;
     }
+    return paddr;
 }

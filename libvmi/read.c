@@ -96,8 +96,7 @@ vmi_read(
         size_t read_len = 0;
 
         if(dtb) {
-            paddr = vmi_pagetable_lookup(vmi, dtb, start_addr + buf_offset);
-            if (!paddr) {
+            if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, start_addr + buf_offset, &paddr)) {
                 return buf_offset;
             }
         } else {
@@ -307,8 +306,7 @@ vmi_read_str(
 
         addr += len;
         if(dtb) {
-            paddr = vmi_pagetable_lookup(vmi, dtb, addr);
-            if (!paddr) {
+            if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, addr, &paddr)) {
                 return rtnval;
             }
         } else {
