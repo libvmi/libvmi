@@ -94,12 +94,11 @@ vmi_write(
 
         if(dtb) {
             paddr = vmi_pagetable_lookup(vmi, dtb, start_addr + buf_offset);
+            if (!paddr) {
+                return buf_offset;
+            }
         } else {
             paddr = start_addr + buf_offset;
-        }
-
-        if (!paddr) {
-            return buf_offset;
         }
 
         /* determine how much we can write to this page */
