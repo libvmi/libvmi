@@ -222,6 +222,12 @@ typedef struct _windows_unicode_string32 {
     vmi_instance_t vmi,
     addr_t frame_num);
 
+status_t vmi_pagetable_lookup_cache(
+    vmi_instance_t vmi,
+    addr_t dtb,
+    addr_t vaddr,
+    addr_t *paddr);
+
 /*-------------------------------------
  * cache.c
  */
