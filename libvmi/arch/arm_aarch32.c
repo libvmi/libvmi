@@ -127,9 +127,8 @@ addr_t v2p_aarch32 (vmi_instance_t vmi,
                 info->paddr = (info->arm_aarch32.fld_value & VMI_BIT_MASK(20,31)) | (vaddr & VMI_BIT_MASK(0,19));
             } else {
                 dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch32 PTLookup: the entry is a supersection descriptor for its associated modified virtual addresses\n");
-                // TODO: supersections are unsupported right now (breaks ptlookup when included)
-                //info->size = VMI_PS_16MB;
-                //info->paddr = get_bits_31to24(info->l1_v) | get_bits_23to0(vaddr);
+                info->size = VMI_PS_16MB;
+                info->paddr = (info->arm_aarch32.fld_value & VMI_BIT_MASK(24,31)) | (vaddr & VMI_BIT_MASK(0,23));
             }
 
             break;
