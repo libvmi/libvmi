@@ -68,7 +68,7 @@ uint32_t fine_second_level_table_index(uint32_t vaddr) {
 // 2nd Level Page Table Descriptor (Fine Pages)
 static inline
 void get_fine_second_level_descriptor(vmi_instance_t vmi, uint32_t vaddr, page_info_t *info) {
-    info->arm_aarch32.sld_location = (info->arm_aarch32.fld_value & VMI_BIT_MASK(12,31)) | fine_second_level_table_index(vaddr) | 0b11;
+    info->arm_aarch32.sld_location = (info->arm_aarch32.fld_value & VMI_BIT_MASK(12,31)) | (fine_second_level_table_index(vaddr) << 2);
     uint32_t sld_v;
     if(VMI_SUCCESS == vmi_read_32_pa(vmi, info->arm_aarch32.sld_location, &sld_v)) {
         info->arm_aarch32.sld_value = sld_v;
@@ -142,7 +142,7 @@ addr_t v2p_aarch32 (vmi_instance_t vmi,
 
             dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch32 PTLookup: sld = 0x%"PRIx32"\n", info->arm_aarch32.sld_value);
 
-            switch(info->arm_aarch32.fld_value & VMI_BIT_MASK(0,1)) {
+            switch(info->arm_aarch32.sld_value & VMI_BIT_MASK(0,1)) {
                 case 0b01:
                     // large page
                     info->size = VMI_PS_64KB;
