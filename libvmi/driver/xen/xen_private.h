@@ -87,7 +87,7 @@ typedef struct xen_instance {
 
     libvmi_xenctrl_handle_t xchandle; /**< handle to xenctrl library (libxc) */
 
-    unsigned long domainid; /**< domid that we are accessing */
+    uint64_t domainid; /**< domid that we are accessing */
 
     int xen_version;        /**< version of Xen libxa is running on */
 

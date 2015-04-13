@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     struct timeval ktv_start;
     struct timeval ktv_end;
 
-    uint32_t dom = atoi(argv[1]);
+    uint64_t dom = strtoull(argv[1], NULL, 0);
     vmi_pid_t pid = atoi(argv[2]);
     int loops = atoi(argv[3]);
     int i = 0;

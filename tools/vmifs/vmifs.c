@@ -130,14 +130,14 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    uint32_t domid = VMI_INVALID_DOMID;
+    uint64_t domid = VMI_INVALID_DOMID;
     GHashTable *config = g_hash_table_new(g_str_hash, g_str_equal);
 
     if(strcmp(argv[1],"name")==0) {
         g_hash_table_insert(config, "name", argv[2]);
     } else
     if(strcmp(argv[1],"domid")==0) {
-        domid = atoi(argv[2]);
+        domid = strtoull(argv[2], NULL, 0);
         g_hash_table_insert(config, "domid", &domid);
     } else {
         printf("You have to specify either name or domid!\n");
