@@ -389,28 +389,38 @@ peparse_get_idd_rva(
 
     if(optional_header_type == NULL) {
 
-        if(oh_pe32 != NULL) {
+        if(oh_pe32 != NULL && oh_pe32->number_of_rva_and_sizes >= entry_id) {
             rva = oh_pe32->idd[entry_id].virtual_address;
             goto done;
         }
 
-        if(oh_pe32plus != NULL) {
+        if(oh_pe32plus != NULL && oh_pe32plus->number_of_rva_and_sizes >= entry_id) {
             rva = oh_pe32plus->idd[entry_id].virtual_address;
             goto done;
         }
     } else
-    if(optional_header != NULL) {
+    if(optional_header) {
 
-        if(*optional_header_type == IMAGE_PE32_MAGIC) {
-            struct optional_header_pe32 *oh_pe32_t = (struct optional_header_pe32 *)optional_header;
-            rva = oh_pe32_t->idd[entry_id].virtual_address;
-            goto done;
-        }
+        switch ( *optional_header_type ) {
+            case IMAGE_PE32_MAGIC:
+            {
+                struct optional_header_pe32 *oh_pe32_t = (struct optional_header_pe32 *)optional_header;
+                if(oh_pe32_t->number_of_rva_and_sizes >= entry_id) {
+                    rva = oh_pe32_t->idd[entry_id].virtual_address;
+                }
+                break;
+            }
 
-        if(*optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
-            struct optional_header_pe32plus *oh_pe32plus_t = (struct optional_header_pe32plus *)optional_header;
-            rva = oh_pe32plus_t->idd[entry_id].virtual_address;
-            goto done;
+            case IMAGE_PE32_PLUS_MAGIC:
+            {
+                struct optional_header_pe32plus *oh_pe32plus_t = (struct optional_header_pe32plus *)optional_header;
+                if(oh_pe32plus_t->number_of_rva_and_sizes >= entry_id) {
+                    rva = oh_pe32plus_t->idd[entry_id].virtual_address;
+                }
+                break;
+            }
+
+            default: break;
         }
     }
 
@@ -505,15 +515,12 @@ peparse_get_export_table(
         *export_table_size=export_header_size;
     }
 
-    /* Find & read the export header; assume a different page than the headers */
     export_header_va = base_vaddr + export_header_rva;
 
-    dbprint
-        (VMI_DEBUG_PEPARSE, "--PEParse: found export table at [VA] 0x%.16"PRIx64" = 0x%.16"PRIx64" + 0x%"PRIx64"\n",
-         export_header_va, ((windows_instance_t)vmi->os_data)->ntoskrnl_va,
-         export_header_rva);
+    dbprint(VMI_DEBUG_PEPARSE, "--PEParse: DLL base [VA] 0x%.16"PRIx64". Export header [RVA] 0x%.16"PRIx64". Size %u.\n",
+            base_vaddr, export_header_rva, export_header_size);
 
-    nbytes = vmi_read_va(vmi, export_header_va, pid, et, sizeof(*et));
+    nbytes = vmi_read_va(vmi, export_header_va, pid, et, sizeof(struct export_table));
     if (nbytes != sizeof(struct export_table)) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to map export header\n");
         return VMI_FAILURE;
