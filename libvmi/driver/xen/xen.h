@@ -38,21 +38,21 @@ status_t xen_init_vmi(
     vmi_instance_t vmi);
 void xen_destroy(
     vmi_instance_t vmi);
-unsigned long xen_get_domainid_from_name(
+uint64_t xen_get_domainid_from_name(
     vmi_instance_t vmi,
     const char *name);
 status_t xen_get_name_from_domainid(
     vmi_instance_t vmi,
-    unsigned long domid,
+    uint64_t domainid,
     char **name);
-unsigned long xen_get_domainid(
+uint64_t xen_get_domainid(
     vmi_instance_t vmi);
 void xen_set_domainid(
     vmi_instance_t vmi,
-    unsigned long domainid);
+    uint64_t domainid);
 status_t xen_check_domainid(
     vmi_instance_t vmi,
-    unsigned long domainid);
+    uint64_t domainid);
 status_t xen_get_domainname(
     vmi_instance_t vmi,
     char **name);
@@ -87,7 +87,7 @@ status_t xen_write(
 int xen_is_pv(
     vmi_instance_t vmi);
 status_t xen_test(
-    unsigned long id,
+    uint64_t domainid,
     const char *name);
 status_t xen_pause_vm(
     vmi_instance_t vmi);

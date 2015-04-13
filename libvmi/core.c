@@ -239,7 +239,7 @@ static status_t
 set_driver_type(
     vmi_instance_t vmi,
     vmi_mode_t mode,
-    unsigned long id,
+    uint64_t id,
     const char *name)
 {
     if (VMI_AUTO == mode) {
@@ -277,7 +277,7 @@ static status_t
 set_id_and_name(
     vmi_instance_t vmi,
     vmi_mode_t mode,
-    unsigned long id,
+    uint64_t id,
     const char *name)
 {
 
@@ -357,7 +357,7 @@ static status_t
 vmi_init_private(
     vmi_instance_t *vmi,
     uint32_t flags,
-    unsigned long id,
+    uint64_t id,
     const char *name,
     vmi_config_t config)
 {
@@ -565,13 +565,13 @@ vmi_init_custom(
     } else if (VMI_CONFIG_GHASHTABLE == config_mode) {
 
         char *name = NULL;
-        unsigned long domid = VMI_INVALID_DOMID;
+        uint64_t domid = VMI_INVALID_DOMID;
         GHashTable *configtbl = (GHashTable *)config;
         gpointer idptr = NULL;
 
         name = (char *)g_hash_table_lookup(configtbl, "name");
         if(g_hash_table_lookup_extended(configtbl, "domid", NULL, &idptr)) {
-            domid = *(unsigned long *)idptr;
+            domid = *(uint64_t *)idptr;
         }
 
         if (name != NULL && domid != VMI_INVALID_DOMID) {
