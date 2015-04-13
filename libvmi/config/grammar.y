@@ -355,7 +355,7 @@ linux_tasks_assignment:
         LINUX_TASKS EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -366,7 +366,7 @@ linux_mm_assignment:
         LINUX_MM EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -377,7 +377,7 @@ linux_pid_assignment:
         LINUX_PID EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -387,7 +387,7 @@ linux_name_assignment:
         LINUX_NAME EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -398,7 +398,7 @@ linux_pgd_assignment:
         LINUX_PGD EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -417,7 +417,7 @@ win_ntoskrnl_assignment:
         WIN_NTOSKRNL EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -428,7 +428,7 @@ win_tasks_assignment:
         WIN_TASKS EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -439,7 +439,7 @@ win_pdbase_assignment:
         WIN_PDBASE EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -450,7 +450,7 @@ win_pid_assignment:
         WIN_PID EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -461,7 +461,7 @@ win_pname_assignment:
         WIN_PNAME EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -472,7 +472,7 @@ win_kdvb_assignment:
         WIN_KDVB EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -483,7 +483,7 @@ win_kdbg_assignment:
         WIN_KDBG EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -494,7 +494,7 @@ win_kpcr_assignment:
         WIN_KPCR EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
@@ -505,7 +505,7 @@ win_sysproc_assignment:
         WIN_SYSPROC EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
-            uint64_t *tmp_ptr = malloc(sizeof(uint64_t*));
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
