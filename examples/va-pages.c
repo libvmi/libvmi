@@ -70,8 +70,8 @@ void cr3_callback(vmi_instance_t vmi, vmi_event_t *event) {
         uint64_t test;
         if(VMI_FAILURE == vmi_read_64(vmi, &ctx, &test)) {
             printf("Page in virtual address space of DTB 0x%"PRIx64" unaccessible: 0x%"PRIx64".\t"
-                "Size: 0x%"PRIu64"\n",
-                ctx.dtb, page->vaddr, page->size);
+                "Size: 0x%"PRIx64"\n",
+                ctx.dtb, page->vaddr, (uint64_t)page->size);
         }
 
         loop=loop->next;
