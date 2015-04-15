@@ -407,72 +407,86 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
 
     GSList *ret = NULL;
 
-    uint32_t i;
-    for(i=0;i<PTRS_PER_PDPI;i++) {
+    uint64_t pdpi_table[PTRS_PER_PDPI];
+    uint64_t *page_directory = NULL;
+    uint64_t *page_table = NULL;
 
-        uint32_t start = i * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size;
-        uint32_t pdpi_entry = pdpi_base + i * entry_size;
+    if (sizeof(pdpi_table) != vmi_read_pa(vmi, pdpi_base, pdpi_table, sizeof(pdpi_table))) {
+        return ret;
+    }
 
-        uint64_t pdpe;
-        if(VMI_FAILURE == vmi_read_64_pa(vmi, pdpi_entry, &pdpe)) {
+    page_directory = g_malloc(VMI_PS_4KB);
+    page_table = g_malloc(VMI_PS_4KB);
+
+    uint32_t pdp_index = 0;
+    uint64_t pdpi_location = pdpi_base;
+    for(pdp_index = 0; pdp_index < PTRS_PER_PDPI; pdp_index++, pdpi_location += entry_size) {
+
+        uint64_t pdp_base_va = pdp_index * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size;
+        uint64_t pdp_entry = pdpi_table[pdp_index];
+
+        if(!ENTRY_PRESENT(vmi->os_type, pdp_entry)) {
             continue;
         }
 
-        if(!ENTRY_PRESENT(vmi->os_type, pdpe)) {
+        uint64_t pde_location = pdba_base_pae(pdp_entry);
+
+        if (VMI_PS_4KB != vmi_read_pa(vmi, pde_location, page_directory, VMI_PS_4KB)) {
             continue;
         }
 
-        uint64_t pgd_curr = pdba_base_pae(pdpe);
+        uint32_t pd_index = 0;
+        for(pd_index = 0; pd_index < PTRS_PER_PAE_PGD; pd_index++, pde_location += entry_size) {
+            uint64_t pd_base_va = pdp_base_va + (pd_index * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size);
 
-        uint32_t j;
-        for(j=0;j<PTRS_PER_PAE_PGD;j++,pgd_curr+=entry_size) {
-            uint64_t soffset = start + (j * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size);
+            uint64_t pd_entry = page_directory[pd_index];
 
-            uint64_t entry;
-            if(VMI_FAILURE == vmi_read_64_pa(vmi, pgd_curr, &entry)) {
-                continue;
-            }
+            if(ENTRY_PRESENT(vmi->os_type, pd_entry)) {
 
-            if(ENTRY_PRESENT(vmi->os_type, entry)) {
-
-                if(PAGE_SIZE(entry)) {
+                if(PAGE_SIZE(pd_entry)) {
                     page_info_t *p = g_malloc0(sizeof(page_info_t));
-                    p->vaddr = soffset;
-                    p->paddr = get_large_paddr_pae(p->vaddr, pgd_curr);
+                    p->vaddr = pd_base_va;
+                    p->paddr = get_large_paddr_pae(p->vaddr, pd_entry);
                     p->size = VMI_PS_2MB;
-                    p->x86_pae.pdpe_location = pdpi_entry;
-                    p->x86_pae.pdpe_value = pdpe;
-                    p->x86_pae.pgd_location = pgd_curr;
-                    p->x86_pae.pgd_value = entry;
+                    p->x86_pae.pdpe_location = pdpi_location;
+                    p->x86_pae.pdpe_value = pdp_entry;
+                    p->x86_pae.pgd_location = pde_location;
+                    p->x86_pae.pgd_value = pd_entry;
                     ret = g_slist_prepend(ret, p);
                     continue;
                 }
 
-                uint64_t pte_curr = entry & ~(0xFFF);
-                uint32_t k;
-                for(k=0;k<PTRS_PER_PAE_PTE;k++,pte_curr+=entry_size){
-                    uint64_t pte_entry;
-                    if(VMI_FAILURE == vmi_read_64_pa(vmi, pte_curr, &pte_entry)) {
-                        continue;
-                    }
+                uint64_t pte_location = ptba_base_pae(pd_entry);
+
+                if (VMI_PS_4KB != vmi_read_pa(vmi, pte_location, page_table, VMI_PS_4KB)) {
+                    continue;
+                }
+
+                uint32_t pt_index;
+                for(pt_index = 0; pt_index < PTRS_PER_PAE_PTE; pt_index++, pte_location += entry_size){
+                    uint64_t pte_entry = page_table[pt_index];
 
                     if(ENTRY_PRESENT(vmi->os_type, pte_entry)) {
                         page_info_t *p = g_malloc0(sizeof(page_info_t));
-                        p->vaddr = soffset + k * VMI_PS_4KB;
+                        p->vaddr = pd_base_va + pt_index * VMI_PS_4KB;
                         p->paddr = get_paddr_pae(p->vaddr, pte_entry);
                         p->size = VMI_PS_4KB;
-                        p->x86_pae.pdpe_location = pdpi_entry;
-                        p->x86_pae.pdpe_value = pdpe;
-                        p->x86_pae.pgd_location = pgd_curr;
-                        p->x86_pae.pgd_value = entry;
-                        p->x86_pae.pte_location = pte_curr;
+                        p->x86_pae.pdpe_location = pdpi_location;
+                        p->x86_pae.pdpe_value = pdp_entry;
+                        p->x86_pae.pgd_location = pde_location;
+                        p->x86_pae.pgd_value = pd_entry;
+                        p->x86_pae.pte_location = pte_location;
                         p->x86_pae.pte_value = pte_entry;
                         ret = g_slist_prepend(ret, p);
                     }
                 }
+
             }
         }
     }
+
+    g_free(page_directory);
+    g_free(page_table);
 
     return ret;
 }
