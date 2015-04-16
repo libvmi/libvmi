@@ -513,10 +513,28 @@ peparse_get_export_table(
          export_header_va, ((windows_instance_t)vmi->os_data)->ntoskrnl_va,
          export_header_rva);
 
-    nbytes = vmi_read_va(vmi, export_header_va, pid, et, sizeof(*et));
+    nbytes = vmi_read_va(vmi, export_header_va, pid, et, sizeof(struct export_table));
     if (nbytes != sizeof(struct export_table)) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to map export header\n");
-        return VMI_FAILURE;
+
+        /*
+         * Sometimes Windows maps the export table on page-boundaries,
+         * such that the first export_flags field (which is reserved) is.
+         * not actually accessible (the page is not mapped). See Issue #260.
+         */
+        if (!((export_header_va+4) & 0xfff)) {
+            dbprint(VMI_DEBUG_PEPARSE, "--PEParse: export table is mapped on page boundary\n");
+            nbytes = vmi_read_va(vmi, export_header_va+4, pid, (void*)((char*)et+4), sizeof(struct export_table)-4);
+            if( nbytes != sizeof(struct export_table)-4 ) {
+               dbprint(VMI_DEBUG_PEPARSE, "--PEParse: still failed to map export header\n");
+                return VMI_FAILURE;
+            }
+
+            // Manually set the reserved field to zero in this case
+            et->export_flags = 0;
+        } else {
+            return VMI_FAILURE;
+        }
     }
 
     /* sanity check */
