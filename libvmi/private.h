@@ -118,11 +118,9 @@ struct vmi_instance {
 #if ENABLE_PAGE_CACHE == 1
     GHashTable *memory_cache;  /**< hash table for memory cache */
 
-    GList *memory_cache_lru;  /**< list holding the most recently used pages */
+    GQueue *memory_cache_lru;  /**< queue holding the most recently used pages */
 
     uint32_t memory_cache_age; /**< max age of memory cache entry */
-
-    uint32_t memory_cache_size;/**< current size of memory cache */
 
     uint32_t memory_cache_size_max;/**< max size of memory cache */
 #else
