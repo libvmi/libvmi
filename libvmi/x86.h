@@ -31,6 +31,9 @@ extern "C" {
 #define PTRS_PER_PAE_PTE 512
 #define PTRS_PER_PAE_PGD 512
 
+#define PTRS_PER_NOPAE_PTE 1024
+#define PTRS_PER_NOPAE_PGD 1024
+
 /*
  * If READ_WRITE bit is set, the page is read/write. Otherwise when
  * it is not set, the page is read-only. The WP bit in CR0
