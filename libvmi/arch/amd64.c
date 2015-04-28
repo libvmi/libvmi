@@ -205,94 +205,110 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
     GSList *ret = NULL;
     uint8_t entry_size = 0x8;
 
-    #define PDES_AND_PTES_PER_PAGE 0x200 // 0x1000/0x8
+    #define IA32E_ENTRIES_PER_PAGE 0x200 // 0x1000/0x8
 
-    uint64_t pml4e;
-    for(pml4e=0;pml4e<PDES_AND_PTES_PER_PAGE;pml4e++) {
+    uint64_t *pml4_page = malloc(VMI_PS_4KB);
 
-        addr_t vaddr = pml4e << 39;
-        addr_t pml4e_a = 0;
-        uint64_t pml4e_value = get_pml4e(vmi, vaddr, dtb, &pml4e_a);
+    addr_t pml4e_location = dtb & VMI_BIT_MASK(12,51);
+    if (VMI_PS_4KB != vmi_read_pa(vmi, pml4e_location, pml4_page, VMI_PS_4KB)) {
+        free(pml4_page);
+        return ret;
+    }
+
+    uint64_t *pdpt_page = malloc(VMI_PS_4KB);
+    uint64_t *pgd_page = malloc(VMI_PS_4KB);
+    uint64_t *pt_page = malloc(VMI_PS_4KB);
+
+    uint64_t pml4e_index;
+    for(pml4e_index = 0; pml4e_index < IA32E_ENTRIES_PER_PAGE; pml4e_index++, pml4e_location += entry_size) {
+
+        uint64_t pml4e_value = pml4_page[pml4e_index];
 
         if(!ENTRY_PRESENT(vmi->os_type, pml4e_value)) {
             continue;
         }
 
-        uint64_t pdpte;
-        for(pdpte=0;pdpte<PDES_AND_PTES_PER_PAGE;pdpte++) {
+        uint64_t pdpte_location = pml4e_value & VMI_BIT_MASK(12,51);
 
-            vaddr = (pml4e << 39) | (pdpte << 30);
+        if (VMI_PS_4KB != vmi_read_pa(vmi, pdpte_location, pdpt_page, VMI_PS_4KB)) {
+            continue;
+        }
 
-            addr_t pdpte_a = 0;
-            uint64_t pdpte_value = get_pdpte_ia32e(vmi, vaddr, pml4e_value, &pdpte_a);
+        uint64_t pdpte_index;
+        for(pdpte_index = 0; pdpte_index < IA32E_ENTRIES_PER_PAGE; pdpte_index++, pdpte_location++) {
+
+
+            uint64_t pdpte_value = pdpt_page[pdpte_index];
+
             if(!ENTRY_PRESENT(vmi->os_type, pdpte_value)) {
                 continue;
             }
 
             if(PAGE_SIZE(pdpte_value)) {
                 page_info_t *info = g_malloc0(sizeof(page_info_t));
-                info->vaddr = vaddr;
-                info->paddr = get_gigpage_ia32e(vaddr, pdpte_value);
+                info->vaddr = ((uint64_t)pml4e_index << 39) | (pdpte_index << 30);
+                info->paddr = get_gigpage_ia32e(info->vaddr, pdpte_value);
                 info->size = VMI_PS_1GB;
-                info->x86_ia32e.pml4e_location = pml4e_a;
+                info->x86_ia32e.pml4e_location = pml4e_location;
                 info->x86_ia32e.pml4e_value = pml4e_value;
-                info->x86_ia32e.pdpte_location = pdpte_a;
+                info->x86_ia32e.pdpte_location = pdpte_location;
                 info->x86_ia32e.pdpte_value = pdpte_value;
                 ret = g_slist_prepend(ret, info);
                 continue;
             }
 
-            uint64_t pgd_curr = (pdpte_value & VMI_BIT_MASK(12,51));
-            uint64_t j;
-            for(j=0;j<PTRS_PER_PAE_PGD;j++,pgd_curr+=entry_size) {
+            uint64_t pgd_location = pdpte_value & VMI_BIT_MASK(12,51);
 
-                uint64_t soffset = vaddr + (j * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size);
+            if (VMI_PS_4KB != vmi_read_pa(vmi, pgd_location, pgd_page, VMI_PS_4KB)) {
+                continue;
+            }
 
-                uint64_t entry;
-                dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_address = 0x%.16"PRIx64"\n", pgd_curr);
-                if(VMI_FAILURE == vmi_read_64_pa(vmi, pgd_curr, &entry)) {
-                    continue;
-                }
+            uint64_t pgde_index;
+            for(pgde_index = 0; pgde_index < IA32E_ENTRIES_PER_PAGE; pgde_index++, pgd_location += entry_size) {
 
-                if(ENTRY_PRESENT(vmi->os_type, entry)) {
+                uint64_t pgd_value = pgd_page[pgde_index];
 
-                    if(PAGE_SIZE(entry)) {
+                if(ENTRY_PRESENT(vmi->os_type, pgd_value)) {
+
+                    if(PAGE_SIZE(pgd_value)) {
                         page_info_t *info = g_malloc0(sizeof(page_info_t));
-                        info->vaddr = soffset;
-                        info->paddr = get_2megpage_ia32e(vaddr, entry);
+                        info->vaddr = (pml4e_index << 39) | (pdpte_index << 30) |
+                                        (pgde_index << 21);
+                        info->paddr = get_2megpage_ia32e(info->vaddr, pgd_value);
                         info->size = VMI_PS_2MB;
-                        info->x86_ia32e.pml4e_location = pml4e_a;
+                        info->x86_ia32e.pml4e_location = pml4e_location;
                         info->x86_ia32e.pml4e_value = pml4e_value;
-                        info->x86_ia32e.pdpte_location = pdpte_a;
+                        info->x86_ia32e.pdpte_location = pdpte_location;
                         info->x86_ia32e.pdpte_value = pdpte_value;
-                        info->x86_ia32e.pgd_location = pgd_curr;
-                        info->x86_ia32e.pgd_value = entry;
+                        info->x86_ia32e.pgd_location = pgd_location;
+                        info->x86_ia32e.pgd_value = pgd_value;
                         ret = g_slist_prepend(ret, info);
                         continue;
                     }
 
-                    uint64_t pte_curr = (entry & VMI_BIT_MASK(12,51));
-                    uint64_t k;
-                    for(k=0;k<PTRS_PER_PAE_PTE;k++,pte_curr+=entry_size) {
-                        uint64_t pte_entry;
-                        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_address = 0x%.16"PRIx64"\n", pte_curr);
-                        if(VMI_FAILURE == vmi_read_64_pa(vmi, pte_curr, &pte_entry)) {
-                            continue;
-                        }
+                    uint64_t pte_location = (pgd_value & VMI_BIT_MASK(12,51));
+                    if (VMI_PS_4KB != vmi_read_pa(vmi, pte_location, pt_page, VMI_PS_4KB)) {
+                        continue;
+                    }
 
-                        if(ENTRY_PRESENT(vmi->os_type, pte_entry)) {
+                    uint64_t pte_index;
+                    for(pte_index = 0; pte_index < IA32E_ENTRIES_PER_PAGE; pte_index++, pte_location += entry_size) {
+                        uint64_t pte_value = pt_page[pte_index];
+
+                        if(ENTRY_PRESENT(vmi->os_type, pte_value)) {
                             page_info_t *info = g_malloc0(sizeof(page_info_t));
-                            info->vaddr = soffset + k * VMI_PS_4KB;
-                            info->paddr = get_paddr_ia32e(vaddr, pte_entry);
+                            info->vaddr = (pml4e_index << 39) | (pdpte_index << 30) |
+                                            (pgde_index << 21) | (pte_index << 12);
+                            info->paddr = get_paddr_ia32e(info->vaddr, pte_value);
                             info->size = VMI_PS_4KB;
-                            info->x86_ia32e.pml4e_location = pml4e_a;
+                            info->x86_ia32e.pml4e_location = pml4e_location;
                             info->x86_ia32e.pml4e_value = pml4e_value;
-                            info->x86_ia32e.pdpte_location = pdpte_a;
+                            info->x86_ia32e.pdpte_location = pdpte_location;
                             info->x86_ia32e.pdpte_value = pdpte_value;
-                            info->x86_ia32e.pgd_location = pgd_curr;
-                            info->x86_ia32e.pgd_value = entry;
-                            info->x86_ia32e.pte_location = pte_curr;
-                            info->x86_ia32e.pte_value = pte_entry;
+                            info->x86_ia32e.pgd_location = pgd_location;
+                            info->x86_ia32e.pgd_value = pgd_value;
+                            info->x86_ia32e.pte_location = pte_location;
+                            info->x86_ia32e.pte_value = pte_value;
                             ret = g_slist_prepend(ret, info);
                             continue;
                         }
@@ -301,6 +317,11 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
             }
         }
     }
+
+    free(pt_page);
+    free(pgd_page);
+    free(pdpt_page);
+    free(pml4_page);
 
     return ret;
 }
