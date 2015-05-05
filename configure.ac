@@ -291,45 +291,18 @@ have_kvm='no'
 kvm_space='      '
 [if test "$enable_kvm" = "yes"]
 [then]
-    AC_PATH_PROG(GREP, grep)
-    [if test x"$GREP" = "x"]
+    AC_CHECK_LIB(virt, virConnectOpen, [], [missing="yes"])
+    [if test "$missing" = "yes"]
     [then]
         AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
+        missing='no'
         enable_kvm='no'
-        have_kvm='grep missing'
-    [fi]
-
-    AC_PATH_PROG(LSMOD, lsmod)
-    [if test x"$LSMOD" = "x"]
-    [then]
-        AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
-        enable_kvm='no'
-        have_kvm='lsmod missing'
-    [fi]
-    
-    [if test x"$LSMOD" != "x" && test x"$GREP" != "x"]
-    [then]
-        KVM_PRESENT=$($LSMOD | $GREP kvm)
-        [if test x"$KVM_PRESENT" != "x"]
-        [then]
-            AC_CHECK_LIB(virt, virConnectOpen, [], [missing="yes"])
-            [if test "$missing" = "yes"]
-            [then]
-                AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
-                missing='no'
-                enable_kvm='no'
-                have_kvm='libvirt missing'
-            [else]
-                AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
-                missing='no'
-                have_kvm='yes'
-                kvm_space='     '
-            [fi]
-        [else]
-            AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
-            enable_kvm='no'
-            have_kvm='kernel module is not loaded'
-        [fi]
+        have_kvm='libvirt missing'
+    [else]
+        AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
+        missing='no'
+        have_kvm='yes'
+        kvm_space='     '
     [fi]
 [fi]
 AM_CONDITIONAL([HAVE_KVM], [test x"$have_kvm" = "xyes"])
