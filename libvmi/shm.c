@@ -19,6 +19,7 @@
  */
 
 #include "private.h"
+#include "driver/driver_wrapper.h"
 
 status_t
 vmi_shm_snapshot_create(
