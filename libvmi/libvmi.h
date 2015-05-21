@@ -577,7 +577,7 @@ addr_t vmi_translate_sym2v(
     vmi_instance_t vmi,
     addr_t base_vaddr,
     vmi_pid_t pid,
-    char *symbol);
+    const char *symbol);
 
 /**
  * Performs the translation from an RVA to a symbol
