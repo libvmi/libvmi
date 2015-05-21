@@ -242,7 +242,7 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, const char *symbol)
 }
 
 /* convert a symbol into an address */
-addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, char *symbol)
+addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, const char *symbol)
 {
     status_t status = VMI_FAILURE;
     addr_t rva = 0;
