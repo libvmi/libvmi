@@ -556,9 +556,7 @@ xen_get_domainid_from_name(
         // if name matches, then return number
         if (nameCandidate != NULL &&
             strncmp(name, nameCandidate, 100) == 0) {
-            int idNum = atoi(idStr);
-
-            domainid = (unsigned long) idNum;
+            domainid = strtoull(idStr, NULL, 0);
             free(nameCandidate);
             break;
         }
