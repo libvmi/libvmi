@@ -268,8 +268,8 @@ const char* vmi_translate_v2sym(vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t
     char *ret = NULL;
 
     if (VMI_FAILURE == rva_cache_get(vmi, base_vaddr, pid, rva, &ret)) {
-        if (vmi->os_interface && vmi->os_interface->os_rva2sym) {
-            ret = vmi->os_interface->os_rva2sym(vmi, rva, base_vaddr, pid);
+        if (vmi->os_interface && vmi->os_interface->os_v2sym) {
+            ret = vmi->os_interface->os_v2sym(vmi, rva, base_vaddr, pid);
         }
 
         if (ret) {

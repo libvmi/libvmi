@@ -582,7 +582,9 @@ addr_t vmi_translate_sym2v(
 /**
  * Performs the translation from an RVA to a symbol
  * On Windows this function walks the PE export table.
- * Linux is unimplemented at this time.
+ * The Linux translation works currently only for kernel symbols (pid=0 & base_vaddr=0).
+ * Only the first matching symbol of System.map is returned.
+ * ELF Headers are not supported.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] base_vaddr Base virtual address (beginning of PE header in Windows)
