@@ -1286,14 +1286,14 @@ kvm_destroy(
     }
 }
 
-unsigned long
+uint64_t
 kvm_get_id_from_name(
     vmi_instance_t vmi,
     const char *name)
 {
     virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
-    unsigned long id;
+    uint64_t domainid;
 
     conn =
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
@@ -1309,20 +1309,20 @@ kvm_get_id_from_name(
         return -1;
     }
 
-    id = (unsigned long) virDomainGetID(dom);
+    domainid = (uint64_t) virDomainGetID(dom);
 
     if (dom)
         virDomainFree(dom);
     if (conn)
         virConnectClose(conn);
 
-    return id;
+    return domainid;
 }
 
 status_t
 kvm_get_name_from_id(
     vmi_instance_t vmi,
-    unsigned long domid,
+    uint64_t domainid,
     char **name)
 {
     virConnectPtr conn = NULL;
@@ -1336,7 +1336,7 @@ kvm_get_name_from_id(
         return VMI_FAILURE;
     }
 
-    dom = virDomainLookupByID(conn, domid);
+    dom = virDomainLookupByID(conn, domainid);
     if (NULL == dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
@@ -1352,7 +1352,7 @@ kvm_get_name_from_id(
     return VMI_SUCCESS;
 }
 
-unsigned long
+uint64_t
 kvm_get_id(
     vmi_instance_t vmi)
 {
@@ -1362,15 +1362,15 @@ kvm_get_id(
 void
 kvm_set_id(
     vmi_instance_t vmi,
-    unsigned long id)
+    uint64_t domainid)
 {
-    kvm_get_instance(vmi)->id = id;
+    kvm_get_instance(vmi)->id = domainid;
 }
 
 status_t
 kvm_check_id(
     vmi_instance_t vmi,
-    unsigned long id)
+    uint64_t domainid)
 {
     virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
@@ -1383,7 +1383,7 @@ kvm_check_id(
         return VMI_FAILURE;
     }
 
-    dom = virDomainLookupByID(conn, id);
+    dom = virDomainLookupByID(conn, domainid);
     if (NULL == dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
@@ -1662,7 +1662,7 @@ kvm_is_pv(
 
 status_t
 kvm_test(
-    unsigned long id,
+    uint64_t domainid,
     const char *name)
 {
     virConnectPtr conn = NULL;

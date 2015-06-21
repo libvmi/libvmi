@@ -68,7 +68,7 @@ uint32_t fine_second_level_table_index(uint32_t vaddr) {
 // 2nd Level Page Table Descriptor (Fine Pages)
 static inline
 void get_fine_second_level_descriptor(vmi_instance_t vmi, uint32_t vaddr, page_info_t *info) {
-    info->arm_aarch32.sld_location = (info->arm_aarch32.fld_value & VMI_BIT_MASK(12,31)) | fine_second_level_table_index(vaddr) | 0b11;
+    info->arm_aarch32.sld_location = (info->arm_aarch32.fld_value & VMI_BIT_MASK(12,31)) | (fine_second_level_table_index(vaddr) << 2);
     uint32_t sld_v;
     if(VMI_SUCCESS == vmi_read_32_pa(vmi, info->arm_aarch32.sld_location, &sld_v)) {
         info->arm_aarch32.sld_value = sld_v;
@@ -78,11 +78,12 @@ void get_fine_second_level_descriptor(vmi_instance_t vmi, uint32_t vaddr, page_i
 // Based on ARM Reference Manual
 // Chapter B4 Virtual Memory System Architecture
 // B4.7 Hardware page table translation
-addr_t v2p_aarch32 (vmi_instance_t vmi,
+status_t v2p_aarch32 (vmi_instance_t vmi,
     addr_t dtb,
     addr_t vaddr,
     page_info_t *info)
 {
+    status_t status = VMI_FAILURE;
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch32 PTLookup: vaddr = 0x%.16"PRIx64", dtb = 0x%.16"PRIx64"\n", vaddr, dtb);
 
@@ -106,12 +107,14 @@ addr_t v2p_aarch32 (vmi_instance_t vmi,
                     // large page
                     info->size = VMI_PS_64KB;
                     info->paddr = (info->arm_aarch32.sld_value & VMI_BIT_MASK(16,31)) | (vaddr & VMI_BIT_MASK(0,15));
+                    status = VMI_SUCCESS;
                     break;
                 case 0b10:
                 case 0b11:
                     // small page
                     info->size = VMI_PS_4KB;
                     info->paddr = (info->arm_aarch32.sld_value & VMI_BIT_MASK(12,31)) | (vaddr & VMI_BIT_MASK(0,11));
+                    status = VMI_SUCCESS;
                 default:
                     break;
             }
@@ -127,10 +130,10 @@ addr_t v2p_aarch32 (vmi_instance_t vmi,
                 info->paddr = (info->arm_aarch32.fld_value & VMI_BIT_MASK(20,31)) | (vaddr & VMI_BIT_MASK(0,19));
             } else {
                 dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch32 PTLookup: the entry is a supersection descriptor for its associated modified virtual addresses\n");
-                // TODO: supersections are unsupported right now (breaks ptlookup when included)
-                //info->size = VMI_PS_16MB;
-                //info->paddr = get_bits_31to24(info->l1_v) | get_bits_23to0(vaddr);
+                info->size = VMI_PS_16MB;
+                info->paddr = (info->arm_aarch32.fld_value & VMI_BIT_MASK(24,31)) | (vaddr & VMI_BIT_MASK(0,23));
             }
+            status = VMI_SUCCESS;
 
             break;
         }
@@ -143,21 +146,24 @@ addr_t v2p_aarch32 (vmi_instance_t vmi,
 
             dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch32 PTLookup: sld = 0x%"PRIx32"\n", info->arm_aarch32.sld_value);
 
-            switch(info->arm_aarch32.fld_value & VMI_BIT_MASK(0,1)) {
+            switch(info->arm_aarch32.sld_value & VMI_BIT_MASK(0,1)) {
                 case 0b01:
                     // large page
                     info->size = VMI_PS_64KB;
                     info->paddr = (info->arm_aarch32.sld_value & VMI_BIT_MASK(16,31)) | (vaddr & VMI_BIT_MASK(0,15));
+                    status = VMI_SUCCESS;
                     break;
                 case 0b10:
                     // small page
                     info->size = VMI_PS_4KB;
                     info->paddr = (info->arm_aarch32.sld_value & VMI_BIT_MASK(12,31)) | (vaddr & VMI_BIT_MASK(0,11));
+                    status = VMI_SUCCESS;
                     break;
                 case 0b11:
                     // tiny page
                     info->size = VMI_PS_1KB;
                     info->paddr = (info->arm_aarch32.sld_value & VMI_BIT_MASK(10,31)) | (vaddr & VMI_BIT_MASK(0,9));
+                    status = VMI_SUCCESS;
                     break;
                 default:
                     break;
@@ -171,7 +177,8 @@ addr_t v2p_aarch32 (vmi_instance_t vmi,
     }
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--ARM PTLookup: PA = 0x%"PRIx64"\n", info->paddr);
-    return info->paddr;
+
+    return status;
 }
 
 GSList* get_va_pages_aarch32(vmi_instance_t vmi, addr_t dtb) {

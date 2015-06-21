@@ -37,21 +37,21 @@ typedef struct driver_interface {
         vmi_instance_t);
     void (*destroy_ptr) (
         vmi_instance_t);
-    unsigned long (*get_id_from_name_ptr) (
+    uint64_t (*get_id_from_name_ptr) (
         vmi_instance_t,
         const char *);
     status_t (*get_name_from_id_ptr) (
         vmi_instance_t,
-        unsigned long,
+        uint64_t,
         char **);
-    unsigned long (*get_id_ptr) (
+    uint64_t (*get_id_ptr) (
         vmi_instance_t);
     void (*set_id_ptr) (
         vmi_instance_t,
-        unsigned long);
+        uint64_t);
     status_t (*check_id_ptr) (
         vmi_instance_t,
-        unsigned long);
+        uint64_t);
     status_t (*get_name_ptr) (
         vmi_instance_t,
         char **);
@@ -138,7 +138,7 @@ typedef struct driver_interface {
 
 status_t driver_init_mode(
     vmi_instance_t vmi,
-    unsigned long id,
+    uint64_t domainid,
     const char *name);
 
 status_t driver_init(

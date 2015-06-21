@@ -75,7 +75,7 @@ typedef uint32_t vmi_mode_t;
 
 #define VMI_CONFIG_GHASHTABLE (1 << 27) /**< config GHashTable provided */
 
-#define VMI_INVALID_DOMID ~0 /**< invalid domain id */
+#define VMI_INVALID_DOMID ~0ULL /**< invalid domain id */
 
 typedef enum status {
 
@@ -577,7 +577,7 @@ addr_t vmi_translate_sym2v(
     vmi_instance_t vmi,
     addr_t base_vaddr,
     vmi_pid_t pid,
-    char *symbol);
+    const char *symbol);
 
 /**
  * Performs the translation from an RVA to a symbol
@@ -1511,7 +1511,7 @@ char *vmi_get_name(
  * @param[in] vmi LibVMI instance
  * @return VM id, or zero on error
  */
-unsigned long vmi_get_vmid(
+uint64_t vmi_get_vmid(
     vmi_instance_t vmi);
 
 /**

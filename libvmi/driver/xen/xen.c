@@ -516,7 +516,7 @@ xen_put_memory(
 // General Interface Functions (1-1 mapping to driver_* function)
 
 // formerly vmi_get_domain_id
-unsigned long
+uint64_t
 xen_get_domainid_from_name(
     vmi_instance_t vmi,
     const char *name)
@@ -535,7 +535,7 @@ xen_get_domainid_from_name(
     unsigned int size = 0;
     int i = 0;
     xs_transaction_t xth = XBT_NULL;
-    unsigned long domainid = VMI_INVALID_DOMID;
+    uint64_t domainid = VMI_INVALID_DOMID;
     char *tmp;
 
     struct xs_handle *xsh = OPEN_XS_DAEMON();
@@ -548,7 +548,7 @@ xen_get_domainid_from_name(
         /* read in name */
         char *idStr = domains[i];
 
-        tmp = malloc(snprintf(NULL, 0, "/local/domain/%s/name", idStr)+1);
+        tmp = g_malloc0(snprintf(NULL, 0, "/local/domain/%s/name", idStr)+1);
         sprintf(tmp, "/local/domain/%s/name", idStr);
         char *nameCandidate = xs_read(xsh, xth, tmp, NULL);
         free(tmp);
@@ -556,9 +556,7 @@ xen_get_domainid_from_name(
         // if name matches, then return number
         if (nameCandidate != NULL &&
             strncmp(name, nameCandidate, 100) == 0) {
-            int idNum = atoi(idStr);
-
-            domainid = (unsigned long) idNum;
+            domainid = strtoull(idStr, NULL, 0);
             free(nameCandidate);
             break;
         }
@@ -581,7 +579,7 @@ _bail:
 status_t
 xen_get_name_from_domainid(
     vmi_instance_t vmi,
-    unsigned long domid,
+    uint64_t domainid,
     char **name)
 {
 
@@ -591,7 +589,7 @@ xen_get_name_from_domainid(
 #else
 
     status_t ret = VMI_FAILURE;
-    if (domid == VMI_INVALID_DOMID) {
+    if (domainid == VMI_INVALID_DOMID) {
         return ret;
     }
 
@@ -599,15 +597,14 @@ xen_get_name_from_domainid(
     int size = 0;
     int i = 0;
     xs_transaction_t xth = XBT_NULL;
-    unsigned long domainid = VMI_INVALID_DOMID;
 
     struct xs_handle *xsh = OPEN_XS_DAEMON();
 
     if (!xsh)
         goto _bail;
 
-    char *tmp = malloc(snprintf(NULL, 0, "/local/domain/%lu/name", domid)+1);
-    sprintf(tmp, "/local/domain/%lu/name", domid);
+    char *tmp = g_malloc0(snprintf(NULL, 0, "/local/domain/%lu/name", domainid)+1);
+    sprintf(tmp, "/local/domain/%lu/name", domainid);
     char *nameCandidate = xs_read(xsh, xth, tmp, NULL);
     free(tmp);
 
@@ -623,7 +620,7 @@ _bail:
 #endif
 }
 
-unsigned long
+uint64_t
 xen_get_domainid(
     vmi_instance_t vmi)
 {
@@ -633,7 +630,7 @@ xen_get_domainid(
 void
 xen_set_domainid(
     vmi_instance_t vmi,
-    unsigned long domainid)
+    uint64_t domainid)
 {
     xen_get_instance(vmi)->domainid = domainid;
 }
@@ -641,10 +638,17 @@ xen_set_domainid(
 status_t
 xen_check_domainid(
     vmi_instance_t vmi,
-    unsigned long domainid) {
+    uint64_t domainid) {
 
     status_t ret = VMI_FAILURE;
     libvmi_xenctrl_handle_t xchandle = XENCTRL_HANDLE_INVALID;
+
+    domid_t max_domid = ~0;
+    if ( domainid > max_domid ) {
+        dbprint(VMI_DEBUG_XEN,
+                "Domain ID is invalid, larger then the max supported on Xen!\n");
+        return ret;
+    }
 
     /* open handle to the libxc interface */
     xchandle = xc_interface_open(
@@ -2454,24 +2458,24 @@ xen_is_pv(
 
 status_t
 xen_test(
-    unsigned long id,
+    uint64_t domainid,
     const char *name)
 {
-    if (id == VMI_INVALID_DOMID && name == NULL) {
+    if (domainid == VMI_INVALID_DOMID && name == NULL) {
         errprint("VMI_ERROR: xen_test: domid or name must be specified\n");
         return VMI_FAILURE;
     }
 
-    if (id == VMI_INVALID_DOMID) { /* name != NULL */
-        unsigned long domid = xen_get_domainid_from_name(NULL, name);
-        if (domid != VMI_INVALID_DOMID) {
+    if (domainid == VMI_INVALID_DOMID) { /* name != NULL */
+        domainid = xen_get_domainid_from_name(NULL, name);
+        if (domainid != VMI_INVALID_DOMID) {
             return VMI_SUCCESS;
         } else {
             return VMI_FAILURE;
         }
     }
 
-    return xen_check_domainid(NULL, id);
+    return xen_check_domainid(NULL, domainid);
 }
 
 status_t

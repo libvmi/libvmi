@@ -38,7 +38,7 @@
 typedef struct kvm_instance {
     virConnectPtr conn;
     virDomainPtr dom;
-    unsigned long id;
+    uint32_t id;
     char *name;
     char *ds_path;
     int socket_fd;

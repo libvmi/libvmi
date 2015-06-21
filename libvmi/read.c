@@ -96,14 +96,13 @@ vmi_read(
         size_t read_len = 0;
 
         if(dtb) {
-            paddr = vmi_pagetable_lookup(vmi, dtb, start_addr + buf_offset);
+            if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, start_addr + buf_offset, &paddr)) {
+                return buf_offset;
+            }
         } else {
             paddr = start_addr + buf_offset;
         }
 
-        if (!paddr) {
-            return buf_offset;
-        }
 
         /* access the memory */
         pfn = paddr >> vmi->page_shift;
@@ -307,13 +306,11 @@ vmi_read_str(
 
         addr += len;
         if(dtb) {
-            paddr = vmi_pagetable_lookup(vmi, dtb, addr);
+            if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, addr, &paddr)) {
+                return rtnval;
+            }
         } else {
             paddr = addr;
-        }
-
-        if (!paddr) {
-            return rtnval;
         }
 
         /* access the memory */

@@ -34,21 +34,21 @@ status_t kvm_init_vmi(
     vmi_instance_t vmi);
 void kvm_destroy(
     vmi_instance_t vmi);
-unsigned long kvm_get_id_from_name(
+uint64_t kvm_get_id_from_name(
     vmi_instance_t vmi,
     const char *name);
 status_t kvm_get_name_from_id(
     vmi_instance_t vmi,
-    unsigned long domid,
+    uint64_t domainid,
     char **name);
-unsigned long kvm_get_id(
+uint64_t kvm_get_id(
     vmi_instance_t vmi);
 void kvm_set_id(
     vmi_instance_t vmi,
-    unsigned long id);
+    uint64_t domainid);
 status_t kvm_check_id(
     vmi_instance_t vmi,
-    unsigned long id);
+    uint64_t domainid);
 status_t kvm_get_name(
     vmi_instance_t vmi,
     char **name);
@@ -77,7 +77,7 @@ status_t kvm_write(
 int kvm_is_pv(
     vmi_instance_t vmi);
 status_t kvm_test(
-    unsigned long id,
+    uint64_t domainid,
     const char *name);
 status_t kvm_pause_vm(
     vmi_instance_t vmi);

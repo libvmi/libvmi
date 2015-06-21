@@ -158,7 +158,6 @@ status_t read_config_string(vmi_instance_t vmi,
     sprintf(config_str, "%s %s", vmi->image_type, config);
 
     config_file = fmemopen(config_str, length, "r");
-
     ret = read_config_file(vmi, config_file);
 
     free(config_str);
@@ -240,7 +239,7 @@ static status_t
 set_driver_type(
     vmi_instance_t vmi,
     vmi_mode_t mode,
-    unsigned long id,
+    uint64_t id,
     const char *name)
 {
     if (VMI_AUTO == mode) {
@@ -278,7 +277,7 @@ static status_t
 set_id_and_name(
     vmi_instance_t vmi,
     vmi_mode_t mode,
-    unsigned long id,
+    uint64_t id,
     const char *name)
 {
 
@@ -358,7 +357,7 @@ static status_t
 vmi_init_private(
     vmi_instance_t *vmi,
     uint32_t flags,
-    unsigned long id,
+    uint64_t id,
     const char *name,
     vmi_config_t config)
 {
@@ -563,28 +562,16 @@ vmi_init_custom(
         ret = vmi_init(vmi, flags, (char *)config);
         goto _done;
 
-    } else if (VMI_CONFIG_STRING == config_mode) {
-        char *name = NULL;
-
-        if (VMI_FILE == (*vmi)->mode) {
-            name = strdup((*vmi)->image_type_complete);
-        } else {
-            name = strdup((*vmi)->image_type);
-        }
-
-        ret = vmi_init_private(vmi, flags, VMI_INVALID_DOMID, name,
-                (vmi_config_t)config);
-
     } else if (VMI_CONFIG_GHASHTABLE == config_mode) {
 
         char *name = NULL;
-        unsigned long domid = VMI_INVALID_DOMID;
+        uint64_t domid = VMI_INVALID_DOMID;
         GHashTable *configtbl = (GHashTable *)config;
         gpointer idptr = NULL;
 
         name = (char *)g_hash_table_lookup(configtbl, "name");
         if(g_hash_table_lookup_extended(configtbl, "domid", NULL, &idptr)) {
-            domid = *(unsigned long *)idptr;
+            domid = *(uint64_t *)idptr;
         }
 
         if (name != NULL && domid != VMI_INVALID_DOMID) {
@@ -623,7 +610,6 @@ vmi_init_complete(
         name = strdup((*vmi)->image_type);
     }
 
-
     if(config) {
         flags |= VMI_CONFIG_STRING;
     } else if(name && ((*vmi)->config_mode & VMI_CONFIG_GLOBAL_FILE_ENTRY)) {
@@ -650,7 +636,28 @@ vmi_init_complete_custom(
     uint32_t flags,
     vmi_config_t config)
 {
+    if (!vmi)
+        return VMI_FAILURE;
+
     flags |= VMI_INIT_COMPLETE | (*vmi)->mode;
+
+    if ( flags & VMI_CONFIG_STRING ) {
+        char *name = NULL;
+
+        if (VMI_FILE == (*vmi)->mode) {
+            name = strdup((*vmi)->image_type_complete);
+        } else {
+            name = strdup((*vmi)->image_type);
+        }
+
+        vmi_destroy(*vmi);
+        return vmi_init_private(vmi,
+                                flags,
+                                VMI_INVALID_DOMID,
+                                name,
+                                (vmi_config_t)config);
+    }
+
     vmi_destroy(*vmi);
     return vmi_init_custom(vmi, flags, config);
 }

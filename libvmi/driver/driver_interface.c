@@ -43,27 +43,27 @@
 #include "driver/kvm/kvm.h"
 #endif
 
-status_t driver_init_mode(vmi_instance_t vmi, unsigned long id, const char *name)
+status_t driver_init_mode(vmi_instance_t vmi, uint64_t domainid, const char *name)
 {
     unsigned long count = 0;
 
     /* see what systems are accessable */
 #if ENABLE_XEN == 1
-    if (VMI_SUCCESS == xen_test(id, name)) {
+    if (VMI_SUCCESS == xen_test(domainid, name)) {
         dbprint(VMI_DEBUG_DRIVER, "--found Xen\n");
         vmi->mode = VMI_XEN;
         count++;
     }
 #endif
 #if ENABLE_KVM == 1
-    if (VMI_SUCCESS == kvm_test(id, name)) {
+    if (VMI_SUCCESS == kvm_test(domainid, name)) {
         dbprint(VMI_DEBUG_DRIVER, "--found KVM\n");
         vmi->mode = VMI_KVM;
         count++;
     }
 #endif
 #if ENABLE_FILE == 1
-    if (VMI_SUCCESS == file_test(id, name)) {
+    if (VMI_SUCCESS == file_test(domainid, name)) {
         dbprint(VMI_DEBUG_DRIVER, "--found file\n");
         vmi->mode = VMI_FILE;
         count++;
