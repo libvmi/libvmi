@@ -206,11 +206,11 @@ vmi_get_name(
     }
 }
 
-unsigned long
+uint64_t
 vmi_get_vmid(
     vmi_instance_t vmi)
 {
-    unsigned long domid = VMI_INVALID_DOMID;
+    uint64_t domid = VMI_INVALID_DOMID;
     if(VMI_INVALID_DOMID == (domid = driver_get_id(vmi))) {
         char *name = vmi_get_name(vmi);
         domid = driver_get_id_from_name(vmi, name);
