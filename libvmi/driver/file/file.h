@@ -54,7 +54,7 @@ status_t file_write(
 int file_is_pv(
     vmi_instance_t vmi);
 status_t file_test(
-    unsigned long id,
+    uint64_t id,
     const char *name);
 status_t file_pause_vm(
     vmi_instance_t vmi);

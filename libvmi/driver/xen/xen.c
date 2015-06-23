@@ -603,8 +603,8 @@ xen_get_name_from_domainid(
     if (!xsh)
         goto _bail;
 
-    char *tmp = g_malloc0(snprintf(NULL, 0, "/local/domain/%lu/name", domainid)+1);
-    sprintf(tmp, "/local/domain/%lu/name", domainid);
+    char *tmp = g_malloc0(snprintf(NULL, 0, "/local/domain/%"PRIu64"/name", domainid)+1);
+    sprintf(tmp, "/local/domain/%"PRIu64"/name", domainid);
     char *nameCandidate = xs_read(xsh, xth, tmp, NULL);
     free(tmp);
 
@@ -920,15 +920,15 @@ xen_get_domainname(
 
     char *tmp = g_malloc0(snprintf(NULL,
                                    0,
-                                   "/local/domain/%lu/name",
+                                   "/local/domain/%"PRIu64"/name",
                                    xen_get_instance(vmi)->domainid)
                           +1);
-    sprintf(tmp, "/local/domain/%lu/name", xen_get_instance(vmi)->domainid);
+    sprintf(tmp, "/local/domain/%"PRIu64"/name", xen_get_instance(vmi)->domainid);
     *name = xs_read(xen_get_instance(vmi)->xshandle, xth, tmp, NULL);
     free(tmp);
 
     if (*name == NULL) {
-        errprint("Couldn't get name of domain %lu from Xenstore\n",
+        errprint("Couldn't get name of domain %"PRIu64" from Xenstore\n",
                  xen_get_instance(vmi)->domainid);
         goto _bail;
     }

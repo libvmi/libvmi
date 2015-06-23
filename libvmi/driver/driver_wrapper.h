@@ -45,7 +45,7 @@ driver_destroy(
     bzero(&vmi->driver, sizeof(driver_interface_t));
 }
 
-static inline unsigned long
+static inline uint64_t
 driver_get_id_from_name(
     vmi_instance_t vmi,
     const char *name)
@@ -63,7 +63,7 @@ driver_get_id_from_name(
 static inline status_t
 driver_get_name_from_id(
     vmi_instance_t vmi,
-    unsigned long domid,
+    uint64_t domid,
     char **name)
 {
     if (vmi->driver.initialized && vmi->driver.get_name_from_id_ptr) {
@@ -76,7 +76,7 @@ driver_get_name_from_id(
     }
 }
 
-static inline unsigned long
+static inline uint64_t
 driver_get_id(
     vmi_instance_t vmi)
 {
@@ -92,7 +92,7 @@ driver_get_id(
 static inline void
 driver_set_id(
     vmi_instance_t vmi,
-    unsigned long id)
+    uint64_t id)
 {
     if (vmi->driver.initialized && vmi->driver.set_id_ptr) {
         return vmi->driver.set_id_ptr(vmi, id);
@@ -106,7 +106,7 @@ driver_set_id(
 static inline status_t
 driver_check_id(
     vmi_instance_t vmi,
-    unsigned long id)
+    uint64_t id)
 {
     if (vmi->driver.initialized && vmi->driver.check_id_ptr) {
         return vmi->driver.check_id_ptr(vmi, id);

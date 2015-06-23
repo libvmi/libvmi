@@ -287,7 +287,7 @@ file_is_pv(
 
 status_t
 file_test(
-    unsigned long id,
+    uint64_t id,
     const char *name)
 {
     status_t ret = VMI_FAILURE;
