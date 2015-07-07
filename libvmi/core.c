@@ -305,7 +305,7 @@ set_id_and_name(
     /* resolve and set id from name */
     if (name) {
         if (VMI_INVALID_DOMID != (id = driver_get_id_from_name(vmi, name)) ) {
-            dbprint(VMI_DEBUG_CORE, "--got id from name (%s --> %lu)\n", name, id);
+            dbprint(VMI_DEBUG_CORE, "--got id from name (%s --> %"PRIu64")\n", name, id);
             driver_set_id(vmi, id);
             vmi->image_type = strndup(name, 100);
             driver_set_name(vmi, name);
@@ -326,7 +326,7 @@ set_id_and_name(
 
     char *tmp_name = NULL;
     if (VMI_SUCCESS == driver_get_name_from_id(vmi, id, &tmp_name)) {
-        dbprint(VMI_DEBUG_CORE, "--got name from id (%lu --> %s)\n", id, tmp_name);
+        dbprint(VMI_DEBUG_CORE, "--got name from id (%"PRIu64" --> %s)\n", id, tmp_name);
         vmi->image_type = strndup(tmp_name, 100);
         driver_set_name(vmi, tmp_name);
         free(tmp_name);
@@ -339,8 +339,8 @@ set_id_and_name(
     // Only under Xen this is OK without Xenstore
     if (vmi->mode == VMI_XEN) {
         // create placeholder for image_type
-        char *idstring = g_malloc0(snprintf(NULL, 0, "domid-%lu", id) + 1);
-        sprintf(idstring, "domid-%lu", id);
+        char *idstring = g_malloc0(snprintf(NULL, 0, "domid-%"PRIu64, id) + 1);
+        sprintf(idstring, "domid-%"PRIu64, id);
         vmi->image_type = idstring;
         goto done;
     }

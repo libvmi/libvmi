@@ -43,9 +43,9 @@ void list_processes(vmi_instance_t vmi, addr_t current_process,
     /* demonstrate name and id accessors */
     char* name2 = vmi_get_name(vmi);
     if (VMI_FILE != vmi_get_access_mode(vmi)) {
-        unsigned long id = vmi_get_vmid(vmi);
+        uint64_t id = vmi_get_vmid(vmi);
 
-        printf("Process listing for VM %s (id=%lu)\n", name2, id);
+        printf("Process listing for VM %s (id=%"PRIu64")\n", name2, id);
     } else {
         printf("Process listing for file %s\n", name2);
     }

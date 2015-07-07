@@ -192,7 +192,7 @@ static int resume_domain(vmi_instance_t vmi)
 {
     xc_interface * xch;
     xen_events_t * xe;
-    unsigned long dom;
+    uint64_t dom;
     int ret;
 
     // Get xen handle and domain.
@@ -234,7 +234,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
     status_t status             = VMI_FAILURE;
     vmi_event_t * event         = g_hash_table_lookup(vmi->interrupt_events, &intr);
     xc_interface * xch          = xen_get_xchandle(vmi);
-    unsigned long domain_id     = xen_get_domainid(vmi);
+    uint64_t domain_id     = xen_get_domainid(vmi);
 
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
@@ -444,7 +444,7 @@ status_t process_mem(vmi_instance_t vmi, mem_event_request_t req)
 
     struct hvm_hw_cpu ctx;
     xc_interface * xch;
-    unsigned long dom;
+    uint64_t dom;
     xch = xen_get_xchandle(vmi);
     dom = xen_get_domainid(vmi);
 
@@ -535,7 +535,7 @@ errdone:
 status_t process_single_step_event(vmi_instance_t vmi, mem_event_request_t req)
 {
     xc_interface * xch;
-    unsigned long dom;
+    uint64_t dom;
     xch = xen_get_xchandle(vmi);
     dom = xen_get_domainid(vmi);
 
@@ -572,7 +572,7 @@ void xen_events_destroy(vmi_instance_t vmi)
     int rc;
     xc_interface * xch;
     xen_events_t * xe;
-    unsigned long dom;
+    uint64_t dom;
 
     // Get xen handle and domain.
     xch = xen_get_xchandle(vmi);
@@ -665,7 +665,7 @@ status_t xen_events_init(vmi_instance_t vmi)
     xen_events_t * xe = NULL;
     xc_interface * xch = NULL;
     xc_domaininfo_t dom_info = {0};
-    unsigned long dom = 0;
+    uint64_t dom = 0;
     unsigned long ring_pfn = 0;
     unsigned long mmap_pfn = 0;
     int rc = 0;
@@ -902,7 +902,7 @@ enable_done:
 status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event)
 {
     xc_interface * xch = xen_get_xchandle(vmi);
-    unsigned long dom = xen_get_domainid(vmi);
+    uint64_t dom = xen_get_domainid(vmi);
     int value = HVMPME_mode_disabled;
     int hvm_param;
 
@@ -972,7 +972,7 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
     mem_access_t access;
     xc_interface * xch = xen_get_xchandle(vmi);
     xen_events_t * xe = xen_get_events(vmi);
-    unsigned long dom = xen_get_domainid(vmi);
+    uint64_t dom = xen_get_domainid(vmi);
 
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
@@ -1014,7 +1014,7 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_acces
     // Xen does them backwards....
     access = memaccess_conversion[page_access_flag];
 
-    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %lu on physical address: %"PRIu64" npages: %"PRIu64"\n",
+    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %"PRIu64" on physical address: %"PRIu64" npages: %"PRIu64"\n",
         dom, event.physical_address, npages);
 
 #if XEN_EVENTS_VERSION < 450
@@ -1049,7 +1049,7 @@ status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event, uint8_
 status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled)
 {
     xc_interface * xch = xen_get_xchandle(vmi);
-    unsigned long dom = xen_get_domainid(vmi);
+    uint64_t dom = xen_get_domainid(vmi);
     int param = HVMPME_mode_disabled;
 
     if ( !xch ) {
@@ -1071,11 +1071,11 @@ status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event, uint8_
 
 status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event)
 {
-    unsigned long dom = xen_get_domainid(vmi);
+    uint64_t dom = xen_get_domainid(vmi);
     int rc = -1;
     uint32_t i = 0;
 
-    dbprint(VMI_DEBUG_XEN, "--Starting single step on domain %lu\n", dom);
+    dbprint(VMI_DEBUG_XEN, "--Starting single step on domain %"PRIu64"\n", dom);
 
     rc = xc_set_hvm_param(
             xen_get_xchandle(vmi), dom,
@@ -1108,7 +1108,7 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event)
 
 status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu)
 {
-    unsigned long dom = xen_get_domainid(vmi);
+    uint64_t dom = xen_get_domainid(vmi);
     status_t ret = VMI_FAILURE;
 
     dbprint(VMI_DEBUG_XEN, "--Removing MTF flag from vcpu %u\n", vcpu);
@@ -1119,11 +1119,11 @@ status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu)
 }
 
 status_t xen_shutdown_single_step(vmi_instance_t vmi) {
-    unsigned long dom = xen_get_domainid(vmi);
+    uint64_t dom = xen_get_domainid(vmi);
     int rc = -1;
     uint32_t i=0;
 
-    dbprint(VMI_DEBUG_XEN, "--Shutting down single step on domain %lu\n", dom);
+    dbprint(VMI_DEBUG_XEN, "--Shutting down single step on domain %"PRIu64"\n", dom);
 
     for(;i<vmi->num_vcpus; i++) {
         xen_stop_single_step(vmi, i);
@@ -1160,7 +1160,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     xen_events_t * xe;
     mem_event_request_t req;
     mem_event_response_t rsp;
-    unsigned long dom;
+    uint64_t dom;
 
     int rc = -1;
     status_t vrc = VMI_SUCCESS;
