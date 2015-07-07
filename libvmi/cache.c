@@ -424,7 +424,7 @@ rva_cache_set(
     key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)pid);
 
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
-        rva_table = g_hash_table_new_full(g_int_hash, g_int_equal, NULL,
+        rva_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
                               sym_cache_entry_free);
         g_hash_table_insert(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table);
     } else {
