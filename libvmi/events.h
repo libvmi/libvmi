@@ -270,7 +270,7 @@ typedef struct {
      * Typically a subset of in_access
      */
     vmi_mem_access_t out_access;
-} mem_event_t;
+} mem_access_event_t;
 
 typedef enum {
     INT_INVALID,
@@ -323,7 +323,7 @@ struct vmi_event {
      */
     union {
         reg_event_t reg_event;
-        mem_event_t mem_event;
+        mem_access_event_t mem_event;
         single_step_event_t ss_event;
         interrupt_event_t interrupt_event;
     };

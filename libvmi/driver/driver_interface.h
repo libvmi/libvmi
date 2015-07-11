@@ -118,7 +118,7 @@ typedef struct driver_interface {
         bool enabled);
     status_t (*set_mem_access_ptr)(
         vmi_instance_t,
-        mem_event_t*,
+        mem_access_event_t*,
         vmi_mem_access_t);
     status_t (*start_single_step_ptr)(
         vmi_instance_t,

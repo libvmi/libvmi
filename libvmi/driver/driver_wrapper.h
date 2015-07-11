@@ -400,7 +400,7 @@ driver_set_intr_access(
 static inline status_t
 driver_set_mem_access(
     vmi_instance_t vmi,
-    mem_event_t *event,
+    mem_access_event_t *event,
     vmi_mem_access_t page_access_flag)
 {
     if (vmi->driver.initialized && vmi->driver.set_mem_access_ptr){

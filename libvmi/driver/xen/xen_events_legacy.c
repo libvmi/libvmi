@@ -398,7 +398,7 @@ status_t process_unhandled_mem(vmi_instance_t vmi, memevent_page_t *page,
 {
 
     // Clear the page's access flags
-    mem_event_t event = { 0 };
+    mem_access_event_t event = { 0 };
     event.physical_address = page->key << 12;
     event.npages = 1;
     xen_set_mem_access(vmi, &event, VMI_MEMACCESS_N);
@@ -966,7 +966,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
     return VMI_SUCCESS;
 }
 
-status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t *event, vmi_mem_access_t page_access_flag)
+status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event, vmi_mem_access_t page_access_flag)
 {
     int rc;
     mem_access_t access;
