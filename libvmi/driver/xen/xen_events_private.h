@@ -104,6 +104,7 @@ typedef struct {
     void *ring_page;
     vm_event_back_ring_t back_ring;
     xen_pfn_t max_gpfn;
+    uint32_t monitor_capabilities;
     bool monitor_singlestep_on;
     bool monitor_mem_access_on;
     bool monitor_intr_on;

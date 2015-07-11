@@ -672,6 +672,7 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     /* Mem access events are always delivered via this ring */
     xe->vm_event.monitor_mem_access_on = 1;
+    xc_monitor_get_capabilities(xch, dom, &xe->vm_event.monitor_capabilities);
 
     return VMI_SUCCESS;
 
@@ -696,6 +697,28 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
     if ( dom == VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         goto done;
+    }
+
+    switch ( event->reg )
+    {
+        case CR0:
+        case CR3:
+        case CR4:
+        case XCR0:
+            if ( !(xe->vm_event.monitor_capabilities & (1u << XEN_DOMCTL_MONITOR_EVENT_WRITE_CTRLREG)) )
+            {
+                errprint("%s error: no system support for event type\n", __FUNCTION__);
+                goto done;
+            }
+            break;
+
+        case MSR_ALL:
+            if ( !(xe->vm_event.monitor_capabilities & (1u << XEN_DOMCTL_MONITOR_EVENT_MOV_TO_MSR)) )
+            {
+                errprint("%s error: no system support for event type\n", __FUNCTION__);
+                goto done;
+            }
+            break;
     }
 
     switch ( event->in_access )
@@ -866,13 +889,21 @@ status_t xen_set_int3_access(vmi_instance_t vmi, bool enable)
     domid_t dom = xen_get_domainid(vmi);
     xen_events_t *xe = xen_get_events(vmi);
 
-    if ( !xch ) {
+    if ( !xch )
+    {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
 
-    if ( dom == VMI_INVALID_DOMID ) {
+    if ( dom == VMI_INVALID_DOMID )
+    {
         errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    if ( !(xe->vm_event.monitor_capabilities & (1u << XEN_DOMCTL_MONITOR_EVENT_SOFTWARE_BREAKPOINT)) )
+    {
+        errprint("%s error: no system support for event type\n", __FUNCTION__);
         return VMI_FAILURE;
     }
 
@@ -890,8 +921,14 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t *event)
 {
     domid_t dom = xen_get_domainid(vmi);
     xen_events_t *xe = xen_get_events(vmi);
-    int rc = -1;
-    uint32_t i = 0;
+    int rc;
+    uint32_t i;
+
+    if ( !(xe->vm_event.monitor_capabilities & (1u << XEN_DOMCTL_MONITOR_EVENT_SINGLESTEP)) )
+    {
+        errprint("%s error: no system support for event type\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
 
     dbprint(VMI_DEBUG_XEN, "--Starting single step on domain %"PRIu64"\n", dom);
 
@@ -914,7 +951,7 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t *event)
      */
     if ( event->vcpus && event->enable )
     {
-        for( ; i < MAX_SINGLESTEP_VCPUS; i++)
+        for(i=0 ; i < MAX_SINGLESTEP_VCPUS; i++)
         {
             if ( CHECK_VCPU_SINGLESTEP(*event, i) )
             {
