@@ -371,7 +371,7 @@ driver_are_events_pending(
 static inline status_t
 driver_set_reg_access(
     vmi_instance_t vmi,
-    reg_event_t event)
+    reg_event_t *event)
 {
     if (vmi->driver.initialized && vmi->driver.set_reg_access_ptr){
         return vmi->driver.set_reg_access_ptr(vmi, event);
@@ -385,7 +385,7 @@ driver_set_reg_access(
 static inline status_t
 driver_set_intr_access(
     vmi_instance_t vmi,
-    interrupt_event_t event,
+    interrupt_event_t *event,
     uint8_t enabled)
 {
     if (vmi->driver.initialized && vmi->driver.set_intr_access_ptr){
@@ -400,7 +400,7 @@ driver_set_intr_access(
 static inline status_t
 driver_set_mem_access(
     vmi_instance_t vmi,
-    mem_event_t event,
+    mem_event_t *event,
     vmi_mem_access_t page_access_flag)
 {
     if (vmi->driver.initialized && vmi->driver.set_mem_access_ptr){
@@ -415,7 +415,7 @@ driver_set_mem_access(
 static inline status_t
 driver_start_single_step(
     vmi_instance_t vmi,
-    single_step_event_t event)
+    single_step_event_t *event)
 {
     if (vmi->driver.initialized && vmi->driver.start_single_step_ptr){
         return vmi->driver.start_single_step_ptr(vmi, event);

@@ -61,11 +61,18 @@ if HAVE_XEN
 drivers     += driver/xen/xen.h \
                driver/xen/xen_private.h \
                driver/xen/xen.c
+
 if HAVE_XEN_EVENTS
 h_public    += events.h
 drivers     += driver/xen/xen_events.h \
-               driver/xen/xen_events_private.h \
-               driver/xen/xen_events.c
+               driver/xen/xen_events_private.h
+
+if HAVE_XEN_EVENTS_LEGACY
+drivers     += driver/xen/xen_events_legacy.c
+else
+drivers     += driver/xen/xen_events.c
+endif
+
 endif
 endif
 

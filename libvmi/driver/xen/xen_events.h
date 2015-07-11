@@ -10,7 +10,7 @@
  *
  * Author: Nasser Salim (njsalim@sandia.gov)
  * Author: Steven Maresca (steve@zentific.com)
- * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
+ * Author: Tamas K Lengyel (tamas@tklengyel.com)
  *
  * LibVMI is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
@@ -60,11 +60,10 @@ status_t xen_events_init(vmi_instance_t vmi);
 void xen_events_destroy(vmi_instance_t vmi);
 int xen_are_events_pending(vmi_instance_t vmi);
 status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout);
-status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t event);
-status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled);
-status_t xen_set_int3_access(vmi_instance_t vmi, interrupt_event_t event, uint8_t enabled);
-status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t event, vmi_mem_access_t page_access_flag);
-status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t event);
+status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event);
+status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t *event, bool enabled);
+status_t xen_set_mem_access(vmi_instance_t vmi, mem_event_t *event, vmi_mem_access_t page_access_flag);
+status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t *event);
 status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu);
 status_t xen_shutdown_single_step(vmi_instance_t vmi);
 

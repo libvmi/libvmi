@@ -39,9 +39,7 @@ extern "C" {
 
 #pragma GCC visibility push(default)
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include <stdbool.h>
 
 /*---------------------------------------------------------
  * Event management
@@ -119,6 +117,42 @@ typedef enum {
     __VMI_MEMEVENT_MAX
 } vmi_memevent_granularity_t;
 
+typedef struct x86_regs {
+    uint64_t rax;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rbx;
+    uint64_t rsp;
+    uint64_t rbp;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t rflags;
+    uint64_t dr7;
+    uint64_t rip;
+    uint64_t cr0;
+    uint64_t cr2;
+    uint64_t cr3;
+    uint64_t cr4;
+    uint64_t sysenter_cs;
+    uint64_t sysenter_esp;
+    uint64_t sysenter_eip;
+    uint64_t msr_efer;
+    uint64_t msr_star;
+    uint64_t msr_lstar;
+    uint64_t fs_base;
+    uint64_t gs_base;
+    uint32_t cs_arbytes;
+    uint32_t _pad;
+} x86_registers_t;
+
 typedef struct {
     /**
      * Register for which write event is configured.
@@ -146,14 +180,20 @@ typedef struct {
      *  without pausing the originating VCPU
      * Default : 0. (i.e., VCPU is paused at time of event delivery).
      */
-    int async:1;
+    bool async;
 
     /**
      * IFF set to 1, events are only delivered if the written
      *  value differs from the previously held value.
      * Default : 0. (i.e., All write events are delivered).
      */
-    int onchange:1;
+    bool onchange;
+
+    /**
+     * IFF set to 1, an extended set of MSR events are going to be delivered
+     * Only available on Xen with 4.5 and onwards
+     */
+    bool extended_msr;
 
     /**
      * Type of register event being monitored.
@@ -252,9 +292,10 @@ typedef struct {
 } interrupt_event_t;
 
 typedef struct {
-    addr_t gla;      /**< The IP of the current instruction */
-    addr_t gfn;      /**< The physical page of the current instruction */
-    uint32_t vcpus;  /**< A bitfield corresponding to VCPU IDs. */
+    addr_t gla;         /**< The IP of the current instruction */
+    addr_t gfn;         /**< The physical page of the current instruction */
+    addr_t offset;      /**< Offset in bytes (relative to GFN) */
+    uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
 } single_step_event_t;
 
 struct vmi_event;
@@ -304,25 +345,32 @@ struct vmi_event {
    * The callback function that is invoked when the relevant is observed.
    */
     event_callback_t callback;
+
+    /**
+     * Snapshot of some VCPU registers when the event occurred
+     */
+    union {
+        x86_registers_t *x86;
+    } regs;
 };
 
 /**
  * Enables the correct bit for the given vcpu number x
  */
 #define SET_VCPU_SINGLESTEP(ss_event, x) \
-        ss_event.vcpus |= (1 << x)
+        do { (ss_event).vcpus |= (1 << x); } while (0)
 
 /**
  * Disables the correct bit for a given vcpu number x
  */
 #define UNSET_VCPU_SINGLESTEP(ss_event, x) \
-        ss_event.vcpus &= ~(1 << x)
+        do { (ss_event).vcpus &= ~(1 << x); } while (0)
 
 /**
  * Check to see if a vcpu number has single step enabled
  */
 #define CHECK_VCPU_SINGLESTEP(ss_event, x) \
-        (ss_event.vcpus) & (1 << x)
+        (((ss_event).vcpus) & (1 << x))
 
 /**
  * Convenience macro to setup a singlestep event

@@ -167,7 +167,7 @@ status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this interrupt: %d\n",
                 event->interrupt_event.intr);
     }
-    else if (VMI_SUCCESS == driver_set_intr_access(vmi, event->interrupt_event, 1))
+    else if (VMI_SUCCESS == driver_set_intr_access(vmi, &event->interrupt_event, 1))
     {
         g_hash_table_insert(vmi->interrupt_events, &(event->interrupt_event.intr), event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled event on interrupt: %d\n", event->interrupt_event.intr);
@@ -187,7 +187,7 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this reg: %d\n",
                 event->reg_event.reg);
     }
-    else if (VMI_SUCCESS == driver_set_reg_access(vmi, event->reg_event))
+    else if (VMI_SUCCESS == driver_set_reg_access(vmi, &event->reg_event))
     {
         g_hash_table_insert(vmi->reg_events, &(event->reg_event.reg), event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled register event on reg: %d\n", event->reg_event.reg);
@@ -297,7 +297,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
             else
             {
                 if (VMI_SUCCESS
-                        == driver_set_mem_access(vmi, event->mem_event,
+                        == driver_set_mem_access(vmi, &event->mem_event,
                                 page_access_flag))
                 {
                     page->access_flag = page_access_flag;
@@ -321,7 +321,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                 else
                 {
                     if (VMI_SUCCESS
-                            == driver_set_mem_access(vmi, event->mem_event,
+                            == driver_set_mem_access(vmi, &event->mem_event,
                                     page_access_flag))
                     {
                         page->access_flag = page_access_flag;
@@ -334,7 +334,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
             else
             {
                 if (VMI_SUCCESS
-                        == driver_set_mem_access(vmi, event->mem_event,
+                        == driver_set_mem_access(vmi, &event->mem_event,
                                 page_access_flag))
                 {
                     page->byte_events = g_hash_table_new(g_int64_hash,
@@ -350,7 +350,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     else
     // Page has no event registered
     if (VMI_SUCCESS
-            == driver_set_mem_access(vmi, event->mem_event,
+            == driver_set_mem_access(vmi, &event->mem_event,
                     event->mem_event.in_access))
     {
 
@@ -400,7 +400,7 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
             else
             {
                 if (VMI_SUCCESS
-                        == driver_start_single_step(vmi, event->ss_event))
+                        == driver_start_single_step(vmi, &event->ss_event))
                 {
                     vcpu_i = malloc(sizeof(uint32_t));
                     *vcpu_i = vcpu;
@@ -423,7 +423,7 @@ status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
     if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr)))
     {
         dbprint(VMI_DEBUG_EVENTS, "Disabling event on interrupt: %d\n", event->interrupt_event.intr);
-        rc = driver_set_intr_access(vmi, event->interrupt_event, 0);
+        rc = driver_set_intr_access(vmi, &event->interrupt_event, 0);
         if (!vmi->shutting_down && rc == VMI_SUCCESS)
         {
             g_hash_table_remove(vmi->interrupt_events, &(event->interrupt_event.intr));
@@ -445,7 +445,7 @@ status_t clear_reg_event(vmi_instance_t vmi, vmi_event_t *event)
         dbprint(VMI_DEBUG_EVENTS, "Disabling register event on reg: %d\n", event->reg_event.reg);
         original_in_access = event->reg_event.in_access;
         event->reg_event.in_access = VMI_REGACCESS_N;
-        rc = driver_set_reg_access(vmi, event->reg_event);
+        rc = driver_set_reg_access(vmi, &event->reg_event);
         event->reg_event.in_access = original_in_access;
 
         if (!vmi->shutting_down && rc == VMI_SUCCESS)
@@ -470,7 +470,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     vmi_mem_access_t page_access_flag = VMI_MEMACCESS_N;
 
     if(vmi->shutting_down) {
-        rc = driver_set_mem_access(vmi, event->mem_event,
+        rc = driver_set_mem_access(vmi, &event->mem_event,
                         page_access_flag);
         goto done;
     }
@@ -506,7 +506,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                     }
                 }
 
-                rc = driver_set_mem_access(vmi, event->mem_event,
+                rc = driver_set_mem_access(vmi, &event->mem_event,
                         page_access_flag);
 
                 if (rc == VMI_SUCCESS)
@@ -566,7 +566,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                         }
                     }
 
-                    rc = driver_set_mem_access(vmi, remove_event->mem_event,
+                    rc = driver_set_mem_access(vmi, &remove_event->mem_event,
                             page_access_flag);
 
                     if (rc == VMI_SUCCESS)
