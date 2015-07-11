@@ -197,7 +197,7 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
-void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
+event_response_t step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
 {
 
     /* We copy the list here as the user may add to it in the callback. */
@@ -259,6 +259,8 @@ void step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
         vmi->step_events = g_slist_concat(remain, vmi->step_events);
     else
         vmi->step_events = remain;
+
+    return 0;
 }
 
 status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
@@ -383,12 +385,11 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
 
 status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
 {
-
     status_t rc = VMI_FAILURE;
-    uint32_t vcpu = 0;
+    uint32_t vcpu;
     uint32_t *vcpu_i = NULL;
 
-    for (; vcpu < vmi->num_vcpus; vcpu++)
+    for (vcpu=0; vcpu < vmi->num_vcpus; vcpu++)
     {
         if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu))
         {
@@ -396,22 +397,29 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
             {
                 dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this vcpu: %u\n",
                         vcpu);
-            }
-            else
-            {
-                if (VMI_SUCCESS
-                        == driver_start_single_step(vmi, &event->ss_event))
-                {
-                    vcpu_i = malloc(sizeof(uint32_t));
-                    *vcpu_i = vcpu;
-                    g_hash_table_insert(vmi->ss_events, vcpu_i, event);
-                    dbprint(VMI_DEBUG_EVENTS, "Enabling single step\n");
-                    rc = VMI_SUCCESS;
-                }
+                goto done;
             }
         }
     }
 
+    if (VMI_FAILURE == driver_start_single_step(vmi, &event->ss_event))
+        goto done;
+
+    dbprint(VMI_DEBUG_EVENTS, "Enabling single step\n");
+
+    for (vcpu=0; vcpu < vmi->num_vcpus; vcpu++)
+    {
+        if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu))
+        {
+            vcpu_i = malloc(sizeof(uint32_t));
+            *vcpu_i = vcpu;
+            g_hash_table_insert(vmi->ss_events, vcpu_i, event);
+         }
+    }
+
+    rc = VMI_SUCCESS;
+
+done:
     return rc;
 }
 
@@ -664,8 +672,6 @@ vmi_event_t *vmi_get_mem_event(vmi_instance_t vmi, addr_t physical_address,
 status_t vmi_register_event(vmi_instance_t vmi, vmi_event_t* event)
 {
     status_t rc = VMI_FAILURE;
-    uint32_t vcpu = 0;
-    uint32_t* vcpu_i = NULL;
 
     if (!(vmi->init_mode & VMI_INIT_EVENTS))
     {
@@ -741,7 +747,7 @@ status_t vmi_step_event(vmi_instance_t vmi, vmi_event_t *event,
         uint32_t vcpu_id, uint64_t steps, event_callback_t cb)
 {
     status_t rc = VMI_FAILURE;
-    uint8_t need_new_ss = 1;
+    bool need_new_ss = 1;
 
     if (vcpu_id > vmi->num_vcpus)
     {
@@ -771,10 +777,10 @@ status_t vmi_step_event(vmi_instance_t vmi, vmi_event_t *event,
     if(need_new_ss) {
         // setup single step event to re-register the event
         vmi_event_t *single_event = g_malloc0(sizeof(vmi_event_t));
-        SETUP_SINGLESTEP_EVENT(single_event, 0, step_and_reg_events);
+        SETUP_SINGLESTEP_EVENT(single_event, 0, step_and_reg_events, 1);
         SET_VCPU_SINGLESTEP(single_event->ss_event, vcpu_id);
 
-        if(VMI_FAILURE == vmi_register_event(vmi, single_event))
+        if(VMI_FAILURE == register_singlestep_event(vmi, single_event))
         {
             free(single_event);
             goto done;

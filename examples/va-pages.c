@@ -52,7 +52,7 @@ void free_va_pages() {
     va_pages = NULL;
 }
 
-void cr3_callback(vmi_instance_t vmi, vmi_event_t *event) {
+event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event) {
 
     va_pages = vmi_get_va_pages(vmi, event->reg_event.value);
 
@@ -77,6 +77,7 @@ void cr3_callback(vmi_instance_t vmi, vmi_event_t *event) {
         loop=loop->next;
     }
     free_va_pages();
+    return 0;
 }
 
 int main (int argc, char **argv)

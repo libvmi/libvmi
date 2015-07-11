@@ -59,6 +59,7 @@
 #include <sys/poll.h>
 #include <unistd.h>
 #include <xenctrl.h>
+#include <libvmi/events.h>
 
 #if XEN_EVENTS_VERSION < 460
 typedef int spinlock_t;
@@ -92,7 +93,7 @@ typedef struct {
     mem_event_back_ring_t back_ring;
     spinlock_t ring_lock;
     unsigned long long max_pages;
-#endif
+#endif // XEN_EVENTS < 460
 } xen_mem_event_t;
 
 typedef struct {
@@ -103,6 +104,14 @@ typedef struct {
     void *ring_page;
     vm_event_back_ring_t back_ring;
     xen_pfn_t max_gpfn;
+    bool monitor_singlestep_on;
+    bool monitor_mem_access_on;
+    bool monitor_intr_on;
+    bool monitor_cr0_on;
+    bool monitor_cr3_on;
+    bool monitor_cr4_on;
+    bool monitor_xcr0_on;
+    bool monitor_msr_on;
 #endif
 } xen_vm_event_t;
 
@@ -179,6 +188,16 @@ static const unsigned int compat_memaccess_conversion[] = {
     [VMI_MEMACCESS_RWX] = COMPAT_MEMACCESS_N,
     [VMI_MEMACCESS_W2X] = COMPAT_MEMACCESS_RX2RW,
     [VMI_MEMACCESS_RWX2N] = COMPAT_MEMACCESS_N2RWX
+};
+
+/* Conversion matrix from LibVMI flags to Xen vm_event flags */
+static const unsigned int event_response_conversion[] = {
+    [0 ... __VMI_EVENT_RESPONSE_MAX] = ~0, // Mark all flags invalid by default
+#if XEN_EVENTS_VERSION >= 460
+    [VMI_EVENT_RESPONSE_EMULATE] = VM_EVENT_FLAG_EMULATE,
+    [VMI_EVENT_RESPONSE_EMULATE_NOWRITE] = VM_EVENT_FLAG_EMULATE_NOWRITE,
+    [VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP] = VM_EVENT_FLAG_TOGGLE_SINGLESTEP,
+#endif
 };
 
 typedef struct xen_events {

@@ -33,15 +33,16 @@
 
 vmi_event_t interrupt_event;
 
-void int3_cb(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event){
     printf("Int 3 happened: GFN=%"PRIx64" RIP=%"PRIx64"\n",
         event->interrupt_event.gfn, event->interrupt_event.gla);
-    
+
     /* This callback assumes that all INT3 events are caused by
      *  a debugger or similar inside the guest, and therefore
-     *  unconditionally reinjects the interrupt. 
+     *  unconditionally reinjects the interrupt.
      */
     event->interrupt_event.reinject = 1;
+    return 0;
 }
 
 static int interrupted = 0;

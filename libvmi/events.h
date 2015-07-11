@@ -296,17 +296,35 @@ typedef struct {
     addr_t gfn;         /**< The physical page of the current instruction */
     addr_t offset;      /**< Offset in bytes (relative to GFN) */
     uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
+    bool enable;        /**< Set to true to immediately turn vCPU to singlestep. */
 } single_step_event_t;
 
 struct vmi_event;
 typedef struct vmi_event vmi_event_t;
 
 /**
+ * Callbacks can flip the corresponding bits on event_response_t to trigger
+ * the following behaviors.
+ */
+typedef enum {
+    VMI_EVENT_RESPONSE_NONE,
+    VMI_EVENT_RESPONSE_EMULATE,
+    VMI_EVENT_RESPONSE_EMULATE_NOWRITE,
+    VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP,
+    __VMI_EVENT_RESPONSE_MAX
+} event_response_flags_t;
+
+/**
+ * Bitmap holding event_reponse_flags_t values returned by callback
+ */
+typedef uint32_t event_response_t;
+
+/**
  * Event callback function prototype, taking two parameters:
  * The vmi_instance_t passed by the library itself, and the vmi_event_t
  *   object provided by the library user.
  */
-typedef void (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *event);
+typedef event_response_t (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *event);
 
 /**
  * The event structure used during configuration of events and their delivery.
@@ -375,10 +393,11 @@ struct vmi_event {
 /**
  * Convenience macro to setup a singlestep event
  */
-#define SETUP_SINGLESTEP_EVENT(_event, _vcpu_mask, _callback) \
+#define SETUP_SINGLESTEP_EVENT(_event, _vcpu_mask, _callback, _enable) \
         do { \
             (_event)->type = VMI_EVENT_SINGLESTEP; \
             (_event)->ss_event.vcpus = _vcpu_mask; \
+            (_event)->ss_event.enable = _enable; \
             (_event)->callback = _callback; \
         } while(0)
 

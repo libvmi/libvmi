@@ -417,7 +417,7 @@ driver_start_single_step(
     vmi_instance_t vmi,
     single_step_event_t *event)
 {
-    if (vmi->driver.initialized && vmi->driver.start_single_step_ptr){
+    if (vmi->driver.initialized && vmi->driver.start_single_step_ptr) {
         return vmi->driver.start_single_step_ptr(vmi, event);
     }
     else{

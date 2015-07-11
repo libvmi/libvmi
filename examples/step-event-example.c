@@ -58,12 +58,13 @@ void print_event(vmi_event_t *event){
     );
 }
 
-void step_callback(vmi_instance_t vmi, vmi_event_t *event) {
+event_response_t step_callback(vmi_instance_t vmi, vmi_event_t *event) {
     printf("Re-registering event\n");
     vmi_register_event(vmi, event);
+    return 0;
 }
 
-void mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
+event_response_t mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
 
     vmi_get_vcpureg(vmi, &cr3, CR3, 0);
     vmi_pid_t current_pid = vmi_dtb_to_pid(vmi, cr3);
@@ -89,9 +90,10 @@ void mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
     }
 
     printf("\n}\n");
+    return 0;
 }
 
-void cr3_callback(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event){
     vmi_pid_t current_pid = vmi_dtb_to_pid(vmi, event->reg_event.value);
     printf("PID %i with CR3=%"PRIx64" executing on vcpu %u.\n", current_pid, event->reg_event.value, event->vcpu_id);
 
@@ -108,6 +110,7 @@ void cr3_callback(vmi_instance_t vmi, vmi_event_t *event){
             vmi_clear_event(vmi, &mm_event);
         }
     }
+    return 0;
 }
 
 int main (int argc, char **argv)
