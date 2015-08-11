@@ -78,6 +78,9 @@ vmi_read(
             } else {
                 dtb = vmi->kpgd;
             }
+            if (!dtb) {
+                return 0;
+            }
             start_addr = ctx->addr;
             break;
         case VMI_TM_PROCESS_DTB:
@@ -91,6 +94,7 @@ vmi_read(
             errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
             return 0;
     }
+
 
     while (count > 0) {
         size_t read_len = 0;
@@ -290,6 +294,9 @@ vmi_read_str(
                 dtb = vmi_pid_to_dtb(vmi, ctx->pid);
             } else {
                 dtb = vmi->kpgd;
+            }
+            if (!dtb) {
+                return 0;
             }
             addr = ctx->addr;
             break;
