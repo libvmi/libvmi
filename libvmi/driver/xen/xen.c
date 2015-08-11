@@ -827,8 +827,7 @@ xen_init_vmi(
     vmi->num_vcpus = xen->info.max_vcpu_id + 1;
 
     /* determine if target is hvm or pv */
-    vmi->hvm = xen->hvm =
-        xen->info.hvm;
+    vmi->hvm = xen->hvm = xen->info.hvm;
 #ifdef VMI_DEBUG
     if (xen->hvm) {
         dbprint(VMI_DEBUG_XEN, "**set hvm to true (HVM).\n");
@@ -838,9 +837,18 @@ xen_init_vmi(
     }
 #endif /* VMI_DEBUG */
 
+#if __XEN_INTERFACE_VERSION__ < 0x00040600
     xen->max_gpfn = xc_domain_maximum_gpfn(xen->xchandle, xen->domainid);
+#else
+    if (xc_domain_maximum_gpfn(xen->xchandle, xen->domainid, &xen->max_gpfn)) {
+        errprint("Failed to get max gpfn for Xen.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+#endif
     if (xen->max_gpfn <= 0) {
         errprint("Failed to get max gpfn for Xen.\n");
+        ret = VMI_FAILURE;
         goto _bail;
     }
 

@@ -95,7 +95,12 @@ typedef struct xen_instance {
 
     xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
 
+
+#if __XEN_INTERFACE_VERSION__ < 0x00040600
     int max_gpfn;           /**< result of xc_domain_maximum_gpfn() */
+#else
+    xen_pfn_t max_gpfn;           /**< result of xc_domain_maximum_gpfn() */
+#endif
 
     uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
 
