@@ -147,7 +147,14 @@ uint64_t
 vmi_get_memsize(
     vmi_instance_t vmi)
 {
-    return vmi->size;
+    return vmi->allocated_ram_size;
+}
+
+addr_t
+vmi_get_max_physical_address(
+    vmi_instance_t vmi)
+{
+    return vmi->max_physical_address;
 }
 
 unsigned int

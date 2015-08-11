@@ -69,7 +69,7 @@ main(
         goto error_exit;
     }
 
-    size = vmi_get_memsize(vmi);
+    size = vmi_get_max_physical_address(vmi);
 
     while (address < size) {
 

@@ -1614,8 +1614,9 @@ uint64_t vmi_get_offset(
 
 /**
  * Gets the memory size of the guest or file that LibVMI is currently
- * accessing.  This is effectively the max physical address that you
- * can access in the system.
+ * accessing.  This is the amount of RAM allocated to the guest, but
+ * does not necessarily indicate the highest addressable physical address;
+ * get_max_physical_address() should be used.
  *
  * NOTE: if memory ballooning alters the allocation of memory to a
  *  VM after vmi_init, this information will have become stale
@@ -1625,6 +1626,22 @@ uint64_t vmi_get_offset(
  * @return Memory size
  */
 uint64_t vmi_get_memsize(
+    vmi_instance_t vmi);
+
+/**
+ * Gets highest addressable physical memory address of the guest or file that
+ * LibVMI is currently accessing plus one.  That is, any address less then the
+ * returned value "may be" a valid physical memory address, but the layout of
+ * the guest RAM is hypervisor specific, so there can and will be holes that
+ * are not memory pages and can't be read by libvmi.
+ *
+ * NOTE: if memory ballooning alters the allocation of memory to a VM after
+ *  vmi_init, this information will have become stale and a re-initialization
+ *  will be required.
+ *
+ * @param[in] vmi LibVMI instance @return physical memory size
+ */
+addr_t vmi_get_max_physical_address(
     vmi_instance_t vmi);
 
 /**

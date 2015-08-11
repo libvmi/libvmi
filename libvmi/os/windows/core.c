@@ -85,7 +85,7 @@ get_ntoskrnl_base(
     uint8_t page[VMI_PS_4KB];
     addr_t ret = 0;
 
-    for(; page_paddr + VMI_PS_4KB < vmi->size; page_paddr += VMI_PS_4KB) {
+    for(; page_paddr + VMI_PS_4KB < vmi->max_physical_address; page_paddr += VMI_PS_4KB) {
 
         uint8_t page[VMI_PS_4KB];
         status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
@@ -103,13 +103,13 @@ get_ntoskrnl_base(
         addr_t export_header_offset =
             peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
 
-        if(!export_header_offset || page_paddr + export_header_offset > vmi->size)
+        if(!export_header_offset || page_paddr + export_header_offset >= vmi->max_physical_address)
             continue;
 
         uint32_t nbytes = vmi_read_pa(vmi, page_paddr + export_header_offset, &et, sizeof(struct export_table));
         if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
 
-            if(page_paddr + et.name + 12 > vmi->size) {
+            if(page_paddr + et.name + 12 >= vmi->max_physical_address) {
                 continue;
             }
 

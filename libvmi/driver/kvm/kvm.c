@@ -1426,7 +1426,8 @@ kvm_set_name(
 status_t
 kvm_get_memsize(
     vmi_instance_t vmi,
-    uint64_t *size)
+    uint64_t *allocated_ram_size,
+    addr_t *maximum_physical_address)
 {
     virDomainInfo info;
 
@@ -1434,7 +1435,8 @@ kvm_get_memsize(
         dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
         goto error_exit;
     }
-    *size = info.maxMem * 1024; // convert KBytes to bytes
+    *allocated_ram_size = info.maxMem * 1024; // convert KBytes to bytes
+    *maximum_physical_address = *allocated_ram_size;
 
     return VMI_SUCCESS;
 error_exit:

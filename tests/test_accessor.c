@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2012 VMITools Project
@@ -43,12 +43,33 @@ START_TEST (test_vmi_get_name)
 }
 END_TEST
 
+START_TEST (test_vmi_get_memsize_max_phys_addr)
+{
+    vmi_instance_t vmi = NULL;
+    uint64_t memsize = 0;
+    addr_t max_physical_addr = 0;
+
+    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+
+    memsize = vmi_get_memsize(vmi);
+    max_physical_addr = vmi_get_max_physical_address(vmi);
+
+    fail_unless(memsize > 0, "guest ram size is 0");
+    fail_unless(max_physical_addr > 0, "max physical address is 0");
+
+    fail_unless(max_physical_addr >= memsize, "max physical address is less than memsize");
+
+    vmi_destroy(vmi);
+}
+END_TEST
+
 /* accessor test cases */
 TCase *accessor_tcase (void)
 {
     TCase *tc_accessor = tcase_create("LibVMI Accessor");
 
     tcase_add_test(tc_accessor, test_vmi_get_name);
+    tcase_add_test(tc_accessor, test_vmi_get_memsize_max_phys_addr);
     //vmi_get_vmid
     //vmi_get_access_mode
     //vmi_get_page_mode

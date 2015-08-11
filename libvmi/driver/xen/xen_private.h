@@ -95,6 +95,8 @@ typedef struct xen_instance {
 
     xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
 
+    int max_gpfn;           /**< result of xc_domain_maximum_gpfn() */
+
     uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
 
 #ifdef HAVE_LIBXENSTORE

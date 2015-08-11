@@ -769,7 +769,7 @@ status_t find_kdbg_address(
     *kdbg_pa = 0;
     addr_t paddr = 0;
     unsigned char haystack[VMI_PS_4KB];
-    addr_t memsize = vmi_get_memsize(vmi);
+    addr_t memsize = vmi_get_max_physical_address(vmi);
 
     void *bm64 = boyer_moore_init((unsigned char *)"\x00\xf8\xff\xffKDBG", 8);
     void *bm32 = boyer_moore_init((unsigned char *)"\x00\x00\x00\x00\x00\x00\x00\x00KDBG",
@@ -833,7 +833,7 @@ find_kdbg_address_fast(
         return ret;
     }
 
-    addr_t memsize = vmi_get_memsize(vmi);
+    addr_t memsize = vmi_get_max_physical_address(vmi);
     GSList *va_pages = vmi_get_va_pages(vmi, (addr_t)cr3);
     size_t read = 0;
     void *bm = 0;   // boyer-moore internal state
@@ -966,7 +966,7 @@ find_kdbg_address_faster(
 
 scan:
     page_paddr = (vmi_pagetable_lookup(vmi, cr3, fsgs) >> 12) << 12;
-    for(; page_paddr + step < vmi->size ; page_paddr += step) {
+    for(; page_paddr + step < vmi->max_physical_address; page_paddr += step) {
 
         uint8_t page[VMI_PS_4KB];
         status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
@@ -984,13 +984,13 @@ scan:
         addr_t export_header_offset =
             peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
 
-        if(!export_header_offset || page_paddr + export_header_offset > vmi->size)
+        if(!export_header_offset || page_paddr + export_header_offset >= vmi->max_physical_address)
             continue;
 
         uint32_t nbytes = vmi_read_pa(vmi, page_paddr + export_header_offset, &et, sizeof(struct export_table));
         if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
 
-            if(page_paddr + et.name + 12 > vmi->size)
+            if(page_paddr + et.name + 12 >= vmi->max_physical_address)
                 continue;
 
             unsigned char name[13] = {0};
