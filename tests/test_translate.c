@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2012 VMITools Project
@@ -78,6 +78,30 @@ START_TEST (test_libvmi_piddtb)
 }
 END_TEST
 
+
+START_TEST (test_libvmi_invalid_pid)
+{
+    vmi_instance_t vmi = NULL;
+    status_t status = VMI_SUCCESS;
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = 0x8000000,
+        .pid = 0xfeedbeef,
+        .ksym = NULL,
+        };
+    uint8_t buffer[8];
+    size_t bytes_read = 0;
+
+    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+
+    bytes_read = vmi_read(vmi, &ctx, &buffer, sizeof(buffer));
+
+    vmi_destroy(vmi);
+    fail_unless(bytes_read == 0, "invalid pid accepted");
+}
+END_TEST
+
+
 /* test vmi_translate_kv2p */
 START_TEST (test_libvmi_kv2p)
 {
@@ -136,5 +160,6 @@ TCase *translate_tcase (void)
     // uv2p
     tcase_add_test(tc_translate, test_libvmi_kv2p);
     tcase_add_test(tc_translate, test_libvmi_piddtb);
+    tcase_add_test(tc_translate, test_libvmi_invalid_pid);
     return tc_translate;
 }

@@ -75,6 +75,9 @@ vmi_write(
             } else {
                 dtb = vmi->kpgd;
             }
+            if (!dtb) {
+                return 0;
+            }
             start_addr = ctx->addr;
             break;
         case VMI_TM_PROCESS_DTB:
