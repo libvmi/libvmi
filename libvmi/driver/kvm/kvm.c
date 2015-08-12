@@ -70,7 +70,7 @@ exec_qmp_cmd(
     char *output = safe_malloc(20000);
     size_t length = 0;
 
-    char *name = (char *) virDomainGetName(kvm->dom);
+    const char *name = virDomainGetName(kvm->dom);
     int cmd_length = strlen(name) + strlen(query) + 29;
     char *cmd = safe_malloc(cmd_length);
 
@@ -1327,6 +1327,7 @@ kvm_get_name_from_id(
 {
     virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
+    const char* temp_name = NULL;
 
     conn =
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
@@ -1342,14 +1343,23 @@ kvm_get_name_from_id(
         return VMI_FAILURE;
     }
 
-    *name = virDomainGetName(dom);
+    temp_name = virDomainGetName(dom);
+    if (temp_name) {
+        *name = strndup(temp_name, 256);
+    } else {
+        *name = NULL;
+    }
 
     if (dom)
         virDomainFree(dom);
     if (conn)
         virConnectClose(conn);
 
-    return VMI_SUCCESS;
+    if (*name) {
+        return VMI_SUCCESS;
+    }
+
+    return VMI_FAILURE;
 }
 
 uint64_t
