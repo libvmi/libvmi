@@ -1315,7 +1315,7 @@ kvm_get_id_from_name(
 {
     virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
-    uint64_t domainid;
+    uint64_t domainid = VMI_INVALID_DOMID;
 
     conn =
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
@@ -1699,20 +1699,19 @@ kvm_test(
     uint64_t domainid,
     const char *name)
 {
-    virConnectPtr conn = NULL;
-    virDomainPtr dom = NULL;
-
-    conn =
-        virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
-                           0);
-    if (NULL == conn) {
-        dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
-        return VMI_FAILURE;
+    if (name)
+    {
+        domainid = kvm_get_id_from_name(NULL, name);
+        if (domainid != VMI_INVALID_DOMID)
+            return VMI_SUCCESS;
     }
 
-    if (conn)
-        virConnectClose(conn);
-    return VMI_SUCCESS;
+    if (domainid != VMI_INVALID_DOMID)
+    {
+        return kvm_get_name_from_id(NULL, domainid, NULL);
+    }
+
+    return VMI_FAILURE;
 }
 
 status_t
