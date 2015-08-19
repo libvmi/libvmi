@@ -129,7 +129,7 @@ status_t probe_memory_layout_x86(vmi_instance_t vmi) {
     dbprint(VMI_DEBUG_CORE, "**sanity checking cr3 = 0x%.16"PRIx64"\n", cr3);
 
     /* testing to see CR3 value */
-    if (!driver_is_pv(vmi) && cr3 > vmi->size) {   // sanity check on CR3
+    if (!driver_is_pv(vmi) && cr3 >= vmi->max_physical_address) {   // sanity check on CR3
         dbprint(VMI_DEBUG_CORE, "** Note cr3 value [0x%"PRIx64"] exceeds memsize [0x%"PRIx64"]\n",
                 cr3, vmi->size);
     }

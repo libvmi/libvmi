@@ -335,8 +335,8 @@ xen_setup_shm_snapshot_mode(
     //  chunk 1: start_pfn, end_pfn, next == "chunk 2"
     //  chunk 2: start_pfn, end_pfn, next == NULL
     xen_pmem_chunk_t pmem_list = NULL;
-    xen_get_memsize(vmi, &vmi->size);
-    if (VMI_SUCCESS != probe_mappable_pages(vmi, &pmem_list, vmi->size)) {
+    xen_get_memsize(vmi, &vmi->allocated_ram_size, &vmi->max_physical_address);
+    if (VMI_SUCCESS != probe_mappable_pages(vmi, &pmem_list, vmi->max_physical_address)) {
         errprint("fail to probe mappable pages\n");
         return VMI_FAILURE;
     }
@@ -827,8 +827,7 @@ xen_init_vmi(
     vmi->num_vcpus = xen->info.max_vcpu_id + 1;
 
     /* determine if target is hvm or pv */
-    vmi->hvm = xen->hvm =
-        xen->info.hvm;
+    vmi->hvm = xen->hvm = xen->info.hvm;
 #ifdef VMI_DEBUG
     if (xen->hvm) {
         dbprint(VMI_DEBUG_XEN, "**set hvm to true (HVM).\n");
@@ -837,6 +836,28 @@ xen_init_vmi(
         dbprint(VMI_DEBUG_XEN, "**set hvm to false (PV).\n");
     }
 #endif /* VMI_DEBUG */
+
+#if __XEN_INTERFACE_VERSION__ < 0x00040600
+    xen->max_gpfn = xc_domain_maximum_gpfn(xen->xchandle, xen->domainid);
+#else
+    if (xc_domain_maximum_gpfn(xen->xchandle, xen->domainid, &xen->max_gpfn)) {
+        errprint("Failed to get max gpfn for Xen.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+#endif
+    if (xen->max_gpfn <= 0) {
+        errprint("Failed to get max gpfn for Xen.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    /* For Xen PV domains, where xc_domain_maximum_gpfn() returns a number
+     * more like nr_pages, which is usually less than max_pages or the
+     * calculated number of pages based on memkb, just fake it to be sane. */
+    if ((xen->max_gpfn << 12) < (xen->info.max_memkb * 1024)) {
+        xen->max_gpfn = (xen->info.max_memkb * 1024) >> 12;
+    }
 
 #if ENABLE_XEN_EVENTS==1
     /* Only enable events IFF(mode & VMI_INIT_EVENTS)
@@ -949,19 +970,27 @@ void xen_set_domainname(
 status_t
 xen_get_memsize(
     vmi_instance_t vmi,
-    uint64_t *size)
+    uint64_t *allocated_ram_size,
+    addr_t *max_physical_address)
 {
     // note: may also available through xen_get_instance(vmi)->info.max_memkb
     // or xenstore /local/domain/%d/memory/target
-    status_t ret = VMI_FAILURE;
     uint64_t pages = xen_get_instance(vmi)->info.nr_pages + xen_get_instance(vmi)->info.nr_shared_pages;
 
-    if(pages > 0) {
-        *size = XC_PAGE_SIZE * pages;
-        ret = VMI_SUCCESS;
+    if(pages == 0) {
+        return VMI_FAILURE;
     }
 
-    return ret;
+    *allocated_ram_size = XC_PAGE_SIZE * pages;
+
+    addr_t max_gpfn = xen_get_instance(vmi)->max_gpfn;
+    if (max_gpfn == 0) {
+        return VMI_FAILURE;
+    }
+
+    *max_physical_address = max_gpfn * XC_PAGE_SIZE;
+
+    return VMI_SUCCESS;
 }
 
 #if defined(I386) || defined(X86_64)

@@ -148,10 +148,11 @@ driver_set_name(
 static inline status_t
 driver_get_memsize(
     vmi_instance_t vmi,
-    uint64_t *size)
+    uint64_t *allocated_ram_size,
+    addr_t *max_physical_address)
 {
     if (vmi->driver.initialized && vmi->driver.get_memsize_ptr) {
-        return vmi->driver.get_memsize_ptr(vmi, size);
+        return vmi->driver.get_memsize_ptr(vmi, allocated_ram_size, max_physical_address);
     }
     else {
         dbprint

@@ -427,7 +427,7 @@ vmi_init_private(
     }
 
     /* get the memory size */
-    if (driver_get_memsize(*vmi, &(*vmi)->size) == VMI_FAILURE) {
+    if (driver_get_memsize(*vmi, &(*vmi)->allocated_ram_size, &(*vmi)->max_physical_address) == VMI_FAILURE) {
         errprint("Failed to get memory size.\n");
         goto error_exit;
     }

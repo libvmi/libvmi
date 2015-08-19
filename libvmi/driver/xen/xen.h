@@ -61,7 +61,8 @@ void xen_set_domainname(
     const char *name);
 status_t xen_get_memsize(
     vmi_instance_t vmi,
-    uint64_t *size);
+    uint64_t *allocated_ram_size,
+    addr_t *maximum_physical_address);
 status_t xen_get_vcpureg(
     vmi_instance_t vmi,
     reg_t *value,

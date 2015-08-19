@@ -60,7 +60,8 @@ typedef struct driver_interface {
         const char *);
     status_t (*get_memsize_ptr) (
         vmi_instance_t,
-        uint64_t *);
+        uint64_t *,
+        addr_t *);
     status_t (*get_vcpureg_ptr) (
         vmi_instance_t,
         reg_t *,

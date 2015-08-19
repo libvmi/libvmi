@@ -60,7 +60,7 @@ file_get_memory(
 {
     void *memory = 0;
 
-    if (paddr + length > vmi->size) {
+    if (paddr + length >= vmi->max_physical_address) {
         dbprint
             (VMI_DEBUG_FILE, "--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of file\n",
              __FUNCTION__, paddr, paddr + length);
@@ -215,7 +215,8 @@ file_set_name(
 status_t
 file_get_memsize(
     vmi_instance_t vmi,
-    uint64_t *size)
+    uint64_t *allocated_ram_size,
+    addr_t *max_physical_address)
 {
     status_t ret = VMI_FAILURE;
     struct stat s;
@@ -224,7 +225,8 @@ file_get_memsize(
         errprint("Failed to stat file.\n");
         goto error_exit;
     }
-    *size = s.st_size;
+    *allocated_ram_size = s.st_size;
+    *max_physical_address = s.st_size;
     ret = VMI_SUCCESS;
 
 error_exit:
