@@ -49,6 +49,8 @@
 #include "driver/kvm/kvm.h"
 #include "driver/kvm/kvm_private.h"
 
+#define QMP_CMD_LENGTH 256
+
 // request struct matches a definition in qemu source code
 struct request {
     uint8_t type;   // 0 quit, 1 read, 2 write, ... rest reserved
@@ -69,13 +71,16 @@ exec_qmp_cmd(
     FILE *p;
     char *output = safe_malloc(20000);
     size_t length = 0;
-
-    char *name = (char *) virDomainGetName(kvm->dom);
-    int cmd_length = strlen(name) + strlen(query) + 29;
+    const char *name = virDomainGetName(kvm->dom);
+    int cmd_length = strlen(name) + strnlen(query, QMP_CMD_LENGTH) + 29;
     char *cmd = safe_malloc(cmd_length);
 
-    snprintf(cmd, cmd_length, "virsh qemu-monitor-command %s %s", name,
+    int rc = snprintf(cmd, cmd_length, "virsh qemu-monitor-command %s %s", name,
              query);
+    if (rc < 0 || rc >= cmd_length) {
+        errprint("Failed to properly format `virsh qemu-monitor-command`\n");
+        return NULL;
+    }
     dbprint(VMI_DEBUG_KVM, "--qmp: %s\n", cmd);
 
     p = popen(cmd, "r");
@@ -112,11 +117,16 @@ exec_memory_access(
     kvm_instance_t *kvm)
 {
     char *tmpfile = tempnam("/tmp", "vmi");
-    char *query = (char *) safe_malloc(256);
+    char *query = (char *) safe_malloc(QMP_CMD_LENGTH);
 
-    sprintf(query,
+    int rc = snprintf(query,
+            QMP_CMD_LENGTH,
             "'{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}'",
             tmpfile);
+    if (rc < 0 || rc >= QMP_CMD_LENGTH) {
+        errprint("Failed to properly format `pmemaccess` command\n");
+        return NULL;
+    }
     kvm->ds_path = strdup(tmpfile);
     free(tmpfile);
 
@@ -132,11 +142,16 @@ exec_xp(
     int numwords,
     addr_t paddr)
 {
-    char *query = (char *) safe_malloc(256);
+    char *query = (char *) safe_malloc(QMP_CMD_LENGTH);
 
-    sprintf(query,
-            "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%x\"}}'",
+    int rc = snprintf(query,
+            QMP_CMD_LENGTH,
+            "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%lx\"}}'",
             numwords, paddr);
+    if (rc < 0 || rc >= QMP_CMD_LENGTH) {
+        errprint("Failed to properly format `human-monitor-command` command\n");
+        return NULL;
+    }
 
     char *output = exec_qmp_cmd(kvm, query);
 
@@ -1070,10 +1085,13 @@ kvm_get_memory_native(
     int numwords = ceil(length / 4);
     char *buf = safe_malloc(numwords * 4);
     char *bufstr = exec_xp(kvm_get_instance(vmi), numwords, paddr);
-
     char *paddrstr = safe_malloc(32);
 
-    sprintf(paddrstr, "%.16x", paddr);
+    int rc = snprintf(paddrstr, 32, "%.16lx", paddr);
+    if (rc < 0 || rc >= 32) {
+        errprint("Failed to properly format physical address\n");
+        return NULL;
+    }
 
     char *ptr = strcasestr(bufstr, paddrstr);
     int i = 0, j = 0;
@@ -1089,7 +1107,11 @@ kvm_get_memory_native(
             i++;
         }
 
-        sprintf(paddrstr, "%.16x", paddr + i * 4);
+        rc = snprintf(paddrstr, 32, "%.16lx", paddr + i * 4);
+        if (rc < 0 || rc >= 32) {
+            errprint("Failed to properly format physical address\n");
+            return NULL;
+        }
         ptr = strcasestr(ptr, paddrstr);
     }
     if (bufstr)
@@ -1327,6 +1349,7 @@ kvm_get_name_from_id(
 {
     virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
+    const char* temp_name = NULL;
 
     conn =
         virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
@@ -1342,14 +1365,23 @@ kvm_get_name_from_id(
         return VMI_FAILURE;
     }
 
-    *name = virDomainGetName(dom);
+    temp_name = virDomainGetName(dom);
+    if (temp_name) {
+        *name = strndup(temp_name, QMP_CMD_LENGTH);
+    } else {
+        *name = NULL;
+    }
 
     if (dom)
         virDomainFree(dom);
     if (conn)
         virConnectClose(conn);
 
-    return VMI_SUCCESS;
+    if (*name) {
+        return VMI_SUCCESS;
+    }
+
+    return VMI_FAILURE;
 }
 
 uint64_t
