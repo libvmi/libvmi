@@ -137,6 +137,12 @@ AC_ARG_ENABLE([page_cache],
       [enable_page_cache=$enableval],
       [enable_page_cache=512])
 
+AC_ARG_ENABLE([examples],
+      [AS_HELP_STRING([--disable-examples],
+         [Build LibVMI examples (default is yes)])],
+      [enable_examples=$enableval],
+      [enable_examples=yes])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -414,9 +420,17 @@ dnl -----------------------------------------------
 AC_CONFIG_FILES(Makefile \
                 libvmi.pc \
                 libvmi/Makefile \
-                libvmi/config/Makefile \
-                examples/Makefile
+                libvmi/config/Makefile
 )
+
+examples_space='     '
+[if test "$enable_examples" = "yes"]
+[then]
+    AC_CONFIG_FILES(examples/Makefile)
+    examples_space='    '
+    examples_dir='examples/'
+    AC_SUBST([examples_dir])
+[fi]
 
 [if test "$have_check" = "yes"]
 [then]
@@ -456,6 +470,7 @@ Linux        | --enable-linux=$enable_linux
 
 Tools        | Option                    | Reason
 -------------|---------------------------|----------------------------
+Examples     | --enable-examples=$enable_examples$examples_space | $enable_examples
 VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space  | $have_vmifs
 
 Extra features
