@@ -431,8 +431,11 @@ vmi_init_private(
         errprint("Failed to get memory size.\n");
         goto error_exit;
     }
-    dbprint(VMI_DEBUG_CORE, "**set size = %"PRIu64" [0x%"PRIx64"]\n", (*vmi)->size,
-        (*vmi)->size);
+
+    dbprint(VMI_DEBUG_CORE, "**set allocated_ram_size = %"PRIx64", "
+                            "max_physical_address = 0x%"PRIx64"\n",
+                            (*vmi)->allocated_ram_size,
+                            (*vmi)->max_physical_address);
 
     // for file mode we need os-specific heuristics to deduce the architecture
     // for live mode, having arch_interface set even in VMI_PARTIAL mode

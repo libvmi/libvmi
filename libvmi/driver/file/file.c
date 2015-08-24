@@ -87,7 +87,7 @@ file_get_memory(
 error_print:
     dbprint(VMI_DEBUG_WRITE, "%s: failed to read %d bytes at "
             "PA (offset) 0x%.16"PRIx64" [VM size 0x%.16"PRIx64"]\n", __FUNCTION__,
-            length, paddr, vmi->size);
+            length, paddr, vmi->allocated_ram_size);
 error_noprint:
     if (memory)
         free(memory);
