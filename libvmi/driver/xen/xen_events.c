@@ -187,6 +187,9 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
 
             if ( bit && event_response_conversion[bit] != ~0 )
             {
+                if ( i == VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID )
+                    rsp->altp2m_idx = event->vmm_pagetable_id;
+
                 rsp->flags |= event_response_conversion[bit];
 
                 switch (i) {
@@ -447,6 +450,7 @@ status_t process_mem(vmi_instance_t vmi,
         if (page->event && (page->event->mem_event.in_access & out_access))
         {
             page->event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+            page->event->vmm_pagetable_id = req->altp2m_idx;
             process_response( issue_mem_cb(vmi, page->event, req, out_access), page->event, rsp );
             cb_issued = 1;
         }
@@ -460,6 +464,7 @@ status_t process_mem(vmi_instance_t vmi,
             if(byte_event && (byte_event->mem_event.in_access & out_access))
             {
                 byte_event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+                byte_event->vmm_pagetable_id = req->altp2m_idx;
                 process_response( issue_mem_cb(vmi, byte_event, req, out_access), byte_event, rsp );
                 cb_issued = 1;
             }
@@ -1083,6 +1088,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
         rsp.version = VM_EVENT_INTERFACE_VERSION;
         rsp.vcpu_id = req.vcpu_id;
         rsp.flags = req.flags;
+        rsp.altp2m_idx = req.altp2m_idx;
 
         /*
          * When we shut down we pull all pending requests from the ring

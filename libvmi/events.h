@@ -310,7 +310,10 @@ typedef enum {
     VMI_EVENT_RESPONSE_NONE,
     VMI_EVENT_RESPONSE_EMULATE,
     VMI_EVENT_RESPONSE_EMULATE_NOWRITE,
+    VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA,
+    VMI_EVENT_RESPONSE_DENY,
     VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP,
+    VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID,
     __VMI_EVENT_RESPONSE_MAX
 } event_response_flags_t;
 
@@ -347,6 +350,13 @@ struct vmi_event {
     };
 
     uint32_t vcpu_id; /**< The VCPU relative to which the event occurred. */
+
+    /**
+     * The VMM maintained pagetable ID in which the event occurred. If the
+     * response flag specifies, switch the vCPU to this VMM pagetable ID.
+     * On Xen this corresponds to the altp2m_idx.
+     */
+    uint16_t vmm_pagetable_id;
 
    /**
     * An open-ended mechanism allowing a library user to
