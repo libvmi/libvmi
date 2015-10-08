@@ -100,7 +100,7 @@ status_t get_pde_ia32e (vmi_instance_t vmi,
         dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pde_address = 0x%.16"PRIx64"\n", *pde_address);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_address = 0x%.16"PRIx64"pde_value= 0x%.16"PRIx64"\n",
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_address = 0x%.16"PRIx64", pde_value= 0x%.16"PRIx64"\n",
             *pde_address, *pde_value);
     return VMI_SUCCESS;
 }
