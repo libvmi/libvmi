@@ -39,9 +39,7 @@ extern "C" {
 
 #pragma GCC visibility push(default)
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include <stdbool.h>
 
 /*---------------------------------------------------------
  * Event management
@@ -119,6 +117,42 @@ typedef enum {
     __VMI_MEMEVENT_MAX
 } vmi_memevent_granularity_t;
 
+typedef struct x86_regs {
+    uint64_t rax;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rbx;
+    uint64_t rsp;
+    uint64_t rbp;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t rflags;
+    uint64_t dr7;
+    uint64_t rip;
+    uint64_t cr0;
+    uint64_t cr2;
+    uint64_t cr3;
+    uint64_t cr4;
+    uint64_t sysenter_cs;
+    uint64_t sysenter_esp;
+    uint64_t sysenter_eip;
+    uint64_t msr_efer;
+    uint64_t msr_star;
+    uint64_t msr_lstar;
+    uint64_t fs_base;
+    uint64_t gs_base;
+    uint32_t cs_arbytes;
+    uint32_t _pad;
+} x86_registers_t;
+
 typedef struct {
     /**
      * Register for which write event is configured.
@@ -146,14 +180,20 @@ typedef struct {
      *  without pausing the originating VCPU
      * Default : 0. (i.e., VCPU is paused at time of event delivery).
      */
-    int async:1;
+    bool async;
 
     /**
      * IFF set to 1, events are only delivered if the written
      *  value differs from the previously held value.
      * Default : 0. (i.e., All write events are delivered).
      */
-    int onchange:1;
+    bool onchange;
+
+    /**
+     * IFF set to 1, an extended set of MSR events are going to be delivered
+     * Only available on Xen with 4.5 and onwards
+     */
+    bool extended_msr;
 
     /**
      * Type of register event being monitored.
@@ -230,7 +270,7 @@ typedef struct {
      * Typically a subset of in_access
      */
     vmi_mem_access_t out_access;
-} mem_event_t;
+} mem_access_event_t;
 
 typedef enum {
     INT_INVALID,
@@ -252,20 +292,42 @@ typedef struct {
 } interrupt_event_t;
 
 typedef struct {
-    addr_t gla;      /**< The IP of the current instruction */
-    addr_t gfn;      /**< The physical page of the current instruction */
-    uint32_t vcpus;  /**< A bitfield corresponding to VCPU IDs. */
+    addr_t gla;         /**< The IP of the current instruction */
+    addr_t gfn;         /**< The physical page of the current instruction */
+    addr_t offset;      /**< Offset in bytes (relative to GFN) */
+    uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
+    bool enable;        /**< Set to true to immediately turn vCPU to singlestep. */
 } single_step_event_t;
 
 struct vmi_event;
 typedef struct vmi_event vmi_event_t;
 
 /**
+ * Callbacks can flip the corresponding bits on event_response_t to trigger
+ * the following behaviors.
+ */
+typedef enum {
+    VMI_EVENT_RESPONSE_NONE,
+    VMI_EVENT_RESPONSE_EMULATE,
+    VMI_EVENT_RESPONSE_EMULATE_NOWRITE,
+    VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA,
+    VMI_EVENT_RESPONSE_DENY,
+    VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP,
+    VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID,
+    __VMI_EVENT_RESPONSE_MAX
+} event_response_flags_t;
+
+/**
+ * Bitmap holding event_reponse_flags_t values returned by callback
+ */
+typedef uint32_t event_response_t;
+
+/**
  * Event callback function prototype, taking two parameters:
  * The vmi_instance_t passed by the library itself, and the vmi_event_t
  *   object provided by the library user.
  */
-typedef void (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *event);
+typedef event_response_t (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *event);
 
 /**
  * The event structure used during configuration of events and their delivery.
@@ -282,12 +344,19 @@ struct vmi_event {
      */
     union {
         reg_event_t reg_event;
-        mem_event_t mem_event;
+        mem_access_event_t mem_event;
         single_step_event_t ss_event;
         interrupt_event_t interrupt_event;
     };
 
     uint32_t vcpu_id; /**< The VCPU relative to which the event occurred. */
+
+    /**
+     * The VMM maintained pagetable ID in which the event occurred. If the
+     * response flag specifies, switch the vCPU to this VMM pagetable ID.
+     * On Xen this corresponds to the altp2m_idx.
+     */
+    uint16_t vmm_pagetable_id;
 
    /**
     * An open-ended mechanism allowing a library user to
@@ -304,33 +373,41 @@ struct vmi_event {
    * The callback function that is invoked when the relevant is observed.
    */
     event_callback_t callback;
+
+    /**
+     * Snapshot of some VCPU registers when the event occurred
+     */
+    union {
+        x86_registers_t *x86;
+    } regs;
 };
 
 /**
  * Enables the correct bit for the given vcpu number x
  */
 #define SET_VCPU_SINGLESTEP(ss_event, x) \
-        ss_event.vcpus |= (1 << x)
+        do { (ss_event).vcpus |= (1 << x); } while (0)
 
 /**
  * Disables the correct bit for a given vcpu number x
  */
 #define UNSET_VCPU_SINGLESTEP(ss_event, x) \
-        ss_event.vcpus &= ~(1 << x)
+        do { (ss_event).vcpus &= ~(1 << x); } while (0)
 
 /**
  * Check to see if a vcpu number has single step enabled
  */
 #define CHECK_VCPU_SINGLESTEP(ss_event, x) \
-        (ss_event.vcpus) & (1 << x)
+        (((ss_event).vcpus) & (1 << x))
 
 /**
  * Convenience macro to setup a singlestep event
  */
-#define SETUP_SINGLESTEP_EVENT(_event, _vcpu_mask, _callback) \
+#define SETUP_SINGLESTEP_EVENT(_event, _vcpu_mask, _callback, _enable) \
         do { \
             (_event)->type = VMI_EVENT_SINGLESTEP; \
             (_event)->ss_event.vcpus = _vcpu_mask; \
+            (_event)->ss_event.enable = _enable; \
             (_event)->callback = _callback; \
         } while(0)
 

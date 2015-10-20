@@ -161,6 +161,7 @@ AC_CHECK_LIB(m, ceil)
 have_xen='no'
 xen_space='      '
 have_xen_events='no'
+have_xen_events_legacy='no'
 xen_event_space=' '
 [if test "$enable_xen" = "yes"]
 [then]
@@ -196,28 +197,61 @@ xen_event_space=' '
 
                 have_xc_mem_event_enable='no'
                 have_xc_mem_access_enable='no'
+                have_xc_monitor_enable='no'
                 have_hvmmem_access_t='no'
                 have_xenmem_access_t='no'
 
                 # Check for xen events capability (only relevant if Xen is enabled).
                 AC_CHECK_LIB(xenctrl,
-                    [xc_mem_event_enable],
+                    [xc_monitor_enable],
                     [
-                        have_xc_mem_event_enable='yes'
-                        AC_DEFINE([HAVE_XC_MEM_EVENT_ENABLE], [1], "xenctrl has xc_mem_event_enable")
-                    ],
-                    [])
-                AC_CHECK_LIB(xenctrl,
-                    [xc_mem_access_enable],
-                    [
-                        have_xc_mem_access_enable='yes'
-                        AC_DEFINE([HAVE_XC_MEM_ACCESS_ENABLE], [1], "xenctrl has xc_mem_access_enable")],
-                    [])
+                        have_xc_monitor_enable='yes'
+                        AC_DEFINE([HAVE_XC_MONITOR_ENABLE], [1], "xenctrl has xc_monitor_enable")
+                    ]
+                )
 
-                AC_CHECK_DEFINE(XENCTRL_HAS_XC_INTERFACE, xenctrl.h) 
+                [if test "$have_xc_monitor_enable" = "no"]
+                [then]
+                    AC_CHECK_LIB(xenctrl,
+                        [xc_mem_event_enable],
+                        [
+                            have_xc_mem_event_enable='yes'
+                            AC_DEFINE([HAVE_XC_MEM_EVENT_ENABLE], [1], "xenctrl has xc_mem_event_enable")
+                        ]
+                    )
+                [fi]
+
+                [if test "$have_xc_monitor_enable" = "no" && test "$have_xc_mem_event_enable" = "no"]
+                [then]
+                    AC_CHECK_LIB(xenctrl,
+                        [xc_mem_access_enable],
+                        [
+                            have_xc_mem_access_enable='yes'
+                            AC_DEFINE([HAVE_XC_MEM_ACCESS_ENABLE], [1], "xenctrl has xc_mem_access_enable")
+                        ]
+                    )
+                [fi]
+
 
                 # MSR events are only available in Xen 4.3+
-                AC_CHECK_DEFINE(MEM_EVENT_REASON_MSR, xen/mem_event.h) 
+                [if test "$have_xc_monitor_enable" = "no"]
+                [then]
+                    AC_CHECK_HEADERS([xen/mem_event.h],
+                        [
+                            AC_DEFINE([HAVE_MEM_EVENT_H], [1], "Xen provides mem_event.h")
+                            AC_CHECK_DEFINE(MEM_EVENT_REASON_MSR, xen/mem_event.h)
+                        ]
+                    )
+                [else]
+                    AC_CHECK_HEADERS([xen/vm_event.h],
+                        [
+                            AC_DEFINE([HAVE_VM_EVENT_H], [1], "Xen provides vm_event.h")
+                            AC_CHECK_DEFINE(VM_EVENT_INTERFACE_VERSION, xen/vm_event.h)
+                        ]
+                    )
+                [fi]
+
+                AC_CHECK_DEFINE(XENCTRL_HAS_XC_INTERFACE, xenctrl.h) 
 
                 AC_CHECK_TYPE(
                     [hvmmem_access_t],
@@ -225,7 +259,8 @@ xen_event_space=' '
                         have_hvmmem_access_t='yes'
                         AC_DEFINE([HAVE_HVMMEM_ACCESS_T], [1], [xenctrl defines hvmmem_access_t])],
                     [],
-                    [#include <xenctrl.h> #include <xen/hvm/save.h>])
+                    [#include <xenctrl.h> #include <xen/hvm/save.h>]
+                )
 
                 AC_CHECK_TYPE(
                     [xenmem_access_t],
@@ -233,36 +268,40 @@ xen_event_space=' '
                         have_xenmem_access_t='yes'
                         AC_DEFINE([HAVE_XENMEM_ACCESS_T], [1], [xenctrl defines xenmem_access_t])],
                     [],
-                    [#include <xenctrl.h> #include <xen/memory.h>])
+                    [#include <xenctrl.h> #include <xen/memory.h>]
+                )
 
                 #validate that Xen events are in fact possible
-                [if (test "$have_XENCTRL_HAS_XC_INTERFACE" != "yes")]
+                [if test "$have_XENCTRL_HAS_XC_INTERFACE" != "yes"]
                 [then]
                     AC_MSG_WARN([XENCTRL_HAS_XC_INTERFACE undefined, event support disabled.])
                     have_xen_events='missing event support'
                     enable_xen_events='no'
                 [else] 
-                    [if (test "$have_xc_mem_event_enable" = "yes" && test "$have_hvmmem_access_t" = "yes")]
+                    [if test "$have_xc_mem_event_enable" = "yes" && test "$have_hvmmem_access_t" = "yes"]
                     [then]
                         have_xen_events='yes'
+                        have_xen_events_legacy='yes'
                         xen_event_space=''
                         AC_DEFINE([ENABLE_XEN_EVENTS], [1], [Define to 1 to enable Xen mem events support.])
                         AC_DEFINE([XEN_EVENTS_VERSION], [410], [Define the xen events version.])
                         AC_MSG_NOTICE([4.1 style events enabled.])
                     [else]
-                        [if (test "$have_xc_mem_access_enable" = "yes")]
+                        [if test "$have_xc_mem_access_enable" = "yes"]
                         [then]
-                            [if (test "$have_hvmmem_access_t" = "yes")]
+                            [if test "$have_hvmmem_access_t" = "yes"]
                             [then]
                                 have_xen_events='yes'
+                                have_xen_events_legacy='yes'
                                 xen_event_space=''
                                 AC_DEFINE([ENABLE_XEN_EVENTS], [1], [Define to 1 to enable Xen mem events support.])
                                 AC_DEFINE([XEN_EVENTS_VERSION], [420], [Define the xen events version.])
                                 AC_MSG_NOTICE([4.2 style events enabled.])
                             [else]
-                                [if (test "$have_xenmem_access_t" = "yes")]
+                                [if test "$have_xenmem_access_t" = "yes"]
                                 [then]
                                     have_xen_events='yes'
+                                    have_xen_events_legacy='yes'
                                     xen_event_space=''
                                     AC_DEFINE([ENABLE_XEN_EVENTS], [1], [Define to 1 to enable Xen mem events support.])
                                     AC_DEFINE([XEN_EVENTS_VERSION], [450], [Define the xen events version.])
@@ -274,9 +313,18 @@ xen_event_space=' '
                                 [fi]
                             [fi]
                         [else]
-                            AC_MSG_WARN([Xen event support missing.])
-                            have_xen_events='missing event support'
-                            enable_xen_events='no'
+                            [if test "$have_xc_monitor_enable" = "yes"]
+                            [then]
+                                    have_xen_events='yes'
+                                    xen_event_space=''
+                                    AC_DEFINE([ENABLE_XEN_EVENTS], [1], [Define to 1 to enable Xen mem events support.])
+                                    AC_DEFINE([XEN_EVENTS_VERSION], [460], [Define the xen events version.])
+                                    AC_MSG_NOTICE([4.6 style events enabled.])
+                            [else]
+                                AC_MSG_WARN([Xen event support missing.])
+                                have_xen_events='missing event support'
+                                enable_xen_events='no'
+                            [fi]
                         [fi]    
                     [fi]
                 [fi]
@@ -292,6 +340,7 @@ xen_event_space=' '
 [fi]
 AM_CONDITIONAL([HAVE_XEN], [test x"$have_xen" = "xyes"])
 AM_CONDITIONAL([HAVE_XEN_EVENTS], [test x"$have_xen_events" = "xyes"])
+AM_CONDITIONAL([HAVE_XEN_EVENTS_LEGACY], [test x"$have_xen_events_legacy" = "xyes"])
 
 have_kvm='no'
 kvm_space='      '

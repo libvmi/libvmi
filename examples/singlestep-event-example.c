@@ -38,16 +38,18 @@ static void close_handler(int sig){
     interrupted = sig;
 }
 
-void single_step_callback(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t single_step_callback(vmi_instance_t vmi, vmi_event_t *event)
+{
+    reg_t rip;
+
     printf("Single-step event: VCPU:%u  GFN %"PRIx64" GLA %016"PRIx64"\n",
         event->vcpu_id,
         event->ss_event.gfn,
         event->ss_event.gla);
-    reg_t rip;
-    
+
     vmi_get_vcpureg(vmi, &rip, RIP, event->vcpu_id);
     printf("\tRIP: %"PRIx64"\n", rip);
-    
+    return 0;
 }
 
 int main (int argc, char **argv) {

@@ -171,6 +171,7 @@ typedef enum registers {
     CR2,
     CR3,
     CR4,
+    XCR0,
 
     DR0,
     DR1,

@@ -31,7 +31,7 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-#ifdef HAVE_MEM_EVENT_REASON_MSR
+#if HAVE_MEM_EVENT_REASON_MSR || HAVE_VM_EVENT_INTERFACE_VERSION
 vmi_event_t msr_event;
 
 void msr_write_cb(vmi_instance_t vmi, vmi_event_t *event){
