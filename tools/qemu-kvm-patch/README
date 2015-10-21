@@ -1,4 +1,123 @@
-This patch provides one way for LibVMI to access memory from a running KVM
+This directory contains several patches to add a command,
+'pmemaccess', to a QEMU/KVM environment for libvmi introspection of virtual machines running under QEMU/KVM.
+
+kvm-qemu-2.4.0.1-libvmi.patch - patches QEMU HEAD version 2.4.0.1
+
+kvm-physmem-access-physmem-snapshot_1.6.0.patch,
+kvm-physmem-access_0.14.0.patch, 
+kvm-physmem-access_1.2.0.patch,
+kvm-physmem-access_1.5.1.patch - work with the respective versions of
+the qemu-kvm branch of the qemu source tree, that is currently
+deprecated, and has been merged in the QEMU HEAD branch.
+
+Instructions for QEMU HEAD patch
+
+## Install dependencies for a Ubuntu Linux box:
+
+sudo apt-get install libvirt-bin libvirt-dev libvirt0
+sudo apt-get install python-libvirt virt-viewer virtinst 
+sudo apt-get install gcc make g++ automake autoconf libssh2-1-dev
+sudo apt-get install libusb-1.0-0-dev liblzo2-dev libaio-dev
+sudo apt-get install libcap-ng-dev libattr1-dev uuid-dev  libpng12-dev
+sudo apt-get install libcurl4-gnutls-dev libjpeg8-dev libncurses5-dev
+sudo apt-get install libsasl2-dev libgnutls-dev  libsdl1.2-dev 
+
+## compile and install libvmi, example for 0.10.1
+wget https://github.com/libvmi/libvmi/archive/v0.10.1.tar.gz
+tar xvzf v0.10.1.tar.gz
+cd libvmi-0.10.1
+./autogen.sh
+# if you're not using xen, disabling it speeds up the libvmi startup
+./configure --disable-xen 
+make install
+cd ..
+
+## compile and install patched qemu
+wget http://wiki.qemu-project.org/download/qemu-2.4.0.1.tar.bz2
+tar xvjf qemu-2.4.0.1.tar.bz2
+cd qemu-2.4.0.1
+patch -p1 < ../libvmi-0.10.1/tools/qemu-kvm-patch/kvm-qemu-2.4.0.1-libvmi.patch
+## this is a sample configuration, YMMV
+./configure --enable-numa --enable-vhdx --enable-libssh2 \
+   --enable-libusb --enable-lzo --enable-linux-aio --enable-cap-ng \
+   --enable-attr --enable-uuid --enable-kvm --enable-curl \
+   --enable-vnc-png --enable-vnc-jpeg --enable-curses --enable-vnc-sasl \
+   --enable-vnc-tls --enable-vnc --enable-sdl --disable-xen
+make install
+# assuming you have a bridge interface called 'br0'
+sudo chmod u+s /usr/local/libexec/qemu-bridge-helper
+sudo echo 'allow br0' >> /usr/local/etc/qemu/bridge.conf
+
+## create a libvirt VM, assumes you have a bridge interface called 'br0'
+## also assumes you have installed a Windows10 VM on the qcow2 disk
+## file /<somehwere>/Windows10.qcow2, using the Red Hat virtio disk
+## driver, virtio network interface driver and virtio memory ballooon interface
+virt-install \
+             --connect qemu:///system \
+             --virt-type kvm \
+             --name Windows10 \
+             --ram 2048 \
+             --disk path=/<somehwere>/Windows10.qcow2,bus=virtio,device=disk,format=qcow2 \
+             --graphics type=vnc,listen=0.0.0.0 \
+             --vcpus=1 --cpu host \
+             --network bridge=br0,mac=CA:FE:BA:BE:42:42,model=virtio \
+             --os-variant win7 \
+             --accelerate \
+             --boot hd
+
+## if you want to introspect Windows 10, it is required to have a
+## rekall profile
+## download the pdb files from Microsoft and unpack them on a Windows box
+## http://download.microsoft.com/download/C/F/F/CFFED264-98B4-40C5-8A9E-9C1659E01092/Windows_TH1.10240.16384.150709-1700.x64FRE.Symbols.msi
+## the file you want is ntkrnlmp.pdb
+## copy the file over to your QEMU/KVM host
+
+## installl rekall
+wget https://github.com/google/rekall/archive/v1.4.1.tar.gz
+tar xvzf v1.4.1.tar.gz
+cd rekall-1.4.1
+python setup.py install
+
+## generate rekall profile
+mkdir -p /profiles/rekal/
+rekal parse_pdb  --output /profiles/rekal/70194f2219074ecf9d1ec501e4637d2d1.json --profile_class Win10x64 ./ntkrnlmp.pdb
+
+
+## add stanza to /etc/libvmi.conf
+cat << EOF >> /etc/libvmi.conf
+Windows10 {
+    ostype      = "Windows";
+    sysmap      = "/profiles/rekal/70194f2219074ecf9d1ec501e4637d2d1.json";
+}
+EOF
+
+## start your Windows10 VM
+virsh -c qemu:///system start Windows10
+
+## test the libvmi interface
+/usr/local/pkg/bin/process-list Windows10
+
+## use libvmi via volatility
+git clone https://github.com/volatilityfoundation/volatility.git
+cp libvmi-0.10.1/tools/pyvmi/pyvmiaddressspace.py volatility/volatility/plugins/addrspaces/
+
+## test volatility
+python  volatility/vol.py -l vmi://Windows10 --profile=Win10x64 pslist
+
+Instructions and kvm-qemu-2.4.0.1-libvmi.patch were developed by
+Valerio Aimale <valerio@aimale.com>. If you have questions, please
+contact him.
+
+
+
+
+
+
+
+Instructions for old qemu-kvm patches
+=====================================
+
+This patches provides one way for LibVMI to access memory from a running KVM
 virtual machine.  To start, you need the source code for QEMU-KVM 0.14.0.
 
 tar zxvf qemu-kvm-0.14.0.tar.gz
