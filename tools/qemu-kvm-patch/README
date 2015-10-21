@@ -7,7 +7,7 @@ kvm-physmem-access-physmem-snapshot_1.6.0.patch,
 kvm-physmem-access_0.14.0.patch, 
 kvm-physmem-access_1.2.0.patch,
 kvm-physmem-access_1.5.1.patch - work with the respective versions of
-the qemu-kvm branch of the qemu source tree, that is currently
+the qemu-kvm fork of the qemu source tree, that is currently
 deprecated, and has been merged in the QEMU HEAD branch.
 
 Instructions for QEMU HEAD patch
