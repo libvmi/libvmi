@@ -148,6 +148,8 @@ struct vmi_instance {
     uint32_t step_vcpus[MAX_SINGLESTEP_VCPUS]; /**< counter of events on vcpus for which we have internal singlestep enabled */
 
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
+    
+    size_t size;
 };
 
 /** Page-level memevent struct to also hold byte-level events in the embedded hashtable */
