@@ -153,6 +153,13 @@ typedef struct x86_regs {
     uint32_t _pad;
 } x86_registers_t;
 
+typedef struct emul_data {
+    /* Tell LibVMI if it's not safe to free this structure once processed */
+    bool dont_free;
+    uint32_t size;
+    uint8_t data[256];
+} emul_data_t;
+
 typedef struct {
     /**
      * Register for which write event is configured.
@@ -374,12 +381,19 @@ struct vmi_event {
    */
     event_callback_t callback;
 
-    /**
-     * Snapshot of some VCPU registers when the event occurred
-     */
     union {
-        x86_registers_t *x86;
-    } regs;
+        /**
+         * Snapshot of some VCPU registers when the event occurred
+         */
+        union {
+            x86_registers_t *x86;
+        } regs;
+
+        /**
+         * Read data to be sent back with VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA
+         */
+        emul_data_t *emul_data;
+    };
 };
 
 /**
