@@ -63,4 +63,13 @@ typedef struct v2m_chunk_struct {
     struct v2m_chunk_struct* next;
 } v2m_chunk, *v2m_chunk_t;
 
+/*
+ * v2m table binds a pid and a list of v2m chunks
+ */
+typedef struct v2m_table_struct {
+    pid_t pid;
+    v2m_chunk_t v2m_chunks;
+    struct v2m_table_struct* next;
+} v2m_table, *v2m_table_t;
+
 #endif /* KVM_SHM_H */
