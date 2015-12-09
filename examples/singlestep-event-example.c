@@ -40,15 +40,11 @@ static void close_handler(int sig){
 
 event_response_t single_step_callback(vmi_instance_t vmi, vmi_event_t *event)
 {
-    reg_t rip;
-
     printf("Single-step event: VCPU:%u  GFN %"PRIx64" GLA %016"PRIx64"\n",
         event->vcpu_id,
         event->ss_event.gfn,
         event->ss_event.gla);
 
-    vmi_get_vcpureg(vmi, &rip, RIP, event->vcpu_id);
-    printf("\tRIP: %"PRIx64"\n", rip);
     return 0;
 }
 
@@ -84,11 +80,12 @@ int main (int argc, char **argv) {
     else{
         printf("LibVMI init succeeded!\n");
     }
-    
+
     //Single step setup
     memset(&single_event, 0, sizeof(vmi_event_t));
     single_event.type = VMI_EVENT_SINGLESTEP;
     single_event.callback = single_step_callback;
+    single_event.ss_event.enable = 1;
     SET_VCPU_SINGLESTEP(single_event.ss_event, 0);
     vmi_register_event(vmi, &single_event);
     while(!interrupted ){
