@@ -300,7 +300,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
             {
                 if (VMI_SUCCESS
                         == driver_set_mem_access(vmi, &event->mem_event,
-                                page_access_flag))
+                                page_access_flag, event->vmm_pagetable_id))
                 {
                     page->access_flag = page_access_flag;
                     page->event = event;
@@ -324,7 +324,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                 {
                     if (VMI_SUCCESS
                             == driver_set_mem_access(vmi, &event->mem_event,
-                                    page_access_flag))
+                                    page_access_flag, event->vmm_pagetable_id))
                     {
                         page->access_flag = page_access_flag;
                         g_hash_table_insert(page->byte_events,
@@ -337,7 +337,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
             {
                 if (VMI_SUCCESS
                         == driver_set_mem_access(vmi, &event->mem_event,
-                                page_access_flag))
+                                page_access_flag, event->vmm_pagetable_id))
                 {
                     page->byte_events = g_hash_table_new(g_int64_hash,
                             g_int64_equal);
@@ -353,7 +353,7 @@ status_t register_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     // Page has no event registered
     if (VMI_SUCCESS
             == driver_set_mem_access(vmi, &event->mem_event,
-                    event->mem_event.in_access))
+                    event->mem_event.in_access, event->vmm_pagetable_id))
     {
 
         page = (memevent_page_t *) g_malloc0(sizeof(memevent_page_t));
@@ -479,7 +479,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
 
     if(vmi->shutting_down) {
         rc = driver_set_mem_access(vmi, &event->mem_event,
-                        page_access_flag);
+                        page_access_flag, event->vmm_pagetable_id);
         goto done;
     }
 
@@ -515,7 +515,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                 }
 
                 rc = driver_set_mem_access(vmi, &event->mem_event,
-                        page_access_flag);
+                        page_access_flag, event->vmm_pagetable_id);
 
                 if (rc == VMI_SUCCESS)
                 {
@@ -575,7 +575,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                     }
 
                     rc = driver_set_mem_access(vmi, &remove_event->mem_event,
-                            page_access_flag);
+                            page_access_flag, remove_event->vmm_pagetable_id);
 
                     if (rc == VMI_SUCCESS)
                     {
