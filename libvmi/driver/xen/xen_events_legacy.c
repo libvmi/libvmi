@@ -411,10 +411,10 @@ status_t process_unhandled_mem(vmi_instance_t vmi, memevent_page_t *page,
     // Queue each VMI_MEMEVENT_BYTE
     if (page->byte_events)
     {
-        event_iter_t i;
+        GHashTableIter i;
         addr_t *pa;
         vmi_event_t *loop;
-        for_each_event(vmi, i, page->byte_events, &pa, &loop)
+        ghashtable_foreach(page->byte_events, i, &pa, &loop)
         {
             vmi_step_event(vmi, loop, req->vcpu_id, 1, NULL);
         }

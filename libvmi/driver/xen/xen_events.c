@@ -370,7 +370,9 @@ status_t process_register(vmi_instance_t vmi,
         }
 
         event->vcpu_id = req->vcpu_id;
+        vmi->event_callback = 1;
         process_response ( event->callback(vmi, event), event, rsp );
+        vmi->event_callback = 0;
 
         return VMI_SUCCESS;
     }
@@ -402,10 +404,10 @@ status_t process_unhandled_mem(vmi_instance_t vmi,
     // Queue each VMI_MEMEVENT_BYTE
     if (page->byte_events)
     {
-        event_iter_t i;
+        GHashTableIter i;
         addr_t *pa;
         vmi_event_t *loop;
-        for_each_event(vmi, i, page->byte_events, &pa, &loop)
+        ghashtable_foreach(page->byte_events, i, &pa, &loop)
         {
             vmi_step_event(vmi, loop, req->vcpu_id, 1, NULL);
         }
@@ -469,7 +471,9 @@ status_t process_mem(vmi_instance_t vmi,
         {
             page->event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
             page->event->vmm_pagetable_id = req->altp2m_idx;
+            vmi->event_callback = 1;
             process_response( issue_mem_cb(vmi, page->event, req, out_access), page->event, rsp );
+            vmi->event_callback = 0;
             cb_issued = 1;
         }
 
@@ -483,7 +487,9 @@ status_t process_mem(vmi_instance_t vmi,
             {
                 byte_event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
                 byte_event->vmm_pagetable_id = req->altp2m_idx;
+                vmi->event_callback = 1;
                 process_response( issue_mem_cb(vmi, byte_event, req, out_access), byte_event, rsp );
+                vmi->event_callback = 0;
                 cb_issued = 1;
             }
         }
@@ -555,7 +561,9 @@ status_t process_single_step_event(vmi_instance_t vmi,
         event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
         event->vcpu_id = req->vcpu_id;
 
+        vmi->event_callback = 1;
         process_response ( event->callback(vmi, event), event, rsp );
+        vmi->event_callback = 0;
 
         return VMI_SUCCESS;
     }
@@ -1051,6 +1059,106 @@ int xen_are_events_pending(vmi_instance_t vmi)
 
 }
 
+static inline
+status_t process_requests(vmi_instance_t vmi, vm_event_request_t *req,
+                          vm_event_response_t *rsp)
+{
+    xen_events_t * xe = xen_get_events(vmi);
+    status_t vrc = VMI_SUCCESS;
+
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->vm_event.back_ring) ) {
+        memset( req, 0, sizeof (req) );
+        memset( rsp, 0, sizeof (rsp) );
+
+        get_request(&xe->vm_event, req);
+
+        if ( req->version != VM_EVENT_INTERFACE_VERSION )
+        {
+            errprint("Error, Xen reports a different VM_EVENT_INTERFACE_VERSION!\n");
+            return VMI_FAILURE;
+        }
+
+        rsp->version = VM_EVENT_INTERFACE_VERSION;
+        rsp->vcpu_id = req->vcpu_id;
+        rsp->flags = (req->flags & VM_EVENT_FLAG_VCPU_PAUSED);
+        rsp->reason = req->reason;
+
+        /*
+         * When we shut down we pull all pending requests from the ring
+         */
+        if ( vmi->shutting_down )
+        {
+            if ( req->reason == VM_EVENT_REASON_MEM_ACCESS )
+                rsp->u.mem_access.gfn = req->u.mem_access.gfn;
+        }
+        else
+        switch ( req->reason )
+        {
+            case VM_EVENT_REASON_MEM_ACCESS:
+                dbprint(VMI_DEBUG_XEN, "--Caught mem access event!\n");
+                vrc = process_mem(vmi, req, rsp);
+                break;
+
+            case VM_EVENT_REASON_WRITE_CTRLREG:
+                switch ( req->u.write_ctrlreg.index )
+                {
+                    case VM_EVENT_X86_CR0:
+                        dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-CR0 event!\n");
+                        vrc = process_register(vmi, CR0, req, rsp);
+                        break;
+
+                    case VM_EVENT_X86_CR3:
+                        dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-CR3 event!\n");
+                        vrc = process_register(vmi, CR3, req, rsp);
+                        break;
+
+                    case VM_EVENT_X86_CR4:
+                        dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-CR4 event!\n");
+                        vrc = process_register(vmi, CR4, req, rsp);
+                        break;
+
+                    case VM_EVENT_X86_XCR0:
+                        dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-XCR0 event!\n");
+                        vrc = process_register(vmi, XCR0, req, rsp);
+                        break;
+                    default:
+                        dbprint(VMI_DEBUG_XEN, "--Caught unknown WRITE_CTRLREG event!\n");
+                        break;
+
+                }
+                break;
+
+            case VM_EVENT_REASON_MOV_TO_MSR:
+                dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-MSR event!\n");
+                vrc = process_register(vmi, MSR_ALL, req, rsp);
+                break;
+
+            case VM_EVENT_REASON_SINGLESTEP:
+                dbprint(VMI_DEBUG_XEN, "--Caught single step event!\n");
+                vrc = process_single_step_event(vmi, req, rsp);
+                break;
+
+            case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
+                dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
+                vrc = process_interrupt_event(vmi, INT3, req, rsp);
+                break;
+
+            default:
+                errprint("UNKNOWN REASON CODE %d\n", req->reason);
+                vrc = VMI_FAILURE;
+                break;
+        }
+
+        /*
+         * Put the response on the ring
+         */
+        put_response(&xe->vm_event, rsp);
+        dbprint(VMI_DEBUG_XEN, "--Finished handling event.\n");
+    }
+
+    return vrc;
+}
+
 status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 {
     vm_event_request_t req;
@@ -1091,94 +1199,32 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
         }
     }
 
-    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->vm_event.back_ring) ) {
-        memset( &req, 0, sizeof (req) );
-        memset( &rsp, 0, sizeof (rsp) );
+    vrc = process_requests(vmi, &req, &rsp);
 
-        get_request(&xe->vm_event, &req);
+    /*
+     * The only way to gracefully handle vmi_clear_event requests
+     * that were issued in a callback is to ensure no more requests
+     * are in the ringpage. We do this by pausing the domain (all vCPUs)
+     * and process all reamining events on the ring. Once no more requests
+     * are on the ring we can remove the events.
+     */
+    if ( g_hash_table_size(vmi->clear_events) ) {
+        vmi_pause_vm(vmi); // Pause all vCPUs
+        vrc = process_requests(vmi, &req, &rsp);
 
-        if ( req.version != VM_EVENT_INTERFACE_VERSION )
-        {
-            errprint("Error, Xen reports a different VM_EVENT_INTERFACE_VERSION!\n");
-            return VMI_FAILURE;
+        GHashTableIter i;
+        vmi_event_t **key = NULL;
+        void (*cb)(vmi_event_t *event);
+
+        ghashtable_foreach(vmi->clear_events, i, key, cb) {
+            vmi_clear_event(vmi, *key, cb);
         }
 
-        rsp.version = VM_EVENT_INTERFACE_VERSION;
-        rsp.vcpu_id = req.vcpu_id;
-        rsp.flags = (req.flags & VM_EVENT_FLAG_VCPU_PAUSED);
-        rsp.reason = req.reason;
+        g_hash_table_destroy(vmi->clear_events);
+        vmi->clear_events =
+            g_hash_table_new_full(g_int64_hash, g_int64_equal, free, NULL);
 
-        /*
-         * When we shut down we pull all pending requests from the ring
-         */
-        if ( vmi->shutting_down )
-        {
-            if ( req.reason == VM_EVENT_REASON_MEM_ACCESS )
-                rsp.u.mem_access.gfn = req.u.mem_access.gfn;
-        }
-        else
-        switch ( req.reason )
-        {
-            case VM_EVENT_REASON_MEM_ACCESS:
-                dbprint(VMI_DEBUG_XEN, "--Caught mem access event!\n");
-                vrc = process_mem(vmi, &req, &rsp);
-                break;
-
-            case VM_EVENT_REASON_WRITE_CTRLREG:
-                switch ( req.u.write_ctrlreg.index )
-                {
-                    case VM_EVENT_X86_CR0:
-                        dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-CR0 event!\n");
-                        vrc = process_register(vmi, CR0, &req, &rsp);
-                        break;
-
-                    case VM_EVENT_X86_CR3:
-                        dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-CR3 event!\n");
-                        vrc = process_register(vmi, CR3, &req, &rsp);
-                        break;
-
-                    case VM_EVENT_X86_CR4:
-                        dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-CR4 event!\n");
-                        vrc = process_register(vmi, CR4, &req, &rsp);
-                        break;
-
-                    case VM_EVENT_X86_XCR0:
-                        dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-XCR0 event!\n");
-                        vrc = process_register(vmi, XCR0, &req, &rsp);
-                        break;
-                    default:
-                        dbprint(VMI_DEBUG_XEN, "--Caught unknown WRITE_CTRLREG event!\n");
-                        break;
-
-                }
-                break;
-
-            case VM_EVENT_REASON_MOV_TO_MSR:
-                dbprint(VMI_DEBUG_XEN, "--Caught MOV-TO-MSR event!\n");
-                vrc = process_register(vmi, MSR_ALL, &req, &rsp);
-                break;
-
-            case VM_EVENT_REASON_SINGLESTEP:
-                dbprint(VMI_DEBUG_XEN, "--Caught single step event!\n");
-                vrc = process_single_step_event(vmi, &req, &rsp);
-                break;
-
-            case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
-                vrc = process_interrupt_event(vmi, INT3, &req, &rsp);
-                break;
-
-            default:
-                errprint("UNKNOWN REASON CODE %d\n", req.reason);
-                vrc = VMI_FAILURE;
-                break;
-        }
-
-        /*
-         * Put the response on the ring
-         */
-        put_response(&xe->vm_event, &rsp);
-        dbprint(VMI_DEBUG_XEN, "--Finished handling event.\n");
+        vmi_resume_vm(vmi);
     }
 
     /*

@@ -497,11 +497,13 @@ status_t vmi_register_event(
  *
  * @param[in] vmi LibVMI instance
  * @param[in] event Definition of event to clear
+ * @param[in] free_routine Function to call when it is safe to free event.
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_clear_event(
     vmi_instance_t vmi,
-    vmi_event_t *event);
+    vmi_event_t *event,
+    void (*free_routine)(vmi_event_t *event));
 
 /**
  * Return the pointer to the vmi_event_t if one is set on the given register.
