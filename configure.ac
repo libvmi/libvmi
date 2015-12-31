@@ -287,7 +287,7 @@ xen_event_space=' '
                         AC_DEFINE([XEN_EVENTS_VERSION], [410], [Define the xen events version.])
                         AC_MSG_NOTICE([4.1 style events enabled.])
                     [else]
-                        [if test "$have_xc_mem_access_enable" = "yes"]
+                        [if test "$have_xc_mem_event_enable" = "yes"]
                         [then]
                             [if test "$have_hvmmem_access_t" = "yes"]
                             [then]
