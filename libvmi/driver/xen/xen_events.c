@@ -1218,9 +1218,9 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 
         GHashTableIter i;
         vmi_event_t **key = NULL;
-        void (*cb)(vmi_event_t *event);
+        vmi_event_free_t cb;
 
-        ghashtable_foreach(vmi->clear_events, i, key, cb) {
+        ghashtable_foreach(vmi->clear_events, i, &key, &cb) {
             vmi_clear_event(vmi, *key, cb);
         }
 
