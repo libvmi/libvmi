@@ -966,7 +966,8 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
     return VMI_SUCCESS;
 }
 
-status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event, vmi_mem_access_t page_access_flag)
+status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
+                            vmi_mem_access_t page_access_flag, uint16_t vmm_pagetable_id)
 {
     int rc;
     mem_access_t access;

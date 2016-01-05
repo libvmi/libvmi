@@ -119,7 +119,8 @@ typedef struct driver_interface {
     status_t (*set_mem_access_ptr)(
         vmi_instance_t,
         mem_access_event_t*,
-        vmi_mem_access_t);
+        vmi_mem_access_t,
+        uint16_t vmm_pagetable_id);
     status_t (*start_single_step_ptr)(
         vmi_instance_t,
         single_step_event_t*);

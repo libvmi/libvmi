@@ -392,7 +392,8 @@ status_t process_unhandled_mem(vmi_instance_t vmi,
     mem_access_event_t event = { 0 };
     event.physical_address = page->key << 12;
     event.npages = 1;
-    xen_set_mem_access(vmi, &event, VMI_MEMACCESS_N);
+    xen_set_mem_access(vmi, &event, VMI_MEMACCESS_N,
+                       (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0);
 
     // Queue the VMI_MEMEVENT_PAGE
     if (page->event) {
@@ -828,7 +829,7 @@ done:
 }
 
 status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
-                            vmi_mem_access_t page_access_flag)
+                            vmi_mem_access_t page_access_flag, uint16_t altp2m_idx)
 {
     int rc;
     mem_access_t access;
@@ -880,7 +881,10 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
     dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %"PRIu64" on physical address: %"PRIu64" npages: %"PRIu64"\n",
         dom, event->physical_address, npages);
 
-    rc = xc_set_mem_access(xch, dom, access, page_key, npages);
+    if ( !altp2m_idx )
+        rc = xc_set_mem_access(xch, dom, access, page_key, npages);
+    else
+        rc = xc_altp2m_set_mem_access(xch, dom, altp2m_idx, page_key, access);
 
     if(rc) {
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
