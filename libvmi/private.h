@@ -148,6 +148,10 @@ struct vmi_instance {
     uint32_t step_vcpus[MAX_SINGLESTEP_VCPUS]; /**< counter of events on vcpus for which we have internal singlestep enabled */
 
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
+
+    gboolean event_callback; /**< flag indicating that libvmi is currently issuing an event callback */
+
+    GHashTable *clear_events; /**< table to save vmi_clear_event requests when event_callback is set */
 };
 
 /** Page-level memevent struct to also hold byte-level events in the embedded hashtable */
@@ -388,8 +392,7 @@ status_t vmi_pagetable_lookup_cache(
         gpointer key,
         gpointer value,
         gpointer data);
-    typedef GHashTableIter event_iter_t;
-    #define for_each_event(vmi, iter, table, key, val) \
+    #define ghashtable_foreach(table, iter, key, val) \
         g_hash_table_iter_init(&iter, table); \
         while(g_hash_table_iter_next(&iter,(void**)key,(void**)val))
 

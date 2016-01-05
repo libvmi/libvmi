@@ -60,7 +60,7 @@ gboolean event_entry_free(gpointer key, gpointer value, gpointer data)
 {
     vmi_instance_t vmi = (vmi_instance_t) data;
     vmi_event_t *event = (vmi_event_t*) value;
-    vmi_clear_event(vmi, event);
+    vmi_clear_event(vmi, event, NULL);
     return TRUE;
 }
 
@@ -91,7 +91,7 @@ gboolean memevent_page_clean(gpointer key, gpointer value, gpointer data)
     vmi_instance_t vmi = (vmi_instance_t) data;
     memevent_page_t *page = (memevent_page_t*) value;
     if (page->event)
-        vmi_clear_event(vmi, page->event);
+        vmi_clear_event(vmi, page->event, NULL);
     // if the driver is page-level, this adds some overhead
     // as we update the page-access flag as we remove each byte-level event
     if (page->byte_events)
@@ -117,6 +117,8 @@ void events_init(vmi_instance_t vmi)
     vmi->reg_events = g_hash_table_new(g_int_hash, g_int_equal);
     vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free,
             NULL);
+    vmi->clear_events = g_hash_table_new_full(g_int64_hash, g_int64_equal,
+            g_free, NULL);
 }
 
 void events_destroy(vmi_instance_t vmi)
@@ -155,6 +157,8 @@ void events_destroy(vmi_instance_t vmi)
         g_hash_table_foreach_steal(vmi->interrupt_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->interrupt_events);
     }
+
+    g_hash_table_destroy(vmi->clear_events);
 }
 
 status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
@@ -238,7 +242,7 @@ event_response_t step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep
             if (!vmi->step_vcpus[wrap->vcpu_id])
             {
                 // No more events on this vcpu need registering
-                vmi_clear_event(vmi, singlestep_event);
+                vmi_clear_event(vmi, singlestep_event, NULL);
                 g_free(singlestep_event);
             }
 
@@ -504,10 +508,10 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                 // We still have byte-level events registered on this page
                 if (page->byte_events)
                 {
-                    event_iter_t i;
+                    GHashTableIter i;
                     addr_t *pa;
                     vmi_event_t *loop;
-                    for_each_event(vmi, i, page->byte_events, &pa, &loop)
+                    ghashtable_foreach(page->byte_events, i, &pa, &loop)
                     {
                         page_access_flag = combine_mem_access(page_access_flag,
                                 loop->mem_event.in_access);
@@ -563,10 +567,10 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
                     // We still have byte-level events registered on this page
                     if (g_hash_table_size(page->byte_events) > 0)
                     {
-                        event_iter_t i;
+                        GHashTableIter i;
                         addr_t *pa;
                         vmi_event_t *loop;
-                        for_each_event(vmi, i, page->byte_events, &pa, &loop)
+                        ghashtable_foreach(page->byte_events, i, &pa, &loop)
                         {
                             page_access_flag = combine_mem_access(
                                     page_access_flag,
@@ -712,12 +716,35 @@ status_t vmi_register_event(vmi_instance_t vmi, vmi_event_t* event)
     return rc;
 }
 
-status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event)
+status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event,
+                         void (*free_routine)(vmi_event_t* event))
 {
     status_t rc = VMI_FAILURE;
 
     if (!(vmi->init_mode & VMI_INIT_EVENTS))
     {
+        return VMI_FAILURE;
+    }
+
+    /*
+     * We can't clear events when in an event callback rigt away
+     * because there may be more events in the queue already
+     * that were triggered by the event we would be clearing now.
+     * The driver needs to process this list when it can safely.
+     * The user may request a callback when the struct can be safely
+     * freed.
+     */
+    if ( vmi->event_callback ) {
+        if (!g_hash_table_lookup(vmi->clear_events, &event)) {
+            g_hash_table_insert(vmi->clear_events,
+                                g_memdup(&event, sizeof(void*)),
+                                free_routine);
+            return VMI_SUCCESS;
+        }
+
+        /* Event was already requested to be cleared and we haven't
+         * got around to actually do it yet. */
+        dbprint(VMI_DEBUG_EVENTS, "Event was already queued for clearing.\n");
         return VMI_FAILURE;
     }
 

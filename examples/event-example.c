@@ -83,7 +83,7 @@ event_response_t msr_syscall_sysenter_cb(vmi_instance_t vmi, vmi_event_t *event)
 
     print_event(*event);
 
-    vmi_clear_event(vmi, &msr_syscall_sysenter_event);
+    vmi_clear_event(vmi, &msr_syscall_sysenter_event, NULL);
     return 0;
 }
 
@@ -96,7 +96,7 @@ event_response_t syscall_compat_cb(vmi_instance_t vmi, vmi_event_t *event){
 
     print_event(*event);
 
-    vmi_clear_event(vmi, &msr_syscall_compat_event);
+    vmi_clear_event(vmi, &msr_syscall_compat_event, NULL);
     return 0;
 }
 
@@ -109,7 +109,7 @@ event_response_t vsyscall_cb(vmi_instance_t vmi, vmi_event_t *event){
 
     print_event(*event);
 
-    vmi_clear_event(vmi, &kernel_vsyscall_event);
+    vmi_clear_event(vmi, &kernel_vsyscall_event, NULL);
     return 0;
 }
 
@@ -122,7 +122,7 @@ event_response_t ia32_sysenter_target_cb(vmi_instance_t vmi, vmi_event_t *event)
 
     print_event(*event);
 
-    vmi_clear_event(vmi, &kernel_sysenter_target_event);
+    vmi_clear_event(vmi, &kernel_sysenter_target_event, NULL);
     return 0;
 }
 
@@ -135,7 +135,7 @@ event_response_t syscall_lm_cb(vmi_instance_t vmi, vmi_event_t *event){
 
     print_event(*event);
 
-    vmi_clear_event(vmi, &msr_syscall_lm_event);
+    vmi_clear_event(vmi, &msr_syscall_lm_event, NULL);
     return 0;
 }
 
@@ -163,7 +163,7 @@ event_response_t cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
     }
     else{
         printf("PID %i is executing, not my process!\n", pid);
-        vmi_clear_event(vmi, &msr_syscall_sysenter_event);
+        vmi_clear_event(vmi, &msr_syscall_sysenter_event, NULL);
     }
     return 0;
 }
@@ -178,7 +178,7 @@ event_response_t cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event){
 
     if(vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
         fprintf(stderr, "Could not install sysenter syscall handler.\n");
-    vmi_clear_event(vmi, &msr_syscall_sysenter_event);
+    vmi_clear_event(vmi, &msr_syscall_sysenter_event, NULL);
     return 0;
 }
 

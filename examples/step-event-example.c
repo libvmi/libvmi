@@ -78,11 +78,11 @@ event_response_t mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
 
     if( current_pid == pid && event->mem_event.gla == rip) {
         printf("\tCought the original RIP executing again!");
-        vmi_clear_event(vmi, event);
+        vmi_clear_event(vmi, event, NULL);
         interrupted = 1;
     } else {
         printf("\tEvent on same page, but not the same RIP");
-        vmi_clear_event(vmi, event);
+        vmi_clear_event(vmi, event, NULL);
 
         /* These two calls are equivalent */
         //vmi_step_event(vmi, event, event->vcpu_id, 1, NULL);
@@ -107,7 +107,7 @@ event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event){
         if(mm_enabled) {
             mm_enabled = 0;
             printf(" -- Disabling mem-event\n");
-            vmi_clear_event(vmi, &mm_event);
+            vmi_clear_event(vmi, &mm_event, NULL);
         }
     }
     return 0;
