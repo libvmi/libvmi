@@ -337,6 +337,12 @@ typedef uint32_t event_response_t;
 typedef event_response_t (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *event);
 
 /**
+ * Function to be called when event has been successfully cleared after
+ * calling vmi_clear_event.
+ */
+typedef void (*vmi_event_free_t)(vmi_event_t *event, status_t rc);
+
+/**
  * The event structure used during configuration of events and their delivery.
  */
 struct vmi_event {
@@ -503,7 +509,7 @@ status_t vmi_register_event(
 status_t vmi_clear_event(
     vmi_instance_t vmi,
     vmi_event_t *event,
-    void (*free_routine)(vmi_event_t *event));
+    vmi_event_free_t free_routine);
 
 /**
  * Return the pointer to the vmi_event_t if one is set on the given register.

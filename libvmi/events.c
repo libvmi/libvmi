@@ -717,7 +717,7 @@ status_t vmi_register_event(vmi_instance_t vmi, vmi_event_t* event)
 }
 
 status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event,
-                         void (*free_routine)(vmi_event_t* event))
+                         vmi_event_free_t free_routine)
 {
     status_t rc = VMI_FAILURE;
 
@@ -764,8 +764,11 @@ status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event,
         break;
     default:
         dbprint(VMI_DEBUG_EVENTS, "Cannot clear unknown event: %d\n", event->type);
-        return VMI_FAILURE;
+        rc = VMI_FAILURE;
     }
+
+    if ( free_routine )
+        free_routine(event, rc);
 
     return rc;
 }
