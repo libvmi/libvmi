@@ -8,6 +8,7 @@ h_private = \
     private.h \
     debug.h \
     glib_compat.h \
+    rekall.h \
     arch/arch_interface.h \
     arch/intel.h \
     arch/amd64.h \
@@ -36,6 +37,10 @@ c_sources = \
     driver/driver_interface.c \
     driver/memory_cache.c \
     os/os_interface.c
+
+if REKALL_PROFILES
+c_sources  += rekall.c
+endif
 
 if SHM
 h_public    += shm.h
@@ -83,7 +88,6 @@ os          += os/windows/windows.h \
                os/windows/core.c \
                os/windows/kdbg.c \
                os/windows/memory.c \
-               os/windows/symbols.c \
                os/windows/peparse.c \
                os/windows/process.c \
                os/windows/unicode.c
@@ -104,5 +108,5 @@ AM_CPPFLAGS = -I$(top_srcdir)
 lib_LTLIBRARIES= libvmi.la
 libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
 libvmi_la_LIBADD= config/libconfig.la
-libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JANSSON_CFLAGS)
-libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS) $(JANSSON_LIBS)
+libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS)
+libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS)

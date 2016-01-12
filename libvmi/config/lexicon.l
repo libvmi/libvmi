@@ -58,6 +58,7 @@ win_kdbg                { BeginToken(yytext); yylval.str = strndup(yytext, CONFI
 win_kpcr                { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_KPCR; }
 win_sysproc             { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_SYSPROC; }
 sysmap                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return SYSMAPTOK; }
+rekall_profile          { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return REKALL_PROFILE; }
 ostype                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return OSTYPETOK; }
 0x[0-9a-fA-F]+|[0-9]+   {
     BeginToken(yytext);

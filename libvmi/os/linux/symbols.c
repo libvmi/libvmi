@@ -87,11 +87,10 @@ error_exit:
     return ret;
 }
 
-status_t
+static status_t
 linux_system_map_symbol_to_address(
     vmi_instance_t vmi,
     const char *symbol,
-    addr_t *kernel_base_vaddr,
     addr_t *address)
 {
     FILE *f = NULL;
@@ -125,9 +124,6 @@ linux_system_map_symbol_to_address(
         goto done;
     }
 
-    if (kernel_base_vaddr) {
-        (*kernel_base_vaddr) = 0;
-    }
     (*address) = (addr_t) strtoull(row, NULL, 16);
 
     ret = VMI_SUCCESS;
@@ -141,7 +137,7 @@ done:
 }
 
 char* linux_system_map_address_to_symbol(
-    vmi_instance_t vmi, 
+    vmi_instance_t vmi,
     addr_t address,
     addr_t base_vaddr,
     vmi_pid_t pid)
@@ -181,7 +177,7 @@ char* linux_system_map_address_to_symbol(
         address = 0;
         goto done;
     }
-    size = snprintf(NULL,0,"%"PRIx64"", address) + 1; 
+    size = snprintf(NULL,0,"%"PRIx64"", address) + 1;
     address_str = g_malloc0(size);
     snprintf(address_str, size, "%"PRIx64"", address);
     if (get_symbol_row(f, row, address_str, 0) == VMI_FAILURE) {
@@ -203,4 +199,35 @@ done:
     if (address_str)
         free(address_str);
     return symbol;
+}
+
+status_t
+linux_symbol_to_address(
+    vmi_instance_t vmi,
+    const char *symbol,
+    addr_t *__unused,
+    addr_t *address)
+{
+    status_t ret = VMI_FAILURE;
+    linux_instance_t linux_instance = vmi->os_data;
+
+    if (linux_instance == NULL) {
+        errprint("VMI_ERROR: OS instance not initialized\n");
+        goto done;
+    }
+
+    if (!linux_instance->sysmap && !linux_instance->rekall_profile) {
+        errprint("VMI_WARNING: No linux sysmap and Rekall profile configured\n");
+        goto done;
+    }
+
+    if (linux_instance->sysmap)
+        ret = linux_system_map_symbol_to_address(vmi, symbol, address);
+    else
+        ret = rekall_profile_symbol_to_rva(
+                linux_instance->rekall_profile,
+                symbol, NULL, address);
+
+done:
+    return ret;
 }

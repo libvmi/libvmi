@@ -250,8 +250,8 @@ windows_find_eprocess(
     }
 
     if (!windows->pname_offset) {
-        if(windows->sysmap) {
-            windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset);
+        if(windows->rekall_profile) {
+            rekall_profile_symbol_to_rva(windows->rekall_profile, "_EPROCESS", "ImageFileName", &windows->pname_offset);
         } else {
             windows->pname_offset = find_pname_offset(vmi, check);
         }

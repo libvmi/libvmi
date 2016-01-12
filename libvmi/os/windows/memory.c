@@ -45,10 +45,10 @@ windows_kernel_symbol_to_address(
 
     dbprint(VMI_DEBUG_MISC, "--windows symbol lookup (%s)\n", symbol);
 
-    if (windows->sysmap) {
-        dbprint(VMI_DEBUG_MISC, "--trying kernel sysmap\n");
+    if (windows->rekall_profile) {
+        dbprint(VMI_DEBUG_MISC, "--trying Rekall profile\n");
 
-        if (VMI_SUCCESS == windows_system_map_symbol_to_address(vmi, symbol, NULL, &rva)) {
+        if (VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, symbol, NULL, &rva)) {
             *address = windows->ntoskrnl_va + rva;
             dbprint(VMI_DEBUG_MISC, "--got symbol from kernel sysmap (%s --> 0x%.16"PRIx64").\n",
                  symbol, *address);

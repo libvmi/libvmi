@@ -62,8 +62,8 @@ status_t check_pdbase_offset(vmi_instance_t vmi) {
     windows_instance_t windows = vmi->os_data;
 
     if(!windows->pdbase_offset) {
-        if(windows->sysmap) {
-            if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
+        if(windows->rekall_profile) {
+            if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
                 goto done;
             }
         } else {
@@ -493,8 +493,14 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
+    /* Deprecated way of using Rekall profiles */
     if (strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
-        windows_instance->sysmap = g_strdup((char *)value);
+        windows_instance->rekall_profile = g_strdup((char *)value);
+        goto _done;
+    }
+
+    if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->rekall_profile = g_strdup((char *)value);
         goto _done;
     }
 
@@ -512,12 +518,12 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
 }
 
 static status_t
-init_from_sysmap(vmi_instance_t vmi)
+init_from_rekall_profile(vmi_instance_t vmi)
 {
 
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
-    dbprint(VMI_DEBUG_MISC, "**Trying to init from sysmap\n");
+    dbprint(VMI_DEBUG_MISC, "**Trying to init from Rekall profile\n");
 
     reg_t kpcr = 0;
     addr_t kpcr_rva = 0;
@@ -534,8 +540,8 @@ init_from_sysmap(vmi_instance_t vmi)
             }
         }
 
-        if (VMI_SUCCESS == windows_system_map_symbol_to_address(vmi, "KiInitialPCR", NULL, &kpcr_rva)) {
-            // If the sysmap has KiInitialPCR we have Win 7+
+        if (VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiInitialPCR", NULL, &kpcr_rva)) {
+            // If the Rekall profile has KiInitialPCR we have Win 7+
             windows->ntoskrnl_va = kpcr - kpcr_rva;
             windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
         } else if(kpcr == 0x00000000ffdff000) {
@@ -543,8 +549,8 @@ init_from_sysmap(vmi_instance_t vmi)
             // at this VA (XP/Vista) and the KPCR trick [1] is still valid.
             // [1] http://moyix.blogspot.de/2008/04/finding-kernel-global-variables-in.html
             addr_t kdvb = 0, kdvb_offset = 0, kernbase_offset = 0;
-            windows_system_map_symbol_to_address(vmi, "_KPCR", "KdVersionBlock", &kdvb_offset);
-            windows_system_map_symbol_to_address(vmi, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset);
+            rekall_profile_symbol_to_rva(windows->rekall_profile, "_KPCR", "KdVersionBlock", &kdvb_offset);
+            rekall_profile_symbol_to_rva(windows->rekall_profile, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset);
             vmi_read_addr_va(vmi, kpcr+kdvb_offset, 0, &kdvb);
             vmi_read_addr_va(vmi, kdvb+kernbase_offset, 0, &windows->ntoskrnl_va);
             windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
@@ -572,8 +578,8 @@ init_from_sysmap(vmi_instance_t vmi)
 
         // get KdVersionBlock/"_DBGKD_GET_VERSION64"->KernBase
         addr_t kdvb = 0, kernbase_offset = 0;
-        windows_system_map_symbol_to_address(vmi, "KdVersionBlock", NULL, &kdvb);
-        windows_system_map_symbol_to_address(vmi, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset);
+        rekall_profile_symbol_to_rva(windows->rekall_profile, "KdVersionBlock", NULL, &kdvb);
+        rekall_profile_symbol_to_rva(windows->rekall_profile, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset);
 
         dbprint(VMI_DEBUG_MISC, "**KdVersionBlock RVA 0x%lx. KernBase RVA: 0x%lx\n", kdvb, kernbase_offset);
         dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
@@ -601,7 +607,7 @@ init_from_sysmap(vmi_instance_t vmi)
     uint16_t ntbuildnumber = 0;
 
     // Let's do some sanity checking
-    if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
+    if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
         goto done;
     }
     if (VMI_FAILURE == vmi_read_16_pa(vmi, windows->ntoskrnl + ntbuildnumber_rva, &ntbuildnumber)) {
@@ -615,28 +621,28 @@ init_from_sysmap(vmi_instance_t vmi)
 
     // The system map seems to be good, lets grab all the required offsets
     if(!windows->pdbase_offset) {
-        if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
             goto done;
         }
     }
     if(!windows->tasks_offset) {
-        if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ActiveProcessLinks", &windows->tasks_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_EPROCESS", "ActiveProcessLinks", &windows->tasks_offset)) {
             goto done;
         }
     }
     if(!windows->pid_offset) {
-        if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "UniqueProcessId", &windows->pid_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_EPROCESS", "UniqueProcessId", &windows->pid_offset)) {
             goto done;
         }
     }
     if(!windows->pname_offset) {
-        if (VMI_FAILURE == windows_system_map_symbol_to_address(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_EPROCESS", "ImageFileName", &windows->pname_offset)) {
             goto done;
         }
     }
 
     ret = VMI_SUCCESS;
-    dbprint(VMI_DEBUG_MISC, "**init from sysmap success\n");
+    dbprint(VMI_DEBUG_MISC, "**init from Rekall profile success\n");
 
     done: return ret;
 
@@ -647,8 +653,8 @@ init_core(vmi_instance_t vmi)
 {
     windows_instance_t windows = vmi->os_data;
 
-    if (windows->sysmap) {
-        return init_from_sysmap(vmi);
+    if (windows->rekall_profile) {
+        return init_from_rekall_profile(vmi);
     } else {
         return init_from_kdbg(vmi);
     }
@@ -766,7 +772,7 @@ status_t windows_teardown(vmi_instance_t vmi) {
         goto done;
     }
 
-    g_free(windows->sysmap);
+    g_free(windows->rekall_profile);
 
     free(vmi->os_data);
     vmi->os_data = NULL;

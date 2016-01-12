@@ -438,18 +438,19 @@ AC_CHECK_PROGS(LEX, lex flex , [no], [path = $PATH])
 [fi]
 AC_PROG_LEX
 
-have_jansson='no'
-PKG_CHECK_MODULES([JANSSON], [jansson >= 2.1], [missing="no"], [missing="yes"])
+have_jsonc='no'
+missing='no'
+AC_CHECK_LIB(json-c, json_object_get_int64,, [missing="yes"])
 [if test x"$missing" = "xno"]
 [then]
-        have_jansson='yes'
-        AC_SUBST([JANSSON_LIBS])
-        AC_SUBST([JANSSON_CFLAGS])
-        AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when working Jansson library was found to parse Rekall profiles.])
+        AC_CHECK_HEADERS([json-c/json.h])
+        have_jsonc='yes'
+        AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when working JSON-C library was found to parse Rekall profiles.])
 [else]
-    have_jansson='Disabled, missing libjansson-dev.'
-    [echo "No working Jansson library found (libjansson-dev), Rekall system profiles won't be supported."]
+    have_jsonc='Disabled, missing libjson-c-dev.'
+    [echo "No working JSON-C library found (libjson-c-dev), Rekall system profiles won't be supported."]
 [fi]
+AM_CONDITIONAL([REKALL_PROFILES], [test x"$have_jsonc" = "xyes"])
 
 [if test "$enable_address_cache" = "yes"]
 [then]
@@ -524,7 +525,7 @@ VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space  | $have_vmifs
 
 Extra features
 ----------------------------------------------------------------------
-Support of Rekall profiles: $have_jansson
+Support of Rekall profiles: $have_jsonc
  
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.

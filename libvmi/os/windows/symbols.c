@@ -30,11 +30,11 @@
 #include <jansson.h>
 
 status_t
-windows_system_map_symbol_to_address(
+windows_rekall_profile_symbol_to_rva(
     vmi_instance_t vmi,
     const char *symbol,
     const char *subsymbol,
-    addr_t *address)
+    addr_t *rva)
 {
 
     status_t ret = VMI_FAILURE;
@@ -44,7 +44,7 @@ windows_system_map_symbol_to_address(
     }
 
     json_error_t error;
-    json_t *root = json_load_file(windows->sysmap, 0, &error);
+    json_t *root = json_load_file(windows->rekall_profile, 0, &error);
     if(!root)
     {
         errprint("Rekall profile error on line %d: %s\n", error.line, error.text);
@@ -65,7 +65,7 @@ windows_system_map_symbol_to_address(
             goto err_exit;
         }
 
-        *address = json_integer_value(jsymbol);
+        *rva = json_integer_value(jsymbol);
         ret = VMI_SUCCESS;
 
     } else {
@@ -84,7 +84,7 @@ windows_system_map_symbol_to_address(
         }
         json_t *jvalue = json_array_get(jmember, 0);
 
-        *address = json_integer_value(jvalue);
+        *rva = json_integer_value(jvalue);
         ret = VMI_SUCCESS;
 
     }
@@ -99,11 +99,11 @@ exit:
 #else
 
 status_t
-windows_system_map_symbol_to_address(
+windows_rekall_profile_symbol_to_rva(
     vmi_instance_t vmi,
     const char *symbol,
     const char *subsymbol,
-    addr_t *address)
+    addr_t *rva)
 {
     return VMI_FAILURE;
 }

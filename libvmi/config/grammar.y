@@ -284,6 +284,7 @@ int vmi_parse_config (const char *target_name)
 %token<str>    WIN_KPCR
 %token<str>    WIN_SYSPROC
 %token<str>    SYSMAPTOK
+%token<str>    REKALL_PROFILE
 %token<str>    OSTYPETOK
 %token<str>    WORD
 %token<str>    FILENAME
@@ -317,6 +318,8 @@ assignments:
 assignment:
         |
         sysmap_assignment
+        |
+        rekall_profile_assignment
         |
         ostype_assignment
         |
@@ -518,6 +521,16 @@ sysmap_assignment:
             snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
             char* sysmap_path = strndup(tmp_str, CONFIG_STR_LENGTH);
             g_hash_table_insert(tmp_entry, $1, sysmap_path);
+            free($4);
+        }
+        ;
+
+rekall_profile_assignment:
+        REKALL_PROFILE EQUALS QUOTE FILENAME QUOTE
+        {
+            snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
+            char* rekall_profile = strndup(tmp_str, CONFIG_STR_LENGTH);
+            g_hash_table_insert(tmp_entry, $1, rekall_profile);
             free($4);
         }
         ;
