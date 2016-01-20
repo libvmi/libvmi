@@ -462,6 +462,7 @@ struct vmi_event {
 #define SETUP_INTERRUPT_EVENT(_event, _reinject, _callback) \
         do { \
             (_event)->type = VMI_EVENT_INTERRUPT; \
+            (_event)->interrupt_event.intr = INT3; \
             (_event)->interrupt_event.reinject = _reinject; \
             (_event)->callback = _callback; \
         } while(0)
