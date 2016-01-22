@@ -190,6 +190,14 @@ typedef struct _windows_unicode_string32 {
     win64_unicode_string_t;
 
 /*----------------------------------------------
+ * Misc functions
+ */
+static inline
+canonical_addr(addr_t va) {
+    return VMI_GET_BIT(va, 47) ? (va | 0xffff000000000000) : va;
+}
+
+/*----------------------------------------------
  * convenience.c
  */
 #ifndef VMI_DEBUG
