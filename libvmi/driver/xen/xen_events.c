@@ -597,6 +597,8 @@ void xen_events_destroy(vmi_instance_t vmi)
         return;
     }
 
+    vmi_pause_vm(vmi);
+
     //A precaution to not leave vcpus stuck in single step
     xen_shutdown_single_step(vmi);
 
@@ -628,6 +630,8 @@ void xen_events_destroy(vmi_instance_t vmi)
 
     free(xe);
     xen_get_instance(vmi)->events = NULL;
+
+    vmi_resume_vm(vmi);
 }
 
 status_t xen_events_init(vmi_instance_t vmi)
