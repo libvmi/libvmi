@@ -24,6 +24,7 @@
 #include <libvmi/peparse.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include <stdio.h>
@@ -34,7 +35,39 @@
 
 #define PAGE_SIZE           0x1000
 #define MAX_HEADER_SIZE     1024
-#define MAX_SEARCH_SIZE     536715264 //512MB
+#define PDB_FILENAME_LENGTH 12
+
+static addr_t max_mem;
+
+status_t check_sections(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
+
+    struct pe_header *pe_header = NULL;
+    struct dos_header *dos_header = NULL;
+    uint16_t optional_header_type = 0;
+    peparse_assign_headers(pe, &dos_header, &pe_header, &optional_header_type, NULL, NULL, NULL);
+
+    uint32_t c;
+    for(c=0; c < pe_header->number_of_sections; c++) {
+
+        struct section_header section = { 0 };
+        addr_t section_addr = image_base_p
+            + dos_header->offset_to_pe
+            + sizeof(struct pe_header)
+            + pe_header->size_of_optional_header
+            + c*sizeof(struct section_header);
+
+        // Read the section from memory
+        vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header));
+
+        //printf("S: %s\n", section.short_name);
+
+        // The character array is not null terminated, so only print the first 8 characters!
+        if ( !strncmp(section.short_name, "INITKDBG", 8) )
+            return VMI_SUCCESS;
+    }
+
+    return VMI_FAILURE;
+}
 
 status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_p, uint8_t *pe) {
 
@@ -49,17 +82,24 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_p, uint8_t *pe) {
 
     // The kernel's export table is continuously allocated on the PA level with the PE header
     // This trick may not work for other PE headers (though may work for some drivers)
-    uint32_t nbytes = vmi_read_pa(vmi, base_p + export_header_offset, &et, sizeof(struct export_table));
-    if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
+    if ( base_p + export_header_offset < base_p + VMI_PS_4KB ) {
+        uint32_t nbytes = vmi_read_pa(vmi, base_p + export_header_offset, &et, sizeof(struct export_table));
+        if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name)) {
+            char *name = vmi_read_str_pa(vmi, base_p + et.name);
 
-        char *name = vmi_read_str_pa(vmi, base_p + et.name);
+            if(name) {
+                if(strcmp("ntoskrnl.exe", name)==0)
+                    ret = VMI_SUCCESS;
 
-        if(name) {
-            if(strcmp("ntoskrnl.exe", name)==0)
-                ret = VMI_SUCCESS;
-
-            free(name);
+                free(name);
+            }
         }
+    }
+
+    // The export header may be stripped from the kernel so check section names.
+    // This is commonly the case with Windows 10.
+    if ( ret == VMI_FAILURE ) {
+        ret = check_sections(vmi, base_p, pe);
     }
 
     return ret;
@@ -117,12 +157,39 @@ void print_os_version(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
                 printf(" Windows 7");
         if (minor_os_version == 2)
                 printf(" Windows 8");
+    } else
+    if(major_os_version == 10) {
+        if (minor_os_version == 0)
+                printf(" Windows 10");
     } else {
-            printf("OS version unknown or not Windows\n");
+            printf(" OS version unknown or not Windows\n");
     }
 
     printf("\n");
 
+}
+
+bool kernel_debug_search(vmi_instance_t vmi, struct cv_info_pdb70 *pdb_header) {
+    addr_t i;
+    for(i=0; i < max_mem; i += PAGE_SIZE) {
+        uint8_t pe[VMI_PS_4KB];
+        vmi_read_pa(vmi, i, pe, VMI_PS_4KB);
+        uint32_t c = 0;
+        for (c;c<VMI_PS_4KB-PDB_FILENAME_LENGTH;c++) {
+            if(!strncmp((char*)&pe[c], "ntkrnlmp.pdb", PDB_FILENAME_LENGTH) ||
+               !strncmp((char*)&pe[c], "ntoskrnl.pdb", PDB_FILENAME_LENGTH) ||
+               !strncmp((char*)&pe[c], "ntkrnlpa.pdb", PDB_FILENAME_LENGTH) ||
+               !strncmp((char*)&pe[c], "ntkrpamp.pdb", PDB_FILENAME_LENGTH)
+            ) {
+                vmi_read_pa(vmi, i+c - 2*sizeof(uint32_t) - sizeof(struct guid), pdb_header, sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH);
+                if ( pdb_header->cv_signature != RSDS)
+                    continue;
+                else
+                    return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
@@ -131,6 +198,7 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
     uint16_t minor_os_version;
     uint32_t size_of_image;
 
+    bool debug_directory_valid = 0;
     struct pe_header *pe_header = NULL;
     uint16_t optional_header_type = 0;
     struct optional_header_pe32 *oh32 = NULL;
@@ -155,7 +223,8 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
         return;
     }
 
-    struct image_debug_directory debug_directory;
+    struct image_debug_directory debug_directory = { 0 };
+    struct cv_info_pdb70 *pdb_header = g_malloc0(sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH+1);
     vmi_read_pa(vmi, kernel_base_p + debug_offset, (uint8_t *)&debug_directory, sizeof(struct image_debug_directory));
 
     printf("\tPE GUID: %.8x%.5x\n",pe_header->time_date_stamp,size_of_image);
@@ -164,30 +233,35 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
     {
     case IMAGE_DEBUG_TYPE_CODEVIEW:
         // OK
+        debug_directory_valid = 1;
         break;
     case IMAGE_DEBUG_TYPE_MISC:
         printf("This operating system uses .dbg instead of .pdb\n");
         return;
     default:
-        printf("The header is not in CodeView format, unable to deal with that!\n");
-        return;
+        //printf("The debug directory header is not in CodeView format, will do a brute-force search!\n");
+        break;
     }
 
-    if(debug_directory.size_of_data > VMI_PS_4KB/4) {
-        // Normal size of the debug directory on Windows 7 for example is 0x25 bytes.
-        printf("The size of the debug directory is huge, something might be wrong.\n");
-        return;
-    }
+    if (debug_directory_valid) {
+        if(debug_directory.size_of_data > VMI_PS_4KB/4) {
+            // Normal size of the debug directory on Windows 7 for example is 0x25 bytes.
+            printf("The size of the debug directory is huge, something might be wrong.\n");
+            goto done;
+        }
 
-    struct cv_info_pdb70 *pdb_header = g_malloc0(debug_directory.size_of_data);
-    vmi_read_pa(vmi, kernel_base_p + debug_directory.address_of_raw_data, pdb_header, debug_directory.size_of_data);
+        vmi_read_pa(vmi, kernel_base_p + debug_directory.address_of_raw_data, pdb_header, sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH);
 
-    // The PDB header has to be PDB 7.0
-    // http://www.debuginfo.com/articles/debuginfomatch.html
-    if(RSDS != pdb_header->cv_signature) {
-        printf("The CodeView debug information has to be in PDB 7.0 for the kernel!\n");
-        free(pdb_header);
-        return;
+        // The PDB header has to be PDB 7.0
+        // http://www.debuginfo.com/articles/debuginfomatch.html
+        if(RSDS != pdb_header->cv_signature) {
+            printf("The CodeView debug information has to be in PDB 7.0 for the kernel!\n");
+            goto done;
+        }
+
+    } else {
+        if(!kernel_debug_search(vmi, pdb_header))
+            goto done;
     }
 
      printf("\tPDB GUID: ");
@@ -215,7 +289,8 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
         printf("\tMulti-processor with PAE (version 5.0 and higher)\n");
      }
 
-     free(pdb_header);
+done:
+    free(pdb_header);
 }
 
 void print_pe_header(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
@@ -237,7 +312,7 @@ void print_pe_header(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
     uint32_t c;
     for(c=0; c < pe_header->number_of_sections; c++) {
 
-        struct section_header section;
+        struct section_header section = { 0 };
         addr_t section_addr = image_base_p
             + dos_header->offset_to_pe
             + sizeof(struct pe_header)
@@ -284,6 +359,8 @@ int main(int argc, char **argv) {
     }
     g_hash_table_destroy(config);
 
+    max_mem = vmi_get_max_physical_address(vmi);
+
     /* the nice thing about the windows kernel is that it's page aligned */
     uint32_t i;
     uint32_t found = 0;
@@ -291,7 +368,7 @@ int main(int argc, char **argv) {
         .translate_mechanism = VMI_TM_NONE,
     };
 
-    for(ctx.addr = 0; ctx.addr < MAX_SEARCH_SIZE; ctx.addr += PAGE_SIZE) {
+    for(ctx.addr = 0; ctx.addr < max_mem; ctx.addr += PAGE_SIZE) {
 
         uint8_t pe[MAX_HEADER_SIZE];
 
