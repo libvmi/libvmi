@@ -93,6 +93,12 @@ typedef enum os {
     VMI_OS_WINDOWS   /**< OS type is Windows */
 } os_t;
 
+/**
+ * Windows version enumeration. The values of the enum
+ * represent the size of KDBG structure up to Windows 8.
+ * At Windows 10 the KDBG based scan is no longer supported
+ * and thus at that point the value itself has no magic value.
+ */
 typedef enum win_ver {
 
     VMI_OS_WINDOWS_NONE,    /**< Not Windows */
@@ -104,7 +110,8 @@ typedef enum win_ver {
     VMI_OS_WINDOWS_VISTA    = 0x0328U, /**< Magic value for Windows Vista */
     VMI_OS_WINDOWS_2008     = 0x0330U, /**< Magic value for Windows 2008 */
     VMI_OS_WINDOWS_7        = 0x0340U, /**< Magic value for Windows 7 */
-    VMI_OS_WINDOWS_8        = 0x0360U  /**< Magic value for Windows 8 */
+    VMI_OS_WINDOWS_8        = 0x0360U, /**< Magic value for Windows 8 */
+    VMI_OS_WINDOWS_10,
 } win_ver_t;
 
 typedef enum page_mode {

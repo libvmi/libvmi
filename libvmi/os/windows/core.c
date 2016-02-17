@@ -1,3 +1,4 @@
+
 /* The LibVMI Library is an introspection library that simplifies access to
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
@@ -50,6 +51,8 @@ win_ver_t ntbuild2version(uint16_t ntbuildnumber)
         case 9200:
         case 9600:
             return VMI_OS_WINDOWS_8;
+        case 18432:
+            return VMI_OS_WINDOWS_10;
         default:
             break;
     }
@@ -543,17 +546,24 @@ init_from_rekall_profile(vmi_instance_t vmi)
     // try to find the kernel if we are not connecting to a file and the kernel pa/va were not already specified.
     if(vmi->mode != VMI_FILE && ! ( windows->ntoskrnl && windows->ntoskrnl_va ) ) {
 
-        if (vmi->page_mode == VMI_PM_IA32E) {
-            if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, GS_BASE, 0)) {
+        switch ( vmi->page_mode ) {
+            case VMI_PM_IA32E:
+                if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, GS_BASE, 0))
+                    goto done;
+            case VMI_PM_LEGACY:
+            case VMI_PM_PAE:
+                if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, FS_BASE, 0))
+                    goto done;
+            default:
                 goto done;
-            }
-        } else if (vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE) {
-            if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, FS_BASE, 0)) {
-                goto done;
-            }
-        }
+        };
 
         if (VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiInitialPCR", NULL, &kpcr_rva)) {
+            if ( kpcr <= kpcr_rva || vmi->page_mode == VMI_PM_IA32E && kpcr < 0xffff800000000000 ) {
+                dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, can't init from Rekall profile.\n");
+                goto done;
+            }
+
             // If the Rekall profile has KiInitialPCR we have Win 7+
             windows->ntoskrnl_va = kpcr - kpcr_rva;
             windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
@@ -628,8 +638,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
     }
 
     if (ntbuild2version(ntbuildnumber) == VMI_OS_WINDOWS_UNKNOWN) {
-        dbprint(VMI_DEBUG_MISC, "Unknown Windows NtBuildNumber: %u. The Rekall Profile may be incorrect for this Windows!\n", ntbuildnumber);
-        goto done;
+        dbprint(VMI_DEBUG_MISC, "Unknown Windows NtBuildNumber: %u, the Rekall Profile may be incorrect for this Windows!\n", ntbuildnumber);
     }
 
     // The system map seems to be good, lets grab all the required offsets
@@ -665,12 +674,16 @@ static status_t
 init_core(vmi_instance_t vmi)
 {
     windows_instance_t windows = vmi->os_data;
+    status_t ret = VMI_FAILURE;
 
-    if (windows->rekall_profile) {
-        return init_from_rekall_profile(vmi);
-    } else {
-        return init_from_kdbg(vmi);
-    }
+    if (windows->rekall_profile)
+        ret = init_from_rekall_profile(vmi);
+
+    /* Fall be here too if the Rekall profile based init fails */
+    if ( VMI_FAILURE == ret )
+        ret = init_from_kdbg(vmi);
+
+    return ret;
 }
 
 status_t
