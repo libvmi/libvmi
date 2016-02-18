@@ -44,10 +44,11 @@
 #include "libvmi_extra.h"
 #include "events.h"
 #include "shm.h"
+#include "rekall.h"
+#include "debug.h"
 #include "driver/driver_interface.h"
 #include "arch/arch_interface.h"
 #include "os/os_interface.h"
-#include "debug.h"
 
 /**
  * @brief LibVMI Instance.
@@ -193,7 +194,7 @@ typedef struct _windows_unicode_string32 {
  * Misc functions
  */
 static inline
-canonical_addr(addr_t va) {
+addr_t canonical_addr(addr_t va) {
     return VMI_GET_BIT(va, 47) ? (va | 0xffff000000000000) : va;
 }
 

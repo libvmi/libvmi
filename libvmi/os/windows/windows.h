@@ -47,7 +47,7 @@ struct windows_instance {
 
     win_ver_t version; /**< version of Windows */
 
-    char *sysmap;           /**< system map file for domain's running kernel */
+    char *rekall_profile; /**< Rekall profile path for domain's running kernel */
 };
 typedef struct windows_instance *windows_instance_t;
 
@@ -67,12 +67,6 @@ windows_rva_to_export(vmi_instance_t vmi, addr_t rva, addr_t base_vaddr,
         vmi_pid_t pid);
 
 status_t windows_teardown(vmi_instance_t vmi);
-
-status_t windows_system_map_symbol_to_address(
-    vmi_instance_t vmi,
-    const char *symbol,
-    const char *subsymbol,
-    addr_t *address);
 
 typedef int (*check_magic_func)(uint32_t);
 int find_pname_offset(vmi_instance_t vmi, check_magic_func check);

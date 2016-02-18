@@ -218,7 +218,7 @@ update is made to the kernel, the profile has to be re-generated, thus it's a bi
 as the standard LibVMI configuration entries which are generally stable for specific releases
 of Windows.
 
-Rekall is available at https://code.google.com/p/rekall
+Rekall is available at https://github.com/google/rekall. You will also need to install libjson-c-dev from your distribution's repository or compile it from source that can be found at https://github.com/json-c/json-c.
 
 To create a Rekall profile for Windows you need to determine the PDB filename and GUID of the
 kernel. This can be done either by running the win-guid example shipped with LibVMI, or by
@@ -236,11 +236,10 @@ Once the PDB filename and GUID is known, creating the Rekall profile is done in 
 
 .. code::
 
-    rekall fetch_pdb -f <PDB filename> --guid <GUID> -D .
-    rekall parse_pdb -f <PDB filename> --output <GUID>
+    rekall fetch_pdb --pdb_filename <PDB filename> --guid <GUID> -D .
+    rekall parse_pdb <PDB filename> > rekall-profile.json
 
-The Rekall profile can be used directly in the LibVMI config via the sysmap entry, without having
-to specify any of the offsets normally required for Windows as those offsets will be available
+The Rekall profile can be used directly in the LibVMI config via an additional rekall_profile entry pointing to this file with an absolute path. There is no need to specify any of the offsets normally required as those offsets will be available
 via the profile itself.
 
 Building

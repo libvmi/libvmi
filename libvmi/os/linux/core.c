@@ -73,38 +73,42 @@ static status_t linux_filemode_init(vmi_instance_t vmi)
     switch (vmi->page_mode)
     {
     case VMI_PM_IA32E:
-        linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
-        linux_system_map_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
+        linux_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
+        linux_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
         break;
     case VMI_PM_AARCH32:
     case VMI_PM_LEGACY:
     case VMI_PM_PAE:
-        linux_system_map_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
-        linux_system_map_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
+        linux_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
+        linux_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
         break;
     case VMI_PM_UNKNOWN:
-        linux_system_map_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
-        linux_system_map_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
+        linux_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
+        linux_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
 
         if (phys_start && virt_start) break;
         phys_start = virt_start = 0;
 
-        linux_system_map_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
-        linux_system_map_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
+        linux_symbol_to_address(vmi, "phys_startup_32", NULL, &phys_start);
+        linux_symbol_to_address(vmi, "startup_32", NULL, &virt_start);
         break;
     }
+
+    virt_start = canonical_addr(virt_start);
 
     if(phys_start && virt_start && phys_start < virt_start) {
         boundary = virt_start - phys_start;
         dbprint(VMI_DEBUG_MISC, "--got kernel boundary (0x%.16"PRIx64").\n", boundary);
     }
 
-    rc = linux_system_map_symbol_to_address(vmi, "swapper_pg_dir", NULL, &swapper_pg_dir);
+    rc = linux_symbol_to_address(vmi, "swapper_pg_dir", NULL, &swapper_pg_dir);
 
     if (VMI_SUCCESS == rc) {
 
         dbprint(VMI_DEBUG_MISC, "--got vaddr for swapper_pg_dir (0x%.16"PRIx64").\n",
                 swapper_pg_dir);
+
+        swapper_pg_dir = canonical_addr(swapper_pg_dir);
 
         /* We don't know if VMI_PM_LEGACY, VMI_PM_PAE or VMI_PM_AARCH32 yet
          * so we do some heuristics below. */
@@ -153,11 +157,13 @@ static status_t linux_filemode_init(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
-    rc = linux_system_map_symbol_to_address(vmi, "init_level4_pgt", NULL, &init_level4_pgt);
+    rc = linux_symbol_to_address(vmi, "init_level4_pgt", NULL, &init_level4_pgt);
     if (rc == VMI_SUCCESS) {
 
         dbprint(VMI_DEBUG_MISC, "--got vaddr for init_level4_pgt (0x%.16"PRIx64").\n",
                 init_level4_pgt);
+
+        init_level4_pgt = canonical_addr(init_level4_pgt);
 
         if (boundary) {
             vmi->page_mode = VMI_PM_IA32E;
@@ -171,6 +177,47 @@ static status_t linux_filemode_init(vmi_instance_t vmi)
     }
 
     return VMI_FAILURE;
+}
+
+static status_t init_from_rekall_profile(vmi_instance_t vmi) {
+
+    status_t ret = VMI_FAILURE;
+    linux_instance_t linux_instance = vmi->os_data;
+
+    if(!linux_instance->tasks_offset) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "task_struct", "tasks", &linux_instance->tasks_offset)) {
+            goto done;
+        }
+    }
+    if(!linux_instance->mm_offset) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "task_struct", "mm", &linux_instance->mm_offset)) {
+            goto done;
+        }
+    }
+    if(!linux_instance->pid_offset) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "task_struct", "pid", &linux_instance->pid_offset)) {
+            goto done;
+        }
+    }
+    if(!linux_instance->name_offset) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "task_struct", "comm", &linux_instance->name_offset)) {
+            goto done;
+        }
+    }
+    if(!linux_instance->pgd_offset) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "mm_struct", "pgd", &linux_instance->pgd_offset)) {
+            goto done;
+        }
+    }
+    if(!vmi->init_task) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "init_task", NULL, &vmi->init_task)) {
+            goto done;
+        }
+    }
+
+    ret = VMI_SUCCESS;
+
+done: return ret;
 }
 
 status_t linux_init(vmi_instance_t vmi) {
@@ -194,6 +241,18 @@ status_t linux_init(vmi_instance_t vmi) {
 
     g_hash_table_foreach(vmi->config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
 
+    if(linux_instance->rekall_profile)
+        rc = init_from_rekall_profile(vmi);
+    else
+        rc = linux_symbol_to_address(vmi, "init_task", NULL, &vmi->init_task);
+
+    if (VMI_FAILURE == rc) {
+        errprint("Could not get init_task from Rekall profile or System.map\n");
+        goto _exit;
+    }
+
+    vmi->init_task = canonical_addr(vmi->init_task);
+
 #if defined(ARM)
     rc = driver_get_vcpureg(vmi, &vmi->kpgd, TTBR1, 0);
 #elif defined(I386) || defined(X86_64)
@@ -211,20 +270,13 @@ status_t linux_init(vmi_instance_t vmi) {
 
     dbprint(VMI_DEBUG_MISC, "**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
-    rc = linux_system_map_symbol_to_address(vmi, "init_task", NULL,
-            &vmi->init_task);
-    if (VMI_FAILURE == rc) {
-        errprint("Could not get init_task from System.map\n");
-        goto _exit;
-    }
-
 done:
     os_interface = safe_malloc(sizeof(struct os_interface));
     bzero(os_interface, sizeof(struct os_interface));
     os_interface->os_get_offset = linux_get_offset;
     os_interface->os_pid_to_pgd = linux_pid_to_pgd;
     os_interface->os_pgd_to_pid = linux_pgd_to_pid;
-    os_interface->os_ksym2v = linux_system_map_symbol_to_address;
+    os_interface->os_ksym2v = linux_symbol_to_address;
     os_interface->os_usym2rva = NULL;
     os_interface->os_v2sym = linux_system_map_address_to_symbol;
     os_interface->os_read_unicode_struct = NULL;
@@ -247,6 +299,11 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
 
     if (strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
         linux_instance->sysmap = strdup((char *)value);
+        goto _done;
+    }
+
+    if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->rekall_profile = strdup((char *)value);
         goto _done;
     }
 
@@ -328,9 +385,8 @@ status_t linux_teardown(vmi_instance_t vmi) {
         return VMI_SUCCESS;
     }
 
-    if (linux_instance->sysmap) {
-        free(linux_instance->sysmap);
-    }
+    free(linux_instance->sysmap);
+    free(linux_instance->rekall_profile);
     free(vmi->os_data);
 
     vmi->os_data = NULL;
