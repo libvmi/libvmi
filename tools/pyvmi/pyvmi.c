@@ -1012,7 +1012,9 @@ pyvmi_write_8_pa(
     addr_t paddr;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "Kc", &paddr, &value)) {
+    if (!PyArg_ParseTuple(args, "Kc", &paddr, &value) &&
+        !PyArg_ParseTuple(args, "KB", &paddr, &value)
+    ) {
         PyErr_SetString(PyExc_ValueError,
                         "Invalid argument(s) to function");
         return NULL;
@@ -1105,7 +1107,8 @@ pyvmi_write_8_va(
     int pid;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "Kic", &vaddr, &pid, &value)) {
+    if (!PyArg_ParseTuple(args, "Kic", &vaddr, &pid, &value) &&
+        !PyArg_ParseTuple(args, "KiB", &vaddr, &pid, &value)) {
         PyErr_SetString(PyExc_ValueError,
                         "Invalid argument(s) to function");
         return NULL;
@@ -1200,7 +1203,8 @@ pyvmi_write_8_ksym(
     char *sym;
     uint8_t value;
 
-    if (!PyArg_ParseTuple(args, "sc", &sym, &value)) {
+    if (!PyArg_ParseTuple(args, "sc", &sym, &value) &&
+        !PyArg_ParseTuple(args, "sB", &sym, &value)) {
         PyErr_SetString(PyExc_ValueError,
                         "Invalid argument(s) to function");
         return NULL;
