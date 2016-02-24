@@ -73,7 +73,7 @@ AC_ARG_ENABLE([xen_events],
       [AS_HELP_STRING([--enable-xen-events],
          [Support use of Xen memory events (default is no)])],
       [enable_xen_events=$enableval],
-      [enable_xen_events=no])
+      [enable_xen_events=yes])
 AM_CONDITIONAL([XEN_EVENTS], [test x"$enable_xen_events" = xyes])
 
 AC_ARG_WITH([xenstore],
