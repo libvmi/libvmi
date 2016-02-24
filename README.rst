@@ -19,7 +19,7 @@ kernel symbols from Windows and Linux.
 
 If you would like higher level semantic information, then we suggest using 
 LibVMI with PyVMI (python wrapper, included with LibVMI) and Volatility.
-Volatility (http://code.google.com/p/volatility/) is a forensic memory analysis
+Volatility (https://github.com/volatilityfoundation/volatility) is a forensic memory analysis
 framework supporting both Linux and Windows systems that can aid significantly
 in performing useful memory analysis tasks.  PyVMI includes a Volatility
 address space plugin that enables you to use Volatility on a live virtual 
@@ -68,7 +68,7 @@ Installation and Configuration
 For complete details on installation and configuration, please see the
 related online documentation: 
 
-http://code.google.com/p/vmitools/wiki/LibVMIInstallation
+http://libvmi.com/docs/gcode-install.html
 
 
 Python Interface
@@ -260,11 +260,3 @@ make install
 
 The default installation prefix is /usr/local.  You may need to run
 'ldconfig' after performing a 'make install'.
-
-
-Transition from XenAccess
--------------------------
-If you are just making the transition form XenAccess, please see the transition
-documentation online:
-
-http://code.google.com/p/vmitools/wiki/TransitionFromXenAccess
