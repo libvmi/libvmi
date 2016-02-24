@@ -1,28 +1,28 @@
 LibVMI: Simplified Virtual Machine Introspection
 ================================================
-LibVMI is a virtual machine introspection library.  This means that it helps 
+LibVMI is a virtual machine introspection library.  This means that it helps
 you access the memory of a running virtual machine.  LibVMI provides primitives
 for accessing this memory using physical or virtual addresses and kernel
 symbols.  LibVMI also supports accessing memory from a physical memory snapshot,
 which is helpful for debugging or forensic analysis.
 
-In addition to memory access, LibVMI supports memory events.  Events provide 
+In addition to memory access, LibVMI supports memory events.  Events provide
 notifications when registered regions of memory are executed, written to, or
-read.  Memory events require hypervisor support and are currently only 
+read.  Memory events require hypervisor support and are currently only
 available with Xen.
 
 LibVMI is designed to run on Linux (file, Xen, or KVM access) or Mac OS X
-(file access only).  The most used platform is Linux + Xen, but the 
+(file access only).  The most used platform is Linux + Xen, but the
 others are well tested and worth exploring as well.  LibVMI can provide access
 to physical memory for any operating system, and access to virtual memory and
 kernel symbols from Windows and Linux.
 
-If you would like higher level semantic information, then we suggest using 
+If you would like higher level semantic information, then we suggest using
 LibVMI with PyVMI (python wrapper, included with LibVMI) and Volatility.
 Volatility (http://code.google.com/p/volatility/) is a forensic memory analysis
 framework supporting both Linux and Windows systems that can aid significantly
 in performing useful memory analysis tasks.  PyVMI includes a Volatility
-address space plugin that enables you to use Volatility on a live virtual 
+address space plugin that enables you to use Volatility on a live virtual
 machine.
 
 This file contains very basic instructions to get you up and running.  If you
@@ -58,7 +58,7 @@ Note 1: If you are installing a packaged version of Xen, you will likely
 need to install something like 'xen-devel' to obtain the files needed
 from libxc and libxenstore in the dependencies listed above.
 
-Note 2: If you want KVM support then you will need to build your own 
+Note 2: If you want KVM support then you will need to build your own
 version of QEMU-KVM or enable GDB support for your VM.  See the
 section on KVM support (below) for additional information.
 
@@ -66,7 +66,7 @@ section on KVM support (below) for additional information.
 Installation and Configuration
 ------------------------------
 For complete details on installation and configuration, please see the
-related online documentation: 
+related online documentation:
 
 http://code.google.com/p/vmitools/wiki/LibVMIInstallation
 
@@ -94,19 +94,19 @@ introspection.  For KVM support you need to do the following:
 
 - Ensure that you have libvirt version 0.8.7 or newer
 
-- Ensure that your libvirt installation supports QMP commands, most 
+- Ensure that your libvirt installation supports QMP commands, most
   prepackaged versions do not support this by default so you may need
-  to install libvirt from source yourself.  To enable QMP support 
-  when installing from source, ensure that you have libyajl-dev (or 
+  to install libvirt from source yourself.  To enable QMP support
+  when installing from source, ensure that you have libyajl-dev (or
   the equivalent from your linux distro) installed, then run the
   configure script from libvirt.  Ensure that the configure script
   reports that it found yajl.  Then run make && make install.
 
 - Choose a memory access technique:
 
-  1) Patch QEMU-KVM with the provided patch.  This technique will 
+  1) Patch QEMU-KVM with the provided patch.  This technique will
      provide the fastest memory access, but is buggy and may cause
-     your VM to crash / lose data / etc.  To use this method, 
+     your VM to crash / lose data / etc.  To use this method,
      follow the instructions in the libvmi/tools/qemu-kvm-patch
      directory.
 
@@ -115,11 +115,11 @@ introspection.  For KVM support you need to do the following:
      definition used by libvirt as follows:
 
      - Change:
-       
+
        .. code::
-       
+
           <domain type='kvm'>
-          
+
        to:
 
        .. code::
@@ -138,7 +138,7 @@ introspection.  For KVM support you need to do the following:
 
 - You only need one memory access technique.  LibVMI will first look
   for the QEMU-KVM patch and use that if it is installed.  Otherwise
-  it will fall back to using GDB.  So if you want to use GDB, you 
+  it will fall back to using GDB.  So if you want to use GDB, you
   should both enable GDB and ensure that QEMU-KVM does not have the
   LibVMI patch.
 
@@ -151,47 +151,47 @@ a file, then you don't need any special setup.
 
 Shm-snapshot Support
 ------------------------------
-(Don't mix up with VM snapshot file) This technique will provide a very 
+(Don't mix up with VM snapshot file) This technique will provide a very
 fast and coherent memory access, except the creation of shm-snapshot can take
-0.2 ~ 1.4 seconds (KVM) when the memory size of guest VM expands from 512MB to 
-3GB. 
-Shm-snapshot supports both KVM and Xen. However,shm-snapshot for Xen is 
-currently created by LibVMI, hence unreal. Moreover,it takes more time (about 3 
-seconds in 1GB guest memory settings) to create Xen "shm-snapshot" because we 
+0.2 ~ 1.4 seconds (KVM) when the memory size of guest VM expands from 512MB to
+3GB.
+Shm-snapshot supports both KVM and Xen. However,shm-snapshot for Xen is
+currently created by LibVMI, hence unreal. Moreover,it takes more time (about 3
+seconds in 1GB guest memory settings) to create Xen "shm-snapshot" because we
 have to probe unmmapable memory page holes one by one.
 Shm-snapshot is shiped with direct guest memory access, a non-copy access technique
 that can drastically reduce the latency of guest memory access. For KVM, we support
-both vmi_get_dgpma() and vmi_get_dgvma(); for Xen, however, due to the unreal 
+both vmi_get_dgpma() and vmi_get_dgvma(); for Xen, however, due to the unreal
 shm-snapshot, we only support vmi_get_dgpma() now.
 
-If you would like LibVMI to work on a shm-snapshot, then you need to do the 
+If you would like LibVMI to work on a shm-snapshot, then you need to do the
 following:
 
 (P.S: If you use Xen, just to start on step 3)
 
 1. ensure that your libvirt installation supports QMP commands.
 
-2. patch QEMU-KVM with the provided shm-snapshot patch.  
+2. patch QEMU-KVM with the provided shm-snapshot patch.
     cd qemu-1.6
     patch -p1 < [libvmi_dir]/tools/qemu-kvm-patch/kvm-physmem-access-physmem-snapshot_1.6.0.patch
     make
     make install
-  
+
 3. ./configure --enable-shm-snapshot
 
 4. Choose a setup method :
-  1) Add VMI_INIT_SHM_SNAPSHOT flag to vmi_int(), then vmi_init() will create 
-     a shm-snapshot and enter shm-snapshot mode automatically. Once LibVMI enters 
-     the shm-snapshot mode, memory access will be redirect to the shared memory 
+  1) Add VMI_INIT_SHM_SNAPSHOT flag to vmi_int(), then vmi_init() will create
+     a shm-snapshot and enter shm-snapshot mode automatically. Once LibVMI enters
+     the shm-snapshot mode, memory access will be redirect to the shared memory
      shm-snapshot, rather than your live guest VM.
-  
+
   2) After the vmi_init() has been called, invoke vmi_snapshot_create(vmi)
      to snaphsot your guest VM and enter shm-snapshot mode.
-  
-  No matter which method you choose, you can turn LibVMI back to live mode 
+
+  No matter which method you choose, you can turn LibVMI back to live mode
   by calling vmi_shm_snapshot_destroy(vmi).
-  
-  Even if you didn't call vmi_shm_snapshot_destroy(vmi), vmi_destroy(vmi) will 
+
+  Even if you didn't call vmi_shm_snapshot_destroy(vmi), vmi_destroy(vmi) will
   teardown the shm-snapshot if existed.
 
 5. (optional but valuable) replace your guest memory access function.
@@ -260,6 +260,15 @@ make install
 
 The default installation prefix is /usr/local.  You may need to run
 'ldconfig' after performing a 'make install'.
+
+Debugging
+---------
+To enable LibVMI debug output, modify the libvmi/debug.h header file
+and recompile libvmi.
+
+Community
+---------
+The LibVMI forums are available at https://groups.google.com/forum/#!forum/vmitools
 
 
 Transition from XenAccess
