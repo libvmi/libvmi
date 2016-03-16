@@ -474,8 +474,9 @@ vmi_get_linux_sysmap(
 {
     linux_instance_t linux_instance = NULL;
 
-    if(VMI_OS_LINUX != vmi->os_type || (VMI_INIT_PARTIAL & vmi->init_mode))
+    if(VMI_OS_LINUX != vmi->os_type || (VMI_INIT_PARTIAL & vmi->init_mode)){
 	return NULL;
+    }
 
     if(!vmi->os_data){
 	return NULL;
