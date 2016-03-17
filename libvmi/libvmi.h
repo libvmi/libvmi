@@ -1819,6 +1819,14 @@ void vmi_pidcache_add(
     vmi_pid_t pid,
     addr_t dtb);
 
+/**
+ * Returns the path of the Linux system map file for the given vmi instance
+ *
+ * @param[in] vmi LibVMI instance
+ * @return String file path location of the Linux system map
+ */
+const char * vmi_get_linux_sysmap(vmi_instance_t vmi);
+
 #pragma GCC visibility pop
 
 #ifdef __cplusplus
