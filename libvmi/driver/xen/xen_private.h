@@ -54,10 +54,12 @@
 
 #define xen_pfn_to_cr3_x86_32(pfn) (((unsigned)(pfn) << 12) | ((unsigned)(pfn) >> 20))
 #define xen_cr3_to_pfn_x86_32(cr3) (((unsigned)(cr3) >> 12) | ((unsigned)(cr3) << 20))
+#endif /* xen_cr3_to_pfn_x86_32 */
 
+#ifndef HAVE_XC_DOMAIN_MAXIMUM_GPFN
 #include <xen/memory.h>
 #define xc_domain_maximum_gpfn(xch, domid) xc_memory_op(xch, XENMEM_maximum_gpfn, &domid)
-#endif /* xen_cr3_to_pfn_x86_32 */
+#endif
 
 #ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
 typedef xc_interface *libvmi_xenctrl_handle_t;
