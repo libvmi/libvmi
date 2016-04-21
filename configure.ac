@@ -180,6 +180,7 @@ xen_event_space=' '
         enable_xen='no'
         have_xen='missing xenstore'
     [else]
+        AC_CHECK_LIB(xenctrl, xc_domain_maximum_gpfn, [AC_DEFINE([HAVE_XC_DOMAIN_MAXIMUM_GPFN],[1],"xenctrl has xc_domain_maximum_gpfn")],[missing="no"])
         AC_CHECK_LIB(xenctrl, xc_interface_open, [], [missing="yes"])
         [if test "$missing" = "yes"]
         [then]
