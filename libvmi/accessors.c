@@ -237,9 +237,9 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, const char *symbol)
     if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, 0, symbol, &address)) {
 
         if (vmi->os_interface && vmi->os_interface->os_ksym2v) {
-            status = vmi->os_interface->os_ksym2v(vmi, symbol, &base_vaddr,
-                    &address);
+            status = vmi->os_interface->os_ksym2v(vmi, symbol, &base_vaddr, &address);
             if (status == VMI_SUCCESS) {
+                address = canonical_addr(address);
                 sym_cache_set(vmi, base_vaddr, 0, symbol, address);
             }
         }
@@ -260,7 +260,7 @@ addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid
         if (vmi->os_interface && vmi->os_interface->os_usym2rva) {
             status  = vmi->os_interface->os_usym2rva(vmi, base_vaddr, pid, symbol, &rva);
             if (status == VMI_SUCCESS) {
-                address = base_vaddr + rva;
+                address = canonical_addr(base_vaddr + rva);
                 sym_cache_set(vmi, base_vaddr, pid, symbol, address);
             }
         }
