@@ -401,7 +401,7 @@ status_t process_unhandled_mem(vmi_instance_t vmi, memevent_page_t *page,
     mem_access_event_t event = { 0 };
     event.physical_address = page->key << 12;
     event.npages = 1;
-    xen_set_mem_access(vmi, &event, VMI_MEMACCESS_N);
+    xen_set_mem_access(vmi, &event, VMI_MEMACCESS_N, 0);
 
     // Queue the VMI_MEMEVENT_PAGE
     if (page->event) {
