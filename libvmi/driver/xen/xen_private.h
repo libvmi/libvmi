@@ -28,6 +28,8 @@
 #define XEN_PRIVATE_H
 
 #define _GNU_SOURCE
+#define XC_WANT_COMPAT_EVTCHN_API 1
+#define XC_WANT_COMPAT_MAP_FOREIGN_API 1
 #include <fnmatch.h>
 #include <stdlib.h>
 #include <string.h>
