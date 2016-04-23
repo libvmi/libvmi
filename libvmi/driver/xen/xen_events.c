@@ -578,7 +578,7 @@ status_t process_single_step_event(vmi_instance_t vmi,
 
 void xen_events_destroy(vmi_instance_t vmi)
 {
-    int rc;
+    int rc, resume = 0;
     xc_interface * xch = xen_get_xchandle(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
     xen_events_t * xe = xen_get_events(vmi);
@@ -597,7 +597,13 @@ void xen_events_destroy(vmi_instance_t vmi)
         return;
     }
 
-    vmi_pause_vm(vmi);
+
+    xc_dominfo_t info = {0};
+    rc = xc_domain_getinfo(xch, dom, 1, &info);
+
+    if(rc==1 && info.domid==dom && !info.paused && VMI_SUCCESS == vmi_pause_vm(vmi)) {
+        resume = 1;
+    }
 
     //A precaution to not leave vcpus stuck in single step
     xen_shutdown_single_step(vmi);
@@ -631,7 +637,8 @@ void xen_events_destroy(vmi_instance_t vmi)
     free(xe);
     xen_get_instance(vmi)->events = NULL;
 
-    vmi_resume_vm(vmi);
+    if(resume)
+        vmi_resume_vm(vmi);
 }
 
 status_t xen_events_init(vmi_instance_t vmi)
