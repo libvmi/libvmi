@@ -18,6 +18,40 @@ from configobj import ConfigObj
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
+
+   About This Application
+   ----------------------
+   Creates configuration files for LibVMI assuming one already has the VM offsets.
+   More info about LibVMI and its configuration files can be found here:
+
+    LibVMI Website: http://libvmi.com/docs/gcode-install.html
+
+    Old Config Objects: https://code.google.com/p/xenaccess/wiki/ConfigurationEntries
+
+    Supported Python Versions
+    -------------------------
+    The following Python versions have been tested and work:
+
+    -Python version 2.7.5
+    -Python version 2.7.6
+
+    Dependencies
+    -------------------------
+    The only required dependencies at this time are npyscreen and configobj. The easiest way to install both is using the python setup tool easy_install and then run:
+
+    $ sudo easy_install npyscreen
+
+    and
+
+    $ sudo easy_install configobj
+
+    Known Issues
+    --------------------------
+    1. Resizing console window cuts off some options
+    -If this happens it's best to try and resize the window again or just exit the application and restart
+
+
+
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 
@@ -36,7 +70,8 @@ _conf_file_name ="libvmi.conf"#default
 _conf_file_destination =""
 
 #name_major.minor.patch
-_version ="Libvmi-Config-Editor_2.10.0" #Todo change me after every significant  update
+_version = "2.10.0" #Todo change me after every significant  update
+_full_versionb = "Libvmi-Config-Editor_2.10.0" #Todo change me after every significant  update
 _last_update="4/2016"#Todo change me after every significant update
 #Error messages to display
 ERROR_MSGS =['Invalid Option','Unexpected Error','File Access Error','Invalid Input','Virtual Machine Exists']
@@ -69,7 +104,7 @@ def signal_handler(signal, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 def _safe_exit():
-    print "SAFE EXIT HAS NOT BEEN IMPLEMENTED AND NEEDS TO BE!!!"
+    print ""#TODO: needs to be implemented
 
 
 #addas a new vm object (windows) into the list of vm's to be written to libvmi.conf
@@ -216,7 +251,7 @@ class Remove_VM_Form(_nps.ActionFormWithMenus):
             ("List All VM's", self.list_vms, "a"),
             ("Remove VM", self.remove_vm, "r"),
             ("Write File", self.start_config_writer,"z"),
-            ("Cancel", self.close_menu,"c"),
+            ("Close Menu", self.close_menu,"c"),
             ("About", self.display_text,None,None,(ABOUT_MSGS,)),
             ("Exit Application", self.exit_app,"x")
             ])
@@ -318,7 +353,7 @@ class Write_Config_Form(_nps.ActionFormWithMenus):
         ("Add Linux VM", self.start_linux_vm_editor, "t"),
         ("List All VM's", self.list_vms, "a"),
         ("Remove VM", self.remove_vm, "r"),
-        ("Cancel", self.close_menu,"c"),
+        ("Close Menu", self.close_menu,"c"),
         ("About", self.display_text,None,None,(ABOUT_MSGS,)),
         ("Exit Application", self.exit_app,"x")
         ])
@@ -327,7 +362,7 @@ class Write_Config_Form(_nps.ActionFormWithMenus):
         self.file_destination = self.add(_nps.TitleFilename, name="Destination:", value=_conf_file_destination)
         self.vm_count = self.add(_nps.TitleFixedText, name="VM Configs:", value=str(_vm_list_size))
         self.nextrely+=1
-        self.status = self.add(_nps.TitleFixedText, name="Progress:", value="Waiting....")
+        self.status = self.add(_nps.TitleFixedText, name="Status:", value="Waiting....please select 'Write Config File' to begin")
         self.nextrely+=1
         self.btn_remove_vm      =     self.add(Btn_WriteConfig, name="Write Config File")
 
@@ -398,7 +433,7 @@ class Write_Config_Form(_nps.ActionFormWithMenus):
 
                 output_file.write(output)
 
-            self.status.value+"Done!"
+            self.status.value ="Finished Writing File....Waiting..."
             self.display()
         except IOError as e:
             self.error_msg("There was an error accessing the file: "+e.detail,ERROR_MSGS[2])
@@ -466,7 +501,7 @@ class VM_List_Form(_nps.ActionFormWithMenus):
         ("List All VM's", self.list_vms, "a"),
         ("Write File", self.start_config_writer,"z"),
         ("Remove VM", self.remove_vm, "r"),
-        ("Cancel", self.close_menu,"c"),
+        ("Close Menu", self.close_menu,"c"),
         ("About", self.display_text,None,None,(ABOUT_MSGS,)),
         ("Exit Application", self.exit_app,"x")
         ])
@@ -550,7 +585,7 @@ class Add_Windows_Form(_nps.ActionFormWithMenus):
         ("List All VM's", self.list_vms, "a"),
         ("Remove VM", self.remove_vm, "r"),
         ("Write File", self.start_config_writer,"z"),
-        ("Cancel", self.close_menu,"c"),
+        ("Close Menu", self.close_menu,"c"),
         ("Exit Application", self.exit_app,"x"),
         ])
 
@@ -653,7 +688,7 @@ class Add_Linux_Form(_nps.ActionFormWithMenus):
         ("List All VM's", self.list_vms, "a"),
         ("Remove VM", self.start_windows_vm_editor, "r"),
         ("Write File", self.start_config_writer,"z"),
-        ("Cancel", self.close_menu,"c"),
+        ("Close Menu", self.close_menu,"c"),
         ("Exit Application", self.exit_app,"x")
         ])
 
@@ -764,7 +799,7 @@ class Config_Form(_nps.ActionFormWithMenus):
         ("List All VM's", self.list_vms, "a"),
         ("Remove VM", self.remove_vm, "r"),
         ("Write File", self.start_config_writer,"z"),
-        ("Cancel", self.close_menu,"c"),
+        ("Close Menu", self.close_menu,"c"),
         ("About", self.display_text,None,None,(ABOUT_MSGS,)),
         ("Exit Application", self.exit_app,"x")
         ])
@@ -780,6 +815,9 @@ class Config_Form(_nps.ActionFormWithMenus):
         self.btn_add_linux      =     self.add(Btn_AddLinux, name ="Add Linux VM")
         self.btn_remove_vm      =     self.add(Btn_RemoveVM, name="Remove VM")
         self.btn_write_file = self.add(Btn_WriteFile, name="Write Config File")
+        self.nextrely+=1
+        self.tip1 = self.add(_nps.TitleFixedText, name="Tip:", value="Press CTRL + X to navigate using the menus on the next screen")
+        self.nextrely+=1
 
     def display_text(self, argument):
         _nps.notify_confirm(argument)
@@ -855,6 +893,10 @@ class Main_Form(_nps.ActionFormV2):
         self.menu_option    = self.add(_nps.TitleSelectOne, scroll_ext=True, max_height=3, name='Menu Options', values=self.menu_options )
         self.nextrely+=1
         self.tip1 = self.add(_nps.TitleFixedText, name="Tip:", value="Press CTRL + X to navigate using the menus on the next screen")
+        self.nextrely+=1
+        self.tip1 = self.add(_nps.TitleFixedText, name="Tip:", value="Press TAB to move between different options")
+        self.nextrely+=1
+        self.tip1 = self.add(_nps.TitleFixedText, name="Tip:", value="Press ENTER to select an option")
         self.nextrely+=1
         self.read = self.add(_nps.TitlePager, name ="Note:", values=self.readme)
 
