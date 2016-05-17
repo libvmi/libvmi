@@ -370,6 +370,8 @@ status_t process_register(vmi_instance_t vmi,
         }
 
         event->vcpu_id = req->vcpu_id;
+        event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+
         vmi->event_callback = 1;
         process_response ( event->callback(vmi, event), event, rsp );
         vmi->event_callback = 0;
