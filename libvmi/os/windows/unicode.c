@@ -52,7 +52,7 @@ windows_read_unicode_struct(
             dbprint(VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING\n",__FUNCTION__);
             goto out_error;
         }   // if
-        buffer_va = (vaddr & 0xFFFFFFFF00000000) + (us64.pBuffer >> 32);
+        buffer_va = us64.pBuffer;
         buffer_len = us64.length;
     }
     else {

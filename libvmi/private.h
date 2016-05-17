@@ -183,11 +183,12 @@ typedef struct _windows_unicode_string32 {
     win32_unicode_string_t;
 
 /** Windows' UNICODE_STRING structure (x64) */
-    typedef struct _windows_unicode_string64 {
-        uint16_t length;
-        uint16_t maximum_length;
-        uint64_t pBuffer;   // pointer to string contents
-    } __attribute__ ((packed))
+typedef struct _windows_unicode_string64 {
+    uint16_t length;
+    uint16_t maximum_length;
+    uint32_t padding;   // align pBuffer
+    uint64_t pBuffer;   // pointer to string contents
+} __attribute__ ((packed))
     win64_unicode_string_t;
 
 /*----------------------------------------------
