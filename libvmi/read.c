@@ -351,6 +351,17 @@ vmi_read_str(
     return rtnval;
 }
 
+unicode_string_t*
+vmi_read_unicode_str(
+    vmi_instance_t vmi,
+    access_context_t *ctx)
+{
+    if (vmi->os_interface && vmi->os_interface->os_read_unicode_struct)
+        return vmi->os_interface->os_read_unicode_struct(vmi, ctx);
+
+    return NULL;
+}
+
 ///////////////////////////////////////////////////////////
 // Easy access to physical memory
 static inline status_t
@@ -557,12 +568,13 @@ vmi_read_str_va(
 
 unicode_string_t *
 vmi_read_unicode_str_va(vmi_instance_t vmi, addr_t vaddr, vmi_pid_t pid) {
-    unicode_string_t *ret = NULL;
-    if (vmi->os_interface && vmi->os_interface->os_read_unicode_struct) {
-        ret = vmi->os_interface->os_read_unicode_struct(vmi, vaddr, pid);
-    }
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid
+    };
 
-    return ret;
+    return vmi_read_unicode_str(vmi, &ctx);
 }
 
 ///////////////////////////////////////////////////////////
