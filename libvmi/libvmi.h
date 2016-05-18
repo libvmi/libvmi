@@ -672,7 +672,7 @@ status_t vmi_pagetable_lookup_extended(
  */
 size_t vmi_read(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     void *buf,
     size_t count);
 
@@ -686,7 +686,7 @@ size_t vmi_read(
  */
 status_t vmi_read_8(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint8_t * value);
 
 /**
@@ -699,7 +699,7 @@ status_t vmi_read_8(
  */
 status_t vmi_read_16(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint16_t * value);
 
 /**
@@ -712,7 +712,7 @@ status_t vmi_read_16(
  */
 status_t vmi_read_32(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint32_t * value);
 
 /**
@@ -726,7 +726,7 @@ status_t vmi_read_32(
  */
 status_t vmi_read_64(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint64_t * value);
 
 /**
@@ -740,7 +740,7 @@ status_t vmi_read_64(
  */
 status_t vmi_read_addr(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     addr_t *value);
 
 /**
@@ -754,7 +754,7 @@ status_t vmi_read_addr(
  */
 char *vmi_read_str(
     vmi_instance_t vmi,
-    access_context_t *ctx);
+    const access_context_t *ctx);
 
 /**
  * Reads \a count bytes from memory located at the kernel symbol \a sym
@@ -1107,7 +1107,7 @@ char *vmi_read_str_pa(
  */
 size_t vmi_write(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     void *buf,
     size_t count);
 
@@ -1171,7 +1171,7 @@ size_t vmi_write_pa(
  */
 status_t vmi_write_8(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint8_t * value);
 
 /**
@@ -1184,7 +1184,7 @@ status_t vmi_write_8(
  */
 status_t vmi_write_16(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint16_t * value);
 
 /**
@@ -1197,7 +1197,7 @@ status_t vmi_write_16(
  */
 status_t vmi_write_32(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint32_t * value);
 
 /**
@@ -1210,7 +1210,7 @@ status_t vmi_write_32(
  */
 status_t vmi_write_64(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint64_t * value);
 
 /**
@@ -1224,7 +1224,7 @@ status_t vmi_write_64(
  */
 status_t vmi_write_addr(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     addr_t * value);
 
 /**
