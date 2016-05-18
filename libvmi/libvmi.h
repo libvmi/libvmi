@@ -753,6 +753,20 @@ char *vmi_read_str(
     const access_context_t *ctx);
 
 /**
+ * Reads a Unicode string from the given address. If the guest is running
+ * Windows, a UNICODE_STRING struct is read. Linux is not yet
+ * supported. The returned value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @return String read from memory or NULL on error; this function
+ *         will set the encoding field.
+ */
+unicode_string_t *vmi_read_unicode_str(
+    vmi_instance_t vmi,
+    access_context_t *ctx);
+
+/**
  * Reads \a count bytes from memory located at the kernel symbol \a sym
  * and stores the output in \a buf.
  *
