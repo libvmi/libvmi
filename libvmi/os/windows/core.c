@@ -84,14 +84,16 @@ get_ntoskrnl_base(
 {
     uint8_t page[VMI_PS_4KB];
     addr_t ret = 0;
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+        .addr = page_paddr
+    };
 
-    for(; page_paddr + VMI_PS_4KB < vmi->max_physical_address; page_paddr += VMI_PS_4KB) {
+    for(; ctx.addr + VMI_PS_4KB < vmi->max_physical_address; ctx.addr += VMI_PS_4KB) {
 
         uint8_t page[VMI_PS_4KB];
-        status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
-        if(VMI_FAILURE == rc) {
+        if(VMI_FAILURE == peparse_get_image(vmi, &ctx, VMI_PS_4KB, page))
             continue;
-        }
 
         struct pe_header *pe_header = NULL;
         struct dos_header *dos_header = NULL;

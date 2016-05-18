@@ -287,17 +287,21 @@ int main(int argc, char **argv) {
     /* the nice thing about the windows kernel is that it's page aligned */
     uint32_t i;
     uint32_t found = 0;
-    for(i = 0; i < MAX_SEARCH_SIZE; i += PAGE_SIZE) {
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+    };
+
+    for(ctx.addr = 0; ctx.addr < MAX_SEARCH_SIZE; ctx.addr += PAGE_SIZE) {
 
         uint8_t pe[MAX_HEADER_SIZE];
 
-        if(VMI_SUCCESS == peparse_get_image_phys(vmi, i, MAX_HEADER_SIZE, pe)) {
-            if(VMI_SUCCESS == is_WINDOWS_KERNEL(vmi, i, pe)) {
+        if(VMI_SUCCESS == peparse_get_image(vmi, &ctx, MAX_HEADER_SIZE, pe)) {
+            if(VMI_SUCCESS == is_WINDOWS_KERNEL(vmi, ctx.addr, pe)) {
 
-                printf("Windows Kernel found @ 0x%"PRIx32"\n", i);
-                print_os_version(vmi, i, pe);
-                print_guid(vmi, i, pe);
-                print_pe_header(vmi, i, pe);
+                printf("Windows Kernel found @ 0x%"PRIx32"\n", ctx.addr);
+                print_os_version(vmi, ctx.addr, pe);
+                print_guid(vmi, ctx.addr, pe);
+                print_pe_header(vmi, ctx.addr, pe);
                 found=1;
                 break;
             }
