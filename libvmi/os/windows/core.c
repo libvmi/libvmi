@@ -84,14 +84,16 @@ get_ntoskrnl_base(
 {
     uint8_t page[VMI_PS_4KB];
     addr_t ret = 0;
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+        .addr = page_paddr
+    };
 
-    for(; page_paddr + VMI_PS_4KB < vmi->max_physical_address; page_paddr += VMI_PS_4KB) {
+    for(; ctx.addr + VMI_PS_4KB < vmi->max_physical_address; ctx.addr += VMI_PS_4KB) {
 
         uint8_t page[VMI_PS_4KB];
-        status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
-        if(VMI_FAILURE == rc) {
+        if(VMI_FAILURE == peparse_get_image(vmi, &ctx, VMI_PS_4KB, page))
             continue;
-        }
 
         struct pe_header *pe_header = NULL;
         struct dos_header *dos_header = NULL;
@@ -103,20 +105,20 @@ get_ntoskrnl_base(
         addr_t export_header_offset =
             peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
 
-        if(!export_header_offset || page_paddr + export_header_offset >= vmi->max_physical_address)
+        if(!export_header_offset || ctx.addr + export_header_offset >= vmi->max_physical_address)
             continue;
 
-        uint32_t nbytes = vmi_read_pa(vmi, page_paddr + export_header_offset, &et, sizeof(struct export_table));
+        uint32_t nbytes = vmi_read_pa(vmi, ctx.addr + export_header_offset, &et, sizeof(struct export_table));
         if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
 
-            if(page_paddr + et.name + 12 >= vmi->max_physical_address) {
+            if(ctx.addr + et.name + 12 >= vmi->max_physical_address) {
                 continue;
             }
 
             unsigned char name[13] = {0};
-            vmi_read_pa(vmi, page_paddr + et.name, name, 12);
+            vmi_read_pa(vmi, ctx.addr + et.name, name, 12);
             if(!strcmp("ntoskrnl.exe", (char*)name)) {
-                ret = page_paddr;
+                ret = ctx.addr;
                 break;
             }
         } else {

@@ -139,8 +139,7 @@ done:
 char* linux_system_map_address_to_symbol(
     vmi_instance_t vmi,
     addr_t address,
-    addr_t base_vaddr,
-    vmi_pid_t pid)
+    const access_context_t *ctx)
 {
     FILE *f = NULL;
     char *row = NULL;
@@ -148,14 +147,20 @@ char* linux_system_map_address_to_symbol(
     char* it;
     char* symbol = NULL;
     int size = 0;
-
-
-    if (pid != 0 && base_vaddr != 0) {
-        errprint("VMI_WARNING: Lookup is implemented for kernel symbols only\n");
-        return symbol;
-    }
-
     linux_instance_t linux_instance = vmi->os_data;
+
+    switch(ctx->translate_mechanism) {
+        case VMI_TM_PROCESS_PID:
+            if(ctx->pid != 0)
+                goto err;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            if(ctx->dtb != vmi->kpgd)
+                goto err;
+            break;
+        default:
+            goto err;
+    };
 
     if (linux_instance == NULL) {
         errprint("VMI_ERROR: OS instance not initialized\n");
@@ -199,6 +204,10 @@ done:
     if (address_str)
         free(address_str);
     return symbol;
+
+err:
+    errprint("VMI_WARNING: Lookup is implemented for kernel symbols only\n");
+    return NULL;
 }
 
 status_t

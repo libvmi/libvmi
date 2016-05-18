@@ -36,10 +36,10 @@ typedef status_t (*os_kernel_symbol_to_address_t)(vmi_instance_t instance,
         const char *symbol, addr_t *kernel_base_vaddr, addr_t *address);
 
 typedef status_t (*os_user_symbol_to_rva_t)(vmi_instance_t instance,
-        addr_t base_vaddr, vmi_pid_t pid, const char *symbol, addr_t *rva);
+        const access_context_t *ctx, const char *symbol, addr_t *rva);
 
 typedef char* (*os_address_to_symbol_t)(vmi_instance_t vmi, addr_t address,
-        addr_t base_vaddr, vmi_pid_t pid);
+        const access_context_t *ctx);
 
 typedef unicode_string_t* (*os_read_unicode_struct_t)(vmi_instance_t vmi,
         addr_t vaddr, vmi_pid_t pid);

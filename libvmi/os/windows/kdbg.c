@@ -962,14 +962,18 @@ find_kdbg_address_faster(
     // start searching at the lower part from the kpcr
     // then switch to the upper part if needed
     int step = -VMI_PS_4KB;
-    addr_t page_paddr = 0;
+    addr_t page_paddr;
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+    };
 
 scan:
     page_paddr = (vmi_pagetable_lookup(vmi, cr3, fsgs) >> 12) << 12;
     for(; page_paddr + step < vmi->max_physical_address; page_paddr += step) {
 
         uint8_t page[VMI_PS_4KB];
-        status_t rc = peparse_get_image_phys(vmi, page_paddr, VMI_PS_4KB, page);
+        ctx.addr = page_paddr;
+        status_t rc = peparse_get_image(vmi, &ctx, VMI_PS_4KB, page);
         if(VMI_FAILURE == rc) {
             continue;
         }

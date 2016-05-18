@@ -383,7 +383,7 @@ status_t
 rva_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
-    vmi_pid_t pid,
+    addr_t dtb,
     addr_t rva,
     char **sym)
 {
@@ -394,7 +394,7 @@ rva_cache_get(
 
     struct key_128 local_key;
     key_128_t key = &local_key;
-    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)pid);
+    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)dtb);
 
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
         return ret;
@@ -403,7 +403,8 @@ rva_cache_get(
     if ((entry = g_hash_table_lookup(rva_table, GUINT_TO_POINTER(rva))) != NULL) {
         entry->last_used = time(NULL);
         *sym = entry->sym;
-        dbprint(VMI_DEBUG_RVACACHE, "--RVA cache hit %u:0x%.16"PRIx64":%s -- 0x%.16"PRIx64"\n", pid, base_addr, *sym, rva);
+        dbprint(VMI_DEBUG_RVACACHE, "--RVA cache hit 0x%.16%"PRIx64":0x%.16"PRIx64":%s -- 0x%.16"PRIx64"\n",
+                dtb, base_addr, *sym, rva);
         ret=VMI_SUCCESS;
     }
 
@@ -414,14 +415,14 @@ void
 rva_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
-    vmi_pid_t pid,
+    addr_t dtb,
     addr_t rva,
     char *sym)
 {
     GHashTable *rva_table = NULL;
-    sym_cache_entry_t entry = sym_cache_entry_create(sym, rva, base_addr, pid);
+    sym_cache_entry_t entry = sym_cache_entry_create(sym, rva, base_addr, dtb);
 
-    key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)pid);
+    key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)dtb);
 
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
         rva_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
@@ -439,21 +440,21 @@ status_t
 rva_cache_del(
     vmi_instance_t vmi,
     addr_t base_addr,
-    vmi_pid_t pid,
+    addr_t dtb,
     addr_t rva)
 {
     status_t ret=VMI_FAILURE;
     GHashTable *rva_table=NULL;
     struct key_128 local_key;
     key_128_t key = &local_key;
-    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)pid);
+    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)dtb);
 
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
         return ret;
     }
 
-    dbprint(VMI_DEBUG_RVACACHE, "--RVA cache del %u:0x%.16"PRIx64":0x%.16"PRIx64"\n",
-            pid, base_addr, rva);
+    dbprint(VMI_DEBUG_RVACACHE, "--RVA cache del 0x%.16"PRIx64":0x%.16"PRIx64":0x%.16"PRIx64"\n",
+            dtb, base_addr, rva);
 
     if (TRUE == g_hash_table_remove(rva_table, GUINT_TO_POINTER(rva))) {
         ret=VMI_SUCCESS;
@@ -808,7 +809,7 @@ status_t
 rva_cache_get(
     vmi_instance_t vmi,
     addr_t base_addr,
-    vmi_pid_t pid,
+    addr_t dtb,
     addr_t rva,
     char **sym)
 {
@@ -819,7 +820,7 @@ void
 rva_cache_set(
     vmi_instance_t vmi,
     addr_t base_addr,
-    vmi_pid_t pid,
+    addr_t dtb,
     addr_t rva,
     char *sym)
 {
@@ -830,7 +831,7 @@ status_t
 rva_cache_del(
     vmi_instance_t vmi,
     addr_t base_addr,
-    vmi_pid_t pid,
+    addr_t dtb,
     addr_t rva)
 {
     return VMI_FAILURE;
@@ -912,7 +913,7 @@ status_t
 v2m_cache_get(
     vmi_instance_t vmi,
     addr_t va,
-    pid_t pid,
+    addr_t dtb,
     addr_t *ma,
     uint64_t *length)
 {
@@ -923,7 +924,7 @@ void
 v2m_cache_set(
     vmi_instance_t vmi,
     addr_t va,
-    pid_t pid,
+    addr_t dtb,
     addr_t ma,
     uint64_t length)
 {
@@ -934,7 +935,7 @@ status_t
 v2m_cache_del(
     vmi_instance_t vmi,
     addr_t va,
-    pid_t pid)
+    addr_t dtb)
 {
     return VMI_FAILURE;
 }

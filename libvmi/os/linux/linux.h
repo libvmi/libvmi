@@ -46,8 +46,8 @@ uint64_t linux_get_offset(vmi_instance_t vmi, const char* offset_name);
 status_t linux_symbol_to_address(vmi_instance_t instance,
         const char *symbol, addr_t *__unused, addr_t *address);
 
-char* linux_system_map_address_to_symbol(vmi_instance_t vmi, 
-        addr_t address, addr_t base_vaddr, vmi_pid_t pid);
+char* linux_system_map_address_to_symbol(vmi_instance_t vmi,
+        addr_t address, const access_context_t *ctx);
 
 addr_t linux_pid_to_pgd(vmi_instance_t vmi, vmi_pid_t pid);
 

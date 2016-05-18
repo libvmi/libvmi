@@ -60,11 +60,10 @@ status_t
 windows_kernel_symbol_to_address(vmi_instance_t vmi, const char *symbol,
         addr_t *kernel_base_address, addr_t *address);
 status_t
-windows_export_to_rva(vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid,
+windows_export_to_rva(vmi_instance_t vmi, const access_context_t *ctx,
         const char *symbol, addr_t *rva);
 char*
-windows_rva_to_export(vmi_instance_t vmi, addr_t rva, addr_t base_vaddr,
-        vmi_pid_t pid);
+windows_rva_to_export(vmi_instance_t vmi, addr_t rva, const access_context_t *ctx);
 
 status_t windows_teardown(vmi_instance_t vmi);
 
