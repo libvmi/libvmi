@@ -569,15 +569,13 @@ addr_t vmi_translate_ksym2v(
  * Linux is unimplemented at this time.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] base_vaddr Base virtual address (beginning of PE header in Windows)
- * @param[in] pid PID
+ * @param[in] ctx Access context (beginning of PE header in Windows)
  * @param[in] symbol Desired symbol to translate
  * @return Virtual address, or zero on error
  */
 addr_t vmi_translate_sym2v(
     vmi_instance_t vmi,
-    addr_t base_vaddr,
-    vmi_pid_t pid,
+    const access_context_t *ctx,
     const char *symbol);
 
 /**
@@ -588,15 +586,13 @@ addr_t vmi_translate_sym2v(
  * ELF Headers are not supported.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] base_vaddr Base virtual address (beginning of PE header in Windows)
- * @param[in] pid PID
+ * @param[in] ctx Access context (beginning of PE header in Windows)
  * @param[in] rva RVA to translate
  * @return Symbol, or NULL on error
  */
 const char* vmi_translate_v2sym(
     vmi_instance_t vmi,
-    addr_t base_vaddr,
-    vmi_pid_t pid,
+    const access_context_t *ctx,
     addr_t rva);
 
 /**

@@ -296,19 +296,19 @@ status_t vmi_pagetable_lookup_cache(
     status_t rva_cache_get(
         vmi_instance_t vmi,
         addr_t base_addr,
-        vmi_pid_t pid,
+        addr_t dtb,
         addr_t rva,
         char **sym);
     void rva_cache_set(
         vmi_instance_t vmi,
         addr_t base_addr,
-        vmi_pid_t pid,
+        addr_t dtb,
         addr_t rva,
         char *sym);
     status_t rva_cache_del(
         vmi_instance_t vmi,
         addr_t base_addr,
-        vmi_pid_t pid,
+        addr_t dtb,
         addr_t rva);
 
     void v2p_cache_init(
