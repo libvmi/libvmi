@@ -155,17 +155,6 @@ struct vmi_instance {
     GHashTable *clear_events; /**< table to save vmi_clear_event requests when event_callback is set */
 };
 
-/** Page-level memevent struct to also hold byte-level events in the embedded hashtable */
-typedef struct memevent_page {
-
-    vmi_mem_access_t access_flag; /**< combined page access flag */
-    vmi_event_t *event; /**< page event registered */
-    addr_t key; /**< page # */
-
-    GHashTable  *byte_events; /**< byte events */
-
-} memevent_page_t;
-
 /** Event singlestep reregister wrapper */
 typedef struct step_and_reg_event_wrapper {
     vmi_event_t *event;
