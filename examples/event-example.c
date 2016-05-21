@@ -334,19 +334,16 @@ int main (int argc, char **argv)
     msr_syscall_sysenter_event.type = VMI_EVENT_MEMORY;
     msr_syscall_sysenter_event.mem_event.physical_address = phys_sysenter_ip;
     msr_syscall_sysenter_event.mem_event.npages = 1;
-    msr_syscall_sysenter_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
 
     memset(&kernel_sysenter_target_event, 0, sizeof(vmi_event_t));
     kernel_sysenter_target_event.type = VMI_EVENT_MEMORY;
     kernel_sysenter_target_event.mem_event.physical_address = phys_ia32_sysenter_target;
     kernel_sysenter_target_event.mem_event.npages = 1;
-    kernel_sysenter_target_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
 
     memset(&kernel_vsyscall_event, 0, sizeof(vmi_event_t));
     kernel_vsyscall_event.type = VMI_EVENT_MEMORY;
     kernel_vsyscall_event.mem_event.physical_address = phys_vsyscall;
     kernel_vsyscall_event.mem_event.npages = 1;
-    kernel_vsyscall_event.mem_event.granularity=VMI_MEMEVENT_PAGE;
 
     while(!interrupted){
         printf("Waiting for events...\n");

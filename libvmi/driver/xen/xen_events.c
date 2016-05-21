@@ -382,49 +382,6 @@ status_t process_register(vmi_instance_t vmi,
     return VMI_FAILURE;
 }
 
-
-/*
- * This function clears up the page access flags and queues each event
- * registered on that page for re-registration using vmi_step_event.
- */
-status_t process_unhandled_mem(vmi_instance_t vmi,
-                               memevent_page_t *page,
-                               vm_event_request_t *req)
-{
-
-    // Clear the page's access flags
-    mem_access_event_t event = { 0 };
-    event.physical_address = page->key << 12;
-    event.npages = 1;
-    xen_set_mem_access(vmi, &event, VMI_MEMACCESS_N,
-                       (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0);
-
-    // Queue the VMI_MEMEVENT_PAGE
-    if (page->event) {
-        vmi_step_event(vmi, page->event, req->vcpu_id, 1, NULL);
-    }
-
-    // Queue each VMI_MEMEVENT_BYTE
-    if (page->byte_events)
-    {
-        GHashTableIter i;
-        addr_t *pa;
-        vmi_event_t *loop;
-        ghashtable_foreach(page->byte_events, i, &pa, &loop)
-        {
-            vmi_step_event(vmi, loop, req->vcpu_id, 1, NULL);
-        }
-
-        // Free up memory of byte events GHashTable
-        g_hash_table_destroy(page->byte_events);
-    }
-
-    // Clear page from LibVMI GhashTable
-    g_hash_table_remove(vmi->mem_events, &page->key);
-
-    return VMI_SUCCESS;
-}
-
 static inline
 event_response_t issue_mem_cb(vmi_instance_t vmi,
                   vmi_event_t *event,
@@ -457,83 +414,32 @@ status_t process_mem(vmi_instance_t vmi,
     }
 
     rsp->u.mem_access = req->u.mem_access;
-
-    memevent_page_t * page = g_hash_table_lookup(vmi->mem_events, &req->u.mem_access.gfn);
     vmi_mem_access_t out_access = VMI_MEMACCESS_INVALID;
     if(req->u.mem_access.flags & MEM_ACCESS_R) out_access |= VMI_MEMACCESS_R;
     if(req->u.mem_access.flags & MEM_ACCESS_W) out_access |= VMI_MEMACCESS_W;
     if(req->u.mem_access.flags & MEM_ACCESS_X) out_access |= VMI_MEMACCESS_X;
 
-    if ( page )
+    vmi_event_t *event = g_hash_table_lookup(vmi->mem_events, &req->u.mem_access.gfn);
+
+    if (event && (event->mem_event.in_access & out_access) )
     {
-        uint8_t cb_issued = 0;
-        // To prevent use-after-free of 'page' in case it is freed after the first cb
-        GHashTable *byte_events = page->byte_events;
-
-        if (page->event && (page->event->mem_event.in_access & out_access))
-        {
-            page->event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
-            page->event->vmm_pagetable_id = req->altp2m_idx;
-            vmi->event_callback = 1;
-            process_response( issue_mem_cb(vmi, page->event, req, out_access), page->event, rsp );
-            vmi->event_callback = 0;
-            cb_issued = 1;
-        }
-
-        if ( byte_events )
-        {
-            // Check if the offset has a byte-event registered
-            addr_t pa = (req->u.mem_access.gfn<<12) + req->u.mem_access.offset;
-            vmi_event_t *byte_event = (vmi_event_t *)g_hash_table_lookup(byte_events, &pa);
-
-            if(byte_event && (byte_event->mem_event.in_access & out_access))
-            {
-                byte_event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
-                byte_event->vmm_pagetable_id = req->altp2m_idx;
-                vmi->event_callback = 1;
-                process_response( issue_mem_cb(vmi, byte_event, req, out_access), byte_event, rsp );
-                vmi->event_callback = 0;
-                cb_issued = 1;
-            }
-        }
-
-        /*
-         * When using VMI_MEMEVENT_BYTE the page-fault may be triggered
-         * at an offset that doesn't trigger a callback to the user. If these
-         * events are not catched and cleared the VM will halt. On the other hand
-         * if these events are cleared the user won't get the callback when the
-         * target offset is hit, therefore the events need to be re-registered
-         * after the fault has been cleared.
-         */
-        if(!cb_issued)
-        {
-            if(VMI_FAILURE == process_unhandled_mem(vmi, page, req))
-            {
-                goto errdone;
-            }
-        }
-
-        /* TODO MARESCA: decide whether it's worthwhile to emulate xen-access here and call the following
-         *    note: the 'access' variable is basically discarded in that spot. perhaps it's really only called
-         *    to validate that the event is accessible (maybe that it's not consumed elsewhere??)
-         * hvmmem_access_t access;
-         * rc = xc_hvm_get_mem_access(xch, domain_id, event.mem_event.gfn, &access);
-         */
-
+        event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+        event->vmm_pagetable_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
+        vmi->event_callback = 1;
+        process_response( issue_mem_cb(vmi, event, req, out_access), event, rsp );
+        vmi->event_callback = 0;
         return VMI_SUCCESS;
     }
 
+errdone:
     /*
      * TODO: Could this happen when using multi-vCPU VMs where multiple vCPU's trigger
      *       the same violation and the event is already being passed to vmi_step_event?
      *       The event in that case would be already removed from the GHashTable so
      *       the second violation on the other vCPU would not get delivered..
      */
-
-    errprint("Caught a memory event that had no handler registered in LibVMI @ GFN %"PRIu32" (0x%"PRIx64"), access: %u\n",
-        req->u.mem_access.gfn, (req->u.mem_access.gfn<<12) + req->u.mem_access.offset, out_access);
-
-errdone:
+    errprint("Caught a memory event that had no handler registered in LibVMI @ GFN 0x%"PRIx32" (0x%"PRIx64"), access: %u\n",
+             req->u.mem_access.gfn, (req->u.mem_access.gfn<<12) + req->u.mem_access.offset, out_access);
     return VMI_FAILURE;
 }
 

@@ -102,21 +102,6 @@ typedef enum {
     __VMI_MEMACCESS_MAX
 } vmi_mem_access_t;
 
-/**
- * The level of granularity used in the configuration of a memory event.
- *  VMI_MEMEVENT_PAGE granularity delivers an event for any operation
- *   matching the access permission on the relevant page.
- *  VMI_MEMEVENT_BYTE granularity is more specific, deliving an event
- *   if an operation occurs involving the specific byte within a page
- */
-typedef enum {
-    VMI_MEMEVENT_INVALID,
-    VMI_MEMEVENT_BYTE,
-    VMI_MEMEVENT_PAGE,
-
-    __VMI_MEMEVENT_MAX
-} vmi_memevent_granularity_t;
-
 typedef struct x86_regs {
     uint64_t rax;
     uint64_t rcx;
@@ -234,15 +219,7 @@ typedef struct {
 
 typedef struct {
     /**
-     * IN: Specify if using VMI_MEMEVENT_BYTE/PAGE
-     */
-    vmi_memevent_granularity_t granularity;
-
-    /**
      * IN: Physical address to set event on.
-     * With granularity of
-     *  VMI_MEMEVENT_PAGE, this can any
-     *  byte on the target page.
      */
     addr_t physical_address;
 
@@ -434,11 +411,10 @@ struct vmi_event {
 /**
  * Convenience macro to setup a memory event
  */
-#define SETUP_MEM_EVENT(_event, _addr, _granularity, _access, _callback) \
+#define SETUP_MEM_EVENT(_event, _addr, _access, _callback) \
         do { \
             (_event)->type = VMI_EVENT_MEMORY; \
             (_event)->mem_event.physical_address = _addr; \
-            (_event)->mem_event.granularity = _granularity; \
             (_event)->mem_event.in_access = _access; \
             (_event)->mem_event.npages = 1; \
             (_event)->callback = _callback; \
@@ -533,8 +509,7 @@ vmi_event_t *vmi_get_reg_event(
  */
 vmi_event_t *vmi_get_mem_event(
     vmi_instance_t vmi,
-    addr_t physical_address,
-    vmi_memevent_granularity_t granularity);
+    addr_t physical_address);
 
 /**
  * Setup single-stepping to register the given event
