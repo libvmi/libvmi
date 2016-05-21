@@ -210,6 +210,9 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
                             free(event->emul_data);
                     }
                     break;
+                case VMI_EVENT_RESPONSE_SET_REGISTERS:
+                    memcpy(&rsp->data.regs.x86, event->regs.x86, sizeof(struct regs_x86));
+                    break;
                 };
 
                 rsp->flags |= event_response_conversion[i];
@@ -246,9 +249,10 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         event->interrupt_event.gla = req->data.regs.x86.rip;
         event->interrupt_event.intr = intr;
         event->interrupt_event.reinject = -1;
-#if VM_EVENT_INTERFACE_VERSION >= 2
-        event->interrupt_event.insn_length = req->u.software_breakpoint.insn_length;
-#endif
+
+        if ( req->version >= 2 )
+            event->interrupt_event.insn_length = req->u.software_breakpoint.insn_length;
+
         event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
         event->vcpu_id = req->vcpu_id;
 
