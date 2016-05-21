@@ -174,6 +174,7 @@ struct vmi_instance {
 
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
 
+    GSList *swap_events; /**< list to save vmi_swap_events requests when event_callback is set */
 };
 
 /** Event singlestep reregister wrapper */
@@ -183,6 +184,13 @@ typedef struct step_and_reg_event_wrapper {
     uint64_t steps;
     event_callback_t cb;
 } step_and_reg_event_wrapper_t;
+
+/** Event swap wrapper */
+typedef struct swap_wrapper {
+    vmi_event_t *swap_from;
+    vmi_event_t *swap_to;
+    vmi_event_free_t free_routine;
+} swap_wrapper_t;
 
 /** Windows' UNICODE_STRING structure (x86) */
 typedef struct _windows_unicode_string32 {
@@ -414,6 +422,12 @@ status_t vmi_pagetable_lookup_cache(
         gpointer key,
         gpointer value,
         gpointer data);
+    status_t swap_events(
+        vmi_instance_t vmi,
+        vmi_event_t *swap_from,
+        vmi_event_t *swap_to,
+        vmi_event_free_t free_routine);
+
     #define ghashtable_foreach(table, iter, key, val) \
         g_hash_table_iter_init(&iter, table); \
         while(g_hash_table_iter_next(&iter,(void**)key,(void**)val))

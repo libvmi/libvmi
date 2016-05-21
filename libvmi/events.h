@@ -491,12 +491,34 @@ struct vmi_event {
  *
  * @param[in] vmi LibVMI instance
  * @param[in] event Definition of event to monitor
- * @param[in] callback Function to call when the event occurs
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_register_event(
     vmi_instance_t vmi,
     vmi_event_t *event);
+
+/**
+ * Swap a registered event to another.
+ *
+ * This function is intended to be used when changing the MEMACCESS
+ * page permissions on a page that already has been registered. This
+ * function is safe to be called from event callbacks, as no pending
+ * event will be left without a registered handler.
+ *
+ * Memory management of the vmi_event_t being registered remains the
+ *  responsibility of the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] swap_from A currently registered event
+ * @param[in] swap_to The event to replace the currently registered one with
+ * @param[in] free_routine Function to call when it is safe to free old event (swap_from).
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_swap_events(
+    vmi_instance_t vmi,
+    vmi_event_t *swap_from,
+    vmi_event_t *swap_to,
+    vmi_event_free_t free_routine);
 
 /**
  * Clear the event specified by the vmi_event_t object.
