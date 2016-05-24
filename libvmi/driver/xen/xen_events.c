@@ -163,7 +163,7 @@ static int resume_domain(vmi_instance_t vmi)
         errprint("%s error: invalid xen_event_t handle\n", __FUNCTION__);
         return -1;
     }
-    if ( dom == VMI_INVALID_DOMID ) {
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return -1;
     }
@@ -232,7 +232,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    if ( domain_id == VMI_INVALID_DOMID ) {
+    if ( domain_id == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
@@ -451,7 +451,7 @@ status_t process_mem(vmi_instance_t vmi,
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    if ( dom == VMI_INVALID_DOMID ) {
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
@@ -548,7 +548,7 @@ status_t process_single_step_event(vmi_instance_t vmi,
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    if ( dom == VMI_INVALID_DOMID ) {
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
 
         return VMI_FAILURE;
@@ -594,7 +594,7 @@ void xen_events_destroy(vmi_instance_t vmi)
         errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return;
     }
-    if ( dom == VMI_INVALID_DOMID ) {
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return;
     }
@@ -659,7 +659,7 @@ status_t xen_events_init(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
-    if ( dom == VMI_INVALID_DOMID ) {
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
@@ -739,7 +739,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
         goto done;
     }
 
-    if ( dom == VMI_INVALID_DOMID ) {
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         goto done;
     }
@@ -867,7 +867,7 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
         errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    if ( dom == VMI_INVALID_DOMID ) {
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
@@ -943,7 +943,7 @@ status_t xen_set_int3_access(vmi_instance_t vmi, bool enable)
         return VMI_FAILURE;
     }
 
-    if ( dom == VMI_INVALID_DOMID )
+    if ( dom == (domid_t)VMI_INVALID_DOMID )
     {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -1084,8 +1084,8 @@ status_t process_requests(vmi_instance_t vmi, vm_event_request_t *req,
     status_t vrc = VMI_SUCCESS;
 
     while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->vm_event.back_ring) ) {
-        memset( req, 0, sizeof (req) );
-        memset( rsp, 0, sizeof (rsp) );
+        memset( req, 0, sizeof (vm_event_request_t) );
+        memset( rsp, 0, sizeof (vm_event_response_t) );
 
         get_request(&xe->vm_event, req);
 
@@ -1195,7 +1195,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
         errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    if ( dom == VMI_INVALID_DOMID ) {
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
