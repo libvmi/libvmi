@@ -128,7 +128,7 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
     //
     // TODO: perform other reasonable checks
 
-    if (vmi->hvm && (paddr + length >= vmi->max_physical_address)) {
+    if (vmi->hvm && (paddr + length > vmi->max_physical_address)) {
         errprint("--requesting PA [0x%"PRIx64"] beyond max physical address [0x%"PRIx64"]\n",
                 paddr + length, vmi->max_physical_address);
         errprint("\tpaddr: %"PRIx64", length %"PRIx32", vmi->max_physical_address %"PRIx64"\n", paddr, length,
