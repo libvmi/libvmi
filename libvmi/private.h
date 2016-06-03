@@ -84,11 +84,25 @@ struct vmi_instance {
 
     addr_t init_task;       /**< address of task struct for init */
 
-    int pae;                /**< nonzero if PAE is enabled */
+    union {
+        struct {
+            int pae;        /**< nonzero if PAE is enabled */
 
-    int pse;                /**< nonzero if PSE is enabled */
+            int pse;        /**< nonzero if PSE is enabled */
 
-    int lme;                /**< nonzero if LME is enabled */
+            int lme;        /**< nonzero if LME is enabled */
+        } x86;
+
+        struct {
+            int t0sz;           /**< TTBR0 VA size (2^(64-t0sz)) */
+
+            int t1sz;           /**< TTBR1 VA size (2^(64-t1sz)) */
+
+            page_size_t tg0;    /**< TTBR0 granule size: 4KB/16KB/64KB */
+
+            page_size_t tg1;    /**< TTBR1 granule size: 4KB/16KB/64KB */
+        } arm64;
+    };
 
     page_mode_t page_mode;  /**< paging mode in use */
 
@@ -348,6 +362,8 @@ status_t vmi_pagetable_lookup_cache(
 /*-----------------------------------------
  * memory.c
  */
+
+    #define PSR_MODE_BIT 0x10 // set on cpsr iff ARM32
 
     status_t find_page_mode_live(
     vmi_instance_t vmi);

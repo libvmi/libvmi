@@ -2,6 +2,8 @@
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
+ * Author: Tamas K Lengyel (tamas@tklengyel.com)
+ *
  * This file is part of LibVMI.
  *
  * LibVMI is free software: you can redistribute it and/or modify it under
@@ -18,26 +20,11 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ARCH_INTERFACE_H_
-#define ARCH_INTERFACE_H_
+#ifndef ARM64_H
+#define ARM64_H
 
 #include "private.h"
 
-typedef status_t (*arch_v2p_t)
-    (vmi_instance_t vmi,
-     addr_t dtb,
-     addr_t vaddr,
-     page_info_t *info);
-typedef GSList* (*arch_get_va_pages_t)
-    (vmi_instance_t vmi,
-     addr_t dtb);
+status_t aarch64_init(vmi_instance_t vmi);
 
-struct arch_interface {
-    arch_v2p_t v2p;
-    arch_get_va_pages_t get_va_pages;
-};
-typedef struct arch_interface *arch_interface_t;
-
-status_t arch_init(vmi_instance_t vmi);
-
-#endif /* ARCH_INTERFACE_H_ */
+#endif
