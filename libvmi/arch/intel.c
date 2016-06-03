@@ -294,7 +294,7 @@ status_t v2p_nopae (vmi_instance_t vmi,
         goto done;
     }
 
-    if (PAGE_SIZE(info->x86_legacy.pgd_value) && (VMI_FILE == vmi->mode || vmi->pse)) {
+    if (PAGE_SIZE(info->x86_legacy.pgd_value) && (VMI_FILE == vmi->mode || vmi->x86.pse)) {
         info->paddr = get_large_paddr_nopae(vaddr, info->x86_legacy.pgd_value);
         info->size = VMI_PS_4MB;
         status = VMI_SUCCESS;
@@ -405,7 +405,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
 
         if(ENTRY_PRESENT(vmi->os_type, pgd_entry)) {
 
-            if(PAGE_SIZE(pgd_entry) && (VMI_FILE == vmi->mode || vmi->pse)) {
+            if(PAGE_SIZE(pgd_entry) && (VMI_FILE == vmi->mode || vmi->x86.pse)) {
                 page_info_t *p = g_malloc0(sizeof(page_info_t));
                 p->vaddr = pgd_base_vaddr;
                 p->paddr = get_large_paddr_nopae(p->vaddr, pgd_base_vaddr);

@@ -117,7 +117,9 @@ typedef enum page_mode {
 
     VMI_PM_IA32E,   /**< x86 IA-32e paging */
 
-    VMI_PM_AARCH32  /**< ARM 32-bit paging */
+    VMI_PM_AARCH32, /**< ARM 32-bit paging */
+
+    VMI_PM_AARCH64  /**< ARM 64-bit paging */
 } page_mode_t;
 
 typedef enum page_size {
@@ -127,6 +129,8 @@ typedef enum page_size {
     VMI_PS_1KB      = 0x400ULL,     /**< 1KB */
 
     VMI_PS_4KB      = 0x1000ULL,    /**< 4KB */
+
+    VMI_PS_16KB     = 0x4000ULL,    /**< 16KB */
 
     VMI_PS_64KB     = 0x10000ULL,   /**< 64KB */
 
@@ -138,7 +142,11 @@ typedef enum page_size {
 
     VMI_PS_16MB     = 0x1000000ULL, /**< 16MB */
 
-    VMI_PS_1GB      = 0x4000000ULL  /**< 1GB */
+    VMI_PS_32MB     = 0x2000000ULL, /**< 32MB */
+
+    VMI_PS_512MB    = 0x2000000ULL,  /**< 512MB */
+
+    VMI_PS_1GB      = 0x4000000ULL,  /**< 1GB */
 
 } page_size_t;
 
@@ -251,6 +259,8 @@ typedef enum registers {
     TTBR0,
     TTBR1,
 
+    CPSR,
+
     R0_USR,
     R1_USR,
     R2_USR,
@@ -296,7 +306,10 @@ typedef enum registers {
     SPSR_FIQ,
     SPSR_IRQ,
     SPSR_UND,
-    SPSR_ABT
+    SPSR_ABT,
+
+    /* ARM64 register */
+    TCR_EL1,
 } registers_t;
 
 /**
@@ -352,6 +365,17 @@ typedef struct page_info {
             uint32_t sld_location;
             uint32_t sld_value;
         } arm_aarch32;
+
+        struct {
+            uint64_t zld_location;
+            uint64_t zld_value;
+            uint64_t fld_location;
+            uint64_t fld_value;
+            uint64_t sld_location;
+            uint64_t sld_value;
+            uint64_t tld_location;
+            uint64_t tld_value;
+        } arm_aarch64;
     };
 } page_info_t;
 

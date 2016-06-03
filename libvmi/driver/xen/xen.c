@@ -679,9 +679,26 @@ status_t
 xen_discover_guest_addr_width(
     vmi_instance_t vmi)
 {
-#if defined(ARM)
+#if defined(ARM32)
 
     xen_get_instance(vmi)->addr_width = 4;
+    return VMI_SUCCESS;
+
+#elif defined(ARM64)
+
+    vcpu_guest_context_any_t ctx = { 0 };
+
+    if (xc_vcpu_getcontext
+        (xen_get_xchandle(vmi), xen_get_domainid(vmi), 0, &ctx)) {
+        errprint("Failed to get context information (ARM domain).\n");
+        return VMI_FAILURE;
+    }
+
+    if ( ctx.c.user_regs.cpsr & PSR_MODE_BIT )
+        xen_get_instance(vmi)->addr_width = 4;
+    else
+        xen_get_instance(vmi)->addr_width = 8;
+
     return VMI_SUCCESS;
 
 #elif defined(I386) || defined(X86_64)
@@ -2103,7 +2120,7 @@ _bail:
 }
 #endif
 
-#if defined(ARM)
+#if defined(ARM32) || defined(ARM64)
 static status_t
 xen_get_vcpureg_arm(
     vmi_instance_t vmi,
@@ -2126,6 +2143,7 @@ xen_get_vcpureg_arm(
     case SCTLR:
         *value = ctx.c.sctlr;
         break;
+    case TCR_EL1: /* fall-through */
     case TTBCR:
         *value = ctx.c.ttbcr;
         break;
@@ -2134,6 +2152,9 @@ xen_get_vcpureg_arm(
         break;
     case TTBR1:
         *value = ctx.c.ttbr1;
+        break;
+    case CPSR:
+        *value = ctx.c.user_regs.cpsr;
         break;
     case R0_USR:
         *value = ctx.c.user_regs.r0_usr;
@@ -2410,7 +2431,7 @@ xen_get_vcpureg(
     registers_t reg,
     unsigned long vcpu)
 {
-#if defined(ARM)
+#if defined(ARM32) || defined(ARM64)
     return xen_get_vcpureg_arm(vmi, value, reg, vcpu);
 #elif defined(I386) || defined (X86_64)
     if (!xen_get_instance(vmi)->hvm) {

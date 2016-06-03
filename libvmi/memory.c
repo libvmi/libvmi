@@ -61,9 +61,9 @@ status_t probe_memory_layout_x86(vmi_instance_t vmi) {
     if (!VMI_GET_BIT(cr0, 31)) {
         dbprint(VMI_DEBUG_CORE, "Paging disabled for this VM, only physical addresses supported.\n");
         vmi->page_mode = VMI_PM_UNKNOWN;
-        vmi->pae = 0;
-        vmi->pse = 0;
-        vmi->lme = 0;
+        vmi->x86.pae = 0;
+        vmi->x86.pse = 0;
+        vmi->x86.lme = 0;
 
         ret = VMI_SUCCESS;
         goto _exit;
@@ -135,9 +135,9 @@ status_t probe_memory_layout_x86(vmi_instance_t vmi) {
     }
 
     vmi->page_mode = pm;
-    vmi->pae = pae;
-    vmi->pse = pse;
-    vmi->lme = lme;
+    vmi->x86.pae = pae;
+    vmi->x86.pse = pse;
+    vmi->x86.lme = lme;
 
 _exit:
     return ret;
@@ -148,9 +148,48 @@ status_t probe_memory_layout_arm(vmi_instance_t vmi) {
     status_t ret = VMI_FAILURE;
     page_mode_t pm = VMI_PM_UNKNOWN;
 
-    reg_t ttbr1;
-    if (VMI_SUCCESS == driver_get_vcpureg(vmi, &ttbr1, TTBR1, 0)) {
-        pm = VMI_PM_AARCH32;
+    reg_t cpsr;
+    if (VMI_SUCCESS == driver_get_vcpureg(vmi, &cpsr, CPSR, 0)) {
+        if (cpsr & PSR_MODE_BIT) {
+            pm = VMI_PM_AARCH32;
+            dbprint(VMI_DEBUG_CORE, "Found ARM32 pagemode\n");
+        } else {
+            /* See ARM ARMv8-A D7.2.84 TCR_EL1, Translation Control Register (EL1) */
+            reg_t tcr_el1;
+            if (VMI_SUCCESS == driver_get_vcpureg(vmi, &tcr_el1, TCR_EL1, 0)) {
+                vmi->arm64.t0sz = tcr_el1 & VMI_BIT_MASK(0,5);
+                vmi->arm64.t1sz = (tcr_el1 & VMI_BIT_MASK(16,21)) >> 16;
+                switch((tcr_el1 & VMI_BIT_MASK(14,15)) >> 14) {
+                    case 0b00:
+                        vmi->arm64.tg0 = VMI_PS_4KB;
+                        break;
+                    case 0b01:
+                        vmi->arm64.tg0 = VMI_PS_64KB;
+                        break;
+                    case 0b10:
+                        vmi->arm64.tg0 = VMI_PS_16KB;
+                        break;
+                };
+                switch((tcr_el1 & VMI_BIT_MASK(30,31)) >> 30) {
+                    case 0b01:
+                        vmi->arm64.tg1 = VMI_PS_16KB;
+                        break;
+                    case 0b10:
+                        vmi->arm64.tg1 = VMI_PS_4KB;
+                        break;
+                    case 0b11:
+                        vmi->arm64.tg1 = VMI_PS_64KB;
+                        break;
+                };
+            }
+
+            pm = VMI_PM_AARCH64;
+            dbprint(VMI_DEBUG_CORE,
+                    "Found ARM64 pagemode. TTBR0 VA width: %u Page size: %u TTBR1 VA width:%u Page size: %u\n",
+                    64-vmi->arm64.t0sz, vmi->arm64.tg0,
+                    64-vmi->arm64.t1sz, vmi->arm64.tg1);
+        }
+
         ret = VMI_SUCCESS;
     }
 
@@ -172,7 +211,7 @@ status_t find_page_mode_live(vmi_instance_t vmi) {
     if (VMI_SUCCESS == probe_memory_layout_x86(vmi)) {
         return VMI_SUCCESS;
     }
-#elif defined(ARM)
+#elif defined(ARM32) || defined(ARM64)
     if (VMI_SUCCESS == probe_memory_layout_arm(vmi)) {
         return VMI_SUCCESS;
     }
