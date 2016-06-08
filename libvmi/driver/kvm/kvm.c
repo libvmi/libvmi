@@ -58,6 +58,13 @@ struct request {
     uint64_t length;    // number of bytes to read OR write
 };
 
+enum segment_type {
+  SEGMENT_SELECTOR,
+  SEGMENT_BASE,
+  SEGMENT_LIMIT,
+  SEGMENT_ATTR
+};
+
 //----------------------------------------------------------------------------
 // Helper functions
 
@@ -173,6 +180,51 @@ parse_reg_value(
     if (NULL != ptr) {
         ptr += strlen(regname) + 1;
         return (reg_t) strtoll(ptr, (char **) NULL, 16);
+    }
+    else {
+        return 0;
+    }
+}
+
+static reg_t
+parse_seg_reg_value(
+    char *regname,
+    char *ir_output,
+    int type)
+{
+    int offset;
+    int size;
+
+    if (NULL == ir_output || NULL == regname) {
+        return 0;
+    }
+
+    switch(type) {
+        case SEGMENT_SELECTOR:
+        offset = 4;
+        size = 4;
+        break;
+        case SEGMENT_BASE:
+        offset = 9;
+        size = 16;
+        break;
+        case SEGMENT_LIMIT:
+        offset = 26;
+        size = 8;
+        break;
+        case SEGMENT_ATTR:
+        offset = 35;
+        size = 8;
+        break;
+        default:
+        return 0;
+    }
+
+    char *ptr = strcasestr(ir_output, regname);
+
+    if (NULL != ptr) {
+        ptr += offset;
+        return (reg_t) strtoll(ptr, (char **) NULL, size);
     }
     else {
         return 0;
@@ -1582,6 +1634,114 @@ kvm_get_vcpureg(
             break;
         case DR7:
             *value = parse_reg_value("DR7", regs);
+            break;
+        case CS_SEL:
+            *value = parse_seg_reg_value("CS", regs, SEGMENT_SELECTOR);
+            break;
+        case DS_SEL:
+            *value = parse_seg_reg_value("DS", regs, SEGMENT_SELECTOR);
+            break;
+        case ES_SEL:
+            *value = parse_seg_reg_value("ES", regs, SEGMENT_SELECTOR);
+            break;
+        case FS_SEL:
+            *value = parse_seg_reg_value("FS", regs, SEGMENT_SELECTOR);
+            break;
+        case GS_SEL:
+            *value = parse_seg_reg_value("GS", regs, SEGMENT_SELECTOR);
+            break;
+        case SS_SEL:
+            *value = parse_seg_reg_value("SS", regs, SEGMENT_SELECTOR);
+            break;
+        case TR_SEL:
+            *value = parse_seg_reg_value("TR", regs, SEGMENT_SELECTOR);
+            break;
+        case LDTR_SEL:
+            *value = parse_seg_reg_value("LDT", regs, SEGMENT_SELECTOR);
+            break;
+        case CS_LIMIT:
+            *value = parse_seg_reg_value("CS", regs, SEGMENT_LIMIT);
+            break;
+        case DS_LIMIT:
+            *value = parse_seg_reg_value("DS", regs, SEGMENT_LIMIT);
+            break;
+        case ES_LIMIT:
+            *value = parse_seg_reg_value("ES", regs, SEGMENT_LIMIT);
+            break;
+        case FS_LIMIT:
+            *value = parse_seg_reg_value("FS", regs, SEGMENT_LIMIT);
+            break;
+        case GS_LIMIT:
+            *value = parse_seg_reg_value("GS", regs, SEGMENT_LIMIT);
+            break;
+        case SS_LIMIT:
+            *value = parse_seg_reg_value("SS", regs, SEGMENT_LIMIT);
+            break;
+        case TR_LIMIT:
+            *value = parse_seg_reg_value("TR", regs, SEGMENT_LIMIT);
+            break;
+        case LDTR_LIMIT:
+            *value = parse_seg_reg_value("LDT", regs, SEGMENT_LIMIT);
+            break;
+        case IDTR_LIMIT:
+            *value = parse_seg_reg_value("IDT", regs, SEGMENT_LIMIT);
+            break;
+        case GDTR_LIMIT:
+            *value = parse_seg_reg_value("GDT", regs, SEGMENT_LIMIT);
+            break;
+        case CS_BASE:
+            *value = parse_seg_reg_value("CS", regs, SEGMENT_BASE);
+            break;
+        case DS_BASE:
+            *value = parse_seg_reg_value("DS", regs, SEGMENT_BASE);
+            break;
+        case ES_BASE:
+            *value = parse_seg_reg_value("ES", regs, SEGMENT_BASE);
+            break;
+        case FS_BASE:
+            *value = parse_seg_reg_value("FS", regs, SEGMENT_BASE);
+            break;
+        case GS_BASE:
+            *value = parse_seg_reg_value("GS", regs, SEGMENT_BASE);
+            break;
+        case SS_BASE:
+            *value = parse_seg_reg_value("SS", regs, SEGMENT_BASE);
+            break;
+        case TR_BASE:
+            *value = parse_seg_reg_value("TR", regs, SEGMENT_BASE);
+            break;
+        case LDTR_BASE:
+            *value = parse_seg_reg_value("LDT", regs, SEGMENT_BASE);
+            break;
+        case IDTR_BASE:
+            *value = parse_seg_reg_value("IDT", regs, SEGMENT_BASE);
+            break;
+        case GDTR_BASE:
+            *value = parse_seg_reg_value("GDT", regs, SEGMENT_BASE);
+            break;
+        case CS_ARBYTES:
+            *value = parse_seg_reg_value("CS", regs, SEGMENT_ATTR);
+            break;
+        case DS_ARBYTES:
+            *value = parse_seg_reg_value("DS", regs, SEGMENT_ATTR);
+            break;
+        case ES_ARBYTES:
+            *value = parse_seg_reg_value("ES", regs, SEGMENT_ATTR);
+            break;
+        case FS_ARBYTES:
+            *value = parse_seg_reg_value("FS", regs, SEGMENT_ATTR);
+            break;
+        case GS_ARBYTES:
+            *value = parse_seg_reg_value("GS", regs, SEGMENT_ATTR);
+            break;
+        case SS_ARBYTES:
+            *value = parse_seg_reg_value("SS", regs, SEGMENT_ATTR);
+            break;
+        case TR_ARBYTES:
+            *value = parse_seg_reg_value("TR", regs, SEGMENT_ATTR);
+            break;
+        case LDTR_ARBYTES:
+            *value = parse_seg_reg_value("LDT", regs, SEGMENT_ATTR);
             break;
         case MSR_EFER:
             *value = parse_reg_value("EFER", regs);
