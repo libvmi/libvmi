@@ -291,10 +291,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                         TRAP_int3,         /* Vector 3 for INT3 */
                         HVMOP_TRAP_sw_exc, /* Trap type, here a software intr */
                         ~0u, /* error code. ~0u means 'ignore' */
-                         1,  /* Instruction length. Xen INT3 events are
-                              *  exclusively specific to 0xCC with no operand,
-                              *  providing a guarantee that this is 1 byte only.
-                              */
+                         event->interrupt_event.insn_length,
                          0   /* cr2 need not be preserved */
                     );
 

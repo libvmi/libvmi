@@ -244,6 +244,9 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         event->interrupt_event.gla = req->data.regs.x86.rip;
         event->interrupt_event.intr = intr;
         event->interrupt_event.reinject = -1;
+#if VM_EVENT_INTERFACE_VERSION >= 2
+        event->interrupt_event.insn_length = req->u.software_breakpoint.insn_length;
+#endif
         event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
         event->vcpu_id = req->vcpu_id;
 
@@ -268,28 +271,29 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                         event->interrupt_event.gla, event->interrupt_event.gfn);
 
                     /* Undocumented enough to be worth describing at length:
-                     *  If enabled, INT3 events are reported via the mem events
+                     *  If enabled, INT3 events are reported via the vm_event
                      *  facilities of Xen only for the 1-byte 0xCC variant of the
                      *  instruction. The 2-byte 0xCD imm8 variant taking the
                      *  interrupt vector as an operand (i.e., 0xCD03) is NOT
                      *  reported in the same fashion (These details are valid as of
-                     *  Xen 4.3).
+                     *  Xen 4.7).
                      *
                      *  In order for INT3 to be handled correctly by the VM
                      *  kernel and subsequently passed on to the debugger within a
                      *  VM, the trap must be re-injected. Because only 0xCC is in
-                     *  play for events, the instruction length involved is only
-                     *  one byte.
+                     *  play for events, the instruction length involved is
+                     *  _normally_ only one byte. However, the instruction may have
+                     *  arbitrary prefixes attached that change the instruction's length.
+                     *  Since prefixes have no effect on int3 no legitimate compiler/debugger
+                     *  adds any, but a malicious guest could to probe for inaccurate event
+                     *  reinjection.
                      */
                     #define TRAP_int3              3
                     rc = xc_hvm_inject_trap(xch, domain_id, req->vcpu_id,
                             TRAP_int3,         /* Vector 3 for INT3 */
                             HVMOP_TRAP_sw_exc, /* Trap type, here a software intr */
                             ~0u, /* error code. ~0u means 'ignore' */
-                            1,   /* Instruction length. Xen INT3 events are
-                                  *  exclusively specific to 0xCC with no operand,
-                                  *  providing a guarantee that this is 1 byte only.
-                                  */
+                            event->interrupt_event.insn_length,
                             0    /* cr2 need not be preserved */
                         );
 
