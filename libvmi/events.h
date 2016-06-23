@@ -296,6 +296,7 @@ typedef struct {
      *   Set reinject to 0 to swallow it silently without
      */
     int reinject;
+    uint32_t insn_length; /**< The instruction length when reinjecting */
 } interrupt_event_t;
 
 typedef struct {
