@@ -56,18 +56,9 @@
 #ifndef XEN_EVENTS_H
 #define XEN_EVENTS_H
 
-status_t xen_events_init(vmi_instance_t vmi);
-void xen_events_destroy(vmi_instance_t vmi);
-int xen_are_events_pending(vmi_instance_t vmi);
-status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout);
-status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event);
-status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t *event, bool enabled);
-status_t xen_set_mem_access(vmi_instance_t vmi,
-                            mem_access_event_t *event,
-                            vmi_mem_access_t page_access_flag,
-                            uint16_t vmm_pagetable_id);
-status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t *event);
-status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu);
-status_t xen_shutdown_single_step(vmi_instance_t vmi);
+status_t xen_init_events_new(vmi_instance_t vmi);
+status_t xen_init_events_legacy(vmi_instance_t vmi);
+void xen_events_destroy_new(vmi_instance_t vmi);
+void xen_events_destroy_legacy(vmi_instance_t vmi);
 
 #endif
