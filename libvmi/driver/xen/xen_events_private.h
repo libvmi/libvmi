@@ -138,6 +138,9 @@ status_t xen_set_mem_access(vmi_instance_t vmi,
                             mem_access_event_t *event,
                             vmi_mem_access_t page_access_flag,
                             uint16_t vmm_pagetable_id);
+status_t xen_set_guest_requested_event(vmi_instance_t vmi, bool enabled);
+status_t xen_set_debug_event(vmi_instance_t vmi, bool enabled);
+status_t xen_set_cpuid_event(vmi_instance_t vmi, bool enabled);
 status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t *event);
 status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu);
 status_t xen_shutdown_single_step(vmi_instance_t vmi);
