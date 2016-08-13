@@ -51,10 +51,13 @@ extern "C" {
  */
 typedef enum {
     VMI_EVENT_INVALID,
-    VMI_EVENT_MEMORY,       /**< Read/write/execute on a region of memory */
-    VMI_EVENT_REGISTER,     /**< Read/write of a specific register */
-    VMI_EVENT_SINGLESTEP,   /**< Instructions being executed on a set of VCPUs */
-    VMI_EVENT_INTERRUPT,    /**< Interrupts being delivered */
+    VMI_EVENT_MEMORY,           /**< Read/write/execute on a region of memory */
+    VMI_EVENT_REGISTER,         /**< Read/write of a specific register */
+    VMI_EVENT_SINGLESTEP,       /**< Instructions being executed on a set of VCPUs */
+    VMI_EVENT_INTERRUPT,        /**< Interrupts being delivered */
+    VMI_EVENT_GUEST_REQUEST,    /**< Guest-requested event */
+    VMI_EVENT_CPUID,            /**< CPUID event */
+    VMI_EVENT_DEBUG_EXCEPTION,  /**< Debug exception event */
 
     __VMI_EVENT_MAX
 } vmi_event_type_t;
@@ -284,6 +287,32 @@ typedef struct {
     bool enable;        /**< Set to true to immediately turn vCPU to singlestep. */
 } single_step_event_t;
 
+typedef struct {
+    addr_t gla;           /**< The IP of the current instruction */
+    addr_t gfn;           /**< The physical page of the current instruction */
+    addr_t offset;        /**< Offset in bytes (relative to GFN) */
+    uint32_t insn_length; /**< Length of the reported instruction */
+
+    /**
+     * Intel VMX: {VM_ENTRY,VM_EXIT,IDT_VECTORING}_INTR_INFO[10:8]
+     * AMD SVM: eventinj[10:8] and exitintinfo[10:8] (types 0-4 only)
+     *
+     * Matches HVMOP_TRAP_* on Xen.
+     */
+    uint8_t type;
+
+    /**
+     * Toggle, controls whether debug exception is re-injected after callback.
+     *   Set reinject to 1 to deliver it to guest ("pass through" mode)
+     *   Set reinject to 0 to swallow it silently without
+     */
+    int reinject;
+} debug_event_t;
+
+typedef struct {
+    uint32_t insn_length; /**< Length of the reported instruction */
+} cpuid_event_t;
+
 struct vmi_event;
 typedef struct vmi_event vmi_event_t;
 
@@ -338,6 +367,8 @@ struct vmi_event {
         mem_access_event_t mem_event;
         single_step_event_t ss_event;
         interrupt_event_t interrupt_event;
+        cpuid_event_t cpuid_event;
+        debug_event_t debug_event;
     };
 
     uint32_t vcpu_id; /**< The VCPU relative to which the event occurred. */

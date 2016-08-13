@@ -129,6 +129,15 @@ typedef struct driver_interface {
         uint32_t);
     status_t (*shutdown_single_step_ptr)(
         vmi_instance_t);
+    status_t (*set_guest_requested_ptr)(
+        vmi_instance_t,
+        bool enabled);
+    status_t (*set_cpuid_event_ptr)(
+        vmi_instance_t,
+        bool enabled);
+    status_t (*set_debug_event_ptr)(
+        vmi_instance_t,
+        bool enabled);
 
     /* Driver-specific data storage. */
     void* driver_data;

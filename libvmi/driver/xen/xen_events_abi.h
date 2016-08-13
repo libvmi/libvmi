@@ -33,6 +33,9 @@
 #define HVM_PARAM_ACCESS_RING_PFN 28
 #endif
 
+#define X86_TRAP_DEBUG  1
+#define X86_TRAP_INT3   3
+
 #ifdef HAVE_XENMEM_ACCESS_T
 #include <xen/memory.h>
 

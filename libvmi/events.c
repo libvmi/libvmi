@@ -319,6 +319,48 @@ done:
     return rc;
 }
 
+status_t register_guest_requested_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( !vmi->guest_requested_event )
+    {
+        rc = driver_set_guest_requested_event(vmi, 1);
+        if ( VMI_SUCCESS == rc )
+            vmi->guest_requested_event = event;
+    };
+
+    return rc;
+}
+
+status_t register_cpuid_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( !vmi->cpuid_event )
+    {
+        rc = driver_set_cpuid_event(vmi, 1);
+        if ( VMI_SUCCESS == rc )
+            vmi->cpuid_event = event;
+    };
+
+    return rc;
+}
+
+status_t register_debug_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( !vmi->debug_event )
+    {
+        rc = driver_set_cpuid_event(vmi, 1);
+        if ( VMI_SUCCESS == rc )
+            vmi->debug_event = event;
+    };
+
+    return rc;
+}
+
 status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 {
 
@@ -410,6 +452,48 @@ status_t clear_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
+status_t clear_guest_requested_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( vmi->guest_requested_event ) {
+        rc = driver_set_guest_requested_event(vmi, 0);
+
+        if ( VMI_SUCCESS == rc )
+            vmi->guest_requested_event = NULL;
+    }
+
+    return rc;
+}
+
+status_t clear_cpuid_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( vmi->cpuid_event ) {
+        rc = driver_set_cpuid_event(vmi, 0);
+
+        if ( VMI_SUCCESS == rc)
+            vmi->cpuid_event = NULL;
+    }
+
+    return rc;
+}
+
+status_t clear_debug_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( vmi->debug_event ) {
+        rc = driver_set_debug_event(vmi, 0);
+
+        if ( VMI_SUCCESS == rc )
+            vmi->debug_event = NULL;
+    }
+
+    return rc;
+}
+
 //----------------------------------------------------------------------------
 // Public event functions.
 
@@ -458,6 +542,15 @@ status_t vmi_register_event(vmi_instance_t vmi, vmi_event_t* event)
         break;
     case VMI_EVENT_INTERRUPT:
         rc = register_interrupt_event(vmi, event);
+        break;
+    case VMI_EVENT_GUEST_REQUEST:
+        rc = register_guest_requested_event(vmi, event);
+        break;
+    case VMI_EVENT_CPUID:
+        rc = register_cpuid_event(vmi, event);
+        break;
+    case VMI_EVENT_DEBUG_EXCEPTION:
+        rc = register_debug_event(vmi, event);
         break;
     default:
         dbprint(VMI_DEBUG_EVENTS, "Unknown event type: %d\n", event->type);
