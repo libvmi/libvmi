@@ -44,10 +44,8 @@
 #include <xen/hvm/save.h>
 
 #include "private.h"
-
-#if ENABLE_XEN_EVENTS == 1
-  #include "driver/xen/xen_events_private.h"
-#endif
+#include "libxc_wrapper.h"
+#include "driver/xen/xen_events_private.h"
 
 /* compatibility checks */
 #ifndef xen_cr3_to_pfn_x86_32
@@ -58,32 +56,13 @@
 #define xen_cr3_to_pfn_x86_32(cr3) (((unsigned)(cr3) >> 12) | ((unsigned)(cr3) << 20))
 #endif /* xen_cr3_to_pfn_x86_32 */
 
-#ifndef HAVE_XC_DOMAIN_MAXIMUM_GPFN
-#include <xen/memory.h>
-#define xc_domain_maximum_gpfn(xch, domid) xc_memory_op(xch, XENMEM_maximum_gpfn, &domid)
-#endif
-
-#ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
 typedef xc_interface *libvmi_xenctrl_handle_t;
-
 #define XENCTRL_HANDLE_INVALID NULL
 
-    // new way to open/close XS daemon
 #ifdef HAVE_LIBXENSTORE
 #define OPEN_XS_DAEMON()    xs_open(0)
 #define CLOSE_XS_DAEMON(h)  xs_close(h)
 #endif
-#else /* XENCTRL_HAS_XC_INTERFACE */
-typedef int libvmi_xenctrl_handle_t;
-
-#define XENCTRL_HANDLE_INVALID (-1)
-
-#ifdef HAVE_LIBXENSTORE
-    // these are supported, but deprecated in xen 4.1
-#define OPEN_XS_DAEMON()     xs_daemon_open()
-#define CLOSE_XS_DAEMON(h)   xs_daemon_close(h)
-#endif /* HAVE_LIBXENSTORE */
-#endif /* XENCTRL_HAS_XC_INTERFACE */
 
 typedef struct xen_instance {
 
@@ -91,29 +70,26 @@ typedef struct xen_instance {
 
     libvmi_xenctrl_handle_t xchandle; /**< handle to xenctrl library (libxc) */
 
+    libxc_wrapper_t libxcw; /**< wrapper for libxc for backwards compatibility */
+
     uint64_t domainid; /**< domid that we are accessing */
 
-    int xen_version;        /**< version of Xen libxa is running on */
+    int major_version;  /**< Major version of Xen LibMVI is running on */
+
+    int minor_version;  /**< Minor version of Xen LibMVI is running on */
 
     int hvm;                /**< nonzero if HVM */
 
     xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
 
+    xen_events_t *events; /**< handle to events data */
 
-#if __XEN_INTERFACE_VERSION__ < 0x00040600
-    int max_gpfn;           /**< result of xc_domain_maximum_gpfn() */
-#else
-    xen_pfn_t max_gpfn;           /**< result of xc_domain_maximum_gpfn() */
-#endif
+    uint64_t max_gpfn;    /**< result of xc_domain_maximum_gpfn/2() */
 
     uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
 
 #ifdef HAVE_LIBXENSTORE
     struct xs_handle *xshandle;  /**< handle to xenstore daemon */
-#endif
-
-#if ENABLE_XEN_EVENTS == 1
-    xen_events_t *events; /**< handle to events data */
 #endif
 
 #if ENABLE_SHM_SNAPSHOT == 1
