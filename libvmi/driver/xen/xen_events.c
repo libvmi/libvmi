@@ -195,7 +195,7 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
                     break;
                 case VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA:
                     if ( event->emul_data ) {
-                        rsp->flags |= VMI_EVENT_RESPONSE_EMULATE;
+                        rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
 
                         if ( event->emul_data->size < sizeof(rsp->data.emul_read_data.data) )
                             rsp->data.emul_read_data.size = event->emul_data->size;
