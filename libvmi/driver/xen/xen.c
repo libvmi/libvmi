@@ -642,29 +642,26 @@ xen_check_domainid(
     uint64_t domainid) {
 
     status_t ret = VMI_FAILURE;
-    libvmi_xenctrl_handle_t xchandle = XENCTRL_HANDLE_INVALID;
-
+    xc_dominfo_t info;
+    xc_interface *xchandle;
     domid_t max_domid = ~0;
+    int rc;
+
     if ( domainid > max_domid ) {
-        dbprint(VMI_DEBUG_XEN,
-                "Domain ID is invalid, larger then the max supported on Xen!\n");
+        dbprint(VMI_DEBUG_XEN,"Domain ID is invalid, larger then the max supported on Xen!\n");
         return ret;
     }
 
     /* open handle to the libxc interface */
     xchandle = xc_interface_open(NULL, NULL, 0);
 
-    if (XENCTRL_HANDLE_INVALID == xchandle) {
+    if ( !xchandle )
        goto _done;
-    }
 
-    xc_dominfo_t info;
-    int rc = xc_domain_getinfo(xchandle, domainid, 1,
-                           &info);
+    rc = xc_domain_getinfo(xchandle, domainid, 1, &info);
 
-    if(rc==1 && info.domid==(uint32_t)domainid) {
+    if(rc==1 && info.domid==(uint32_t)domainid)
         ret = VMI_SUCCESS;
-    }
 
     xc_interface_close(xchandle);
 
@@ -785,17 +782,15 @@ xen_init(
 {
     status_t ret = VMI_FAILURE;
     xen_instance_t *xen = g_malloc0(sizeof(xen_instance_t));
-    libvmi_xenctrl_handle_t xchandle = XENCTRL_HANDLE_INVALID;
+    xc_interface *xchandle = xc_interface_open(NULL, NULL, 0);
     int rc = 0; // return codes from xc_* calls
 
-    /* open handle to the libxc interface */
-    xchandle = xc_interface_open(NULL, NULL, 0);
-
-    if (XENCTRL_HANDLE_INVALID == xchandle) {
+    if ( !xchandle ) {
         errprint("Failed to open libxc interface.\n");
         free(xen);
         goto exit;
     }
+
     xen->xchandle = xchandle;
     /* initialize other xen-specific values */
 
@@ -956,10 +951,9 @@ xen_destroy(
     }
 #endif
 
-    libvmi_xenctrl_handle_t xchandle = xen_get_xchandle(vmi);
-    if(xchandle != XENCTRL_HANDLE_INVALID) {
+    xc_interface *xchandle = xen_get_xchandle(vmi);
+    if ( xchandle )
         xc_interface_close(xchandle);
-    }
 
     dlclose(xen->libxcw.handle);
 

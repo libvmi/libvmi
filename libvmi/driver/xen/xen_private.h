@@ -56,9 +56,6 @@
 #define xen_cr3_to_pfn_x86_32(cr3) (((unsigned)(cr3) >> 12) | ((unsigned)(cr3) << 20))
 #endif /* xen_cr3_to_pfn_x86_32 */
 
-typedef xc_interface *libvmi_xenctrl_handle_t;
-#define XENCTRL_HANDLE_INVALID NULL
-
 #ifdef HAVE_LIBXENSTORE
 #define OPEN_XS_DAEMON()    xs_open(0)
 #define CLOSE_XS_DAEMON(h)  xs_close(h)
@@ -68,7 +65,7 @@ typedef struct xen_instance {
 
     char *name;
 
-    libvmi_xenctrl_handle_t xchandle; /**< handle to xenctrl library (libxc) */
+    xc_interface* xchandle; /**< handle to xenctrl library (libxc) */
 
     libxc_wrapper_t libxcw; /**< wrapper for libxc for backwards compatibility */
 
@@ -111,7 +108,7 @@ xen_instance_t *xen_get_instance(
 }
 
 static inline
-libvmi_xenctrl_handle_t xen_get_xchandle(
+xc_interface* xen_get_xchandle(
     vmi_instance_t vmi)
 {
     return xen_get_instance(vmi)->xchandle;
