@@ -215,9 +215,21 @@ static int resume_domain(vmi_instance_t vmi)
     return ret;
 }
 
+static inline void process_response ( event_response_t response, uint32_t *rsp_flags )
+{
+    if ( !rsp_flags )
+        return;
+
+    if ( response & (1u << VMI_EVENT_RESPONSE_EMULATE) )
+        *rsp_flags |= MEM_EVENT_FLAG_EMULATE;
+    if ( response & (1u << VMI_EVENT_RESPONSE_EMULATE_NOWRITE) )
+        *rsp_flags |= MEM_EVENT_FLAG_EMULATE_NOWRITE;
+}
+
 static
 status_t process_interrupt_event(vmi_instance_t vmi, interrupts_t intr,
-                                 uint64_t gfn, uint64_t offset, uint64_t gla, uint32_t vcpu_id)
+                                 uint64_t gfn, uint64_t offset, uint64_t gla, uint32_t vcpu_id,
+                                 uint32_t *rsp_flags)
 {
 
     int rc                      = -1;
@@ -250,7 +262,7 @@ status_t process_interrupt_event(vmi_instance_t vmi, interrupts_t intr,
          *  ..but this basic structure should be adequate for now.
          */
 
-        event->callback(vmi, event);
+        process_response ( event->callback(vmi, event), rsp_flags );
 
         if(-1 == event->interrupt_event.reinject) {
             errprint("%s Need to specify reinjection behaviour!\n", __FUNCTION__);
@@ -338,7 +350,8 @@ status_t process_interrupt_event(vmi_instance_t vmi, interrupts_t intr,
 
 static
 status_t process_register(vmi_instance_t vmi,
-                          registers_t reg, uint64_t gfn, uint32_t vcpu_id, uint64_t gla)
+                          registers_t reg, uint64_t gfn, uint32_t vcpu_id, uint64_t gla,
+                          uint32_t *rsp_flags)
 {
 
     vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &reg);
@@ -365,7 +378,7 @@ status_t process_register(vmi_instance_t vmi,
              *   so we have no req.flags equivalent. might need to add
              *   e.g !!(req.flags & MEM_EVENT_FLAG_VCPU_PAUSED)  would be nice
              */
-            event->callback(vmi, event);
+            process_response ( event->callback(vmi, event), rsp_flags );
 
             return VMI_SUCCESS;
     }
@@ -375,7 +388,8 @@ status_t process_register(vmi_instance_t vmi,
 
 static
 status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool access_x,
-                     uint64_t gfn, uint64_t offset, uint64_t gla, uint32_t vcpu_id)
+                     uint64_t gfn, uint64_t offset, uint64_t gla, uint32_t vcpu_id,
+                     uint32_t *rsp_flags)
 {
 
     xc_interface * xch;
@@ -404,7 +418,7 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
         event->mem_event.offset = offset;
         event->mem_event.out_access = out_access;
         event->vcpu_id = vcpu_id;
-        event->callback(vmi, event);
+        process_response ( event->callback(vmi, event), rsp_flags );
         return VMI_SUCCESS;
     }
 
@@ -421,7 +435,7 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
 }
 
 static
-status_t process_single_step_event(vmi_instance_t vmi, uint64_t gfn, uint64_t gla, uint32_t vcpu_id)
+status_t process_single_step_event(vmi_instance_t vmi, uint64_t gfn, uint64_t gla, uint32_t vcpu_id, uint32_t *rsp_flags)
 {
     xc_interface * xch;
     unsigned long dom;
@@ -445,7 +459,7 @@ status_t process_single_step_event(vmi_instance_t vmi, uint64_t gfn, uint64_t gl
         event->ss_event.gfn = gfn;
         event->vcpu_id = vcpu_id;
 
-        event->callback(vmi, event);
+        process_response ( event->callback(vmi, event), rsp_flags );
         return VMI_SUCCESS;
     }
 
@@ -1121,11 +1135,10 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
             case MEM_EVENT_REASON_VIOLATION:
                 dbprint(VMI_DEBUG_XEN, "--Caught mem event!\n");
                 rsp.gfn = req.gfn;
-                rsp.p2mt = req.p2mt;
 
                 if(!vmi->shutting_down) {
                     vrc = process_mem(vmi, req.access_r, req.access_w, req.access_x,
-                                      req.gfn, req.offset, req.gla, req.vcpu_id);
+                                      req.gfn, req.offset, req.gla, req.vcpu_id, NULL);
                 }
 
                 /*MARESCA do we need logic here to reset flags on a page? see xen-access.c
@@ -1137,39 +1150,39 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
             case MEM_EVENT_REASON_CR0:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR0 event!\n");
                 if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR0, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_register(vmi, CR0, req.gfn, req.gla, req.vcpu_id, NULL);
                 }
                 break;
             case MEM_EVENT_REASON_CR3:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR3 event!\n");
                 if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR3, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_register(vmi, CR3, req.gfn, req.gla, req.vcpu_id, NULL);
                 }
                 break;
 #ifdef HVM_PARAM_MEMORY_EVENT_MSR
             case MEM_EVENT_REASON_MSR:
                 if(!vmi->shutting_down) {
                     dbprint(VMI_DEBUG_XEN, "--Caught MSR event!\n");
-                    vrc = process_register(vmi, MSR_ALL, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_register(vmi, MSR_ALL, req.gfn, req.gla, req.vcpu_id, NULL);
                 }
                 break;
 #endif
             case MEM_EVENT_REASON_CR4:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR4 event!\n");
                 if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR4, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_register(vmi, CR4, req.gfn, req.gla, req.vcpu_id, NULL);
                 }
                 break;
             case MEM_EVENT_REASON_SINGLESTEP:
                 dbprint(VMI_DEBUG_XEN, "--Caught single step event!\n");
                 if(!vmi->shutting_down) {
-                    vrc = process_single_step_event(vmi, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_single_step_event(vmi, req.gfn, req.gla, req.vcpu_id, NULL);
                 }
                 break;
             case MEM_EVENT_REASON_INT3:
                 if(!vmi->shutting_down) {
                     dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
-                    vrc = process_interrupt_event(vmi, INT3, req.gfn, req.offset, req.gla, req.vcpu_id);
+                    vrc = process_interrupt_event(vmi, INT3, req.gfn, req.offset, req.gla, req.vcpu_id, NULL);
                 }
                 break;
             default:
@@ -1257,11 +1270,19 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
             case MEM_EVENT_REASON_VIOLATION:
                 dbprint(VMI_DEBUG_XEN, "--Caught mem event!\n");
                 rsp.gfn = req.gfn;
-                rsp.p2mt = req.p2mt;
+
+                /*
+                 * We need to copy back the violation type for emulation to work.
+                 * It doesn't affect anything else if emulation flags are not set so it's safe
+                 * to just do it in any case.
+                 */
+                rsp.access_r = req.access_r;
+                rsp.access_w = req.access_w;
+                rsp.access_x = req.access_x;
 
                 if(!vmi->shutting_down) {
                     vrc = process_mem(vmi, req.access_r, req.access_w, req.access_x,
-                                      req.gfn, req.offset, req.gla, req.vcpu_id);
+                                      req.gfn, req.offset, req.gla, req.vcpu_id, &rsp.flags);
                 }
 
                 /*MARESCA do we need logic here to reset flags on a page? see xen-access.c
@@ -1273,39 +1294,39 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
             case MEM_EVENT_REASON_CR0:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR0 event!\n");
                 if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR0, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_register(vmi, CR0, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
                 }
                 break;
             case MEM_EVENT_REASON_CR3:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR3 event!\n");
                 if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR3, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_register(vmi, CR3, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
                 }
                 break;
 #ifdef HVM_PARAM_MEMORY_EVENT_MSR
             case MEM_EVENT_REASON_MSR:
                 if(!vmi->shutting_down) {
                     dbprint(VMI_DEBUG_XEN, "--Caught MSR event!\n");
-                    vrc = process_register(vmi, MSR_ALL, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_register(vmi, MSR_ALL, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
                 }
                 break;
 #endif
             case MEM_EVENT_REASON_CR4:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR4 event!\n");
                 if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR4, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_register(vmi, CR4, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
                 }
                 break;
             case MEM_EVENT_REASON_SINGLESTEP:
                 dbprint(VMI_DEBUG_XEN, "--Caught single step event!\n");
                 if(!vmi->shutting_down) {
-                    vrc = process_single_step_event(vmi, req.gfn, req.gla, req.vcpu_id);
+                    vrc = process_single_step_event(vmi, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
                 }
                 break;
             case MEM_EVENT_REASON_INT3:
                 if(!vmi->shutting_down) {
                     dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
-                    vrc = process_interrupt_event(vmi, INT3, req.gfn, req.offset, req.gla, req.vcpu_id);
+                    vrc = process_interrupt_event(vmi, INT3, req.gfn, req.offset, req.gla, req.vcpu_id, &rsp.flags);
                 }
                 break;
             default:
