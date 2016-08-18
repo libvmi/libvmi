@@ -457,6 +457,11 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
+    if (strncmp(key, "win_ntoskrnl_va", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->ntoskrnl_va = *(addr_t *)value;
+        goto _done;
+    }
+
     if (strncmp(key, "win_tasks", CONFIG_STR_LENGTH) == 0) {
         windows_instance->tasks_offset = *(int *)value;
         goto _done;
@@ -536,7 +541,8 @@ init_from_rekall_profile(vmi_instance_t vmi)
     reg_t kpcr = 0;
     addr_t kpcr_rva = 0;
 
-    if(vmi->mode != VMI_FILE) {
+    // try to find the kernel if we are not connecting to a file and the kernel pa/va were not already specified.
+    if(vmi->mode != VMI_FILE && ! ( windows->ntoskrnl && windows->ntoskrnl_va ) ) {
 
         switch ( vmi->page_mode ) {
             case VMI_PM_IA32E:

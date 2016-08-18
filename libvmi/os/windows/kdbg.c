@@ -1163,7 +1163,7 @@ done:
  * This functions is responsible for setting up
  * Windows specific variables:
  *  - ntoskrnl (*)
- *  - ntoskrnl_va
+ *  - ntoskrnl_va (*)
  *  - kdbg_offset (*)
  *  - kdbg_va (*)
  * The variables marked with (*) can be also specified
