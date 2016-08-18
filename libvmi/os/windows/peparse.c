@@ -30,26 +30,14 @@
 #include "private.h"
 #include "peparse.h"
 
-// takes an rva and looks up a null terminated string at that location
-char *
-rva_to_string(
-    vmi_instance_t vmi,
-    addr_t rva,
-    addr_t base_addr,
-    vmi_pid_t pid)
-{
-    addr_t vaddr = base_addr + rva;
-
-    return vmi_read_str_va(vmi, vaddr, pid);
-}
-
 void
 dump_exports(
     vmi_instance_t vmi,
     struct export_table *et,
-    addr_t base_addr,
-    vmi_pid_t pid)
+    const access_context_t *ctx)
 {
+    access_context_t _ctx = *ctx;
+    addr_t base_addr = ctx->addr;
     addr_t base1 = base_addr + et->address_of_names;
     addr_t base2 = base_addr + et->address_of_name_ordinals;
     addr_t base3 = base_addr + et->address_of_functions;
@@ -62,14 +50,26 @@ dump_exports(
         uint32_t loc = 0;
         char *str = NULL;
 
-        vmi_read_32_va(vmi, base1 + i * sizeof(uint32_t), pid, &rva);
+        _ctx.addr = base1 + i * sizeof(uint32_t);
+        if(VMI_FAILURE == vmi_read_32(vmi, &_ctx, &rva))
+            continue;
+
         if (rva) {
-            str = rva_to_string(vmi, (addr_t) rva, base_addr, pid);
+            _ctx.addr = base_addr + rva;
+            str = vmi_read_str(vmi, &_ctx);
             if (str) {
-                vmi_read_16_va(vmi, base2 + i * sizeof(uint16_t), pid,
-                               &ordinal);
-                vmi_read_32_va(vmi, base3 + ordinal + sizeof(uint32_t),
-                               pid, &loc);
+                _ctx.addr = base2 + i * sizeof(uint16_t);
+                if(VMI_FAILURE == vmi_read_16(vmi, &_ctx, &ordinal)) {
+                    free(str);
+                    continue;
+                }
+
+                _ctx.addr = base3 + ordinal + sizeof(uint32_t);
+                if(VMI_FAILURE == vmi_read_32(vmi, &_ctx, &loc)) {
+                    free(str);
+                    continue;
+                }
+
                 printf("%s:%d:0x%"PRIx32"\n", str, ordinal, loc);
                 free(str);
             }
@@ -83,18 +83,18 @@ get_export_rva(
     addr_t *rva,
     int aof_index,
     struct export_table *et,
-    addr_t base_addr,
-    vmi_pid_t pid)
+    const access_context_t *ctx)
 {
-    addr_t rva_loc =
-        base_addr + et->address_of_functions +
-        aof_index * sizeof(uint32_t);
+    access_context_t _ctx = *ctx;
+    _ctx.addr += et->address_of_functions + aof_index * sizeof(uint32_t);
 
     uint32_t tmp = 0;
-    status_t ret = vmi_read_32_va(vmi, rva_loc, pid, &tmp);
+    if(VMI_SUCCESS == vmi_read_32(vmi, &_ctx, &tmp)) {
+        *rva = (addr_t) tmp;
+        return VMI_SUCCESS;
+    }
 
-    *rva = (addr_t) tmp;
-    return ret;
+    return VMI_FAILURE;
 }
 
 int
@@ -102,22 +102,16 @@ get_aof_index(
     vmi_instance_t vmi,
     int aon_index,
     struct export_table *et,
-    addr_t base_addr,
-    vmi_pid_t pid)
+    const access_context_t *ctx)
 {
-    addr_t aof_index_loc =
-        base_addr + et->address_of_name_ordinals +
-        aon_index * sizeof(uint16_t);
+    access_context_t _ctx = *ctx;
+    _ctx.addr += et->address_of_name_ordinals + aon_index * sizeof(uint16_t);
 
-    uint16_t aof_index = 0;
-
-    if (vmi_read_16_va(vmi, aof_index_loc, pid, &aof_index) ==
-        VMI_SUCCESS) {
+    uint16_t aof_index;
+    if (VMI_SUCCESS == vmi_read_16(vmi, &_ctx, &aof_index))
         return (int) aof_index;
-    }
-    else {
+    else
         return -1;
-    }
 }
 
 // Finds the index of the exported symbol specified - linear search
@@ -126,19 +120,18 @@ get_aon_index_linear(
     vmi_instance_t vmi,
     const char *symbol,
     struct export_table *et,
-    addr_t base_addr,
-    vmi_pid_t pid)
+    const access_context_t *ctx)
 {
+    access_context_t _ctx = *ctx;
     uint32_t i = 0;
 
     for (; i < et->number_of_names; ++i) {
-        addr_t str_rva_loc =
-            base_addr + et->address_of_names + i * sizeof(uint32_t);
+        _ctx.addr = ctx->addr + et->address_of_names + i * sizeof(uint32_t);
         uint32_t str_rva = 0;
 
-        vmi_read_32_va(vmi, str_rva_loc, pid, &str_rva);
-        if (str_rva) {
-            char *rva = rva_to_string(vmi, (addr_t) str_rva, base_addr, pid);
+        if(VMI_SUCCESS == vmi_read_32(vmi, &_ctx, &str_rva) && str_rva) {
+            _ctx.addr = ctx->addr+str_rva;
+            char *rva = vmi_read_str(vmi, &_ctx);
 
             if (NULL != rva) {
                 if (strncmp(rva, symbol, strlen(rva)) == 0) {
@@ -162,12 +155,11 @@ find_aon_idx_bin(
     addr_t aon_base_va,
     int low,
     int high,
-    addr_t base_addr,
-    vmi_pid_t pid)
+    const access_context_t *ctx)
 {
+    access_context_t _ctx = *ctx;
     int mid, cmp;
-    addr_t str_rva_loc; // location of curr name's RVA
-    uint32_t str_rva;   // RVA of curr name
+    uint32_t str_rva = 0;   // RVA of curr name
     char *name = 0; // curr name
 
     if (high < low)
@@ -175,15 +167,14 @@ find_aon_idx_bin(
 
     // calc the current index ("mid")
     mid = (low + high) / 2;
-    str_rva_loc = aon_base_va + mid * sizeof(uint32_t);
 
-    vmi_read_32_va(vmi, str_rva_loc, pid, &str_rva);
-
-    if (!str_rva)
+    _ctx.addr = aon_base_va + mid * sizeof(uint32_t);
+    if(VMI_FAILURE == vmi_read_32(vmi, &_ctx, &str_rva) || !str_rva)
         goto not_found;
 
     // get the curr string & compare to symbol
-    name = rva_to_string(vmi, (addr_t) str_rva, base_addr, pid);
+    _ctx.addr = ctx->addr + str_rva;
+    name = vmi_read_str(vmi, &_ctx);
     if(!name)
         goto not_found;
 
@@ -191,10 +182,10 @@ find_aon_idx_bin(
     free(name);
 
     if (cmp < 0) {  // symbol < name ==> try lower region
-        return find_aon_idx_bin(vmi, symbol, aon_base_va, low, mid - 1, base_addr, pid);
+        return find_aon_idx_bin(vmi, symbol, aon_base_va, low, mid - 1, ctx);
     }
     else if (cmp > 0) { // symbol > name ==> try higher region
-        return find_aon_idx_bin(vmi, symbol, aon_base_va, mid + 1, high, base_addr, pid);
+        return find_aon_idx_bin(vmi, symbol, aon_base_va, mid + 1, high, ctx);
     }
     else {  // symbol == name
         return mid; // found
@@ -210,13 +201,12 @@ get_aon_index_binary(
     vmi_instance_t vmi,
     const char *symbol,
     struct export_table *et,
-    addr_t base_addr,
-    vmi_pid_t pid)
+    const access_context_t *ctx)
 {
-    addr_t aon_base_addr = base_addr + et->address_of_names;
+    addr_t aon_base_addr = ctx->addr + et->address_of_names;
     int name_ct = et->number_of_names;
 
-    return find_aon_idx_bin(vmi, symbol, aon_base_addr, 0, name_ct - 1, base_addr, pid);
+    return find_aon_idx_bin(vmi, symbol, aon_base_addr, 0, name_ct - 1, ctx);
 }
 
 int
@@ -224,17 +214,16 @@ get_aon_index(
     vmi_instance_t vmi,
     const char *symbol,
     struct export_table *et,
-    addr_t base_addr,
-    vmi_pid_t pid)
+    const access_context_t *ctx)
 {
-    int index = get_aon_index_binary(vmi, symbol, et, base_addr, pid);
+    int index = get_aon_index_binary(vmi, symbol, et, ctx);
 
     if (-1 == index) {
         dbprint
             (VMI_DEBUG_PEPARSE, "--PEParse: Falling back to linear search for aon index\n");
         // This could be useful for malformed PE headers where the list isn't
         // in alpha order (e.g., malware)
-        index = get_aon_index_linear(vmi, symbol, et, base_addr, pid);
+        index = get_aon_index_linear(vmi, symbol, et, ctx);
     }
     return index;
 }
@@ -285,42 +274,13 @@ peparse_validate_pe_image(
 }
 
 status_t
-peparse_get_image_phys(
+peparse_get_image(
     vmi_instance_t vmi,
-    addr_t base_paddr,
+    const access_context_t *ctx,
     size_t len,
     const uint8_t * const image)
 {
-
-    uint32_t nbytes = vmi_read_pa(vmi, base_paddr, (void *)image, len);
-
-    if(nbytes != len) {
-        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to read a continuous PE header\n");
-        return VMI_FAILURE;
-    }
-
-    if(VMI_SUCCESS != peparse_validate_pe_image(image, len)) {
-        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to validate a continuous PE header\n");
-        if(vmi->init_mode & VMI_INIT_COMPLETE) {
-            dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: You might want to use peparse_get_image_virt here!\n");
-        }
-
-        return VMI_FAILURE;
-    }
-
-    return VMI_SUCCESS;
-}
-
-status_t
-peparse_get_image_virt(
-    vmi_instance_t vmi,
-    addr_t base_vaddr,
-    vmi_pid_t pid,
-    size_t len,
-    const uint8_t * const image)
-{
-
-    uint32_t nbytes = vmi_read_va(vmi, base_vaddr, pid, (void *)image, len);
+    uint32_t nbytes = vmi_read(vmi, ctx, (void *)image, len);
 
     if(nbytes != len) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to read PE header\n");
@@ -478,8 +438,7 @@ done:
 status_t
 peparse_get_export_table(
     vmi_instance_t vmi,
-    addr_t base_vaddr,
-    vmi_pid_t pid,
+    const access_context_t *ctx,
     struct export_table *et,
     addr_t *export_table_rva,
     size_t *export_table_size)
@@ -488,6 +447,7 @@ peparse_get_export_table(
     // the first page of the PE and the field DosHeader.OffsetToPE points to
     // an address in the first page.
 
+    access_context_t _ctx = *ctx;
     addr_t export_header_rva = 0;
     addr_t export_header_va = 0;
     size_t export_header_size = 0;
@@ -496,7 +456,7 @@ peparse_get_export_table(
 #define MAX_HEADER_BYTES 1024   // keep under 1 page
     uint8_t image[MAX_HEADER_BYTES];
 
-    if(VMI_FAILURE == peparse_get_image_virt(vmi, base_vaddr, pid, MAX_HEADER_BYTES, image)) {
+    if(VMI_FAILURE == peparse_get_image(vmi, ctx, MAX_HEADER_BYTES, image)) {
         return VMI_FAILURE;
     }
 
@@ -515,12 +475,11 @@ peparse_get_export_table(
         *export_table_size=export_header_size;
     }
 
-    export_header_va = base_vaddr + export_header_rva;
+    dbprint(VMI_DEBUG_PEPARSE, "--PEParse: DLL base 0x%.16"PRIx64". Export header [RVA] 0x%.16"PRIx64". Size %u.\n",
+            ctx->addr, export_header_rva, export_header_size);
 
-    dbprint(VMI_DEBUG_PEPARSE, "--PEParse: DLL base [VA] 0x%.16"PRIx64". Export header [RVA] 0x%.16"PRIx64". Size %u.\n",
-            base_vaddr, export_header_rva, export_header_size);
-
-    nbytes = vmi_read_va(vmi, export_header_va, pid, et, sizeof(struct export_table));
+    _ctx.addr = ctx->addr + export_header_rva;
+    nbytes = vmi_read(vmi, &_ctx, et, sizeof(struct export_table));
     if (nbytes != sizeof(struct export_table)) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to map export header\n");
 
@@ -529,9 +488,10 @@ peparse_get_export_table(
          * such that the first export_flags field (which is reserved) is.
          * not actually accessible (the page is not mapped). See Issue #260.
          */
-        if (!((export_header_va+4) & 0xfff)) {
+        if (!((_ctx.addr+4) & 0xfff)) {
             dbprint(VMI_DEBUG_PEPARSE, "--PEParse: export table is mapped on page boundary\n");
-            nbytes = vmi_read_va(vmi, export_header_va+4, pid, (void*)((char*)et+4), sizeof(struct export_table)-4);
+            _ctx.addr += 4;
+            nbytes = vmi_read(vmi, &_ctx, (void*)((char*)et+4), sizeof(struct export_table)-4);
             if( nbytes != sizeof(struct export_table)-4 ) {
                dbprint(VMI_DEBUG_PEPARSE, "--PEParse: still failed to map export header\n");
                 return VMI_FAILURE;
@@ -557,8 +517,7 @@ peparse_get_export_table(
 status_t
 windows_export_to_rva(
     vmi_instance_t vmi,
-    addr_t base_vaddr,
-    vmi_pid_t pid,
+    const access_context_t *ctx,
     const char *symbol,
     addr_t *rva)
 {
@@ -569,31 +528,31 @@ windows_export_to_rva(
     int aof_index = -1;
 
     // get export table structure
-    if (peparse_get_export_table(vmi, base_vaddr, pid, &et, &et_rva, &et_size) != VMI_SUCCESS) {
+    if (peparse_get_export_table(vmi, ctx, &et, &et_rva, &et_size) != VMI_SUCCESS) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to get export table\n");
         return VMI_FAILURE;
     }
 
     // find AddressOfNames index for export symbol
-    if ((aon_index = get_aon_index(vmi, symbol, &et, base_vaddr, pid)) == -1) {
+    if ((aon_index = get_aon_index(vmi, symbol, &et, ctx)) == -1) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to get aon index\n");
         return VMI_FAILURE;
     }
 
     // find AddressOfFunctions index for export symbol
-    if ((aof_index = get_aof_index(vmi, aon_index, &et, base_vaddr, pid)) == -1) {
+    if ((aof_index = get_aof_index(vmi, aon_index, &et, ctx)) == -1) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to get aof index\n");
         return VMI_FAILURE;
     }
 
     // find RVA value for export symbol
-    if(VMI_SUCCESS==get_export_rva(vmi, rva, aof_index, &et, base_vaddr, pid)) {
+    if(VMI_SUCCESS==get_export_rva(vmi, rva, aof_index, &et, ctx)) {
 
         // handle forwarded functions
         // If the function's RVA is inside the exports section (as given by the
         // VirtualAddress and Size fields in the idd), the symbol is forwarded.
         if(*rva>=et_rva && *rva < et_rva+et_size) {
-            dbprint(VMI_DEBUG_PEPARSE, "--PEParse: %s @ %u:0x%"PRIx64" is forwarded\n", symbol, pid, base_vaddr);
+            dbprint(VMI_DEBUG_PEPARSE, "--PEParse: %s @ %u:0x%"PRIx64" is forwarded\n", symbol, ctx);
             return VMI_FAILURE;
         } else {
             return VMI_SUCCESS;
@@ -608,9 +567,9 @@ char*
 windows_rva_to_export(
     vmi_instance_t vmi,
     addr_t rva,
-    addr_t base_vaddr,
-    vmi_pid_t pid)
+    const access_context_t *ctx)
 {
+    access_context_t _ctx = *ctx;
     struct export_table et;
     addr_t et_rva;
     size_t et_size;
@@ -619,20 +578,20 @@ windows_rva_to_export(
     char* symbol = NULL;
 
     // get export table structure
-    if (peparse_get_export_table(vmi, base_vaddr, pid, &et, &et_rva, &et_size) != VMI_SUCCESS) {
+    if (peparse_get_export_table(vmi, ctx, &et, &et_rva, &et_size) != VMI_SUCCESS) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to get export table\n");
         return NULL;
     }
 
     if(rva>=et_rva && rva < et_rva+et_size) {
-        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: symbol @ %u:0x%"PRIx64" is forwarded\n", pid, base_vaddr+rva);
+        dbprint(VMI_DEBUG_PEPARSE, "--PEParse: symbol @ 0x%"PRIx64" is forwarded\n", ctx->addr+rva);
         return NULL;
     }
 
 
-    addr_t base1 = base_vaddr + et.address_of_names;
-    addr_t base2 = base_vaddr + et.address_of_name_ordinals;
-    addr_t base3 = base_vaddr + et.address_of_functions;
+    addr_t base1 = ctx->addr + et.address_of_names;
+    addr_t base2 = ctx->addr + et.address_of_name_ordinals;
+    addr_t base3 = ctx->addr + et.address_of_functions;
     uint32_t i = 0;
 
     for (; i < et.number_of_functions; ++i) {
@@ -640,19 +599,23 @@ windows_rva_to_export(
         uint16_t ordinal = 0;
         uint32_t loc = 0;
 
-        if(VMI_FAILURE==vmi_read_16_va(vmi, base2 + i * sizeof(uint16_t), pid, &ordinal))
+        _ctx.addr = base2 + i * sizeof(uint16_t);
+        if(VMI_FAILURE==vmi_read_16(vmi, &_ctx, &ordinal))
             continue;
-        if(VMI_FAILURE==vmi_read_32_va(vmi, base3 + ordinal + sizeof(uint32_t), pid, &loc))
+
+        _ctx.addr = base3 + ordinal + sizeof(uint32_t);
+        if(VMI_FAILURE==vmi_read_32(vmi, &_ctx, &loc))
             continue;
 
         if(loc==rva) {
 
-            if(i < et.number_of_names && VMI_SUCCESS==vmi_read_32_va(vmi, base1 + i * sizeof(uint32_t), pid, &name_rva) && name_rva) {
-                symbol = rva_to_string(vmi, (addr_t)name_rva, base_vaddr, pid);
-                return symbol;
+            _ctx.addr = base1 + i * sizeof(uint32_t);
+            if(i < et.number_of_names && VMI_SUCCESS==vmi_read_32(vmi, &_ctx, &name_rva) && name_rva) {
+                _ctx.addr = ctx->addr + name_rva;
+                return vmi_read_str(vmi, &_ctx);
             }
 
-            dbprint(VMI_DEBUG_PEPARSE, "--PEParse: symbol @ %u:0x%"PRIx64" is exported by ordinal only\n", pid, base_vaddr+rva);
+            dbprint(VMI_DEBUG_PEPARSE, "--PEParse: symbol @ 0x%"PRIx64" is exported by ordinal only\n", ctx->addr+rva);
             break;
         }
     }

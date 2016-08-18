@@ -569,15 +569,13 @@ addr_t vmi_translate_ksym2v(
  * Linux is unimplemented at this time.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] base_vaddr Base virtual address (beginning of PE header in Windows)
- * @param[in] pid PID
+ * @param[in] ctx Access context (beginning of PE header in Windows)
  * @param[in] symbol Desired symbol to translate
  * @return Virtual address, or zero on error
  */
 addr_t vmi_translate_sym2v(
     vmi_instance_t vmi,
-    addr_t base_vaddr,
-    vmi_pid_t pid,
+    const access_context_t *ctx,
     const char *symbol);
 
 /**
@@ -588,15 +586,13 @@ addr_t vmi_translate_sym2v(
  * ELF Headers are not supported.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] base_vaddr Base virtual address (beginning of PE header in Windows)
- * @param[in] pid PID
+ * @param[in] ctx Access context (beginning of PE header in Windows)
  * @param[in] rva RVA to translate
  * @return Symbol, or NULL on error
  */
 const char* vmi_translate_v2sym(
     vmi_instance_t vmi,
-    addr_t base_vaddr,
-    vmi_pid_t pid,
+    const access_context_t *ctx,
     addr_t rva);
 
 /**
@@ -672,7 +668,7 @@ status_t vmi_pagetable_lookup_extended(
  */
 size_t vmi_read(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     void *buf,
     size_t count);
 
@@ -686,7 +682,7 @@ size_t vmi_read(
  */
 status_t vmi_read_8(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint8_t * value);
 
 /**
@@ -699,7 +695,7 @@ status_t vmi_read_8(
  */
 status_t vmi_read_16(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint16_t * value);
 
 /**
@@ -712,7 +708,7 @@ status_t vmi_read_16(
  */
 status_t vmi_read_32(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint32_t * value);
 
 /**
@@ -726,7 +722,7 @@ status_t vmi_read_32(
  */
 status_t vmi_read_64(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint64_t * value);
 
 /**
@@ -740,7 +736,7 @@ status_t vmi_read_64(
  */
 status_t vmi_read_addr(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     addr_t *value);
 
 /**
@@ -753,6 +749,20 @@ status_t vmi_read_addr(
  * @return String read from memory or NULL on error
  */
 char *vmi_read_str(
+    vmi_instance_t vmi,
+    const access_context_t *ctx);
+
+/**
+ * Reads a Unicode string from the given address. If the guest is running
+ * Windows, a UNICODE_STRING struct is read. Linux is not yet
+ * supported. The returned value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @return String read from memory or NULL on error; this function
+ *         will set the encoding field.
+ */
+unicode_string_t *vmi_read_unicode_str(
     vmi_instance_t vmi,
     access_context_t *ctx);
 
@@ -1107,7 +1117,7 @@ char *vmi_read_str_pa(
  */
 size_t vmi_write(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     void *buf,
     size_t count);
 
@@ -1171,7 +1181,7 @@ size_t vmi_write_pa(
  */
 status_t vmi_write_8(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint8_t * value);
 
 /**
@@ -1184,7 +1194,7 @@ status_t vmi_write_8(
  */
 status_t vmi_write_16(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint16_t * value);
 
 /**
@@ -1197,7 +1207,7 @@ status_t vmi_write_16(
  */
 status_t vmi_write_32(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint32_t * value);
 
 /**
@@ -1210,7 +1220,7 @@ status_t vmi_write_32(
  */
 status_t vmi_write_64(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint64_t * value);
 
 /**
@@ -1224,7 +1234,7 @@ status_t vmi_write_64(
  */
 status_t vmi_write_addr(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     addr_t * value);
 
 /**

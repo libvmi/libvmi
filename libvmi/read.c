@@ -36,7 +36,7 @@
 size_t
 vmi_read(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     void *buf,
     size_t count)
 {
@@ -188,7 +188,7 @@ vmi_read_ksym(
 static inline status_t
 vmi_read_X(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     void *value,
     int size)
 {
@@ -203,7 +203,7 @@ vmi_read_X(
 
 status_t
 vmi_read_8(vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint8_t * value)
 {
     return vmi_read_X(vmi, ctx, value, 1);
@@ -211,7 +211,7 @@ vmi_read_8(vmi_instance_t vmi,
 
 status_t
 vmi_read_16(vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint16_t * value)
 {
     return vmi_read_X(vmi, ctx, value, 2);
@@ -220,7 +220,7 @@ vmi_read_16(vmi_instance_t vmi,
 status_t
 vmi_read_32(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint32_t * value)
 {
     return vmi_read_X(vmi, ctx, value, 4);
@@ -229,7 +229,7 @@ vmi_read_32(
 status_t
 vmi_read_64(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint64_t * value)
 {
     return vmi_read_X(vmi, ctx, value, 8);
@@ -238,7 +238,7 @@ vmi_read_64(
 status_t
 vmi_read_addr(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     addr_t *value)
 {
     status_t ret = VMI_FAILURE;
@@ -266,7 +266,7 @@ vmi_read_addr(
 char *
 vmi_read_str(
     vmi_instance_t vmi,
-    access_context_t *ctx)
+    const access_context_t *ctx)
 {
     unsigned char *memory = NULL;
     char *rtnval = NULL;
@@ -349,6 +349,17 @@ vmi_read_str(
     }
 
     return rtnval;
+}
+
+unicode_string_t*
+vmi_read_unicode_str(
+    vmi_instance_t vmi,
+    access_context_t *ctx)
+{
+    if (vmi->os_interface && vmi->os_interface->os_read_unicode_struct)
+        return vmi->os_interface->os_read_unicode_struct(vmi, ctx);
+
+    return NULL;
 }
 
 ///////////////////////////////////////////////////////////
@@ -557,12 +568,13 @@ vmi_read_str_va(
 
 unicode_string_t *
 vmi_read_unicode_str_va(vmi_instance_t vmi, addr_t vaddr, vmi_pid_t pid) {
-    unicode_string_t *ret = NULL;
-    if (vmi->os_interface && vmi->os_interface->os_read_unicode_struct) {
-        ret = vmi->os_interface->os_read_unicode_struct(vmi, vaddr, pid);
-    }
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid
+    };
 
-    return ret;
+    return vmi_read_unicode_str(vmi, &ctx);
 }
 
 ///////////////////////////////////////////////////////////

@@ -249,19 +249,31 @@ addr_t vmi_translate_ksym2v (vmi_instance_t vmi, const char *symbol)
 }
 
 /* convert a symbol into an address */
-addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, const char *symbol)
+addr_t vmi_translate_sym2v (vmi_instance_t vmi, const access_context_t *ctx, const char *symbol)
 {
     status_t status = VMI_FAILURE;
     addr_t rva = 0;
     addr_t address = 0;
+    addr_t dtb = 0;
 
-    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, pid, symbol, &address)) {
+    switch(ctx->translate_mechanism) {
+        case VMI_TM_PROCESS_PID:
+            dtb = vmi_pid_to_dtb(vmi, ctx->pid);
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            break;
+        default:
+            dbprint(VMI_DEBUG_MISC, "sym2v only supported in a virtual context!\n");
+            return 0;
+    };
 
+    if (VMI_FAILURE == sym_cache_get(vmi, ctx->addr, dtb, symbol, &address)) {
         if (vmi->os_interface && vmi->os_interface->os_usym2rva) {
-            status  = vmi->os_interface->os_usym2rva(vmi, base_vaddr, pid, symbol, &rva);
+            status  = vmi->os_interface->os_usym2rva(vmi, ctx, symbol, &rva);
             if (status == VMI_SUCCESS) {
-                address = canonical_addr(base_vaddr + rva);
-                sym_cache_set(vmi, base_vaddr, pid, symbol, address);
+                address = canonical_addr(ctx->addr + rva);
+                sym_cache_set(vmi, ctx->addr, dtb, symbol, address);
             }
         }
     }
@@ -270,17 +282,30 @@ addr_t vmi_translate_sym2v (vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid
 }
 
 /* convert an RVA into a symbol */
-const char* vmi_translate_v2sym(vmi_instance_t vmi, addr_t base_vaddr, vmi_pid_t pid, addr_t rva)
+const char* vmi_translate_v2sym(vmi_instance_t vmi, const access_context_t *ctx, addr_t rva)
 {
     char *ret = NULL;
+    addr_t dtb = 0;
 
-    if (VMI_FAILURE == rva_cache_get(vmi, base_vaddr, pid, rva, &ret)) {
+    switch(ctx->translate_mechanism) {
+        case VMI_TM_PROCESS_PID:
+            dtb = vmi_pid_to_dtb(vmi, ctx->pid);
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            break;
+        default:
+            dbprint(VMI_DEBUG_MISC, "v2sym only supported in a virtual context!\n");
+            return 0;
+    };
+
+    if (VMI_FAILURE == rva_cache_get(vmi, ctx->addr, dtb, rva, &ret)) {
         if (vmi->os_interface && vmi->os_interface->os_v2sym) {
-            ret = vmi->os_interface->os_v2sym(vmi, rva, base_vaddr, pid);
+            ret = vmi->os_interface->os_v2sym(vmi, rva, ctx);
         }
 
         if (ret) {
-            rva_cache_set(vmi, base_vaddr, pid, rva, ret);
+            rva_cache_set(vmi, ctx->addr, dtb, rva, ret);
         }
     }
 
