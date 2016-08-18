@@ -63,14 +63,8 @@
 
 #include "xen_events_abi.h"
 
-#ifdef XENCTRL_HAS_XC_INTERFACE
-typedef xc_evtchn* xc_evtchn_t;
-#else
-typedef int xc_evtchn_t;
-#endif
-
 typedef struct {
-    xc_evtchn_t xce_handle;
+    xc_evtchn* xce_handle;
     int port;
     uint32_t evtchn_port;
     void *ring_page;
@@ -82,7 +76,7 @@ typedef struct {
 } xen_mem_event_t;
 
 typedef struct {
-    xc_evtchn_t xce_handle;
+    xc_evtchn* xce_handle;
     int port;
     uint32_t evtchn_port;
     void *ring_page;

@@ -47,20 +47,6 @@
 #include "libxc_wrapper.h"
 #include "driver/xen/xen_events_private.h"
 
-/* compatibility checks */
-#ifndef xen_cr3_to_pfn_x86_32
-#define xen_pfn_to_cr3_x86_64(pfn) ((__align8__ uint64_t)(pfn) << 12)
-#define xen_cr3_to_pfn_x86_64(cr3) ((__align8__ uint64_t)(cr3) >> 12)
-
-#define xen_pfn_to_cr3_x86_32(pfn) (((unsigned)(pfn) << 12) | ((unsigned)(pfn) >> 20))
-#define xen_cr3_to_pfn_x86_32(cr3) (((unsigned)(cr3) >> 12) | ((unsigned)(cr3) << 20))
-#endif /* xen_cr3_to_pfn_x86_32 */
-
-#ifdef HAVE_LIBXENSTORE
-#define OPEN_XS_DAEMON()    xs_open(0)
-#define CLOSE_XS_DAEMON(h)  xs_close(h)
-#endif
-
 typedef struct xen_instance {
 
     char *name;
