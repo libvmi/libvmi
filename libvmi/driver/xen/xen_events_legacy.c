@@ -148,7 +148,7 @@ static inline int put_mem_response_42(xen_mem_event_t *mem_event, mem_event_42_r
     return 0;
 }
 
-static inline int get_mem_event_45(xen_mem_event_t *mem_event, mem_event_45_request_t *req)
+static inline void get_mem_event_45(xen_mem_event_t *mem_event, mem_event_45_request_t *req)
 {
     mem_event_45_back_ring_t *back_ring;
     RING_IDX req_cons;
@@ -163,8 +163,6 @@ static inline int get_mem_event_45(xen_mem_event_t *mem_event, mem_event_45_requ
     // Update ring
     back_ring->req_cons = req_cons;
     back_ring->sring->req_event = req_cons + 1;
-
-    return 0;
 }
 
 static inline int put_mem_response_45(xen_mem_event_t *mem_event, mem_event_45_response_t *rsp)
@@ -1211,6 +1209,103 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
     return vrc;
 }
 
+/*
+ * Only needed for Xen 4.5+ for VM state syncronization with multiple vCPUs.
+ */
+static inline status_t
+process_requests_45(vmi_instance_t vmi, mem_event_45_request_t *req, mem_event_45_request_t *rsp)
+{
+    xen_events_t * xe = xen_get_events(vmi);
+    status_t vrc = VMI_SUCCESS;
+    int rc;
+
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->mem_event.back_ring_45) ) {
+        get_mem_event_45(&xe->mem_event, req);
+
+        memset( rsp, 0, sizeof (mem_event_45_request_t) );
+        rsp->vcpu_id = req->vcpu_id;
+        rsp->flags = req->flags;
+
+        switch(req->reason){
+            case MEM_EVENT_REASON_VIOLATION:
+                dbprint(VMI_DEBUG_XEN, "--Caught mem event!\n");
+                rsp->gfn = req->gfn;
+
+                /*
+                 * We need to copy back the violation type for emulation to work.
+                 * It doesn't affect anything else if emulation flags are not set so it's safe
+                 * to just do it in any case.
+                 */
+                rsp->access_r = req->access_r;
+                rsp->access_w = req->access_w;
+                rsp->access_x = req->access_x;
+
+                if(!vmi->shutting_down) {
+                    vrc = process_mem(vmi, req->access_r, req->access_w, req->access_x,
+                                      req->gfn, req->offset, req->gla, req->vcpu_id, &rsp->flags);
+                }
+
+                /*MARESCA do we need logic here to reset flags on a page? see xen-access.c
+                 *    specifically regarding write/exec/int3 inspection and the code surrounding
+                 *    the variables default_access and after_first_access
+                 */
+
+                break;
+            case MEM_EVENT_REASON_CR0:
+                dbprint(VMI_DEBUG_XEN, "--Caught CR0 event!\n");
+                if(!vmi->shutting_down) {
+                    vrc = process_register(vmi, CR0, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
+                }
+                break;
+            case MEM_EVENT_REASON_CR3:
+                dbprint(VMI_DEBUG_XEN, "--Caught CR3 event!\n");
+                if(!vmi->shutting_down) {
+                    vrc = process_register(vmi, CR3, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
+                }
+                break;
+            case MEM_EVENT_REASON_MSR:
+                if(!vmi->shutting_down) {
+                    dbprint(VMI_DEBUG_XEN, "--Caught MSR event!\n");
+                    vrc = process_register(vmi, MSR_ALL, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
+                }
+                break;
+            case MEM_EVENT_REASON_CR4:
+                dbprint(VMI_DEBUG_XEN, "--Caught CR4 event!\n");
+                if(!vmi->shutting_down) {
+                    vrc = process_register(vmi, CR4, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
+                }
+                break;
+            case MEM_EVENT_REASON_SINGLESTEP:
+                dbprint(VMI_DEBUG_XEN, "--Caught single step event!\n");
+                if(!vmi->shutting_down) {
+                    vrc = process_single_step_event(vmi, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
+                }
+                break;
+            case MEM_EVENT_REASON_INT3:
+                if(!vmi->shutting_down) {
+                    dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
+                    vrc = process_interrupt_event(vmi, INT3, req->gfn, req->offset, req->gla, req->vcpu_id, &rsp->flags);
+                }
+                break;
+            default:
+                errprint("UNKNOWN REASON CODE %d\n", req->reason);
+                vrc = VMI_FAILURE;
+                break;
+        }
+
+        // Put the response on the ring
+        rc = put_mem_response_45(&xe->mem_event, rsp);
+        if ( rc != 0 ) {
+            errprint("Error putting event response on the ring.\n");
+            return VMI_FAILURE;
+        }
+
+        dbprint(VMI_DEBUG_XEN, "--Finished handling event.\n");
+    }
+
+    return vrc;
+}
+
 status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
 {
     xc_interface * xch;
@@ -1255,94 +1350,30 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
         }
     }
 
-    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->mem_event.back_ring_45) ) {
-        rc = get_mem_event_45(&xe->mem_event, &req);
-        if ( rc != 0 ) {
-            errprint("Error getting event.\n");
-            return VMI_FAILURE;
-        }
+    vrc = process_requests_45(vmi, &req, &rsp);
 
-        memset( &rsp, 0, sizeof (rsp) );
-        rsp.vcpu_id = req.vcpu_id;
-        rsp.flags = req.flags;
+    /*
+     * The only way to gracefully handle vmi_clear_event requests
+     * that were issued in a callback is to ensure no more requests
+     * are in the ringpage. We do this by pausing the domain (all vCPUs)
+     * and process all reamining events on the ring. Once no more requests
+     * are on the ring we can remove the events.
+     */
+    if ( g_hash_table_size(vmi->clear_events) ) {
+        vmi_pause_vm(vmi); // Pause all vCPUs
+        vrc = process_requests_45(vmi, &req, &rsp);
 
-        switch(req.reason){
-            case MEM_EVENT_REASON_VIOLATION:
-                dbprint(VMI_DEBUG_XEN, "--Caught mem event!\n");
-                rsp.gfn = req.gfn;
+        GHashTableIter i;
+        vmi_event_t **key = NULL;
+        vmi_event_free_t cb;
 
-                /*
-                 * We need to copy back the violation type for emulation to work.
-                 * It doesn't affect anything else if emulation flags are not set so it's safe
-                 * to just do it in any case.
-                 */
-                rsp.access_r = req.access_r;
-                rsp.access_w = req.access_w;
-                rsp.access_x = req.access_x;
+        ghashtable_foreach(vmi->clear_events, i, &key, &cb)
+            vmi_clear_event(vmi, *key, cb);
 
-                if(!vmi->shutting_down) {
-                    vrc = process_mem(vmi, req.access_r, req.access_w, req.access_x,
-                                      req.gfn, req.offset, req.gla, req.vcpu_id, &rsp.flags);
-                }
+        g_hash_table_destroy(vmi->clear_events);
+        vmi->clear_events = g_hash_table_new_full(g_int64_hash, g_int64_equal, free, NULL);
 
-                /*MARESCA do we need logic here to reset flags on a page? see xen-access.c
-                 *    specifically regarding write/exec/int3 inspection and the code surrounding
-                 *    the variables default_access and after_first_access
-                 */
-
-                break;
-            case MEM_EVENT_REASON_CR0:
-                dbprint(VMI_DEBUG_XEN, "--Caught CR0 event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR0, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
-                }
-                break;
-            case MEM_EVENT_REASON_CR3:
-                dbprint(VMI_DEBUG_XEN, "--Caught CR3 event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR3, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
-                }
-                break;
-#ifdef HVM_PARAM_MEMORY_EVENT_MSR
-            case MEM_EVENT_REASON_MSR:
-                if(!vmi->shutting_down) {
-                    dbprint(VMI_DEBUG_XEN, "--Caught MSR event!\n");
-                    vrc = process_register(vmi, MSR_ALL, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
-                }
-                break;
-#endif
-            case MEM_EVENT_REASON_CR4:
-                dbprint(VMI_DEBUG_XEN, "--Caught CR4 event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR4, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
-                }
-                break;
-            case MEM_EVENT_REASON_SINGLESTEP:
-                dbprint(VMI_DEBUG_XEN, "--Caught single step event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_single_step_event(vmi, req.gfn, req.gla, req.vcpu_id, &rsp.flags);
-                }
-                break;
-            case MEM_EVENT_REASON_INT3:
-                if(!vmi->shutting_down) {
-                    dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
-                    vrc = process_interrupt_event(vmi, INT3, req.gfn, req.offset, req.gla, req.vcpu_id, &rsp.flags);
-                }
-                break;
-            default:
-                errprint("UNKNOWN REASON CODE %d\n", req.reason);
-                vrc = VMI_FAILURE;
-                break;
-        }
-
-        // Put the response on the ring
-        rc = put_mem_response_45(&xe->mem_event, &rsp);
-        if ( rc != 0 ) {
-            errprint("Error putting event response on the ring.\n");
-            return VMI_FAILURE;
-        }
-
-        dbprint(VMI_DEBUG_XEN, "--Finished handling event.\n");
+        vmi_resume_vm(vmi);
     }
 
     // We only resume the domain once all requests are processed from the ring
