@@ -33,9 +33,9 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
         vmi_instance_t vmi);
 
 static status_t linux_filemode_32bit_init(vmi_instance_t vmi,
-                                          uint32_t swapper_pg_dir,
-                                          uint32_t boundary,
-                                          uint32_t pa, uint32_t va)
+                                          addr_t swapper_pg_dir,
+                                          addr_t boundary,
+                                          addr_t pa, addr_t va)
 {
     vmi->page_mode = VMI_PM_LEGACY;
     if (VMI_SUCCESS == arch_init(vmi)) {

@@ -143,8 +143,8 @@ char* linux_system_map_address_to_symbol(
 {
     FILE *f = NULL;
     char *row = NULL;
-    char* address_str;
-    char* it;
+    char* address_str = NULL;
+    char* it = NULL;
     char* symbol = NULL;
     int size = 0;
     linux_instance_t linux_instance = vmi->os_data;
