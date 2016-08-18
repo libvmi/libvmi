@@ -539,7 +539,7 @@ xen_get_domainid_from_name(
     uint64_t domainid = VMI_INVALID_DOMID;
     char *tmp;
 
-    struct xs_handle *xsh = OPEN_XS_DAEMON();
+    struct xs_handle *xsh = xs_open(0);
 
     if (!xsh)
         goto _bail;
@@ -572,7 +572,7 @@ _bail:
     if (domains)
         free(domains);
     if (xsh)
-        CLOSE_XS_DAEMON(xsh);
+        xs_close(xsh);
     return domainid;
 #endif
 }
@@ -599,7 +599,7 @@ xen_get_name_from_domainid(
     int i = 0;
     xs_transaction_t xth = XBT_NULL;
 
-    struct xs_handle *xsh = OPEN_XS_DAEMON();
+    struct xs_handle *xsh = xs_open(0);
 
     if (!xsh)
         goto _bail;
@@ -616,7 +616,7 @@ xen_get_name_from_domainid(
 
 _bail:
     if (xsh)
-        CLOSE_XS_DAEMON(xsh);
+        xs_close(xsh);
     return ret;
 #endif
 }
@@ -795,7 +795,7 @@ xen_init(
     /* initialize other xen-specific values */
 
 #ifdef HAVE_LIBXENSTORE
-    xen->xshandle = OPEN_XS_DAEMON();
+    xen->xshandle = xs_open(0);
     if (!xen->xshandle) {
         errprint("xs_domain_open failed\n");
         xc_interface_close(xchandle);
@@ -959,7 +959,7 @@ xen_destroy(
 
 #ifdef HAVE_LIBXENSTORE
     if(xen->xshandle) {
-        CLOSE_XS_DAEMON(xen->xshandle);
+        xs_close(xen->xshandle);
     }
 #endif
 
