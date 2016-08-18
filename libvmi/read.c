@@ -355,7 +355,7 @@ vmi_read_str(
 unicode_string_t*
 vmi_read_unicode_str(
     vmi_instance_t vmi,
-    access_context_t *ctx)
+    const access_context_t *ctx)
 {
     if (vmi->os_interface && vmi->os_interface->os_read_unicode_struct)
         return vmi->os_interface->os_read_unicode_struct(vmi, ctx);
