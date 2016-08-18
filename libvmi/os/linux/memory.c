@@ -191,6 +191,7 @@ linux_pid_to_pgd(
     {
         switch(vmi->page_mode)
         {
+            case VMI_PM_AARCH64:// intentional fall-through
             case VMI_PM_IA32E:
                 width = 8;
                 break;

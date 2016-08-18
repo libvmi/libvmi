@@ -244,6 +244,7 @@ vmi_read_addr(
     status_t ret = VMI_FAILURE;
 
     switch (vmi->page_mode) {
+        case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
             ret = vmi_read_X(vmi, ctx, value, 8);
             break;
@@ -426,6 +427,7 @@ vmi_read_addr_pa(
     status_t ret = VMI_FAILURE;
 
     switch(vmi->page_mode) {
+        case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
             ret = vmi_read_X_pa(vmi, paddr, value, 8);
             break;
@@ -530,6 +532,7 @@ vmi_read_addr_va(
     status_t ret = VMI_FAILURE;
 
     switch(vmi->page_mode) {
+        case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
             ret = vmi_read_X_va(vmi, vaddr, pid, value, 8);
             break;
@@ -641,6 +644,7 @@ vmi_read_addr_ksym(
     status_t ret = VMI_FAILURE;
 
     switch(vmi->page_mode) {
+        case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
             ret = vmi_read_X_ksym(vmi, sym, value, 8);
             break;

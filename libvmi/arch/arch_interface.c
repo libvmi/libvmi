@@ -25,6 +25,7 @@
 #include "arch/intel.h"
 #include "arch/amd64.h"
 #include "arch/arm_aarch32.h"
+#include "arch/arm_aarch64.h"
 
 status_t arch_init(vmi_instance_t vmi) {
 
@@ -51,6 +52,9 @@ status_t arch_init(vmi_instance_t vmi) {
             break;
         case VMI_PM_AARCH32:
             ret = aarch32_init(vmi);
+            break;
+        case VMI_PM_AARCH64:
+            ret = aarch64_init(vmi);
             break;
         case VMI_PM_UNKNOWN: /* fallthrough */
         default:
