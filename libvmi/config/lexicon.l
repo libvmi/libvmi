@@ -49,6 +49,7 @@ linux_pid               { BeginToken(yytext); yylval.str = strndup(yytext, CONFI
 linux_pgd               { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_PGD; }
 linux_addr              { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_ADDR; }
 win_ntoskrnl            { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_NTOSKRNL; }
+win_ntoskrnl_va         { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_NTOSKRNL_VA; }
 win_tasks               { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_TASKS; }
 win_pdbase              { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_PDBASE; }
 win_pid                 { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_PID; }
