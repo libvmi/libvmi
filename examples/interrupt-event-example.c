@@ -42,6 +42,16 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event){
      *  unconditionally reinjects the interrupt.
      */
     event->interrupt_event.reinject = 1;
+
+    /*
+     * By default int3 instructions have length of 1 byte unless
+     * there are prefixes attached. As adding prefixes to int3 have
+     * no effect, under normal circumstances no legitimate compiler/debugger
+     * would add any. However, a malicious guest could add prefixes to change
+     * the instruction length. For this example we simply assume a non-malicious
+     * guest.
+     */
+    event->interrupt_event.insn_length = 1;
     return 0;
 }
 
