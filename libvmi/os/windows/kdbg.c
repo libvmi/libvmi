@@ -937,20 +937,25 @@ find_kdbg_address_faster(
     void *bm = boyer_moore_init((unsigned char *)"KDBG", 4);
     int find_ofs = 0x10;
 
-    reg_t cr3, fsgs;
+    reg_t cr3 = 0, fsgs = 0;
     if(VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
         goto done;
     }
 
-    if (VMI_PM_IA32E == vmi->page_mode) {
-        if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0)) {
+    switch ( vmi->page_mode )
+    {
+        case VMI_PM_IA32E:
+            if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0))
+                goto done;
+            break;
+        case VMI_PM_LEGACY: /* Fall-through */
+        case VMI_PM_PAE:
+            if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0))
+                goto done;
+            break;
+        default:
             goto done;
-        }
-    } else if(VMI_PM_LEGACY == vmi->page_mode || VMI_PM_PAE == vmi->page_mode) {
-        if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0)) {
-            goto done;
-        }
-    }
+    };
 
     // We start the search from the KPCR, which has to be mapped into the kernel.
     // We further know that the Windows kernel is page aligned

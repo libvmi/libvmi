@@ -550,10 +550,12 @@ init_from_rekall_profile(vmi_instance_t vmi)
             case VMI_PM_IA32E:
                 if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, GS_BASE, 0))
                     goto done;
-            case VMI_PM_LEGACY:
+                break;
+            case VMI_PM_LEGACY: /* Fall-through */
             case VMI_PM_PAE:
                 if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, FS_BASE, 0))
                     goto done;
+                break;
             default:
                 goto done;
         };
