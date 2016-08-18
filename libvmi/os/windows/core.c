@@ -448,6 +448,11 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         windows_instance->ntoskrnl = *(addr_t *)value;
         goto _done;
     }
+    
+    if (strncmp(key, "win_ntoskrnl_va", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->ntoskrnl_va = *(addr_t *)value;
+        goto _done;
+    }
 
     if (strncmp(key, "win_tasks", CONFIG_STR_LENGTH) == 0) {
         windows_instance->tasks_offset = *(int *)value;
@@ -523,6 +528,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
 
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
+    addr_t lowest_kernel_address = 0x0;
     dbprint(VMI_DEBUG_MISC, "**Trying to init from Rekall profile\n");
 
     reg_t kpcr = 0;
@@ -531,16 +537,22 @@ init_from_rekall_profile(vmi_instance_t vmi)
     if(vmi->mode != VMI_FILE) {
 
         if (vmi->page_mode == VMI_PM_IA32E) {
+            lowest_kernel_address = LOWEST_KERNEL_ADDRESS_64BIT;
             if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, GS_BASE, 0)) {
                 goto done;
             }
         } else if (vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE) {
+            lowest_kernel_address = LOWEST_KERNEL_ADDRESS_32BIT;
             if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, FS_BASE, 0)) {
                 goto done;
             }
         }
 
         if (VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiInitialPCR", NULL, &kpcr_rva)) {
+            if ( kpcr < lowest_kernel_address ) {
+                dbprint ( VMI_DEBUG_MISC , "**vCPU0 doesn't seem to have KiInitialPCR mapped, can't init from Rekall profile.\n" );
+                goto done;
+            }
             // If the Rekall profile has KiInitialPCR we have Win 7+
             windows->ntoskrnl_va = kpcr - kpcr_rva;
             windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
@@ -652,12 +664,16 @@ static status_t
 init_core(vmi_instance_t vmi)
 {
     windows_instance_t windows = vmi->os_data;
+    status_t ret = VMI_FAILURE;
 
-    if (windows->rekall_profile) {
-        return init_from_rekall_profile(vmi);
-    } else {
+    if (windows->rekall_profile)
+        ret = init_from_rekall_profile(vmi);
+
+    /* Fall be here too if the Rekall profile based init fails */
+    if ( VMI_FAILURE == ret ){
         return init_from_kdbg(vmi);
-    }
+    } else
+        return ret;
 }
 
 status_t

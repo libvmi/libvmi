@@ -275,6 +275,7 @@ int vmi_parse_config (const char *target_name)
 %token<str>    LINUX_PGD
 %token<str>    LINUX_ADDR
 %token<str>    WIN_NTOSKRNL
+%token<str>    WIN_NTOSKRNL_VA
 %token<str>    WIN_TASKS
 %token<str>    WIN_PDBASE
 %token<str>    WIN_PID
@@ -336,6 +337,8 @@ assignment:
         linux_addr_assignment
         |
         win_ntoskrnl_assignment
+        |
+        win_ntoskrnl_va_assignment
         |
         win_tasks_assignment
         |
@@ -427,6 +430,17 @@ win_ntoskrnl_assignment:
         }
         ;
 
+win_ntoskrnl_va_assignment:
+        WIN_NTOSKRNL_VA EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+        
 win_tasks_assignment:
         WIN_TASKS EQUALS NUM
         {

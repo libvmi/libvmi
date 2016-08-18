@@ -1154,7 +1154,7 @@ done:
  * This functions is responsible for setting up
  * Windows specific variables:
  *  - ntoskrnl (*)
- *  - ntoskrnl_va
+ *  - ntoskrnl_va (*)
  *  - kdbg_offset (*)
  *  - kdbg_va (*)
  * The variables marked with (*) can be also specified
@@ -1191,6 +1191,12 @@ init_from_kdbg(
         /* nothing that requires a virtual-to-physical translation will work
          * so skip straight to the physical only methods. */
         goto find_kdbg;
+    }
+    
+    if ( windows->ntoskrnl && windows->ntoskrnl_va ){
+        kernbase_va = windows->ntoskrnl_va;
+        kernbase_pa = windows->ntoskrnl;
+        goto found;
     }
 
     /* Otherwise, look up what we need and check for consistency */

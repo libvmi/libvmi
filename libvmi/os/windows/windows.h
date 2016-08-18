@@ -23,6 +23,10 @@
 
 #include "private.h"
 
+#define LOWEST_KERNEL_ADDRESS_64BIT 0xffff800000000000
+#define LOWEST_KERNEL_ADDRESS_32BIT 0x80000000
+
+
 struct windows_instance {
 
     addr_t ntoskrnl; /**< base phys address for ntoskrnl image */
