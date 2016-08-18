@@ -795,7 +795,7 @@ char *vmi_read_str(
  */
 unicode_string_t *vmi_read_unicode_str(
     vmi_instance_t vmi,
-    access_context_t *ctx);
+    const access_context_t *ctx);
 
 /**
  * Reads \a count bytes from memory located at the kernel symbol \a sym
