@@ -1192,12 +1192,6 @@ init_from_kdbg(
          * so skip straight to the physical only methods. */
         goto find_kdbg;
     }
-    
-    if ( windows->ntoskrnl && windows->ntoskrnl_va ){
-        kernbase_va = windows->ntoskrnl_va;
-        kernbase_pa = windows->ntoskrnl;
-        goto found;
-    }
 
     /* Otherwise, look up what we need and check for consistency */
 

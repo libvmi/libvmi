@@ -440,7 +440,7 @@ win_ntoskrnl_va_assignment:
             free($3);
         }
         ;
-        
+
 win_tasks_assignment:
         WIN_TASKS EQUALS NUM
         {
