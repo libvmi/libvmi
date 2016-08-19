@@ -51,6 +51,9 @@ win_ver_t ntbuild2version(uint16_t ntbuildnumber)
         case 9200:
         case 9600:
             return VMI_OS_WINDOWS_8;
+        case 10240:
+        case 10586:
+        case 14393:
         case 18432:
             return VMI_OS_WINDOWS_10;
         default:
