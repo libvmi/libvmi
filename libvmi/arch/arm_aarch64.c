@@ -196,7 +196,7 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
                 "--ARM AArch64 PTLookup: zld_value = 0x%"PRIx64"\n",
                 info->arm_aarch64.zld_value);
 
-            if(info->arm_aarch64.zld_value & VMI_BIT_MASK(0,1) != 0b11)
+            if( (info->arm_aarch64.zld_value & VMI_BIT_MASK(0,1)) != 0b11)
                 goto done;
 
             dtb = info->arm_aarch64.zld_value & VMI_BIT_MASK(12,47);
