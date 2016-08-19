@@ -66,6 +66,7 @@ xen_events_t *xen_get_events(vmi_instance_t vmi)
     return xen_get_instance(vmi)->events;
 }
 
+static
 int wait_for_event_or_timeout(xc_interface *xch,
                               xc_evtchn *xce,
                               unsigned long ms)
@@ -113,12 +114,12 @@ int wait_for_event_or_timeout(xc_interface *xch,
 
 static inline
 void get_request(xen_vm_event_t *mem_event,
-                 vm_event_request_t *req)
+                 vm_event_46_request_t *req)
 {
-    vm_event_back_ring_t *back_ring;
+    vm_event_46_back_ring_t *back_ring;
     RING_IDX req_cons;
 
-    back_ring = &mem_event->back_ring;
+    back_ring = &mem_event->back_ring_46;
     req_cons = back_ring->req_cons;
 
     // Copy request
@@ -132,12 +133,12 @@ void get_request(xen_vm_event_t *mem_event,
 
 static inline
 void put_response(xen_vm_event_t *mem_event,
-                  vm_event_response_t *rsp)
+                  vm_event_46_response_t *rsp)
 {
-    vm_event_back_ring_t *back_ring;
+    vm_event_46_back_ring_t *back_ring;
     RING_IDX rsp_prod;
 
-    back_ring = &mem_event->back_ring;
+    back_ring = &mem_event->back_ring_46;
     rsp_prod = back_ring->rsp_prod_pvt;
 
     // Copy response
@@ -176,7 +177,7 @@ static int resume_domain(vmi_instance_t vmi)
  * that allows triggering Xen vm_event response flags.
  */
 static inline
-void process_response ( event_response_t response, vmi_event_t* event, vm_event_request_t *rsp )
+void process_response ( event_response_t response, vmi_event_t* event, vm_event_46_request_t *rsp )
 {
     if ( response && event ) {
         uint32_t i = VMI_EVENT_RESPONSE_NONE+1;
@@ -194,7 +195,7 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
                     break;
                 case VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA:
                     if ( event->emul_data ) {
-                        rsp->flags |= VMI_EVENT_RESPONSE_EMULATE;
+                        rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
 
                         if ( event->emul_data->size < sizeof(rsp->data.emul_read_data.data) )
                             rsp->data.emul_read_data.size = event->emul_data->size;
@@ -217,10 +218,11 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
     }
 }
 
+static
 status_t process_interrupt_event(vmi_instance_t vmi,
                                  interrupts_t intr,
-                                 vm_event_request_t *req,
-                                 vm_event_request_t *rsp)
+                                 vm_event_46_request_t *req,
+                                 vm_event_46_request_t *rsp)
 {
     int rc              = -1;
     status_t status     = VMI_FAILURE;
@@ -343,8 +345,8 @@ status_t process_interrupt_event(vmi_instance_t vmi,
 static inline
 status_t process_register(vmi_instance_t vmi,
                           registers_t reg,
-                          vm_event_request_t *req,
-                          vm_event_request_t *rsp)
+                          vm_event_46_request_t *req,
+                          vm_event_46_request_t *rsp)
 {
     vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &reg);
 
@@ -389,7 +391,7 @@ status_t process_register(vmi_instance_t vmi,
 static inline
 event_response_t issue_mem_cb(vmi_instance_t vmi,
                   vmi_event_t *event,
-                  vm_event_request_t *req,
+                  vm_event_46_request_t *req,
                   vmi_mem_access_t out_access)
 {
     event->mem_event.gla = req->u.mem_access.gla;
@@ -400,9 +402,10 @@ event_response_t issue_mem_cb(vmi_instance_t vmi,
     return event->callback(vmi, event);
 }
 
+static
 status_t process_mem(vmi_instance_t vmi,
-                     vm_event_request_t *req,
-                     vm_event_response_t *rsp)
+                     vm_event_46_request_t *req,
+                     vm_event_46_response_t *rsp)
 {
 
     xc_interface * xch = xen_get_xchandle(vmi);
@@ -447,9 +450,10 @@ errdone:
     return VMI_FAILURE;
 }
 
+static
 status_t process_single_step_event(vmi_instance_t vmi,
-                                   vm_event_request_t *req,
-                                   vm_event_response_t *rsp)
+                                   vm_event_46_request_t *req,
+                                   vm_event_46_response_t *rsp)
 {
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t dom = xen_get_domainid(vmi);
@@ -488,7 +492,7 @@ status_t process_single_step_event(vmi_instance_t vmi,
 //----------------------------------------------------------------------------
 // Driver functions
 
-void xen_events_destroy(vmi_instance_t vmi)
+void xen_events_destroy_new(vmi_instance_t vmi)
 {
     int rc, resume = 0;
     xc_interface * xch = xen_get_xchandle(vmi);
@@ -520,20 +524,20 @@ void xen_events_destroy(vmi_instance_t vmi)
     //A precaution to not leave vcpus stuck in single step
     xen_shutdown_single_step(vmi);
 
-    rc = xc_set_mem_access(xch, dom, (mem_access_t)COMPAT_MEMACCESS_RWX, ~0ull, 0);
-    rc = xc_set_mem_access(xch, dom, (mem_access_t)COMPAT_MEMACCESS_RWX, 0, xen->max_gpfn);
-    rc = xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0, false, false, false);
-    rc = xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
-    rc = xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
-    rc = xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
-    rc = xc_monitor_software_breakpoint(xch, dom, false);
+    rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
+    rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xen->max_gpfn);
+    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0, false, false, false);
+    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
+    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
+    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
+    rc = xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
 
     if ( xe->vm_event.ring_page ) {
         xen_events_listen(vmi, 0);
         munmap(xe->vm_event.ring_page, getpagesize());
     }
 
-    if ( xc_monitor_disable(xch, dom) )
+    if ( xen->libxcw.xc_monitor_disable(xch, dom) )
         errprint("Error disabling monitor vm_event ring.\n");
 
     // Unbind VIRQ
@@ -553,7 +557,7 @@ void xen_events_destroy(vmi_instance_t vmi)
         vmi_resume_vm(vmi);
 }
 
-status_t xen_events_init(vmi_instance_t vmi)
+status_t xen_init_events_new(vmi_instance_t vmi)
 {
     xen_events_t * xe = NULL;
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -574,6 +578,16 @@ status_t xen_events_init(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
+    // Wire up the functions
+    vmi->driver.events_listen_ptr = &xen_events_listen;
+    vmi->driver.are_events_pending_ptr = &xen_are_events_pending;
+    vmi->driver.set_reg_access_ptr = &xen_set_reg_access;
+    vmi->driver.set_intr_access_ptr = &xen_set_intr_access;
+    vmi->driver.set_mem_access_ptr = &xen_set_mem_access;
+    vmi->driver.start_single_step_ptr = &xen_start_single_step;
+    vmi->driver.stop_single_step_ptr = &xen_stop_single_step;
+    vmi->driver.shutdown_single_step_ptr = &xen_shutdown_single_step;
+
     // Allocate memory
     xe = g_malloc0(sizeof(xen_events_t));
     if ( !xe ) {
@@ -584,7 +598,7 @@ status_t xen_events_init(vmi_instance_t vmi)
     xen_get_instance(vmi)->events = xe;
 
     /* Enable monitor page */
-    xe->vm_event.ring_page = xc_monitor_enable(xch, dom, &xe->vm_event.evtchn_port);
+    xe->vm_event.ring_page = xen->libxcw.xc_monitor_enable(xch, dom, &xe->vm_event.evtchn_port);
     if ( !xe->vm_event.ring_page )
     {
         switch ( errno ) {
@@ -620,14 +634,14 @@ status_t xen_events_init(vmi_instance_t vmi)
 
     xe->vm_event.port = rc;
 
-    SHARED_RING_INIT((vm_event_sring_t *)xe->vm_event.ring_page);
-    BACK_RING_INIT(&xe->vm_event.back_ring,
-                   (vm_event_sring_t *)xe->vm_event.ring_page,
+    SHARED_RING_INIT((vm_event_46_sring_t *)xe->vm_event.ring_page);
+    BACK_RING_INIT(&xe->vm_event.back_ring_46,
+                   (vm_event_46_sring_t *)xe->vm_event.ring_page,
                    XC_PAGE_SIZE);
 
     /* Mem access events are always delivered via this ring */
     xe->vm_event.monitor_mem_access_on = 1;
-    xc_monitor_get_capabilities(xch, dom, &xe->vm_event.monitor_capabilities);
+    xen->libxcw.xc_monitor_get_capabilities(xch, dom, &xe->vm_event.monitor_capabilities);
 
     return VMI_SUCCESS;
 
@@ -642,6 +656,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t dom = xen_get_domainid(vmi);
     xen_events_t * xe = xen_get_events(vmi);
+    xen_instance_t * xen = xen_get_instance(vmi);
     bool sync = !event->async;
 
     if ( !xch ) {
@@ -699,8 +714,8 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->vm_event.monitor_cr0_on )
                 goto done;
 
-            rc = xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0,
-                                          enable, sync, event->onchange);
+            rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0,
+                                                      enable, sync, event->onchange);
             if ( rc )
                 goto done;
 
@@ -710,8 +725,8 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->vm_event.monitor_cr3_on )
                 goto done;
 
-            rc = xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3,
-                                          enable, sync, event->onchange);
+            rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3,
+                                                      enable, sync, event->onchange);
             if ( rc )
                 goto done;
 
@@ -721,8 +736,8 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->vm_event.monitor_cr4_on )
                 goto done;
 
-            rc = xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4,
-                                          enable, sync, event->onchange);
+            rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4,
+                                                      enable, sync, event->onchange);
             if ( rc )
                 goto done;
 
@@ -731,8 +746,8 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->vm_event.monitor_xcr0_on )
                 goto done;
 
-            rc = xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0,
-                                          enable, sync, event->onchange);
+            rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0,
+                                                      enable, sync, event->onchange);
             if ( rc )
                 goto done;
 
@@ -742,7 +757,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->vm_event.monitor_msr_on )
                 goto done;
 
-            rc = xc_monitor_mov_to_msr(xch, dom, enable, event->extended_msr);
+            rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, enable, event->extended_msr);
             if ( rc )
                 goto done;
 
@@ -763,7 +778,7 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
                             vmi_mem_access_t page_access_flag, uint16_t altp2m_idx)
 {
     int rc;
-    mem_access_t access;
+    xenmem_access_t access;
     xen_instance_t *xen = xen_get_instance(vmi);
     xc_interface * xch = xen_get_xchandle(vmi);
     xen_events_t * xe = xen_get_events(vmi);
@@ -807,15 +822,27 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
 
     // Convert betwen vmi_mem_access_t and mem_access_t
     // Xen does them backwards....
-    access = compat_memaccess_conversion[page_access_flag];
+    static const xenmem_access_t memaccess_conversion[] = {
+        [VMI_MEMACCESS_RWX] = XENMEM_access_n,
+        [VMI_MEMACCESS_WX] = XENMEM_access_r,
+        [VMI_MEMACCESS_RX] = XENMEM_access_w,
+        [VMI_MEMACCESS_X] = XENMEM_access_rw,
+        [VMI_MEMACCESS_W] = XENMEM_access_rx,
+        [VMI_MEMACCESS_R] = XENMEM_access_wx,
+        [VMI_MEMACCESS_N] = XENMEM_access_rwx,
+        [VMI_MEMACCESS_W2X] = XENMEM_access_rx2rw,
+        [VMI_MEMACCESS_RWX2N] = XENMEM_access_n2rwx,
+    };
+
+    access = memaccess_conversion[page_access_flag];
 
     dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %"PRIu64" on physical address: %"PRIu64" npages: %"PRIu64"\n",
         dom, event->physical_address, npages);
 
     if ( !altp2m_idx )
-        rc = xc_set_mem_access(xch, dom, access, page_key, npages);
+        rc = xen->libxcw.xc_set_mem_access(xch, dom, access, page_key, npages);
     else
-        rc = xc_altp2m_set_mem_access(xch, dom, altp2m_idx, page_key, access);
+        rc = xen->libxcw.xc_altp2m_set_mem_access(xch, dom, altp2m_idx, page_key, access);
 
     if(rc) {
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
@@ -846,6 +873,7 @@ status_t xen_set_int3_access(vmi_instance_t vmi, bool enable)
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t dom = xen_get_domainid(vmi);
     xen_events_t *xe = xen_get_events(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
 
     if ( !xch )
     {
@@ -868,7 +896,7 @@ status_t xen_set_int3_access(vmi_instance_t vmi, bool enable)
     if ( enable == xe->vm_event.monitor_intr_on )
         return VMI_FAILURE;
 
-    if ( xc_monitor_software_breakpoint(xch, dom, enable) )
+    if ( xen->libxcw.xc_monitor_software_breakpoint(xch, dom, enable) )
         return VMI_FAILURE;
 
     xe->vm_event.monitor_intr_on = enable;
@@ -879,6 +907,7 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t *event)
 {
     domid_t dom = xen_get_domainid(vmi);
     xen_events_t *xe = xen_get_events(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
     int rc;
     uint32_t i;
 
@@ -892,7 +921,7 @@ status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t *event)
 
     if ( !xe->vm_event.monitor_singlestep_on )
     {
-        rc = xc_monitor_singlestep(xen_get_xchandle(vmi), dom, true);
+        rc = xen->libxcw.xc_monitor_singlestep(xen_get_xchandle(vmi), dom, true);
         if ( rc<0 )
         {
             errprint("Error %d setting HVM single step\n", rc);
@@ -949,6 +978,7 @@ status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu)
 status_t xen_shutdown_single_step(vmi_instance_t vmi) {
     domid_t dom = xen_get_domainid(vmi);
     xen_events_t *xe = xen_get_events(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
     int rc = -1;
     uint32_t i=0;
 
@@ -960,7 +990,7 @@ status_t xen_shutdown_single_step(vmi_instance_t vmi) {
 
     if ( xe->vm_event.monitor_singlestep_on )
     {
-        rc = xc_monitor_singlestep(xen_get_xchandle(vmi), dom,false);
+        rc = xen->libxcw.xc_monitor_singlestep(xen_get_xchandle(vmi), dom,false);
 
         if (rc<0) {
             errprint("Error %d disabling single step\n", rc);
@@ -982,30 +1012,30 @@ int xen_are_events_pending(vmi_instance_t vmi)
         return -1;
     }
 
-    return RING_HAS_UNCONSUMED_REQUESTS(&xe->vm_event.back_ring);
+    return RING_HAS_UNCONSUMED_REQUESTS(&xe->vm_event.back_ring_46);
 
 }
 
 static inline
-status_t process_requests(vmi_instance_t vmi, vm_event_request_t *req,
-                          vm_event_response_t *rsp)
+status_t process_requests(vmi_instance_t vmi, vm_event_46_request_t *req,
+                          vm_event_46_response_t *rsp)
 {
     xen_events_t * xe = xen_get_events(vmi);
     status_t vrc = VMI_SUCCESS;
 
-    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->vm_event.back_ring) ) {
-        memset( req, 0, sizeof (vm_event_request_t) );
-        memset( rsp, 0, sizeof (vm_event_response_t) );
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->vm_event.back_ring_46) ) {
+        memset( req, 0, sizeof (vm_event_46_request_t) );
+        memset( rsp, 0, sizeof (vm_event_46_response_t) );
 
         get_request(&xe->vm_event, req);
 
-        if ( req->version != VM_EVENT_INTERFACE_VERSION )
+        if ( req->version > MAX_SUPPORTED_VM_EVENT_INTERFACE_VERSION )
         {
-            errprint("Error, Xen reports a different VM_EVENT_INTERFACE_VERSION!\n");
+            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION we don't (yet) support!\n");
             return VMI_FAILURE;
         }
 
-        rsp->version = VM_EVENT_INTERFACE_VERSION;
+        rsp->version = req->version;
         rsp->vcpu_id = req->vcpu_id;
         rsp->flags = (req->flags & VM_EVENT_FLAG_VCPU_PAUSED);
         rsp->reason = req->reason;
@@ -1088,8 +1118,8 @@ status_t process_requests(vmi_instance_t vmi, vm_event_request_t *req,
 
 status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 {
-    vm_event_request_t req;
-    vm_event_response_t rsp;
+    vm_event_46_request_t req;
+    vm_event_46_response_t rsp;
     xc_interface * xch = xen_get_xchandle(vmi);
     xen_events_t * xe = xen_get_events(vmi);
     domid_t dom = xen_get_domainid(vmi);

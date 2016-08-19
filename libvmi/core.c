@@ -525,13 +525,8 @@ vmi_init_private(
     }
 
     if(init_mode & VMI_INIT_EVENTS) {
-#if ENABLE_XEN_EVENTS == 1
         /* Enable event handlers */
         events_init(*vmi);
-#else
-        errprint("LibVMI wasn't compiled with events support!\n");
-        status = VMI_FAILURE;
-#endif
     }
 
 error_exit:

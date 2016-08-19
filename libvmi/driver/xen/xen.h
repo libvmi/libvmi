@@ -137,16 +137,6 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.destroy_shm_snapshot_ptr = &xen_destroy_shm_snapshot;
     driver.get_dgpma_ptr = &xen_get_dgpma;
 #endif
-#if ENABLE_XEN_EVENTS == 1
-    driver.events_listen_ptr = &xen_events_listen;
-    driver.are_events_pending_ptr = &xen_are_events_pending;
-    driver.set_reg_access_ptr = &xen_set_reg_access;
-    driver.set_intr_access_ptr = &xen_set_intr_access;
-    driver.set_mem_access_ptr = &xen_set_mem_access;
-    driver.start_single_step_ptr = &xen_start_single_step;
-    driver.stop_single_step_ptr = &xen_stop_single_step;
-    driver.shutdown_single_step_ptr = &xen_shutdown_single_step;
-#endif
     vmi->driver = driver;
     return VMI_SUCCESS;
 }
