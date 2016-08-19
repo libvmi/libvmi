@@ -606,6 +606,15 @@ status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event,
     case VMI_EVENT_MEMORY:
         rc = clear_mem_event(vmi, event);
         break;
+    case VMI_EVENT_GUEST_REQUEST:
+        rc = clear_guest_requested_event(vmi, event);
+        break;
+    case VMI_EVENT_CPUID:
+        rc = clear_cpuid_event(vmi, event);
+        break;
+    case VMI_EVENT_DEBUG_EXCEPTION:
+        rc = clear_debug_event(vmi, event);
+        break;
     default:
         dbprint(VMI_DEBUG_EVENTS, "Cannot clear unknown event: %d\n", event->type);
         rc = VMI_FAILURE;
