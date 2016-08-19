@@ -150,6 +150,12 @@ struct vmi_instance {
 
     int event_listener_required; /**< Non-zero if event listener is required for the domain to run */
 
+    vmi_event_t *guest_requested_event; /**< Handler of guest-requested events */
+
+    vmi_event_t *cpuid_event; /**< Handler of CPUID events */
+
+    vmi_event_t *debug_event; /**< Handler of debug exception events */
+
     GHashTable *interrupt_events; /**< interrupt event to function mapping (key: interrupt) */
 
     GHashTable *mem_events; /**< mem event to functions mapping (key: physical address) */
@@ -162,11 +168,12 @@ struct vmi_instance {
 
     uint32_t step_vcpus[MAX_SINGLESTEP_VCPUS]; /**< counter of events on vcpus for which we have internal singlestep enabled */
 
-    gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
-
     gboolean event_callback; /**< flag indicating that libvmi is currently issuing an event callback */
 
     GHashTable *clear_events; /**< table to save vmi_clear_event requests when event_callback is set */
+
+    gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
+
 };
 
 /** Event singlestep reregister wrapper */

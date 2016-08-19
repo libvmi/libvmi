@@ -489,6 +489,143 @@ status_t process_single_step_event(vmi_instance_t vmi,
     return VMI_FAILURE;
 }
 
+status_t process_guest_requested_event(vmi_instance_t vmi,
+                                       vm_event_46_request_t *req,
+                                       vm_event_46_response_t *rsp)
+{
+    xc_interface * xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+
+    if ( !xch )
+    {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == VMI_INVALID_DOMID )
+    {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !vmi->guest_requested_event )
+    {
+        errprint("%s error: no guest requested event handler is registered in LibVMI\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    vmi->guest_requested_event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+    vmi->guest_requested_event->vcpu_id = req->vcpu_id;
+
+    vmi->event_callback = 1;
+    process_response ( vmi->guest_requested_event->callback(vmi, vmi->guest_requested_event),
+                       vmi->guest_requested_event, rsp );
+    vmi->event_callback = 0;
+
+    return VMI_SUCCESS;
+}
+
+status_t process_cpuid_event(vmi_instance_t vmi,
+                             vm_event_46_request_t *req,
+                             vm_event_46_response_t *rsp)
+{
+    xc_interface * xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+
+    if ( !xch )
+    {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == VMI_INVALID_DOMID )
+    {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !vmi->cpuid_event )
+    {
+        errprint("%s error: no CPUID event handler is registered in LibVMI\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    vmi->cpuid_event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+    vmi->cpuid_event->vcpu_id = req->vcpu_id;
+    vmi->cpuid_event->cpuid_event.insn_length = req->u.cpuid.insn_length;
+
+    vmi->event_callback = 1;
+    process_response ( vmi->cpuid_event->callback(vmi, vmi->cpuid_event),
+                       vmi->cpuid_event, rsp );
+    vmi->event_callback = 0;
+
+    if ( !rsp->flags || rsp->flags == (1 << VM_EVENT_FLAG_VCPU_PAUSED) )
+        dbprint(VMI_DEBUG_XEN, "%s warning: CPUID events require the callback to specify how to handle it, we are likely to be going into a CPUID loop right now\n"
+                __FUNCTION__);
+
+    return VMI_SUCCESS;
+}
+
+status_t process_debug_event(vmi_instance_t vmi,
+                             vm_event_46_request_t *req,
+                             vm_event_46_response_t *rsp)
+{
+    xc_interface * xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+    int rc;
+
+    if ( !xch )
+    {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == VMI_INVALID_DOMID )
+    {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !vmi->debug_event )
+    {
+        errprint("%s error: no debug event handler is registered in LibVMI\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    vmi->debug_event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+    vmi->debug_event->vcpu_id = req->vcpu_id;
+    vmi->debug_event->debug_event.reinject = -1;
+    vmi->debug_event->debug_event.gla = req->data.regs.x86.rip;
+    vmi->debug_event->debug_event.offset = req->data.regs.x86.rip & VMI_BIT_MASK(0,11);
+    vmi->debug_event->debug_event.gfn = req->u.debug_exception.gfn;
+    vmi->debug_event->debug_event.type = req->u.debug_exception.type;
+    vmi->debug_event->debug_event.insn_length = req->u.debug_exception.insn_length;
+
+    vmi->event_callback = 1;
+    process_response ( vmi->debug_event->callback(vmi, vmi->debug_event),
+                       vmi->debug_event, rsp );
+    vmi->event_callback = 0;
+
+    if ( -1 == vmi->debug_event->debug_event.reinject )
+    {
+        errprint("%s Need to specify reinjection behaviour!\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+
+    if ( vmi->debug_event->debug_event.reinject )
+    {
+        rc = xc_hvm_inject_trap(xen_get_xchandle(vmi),
+                                xen_get_domainid(vmi),
+                                rsp->vcpu_id,
+                                X86_TRAP_DEBUG,
+                                rsp->u.debug_exception.type, -1,
+                                rsp->u.debug_exception.insn_length,
+                                rsp->data.regs.x86.cr2);
+        if (rc < 0)
+        {
+            errprint("%s error %d injecting debug exception\n", __FUNCTION__, rc);
+            return VMI_FAILURE;
+        }
+    }
+
+    return VMI_SUCCESS;
+}
+
 //----------------------------------------------------------------------------
 // Driver functions
 
@@ -587,6 +724,9 @@ status_t xen_init_events_new(vmi_instance_t vmi)
     vmi->driver.start_single_step_ptr = &xen_start_single_step;
     vmi->driver.stop_single_step_ptr = &xen_stop_single_step;
     vmi->driver.shutdown_single_step_ptr = &xen_shutdown_single_step;
+    vmi->driver.set_guest_requested_ptr = &xen_set_guest_requested_event;
+    vmi->driver.set_cpuid_event_ptr = &xen_set_cpuid_event;
+    vmi->driver.set_debug_event_ptr = &xen_set_debug_event;
 
     // Allocate memory
     xe = g_malloc0(sizeof(xen_events_t));
@@ -1003,6 +1143,66 @@ status_t xen_shutdown_single_step(vmi_instance_t vmi) {
     return VMI_SUCCESS;
 }
 
+status_t xen_set_guest_requested_event(vmi_instance_t vmi, bool enabled) {
+    int rc;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 5 )
+        return VMI_FAILURE;
+
+    rc  = xen->libxcw.xc_monitor_guest_request(xen_get_xchandle(vmi),
+                                               xen_get_domainid(vmi),
+                                               enabled, 1);
+
+    if ( rc < 0 )
+    {
+        errprint("Error %i setting guest request monitor\n", rc);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t xen_set_debug_event(vmi_instance_t vmi, bool enabled) {
+    int rc;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 8 )
+        return VMI_FAILURE;
+
+    rc = xen->libxcw.xc_monitor_debug_exceptions(xen_get_xchandle(vmi),
+                                                 xen_get_domainid(vmi),
+                                                 enabled, 1);
+
+    if ( rc < 0 )
+    {
+        errprint("Error %i setting debug event monitor\n", rc);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t xen_set_cpuid_event(vmi_instance_t vmi, bool enabled) {
+    int rc;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 8 )
+        return VMI_FAILURE;
+
+    rc = xen->libxcw.xc_monitor_cpuid(xen_get_xchandle(vmi),
+                                      xen_get_domainid(vmi),
+                                      enabled);
+
+    if ( rc < 0 )
+    {
+        errprint("Error %i setting debug event monitor\n", rc);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
 int xen_are_events_pending(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
@@ -1098,6 +1298,21 @@ status_t process_requests(vmi_instance_t vmi, vm_event_46_request_t *req,
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
                 dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
                 vrc = process_interrupt_event(vmi, INT3, req, rsp);
+                break;
+
+            case VM_EVENT_REASON_GUEST_REQUEST:
+                dbprint(VMI_DEBUG_XEN, "--Caught guest requested event!\n");
+                vrc = process_guest_requested_event(vmi, req, rsp);
+                break;
+
+            case VM_EVENT_REASON_DEBUG_EXCEPTION:
+                dbprint(VMI_DEBUG_XEN, "--Caught debug exception event!\n");
+                vrc = process_debug_event(vmi, req, rsp);
+                break;
+
+            case VM_EVENT_REASON_CPUID:
+                dbprint(VMI_DEBUG_XEN, "--Caught CPUID event!\n");
+                vrc = process_cpuid_event(vmi, req, rsp);
                 break;
 
             default:
