@@ -278,7 +278,7 @@ typedef struct vm_event_st_46 {
 } vm_event_46_request_t, vm_event_46_response_t;
 
 DEFINE_RING_TYPES(mem_event_42, mem_event_42_request_t, mem_event_42_response_t);
-DEFINE_RING_TYPES(mem_event_45, mem_event_45_request_t, mem_event_42_response_t);
+DEFINE_RING_TYPES(mem_event_45, mem_event_45_request_t, mem_event_45_response_t);
 DEFINE_RING_TYPES(vm_event_46, vm_event_46_request_t, vm_event_46_response_t);
 
 #endif

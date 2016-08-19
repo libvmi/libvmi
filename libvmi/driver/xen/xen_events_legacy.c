@@ -119,7 +119,7 @@ static inline int get_mem_event_42(xen_mem_event_t *mem_event, mem_event_42_requ
     req_cons = back_ring->req_cons;
 
     // Copy request
-    memcpy(req, RING_GET_REQUEST(back_ring, req_cons), sizeof(*req));
+    memcpy(req, RING_GET_REQUEST(back_ring, req_cons), sizeof(mem_event_42_request_t));
     req_cons++;
 
     // Update ring
@@ -138,7 +138,7 @@ static inline int put_mem_response_42(xen_mem_event_t *mem_event, mem_event_42_r
     rsp_prod = back_ring->rsp_prod_pvt;
 
     // Copy response
-    memcpy(RING_GET_RESPONSE(back_ring, rsp_prod), rsp, sizeof(*rsp));
+    memcpy(RING_GET_RESPONSE(back_ring, rsp_prod), rsp, sizeof(mem_event_42_response_t));
     rsp_prod++;
 
     // Update ring
@@ -157,7 +157,7 @@ static inline void get_mem_event_45(xen_mem_event_t *mem_event, mem_event_45_req
     req_cons = back_ring->req_cons;
 
     // Copy request
-    memcpy(req, RING_GET_REQUEST(back_ring, req_cons), sizeof(*req));
+    memcpy(req, RING_GET_REQUEST(back_ring, req_cons), sizeof(mem_event_45_request_t));
     req_cons++;
 
     // Update ring
@@ -174,7 +174,7 @@ static inline int put_mem_response_45(xen_mem_event_t *mem_event, mem_event_45_r
     rsp_prod = back_ring->rsp_prod_pvt;
 
     // Copy response
-    memcpy(RING_GET_RESPONSE(back_ring, rsp_prod), rsp, sizeof(*rsp));
+    memcpy(RING_GET_RESPONSE(back_ring, rsp_prod), rsp, sizeof(mem_event_45_response_t));
     rsp_prod++;
 
     // Update ring
