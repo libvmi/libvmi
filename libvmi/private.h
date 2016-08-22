@@ -84,11 +84,25 @@ struct vmi_instance {
 
     addr_t init_task;       /**< address of task struct for init */
 
-    int pae;                /**< nonzero if PAE is enabled */
+    union {
+        struct {
+            int pae;        /**< nonzero if PAE is enabled */
 
-    int pse;                /**< nonzero if PSE is enabled */
+            int pse;        /**< nonzero if PSE is enabled */
 
-    int lme;                /**< nonzero if LME is enabled */
+            int lme;        /**< nonzero if LME is enabled */
+        } x86;
+
+        struct {
+            int t0sz;           /**< TTBR0 VA size (2^(64-t0sz)) */
+
+            int t1sz;           /**< TTBR1 VA size (2^(64-t1sz)) */
+
+            page_size_t tg0;    /**< TTBR0 granule size: 4KB/16KB/64KB */
+
+            page_size_t tg1;    /**< TTBR1 granule size: 4KB/16KB/64KB */
+        } arm64;
+    };
 
     page_mode_t page_mode;  /**< paging mode in use */
 
@@ -136,6 +150,12 @@ struct vmi_instance {
 
     int event_listener_required; /**< Non-zero if event listener is required for the domain to run */
 
+    vmi_event_t *guest_requested_event; /**< Handler of guest-requested events */
+
+    vmi_event_t *cpuid_event; /**< Handler of CPUID events */
+
+    vmi_event_t *debug_event; /**< Handler of debug exception events */
+
     GHashTable *interrupt_events; /**< interrupt event to function mapping (key: interrupt) */
 
     GHashTable *mem_events; /**< mem event to functions mapping (key: physical address) */
@@ -148,23 +168,13 @@ struct vmi_instance {
 
     uint32_t step_vcpus[MAX_SINGLESTEP_VCPUS]; /**< counter of events on vcpus for which we have internal singlestep enabled */
 
-    gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
-
     gboolean event_callback; /**< flag indicating that libvmi is currently issuing an event callback */
 
     GHashTable *clear_events; /**< table to save vmi_clear_event requests when event_callback is set */
+
+    gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
+
 };
-
-/** Page-level memevent struct to also hold byte-level events in the embedded hashtable */
-typedef struct memevent_page {
-
-    vmi_mem_access_t access_flag; /**< combined page access flag */
-    vmi_event_t *event; /**< page event registered */
-    addr_t key; /**< page # */
-
-    GHashTable  *byte_events; /**< byte events */
-
-} memevent_page_t;
 
 /** Event singlestep reregister wrapper */
 typedef struct step_and_reg_event_wrapper {
@@ -296,19 +306,19 @@ status_t vmi_pagetable_lookup_cache(
     status_t rva_cache_get(
         vmi_instance_t vmi,
         addr_t base_addr,
-        vmi_pid_t pid,
+        addr_t dtb,
         addr_t rva,
         char **sym);
     void rva_cache_set(
         vmi_instance_t vmi,
         addr_t base_addr,
-        vmi_pid_t pid,
+        addr_t dtb,
         addr_t rva,
         char *sym);
     status_t rva_cache_del(
         vmi_instance_t vmi,
         addr_t base_addr,
-        vmi_pid_t pid,
+        addr_t dtb,
         addr_t rva);
 
     void v2p_cache_init(
@@ -359,6 +369,8 @@ status_t vmi_pagetable_lookup_cache(
 /*-----------------------------------------
  * memory.c
  */
+
+    #define PSR_MODE_BIT 0x10 // set on cpsr iff ARM32
 
     status_t find_page_mode_live(
     vmi_instance_t vmi);

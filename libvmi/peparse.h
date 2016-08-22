@@ -203,38 +203,19 @@ peparse_validate_pe_image(
     size_t len);
 
 /**
- * Read a physical address and return a valid PE image if one was found
- * continuously allocated at the address.
+ * Return a valid PE image if one was found
+ * at the provided context.
  *
  * @param[in] vmi, the vmi instance
- * @param[in] base_paddr, the physicall address to read from
+ * @param[in] ctx, Access context to get image from
  * @param[in] len, length to read
  * @param[out] image, address to store the data at
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t
-peparse_get_image_phys(
+peparse_get_image(
     vmi_instance_t vmi,
-    addr_t base_paddr,
-    size_t len,
-    const uint8_t * const image);
-
-/**
- * Read a virtual address and return a valid PE image if one was found
- * at the address.
- *
- * @param[in] vmi, the vmi instance
- * @param[in] base_vaddr, the virtual address to read from
- * @param[in] pid, PID of the process
- * @param[in] len, length to read
- * @param[out] image, address to store the data at
- * @return VMI_SUCCESS or VMI_FAILURE
- */
-status_t
-peparse_get_image_virt(
-    vmi_instance_t vmi,
-    addr_t base_vaddr,
-    vmi_pid_t pid,
+    const access_context_t *ctx,
     size_t len,
     const uint8_t * const image);
 
@@ -303,8 +284,7 @@ peparse_get_idd_size(
  * Get the export table from a PE image.
  *
  * @param[in] vmi, the libvmi instance
- * @param[in] base_vaddr, the base virtual address of the PE image
- * @param[in] pid, the PID of the program (or 0 for kernel)
+ * @param[in] ctx, Access context for the PE image base
  * @param[out] et, the address of the export_table to save data into
  * @param[out] (optional) export_table_rva, the rva of the export table as given in the IDD
  * @param[out] (optional) export_table_size, the size of the export table as given in the IDD
@@ -312,8 +292,7 @@ peparse_get_idd_size(
 status_t
 peparse_get_export_table(
     vmi_instance_t vmi,
-    addr_t base_vaddr,
-    vmi_pid_t pid,
+    const access_context_t *ctx,
     struct export_table *et,
     addr_t *export_table_rva,
     size_t *export_table_size);

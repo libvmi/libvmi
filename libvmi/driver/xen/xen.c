@@ -29,6 +29,7 @@
 
 #include "driver/xen/xen.h"
 #include "driver/xen/xen_private.h"
+#include "driver/xen/xen_events.h"
 #include "driver/driver_interface.h"
 #include "driver/memory_cache.h"
 
@@ -538,7 +539,7 @@ xen_get_domainid_from_name(
     uint64_t domainid = VMI_INVALID_DOMID;
     char *tmp;
 
-    struct xs_handle *xsh = OPEN_XS_DAEMON();
+    struct xs_handle *xsh = xs_open(0);
 
     if (!xsh)
         goto _bail;
@@ -571,7 +572,7 @@ _bail:
     if (domains)
         free(domains);
     if (xsh)
-        CLOSE_XS_DAEMON(xsh);
+        xs_close(xsh);
     return domainid;
 #endif
 }
@@ -598,7 +599,7 @@ xen_get_name_from_domainid(
     int i = 0;
     xs_transaction_t xth = XBT_NULL;
 
-    struct xs_handle *xsh = OPEN_XS_DAEMON();
+    struct xs_handle *xsh = xs_open(0);
 
     if (!xsh)
         goto _bail;
@@ -615,7 +616,7 @@ xen_get_name_from_domainid(
 
 _bail:
     if (xsh)
-        CLOSE_XS_DAEMON(xsh);
+        xs_close(xsh);
     return ret;
 #endif
 }
@@ -641,33 +642,26 @@ xen_check_domainid(
     uint64_t domainid) {
 
     status_t ret = VMI_FAILURE;
-    libvmi_xenctrl_handle_t xchandle = XENCTRL_HANDLE_INVALID;
-
+    xc_dominfo_t info;
+    xc_interface *xchandle;
     domid_t max_domid = ~0;
+    int rc;
+
     if ( domainid > max_domid ) {
-        dbprint(VMI_DEBUG_XEN,
-                "Domain ID is invalid, larger then the max supported on Xen!\n");
+        dbprint(VMI_DEBUG_XEN,"Domain ID is invalid, larger then the max supported on Xen!\n");
         return ret;
     }
 
     /* open handle to the libxc interface */
-    xchandle = xc_interface_open(
-#ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
-                                    NULL, NULL, 0
-#endif
-        );
+    xchandle = xc_interface_open(NULL, NULL, 0);
 
-    if (XENCTRL_HANDLE_INVALID == xchandle) {
+    if ( !xchandle )
        goto _done;
-    }
 
-    xc_dominfo_t info;
-    int rc = xc_domain_getinfo(xchandle, domainid, 1,
-                           &info);
+    rc = xc_domain_getinfo(xchandle, domainid, 1, &info);
 
-    if(rc==1 && info.domid==(uint32_t)domainid) {
+    if(rc==1 && info.domid==(uint32_t)domainid)
         ret = VMI_SUCCESS;
-    }
 
     xc_interface_close(xchandle);
 
@@ -679,9 +673,26 @@ status_t
 xen_discover_guest_addr_width(
     vmi_instance_t vmi)
 {
-#if defined(ARM)
+#if defined(ARM32)
 
     xen_get_instance(vmi)->addr_width = 4;
+    return VMI_SUCCESS;
+
+#elif defined(ARM64)
+
+    vcpu_guest_context_any_t ctx = { 0 };
+
+    if (xc_vcpu_getcontext
+        (xen_get_xchandle(vmi), xen_get_domainid(vmi), 0, &ctx)) {
+        errprint("Failed to get context information (ARM domain).\n");
+        return VMI_FAILURE;
+    }
+
+    if ( ctx.c.user_regs.cpsr & PSR_MODE_BIT )
+        xen_get_instance(vmi)->addr_width = 4;
+    else
+        xen_get_instance(vmi)->addr_width = 8;
+
     return VMI_SUCCESS;
 
 #elif defined(I386) || defined(X86_64)
@@ -771,27 +782,20 @@ xen_init(
 {
     status_t ret = VMI_FAILURE;
     xen_instance_t *xen = g_malloc0(sizeof(xen_instance_t));
-    libvmi_xenctrl_handle_t xchandle = XENCTRL_HANDLE_INVALID;
+    xc_interface *xchandle = xc_interface_open(NULL, NULL, 0);
     int rc = 0; // return codes from xc_* calls
 
-    /* open handle to the libxc interface */
-    xchandle = xc_interface_open(
-#ifdef XENCTRL_HAS_XC_INTERFACE // Xen >= 4.1
-                                    NULL, NULL, 0
-#endif
-        );
-
-    if (XENCTRL_HANDLE_INVALID == xchandle) {
+    if ( !xchandle ) {
         errprint("Failed to open libxc interface.\n");
         free(xen);
         goto exit;
     }
-    xen->xchandle = xchandle;
 
+    xen->xchandle = xchandle;
     /* initialize other xen-specific values */
 
 #ifdef HAVE_LIBXENSTORE
-    xen->xshandle = OPEN_XS_DAEMON();
+    xen->xshandle = xs_open(0);
     if (!xen->xshandle) {
         errprint("xs_domain_open failed\n");
         xc_interface_close(xchandle);
@@ -808,13 +812,56 @@ exit:
 }
 
 status_t
+xen_init_events(
+    vmi_instance_t vmi)
+{
+    status_t ret = VMI_SUCCESS;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    /* Only enable events IFF(mode & VMI_INIT_EVENTS)
+     * Additional checks performed within xen_events_init_*
+     */
+    if(vmi->init_mode & VMI_INIT_EVENTS) {
+        if ( xen->major_version == 4 && xen->minor_version < 6 )
+            ret = xen_init_events_legacy(vmi);
+        else
+            ret = xen_init_events_new(vmi);
+
+        if ( VMI_FAILURE == ret )
+            errprint("Failed to initialize xen events.\n");
+    }
+
+    return ret;
+}
+
+status_t
 xen_init_vmi(
     vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
     xen_instance_t *xen = xen_get_instance(vmi);
+    int rc;
+
+    /* get the Xen version */
+    rc = xc_version(xen->xchandle, XENVER_version, NULL);
+    xen->major_version = rc >> 16;
+    xen->minor_version = rc & ((1 << 16) - 1);
+
+    dbprint(VMI_DEBUG_XEN, "**The running Xen version is %u.%u\n",
+            xen->major_version, xen->minor_version);
+
+    if ( xen->major_version < 4 || (xen->major_version == 4 && xen->minor_version < 1) ) {
+        errprint("You are running on and old version of Xen. This version of LibVMI only support Xen 4.1 and upwards.\n");
+        goto _bail;
+    }
+
+    if ( VMI_FAILURE == create_libxc_wrapper(xen) ) {
+        errprint("Failed to find a suitable xenctrl.so for the reported version of Xen!\n");
+        goto _bail;
+    }
+
     /* setup the info struct */
-    int rc = xc_domain_getinfo(xen->xchandle,
+    rc = xc_domain_getinfo(xen->xchandle,
                            xen->domainid,
                            1,
                            &xen->info);
@@ -837,15 +884,15 @@ xen_init_vmi(
     }
 #endif /* VMI_DEBUG */
 
-#if __XEN_INTERFACE_VERSION__ < 0x00040600
-    xen->max_gpfn = xc_domain_maximum_gpfn(xen->xchandle, xen->domainid);
-#else
-    if (xc_domain_maximum_gpfn(xen->xchandle, xen->domainid, &xen->max_gpfn)) {
-        errprint("Failed to get max gpfn for Xen.\n");
-        ret = VMI_FAILURE;
-        goto _bail;
+    if ( xen->major_version == 4 && xen->minor_version < 6 )
+        xen->max_gpfn = (uint64_t)xen->libxcw.xc_domain_maximum_gpfn(xen->xchandle, xen->domainid);
+    else if (xen->libxcw.xc_domain_maximum_gpfn2(xen->xchandle, xen->domainid, (xen_pfn_t*)&xen->max_gpfn))
+    {
+            errprint("Failed to get max gpfn for Xen.\n");
+            ret = VMI_FAILURE;
+            goto _bail;
     }
-#endif
+
     if (xen->max_gpfn <= 0) {
         errprint("Failed to get max gpfn for Xen.\n");
         ret = VMI_FAILURE;
@@ -859,18 +906,6 @@ xen_init_vmi(
         xen->max_gpfn = (xen->info.max_memkb * 1024) >> 12;
     }
 
-#if ENABLE_XEN_EVENTS==1
-    /* Only enable events IFF(mode & VMI_INIT_EVENTS)
-     * Additional checks performed within xen_events_init
-     */
-    if(vmi->init_mode & VMI_INIT_EVENTS){
-        if(xen_events_init(vmi)==VMI_FAILURE){
-            errprint("Failed to initialize xen events.\n");
-            goto _bail;
-        }
-    }
-#endif
-
 #if ENABLE_SHM_SNAPSHOT == 1
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
         ret = xen_create_shm_snapshot(vmi);
@@ -882,8 +917,16 @@ xen_init_vmi(
     ret = xen_setup_live_mode(vmi);
 #endif
 
+    if ( VMI_FAILURE == ret )
+        goto _bail;
+
     // Determine the guest address width
     ret = xen_discover_guest_addr_width(vmi);
+
+    if ( VMI_FAILURE == ret )
+        goto _bail;
+
+    ret = xen_init_events(vmi);
 
 _bail:
     return ret;
@@ -893,11 +936,14 @@ void
 xen_destroy(
     vmi_instance_t vmi)
 {
-#if ENABLE_XEN_EVENTS == 1
-    if(xen_get_instance(vmi)->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
-        xen_events_destroy(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if(xen->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
+        if ( xen->major_version == 4 && xen->minor_version < 6 )
+            xen_events_destroy_legacy(vmi);
+        else
+            xen_events_destroy_new(vmi);
     }
-#endif
 
 #if ENABLE_SHM_SNAPSHOP == 1
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
@@ -905,19 +951,20 @@ xen_destroy(
     }
 #endif
 
-    libvmi_xenctrl_handle_t xchandle = xen_get_xchandle(vmi);
-    if(xchandle != XENCTRL_HANDLE_INVALID) {
+    xc_interface *xchandle = xen_get_xchandle(vmi);
+    if ( xchandle )
         xc_interface_close(xchandle);
-    }
+
+    dlclose(xen->libxcw.handle);
 
 #ifdef HAVE_LIBXENSTORE
-    if(xen_get_instance(vmi)->xshandle) {
-        CLOSE_XS_DAEMON(xen_get_instance(vmi)->xshandle);
+    if(xen->xshandle) {
+        xs_close(xen->xshandle);
     }
 #endif
 
-    g_free(xen_get_instance(vmi)->name);
-    free(xen_get_instance(vmi));
+    g_free(xen->name);
+    free(xen);
 }
 
 status_t
@@ -2103,7 +2150,7 @@ _bail:
 }
 #endif
 
-#if defined(ARM)
+#if defined(ARM32) || defined(ARM64)
 static status_t
 xen_get_vcpureg_arm(
     vmi_instance_t vmi,
@@ -2126,6 +2173,7 @@ xen_get_vcpureg_arm(
     case SCTLR:
         *value = ctx.c.sctlr;
         break;
+    case TCR_EL1: /* fall-through */
     case TTBCR:
         *value = ctx.c.ttbcr;
         break;
@@ -2134,6 +2182,9 @@ xen_get_vcpureg_arm(
         break;
     case TTBR1:
         *value = ctx.c.ttbr1;
+        break;
+    case CPSR:
+        *value = ctx.c.user_regs.cpsr;
         break;
     case R0_USR:
         *value = ctx.c.user_regs.r0_usr;
@@ -2410,7 +2461,7 @@ xen_get_vcpureg(
     registers_t reg,
     unsigned long vcpu)
 {
-#if defined(ARM)
+#if defined(ARM32) || defined(ARM64)
     return xen_get_vcpureg_arm(vmi, value, reg, vcpu);
 #elif defined(I386) || defined (X86_64)
     if (!xen_get_instance(vmi)->hvm) {

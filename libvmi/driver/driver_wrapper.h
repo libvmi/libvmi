@@ -454,5 +454,47 @@ driver_shutdown_single_step(
     }
 }
 
+static inline status_t
+driver_set_guest_requested_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+    if (vmi->driver.initialized && vmi->driver.set_guest_requested_ptr)
+        return vmi->driver.set_guest_requested_ptr(vmi, enabled);
+    else
+    {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_guest_requested function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
+driver_set_cpuid_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+    if (vmi->driver.initialized && vmi->driver.set_cpuid_event_ptr)
+        return vmi->driver.set_cpuid_event_ptr(vmi, enabled);
+    else
+    {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_cpuid_event function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
+driver_set_debug_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+    if (vmi->driver.initialized && vmi->driver.set_debug_event_ptr)
+        return vmi->driver.set_debug_event_ptr(vmi, enabled);
+    else
+    {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_debug_event function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
 #endif /* DRIVER_WRAPPER_H */
 

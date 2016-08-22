@@ -13,6 +13,7 @@ h_private = \
     arch/intel.h \
     arch/amd64.h \
     arch/arm_aarch32.h \
+    arch/arm_aarch64.h \
     os/os_interface.h \
     driver/driver_interface.h \
     driver/driver_wrapper.h \
@@ -34,6 +35,7 @@ c_sources = \
     arch/intel.c \
     arch/amd64.c \
     arch/arm_aarch32.c \
+    arch/arm_aarch64.c \
     driver/driver_interface.c \
     driver/memory_cache.c \
     os/os_interface.c
@@ -63,22 +65,15 @@ endif
 endif
 
 if HAVE_XEN
+h_public    += events.h
 drivers     += driver/xen/xen.h \
                driver/xen/xen_private.h \
-               driver/xen/xen.c
-
-if HAVE_XEN_EVENTS
-h_public    += events.h
-drivers     += driver/xen/xen_events.h \
-               driver/xen/xen_events_private.h
-
-if HAVE_XEN_EVENTS_LEGACY
-drivers     += driver/xen/xen_events_legacy.c
-else
-drivers     += driver/xen/xen_events.c
-endif
-
-endif
+               driver/xen/xen.c \
+               driver/xen/xen_events.h \
+               driver/xen/xen_events_private.h \
+               driver/xen/xen_events.c \
+               driver/xen/xen_events_legacy.c \
+               driver/xen/libxc_wrapper.c
 endif
 
 os =

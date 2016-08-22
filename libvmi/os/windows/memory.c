@@ -69,7 +69,13 @@ windows_kernel_symbol_to_address(
     dbprint(VMI_DEBUG_MISC, "--trying kernel PE export table\n");
 
     /* check exports */
-    if (VMI_SUCCESS == windows_export_to_rva(vmi, windows->ntoskrnl_va, 0, symbol, &rva)) {
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = windows->ntoskrnl_va,
+        .pid = 0
+    };
+
+    if (VMI_SUCCESS == windows_export_to_rva(vmi, &ctx, symbol, &rva)) {
         *address = windows->ntoskrnl_va + rva;
         dbprint(VMI_DEBUG_MISC, "--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
              symbol, *address);

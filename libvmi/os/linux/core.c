@@ -33,9 +33,9 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
         vmi_instance_t vmi);
 
 static status_t linux_filemode_32bit_init(vmi_instance_t vmi,
-                                          uint32_t swapper_pg_dir,
-                                          uint32_t boundary,
-                                          uint32_t pa, uint32_t va)
+                                          addr_t swapper_pg_dir,
+                                          addr_t boundary,
+                                          addr_t pa, addr_t va)
 {
     vmi->page_mode = VMI_PM_LEGACY;
     if (VMI_SUCCESS == arch_init(vmi)) {
@@ -72,6 +72,7 @@ static status_t linux_filemode_init(vmi_instance_t vmi)
 
     switch (vmi->page_mode)
     {
+    case VMI_PM_AARCH64:
     case VMI_PM_IA32E:
         linux_symbol_to_address(vmi, "phys_startup_64", NULL, &phys_start);
         linux_symbol_to_address(vmi, "startup_64", NULL, &virt_start);
@@ -253,7 +254,7 @@ status_t linux_init(vmi_instance_t vmi) {
 
     vmi->init_task = canonical_addr(vmi->init_task);
 
-#if defined(ARM)
+#if defined(ARM32) || defined(ARM64)
     rc = driver_get_vcpureg(vmi, &vmi->kpgd, TTBR1, 0);
 #elif defined(I386) || defined(X86_64)
     rc = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);

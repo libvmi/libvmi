@@ -32,7 +32,7 @@
 size_t
 vmi_write(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     void *buf,
     size_t count)
 {
@@ -181,7 +181,7 @@ vmi_write_ksym(
 static inline
 status_t vmi_write_X(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     void *value,
     int size)
 {
@@ -198,7 +198,7 @@ status_t vmi_write_X(
 status_t
 vmi_write_8(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint8_t * value)
 {
     return vmi_write_X(vmi, ctx, value, 1);
@@ -207,7 +207,7 @@ vmi_write_8(
 status_t
 vmi_write_16(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint16_t * value)
 {
     return vmi_write_X(vmi, ctx, value, 2);
@@ -216,7 +216,7 @@ vmi_write_16(
 status_t
 vmi_write_32(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint32_t * value)
 {
     return vmi_write_X(vmi, ctx, value, 4);
@@ -225,7 +225,7 @@ vmi_write_32(
 status_t
 vmi_write_64(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     uint64_t * value)
 {
     return vmi_write_X(vmi, ctx, value, 8);
@@ -234,10 +234,11 @@ vmi_write_64(
 status_t
 vmi_write_addr(
     vmi_instance_t vmi,
-    access_context_t *ctx,
+    const access_context_t *ctx,
     addr_t * value)
 {
     switch(vmi->page_mode) {
+        case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
             return vmi_write_X(vmi, ctx, value, 8);
         case VMI_PM_AARCH32:// intentional fall-through

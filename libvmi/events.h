@@ -51,10 +51,13 @@ extern "C" {
  */
 typedef enum {
     VMI_EVENT_INVALID,
-    VMI_EVENT_MEMORY,       /**< Read/write/execute on a region of memory */
-    VMI_EVENT_REGISTER,     /**< Read/write of a specific register */
-    VMI_EVENT_SINGLESTEP,   /**< Instructions being executed on a set of VCPUs */
-    VMI_EVENT_INTERRUPT,    /**< Interrupts being delivered */
+    VMI_EVENT_MEMORY,           /**< Read/write/execute on a region of memory */
+    VMI_EVENT_REGISTER,         /**< Read/write of a specific register */
+    VMI_EVENT_SINGLESTEP,       /**< Instructions being executed on a set of VCPUs */
+    VMI_EVENT_INTERRUPT,        /**< Interrupts being delivered */
+    VMI_EVENT_GUEST_REQUEST,    /**< Guest-requested event */
+    VMI_EVENT_CPUID,            /**< CPUID event */
+    VMI_EVENT_DEBUG_EXCEPTION,  /**< Debug exception event */
 
     __VMI_EVENT_MAX
 } vmi_event_type_t;
@@ -101,21 +104,6 @@ typedef enum {
 
     __VMI_MEMACCESS_MAX
 } vmi_mem_access_t;
-
-/**
- * The level of granularity used in the configuration of a memory event.
- *  VMI_MEMEVENT_PAGE granularity delivers an event for any operation
- *   matching the access permission on the relevant page.
- *  VMI_MEMEVENT_BYTE granularity is more specific, deliving an event
- *   if an operation occurs involving the specific byte within a page
- */
-typedef enum {
-    VMI_MEMEVENT_INVALID,
-    VMI_MEMEVENT_BYTE,
-    VMI_MEMEVENT_PAGE,
-
-    __VMI_MEMEVENT_MAX
-} vmi_memevent_granularity_t;
 
 typedef struct x86_regs {
     uint64_t rax;
@@ -234,15 +222,7 @@ typedef struct {
 
 typedef struct {
     /**
-     * IN: Specify if using VMI_MEMEVENT_BYTE/PAGE
-     */
-    vmi_memevent_granularity_t granularity;
-
-    /**
      * IN: Physical address to set event on.
-     * With granularity of
-     *  VMI_MEMEVENT_PAGE, this can any
-     *  byte on the target page.
      */
     addr_t physical_address;
 
@@ -296,6 +276,7 @@ typedef struct {
      *   Set reinject to 0 to swallow it silently without
      */
     int reinject;
+    uint32_t insn_length; /**< The instruction length when reinjecting */
 } interrupt_event_t;
 
 typedef struct {
@@ -305,6 +286,32 @@ typedef struct {
     uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
     bool enable;        /**< Set to true to immediately turn vCPU to singlestep. */
 } single_step_event_t;
+
+typedef struct {
+    addr_t gla;           /**< The IP of the current instruction */
+    addr_t gfn;           /**< The physical page of the current instruction */
+    addr_t offset;        /**< Offset in bytes (relative to GFN) */
+    uint32_t insn_length; /**< Length of the reported instruction */
+
+    /**
+     * Intel VMX: {VM_ENTRY,VM_EXIT,IDT_VECTORING}_INTR_INFO[10:8]
+     * AMD SVM: eventinj[10:8] and exitintinfo[10:8] (types 0-4 only)
+     *
+     * Matches HVMOP_TRAP_* on Xen.
+     */
+    uint8_t type;
+
+    /**
+     * Toggle, controls whether debug exception is re-injected after callback.
+     *   Set reinject to 1 to deliver it to guest ("pass through" mode)
+     *   Set reinject to 0 to swallow it silently without
+     */
+    int reinject;
+} debug_event_t;
+
+typedef struct {
+    uint32_t insn_length; /**< Length of the reported instruction */
+} cpuid_event_t;
 
 struct vmi_event;
 typedef struct vmi_event vmi_event_t;
@@ -360,6 +367,8 @@ struct vmi_event {
         mem_access_event_t mem_event;
         single_step_event_t ss_event;
         interrupt_event_t interrupt_event;
+        cpuid_event_t cpuid_event;
+        debug_event_t debug_event;
     };
 
     uint32_t vcpu_id; /**< The VCPU relative to which the event occurred. */
@@ -434,11 +443,10 @@ struct vmi_event {
 /**
  * Convenience macro to setup a memory event
  */
-#define SETUP_MEM_EVENT(_event, _addr, _granularity, _access, _callback) \
+#define SETUP_MEM_EVENT(_event, _addr, _access, _callback) \
         do { \
             (_event)->type = VMI_EVENT_MEMORY; \
             (_event)->mem_event.physical_address = _addr; \
-            (_event)->mem_event.granularity = _granularity; \
             (_event)->mem_event.in_access = _access; \
             (_event)->mem_event.npages = 1; \
             (_event)->callback = _callback; \
@@ -533,8 +541,7 @@ vmi_event_t *vmi_get_reg_event(
  */
 vmi_event_t *vmi_get_mem_event(
     vmi_instance_t vmi,
-    addr_t physical_address,
-    vmi_memevent_granularity_t granularity);
+    addr_t physical_address);
 
 /**
  * Setup single-stepping to register the given event
