@@ -462,11 +462,6 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
-    if (strncmp(key, "win_ntoskrnl_va", CONFIG_STR_LENGTH) == 0) {
-        windows_instance->ntoskrnl_va = *(addr_t *)value;
-        goto _done;
-    }
-
     if (strncmp(key, "win_tasks", CONFIG_STR_LENGTH) == 0) {
         windows_instance->tasks_offset = *(int *)value;
         goto _done;
