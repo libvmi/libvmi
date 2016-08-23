@@ -108,8 +108,7 @@ static void
 pid_cache_key_free(
     gpointer data)
 {
-    if (data)
-        free(data);
+    free(data);
 }
 
 static void
@@ -117,9 +116,7 @@ pid_cache_entry_free(
     gpointer data)
 {
     pid_cache_entry_t entry = (pid_cache_entry_t) data;
-
-    if (entry)
-        free(entry);
+    free(entry);
 }
 
 static pid_cache_entry_t pid_cache_entry_create(
@@ -226,8 +223,7 @@ sym_cache_entry_free(
     sym_cache_entry_t entry = (sym_cache_entry_t) data;
 
     if (entry) {
-        if (entry->sym)
-            free(entry->sym);
+        free(entry->sym);
         free(entry);
     }
 }
