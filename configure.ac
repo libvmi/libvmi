@@ -153,7 +153,6 @@ PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16])
 AC_SUBST([GLIB_CFLAGS])
 AC_SUBST([GLIB_LIBS])
-AC_CHECK_LIB(m, ceil)
 AC_CHECK_LIB(dl, dlopen)
 
 have_xen='no'
@@ -219,18 +218,27 @@ have_kvm='no'
 kvm_space='      '
 [if test "$enable_kvm" = "yes"]
 [then]
-    AC_CHECK_LIB(virt, virConnectOpen, [], [missing="yes"])
+    AC_CHECK_LIB(m, ceil, [], [missing="yes"])
     [if test "$missing" = "yes"]
     [then]
         AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
         missing='no'
         enable_kvm='no'
-        have_kvm='libvirt missing'
+        have_kvm='libm missing'
     [else]
-        AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
-        missing='no'
-        have_kvm='yes'
-        kvm_space='     '
+        AC_CHECK_LIB(virt, virConnectOpen, [], [missing="yes"])
+        [if test "$missing" = "yes"]
+        [then]
+            AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
+            missing='no'
+            enable_kvm='no'
+            have_kvm='libvirt missing'
+        [else]
+            AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
+            missing='no'
+            have_kvm='yes'
+            kvm_space='     '
+        [fi]
     [fi]
 [fi]
 AM_CONDITIONAL([HAVE_KVM], [test x"$have_kvm" = "xyes"])
