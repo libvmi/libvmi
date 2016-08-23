@@ -85,6 +85,15 @@ If you would like LibVMI to work on Xen domains, you must simply ensure
 that you have Xen installed along with any Xen development packages.
 LibVMI should effectively just work on any recent version of Xen.
 
+XenServer Support
+-----------
+Compiling LibVMI on a XenServer dom0 can be challenging as there are no
+development headers and tools present. The recommended way to compile
+is in a separate CentOS installation using the Xen development packages
+matching what XenServer runs on. Make sure to remove the libvirt packages
+from CentOS (yum remove libvirt*) as to avoid the KVM driver getting
+activated in LibVMI. The compiled LibVMI library and tools can then be
+transferred to the XenServer dom0 and run natively.
 
 KVM Support
 -----------
