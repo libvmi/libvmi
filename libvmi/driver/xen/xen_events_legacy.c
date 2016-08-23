@@ -365,10 +365,18 @@ status_t process_register(vmi_instance_t vmi,
             event->reg_event.value = gfn;
             event->vcpu_id = vcpu_id;
 
-            if(xen->major_version == 4 && xen->minor_version >=4 && event->reg_event.reg != MSR_ALL)
-                event->reg_event.previous = gla;
+            /* Copy CR0/CR3/CR4 old values, available from 4.4 */
+            if(xen->major_version == 4 && xen->minor_version >= 4)
+                switch (event->reg_event.reg) {
+                    case CR0:
+                    case CR3:
+                    case CR4:
+                        event->reg_event.previous = gla;
+                    default:
+                        break;
+                };
 
-            /* Special case: indicate which MSR is being written */
+            /* Special case: indicate which MSR is being written (passed in gla) */
             if(xen->major_version == 4 && xen->minor_version > 2 && event->reg_event.reg == MSR_ALL)
                 event->reg_event.context = gla;
 
@@ -502,9 +510,11 @@ void xen_events_destroy_legacy(vmi_instance_t vmi)
 
     /* Unregister for all events */
     if ( xen->major_version == 4 && xen->minor_version < 5 ) {
+        /* HVMMEM_* and xc_hvm_set_mem_access was used before 4.5 */
         rc = xen->libxcw.xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, ~0ull, 0);
         rc = xen->libxcw.xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, 0, xe->mem_event.max_pages);
     } else {
+        /* XENMEM_* and xc_set_mem_access are used from 4.5 onwards */
         rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
         rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xe->mem_event.max_pages);
     }
@@ -512,9 +522,11 @@ void xen_events_destroy_legacy(vmi_instance_t vmi)
     rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR0, HVMPME_mode_disabled);
     rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR3, HVMPME_mode_disabled);
     rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR4, HVMPME_mode_disabled);
+    rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_SINGLE_STEP, HVMPME_mode_disabled);
+
+    /* MSR events got introduced in 4.2 */
     if ( xen->major_version == 4 && xen->minor_version > 2 )
         rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_MSR, HVMPME_mode_disabled);
-    rc = xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_SINGLE_STEP, HVMPME_mode_disabled);
 
     if ( xen->major_version == 4 && xen->minor_version < 5 )
         xen_events_listen_42(vmi, 0);
@@ -575,7 +587,10 @@ status_t xen_init_events_legacy(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
-    // Wire up the functions
+    /*
+     * Wire up the functions
+     * The ABI has changed between 4.2 and 4.5 so we need to account for that
+     */
     if ( xen->major_version == 4 && xen->minor_version < 5 ) {
         vmi->driver.events_listen_ptr = &xen_events_listen_42;
         vmi->driver.are_events_pending_ptr = &xen_are_events_pending_42;
@@ -635,7 +650,9 @@ status_t xen_init_events_legacy(vmi_instance_t vmi)
     /* Initialize the shared pages and enable mem events */
     int tries = 0;
 
+    /* Initialization changed between 4.2 and 4.5 */
     if ( xen->major_version == 4 && xen->minor_version < 5 ) {
+        /* Xen 4.2-4.4 initialization */
 
         // Initialise shared page
         xc_get_hvm_param(xch, dom, HVM_PARAM_ACCESS_RING_PFN, &ring_pfn);
@@ -673,9 +690,10 @@ reinit_42:
         goto enable_42;
 
     } else {
+        /* Xen 4.5 initialization */
 
 enable_45:
-    /* Enable mem access and map the ring page */
+        /* Enable mem access and map the ring page */
         xe->mem_event.ring_page =
                 xen->libxcw.xc_mem_access_enable2(xch, dom, &(xe->mem_event.evtchn_port));
 
@@ -743,7 +761,9 @@ enable_done:
     xe->mem_event.port = rc;
     dbprint(VMI_DEBUG_XEN, "Bound to event channel on port == %d\n", xe->mem_event.port);
 
-    // Initialise ring
+    /*
+     * Initialise the ring according to the correct ABI
+     */
     if ( xen->major_version == 4 && xen->minor_version < 5 ) {
         BACK_RING_INIT(&xe->mem_event.back_ring_42,
                        (mem_event_42_sring_t *)xe->mem_event.ring_page,
@@ -884,9 +904,13 @@ xen_set_mem_access_legacy(vmi_instance_t vmi, mem_access_event_t *event,
     uint64_t npages = page_key + event->npages > xe->mem_event.max_pages
         ? xe->mem_event.max_pages - page_key: event->npages;
 
-    // Convert betwen vmi_mem_access_t and mem_access_t
-    // Xen does them backwards....
+    /*
+     * Convert betwen vmi_mem_access_t and mem_access_t
+     * Xen uses the actual page permissions while LibVMI
+     * uses the required restriction.
+     */
     if (xen->major_version == 4 && xen->minor_version < 5 ) {
+        /* Type is hvmmem_access_t in 4.2-4.4 */
         static const hvmmem_access_t memaccess_conversion[] = {
             [VMI_MEMACCESS_RWX] = HVMMEM_access_n,
             [VMI_MEMACCESS_WX] = HVMMEM_access_r,
@@ -903,7 +927,8 @@ xen_set_mem_access_legacy(vmi_instance_t vmi, mem_access_event_t *event,
 
         rc = xen->libxcw.xc_hvm_set_mem_access(xch, dom, access, page_key, npages);
     } else {
-        static const hvmmem_access_t memaccess_conversion[] = {
+        /* Type is xenmem_access_t in 4.5+ */
+        static const xenmem_access_t memaccess_conversion[] = {
             [VMI_MEMACCESS_RWX] = XENMEM_access_n,
             [VMI_MEMACCESS_WX] = XENMEM_access_r,
             [VMI_MEMACCESS_RX] = XENMEM_access_w,
