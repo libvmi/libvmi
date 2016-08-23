@@ -250,6 +250,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         event->interrupt_event.intr = intr;
         event->interrupt_event.reinject = -1;
 
+        /* Instruction-length is only reported starting Xen 4.8 / vm_event interface version 2 */
         if ( req->version >= 2 )
             event->interrupt_event.insn_length = req->u.software_breakpoint.insn_length;
 
