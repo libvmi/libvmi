@@ -97,8 +97,20 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
 
     if ( !wrapper->handle )
     {
-        fprintf(stderr, "Failed to find a suitable libxenctrl.so at any of the standard paths!\n");
-        return VMI_FAILURE;
+        char *alternate = g_malloc0(snprintf(NULL, 0, "libxenctrl.so.%u.%u",
+                                             xen->major_version, xen->minor_version)+1);
+        sprintf(alternate, "libxenctrl.so.%u.%u", xen->major_version, xen->minor_version);
+
+        dbprint(VMI_DEBUG_XEN, "--libxc_wrapper looking for %s\n", alternate);
+
+        wrapper->handle = dlopen (alternate, RTLD_NOW | RTLD_GLOBAL);
+        g_free(alternate);
+
+        if ( !wrapper->handle )
+        {
+            fprintf(stderr, "Failed to find a suitable libxenctrl.so at any of the standard paths!\n");
+            return VMI_FAILURE;
+        }
     }
 
     wrapper->xc_domain_maximum_gpfn = dlsym(wrapper->handle, "xc_domain_maximum_gpfn");
