@@ -496,5 +496,91 @@ driver_set_debug_event(
     }
 }
 
+static inline status_t
+driver_slat_get_domain_state (
+    vmi_instance_t vmi ,
+    bool *state )
+{
+    if (vmi->driver.initialized && vmi->driver.slat_get_domain_state_ptr ) {
+        return vmi->driver.slat_get_domain_state_ptr (vmi, state);
+    }
+    else {
+        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_get_domain_state function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
+driver_slat_set_domain_state (
+    vmi_instance_t vmi ,
+    bool state )
+{
+    if (vmi->driver.initialized && vmi->driver.slat_set_domain_state_ptr ) {
+        return vmi->driver.slat_set_domain_state_ptr (vmi, state);
+    }
+    else {
+        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_set_domain_state function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
+driver_slat_create (
+    vmi_instance_t vmi ,
+    uint16_t *slat_idx )
+{
+    if (vmi->driver.initialized && vmi->driver.slat_create_ptr) {
+        return vmi->driver.slat_create_ptr (vmi, slat_idx);
+    }
+    else {
+        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_create function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
+driver_slat_destroy (
+    vmi_instance_t vmi ,
+    uint16_t slat_idx )
+{
+    if (vmi->driver.initialized && vmi->driver.slat_destroy_ptr) {
+        return vmi->driver.slat_destroy_ptr (vmi, slat_idx);
+    }
+    else {
+        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_destroy function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
+driver_slat_switch (
+    vmi_instance_t vmi ,
+    uint16_t slat_idx )
+{
+    if (vmi->driver.initialized && vmi->driver.slat_switch_ptr) {
+        return vmi->driver.slat_switch_ptr (vmi, slat_idx);
+    }
+    else {
+        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_switch function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
+driver_slat_change_gfn (
+    vmi_instance_t vmi ,
+    uint16_t slat_idx,
+    addr_t old_gfn,
+    addr_t new_gfn)
+{
+    if (vmi->driver.initialized && vmi->driver.slat_change_gfn_ptr) {
+        return vmi->driver.slat_change_gfn_ptr (vmi, slat_idx, old_gfn, new_gfn);
+    }
+    else {
+        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_change_gfn function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
 #endif /* DRIVER_WRAPPER_H */
 

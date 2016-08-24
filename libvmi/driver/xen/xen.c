@@ -32,6 +32,7 @@
 #include "driver/xen/xen_events.h"
 #include "driver/driver_interface.h"
 #include "driver/memory_cache.h"
+#include "driver/xen/altp2m_private.h"
 
 //----------------------------------------------------------------------------
 // Helper functions
@@ -927,6 +928,11 @@ xen_init_vmi(
         goto _bail;
 
     ret = xen_init_events(vmi);
+
+    if ( VMI_FAILURE == ret )
+        goto _bail;
+
+    xen_init_altp2m(vmi);
 
 _bail:
     return ret;

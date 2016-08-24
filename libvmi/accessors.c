@@ -495,16 +495,16 @@ addr_t vmi_translate_uv2p (vmi_instance_t vmi, addr_t virt_address, vmi_pid_t pi
 
 const char *
 vmi_get_linux_sysmap(
-	vmi_instance_t vmi)
+    vmi_instance_t vmi)
 {
     linux_instance_t linux_instance = NULL;
 
     if(VMI_OS_LINUX != vmi->os_type || (VMI_INIT_PARTIAL & vmi->init_mode)){
-	return NULL;
+        return NULL;
     }
 
     if(!vmi->os_data){
-	return NULL;
+        return NULL;
     }
 
     linux_instance = vmi->os_data;

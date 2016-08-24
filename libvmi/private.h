@@ -44,6 +44,7 @@
 #include "libvmi_extra.h"
 #include "events.h"
 #include "shm.h"
+#include "slat.h"
 #include "rekall.h"
 #include "debug.h"
 #include "driver/driver_interface.h"
