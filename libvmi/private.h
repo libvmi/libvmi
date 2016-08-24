@@ -158,7 +158,9 @@ struct vmi_instance {
 
     GHashTable *interrupt_events; /**< interrupt event to function mapping (key: interrupt) */
 
-    GHashTable *mem_events; /**< mem event to functions mapping (key: physical address) */
+    GHashTable *mem_events_on_gfn; /**< mem event to functions mapping (key: physical address) */
+
+    GHashTable *mem_events_generic; /**< mem event to functions mapping (key: access type) */
 
     GHashTable *reg_events; /**< reg event to functions mapping (key: reg) */
 

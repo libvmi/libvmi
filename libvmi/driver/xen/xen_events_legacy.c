@@ -417,24 +417,47 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
         return VMI_FAILURE;
     }
 
-    vmi_event_t *event = g_hash_table_lookup(vmi->mem_events, &gfn);
+    vmi_event_t *event;
     vmi_mem_access_t out_access = VMI_MEMACCESS_INVALID;
     if(access_r) out_access |= VMI_MEMACCESS_R;
     if(access_w) out_access |= VMI_MEMACCESS_W;
     if(access_x) out_access |= VMI_MEMACCESS_X;
 
-    if (event && event->mem_event.in_access & out_access) {
-        event->mem_event.gla = gla;
-        event->mem_event.gfn = gfn;
-        event->mem_event.offset = offset;
-        event->mem_event.out_access = out_access;
-        event->vcpu_id = vcpu_id;
+    if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
+        event = g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
 
-        vmi->event_callback = 1;
-        process_response ( event->callback(vmi, event), rsp_flags );
-        vmi->event_callback = 0;
+        if (event && event->mem_event.in_access & out_access) {
+            event->mem_event.gla = gla;
+            event->mem_event.gfn = gfn;
+            event->mem_event.offset = offset;
+            event->mem_event.out_access = out_access;
+            event->vcpu_id = vcpu_id;
+            process_response ( event->callback(vmi, event), rsp_flags );
+            return VMI_SUCCESS;
+        }
+    }
 
-        return VMI_SUCCESS;
+    if ( g_hash_table_size(vmi->mem_events_generic) ) {
+        GHashTableIter i;
+        vmi_mem_access_t *key = NULL;
+        bool cb_issued = 0;
+
+        ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
+            if ( event->mem_event.in_access & out_access ) {
+                event->mem_event.gla = gla;
+                event->mem_event.gfn = gfn;
+                event->mem_event.offset = offset;
+                event->mem_event.out_access = out_access;
+                event->vcpu_id = vcpu_id;
+                vmi->event_callback = 1;
+                process_response ( event->callback(vmi, event), rsp_flags );
+                vmi->event_callback = 0;
+                cb_issued = 1;
+            }
+        }
+
+        if ( cb_issued )
+            return VMI_SUCCESS;
     }
 
     /*
@@ -871,7 +894,7 @@ status_t xen_set_reg_access_legacy(vmi_instance_t vmi, reg_event_t *event)
 }
 
 status_t
-xen_set_mem_access_legacy(vmi_instance_t vmi, mem_access_event_t *event,
+xen_set_mem_access_legacy(vmi_instance_t vmi, addr_t gpfn,
                           vmi_mem_access_t page_access_flag, uint16_t UNUSED(vmm_pagetable_id))
 {
     int rc;
@@ -911,11 +934,6 @@ xen_set_mem_access_legacy(vmi_instance_t vmi, mem_access_event_t *event,
         return VMI_FAILURE;
     }
 
-    addr_t page_key = event->physical_address >> 12;
-
-    uint64_t npages = page_key + event->npages > xe->mem_event.max_pages
-        ? xe->mem_event.max_pages - page_key: event->npages;
-
     /*
      * Convert betwen vmi_mem_access_t and mem_access_t
      * Xen uses the actual page permissions while LibVMI
@@ -937,7 +955,7 @@ xen_set_mem_access_legacy(vmi_instance_t vmi, mem_access_event_t *event,
 
         hvmmem_access_t access = memaccess_conversion[page_access_flag];
 
-        rc = xen->libxcw.xc_hvm_set_mem_access(xch, dom, access, page_key, npages);
+        rc = xen->libxcw.xc_hvm_set_mem_access(xch, dom, access, gpfn, 1); // 1 page at a time
     } else {
         /* Type is xenmem_access_t in 4.5+ */
         static const xenmem_access_t memaccess_conversion[] = {
@@ -954,17 +972,17 @@ xen_set_mem_access_legacy(vmi_instance_t vmi, mem_access_event_t *event,
 
         xenmem_access_t access = memaccess_conversion[page_access_flag];
 
-        rc = xen->libxcw.xc_set_mem_access(xch, dom, access, page_key, npages);
+        rc = xen->libxcw.xc_set_mem_access(xch, dom, access, gpfn, 1); // 1 page at a time
     }
 
-    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %lu on physical address: %"PRIu64" npages: %"PRIu64"\n",
-            dom, event->physical_address, npages);
+    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %lu on GPFN: %"PRIu64"\n",
+            dom, gpfn);
 
     if(rc) {
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on physical address: %"PRIu64"\n", event->physical_address);
+    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFN: %"PRIu64"\n", gpfn);
     return VMI_SUCCESS;
 }
 
