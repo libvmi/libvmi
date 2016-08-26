@@ -85,6 +85,12 @@ void step_wrapper_free(gpointer value, gpointer data)
     free(wrap);
 }
 
+void step_event_free(vmi_event_t *event, status_t rc)
+{
+    if ( VMI_SUCCESS == rc )
+        g_free(event);
+}
+
 void events_init(vmi_instance_t vmi)
 {
     vmi->interrupt_events = g_hash_table_new(g_int_hash, g_int_equal);
@@ -221,8 +227,7 @@ event_response_t step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep
             if (!vmi->step_vcpus[wrap->vcpu_id])
             {
                 // No more events on this vcpu need registering
-                vmi_clear_event(vmi, singlestep_event, NULL);
-                g_free(singlestep_event);
+                vmi_clear_event(vmi, singlestep_event, step_event_free);
             }
 
             free(wrap);
