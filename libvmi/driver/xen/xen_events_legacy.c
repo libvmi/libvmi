@@ -915,24 +915,6 @@ xen_set_mem_access_legacy(vmi_instance_t vmi, addr_t gpfn,
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    if ( page_access_flag >= __VMI_MEMACCESS_MAX || page_access_flag <= VMI_MEMACCESS_INVALID ) {
-        errprint("%s error: invalid memaccess setting requested\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-
-    /*
-     * Setting a page write-only or write-execute in EPT triggers and EPT misconfiguration error
-     * which is unhandled by Xen (at least up to 4.3) and instantly crashes the domain on the first trigger.
-     *
-     * See Intel® 64 and IA-32 Architectures Software Developer’s Manual
-     * 28.2.3.1 EPT Misconfigurations
-     * AN EPT misconfiguration occurs if any of the following is identified while translating a guest-physical address:
-     * * The value of bits 2:0 of an EPT paging-structure entry is either 010b (write-only) or 110b (write/execute).
-     */
-    if(page_access_flag == VMI_MEMACCESS_R || page_access_flag == VMI_MEMACCESS_RX) {
-        errprint("%s error: can't set requested memory access, unsupported by EPT.\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
 
     /*
      * Convert betwen vmi_mem_access_t and mem_access_t
@@ -940,37 +922,15 @@ xen_set_mem_access_legacy(vmi_instance_t vmi, addr_t gpfn,
      * uses the required restriction.
      */
     if (xen->major_version == 4 && xen->minor_version < 5 ) {
-        /* Type is hvmmem_access_t in 4.2-4.4 */
-        static const hvmmem_access_t memaccess_conversion[] = {
-            [VMI_MEMACCESS_RWX] = HVMMEM_access_n,
-            [VMI_MEMACCESS_WX] = HVMMEM_access_r,
-            [VMI_MEMACCESS_RX] = HVMMEM_access_w,
-            [VMI_MEMACCESS_X] = HVMMEM_access_rw,
-            [VMI_MEMACCESS_W] = HVMMEM_access_rx,
-            [VMI_MEMACCESS_R] = HVMMEM_access_wx,
-            [VMI_MEMACCESS_N] = HVMMEM_access_rwx,
-            [VMI_MEMACCESS_W2X] = HVMMEM_access_rx2rw,
-            [VMI_MEMACCESS_RWX2N] = HVMMEM_access_n2rwx,
-        };
-
-        hvmmem_access_t access = memaccess_conversion[page_access_flag];
+        hvmmem_access_t access;
+        if ( VMI_FAILURE == convert_vmi_flags_to_hvmmem(page_access_flag, &access) )
+            return VMI_FAILURE;
 
         rc = xen->libxcw.xc_hvm_set_mem_access(xch, dom, access, gpfn, 1); // 1 page at a time
     } else {
-        /* Type is xenmem_access_t in 4.5+ */
-        static const xenmem_access_t memaccess_conversion[] = {
-            [VMI_MEMACCESS_RWX] = XENMEM_access_n,
-            [VMI_MEMACCESS_WX] = XENMEM_access_r,
-            [VMI_MEMACCESS_RX] = XENMEM_access_w,
-            [VMI_MEMACCESS_X] = XENMEM_access_rw,
-            [VMI_MEMACCESS_W] = XENMEM_access_rx,
-            [VMI_MEMACCESS_R] = XENMEM_access_wx,
-            [VMI_MEMACCESS_N] = XENMEM_access_rwx,
-            [VMI_MEMACCESS_W2X] = XENMEM_access_rx2rw,
-            [VMI_MEMACCESS_RWX2N] = XENMEM_access_n2rwx,
-        };
-
-        xenmem_access_t access = memaccess_conversion[page_access_flag];
+        xenmem_access_t access;
+        if ( VMI_FAILURE == convert_vmi_flags_to_xenmem(page_access_flag, &access) )
+            return VMI_FAILURE;
 
         rc = xen->libxcw.xc_set_mem_access(xch, dom, access, gpfn, 1); // 1 page at a time
     }

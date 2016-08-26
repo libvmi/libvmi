@@ -294,6 +294,7 @@ int main (int argc, char **argv)
      *  us to follow as various tasks are scheduled and run upon the CPU)
      */
     memset(&cr3_event, 0, sizeof(vmi_event_t));
+    cr3_event.version = VMI_EVENTS_VERSION;
     cr3_event.type = VMI_EVENT_REGISTER;
     cr3_event.reg_event.reg = CR3;
 
@@ -331,16 +332,19 @@ int main (int argc, char **argv)
     // Setup a default event for tracking memory at the syscall handler.
     // But don't install it; that will be done by the cr3 handler.
     memset(&msr_syscall_sysenter_event, 0, sizeof(vmi_event_t));
+    msr_syscall_sysenter_event.version = VMI_EVENTS_VERSION;
     msr_syscall_sysenter_event.type = VMI_EVENT_MEMORY;
     msr_syscall_sysenter_event.mem_event.physical_address = phys_sysenter_ip;
     msr_syscall_sysenter_event.mem_event.npages = 1;
 
     memset(&kernel_sysenter_target_event, 0, sizeof(vmi_event_t));
+    kernel_sysenter_target_event.version = VMI_EVENTS_VERSION;
     kernel_sysenter_target_event.type = VMI_EVENT_MEMORY;
     kernel_sysenter_target_event.mem_event.physical_address = phys_ia32_sysenter_target;
     kernel_sysenter_target_event.mem_event.npages = 1;
 
     memset(&kernel_vsyscall_event, 0, sizeof(vmi_event_t));
+    kernel_vsyscall_event.version = VMI_EVENTS_VERSION;
     kernel_vsyscall_event.type = VMI_EVENT_MEMORY;
     kernel_vsyscall_event.mem_event.physical_address = phys_vsyscall;
     kernel_vsyscall_event.mem_event.npages = 1;

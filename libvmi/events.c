@@ -199,10 +199,10 @@ status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
     }
     else if (VMI_SUCCESS == driver_set_intr_access(vmi, &event->interrupt_event, 1))
     {
-        gint *key = g_malloc0(sizeof(gint));
-        *key = event->interrupt_event.intr;
+        gint *intr = g_malloc0(sizeof(gint));
+        *intr = event->interrupt_event.intr;
 
-        g_hash_table_insert(vmi->interrupt_events, key, event);
+        g_hash_table_insert(vmi->interrupt_events, intr, event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled event on interrupt: %d\n", event->interrupt_event.intr);
         rc = VMI_SUCCESS;
     }
@@ -217,16 +217,16 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
 
     if (NULL != g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg)))
     {
-        dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this reg: %d\n",
+        dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this reg: %"PRIu64"\n",
                 event->reg_event.reg);
     }
     else if (VMI_SUCCESS == driver_set_reg_access(vmi, &event->reg_event))
     {
-        gint *key= g_malloc0(sizeof(gint));
-        *key = event->reg_event.reg;
+        gint *reg = g_malloc0(sizeof(gint));
+        *reg = event->reg_event.reg;
 
-        g_hash_table_insert(vmi->reg_events, key, event);
-        dbprint(VMI_DEBUG_EVENTS, "Enabled register event on reg: %d\n", event->reg_event.reg);
+        g_hash_table_insert(vmi->reg_events, reg, event);
+        dbprint(VMI_DEBUG_EVENTS, "Enabled register event on reg: %"PRIu64"\n", event->reg_event.reg);
         rc = VMI_SUCCESS;
     }
 
@@ -329,8 +329,7 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
 {
     addr_t page_key = event->mem_event.physical_address >> 12;
 
-    if (event->mem_event.in_access >= __VMI_MEMACCESS_MAX ||
-        event->mem_event.in_access == VMI_MEMACCESS_INVALID)
+    if ( VMI_MEMACCESS_INVALID == event->mem_event.in_access )
     {
         dbprint(VMI_DEBUG_EVENTS, "Invalid VMI_MEMACCESS requested: %d\n",
                 event->mem_event.in_access);
@@ -354,7 +353,7 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
 
     if (VMI_SUCCESS == driver_set_mem_access(vmi, page_key,
                                              event->mem_event.in_access,
-                                             event->vmm_pagetable_id))
+                                             event->slat_id))
     {
         g_hash_table_insert(vmi->mem_events_on_gfn, g_memdup(&page_key, sizeof(addr_t)), event);
         return VMI_SUCCESS;
@@ -480,7 +479,7 @@ status_t clear_reg_event(vmi_instance_t vmi, vmi_event_t *event)
 
     if (NULL != g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg)))
     {
-        dbprint(VMI_DEBUG_EVENTS, "Disabling register event on reg: %d\n", event->reg_event.reg);
+        dbprint(VMI_DEBUG_EVENTS, "Disabling register event on reg: %"PRIu64"\n", event->reg_event.reg);
         original_in_access = event->reg_event.in_access;
         event->reg_event.in_access = VMI_REGACCESS_N;
         rc = driver_set_reg_access(vmi, &event->reg_event);
@@ -510,11 +509,10 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
 
     /* For gfn-based events we also clear the page with the driver */
     addr_t page_key = event->mem_event.physical_address >> 12;
-    status_t rc = driver_set_mem_access(vmi, page_key,
-                    VMI_MEMACCESS_N, event->vmm_pagetable_id);
+    status_t rc = driver_set_mem_access(vmi, page_key, VMI_MEMACCESS_N, event->slat_id);
 
     dbprint(VMI_DEBUG_EVENTS, "Disabling memevent on page 0x%"PRIx64" in view %"PRIu32": %s\n",
-            page_key, event->vmm_pagetable_id,
+            page_key, event->slat_id,
             (rc == VMI_FAILURE) ? "failed" : "success");
 
     if ( !vmi->shutting_down && rc == VMI_SUCCESS )
@@ -599,13 +597,13 @@ status_t swap_events(vmi_instance_t vmi, vmi_event_t *swap_from, vmi_event_t *sw
     status_t rc;
     addr_t page_key = swap_from->mem_event.physical_address >> 12;
 
-    if(swap_from->vmm_pagetable_id != swap_to->vmm_pagetable_id) {
-        rc = driver_set_mem_access(vmi, page_key, VMI_MEMACCESS_N, swap_from->vmm_pagetable_id);
+    if(swap_from->slat_id != swap_to->slat_id) {
+        rc = driver_set_mem_access(vmi, page_key, VMI_MEMACCESS_N, swap_from->slat_id);
         if(rc == VMI_FAILURE)
             return rc;
     }
 
-    rc = driver_set_mem_access(vmi, page_key, swap_to->mem_event.in_access, swap_to->vmm_pagetable_id);
+    rc = driver_set_mem_access(vmi, page_key, swap_to->mem_event.in_access, swap_to->slat_id);
     if(rc == VMI_FAILURE)
         return rc;
 
@@ -636,7 +634,7 @@ vmi_event_t *vmi_get_mem_event(vmi_instance_t vmi, addr_t physical_address, vmi_
 }
 
 status_t vmi_set_mem_event(vmi_instance_t vmi, addr_t physical_address,
-                           vmi_mem_access_t access, uint16_t vmm_pagetable_id)
+                           vmi_mem_access_t access, uint16_t slat_id)
 {
     if ( VMI_MEMACCESS_N != access )
     {
@@ -659,7 +657,7 @@ status_t vmi_set_mem_event(vmi_instance_t vmi, addr_t physical_address,
         }
     }
 
-    return driver_set_mem_access(vmi, physical_address >> 12, access, vmm_pagetable_id);
+    return driver_set_mem_access(vmi, physical_address >> 12, access, slat_id);
 }
 
 status_t vmi_swap_events(vmi_instance_t vmi, vmi_event_t* swap_from, vmi_event_t *swap_to,
@@ -721,6 +719,22 @@ status_t vmi_register_event(vmi_instance_t vmi, vmi_event_t* event)
     if (!event)
     {
         dbprint(VMI_DEBUG_EVENTS, "No event given!\n");
+        return VMI_FAILURE;
+    }
+    if (event->version > VMI_EVENTS_VERSION)
+    {
+        dbprint(VMI_DEBUG_EVENTS, "The caller requires a newer version of LibVMI!\n");
+        return VMI_FAILURE;
+    }
+    if (event->version < VMI_EVENTS_VERSION)
+    {
+        /*
+         * Note: backwards-compatibility can be implemented by defining an internal
+         *  header for the older ABI and handling the calls according to the version
+         *  that was requested.
+         *  This is left as a TODO for when it becomes necessary.
+         */
+        dbprint(VMI_DEBUG_EVENTS, "The caller requires an older version of LibVMI!\n");
         return VMI_FAILURE;
     }
     if (!event->callback)

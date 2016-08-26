@@ -184,12 +184,12 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
         {
             uint32_t bit_set = !!(response & (1u << i));
 
-            if ( bit_set && event_response_conversion[i] != ~0U )
+            if ( bit_set )
             {
                 switch ( i )
                 {
                 case VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID:
-                    rsp->altp2m_idx = event->vmm_pagetable_id;
+                    rsp->altp2m_idx = event->slat_id;
                     break;
                 case VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA:
                     if ( event->emul_data ) {
@@ -209,7 +209,7 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
                     }
                     break;
                 case VMI_EVENT_RESPONSE_SET_REGISTERS:
-                    memcpy(&rsp->data.regs.x86, event->regs.x86, sizeof(struct regs_x86));
+                    memcpy(&rsp->data.regs.x86, event->x86_regs, sizeof(struct regs_x86));
                     break;
                 };
 
@@ -226,8 +226,8 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                                  vm_event_46_request_t *rsp)
 {
     int rc              = -1;
-    status_t status     = VMI_FAILURE;
     gint lookup         = intr;
+    status_t status     = VMI_FAILURE;
     vmi_event_t * event = g_hash_table_lookup(vmi->interrupt_events, &lookup);
     xc_interface * xch  = xen_get_xchandle(vmi);
     domid_t domain_id   = xen_get_domainid(vmi);
@@ -253,7 +253,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         if ( req->version >= 2 )
             event->interrupt_event.insn_length = req->u.software_breakpoint.insn_length;
 
-        event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+        event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
         event->vcpu_id = req->vcpu_id;
 
         /* Will need to refactor if another interrupt is accessible
@@ -383,7 +383,7 @@ status_t process_register(vmi_instance_t vmi,
         }
 
         event->vcpu_id = req->vcpu_id;
-        event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+        event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
 
         vmi->event_callback = 1;
         process_response ( event->callback(vmi, event), event, rsp );
@@ -438,8 +438,8 @@ status_t process_mem(vmi_instance_t vmi,
         event = g_hash_table_lookup(vmi->mem_events_on_gfn, &req->u.mem_access.gfn);
         if (event && (event->mem_event.in_access & out_access) )
         {
-            event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
-            event->vmm_pagetable_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
+            event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
+            event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
             vmi->event_callback = 1;
             process_response( issue_mem_cb(vmi, event, req, out_access), event, rsp );
             vmi->event_callback = 0;
@@ -454,8 +454,8 @@ status_t process_mem(vmi_instance_t vmi,
 
         ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
             if ( (*key) & out_access ) {
-                event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
-                event->vmm_pagetable_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
+                event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
+                event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
                 vmi->event_callback = 1;
                 process_response( issue_mem_cb(vmi, event, req, out_access), event, rsp );
                 vmi->event_callback = 0;
@@ -504,7 +504,7 @@ status_t process_single_step_event(vmi_instance_t vmi,
         event->ss_event.gfn = req->u.singlestep.gfn;
         event->ss_event.offset = req->data.regs.x86.rip & VMI_BIT_MASK(0,11);
         event->ss_event.gla = req->data.regs.x86.rip;
-        event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+        event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
         event->vcpu_id = req->vcpu_id;
 
         vmi->event_callback = 1;
@@ -541,7 +541,7 @@ status_t process_guest_requested_event(vmi_instance_t vmi,
         return VMI_FAILURE;
     }
 
-    vmi->guest_requested_event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+    vmi->guest_requested_event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
     vmi->guest_requested_event->vcpu_id = req->vcpu_id;
 
     vmi->event_callback = 1;
@@ -575,7 +575,7 @@ status_t process_cpuid_event(vmi_instance_t vmi,
         return VMI_FAILURE;
     }
 
-    vmi->cpuid_event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+    vmi->cpuid_event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
     vmi->cpuid_event->vcpu_id = req->vcpu_id;
     vmi->cpuid_event->cpuid_event.insn_length = req->u.cpuid.insn_length;
 
@@ -615,7 +615,7 @@ status_t process_debug_event(vmi_instance_t vmi,
         return VMI_FAILURE;
     }
 
-    vmi->debug_event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+    vmi->debug_event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
     vmi->debug_event->vcpu_id = req->vcpu_id;
     vmi->debug_event->debug_event.reinject = -1;
     vmi->debug_event->debug_event.gla = req->data.regs.x86.rip;
@@ -969,43 +969,8 @@ status_t xen_set_mem_access(vmi_instance_t vmi, addr_t gpfn,
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    if ( page_access_flag >= __VMI_MEMACCESS_MAX || page_access_flag <= VMI_MEMACCESS_INVALID ) {
-        errprint("%s error: invalid memaccess setting requested\n", __FUNCTION__);
+    if ( VMI_FAILURE == convert_vmi_flags_to_xenmem(page_access_flag, &access) )
         return VMI_FAILURE;
-    }
-
-    /*
-     * Setting a page write-only or write-execute in EPT triggers and EPT misconfiguration error
-     * which is unhandled by Xen (at least up to 4.3) and instantly crashes the domain on the first trigger.
-     *
-     * See Intel® 64 and IA-32 Architectures Software Developer’s Manual
-     * 28.2.3.1 EPT Misconfigurations
-     * AN EPT misconfiguration occurs if any of the following is identified while translating a guest-physical address:
-     * * The value of bits 2:0 of an EPT paging-structure entry is either 010b (write-only) or 110b (write/execute).
-     */
-    if(page_access_flag == VMI_MEMACCESS_R || page_access_flag == VMI_MEMACCESS_RX) {
-        errprint("%s error: can't set requested memory access, unsupported by EPT.\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-
-    // Convert betwen vmi_mem_access_t and mem_access_t
-    // Xen does them backwards....
-    static const xenmem_access_t memaccess_conversion[] = {
-        [VMI_MEMACCESS_RWX] = XENMEM_access_n,
-        [VMI_MEMACCESS_WX] = XENMEM_access_r,
-        [VMI_MEMACCESS_RX] = XENMEM_access_w,
-        [VMI_MEMACCESS_X] = XENMEM_access_rw,
-        [VMI_MEMACCESS_W] = XENMEM_access_rx,
-        [VMI_MEMACCESS_R] = XENMEM_access_wx,
-        [VMI_MEMACCESS_N] = XENMEM_access_rwx,
-        [VMI_MEMACCESS_W2X] = XENMEM_access_rx2rw,
-        [VMI_MEMACCESS_RWX2N] = XENMEM_access_n2rwx,
-    };
-
-    access = memaccess_conversion[page_access_flag];
-
-    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %"PRIu16" on GPFN: %"PRIu64"\n",
-            dom, gpfn);
 
     if ( !altp2m_idx )
         rc = xen->libxcw.xc_set_mem_access(xch, dom, access, gpfn, 1); // 1 page at a time

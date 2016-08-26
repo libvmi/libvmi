@@ -83,6 +83,7 @@ int main (int argc, char **argv) {
 
     //Single step setup
     memset(&single_event, 0, sizeof(vmi_event_t));
+    single_event.version = VMI_EVENTS_VERSION;
     single_event.type = VMI_EVENT_SINGLESTEP;
     single_event.callback = single_step_callback;
     single_event.ss_event.enable = 1;

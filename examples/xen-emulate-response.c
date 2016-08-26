@@ -96,6 +96,7 @@ int main (int argc, char **argv)
 
     vmi_event_t event;
     memset(&event, 0, sizeof(vmi_event_t));
+    event.version = VMI_EVENTS_VERSION;
     event.type = VMI_EVENT_MEMORY;
     event.mem_event.physical_address = vmi_translate_kv2p(vmi, addr);
     event.mem_event.npages = 1;
