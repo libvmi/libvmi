@@ -561,7 +561,7 @@ status_t process_cpuid_event(vmi_instance_t vmi,
     vmi->event_callback = 0;
 
     if ( !rsp->flags || rsp->flags == (1 << VM_EVENT_FLAG_VCPU_PAUSED) )
-        dbprint(VMI_DEBUG_XEN, "%s warning: CPUID events require the callback to specify how to handle it, we are likely to be going into a CPUID loop right now\n"
+        dbprint(VMI_DEBUG_XEN, "%s warning: CPUID events require the callback to specify how to handle it, we are likely to be going into a CPUID loop right now\n",
                 __FUNCTION__);
 
     return VMI_SUCCESS;
