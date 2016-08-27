@@ -143,8 +143,23 @@ typedef struct emul_data {
     uint8_t data[256];
 } emul_data_t;
 
+/**
+ * The event structures used during configuration of events and their delivery.
+ *  "IN" members of the structs are set by the user during event
+ *      registration to configure LibVMI and the hypervisor.
+ *  "OUT" members are set by LibVMI upon observation of an event with
+ *      contextual information helpful to the callback.
+ *  "RESPONSE" members can be set by the user at the end of the callback to signal
+ *      to the hypervisor that a specific type of action should be performed.
+ *  Note that IN and RESPONSE fields can overlap with OUT fields thus the user
+ *      should NOT rely these fields remaining unchanged after event registration.
+ *      IN fields that remain unchanged by LibVMI are marked CONST IN.
+ */
+
 typedef struct {
     /**
+     * CONST IN
+     *
      * Register for which write event is configured.
      * Hypervisors offering register events tend to
      *  have a limited number available for monitoring.
@@ -156,11 +171,15 @@ typedef struct {
     reg_t reg;
 
     /**
+     * CONST IN
+     *
      * Event filter: callback triggers IFF register==<equal>
      */
     reg_t equal;
 
     /**
+     * CONST IN
+     *
      * IFF set to 1, events are delivered asynchronously and
      *  without pausing the originating VCPU
      * Default : 0. (i.e., VCPU is paused at time of event delivery).
@@ -168,6 +187,8 @@ typedef struct {
     uint8_t async;
 
     /**
+     * CONST IN
+     *
      * IFF set to 1, events are only delivered if the written
      *  value differs from the previously held value.
      * Default : 0. (i.e., All write events are delivered).
@@ -175,12 +196,8 @@ typedef struct {
     uint8_t onchange;
 
     /**
-     * IFF set to 1, an extended set of MSR events are going to be delivered
-     * Only available on Xen with 4.5 and onwards
-     */
-    uint8_t extended_msr;
-
-    /**
+     * CONST IN
+     *
      * Type of register event being monitored.
      * Hypervisors offering register events do so only for those that trigger a
      *  VMEXIT or similar trap. This predominantly means that only write events
@@ -189,28 +206,45 @@ typedef struct {
     vmi_reg_access_t in_access;
 
     /**
+     * OUT
+     *
      * Type of register access that triggered the event
      */
     vmi_reg_access_t out_access;
 
-    uint8_t _pad[3];
-
-    /**
-     * Register value read or written
-     */
-    reg_t value;
+    uint32_t _pad;
 
     union {
         /**
-         * Previous value of register (only for CR0/CR3/CR4)
+         * IN
+         *
+         * IFF set to 1, an extended set of MSR events are going to be delivered
+         * Only available on Xen with 4.5 and onwards
          */
-        reg_t previous;
+        uint8_t extended_msr;
 
         /**
-         * MSR register operations only: holds the specific MSR for which the event occurred.
-         * Unused for other register event types.
+         * OUT
          */
-        reg_t context;
+        struct {
+            /**
+             * Register value read or written
+             */
+            reg_t value;
+
+            union {
+                /**
+                 * Previous value of register (only for CR0/CR3/CR4)
+                 */
+                reg_t previous;
+
+                /**
+                 * MSR register operations only: holds the specific MSR for which the event occurred.
+                 * Unused for other register event types.
+                 */
+                reg_t context;
+            };
+        };
     };
 } reg_event_t;
 
@@ -381,18 +415,6 @@ typedef event_response_t (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *ev
  */
 typedef void (*vmi_event_free_t)(vmi_event_t *event, status_t rc);
 
-/**
- * The event structure used during configuration of events and their delivery.
- *  "IN" members of the struct are set by the user during event
- *      registration to configure LibVMI and the hypervisor.
- *  "OUT" members are set by LibVMI upon observation of an event with
- *      contextual information helpful to the callback.
- *  "RESPONSE" members can be set by the user at the end of the callback to signal
- *      to the hypervisor that a specific type of action should be performed.
- *  Note that IN and RESPONSE fields can overlap with OUT fields thus the user
- *      should NOT rely these fields remaining unchanged after event registration.
- *      IN fields that remain unchanged by LibVMI are marked CONST IN.
- */
 struct vmi_event {
     union {
         /* IN */
@@ -540,6 +562,13 @@ struct vmi_event {
             (_event)->interrupt_event.reinject = _reinject; \
             (_event)->callback = _callback; \
         } while(0)
+
+/**
+ * The maximum events version LibVMI supports.
+ *
+ * @return max supported events version
+ */
+uint32_t vmi_events_version();
 
 /**
  * Register to handle the event specified by the vmi_event object.
