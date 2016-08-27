@@ -70,9 +70,9 @@ _conf_file_name ="libvmi.conf"#default
 _conf_file_destination =""
 
 #name_major.minor.patch
-_version = "2.10.0" #Todo change me after every significant  update
-_full_versionb = "Libvmi-Config-Editor_2.10.0" #Todo change me after every significant  update
-_last_update="4/2016"#Todo change me after every significant update
+_version = "2.11.1" #Todo change me after every significant  update
+_full_versionb = "Libvmi-Config-Editor_2.11.1" #Todo change me after every significant  update
+_last_update="8/2016"#Todo change me after every significant update
 #Error messages to display
 ERROR_MSGS =['Invalid Option','Unexpected Error','File Access Error','Invalid Input','Virtual Machine Exists']
 NOTIFY_MSGS =['Add New VM Success!','Confirm Exit']
@@ -140,7 +140,7 @@ def _insert_windows_vm(name,tasks,pdbase,pid):
     return True
 
 #adds a new vm oject (linux) into the list of vm's to be written to libvmi.conf
-def _insert_linux_vm(name,tasks,mm,pid,pgd,sysmap):
+def _insert_linux_vm(vm_name,tasks,name,mm,pid,pgd,sysmap):
 
     global _vm_list
     global _vm_list_size
@@ -160,8 +160,9 @@ def _insert_linux_vm(name,tasks,mm,pid,pgd,sysmap):
                 _vm_list_size+=-1
                 _vm_list_os_linux+=-1
 
-    vm = VM(name,"Linux")
+    vm = VM(vm_name,"Linux")
     vm.linux_tasks = tasks
+    vm.linux_name = name
     vm.linux_mm = mm
     vm.linux_pid = pid
     vm.linux_pgd = pgd
@@ -228,7 +229,8 @@ class VM:
         self.os_type = vm_os
         #for the sake of clarity we allow VM object to have both windows and Linux fields
         #the differentiation comes from explicit checking of the 'type' field
-        self.linux_tasks =   None
+        self.linux_tasks =  None
+        self.linux_name  =  None
         self.linux_mm    =   None
         self.linux_pid   =   None
         self.linux_pgd   =   None
@@ -411,8 +413,9 @@ class Write_Config_Form(_nps.ActionFormWithMenus):
                 vm = _vm_list[key]
 
                 if vm.os_type == "Linux":
-                    config['sysmap '] = "\""+vm.linux_sysmap+"\";"
                     config['ostype '] = "\""+vm.os_type+"\";"
+                    config['sysmap '] = "\""+vm.linux_sysmap+"\";"
+                    config['linux_name '] = vm.linux_name+";"
                     config['linux_tasks '] = vm.linux_tasks+";"
                     config['linux_mm '] = vm.linux_mm+";"
                     config['linux_pid '] = vm.linux_pid+";"
@@ -695,6 +698,7 @@ class Add_Linux_Form(_nps.ActionFormWithMenus):
         self.instructions = self.add(_nps.TitleFixedText, name="Instructions:", value="Enter the Linux VM configuration information")
         self.nextrely+=1
         self.name        =     self.add(_nps.TitleText, name = "VM Name: ")
+        self.linux_name        =     self.add(_nps.TitleText, name = "Linux Name: ")
         self.linux_tasks    =   self.add(_nps.TitleText, name = "Linux tasks: ")
         self.linux_mm       =   self.add(_nps.TitleText, name = "Linux mm: ")
         self.linux_pid       =   self.add(_nps.TitleText, name = "Linux pid: ")
@@ -721,7 +725,7 @@ class Add_Linux_Form(_nps.ActionFormWithMenus):
     #inserts the new vm into the vm list
     def add_vm(self):
         if self.validate_input():
-            if _insert_linux_vm(self.name.value,self.linux_tasks.value,self.linux_mm.value,self.linux_pid.value,self.linux_pgd.value,self.sysmap.value) == True:
+            if _insert_linux_vm(self.name.value,self.linux_tasks.value,self.linux_name.value,self.linux_mm.value,self.linux_pid.value,self.linux_pgd.value,self.sysmap.value) == True:
                 self.clear_input()
         else:
             return
@@ -883,7 +887,7 @@ class Config_Form(_nps.ActionFormWithMenus):
 #first screen displayed - naming convention for screens Name_Form
 class Main_Form(_nps.ActionFormV2):
 
-    menu_options = ['New Config File', 'Add to Existing Config File [Not Implemented]']
+    menu_options = ['New Config File']
     readme =['1. This application will generate well formed libvmi configuration files (libvmi.conf).',
              '2. Virtual Machine configurations are added to the application memory',
              'and will only be written to the actual file by choosing the "Write File" option',
