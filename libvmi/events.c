@@ -541,18 +541,19 @@ status_t swap_events(vmi_instance_t vmi, vmi_event_t *swap_from, vmi_event_t *sw
                      vmi_event_free_t free_routine)
 {
     status_t rc;
+    addr_t page_key = swap_from->mem_event.physical_address >> 12;
+
     if(swap_from->vmm_pagetable_id != swap_to->vmm_pagetable_id) {
-        rc = driver_set_mem_access(vmi, &swap_from->mem_event, VMI_MEMACCESS_N, swap_from->vmm_pagetable_id);
+        rc = driver_set_mem_access(vmi, page_key, VMI_MEMACCESS_N, swap_from->vmm_pagetable_id);
         if(rc == VMI_FAILURE)
             return rc;
     }
 
-    rc = driver_set_mem_access(vmi, &swap_to->mem_event, swap_to->mem_event.in_access, swap_to->vmm_pagetable_id);
+    rc = driver_set_mem_access(vmi, page_key, swap_to->mem_event.in_access, swap_to->vmm_pagetable_id);
     if(rc == VMI_FAILURE)
         return rc;
 
-    addr_t page_key = swap_from->mem_event.physical_address >> 12;
-    g_hash_table_replace(vmi->mem_events, g_memdup(&page_key, sizeof(addr_t)), swap_to);
+    g_hash_table_replace(vmi->mem_events_on_gfn, g_memdup(&page_key, sizeof(addr_t)), swap_to);
 
     if ( free_routine )
         free_routine(swap_from, rc);
@@ -581,7 +582,7 @@ status_t vmi_swap_events(vmi_instance_t vmi, vmi_event_t* swap_from, vmi_event_t
     {
         addr_t page_key = swap_from->mem_event.physical_address >> 12;
 
-        if(!g_hash_table_lookup(vmi->mem_events, &page_key)) {
+        if(!g_hash_table_lookup(vmi->mem_events_on_gfn, &page_key)) {
             dbprint(VMI_DEBUG_EVENTS, "The event to be swapped is not registered.\n");
             return VMI_FAILURE;
         }

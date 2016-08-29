@@ -987,8 +987,8 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
 
     access = memaccess_conversion[page_access_flag];
 
-    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %"PRIu16" on physical address: %"PRIu64" npages: %"PRIu64"\n",
-        dom, event->physical_address, npages);
+    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %"PRIu16" on GPFN: %"PRIu64"\n",
+            dom, gpfn);
 
     if ( !altp2m_idx )
         rc = xen->libxcw.xc_set_mem_access(xch, dom, access, page_key, npages);
