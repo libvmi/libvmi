@@ -40,5 +40,5 @@ status_t os_destroy(vmi_instance_t vmi) {
     }
     vmi->os_data = NULL;
 
-    return VMI_SUCCESS;
+    return status;
 }

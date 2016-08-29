@@ -442,11 +442,11 @@ void *
 xen_get_memory(
     vmi_instance_t vmi,
     addr_t paddr,
-    uint32_t length)
+    uint32_t UNUSED(length))
 {
+    //TODO assuming length == page size is safe for now, but isn't the most clean approach
     addr_t pfn = paddr >> vmi->page_shift;
 
-    //TODO assuming length == page size is safe for now, but isn't the most clean approach
     return xen_get_memory_pfn(vmi, pfn, PROT_READ);
 }
 
@@ -516,25 +516,27 @@ xen_put_memory(
 //----------------------------------------------------------------------------
 // General Interface Functions (1-1 mapping to driver_* function)
 
-// formerly vmi_get_domain_id
+/*
+ * This function is only usable with xenstore
+ * formerly vmi_get_domain_id
+ */
 uint64_t
 xen_get_domainid_from_name(
-    vmi_instance_t vmi,
+    vmi_instance_t UNUSED(vmi),
+#ifndef HAVE_LIBXENSTORE
+    const char* UNUSED(name))
+{
+    return VMI_INVALID_DOMID;
+}
+#else
     const char *name)
 {
-
-// This function is only usable with xenstore
-#ifndef HAVE_LIBXENSTORE
-    return VMI_INVALID_DOMID;
-#else
-
     if (name == NULL) {
         return VMI_INVALID_DOMID;
     }
 
     char **domains = NULL;
-    unsigned int size = 0;
-    int i = 0;
+    unsigned int size = 0, i = 0;
     xs_transaction_t xth = XBT_NULL;
     uint64_t domainid = VMI_INVALID_DOMID;
     char *tmp;
@@ -574,29 +576,30 @@ _bail:
     if (xsh)
         xs_close(xsh);
     return domainid;
-#endif
 }
+#endif
 
+/*
+ * This function is only usable with xenstore
+ */
 status_t
 xen_get_name_from_domainid(
-    vmi_instance_t vmi,
-    uint64_t domainid,
-    char **name)
-{
-
-// This function is only usable with xenstore
+    vmi_instance_t UNUSED(vmi),
 #ifndef HAVE_LIBXENSTORE
+    uint64_t UNUSED(domainid),
+    char** UNUSED(name))
+{
     return VMI_FAILURE;
+}
 #else
-
+    uint64_t domainid,
+    char** name)
+{
     status_t ret = VMI_FAILURE;
     if (domainid == VMI_INVALID_DOMID) {
         return ret;
     }
 
-    char **domains = NULL;
-    int size = 0;
-    int i = 0;
     xs_transaction_t xth = XBT_NULL;
 
     struct xs_handle *xsh = xs_open(0);
@@ -618,8 +621,8 @@ _bail:
     if (xsh)
         xs_close(xsh);
     return ret;
-#endif
 }
+#endif
 
 uint64_t
 xen_get_domainid(
@@ -638,9 +641,9 @@ xen_set_domainid(
 
 status_t
 xen_check_domainid(
-    vmi_instance_t vmi,
-    uint64_t domainid) {
-
+    vmi_instance_t UNUSED(vmi),
+    uint64_t domainid)
+{
     status_t ret = VMI_FAILURE;
     xc_dominfo_t info;
     xc_interface *xchandle;
@@ -703,7 +706,7 @@ xen_discover_guest_addr_width(
     xen_get_instance(vmi)->addr_width = 0;
 
     if (xen_get_instance(vmi)->hvm) {   // HVM
-        struct hvm_hw_cpu hw_ctxt = { 0 };
+        struct hvm_hw_cpu hw_ctxt;
 
         rc = xc_domain_hvm_getcontext_partial(xen_get_xchandle(vmi),
                                               xen_get_instance(vmi)->domainid,
@@ -711,10 +714,9 @@ xen_discover_guest_addr_width(
                                               0,  //vcpu,
                                               &hw_ctxt,
                                               sizeof(hw_ctxt));
-        if (rc != 0) {
+        if (rc) {
             errprint
                 ("Failed to get context information (HVM domain).\n");
-            ret = VMI_FAILURE;
             goto _bail;
         }
         xen_get_instance(vmi)->addr_width =
@@ -780,15 +782,13 @@ status_t
 xen_init(
     vmi_instance_t vmi)
 {
-    status_t ret = VMI_FAILURE;
     xen_instance_t *xen = g_malloc0(sizeof(xen_instance_t));
     xc_interface *xchandle = xc_interface_open(NULL, NULL, 0);
-    int rc = 0; // return codes from xc_* calls
 
     if ( !xchandle ) {
         errprint("Failed to open libxc interface.\n");
         free(xen);
-        goto exit;
+        return VMI_FAILURE;
     }
 
     xen->xchandle = xchandle;
@@ -800,15 +800,12 @@ xen_init(
         errprint("xs_domain_open failed\n");
         xc_interface_close(xchandle);
         free(xen);
-        goto exit;
+        return VMI_FAILURE;
     }
 #endif
 
     vmi->driver.driver_data = (void *)xen;
-    ret = VMI_SUCCESS;
-
-exit:
-    return ret;
+    return VMI_SUCCESS;
 }
 
 status_t
@@ -967,17 +964,21 @@ xen_destroy(
     free(xen);
 }
 
+/*
+ * This function is only usable with Xenstore
+ */
 status_t
 xen_get_domainname(
-    vmi_instance_t vmi,
-    char **name)
-{
-
-// This function is only usable with Xenstore
 #ifndef HAVE_LIBXENSTORE
+    vmi_instance_t UNUSED(vmi),
+    char** UNUSED(name))
+{
     return VMI_FAILURE;
+}
 #else
-
+    vmi_instance_t vmi,
+    char** name)
+{
     status_t ret = VMI_FAILURE;
     xs_transaction_t xth = XBT_NULL;
 
@@ -1004,8 +1005,8 @@ xen_get_domainname(
 
 _bail:
     return ret;
-#endif
 }
+#endif
 
 void xen_set_domainname(
     vmi_instance_t vmi,
@@ -1056,7 +1057,7 @@ xen_get_vcpureg_hvm(
         dbprint(VMI_DEBUG_XEN, "read hvm cpu registers from shm-snapshot\n");
     }
 #endif
-    struct hvm_hw_cpu hw_ctxt = { 0 };
+    struct hvm_hw_cpu hw_ctxt;
     if (NULL == hvm_cpu) {
         if (xc_domain_hvm_getcontext_partial(xen_get_xchandle(vmi),
                                              xen_get_instance(vmi)->domainid,
@@ -1668,28 +1669,26 @@ xen_get_vcpureg_pv64(
     registers_t reg,
     unsigned long vcpu)
 {
-    status_t ret = VMI_SUCCESS;
     vcpu_guest_context_x86_64_t* vcpu_ctx = NULL;
+    vcpu_guest_context_any_t ctx;
 
 #if ENABLE_SHM_SNAPSHOT == 1
     if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
         vcpu_ctx = (vcpu_guest_context_x86_64_t*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
         dbprint(VMI_DEBUG_XEN, "read pv_64 cpu registers from shm-snapshot\n");
     }
-#else
-    vcpu_guest_context_any_t ctx = { 0 };
-    xen_domctl_t domctl = { 0 };
-    if (NULL == vcpu_ctx) {
+#endif
+
+    if ( !vcpu_ctx ) {
         if (xc_vcpu_getcontext(xen_get_xchandle(vmi),
                                xen_get_instance(vmi)->domainid, vcpu, &ctx))
         {
             errprint("Failed to get context information (PV domain).\n");
-            ret = VMI_FAILURE;
-            goto _bail;
+            return VMI_FAILURE;
         }
+
         vcpu_ctx = &ctx.x64;
     }
-#endif
 
     switch (reg) {
     case RAX:
@@ -1790,12 +1789,10 @@ xen_get_vcpureg_pv64(
         *value = (reg_t) vcpu_ctx->ldt_base;
         break;
     default:
-        ret = VMI_FAILURE;
-        break;
+        return VMI_FAILURE;
     }
 
-_bail:
-    return ret;
+    return VMI_SUCCESS;
 }
 
 static status_t
@@ -1805,16 +1802,13 @@ xen_set_vcpureg_pv64(
     registers_t reg,
     unsigned long vcpu)
 {
-    status_t ret = VMI_SUCCESS;
-    vcpu_guest_context_any_t ctx = {0};
-    xen_domctl_t domctl = {0};
+    vcpu_guest_context_any_t ctx;
 
     if (xc_vcpu_getcontext (xen_get_xchandle(vmi),
                             xen_get_instance(vmi)->domainid,
                             vcpu, &ctx)          ) {
         errprint("Failed to get context information (PV domain).\n");
-        ret = VMI_FAILURE;
-        goto _bail;
+        return VMI_FAILURE;
     }
 
     switch (reg) {
@@ -1916,9 +1910,7 @@ xen_set_vcpureg_pv64(
         ctx.x64.ldt_base = value;
         break;
     default:
-        ret = VMI_FAILURE;
-        goto _bail;
-        break;
+        return VMI_FAILURE;
     }
 
     if (xc_vcpu_setcontext(xen_get_xchandle(vmi),
@@ -1926,12 +1918,10 @@ xen_set_vcpureg_pv64(
                            vcpu, &ctx))
     {
         errprint("Failed to set context information (PV domain).\n");
-        ret = VMI_FAILURE;
-        goto _bail;
+        return VMI_FAILURE;
     }
 
-_bail:
-    return ret;
+    return VMI_SUCCESS;
 }
 
 static status_t
@@ -1941,7 +1931,6 @@ xen_get_vcpureg_pv32(
     registers_t reg,
     unsigned long vcpu)
 {
-    status_t ret = VMI_SUCCESS;
     vcpu_guest_context_x86_32_t* vcpu_ctx = NULL;
 
 #if ENABLE_SHM_SNAPSHOT == 1
@@ -1950,16 +1939,14 @@ xen_get_vcpureg_pv32(
         dbprint(VMI_DEBUG_XEN, "read pv_32 cpu registers from shm-snapshot\n");
     }
 #else
-    vcpu_guest_context_any_t ctx = { 0 };
-    xen_domctl_t domctl = { 0 };
+    vcpu_guest_context_any_t ctx;
     if (NULL == vcpu_ctx) {
         if (xc_vcpu_getcontext(xen_get_xchandle(vmi),
                                xen_get_instance(vmi)->domainid,
                                vcpu, &ctx))
         {
             errprint("Failed to get context information (PV domain).\n");
-            ret = VMI_FAILURE;
-            goto _bail;
+            return VMI_FAILURE;
         }
         vcpu_ctx = &ctx.x32;
     }
@@ -2034,12 +2021,10 @@ xen_get_vcpureg_pv32(
         *value = (reg_t) vcpu_ctx->ldt_base;
         break;
     default:
-        ret = VMI_FAILURE;
-        break;
+        return VMI_FAILURE;
     }
 
-_bail:
-    return ret;
+    return VMI_SUCCESS;
 }
 
 static status_t
@@ -2049,17 +2034,14 @@ xen_set_vcpureg_pv32(
     registers_t reg,
     unsigned long vcpu)
 {
-    status_t ret = VMI_SUCCESS;
-    vcpu_guest_context_any_t ctx = { 0 };
-    xen_domctl_t domctl = { 0 };
+    vcpu_guest_context_any_t ctx;
 
     if (xc_vcpu_getcontext(xen_get_xchandle(vmi),
                            xen_get_instance(vmi)->domainid,
                            vcpu, &ctx))
     {
         errprint("Failed to get context information (PV domain).\n");
-        ret = VMI_FAILURE;
-        goto _bail;
+        return VMI_FAILURE;
     }
 
     switch (reg) {
@@ -2131,9 +2113,7 @@ xen_set_vcpureg_pv32(
         ctx.x32.ldt_base = value;
         break;
     default:
-        ret = VMI_FAILURE;
-        goto _bail;
-        break;
+        return VMI_FAILURE;
     }
 
     if (xc_vcpu_setcontext(xen_get_xchandle(vmi),
@@ -2141,12 +2121,10 @@ xen_set_vcpureg_pv32(
                            vcpu, &ctx))
     {
         errprint("Failed to set context information (PV domain).\n");
-        ret = VMI_FAILURE;
-        goto _bail;
+        return VMI_FAILURE;
     }
 
-_bail:
-    return ret;
+    return VMI_SUCCESS;
 }
 #endif
 
@@ -2158,15 +2136,12 @@ xen_get_vcpureg_arm(
     registers_t reg,
     unsigned long vcpu)
 {
-    status_t ret = VMI_SUCCESS;
-    vcpu_guest_context_any_t ctx = { 0 };
-    xen_domctl_t domctl = { 0 };
+    vcpu_guest_context_any_t ctx;
 
     if (xc_vcpu_getcontext
         (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
         errprint("Failed to get context information (ARM domain).\n");
-        ret = VMI_FAILURE;
-        goto _bail;
+        return VMI_FAILURE;
     }
 
     switch (reg) {
@@ -2292,12 +2267,10 @@ xen_get_vcpureg_arm(
         *value = ctx.c.user_regs.spsr_abt;
         break;
     default:
-        ret = VMI_FAILURE;
-        break;
+        return VMI_FAILURE;
     }
 
-_bail:
-    return ret;
+    return VMI_SUCCESS;
 }
 
 static status_t
@@ -2307,15 +2280,12 @@ xen_set_vcpureg_arm(
     registers_t reg,
     unsigned long vcpu)
 {
-    status_t ret = VMI_SUCCESS;
-    vcpu_guest_context_any_t ctx = { 0 };
-    xen_domctl_t domctl = { 0 };
+    vcpu_guest_context_any_t ctx;
 
     if (xc_vcpu_getcontext
         (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
         errprint("Failed to get context information (ARM domain).\n");
-        ret = VMI_FAILURE;
-        goto _bail;
+        return VMI_FAILURE;
     }
 
     switch (reg) {
@@ -2437,20 +2407,16 @@ xen_set_vcpureg_arm(
         ctx.c.user_regs.spsr_abt = value;
         break;
     default:
-        ret = VMI_FAILURE;
-        goto _bail;
-        break;
+        return VMI_FAILURE;
     }
 
     if (xc_vcpu_setcontext
         (xen_get_xchandle(vmi), xen_get_domainid(vmi), vcpu, &ctx)) {
         errprint("Failed to set context information (ARM domain).\n");
-        ret = VMI_FAILURE;
-        goto _bail;
+        return VMI_FAILURE;
     }
 
-_bail:
-    return ret;
+    return VMI_SUCCESS;
 }
 #endif
 
@@ -2612,17 +2578,14 @@ xen_set_domain_debug_control(
     unsigned long vcpu,
     int enable)
 {
-    status_t ret = VMI_FAILURE;
-    int rc = -1;
-
     uint32_t op = (enable) ?
         XEN_DOMCTL_DEBUG_OP_SINGLE_STEP_ON : XEN_DOMCTL_DEBUG_OP_SINGLE_STEP_OFF;
 
-    ret = xc_domain_debug_control(xen_get_xchandle(vmi),
-                                  xen_get_instance(vmi)->domainid,
-                                  op, vcpu);
+    int rc = xc_domain_debug_control(xen_get_xchandle(vmi),
+                                     xen_get_instance(vmi)->domainid,
+                                     op, vcpu);
 
-    return ret;
+    return (rc == 0) ? VMI_SUCCESS : VMI_FAILURE;
 }
 
 #if ENABLE_SHM_SNAPSHOT == 1

@@ -104,4 +104,5 @@ lib_LTLIBRARIES= libvmi.la
 libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
 libvmi_la_LIBADD= config/libconfig.la
 libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS)
+libvmi_la_CFLAGS+= -Werror -Wall -Wextra -Wno-missing-field-initializers
 libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS)

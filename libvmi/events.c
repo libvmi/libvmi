@@ -56,7 +56,7 @@ vmi_mem_access_t combine_mem_access(vmi_mem_access_t base, vmi_mem_access_t add)
 gint swap_search_from(gconstpointer a, gconstpointer b)
 {
     swap_wrapper_t *w1 = (swap_wrapper_t*)a;
-    swap_wrapper_t *w2 = (swap_wrapper_t*)a;
+    swap_wrapper_t *w2 = (swap_wrapper_t*)b;
     return (w1->swap_from == w2->swap_from);
 }
 
@@ -68,6 +68,17 @@ gboolean event_entry_free(gpointer key, gpointer value, gpointer data)
     vmi_instance_t vmi = (vmi_instance_t) data;
     vmi_event_t *event = (vmi_event_t*) value;
     vmi_clear_event(vmi, event, NULL);
+    g_free(key);
+    return TRUE;
+}
+
+gboolean clear_events(gpointer key, gpointer value, gpointer data)
+{
+    vmi_event_t *event = *(vmi_event_t**) key;
+    vmi_event_free_t free_event = (vmi_event_free_t) value;
+    vmi_instance_t vmi = (vmi_instance_t)data;
+    vmi_clear_event(vmi, event, free_event);
+    g_free(key);
     return TRUE;
 }
 
@@ -101,12 +112,10 @@ void step_event_free(vmi_event_t *event, status_t rc)
 void events_init(vmi_instance_t vmi)
 {
     vmi->interrupt_events = g_hash_table_new(g_int_hash, g_int_equal);
-    vmi->mem_events = g_hash_table_new_full(g_int64_hash, g_int64_equal, free, NULL);
+    vmi->mem_events = g_hash_table_new(g_int64_hash, g_int64_equal);
     vmi->reg_events = g_hash_table_new(g_int_hash, g_int_equal);
-    vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free,
-            NULL);
-    vmi->clear_events = g_hash_table_new_full(g_int64_hash, g_int64_equal,
-            g_free, NULL);
+    vmi->ss_events = g_hash_table_new(g_int_hash, g_int_equal);
+    vmi->clear_events = g_hash_table_new(g_int64_hash, g_int64_equal);
 }
 
 void events_destroy(vmi_instance_t vmi)
@@ -121,6 +130,7 @@ void events_destroy(vmi_instance_t vmi)
         dbprint(VMI_DEBUG_EVENTS, "Destroying memaccess events\n");
         g_hash_table_foreach_remove(vmi->mem_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->mem_events);
+        vmi->mem_events = NULL;
     }
 
     if (vmi->reg_events)
@@ -128,12 +138,14 @@ void events_destroy(vmi_instance_t vmi)
         dbprint(VMI_DEBUG_EVENTS, "Destroying register events\n");
         g_hash_table_foreach_steal(vmi->reg_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->reg_events);
+        vmi->reg_events = NULL;
     }
 
     if (vmi->step_events)
     {
         g_slist_foreach(vmi->step_events, step_wrapper_free, vmi);
         g_slist_free(vmi->step_events);
+        vmi->step_events = NULL;
     }
 
     if (vmi->ss_events)
@@ -141,6 +153,7 @@ void events_destroy(vmi_instance_t vmi)
         dbprint(VMI_DEBUG_EVENTS, "Destroying singlestep events\n");
         g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->ss_events);
+        vmi->ss_events = NULL;
     }
 
     if (vmi->interrupt_events)
@@ -148,10 +161,21 @@ void events_destroy(vmi_instance_t vmi)
         dbprint(VMI_DEBUG_EVENTS, "Destroying interrupt events\n");
         g_hash_table_foreach_steal(vmi->interrupt_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->interrupt_events);
+        vmi->interrupt_events = NULL;
     }
 
-    g_slist_free(vmi->swap_events);
-    g_hash_table_destroy(vmi->clear_events);
+    if ( vmi->clear_events )
+    {
+        g_hash_table_foreach_steal(vmi->clear_events, clear_events, vmi);
+        g_hash_table_destroy(vmi->clear_events);
+        vmi->clear_events = NULL;
+    }
+
+    if ( vmi->swap_events )
+    {
+        g_slist_free(vmi->swap_events);
+        vmi->swap_events = NULL;
+    }
 }
 
 status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
@@ -166,7 +190,10 @@ status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
     }
     else if (VMI_SUCCESS == driver_set_intr_access(vmi, &event->interrupt_event, 1))
     {
-        g_hash_table_insert(vmi->interrupt_events, &(event->interrupt_event.intr), event);
+        gint *key = g_malloc0(sizeof(gint));
+        *key = event->interrupt_event.intr;
+
+        g_hash_table_insert(vmi->interrupt_events, key, event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled event on interrupt: %d\n", event->interrupt_event.intr);
         rc = VMI_SUCCESS;
     }
@@ -186,7 +213,10 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
     }
     else if (VMI_SUCCESS == driver_set_reg_access(vmi, &event->reg_event))
     {
-        g_hash_table_insert(vmi->reg_events, &(event->reg_event.reg), event);
+        gint *key= g_malloc0(sizeof(gint));
+        *key = event->reg_event.reg;
+
+        g_hash_table_insert(vmi->reg_events, key, event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled register event on reg: %d\n", event->reg_event.reg);
         rc = VMI_SUCCESS;
     }
@@ -296,7 +326,6 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
 {
     status_t rc = VMI_FAILURE;
     uint32_t vcpu;
-    uint32_t *vcpu_i = NULL;
 
     for (vcpu=0; vcpu < vmi->num_vcpus; vcpu++)
     {
@@ -320,9 +349,10 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
     {
         if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu))
         {
-            vcpu_i = malloc(sizeof(uint32_t));
-            *vcpu_i = vcpu;
-            g_hash_table_insert(vmi->ss_events, vcpu_i, event);
+            gint *key = g_malloc0(sizeof(gint));
+            *key = vcpu;
+
+            g_hash_table_insert(vmi->ss_events, key, event);
          }
     }
 
@@ -423,7 +453,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     status_t rc = driver_set_mem_access(vmi, &event->mem_event,
                     VMI_MEMACCESS_N, event->vmm_pagetable_id);
 
-    dbprint(VMI_DEBUG_EVENTS, "Disabling memevent on page 0x%"PRIx32" in view %"PRIu32": %s\n",
+    dbprint(VMI_DEBUG_EVENTS, "Disabling memevent on page 0x%"PRIx64" in view %"PRIu32": %s\n",
             page_key, event->vmm_pagetable_id,
             (rc == VMI_FAILURE) ? "failed" : "success");
 
@@ -465,7 +495,7 @@ status_t clear_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
-status_t clear_guest_requested_event(vmi_instance_t vmi, vmi_event_t *event)
+status_t clear_guest_requested_event(vmi_instance_t vmi, vmi_event_t* UNUSED(event))
 {
     status_t rc = VMI_FAILURE;
 
@@ -479,7 +509,7 @@ status_t clear_guest_requested_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
-status_t clear_cpuid_event(vmi_instance_t vmi, vmi_event_t *event)
+status_t clear_cpuid_event(vmi_instance_t vmi, vmi_event_t* UNUSED(event))
 {
     status_t rc = VMI_FAILURE;
 
@@ -493,7 +523,7 @@ status_t clear_cpuid_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
-status_t clear_debug_event(vmi_instance_t vmi, vmi_event_t *event)
+status_t clear_debug_event(vmi_instance_t vmi, vmi_event_t* UNUSED(event))
 {
     status_t rc = VMI_FAILURE;
 

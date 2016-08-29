@@ -134,7 +134,6 @@ vmi_convert_str_encoding(
     size_t inlen = in->length;
     size_t outlen = 2 * (inlen + 1);
 
-    char *instart = (char*)in->contents;
     char *incurr = (char*)in->contents;
 
     memset(out, 0, sizeof(*out));

@@ -53,6 +53,6 @@ typedef enum {
 } vmi_debug_flag_t;
 
 /* uncomment this and recompile to enable debug output */
-//#define VMI_DEBUG __VMI_DEBUG_ALL
+#define VMI_DEBUG VMI_DEBUG_EVENTS
 
 #endif

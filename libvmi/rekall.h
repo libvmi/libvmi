@@ -21,6 +21,8 @@
 #ifndef LIBVMI_REKALL_H
 #define LIBVMI_REKALL_H
 
+#include "private.h"
+
 #ifdef REKALL_PROFILES
 
 status_t
@@ -32,15 +34,7 @@ rekall_profile_symbol_to_rva(
 
 #else
 
-static inline status_t
-rekall_profile_symbol_to_rva(
-    const char *rekall_profile,
-    const char *symbol,
-    const char *subsymbol,
-    addr_t *rva)
-{
-    return VMI_FAILURE;
-}
+#define rekall_profile_symbol_to_rva(...) VMI_FAILURE
 
 #endif
 

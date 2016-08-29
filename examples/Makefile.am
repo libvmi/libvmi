@@ -1,9 +1,9 @@
 ## Source directory
 
-SUBDIRS = 
+SUBDIRS =
 
 AM_CFLAGS = -I$(top_builddir) $(GLIB_CFLAGS)
-AM_CPPFLAGS = -I$(top_builddir) $(GLIB_CFLAGS)
+AM_CFLAGS += -Werror -Wall -Wextra -Wno-missing-field-initializers -Wno-unused-parameter
 AM_LDFLAGS = -L$(top_builddir)/libvmi/.libs/
 LDADD = -lvmi -lm $(LIBS) $(GLIB_LIBS)
 

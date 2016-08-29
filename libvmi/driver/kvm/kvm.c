@@ -1115,11 +1115,12 @@ kvm_get_memory_patch(
     }
     else {
         // get the data from kvm
-        nbytes =
-            read(kvm_get_instance(vmi)->socket_fd, buf, length + 1);
-        if (nbytes != (length + 1)) {
+        nbytes = read(kvm_get_instance(vmi)->socket_fd, buf, length + 1);
+        if ( nbytes <= 0 )
             goto error_exit;
-        }
+
+        if ( (uint32_t)nbytes != (length + 1) )
+            goto error_exit;
 
         // check that kvm thinks everything is ok by looking at the last byte
         // of the buffer, 0 is failure and 1 is success
@@ -1184,7 +1185,7 @@ kvm_get_memory_native(
 void
 kvm_release_memory(
     void *memory,
-    size_t length)
+    size_t UNUSED(length))
 {
     if (memory)
         free(memory);
@@ -1350,8 +1351,6 @@ void
 kvm_destroy(
     vmi_instance_t vmi)
 {
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
     destroy_domain_socket(kvm_get_instance(vmi));
 
 #if ENABLE_SHM_SNAPSHOT == 1
@@ -1370,7 +1369,7 @@ kvm_destroy(
 
 uint64_t
 kvm_get_id_from_name(
-    vmi_instance_t vmi,
+    vmi_instance_t UNUSED(vmi),
     const char *name)
 {
     virConnectPtr conn = NULL;
@@ -1403,7 +1402,7 @@ kvm_get_id_from_name(
 
 status_t
 kvm_get_name_from_id(
-    vmi_instance_t vmi,
+    vmi_instance_t UNUSED(vmi),
     uint64_t domainid,
     char **name)
 {
@@ -1461,7 +1460,7 @@ kvm_set_id(
 
 status_t
 kvm_check_id(
-    vmi_instance_t vmi,
+    vmi_instance_t UNUSED(vmi),
     uint64_t domainid)
 {
     virConnectPtr conn = NULL;
@@ -1540,8 +1539,9 @@ kvm_get_vcpureg(
     vmi_instance_t vmi,
     reg_t *value,
     registers_t reg,
-    unsigned long vcpu)
+    unsigned long UNUSED(vcpu))
 {
+    // TODO: vCPU specific registers
     char *regs = NULL;
 
 #if ENABLE_SHM_SNAPSHOT == 1
@@ -1827,7 +1827,7 @@ kvm_write(
 
 int
 kvm_is_pv(
-    vmi_instance_t vmi)
+    vmi_instance_t UNUSED(vmi))
 {
     return 0;
 }

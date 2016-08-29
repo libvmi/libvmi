@@ -181,7 +181,7 @@ status_t v2p_aarch32 (vmi_instance_t vmi,
     return status;
 }
 
-GSList* get_va_pages_aarch32(vmi_instance_t vmi, addr_t dtb) {
+GSList* get_va_pages_aarch32(vmi_instance_t UNUSED(vmi), addr_t UNUSED(dtb)) {
     //TODO: investigate best method to loop over all tables
     return NULL;
 }

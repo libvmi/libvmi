@@ -36,7 +36,7 @@ windows_get_eprocess_name(
     vmi_instance_t vmi,
     addr_t paddr)
 {
-    int name_length = 16;   //TODO verify that this is correct for all versions
+    size_t name_length = 16;   //TODO verify that this is correct for all versions
     windows_instance_t windows = vmi->os_data;
 
     if (windows == NULL) {
@@ -251,7 +251,8 @@ windows_find_eprocess(
 
     if (!windows->pname_offset) {
         if(windows->rekall_profile) {
-            rekall_profile_symbol_to_rva(windows->rekall_profile, "_EPROCESS", "ImageFileName", &windows->pname_offset);
+            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_EPROCESS", "ImageFileName", &windows->pname_offset) )
+                return 0;
         } else {
             windows->pname_offset = find_pname_offset(vmi, check);
         }

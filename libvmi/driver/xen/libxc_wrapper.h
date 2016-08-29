@@ -28,7 +28,6 @@
 #include "xen_events_abi.h"
 
 struct xen_instance;
-typedef struct xen_instance xen_instance_t;
 
 typedef struct {
     void *handle;
@@ -114,4 +113,4 @@ typedef struct {
 
 } libxc_wrapper_t;
 
-status_t create_libxc_wrapper(xen_instance_t *xen);
+status_t create_libxc_wrapper(struct xen_instance *xen);

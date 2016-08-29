@@ -399,7 +399,7 @@ rva_cache_get(
     if ((entry = g_hash_table_lookup(rva_table, GUINT_TO_POINTER(rva))) != NULL) {
         entry->last_used = time(NULL);
         *sym = entry->sym;
-        dbprint(VMI_DEBUG_RVACACHE, "--RVA cache hit 0x%.16%"PRIx64":0x%.16"PRIx64":%s -- 0x%.16"PRIx64"\n",
+        dbprint(VMI_DEBUG_RVACACHE, "--RVA cache hit 0x%.16"PRIx64":0x%.16"PRIx64":%s -- 0x%.16"PRIx64"\n",
                 dtb, base_addr, *sym, rva);
         ret=VMI_SUCCESS;
     }

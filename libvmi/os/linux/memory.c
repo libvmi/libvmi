@@ -74,7 +74,6 @@ linux_get_taskstruct_addr_from_pid(
         /* if we are back at the list head, we are done */
     } while(list_head != next_process);
 
-error_exit:
     return 0;
 }
 
@@ -85,7 +84,6 @@ linux_get_taskstruct_addr_from_pgd(
 {
     addr_t list_head = 0, next_process = 0;
     addr_t task_pgd = 0;
-    status_t rc = VMI_FAILURE;
     uint8_t width = 0;
     int tasks_offset = 0;
     int mm_offset = 0;
@@ -113,7 +111,8 @@ linux_get_taskstruct_addr_from_pgd(
     /* May fail for some drivers, but handle gracefully below by
      * testing width
      */
-    rc = driver_get_address_width(vmi, &width);
+    if ( VMI_FAILURE == driver_get_address_width(vmi, &width) )
+        return 0;
 
     do {
         addr_t ptr = 0;
@@ -140,7 +139,6 @@ linux_get_taskstruct_addr_from_pgd(
         /* if we are back at the list head, we are done */
     } while (list_head != next_process);
 
-error_exit:
     return 0;
 }
 
@@ -154,8 +152,6 @@ linux_pid_to_pgd(
     uint8_t width = 0;
     status_t rc = VMI_FAILURE;
     linux_instance_t linux_instance = NULL;
-    int pid_offset = 0;
-    int tasks_offset = 0;
     int mm_offset = 0;
     int pgd_offset = 0;
 
@@ -166,8 +162,6 @@ linux_pid_to_pgd(
 
     linux_instance = vmi->os_data;
 
-    pid_offset = linux_instance->pid_offset;
-    tasks_offset = linux_instance->tasks_offset;
     mm_offset = linux_instance->mm_offset;
     pgd_offset = linux_instance->pgd_offset;
 

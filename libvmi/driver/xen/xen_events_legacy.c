@@ -69,7 +69,7 @@ static inline xen_events_t *xen_get_events(vmi_instance_t vmi)
 }
 
 static
-int wait_for_event_or_timeout(xc_interface *xch, xc_evtchn *xce, unsigned long ms)
+int wait_for_event_or_timeout(xc_evtchn *xce, unsigned long ms)
 {
     struct pollfd fd = { .fd = xc_evtchn_fd(xce), .events = POLLIN | POLLERR };
     int port;
@@ -232,7 +232,8 @@ status_t process_interrupt_event(vmi_instance_t vmi, interrupts_t intr,
 
     int rc                      = -1;
     status_t status             = VMI_FAILURE;
-    vmi_event_t * event         = g_hash_table_lookup(vmi->interrupt_events, &intr);
+    gint lookup                 = intr;
+    vmi_event_t * event         = g_hash_table_lookup(vmi->interrupt_events, &lookup);
     xc_interface * xch          = xen_get_xchandle(vmi);
     unsigned long domain_id     = xen_get_domainid(vmi);
     xen_instance_t *xen         = xen_get_instance(vmi);
@@ -353,8 +354,8 @@ status_t process_register(vmi_instance_t vmi,
                           registers_t reg, uint64_t gfn, uint32_t vcpu_id, uint64_t gla,
                           uint32_t *rsp_flags)
 {
-
-    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &reg);
+    gint lookup         = reg;
+    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &lookup);
     xen_instance_t *xen = xen_get_instance(vmi);
 
     if(event) {
@@ -871,7 +872,7 @@ status_t xen_set_reg_access_legacy(vmi_instance_t vmi, reg_event_t *event)
 
 status_t
 xen_set_mem_access_legacy(vmi_instance_t vmi, mem_access_event_t *event,
-                          vmi_mem_access_t page_access_flag, uint16_t vmm_pagetable_id)
+                          vmi_mem_access_t page_access_flag, uint16_t UNUSED(vmm_pagetable_id))
 {
     int rc;
     xc_interface * xch = xen_get_xchandle(vmi);
@@ -1044,7 +1045,6 @@ status_t xen_start_single_step_legacy(vmi_instance_t vmi, single_step_event_t *e
 
 status_t xen_stop_single_step_legacy(vmi_instance_t vmi, uint32_t vcpu)
 {
-    unsigned long dom = xen_get_domainid(vmi);
     status_t ret = VMI_FAILURE;
 
     dbprint(VMI_DEBUG_XEN, "--Removing MTF flag from vcpu %u\n", vcpu);
@@ -1147,7 +1147,7 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
 
     if(!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
-        rc = wait_for_event_or_timeout(xch, xe->mem_event.xce_handle, timeout);
+        rc = wait_for_event_or_timeout(xe->mem_event.xce_handle, timeout);
         if ( rc < -1 ) {
             errprint("Error while waiting for event.\n");
             return VMI_FAILURE;
@@ -1379,7 +1379,7 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
 
     if(!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
-        rc = wait_for_event_or_timeout(xch, xe->mem_event.xce_handle, timeout);
+        rc = wait_for_event_or_timeout(xe->mem_event.xce_handle, timeout);
         if ( rc < -1 ) {
             errprint("Error while waiting for event.\n");
             return VMI_FAILURE;
@@ -1395,19 +1395,11 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
      * and process all reamining events on the ring. Once no more requests
      * are on the ring we can remove the events.
      */
-    if ( g_hash_table_size(vmi->clear_events) ) {
+    if ( vmi->clear_events && g_hash_table_size(vmi->clear_events) ) {
         vmi_pause_vm(vmi); // Pause all vCPUs
         vrc = process_requests_45(vmi, &req, &rsp);
 
-        GHashTableIter i;
-        vmi_event_t **key = NULL;
-        vmi_event_free_t cb;
-
-        ghashtable_foreach(vmi->clear_events, i, &key, &cb)
-            vmi_clear_event(vmi, *key, cb);
-
-        g_hash_table_destroy(vmi->clear_events);
-        vmi->clear_events = g_hash_table_new_full(g_int64_hash, g_int64_equal, free, NULL);
+        g_hash_table_foreach_steal(vmi->clear_events, clear_events, vmi);
 
         vmi_resume_vm(vmi);
     }

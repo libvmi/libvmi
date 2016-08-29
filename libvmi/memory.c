@@ -49,7 +49,6 @@ status_t probe_memory_layout_x86(vmi_instance_t vmi) {
     /* pull info from registers, if we can */
     reg_t cr0, cr3, cr4, efer;
     int pae = 0, pse = 0, lme = 0;
-    uint8_t msr_efer_lme = 0;   // LME bit in MSR_EFER
 
     /* get the control register values */
     if (driver_get_vcpureg(vmi, &cr0, CR0, 0) == VMI_FAILURE) {

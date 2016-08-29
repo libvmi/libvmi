@@ -31,11 +31,11 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-#if HAVE_MEM_EVENT_REASON_MSR || HAVE_VM_EVENT_INTERFACE_VERSION
 vmi_event_t msr_event;
 
-void msr_write_cb(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t msr_write_cb(vmi_instance_t vmi, vmi_event_t *event) {
     printf("MSR write happened: MSR=%lx Value=%lx\n", event->reg_event.context, event->reg_event.value);
+    return 0;
 }
 
 static int interrupted = 0;
@@ -88,15 +88,8 @@ int main (int argc, char **argv) {
     }
     printf("Finished with test.\n");
 
-leave:
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
 
     return 0;
 }
-#else
-int main (int argc, char **argv) {
-    fprintf(stderr, "MSR events not supported by this hypervisor platform.\n");
-    return 1;
-}
-#endif

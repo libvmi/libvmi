@@ -78,8 +78,6 @@ static void
 clean_cache(
     vmi_instance_t vmi)
 {
-    GList *list = NULL;
-
     while (g_queue_get_length(vmi->memory_cache_lru) > vmi->memory_cache_size_max / 2) {
         gint64 *paddr = g_queue_pop_tail(vmi->memory_cache_lru);
 
@@ -220,7 +218,6 @@ void memory_cache_remove(
     vmi_instance_t vmi,
     addr_t paddr)
 {
-    memory_cache_entry_t entry = NULL;
     addr_t paddr_aligned = paddr & ~(((addr_t) vmi->page_size) - 1);
 
     if (paddr != paddr_aligned) {
@@ -240,12 +237,8 @@ memory_cache_destroy(
     vmi->memory_cache_size_max = 0;
 
     if (vmi->memory_cache_lru) {
-#if GLIB_CHECK_VERSION(2, 32, 0)
-        g_queue_free_full(vmi->memory_cache_lru, g_free);
-#else
-        g_queue_foreach(vmi->memory_cache_lru, g_free, NULL);
+        g_queue_foreach(vmi->memory_cache_lru, (GFunc)g_free, NULL);
         g_queue_free(vmi->memory_cache_lru);
-#endif
         vmi->memory_cache_lru = NULL;
     }
 

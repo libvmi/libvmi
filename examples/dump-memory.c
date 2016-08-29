@@ -39,6 +39,9 @@ main(
     int argc,
     char **argv)
 {
+    if ( argc != 2 )
+        return 1;
+
     vmi_instance_t vmi;
     char *filename = NULL;
     FILE *f = NULL;
@@ -46,7 +49,6 @@ main(
     unsigned char zeros[PAGE_SIZE];
 
     memset(zeros, 0, PAGE_SIZE);
-    uint32_t offset = 0;
     addr_t address = 0;
     addr_t size = 0;
 
