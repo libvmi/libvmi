@@ -60,9 +60,9 @@ vmi_write(
             start_addr = ctx->addr;
             break;
         case VMI_TM_KERNEL_SYMBOL:
-            if (!vmi->arch_interface || !vmi->os_interface) {
+            if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
               return 0;
-            }
+
             dtb = vmi->kpgd;
             start_addr = vmi_translate_ksym2v(vmi, ctx->ksym);
             break;
