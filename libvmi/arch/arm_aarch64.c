@@ -180,33 +180,31 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
         va_width = 64 - vmi->arm64.t0sz;
     }
 
-    if ( ps == VMI_PS_4KB )
+    if ( VMI_PS_4KB == ps )
         levels = va_width == 39 ? 3 : 4;
-    else if ( ps == VMI_PS_64KB )
+    else if ( VMI_PS_64KB == ps )
         levels = va_width == 42 ? 2 : 3;
     else {
         errprint("16KB granule size ARM64 lookups are not yet implemented\n");
         goto done;
     }
 
-    if ( levels == 4 ) {
-        if ( ps == VMI_PS_4KB ) {
-            get_zero_level_4kb_descriptor(vmi, dtb, vaddr, info);
-            dbprint(VMI_DEBUG_PTLOOKUP,
+    if ( 4 == levels ) {
+        /* Only true when ps == VMI_PS_4KB */
+        get_zero_level_4kb_descriptor(vmi, dtb, vaddr, info);
+        dbprint(VMI_DEBUG_PTLOOKUP,
                 "--ARM AArch64 PTLookup: zld_value = 0x%"PRIx64"\n",
                 info->arm_aarch64.zld_value);
 
-            if( (info->arm_aarch64.zld_value & VMI_BIT_MASK(0,1)) != 0b11)
-                goto done;
-
-            dtb = info->arm_aarch64.zld_value & VMI_BIT_MASK(12,47);
-            --levels;
-        } else
+        if( (info->arm_aarch64.zld_value & VMI_BIT_MASK(0,1)) != 0b11)
             goto done;
+
+        dtb = info->arm_aarch64.zld_value & VMI_BIT_MASK(12,47);
+        --levels;
     }
 
-    if ( levels == 3 ) {
-        if ( ps == VMI_PS_4KB ) {
+    if ( 3 == levels) {
+        if ( VMI_PS_4KB == ps ) {
             get_first_level_4kb_descriptor(vmi, dtb, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
                 "--ARM AArch64 4kb PTLookup: fld_value = 0x%"PRIx64"\n",
@@ -227,7 +225,7 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
             }
 
         }
-        if ( ps == VMI_PS_64KB ) {
+        if ( VMI_PS_64KB == ps ) {
             get_first_level_64kb_descriptor(vmi, dtb, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
                 "--ARM AArch64 64kb PTLookup: fld_value = 0x%"PRIx64"\n",
@@ -244,8 +242,8 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
         }
     }
 
-    if ( levels == 2 ) {
-        if ( ps == VMI_PS_4KB ) {
+    if ( 2 == levels ) {
+        if ( VMI_PS_4KB == ps ) {
             get_second_level_4kb_descriptor(vmi, dtb, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
                 "--ARM AArch64 4kb PTLookup: sld_value = 0x%"PRIx64"\n",
@@ -271,7 +269,7 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
                     goto done;
             }
         }
-        if ( ps == VMI_PS_64KB ) {
+        if ( VMI_PS_64KB == ps ) {
             get_second_level_64kb_descriptor(vmi, dtb, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
                 "--ARM AArch64 64kb PTLookup: sld_value = 0x%"PRIx64"\n",
