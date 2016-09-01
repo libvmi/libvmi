@@ -637,6 +637,7 @@ status_t process_debug_event(vmi_instance_t vmi,
 void xen_events_destroy_new(vmi_instance_t vmi)
 {
     int rc, resume = 0;
+    status_t rc2;
     xc_interface * xch = xen_get_xchandle(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
     xen_events_t * xe = xen_get_events(vmi);
@@ -673,6 +674,9 @@ void xen_events_destroy_new(vmi_instance_t vmi)
     rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
     rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
     rc = xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
+    rc2 = xen_set_guest_requested_event(vmi, 0);
+    rc2 = xen_set_cpuid_event(vmi, 0);
+    rc2 = xen_set_debug_event(vmi, 0);
 
     if ( xe->vm_event.ring_page ) {
         xen_events_listen(vmi, 0);
@@ -1156,6 +1160,9 @@ status_t xen_set_guest_requested_event(vmi_instance_t vmi, bool enabled) {
     if ( xen->major_version != 4 || xen->minor_version < 5 )
         return VMI_FAILURE;
 
+    if ( !enabled && !vmi->guest_requested_event )
+        return VMI_SUCCESS;
+
     rc  = xen->libxcw.xc_monitor_guest_request(xen_get_xchandle(vmi),
                                                xen_get_domainid(vmi),
                                                enabled, 1);
@@ -1176,6 +1183,9 @@ status_t xen_set_debug_event(vmi_instance_t vmi, bool enabled) {
     if ( xen->major_version != 4 || xen->minor_version < 8 )
         return VMI_FAILURE;
 
+    if ( !enabled && !vmi->debug_event )
+        return VMI_SUCCESS;
+
     rc = xen->libxcw.xc_monitor_debug_exceptions(xen_get_xchandle(vmi),
                                                  xen_get_domainid(vmi),
                                                  enabled, 1);
@@ -1195,6 +1205,9 @@ status_t xen_set_cpuid_event(vmi_instance_t vmi, bool enabled) {
 
     if ( xen->major_version != 4 || xen->minor_version < 8 )
         return VMI_FAILURE;
+
+    if ( !enabled && !vmi->cpuid_event )
+        return VMI_SUCCESS;
 
     rc = xen->libxcw.xc_monitor_cpuid(xen_get_xchandle(vmi),
                                       xen_get_domainid(vmi),
