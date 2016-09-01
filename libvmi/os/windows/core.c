@@ -531,9 +531,47 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
 }
 
 static status_t
+get_kpgd_from_rekall_profile(vmi_instance_t vmi)
+{
+    status_t ret = VMI_FAILURE;
+    windows_instance_t windows = vmi->os_data;
+    addr_t sysproc_pointer_rva = 0;
+    addr_t sysproc_pdbase_addr = 0;
+
+    /* The kernel base and the pdbase offset should have already been found
+     * and vmi->kpgd should be holding a CR3 value */
+    if( !windows->rekall_profile || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
+        return ret;
+
+    dbprint(VMI_DEBUG_MISC, "**Getting kernel page directory from Rekall profile\n");
+
+    if ( !windows->sysproc )
+    {
+        ret = rekall_profile_symbol_to_rva(windows->rekall_profile, "PsInitialSystemProcess", NULL, &sysproc_pointer_rva);
+        if ( VMI_FAILURE == ret )
+            return ret;
+
+        ret = vmi_read_addr_pa(vmi, windows->ntoskrnl + sysproc_pointer_rva, &windows->sysproc);
+        if ( VMI_FAILURE == ret )
+            return ret;
+
+        dbprint(VMI_DEBUG_MISC, "**Found PsInitialSystemProcess at 0x%lx\n", windows->sysproc);
+    }
+
+    sysproc_pdbase_addr = vmi_pagetable_lookup(vmi, vmi->kpgd, windows->sysproc + windows->pdbase_offset);
+    if ( !sysproc_pdbase_addr )
+        return VMI_FAILURE;
+
+    ret = vmi_read_addr_pa(vmi, sysproc_pdbase_addr, &vmi->kpgd);
+    if ( ret == VMI_SUCCESS && vmi->kpgd )
+        return VMI_SUCCESS;
+
+    return VMI_FAILURE;
+}
+
+static status_t
 init_from_rekall_profile(vmi_instance_t vmi)
 {
-
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
     dbprint(VMI_DEBUG_MISC, "**Trying to init from Rekall profile\n");
@@ -755,6 +793,12 @@ windows_init(
     }
 
     if (VMI_SUCCESS == real_kpgd_found) {
+        status = VMI_SUCCESS;
+        goto done;
+    }
+
+    if ( VMI_SUCCESS == get_kpgd_from_rekall_profile(vmi) ) {
+        dbprint(VMI_DEBUG_MISC, "--kpgd from rekall profile success\n");
         status = VMI_SUCCESS;
         goto done;
     }
