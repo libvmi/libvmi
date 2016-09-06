@@ -890,7 +890,7 @@ xen_set_mem_access_legacy(vmi_instance_t vmi, mem_access_event_t *event,
      * which is unhandled by Xen (at least up to 4.3) and instantly crashes the domain on the first trigger.
      *
      * See Intel® 64 and IA-32 Architectures Software Developer’s Manual
-     * 8.2.3.1 EPT Misconfigurations
+     * 28.2.3.1 EPT Misconfigurations
      * AN EPT misconfiguration occurs if any of the following is identified while translating a guest-physical address:
      * * The value of bits 2:0 of an EPT paging-structure entry is either 010b (write-only) or 110b (write/execute).
      */
