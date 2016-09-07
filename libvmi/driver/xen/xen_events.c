@@ -1393,27 +1393,37 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     vrc = process_requests(vmi, &req, &rsp);
 
     /*
-     * The only way to gracefully handle vmi_clear_event requests
+     * The only way to gracefully handle vmi_swap_events and vmi_clear_event requests
      * that were issued in a callback is to ensure no more requests
      * are in the ringpage. We do this by pausing the domain (all vCPUs)
      * and process all reamining events on the ring. Once no more requests
      * are on the ring we can remove the events.
      */
-    if ( g_hash_table_size(vmi->clear_events) ) {
+    if ( vmi->swap_events || g_hash_table_size(vmi->clear_events) ) {
         vmi_pause_vm(vmi); // Pause all vCPUs
+
         vrc = process_requests(vmi, &req, &rsp);
+
+        GSList *loop = vmi->swap_events;
+        while(loop) {
+            swap_wrapper_t *swap_wrapper = loop->data;
+            swap_events(vmi, swap_wrapper->swap_from, swap_wrapper->swap_to,
+                        swap_wrapper->free_routine);
+            loop = loop->next;
+        }
 
         GHashTableIter i;
         vmi_event_t **key = NULL;
         vmi_event_free_t cb;
-
-        ghashtable_foreach(vmi->clear_events, i, &key, &cb) {
+        ghashtable_foreach(vmi->clear_events, i, &key, &cb)
             vmi_clear_event(vmi, *key, cb);
-        }
 
+        g_slist_free(vmi->swap_events);
         g_hash_table_destroy(vmi->clear_events);
+
+        vmi->swap_events = NULL;
         vmi->clear_events =
-            g_hash_table_new_full(g_int64_hash, g_int64_equal, free, NULL);
+            g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, NULL);
 
         vmi_resume_vm(vmi);
     }
