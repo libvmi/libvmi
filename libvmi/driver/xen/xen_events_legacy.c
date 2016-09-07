@@ -260,7 +260,9 @@ status_t process_interrupt_event(vmi_instance_t vmi, interrupts_t intr,
          *  ..but this basic structure should be adequate for now.
          */
 
+        vmi->event_callback = 1;
         process_response ( event->callback(vmi, event), rsp_flags );
+        vmi->event_callback = 0;
 
         if(-1 == event->interrupt_event.reinject) {
             errprint("%s Need to specify reinjection behaviour!\n", __FUNCTION__);
@@ -384,7 +386,9 @@ status_t process_register(vmi_instance_t vmi,
              *   so we have no req.flags equivalent. might need to add
              *   e.g !!(req.flags & MEM_EVENT_FLAG_VCPU_PAUSED)  would be nice
              */
+            vmi->event_callback = 1;
             process_response ( event->callback(vmi, event), rsp_flags );
+            vmi->event_callback = 0;
 
             return VMI_SUCCESS;
     }
@@ -424,7 +428,11 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
         event->mem_event.offset = offset;
         event->mem_event.out_access = out_access;
         event->vcpu_id = vcpu_id;
+
+        vmi->event_callback = 1;
         process_response ( event->callback(vmi, event), rsp_flags );
+        vmi->event_callback = 0;
+
         return VMI_SUCCESS;
     }
 
@@ -465,7 +473,10 @@ status_t process_single_step_event(vmi_instance_t vmi, uint64_t gfn, uint64_t gl
         event->ss_event.gfn = gfn;
         event->vcpu_id = vcpu_id;
 
+        vmi->event_callback = 1;
         process_response ( event->callback(vmi, event), rsp_flags );
+        vmi->event_callback = 0;
+
         return VMI_SUCCESS;
     }
 
