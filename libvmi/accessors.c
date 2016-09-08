@@ -407,7 +407,8 @@ status_t vmi_pagetable_lookup_cache(
             return VMI_SUCCESS;
         }
         else {
-            v2p_cache_del(vmi, vaddr, dtb);
+            if ( VMI_FAILURE == v2p_cache_del(vmi, vaddr, dtb) )
+                return VMI_FAILURE;
         }
     }
 
@@ -477,7 +478,8 @@ addr_t vmi_translate_uv2p (vmi_instance_t vmi, addr_t virt_address, vmi_pid_t pi
     }
 
     if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, virt_address, &paddr)) {
-        pid_cache_del(vmi, pid);
+        if ( VMI_FAILURE == pid_cache_del(vmi, pid) )
+            return 0;
 
         dtb = vmi_pid_to_dtb(vmi, pid);
         if (dtb) {

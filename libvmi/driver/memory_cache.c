@@ -256,13 +256,13 @@ memory_cache_destroy(
 #else
 void
 memory_cache_init(
-    vmi_instance_t vmi,
+    vmi_instance_t UNUSED(vmi),
     void *(*get_data) (vmi_instance_t,
                        addr_t,
                        uint32_t),
     void (*release_data) (void *,
                           size_t),
-    unsigned long age_limit)
+    unsigned long UNUSED(age_limit))
 {
     get_data_callback = get_data;
     release_data_callback = release_data;
