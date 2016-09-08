@@ -75,7 +75,10 @@ static inline status_t sanity_check(xen_instance_t *xen)
                  !w->xc_monitor_get_capabilities || !w->xc_monitor_write_ctrlreg ||
                  !w->xc_monitor_mov_to_msr || !w->xc_monitor_singlestep ||
                  !w->xc_monitor_software_breakpoint || !w->xc_monitor_guest_request ||
-                 !w->xc_altp2m_set_mem_access )
+                 !w->xc_altp2m_get_domain_state || !w->xc_altp2m_set_domain_state ||
+                 !w->xc_altp2m_set_vcpu_enable_notify || !w->xc_altp2m_create_view ||
+                 !w->xc_altp2m_destroy_view || !w->xc_altp2m_switch_to_view ||
+                 !w->xc_altp2m_set_mem_access || !w->xc_altp2m_change_gfn )
                 break;
 
             ret = VMI_SUCCESS;
@@ -133,7 +136,14 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_monitor_singlestep = dlsym(wrapper->handle, "xc_monitor_singlestep");
     wrapper->xc_monitor_software_breakpoint = dlsym(wrapper->handle, "xc_monitor_software_breakpoint");
     wrapper->xc_monitor_guest_request = dlsym(wrapper->handle, "xc_monitor_guest_request");
-    wrapper->xc_altp2m_set_mem_access = dlsym(wrapper->handle, "xc_altp2m_set_mem_access");
+    wrapper->xc_altp2m_get_domain_state = dlsym ( wrapper->handle , "xc_altp2m_get_domain_state" );
+    wrapper->xc_altp2m_set_domain_state = dlsym ( wrapper->handle , "xc_altp2m_set_domain_state" );
+    wrapper->xc_altp2m_set_vcpu_enable_notify = dlsym ( wrapper->handle , "xc_altp2m_set_vcpu_enable_notify" );
+    wrapper->xc_altp2m_create_view = dlsym ( wrapper->handle , "xc_altp2m_create_view" );
+    wrapper->xc_altp2m_destroy_view = dlsym(wrapper->handle, "xc_altp2m_destroy_view");
+    wrapper->xc_altp2m_switch_to_view = dlsym ( wrapper->handle , "xc_altp2m_switch_to_view" );
+    wrapper->xc_altp2m_set_mem_access = dlsym ( wrapper->handle , "xc_altp2m_set_mem_access" );
+    wrapper->xc_altp2m_change_gfn = dlsym ( wrapper->handle , "xc_altp2m_change_gfn" );
     wrapper->xc_monitor_debug_exceptions = dlsym(wrapper->handle, "xc_monitor_debug_exceptions");
     wrapper->xc_monitor_cpuid = dlsym(wrapper->handle, "xc_monitor_cpuid");
 

@@ -2,6 +2,7 @@ SUBDIRS = config
 
 h_public =  libvmi.h \
             libvmi_extra.h \
+            slat.h \
             x86.h
 
 h_private = \
@@ -28,6 +29,7 @@ c_sources = \
     performance.c \
     pretty_print.c \
     read.c \
+    slat.c \
     strmatch.c \
     write.c \
     memory.c \
@@ -66,7 +68,9 @@ endif
 
 if HAVE_XEN
 h_public    += events.h
-drivers     += driver/xen/xen.h \
+drivers     += driver/xen/altp2m.c \
+               driver/xen/altp2m_private.h \
+               driver/xen/xen.h \
                driver/xen/xen_private.h \
                driver/xen/xen.c \
                driver/xen/xen_events.h \
