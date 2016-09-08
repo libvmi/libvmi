@@ -200,7 +200,6 @@ kdbg_symbol_resolve(
 
 static status_t
 kdbg_symbol_offset(
-    vmi_instance_t vmi,
     const char *symbol,
     unsigned long *offset)
 {
@@ -799,8 +798,12 @@ status_t find_kdbg_address(
 
             // Read "KernBase" from the haystack
             long unsigned int kernbase_offset = 0;
-            kdbg_symbol_offset(vmi, "KernBase", &kernbase_offset);
-            *kernel_va = *(uint64_t *)&haystack[(unsigned int) match_offset - find_ofs + kernbase_offset];
+            kdbg_symbol_offset("KernBase", &kernbase_offset);
+
+            if ( match_offset - find_ofs + kernbase_offset + sizeof(uint64_t) >= VMI_PS_4KB )
+                continue;
+
+            memcpy(kernel_va, &haystack[(unsigned int) match_offset - find_ofs + kernbase_offset], sizeof(uint64_t));
             *kdbg_pa = paddr + (unsigned int) match_offset - find_ofs;
 
             ret = VMI_SUCCESS;
@@ -811,7 +814,6 @@ status_t find_kdbg_address(
 
     dbprint(VMI_DEBUG_MISC, "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
 
-exit:
     boyer_moore_fini(bm32);
     boyer_moore_fini(bm64);
     return ret;
@@ -859,7 +861,6 @@ find_kdbg_address_fast(
         // so we are just going to split them to 4Kb pages
         while(vap && vap->size >= VMI_PS_4KB) {
             vap->size -= VMI_PS_4KB;
-            addr_t page_vaddr = vap->vaddr+vap->size;
             addr_t page_paddr = vap->paddr+vap->size;
 
             if(page_paddr + VMI_PS_4KB - 1 > memsize) {
@@ -1146,7 +1147,7 @@ windows_kdbg_lookup(
     status_t ret = VMI_FAILURE;
     unsigned long offset = 0;
 
-    if (VMI_FAILURE == kdbg_symbol_offset(vmi, symbol, &offset)) {
+    if (VMI_FAILURE == kdbg_symbol_offset(symbol, &offset)) {
         goto done;
     }
     if (VMI_FAILURE == kdbg_symbol_resolve(vmi, offset, address)) {
@@ -1176,7 +1177,6 @@ init_from_kdbg(
     status_t ret = VMI_FAILURE;
     addr_t kernbase_pa = 0;
     addr_t kernbase_va = 0;
-    addr_t kdbg_va = 0;
     addr_t kdbg_pa = 0;
 
     if (vmi->os_data == NULL) {
@@ -1228,7 +1228,7 @@ init_from_kdbg(
     } else if (windows->ntoskrnl && windows->kdbg_offset) {
         /* Calculate ntoskrnl_va and kdbg_va */
         unsigned long offset = 0;
-        kdbg_symbol_offset(vmi, "KernBase", &offset);
+        kdbg_symbol_offset("KernBase", &offset);
         if(VMI_FAILURE == vmi_read_addr_pa(vmi, windows->ntoskrnl + windows->kdbg_offset + offset, &windows->ntoskrnl_va)) {
             errprint("Inconsistent addresses passed in the config!\n");
             goto exit;

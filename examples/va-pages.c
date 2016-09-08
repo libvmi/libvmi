@@ -89,7 +89,6 @@ int main (int argc, char **argv)
 
     char *name = NULL;
     va_pages = NULL;
-    vmi_pid_t pid = -1;
 
     if(argc < 2){
         fprintf(stderr, "Usage: events_example <name of VM>\n");
@@ -137,7 +136,6 @@ int main (int argc, char **argv)
     }
     printf("Finished with test.\n");
 
-leave:
     free_va_pages();
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);

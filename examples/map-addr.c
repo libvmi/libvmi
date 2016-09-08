@@ -38,6 +38,9 @@ main(
     int argc,
     char **argv)
 {
+    if ( argc != 3 )
+        return 1;
+
     vmi_instance_t vmi;
     unsigned char *memory = malloc(PAGE_SIZE);
 

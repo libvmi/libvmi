@@ -104,7 +104,6 @@ windows_pid_to_pgd(
 {
     addr_t pgd = 0;
     addr_t eprocess = 0;
-    int pid_offset = 0;
     int tasks_offset = 0;
     int pdbase_offset = 0;
     windows_instance_t windows = vmi->os_data;
@@ -113,7 +112,6 @@ windows_pid_to_pgd(
         return VMI_FAILURE;
     }
 
-    pid_offset = windows->pid_offset;
     tasks_offset = windows->tasks_offset;
     pdbase_offset = windows->pdbase_offset;
 
@@ -125,8 +123,7 @@ windows_pid_to_pgd(
     }
 
     /* now follow the pointer to the memory descriptor and grab the pgd value */
-    vmi_read_addr_va(vmi, eprocess + pdbase_offset - tasks_offset, 0,
-                     &pgd);
+    vmi_read_addr_va(vmi, eprocess + pdbase_offset - tasks_offset, 0, &pgd);
 
 error_exit:
     return pgd;

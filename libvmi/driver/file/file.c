@@ -74,10 +74,12 @@ file_get_memory(
                   ((uint8_t *) file_get_instance(vmi)->map) + paddr,
                   length);
 #else
-    if (paddr != lseek(file_get_instance(vmi)->fd, paddr, SEEK_SET)) {
+    off_t rc = lseek(file_get_instance(vmi)->fd, paddr, SEEK_SET);
+    if ( rc < 0 || (addr_t)rc != paddr ) {
         goto error_print;
     }
-    if (length != read(file_get_instance(vmi)->fd, memory, length)) {
+    ssize_t rc2 = read(file_get_instance(vmi)->fd, memory, length);
+    if ( rc2 < 0 || (size_t)rc2 != length ) {
         goto error_print;
     }
 #endif // USE_MMAP
@@ -97,7 +99,7 @@ error_noprint:
 void
 file_release_memory(
     void *memory,
-    size_t length)
+    size_t UNUSED(length))
 {
     if (memory)
         free(memory);
@@ -238,7 +240,7 @@ file_get_vcpureg(
     vmi_instance_t vmi,
     reg_t *value,
     registers_t reg,
-    unsigned long vcpu)
+    unsigned long UNUSED(vcpu))
 {
     switch (reg) {
     case CR3:
@@ -272,24 +274,24 @@ file_read_page(
 //TODO decide if this functionality makes sense for files
 status_t
 file_write(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void *buf,
-    uint32_t length)
+    vmi_instance_t UNUSED(vmi),
+    addr_t UNUSED(paddr),
+    void* UNUSED(buf),
+    uint32_t UNUSED(length))
 {
     return VMI_FAILURE;
 }
 
 int
 file_is_pv(
-    vmi_instance_t vmi)
+    vmi_instance_t UNUSED(vmi))
 {
     return 0;
 }
 
 status_t
 file_test(
-    uint64_t id,
+    uint64_t UNUSED(id),
     const char *name)
 {
     status_t ret = VMI_FAILURE;
@@ -318,14 +320,14 @@ error_exit:
 
 status_t
 file_pause_vm(
-    vmi_instance_t vmi)
+    vmi_instance_t UNUSED(vmi))
 {
     return VMI_SUCCESS;
 }
 
 status_t
 file_resume_vm(
-    vmi_instance_t vmi)
+    vmi_instance_t UNUSED(vmi))
 {
     return VMI_SUCCESS;
 }

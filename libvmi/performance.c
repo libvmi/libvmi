@@ -84,7 +84,7 @@ stddev(
 }
 
 static void
-avg_measurement(
+UNUSED_FUNCTION(avg_measurement)(
     long int *data,
     int loops)
 {

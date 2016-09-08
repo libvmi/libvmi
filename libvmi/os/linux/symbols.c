@@ -214,8 +214,8 @@ status_t
 linux_symbol_to_address(
     vmi_instance_t vmi,
     const char *symbol,
-    addr_t *__unused,
-    addr_t *address)
+    addr_t* UNUSED(__unused),
+    addr_t* address)
 {
     status_t ret = VMI_FAILURE;
     linux_instance_t linux_instance = vmi->os_data;

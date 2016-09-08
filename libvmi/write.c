@@ -39,7 +39,6 @@ vmi_write(
     addr_t start_addr = 0;
     addr_t dtb = 0;
     addr_t paddr = 0;
-    addr_t pfn = 0;
     addr_t offset = 0;
     size_t buf_offset = 0;
 
@@ -183,7 +182,7 @@ status_t vmi_write_X(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     void *value,
-    int size)
+    size_t size)
 {
     size_t len_write = vmi_write(vmi, ctx, value, size);
 
@@ -262,7 +261,7 @@ vmi_write_X_pa(
     vmi_instance_t vmi,
     addr_t paddr,
     void *value,
-    int size)
+    size_t size)
 {
     size_t len_write = vmi_write_pa(vmi, paddr, value, size);
 
@@ -332,7 +331,7 @@ vmi_write_X_va(
     addr_t vaddr,
     vmi_pid_t pid,
     void *value,
-    int size)
+    size_t size)
 {
     size_t len_write = vmi_write_va(vmi, vaddr, pid, value, size);
 
@@ -406,7 +405,7 @@ vmi_write_X_ksym(
     vmi_instance_t vmi,
     char *sym,
     void *value,
-    int size)
+    size_t size)
 {
     size_t len_write = vmi_write_ksym(vmi, sym, value, size);
 

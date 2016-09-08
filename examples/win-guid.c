@@ -49,7 +49,7 @@ status_t check_sections(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
     uint32_t c;
     for(c=0; c < pe_header->number_of_sections; c++) {
 
-        struct section_header section = { 0 };
+        struct section_header section;
         addr_t section_addr = image_base_p
             + dos_header->offset_to_pe
             + sizeof(struct pe_header)
@@ -57,7 +57,8 @@ status_t check_sections(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
             + c*sizeof(struct section_header);
 
         // Read the section from memory
-        vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header));
+        if ( sizeof(struct section_header) != vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header)) )
+            return VMI_FAILURE;
 
         //printf("S: %s\n", section.short_name);
 
@@ -105,11 +106,10 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_p, uint8_t *pe) {
     return ret;
 }
 
-void print_os_version(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
+void print_os_version(uint8_t* pe) {
 
-    uint16_t major_os_version;
-    uint16_t minor_os_version;
-
+    uint16_t major_os_version = 0;
+    uint16_t minor_os_version = 0;
     uint16_t optional_header_type = 0;
     struct optional_header_pe32 *oh32 = NULL;
     struct optional_header_pe32plus *oh32plus = NULL;
@@ -174,8 +174,8 @@ bool kernel_debug_search(vmi_instance_t vmi, struct cv_info_pdb70 *pdb_header) {
     for(i=0; i < max_mem; i += PAGE_SIZE) {
         uint8_t pe[VMI_PS_4KB];
         vmi_read_pa(vmi, i, pe, VMI_PS_4KB);
-        uint32_t c = 0;
-        for (c;c<VMI_PS_4KB-PDB_FILENAME_LENGTH;c++) {
+        uint32_t c;
+        for (c=0;c<VMI_PS_4KB-PDB_FILENAME_LENGTH;c++) {
             if(!strncmp((char*)&pe[c], "ntkrnlmp.pdb", PDB_FILENAME_LENGTH) ||
                !strncmp((char*)&pe[c], "ntoskrnl.pdb", PDB_FILENAME_LENGTH) ||
                !strncmp((char*)&pe[c], "ntkrnlpa.pdb", PDB_FILENAME_LENGTH) ||
@@ -194,8 +194,6 @@ bool kernel_debug_search(vmi_instance_t vmi, struct cv_info_pdb70 *pdb_header) {
 
 void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
 
-    uint16_t major_os_version;
-    uint16_t minor_os_version;
     uint32_t size_of_image;
 
     bool debug_directory_valid = 0;
@@ -210,13 +208,9 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
     switch(optional_header_type)
     {
     case IMAGE_PE32_MAGIC:
-        major_os_version=oh32->major_os_version;
-        minor_os_version=oh32->minor_os_version;
         size_of_image=oh32->size_of_image;
         break;
     case IMAGE_PE32_PLUS_MAGIC:
-        major_os_version=oh32plus->major_os_version;
-        minor_os_version=oh32plus->minor_os_version;
         size_of_image=oh32plus->size_of_image;
         break;
     default:
@@ -312,7 +306,7 @@ void print_pe_header(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
     uint32_t c;
     for(c=0; c < pe_header->number_of_sections; c++) {
 
-        struct section_header section = { 0 };
+        struct section_header section;
         addr_t section_addr = image_base_p
             + dos_header->offset_to_pe
             + sizeof(struct pe_header)
@@ -320,7 +314,8 @@ void print_pe_header(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
             + c*sizeof(struct section_header);
 
         // Read the section from memory
-        vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header));
+        if ( sizeof(struct section_header) != vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header)) )
+            return;
 
         // The character array is not null terminated, so only print the first 8 characters!
         printf("\tSection %u: %.8s\n", c+1, section.short_name);
@@ -362,7 +357,6 @@ int main(int argc, char **argv) {
     max_mem = vmi_get_max_physical_address(vmi);
 
     /* the nice thing about the windows kernel is that it's page aligned */
-    uint32_t i;
     uint32_t found = 0;
     access_context_t ctx = {
         .translate_mechanism = VMI_TM_NONE,
@@ -375,8 +369,8 @@ int main(int argc, char **argv) {
         if(VMI_SUCCESS == peparse_get_image(vmi, &ctx, MAX_HEADER_SIZE, pe)) {
             if(VMI_SUCCESS == is_WINDOWS_KERNEL(vmi, ctx.addr, pe)) {
 
-                printf("Windows Kernel found @ 0x%"PRIx32"\n", ctx.addr);
-                print_os_version(vmi, ctx.addr, pe);
+                printf("Windows Kernel found @ 0x%" PRIx64 "\n", ctx.addr);
+                print_os_version(pe);
                 print_guid(vmi, ctx.addr, pe);
                 print_pe_header(vmi, ctx.addr, pe);
                 found=1;

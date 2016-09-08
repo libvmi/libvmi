@@ -36,11 +36,8 @@
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
-    unsigned char *memory = NULL;
-    uint32_t offset;
     addr_t list_head = 0, next_list_entry = 0;
     addr_t current_process = 0;
-    addr_t tmp_next = 0;
     char *procname = NULL;
     vmi_pid_t pid = 0;
     unsigned long tasks_offset = 0, pid_offset = 0, name_offset = 0;

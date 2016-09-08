@@ -189,7 +189,6 @@ int main (int argc, char **argv)
     }
     printf("Finished with test.\n");
 
-leave:
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
 

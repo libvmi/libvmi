@@ -38,8 +38,10 @@ main(
     char **argv)
 {
     vmi_instance_t vmi;
-    uint32_t offset;
     addr_t next_module, list_head;
+
+    if ( argc != 2 )
+        return 1;
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];

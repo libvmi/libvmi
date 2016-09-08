@@ -33,13 +33,13 @@ vmi_print_hex(
     unsigned char *data,
     unsigned long length)
 {
-    int i, j, numrows, index;
+    unsigned long i, j, numrows, index;
 
     numrows = (length + 15) >> 4;
 
     for (i = 0; i < numrows; ++i) {
         /* print the byte count */
-        printf("%.8x|  ", i * 16);
+        printf("%.8lx|  ", i * 16);
 
         /* print the first 8 hex values */
         for (j = 0; j < 8; ++j) {
