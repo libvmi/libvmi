@@ -221,6 +221,7 @@ typedef struct {
 } reg_event_t;
 
 typedef struct {
+
     /**
      * IN: Physical address to set event on.
      */
@@ -236,6 +237,13 @@ typedef struct {
      * for valid values.
      */
     vmi_mem_access_t in_access;
+
+    /**
+     * IN: Generic access violation based event-handler.
+     * If this is set, physical_address must be ~0. Use vmi_set_mem_event to
+     * set access permissions on specific pages.
+     */
+    bool generic;
 
     /**
      * OUT: Specific virtual address at which event occurred.
@@ -444,12 +452,13 @@ struct vmi_event {
 /**
  * Convenience macro to setup a memory event
  */
-#define SETUP_MEM_EVENT(_event, _addr, _access, _callback) \
+#define SETUP_MEM_EVENT(_event, _addr, _access, _callback, _generic) \
         do { \
             (_event)->type = VMI_EVENT_MEMORY; \
-            (_event)->mem_event.physical_address = _addr; \
+            (_event)->mem_event.physical_address = _generic ? ~0ULL :_addr; \
             (_event)->mem_event.in_access = _access; \
             (_event)->mem_event.npages = 1; \
+            (_event)->mem_event.generic = _generic; \
             (_event)->callback = _callback; \
         } while(0)
 
@@ -555,16 +564,34 @@ vmi_event_t *vmi_get_reg_event(
     registers_t reg);
 
 /**
- * Return the pointer to the vmi_event_t if one is set on the given page.
+ * Return the pointer to the vmi_event_t if one is set on the given page or
+ * for a given access type.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] physical_address Physical address of byte/page to check
- * @param[in] granularity VMI_MEMEVENT_BYTE or VMI_MEMEVENT_PAGE
+ * @param[in] physical_address Physical address on the page to check
+ * @param[in] access Access type to check
  * @return vmi_event_t* or NULL if none found
  */
 vmi_event_t *vmi_get_mem_event(
     vmi_instance_t vmi,
-    addr_t physical_address);
+    addr_t physical_address,
+    vmi_mem_access_t access);
+
+/**
+ * Set mem event on a page. Intended to be used when already registered a generic
+ * violation-type based mem access event handlers.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] physical_address Physical address on the page to set event
+ * @param[in] access Requested event type on the page
+ * @param[in] vmm_pagetable_id The VMM pagetable ID in which to set the access
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_set_mem_event(
+    vmi_instance_t vmi,
+    addr_t physical_address,
+    vmi_mem_access_t access,
+    uint16_t vmm_pagetable_id);
 
 /**
  * Setup single-stepping to register the given event

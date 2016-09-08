@@ -400,12 +400,12 @@ driver_set_intr_access(
 static inline status_t
 driver_set_mem_access(
     vmi_instance_t vmi,
-    mem_access_event_t *event,
+    addr_t gpfn,
     vmi_mem_access_t page_access_flag,
     uint16_t vmm_pagetable_id)
 {
     if (vmi->driver.initialized && vmi->driver.set_mem_access_ptr){
-        return vmi->driver.set_mem_access_ptr(vmi, event, page_access_flag, vmm_pagetable_id);
+        return vmi->driver.set_mem_access_ptr(vmi, gpfn, page_access_flag, vmm_pagetable_id);
     }
     else{
         dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_mem_access function not implemented.\n");

@@ -417,6 +417,7 @@ status_t process_mem(vmi_instance_t vmi,
 
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t dom = xen_get_domainid(vmi);
+    vmi_event_t *event;
 
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
@@ -433,16 +434,37 @@ status_t process_mem(vmi_instance_t vmi,
     if(req->u.mem_access.flags & MEM_ACCESS_W) out_access |= VMI_MEMACCESS_W;
     if(req->u.mem_access.flags & MEM_ACCESS_X) out_access |= VMI_MEMACCESS_X;
 
-    vmi_event_t *event = g_hash_table_lookup(vmi->mem_events, &req->u.mem_access.gfn);
+    if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
+        event = g_hash_table_lookup(vmi->mem_events_on_gfn, &req->u.mem_access.gfn);
+        if (event && (event->mem_event.in_access & out_access) )
+        {
+            event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+            event->vmm_pagetable_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
+            vmi->event_callback = 1;
+            process_response( issue_mem_cb(vmi, event, req, out_access), event, rsp );
+            vmi->event_callback = 0;
+            return VMI_SUCCESS;
+        }
+    }
 
-    if (event && (event->mem_event.in_access & out_access) )
-    {
-        event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
-        event->vmm_pagetable_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
-        vmi->event_callback = 1;
-        process_response( issue_mem_cb(vmi, event, req, out_access), event, rsp );
-        vmi->event_callback = 0;
-        return VMI_SUCCESS;
+    if ( g_hash_table_size(vmi->mem_events_generic) ) {
+        GHashTableIter i;
+        vmi_mem_access_t *key = NULL;
+        bool cb_issued = 0;
+
+        ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
+            if ( (*key) & out_access ) {
+                event->regs.x86 = (x86_registers_t *)&req->data.regs.x86;
+                event->vmm_pagetable_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
+                vmi->event_callback = 1;
+                process_response( issue_mem_cb(vmi, event, req, out_access), event, rsp );
+                vmi->event_callback = 0;
+                cb_issued = 1;
+            }
+        }
+
+        if ( cb_issued )
+            return VMI_SUCCESS;
     }
 
     /*
@@ -925,7 +947,7 @@ done:
     return VMI_FAILURE;
 }
 
-status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
+status_t xen_set_mem_access(vmi_instance_t vmi, addr_t gpfn,
                             vmi_mem_access_t page_access_flag, uint16_t altp2m_idx)
 {
     int rc;
@@ -966,11 +988,6 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
         return VMI_FAILURE;
     }
 
-    addr_t page_key = event->physical_address >> 12;
-
-    uint64_t npages = page_key + event->npages > xen->max_gpfn
-        ? xen->max_gpfn - page_key: event->npages;
-
     // Convert betwen vmi_mem_access_t and mem_access_t
     // Xen does them backwards....
     static const xenmem_access_t memaccess_conversion[] = {
@@ -987,19 +1004,19 @@ status_t xen_set_mem_access(vmi_instance_t vmi, mem_access_event_t *event,
 
     access = memaccess_conversion[page_access_flag];
 
-    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %"PRIu16" on physical address: %"PRIu64" npages: %"PRIu64"\n",
-        dom, event->physical_address, npages);
+    dbprint(VMI_DEBUG_XEN, "--Setting memaccess for domain %"PRIu16" on GPFN: %"PRIu64"\n",
+            dom, gpfn);
 
     if ( !altp2m_idx )
-        rc = xen->libxcw.xc_set_mem_access(xch, dom, access, page_key, npages);
+        rc = xen->libxcw.xc_set_mem_access(xch, dom, access, gpfn, 1); // 1 page at a time
     else
-        rc = xen->libxcw.xc_altp2m_set_mem_access(xch, dom, altp2m_idx, page_key, access);
+        rc = xen->libxcw.xc_altp2m_set_mem_access(xch, dom, altp2m_idx, gpfn, access);
 
     if(rc) {
         errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on physical address: %"PRIu64"\n", event->physical_address);
+    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFN: %"PRIu64"\n", gpfn);
     return VMI_SUCCESS;
 }
 
