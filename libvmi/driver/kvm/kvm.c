@@ -315,7 +315,7 @@ destroy_domain_socket(
         req.type = 0;   // quit
         req.address = 0;
         req.length = 0;
-        write(kvm->socket_fd, &req, sizeof(struct request));
+        (void)write(kvm->socket_fd, &req, sizeof(struct request));
     }
 }
 
@@ -1213,8 +1213,12 @@ kvm_put_memory(
     else {
         uint8_t status = 0;
 
-        write(kvm_get_instance(vmi)->socket_fd, buf, length);
-        read(kvm_get_instance(vmi)->socket_fd, &status, 1);
+        if ( length != write(kvm_get_instance(vmi)->socket_fd, buf, length) )
+            goto error_exit;
+
+        if ( 1 != read(kvm_get_instance(vmi)->socket_fd, &status, 1) )
+            goto error_exit;
+
         if (0 == status) {
             goto error_exit;
         }
