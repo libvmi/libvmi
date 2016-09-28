@@ -629,6 +629,15 @@ status_t vmi_destroy(
  */
 vmi_arch_t vmi_get_library_arch();
 
+/**
+ * Get full path of associated rekall profile
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Full path of the rekall profile
+ */
+const char *vmi_get_rekall_path(
+  vmi_instance_t vmi);
+
 /*---------------------------------------------------------
  * Memory translation functions from memory.c
  */
