@@ -127,6 +127,7 @@ AC_ARG_ENABLE([address_cache],
          [Cache addresses (v2p, pid, etc)])],
       [enable_address_cache=$enableval],
       [enable_address_cache=yes])
+AM_CONDITIONAL([ENABLE_ADDRESS_CACHE], [test x"$enable_address_cache" = "xyes"])
 
 AC_ARG_ENABLE([page_cache],
       [AS_HELP_STRING([--disable-page-cache],

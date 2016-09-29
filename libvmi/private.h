@@ -42,6 +42,7 @@
 #include <inttypes.h>
 #include "libvmi.h"
 #include "libvmi_extra.h"
+#include "cache.h"
 #include "events.h"
 #include "shm.h"
 #include "slat.h"
@@ -276,120 +277,6 @@ status_t vmi_pagetable_lookup_cache(
     addr_t dtb,
     addr_t vaddr,
     addr_t *paddr);
-
-/*-------------------------------------
- * cache.c
- */
-    void pid_cache_init(
-    vmi_instance_t vmi);
-    void pid_cache_destroy(
-    vmi_instance_t vmi);
-    status_t pid_cache_get(
-    vmi_instance_t vmi,
-    vmi_pid_t pid,
-    addr_t *dtb);
-    void pid_cache_set(
-    vmi_instance_t vmi,
-    vmi_pid_t pid,
-    addr_t dtb);
-    status_t pid_cache_del(
-    vmi_instance_t vmi,
-    vmi_pid_t pid);
-    void pid_cache_flush(
-    vmi_instance_t vmi);
-
-    void sym_cache_init(
-    vmi_instance_t vmi);
-    void sym_cache_destroy(
-    vmi_instance_t vmi);
-    status_t sym_cache_get(
-    vmi_instance_t vmi,
-    addr_t base_addr,
-    vmi_pid_t pid,
-    const char *sym,
-    addr_t *va);
-    void sym_cache_set(
-    vmi_instance_t vmi,
-    addr_t base_addr,
-    vmi_pid_t pid,
-    const char *sym,
-    addr_t va);
-    status_t sym_cache_del(
-    vmi_instance_t vmi,
-    addr_t base_addr,
-    vmi_pid_t pid,
-    char *sym);
-    void sym_cache_flush(
-    vmi_instance_t vmi);
-
-    void rva_cache_init(
-        vmi_instance_t vmi);
-    void rva_cache_destroy(
-        vmi_instance_t vmi);
-    status_t rva_cache_get(
-        vmi_instance_t vmi,
-        addr_t base_addr,
-        addr_t dtb,
-        addr_t rva,
-        char **sym);
-    void rva_cache_set(
-        vmi_instance_t vmi,
-        addr_t base_addr,
-        addr_t dtb,
-        addr_t rva,
-        char *sym);
-    status_t rva_cache_del(
-        vmi_instance_t vmi,
-        addr_t base_addr,
-        addr_t dtb,
-        addr_t rva);
-    void rva_cache_flush(
-        vmi_instance_t vmi);
-
-    void v2p_cache_init(
-    vmi_instance_t vmi);
-    void v2p_cache_destroy(
-    vmi_instance_t vmi);
-    status_t v2p_cache_get(
-    vmi_instance_t vmi,
-    addr_t va,
-    addr_t dtb,
-    addr_t *pa);
-    void v2p_cache_set(
-    vmi_instance_t vmi,
-    addr_t va,
-    addr_t dtb,
-    addr_t pa);
-    status_t v2p_cache_del(
-    vmi_instance_t vmi,
-    addr_t va,
-    addr_t dtb);
-    void v2p_cache_flush(
-    vmi_instance_t vmi);
-#if ENABLE_SHM_SNAPSHOT == 1
-    void v2m_cache_init(
-    vmi_instance_t vmi);
-    void v2m_cache_destroy(
-    vmi_instance_t vmi);
-    status_t v2m_cache_get(
-    vmi_instance_t vmi,
-    addr_t va,
-    pid_t pid,
-    addr_t *ma,
-    uint64_t *length);
-    void v2m_cache_set(
-    vmi_instance_t vmi,
-    addr_t va,
-    pid_t pid,
-    addr_t ma,
-    uint64_t length);
-    status_t v2m_cache_del(
-    vmi_instance_t vmi,
-    addr_t va,
-    pid_t pid);
-    void v2m_cache_flush(
-    vmi_instance_t vmi);
-#endif
 
 /*-----------------------------------------
  * memory.c
