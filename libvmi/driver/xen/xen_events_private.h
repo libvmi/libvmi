@@ -63,8 +63,6 @@
 
 #include "xen_events_abi.h"
 
-#define __VMI_EVENT_RESPONSE_MAX  VMI_EVENT_RESPONSE_SET_REGISTERS + 1
-
 typedef struct {
     xc_evtchn* xce_handle;
     int port;

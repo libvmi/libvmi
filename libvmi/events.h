@@ -382,19 +382,20 @@ typedef struct vmi_event vmi_event_t;
 
 /**
  * Callbacks can flip the corresponding bits on event_response_t to trigger
- * the following behaviors (ie. 1u << VMI_EVENT_RESPONSE_*).
+ * the following behaviors.
  */
 typedef uint32_t event_response_flags_t;
 
 #define VMI_EVENT_RESPONSE_NONE                 0
-#define VMI_EVENT_RESPONSE_EMULATE              1
-#define VMI_EVENT_RESPONSE_EMULATE_NOWRITE      2
-#define VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA   3
-#define VMI_EVENT_RESPONSE_DENY                 4
-#define VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP    5
-#define VMI_EVENT_RESPONSE_SLAT_ID              6
+#define VMI_EVENT_RESPONSE_EMULATE              (1u << 1)
+#define VMI_EVENT_RESPONSE_EMULATE_NOWRITE      (1u << 2)
+#define VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA   (1u << 3)
+#define VMI_EVENT_RESPONSE_DENY                 (1u << 4)
+#define VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP    (1u << 5)
+#define VMI_EVENT_RESPONSE_SLAT_ID              (1u << 6)
 #define VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID     VMI_EVENT_RESPONSE_SLAT_ID
-#define VMI_EVENT_RESPONSE_SET_REGISTERS        7
+#define VMI_EVENT_RESPONSE_SET_REGISTERS        (1u << 7)
+#define __VMI_EVENT_RESPONSE_MAX                7
 
 /**
  * Bitmap holding event_reponse_flags_t values returned by callback

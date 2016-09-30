@@ -180,13 +180,13 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
     if ( response && event ) {
         uint32_t i = VMI_EVENT_RESPONSE_NONE+1;
 
-        for (;i<__VMI_EVENT_RESPONSE_MAX;i++)
+        for (;i<=__VMI_EVENT_RESPONSE_MAX;i++)
         {
-            uint32_t bit_set = !!(response & (1u << i));
+            event_response_t er = 1u << i;
 
-            if ( bit_set )
+            if ( response & er )
             {
-                switch ( i )
+                switch ( er )
                 {
                 case VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID:
                     rsp->altp2m_idx = event->slat_id;
@@ -213,7 +213,7 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
                     break;
                 };
 
-                rsp->flags |= event_response_conversion[i];
+                rsp->flags |= event_response_conversion[er];
             }
         }
     }

@@ -46,7 +46,7 @@ void print_event(vmi_event_t *event){
 
 event_response_t cb(vmi_instance_t vmi, vmi_event_t *event) {
     print_event(event);
-    return (1u<<VMI_EVENT_RESPONSE_EMULATE);
+    return VMI_EVENT_RESPONSE_EMULATE;
 }
 
 static int interrupted = 0;

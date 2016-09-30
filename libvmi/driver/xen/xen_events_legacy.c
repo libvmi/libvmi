@@ -218,9 +218,9 @@ static inline void process_response ( event_response_t response, uint32_t *rsp_f
     if ( !rsp_flags )
         return;
 
-    if ( response & (1u << VMI_EVENT_RESPONSE_EMULATE) )
+    if ( response & VMI_EVENT_RESPONSE_EMULATE )
         *rsp_flags |= MEM_EVENT_FLAG_EMULATE;
-    if ( response & (1u << VMI_EVENT_RESPONSE_EMULATE_NOWRITE) )
+    if ( response & VMI_EVENT_RESPONSE_EMULATE_NOWRITE )
         *rsp_flags |= MEM_EVENT_FLAG_EMULATE_NOWRITE;
 }
 
