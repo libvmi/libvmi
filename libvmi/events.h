@@ -135,13 +135,20 @@ typedef struct x86_regs {
     uint32_t _pad;
 } x86_registers_t;
 
-typedef struct emul_data {
+typedef struct emul_read {
     uint32_t size;
     /* Tell LibVMI if it's not safe to free this structure once processed */
     uint8_t dont_free;
     uint8_t _pad[3];
     uint8_t data[256];
-} emul_data_t;
+} emul_read_t;
+
+typedef struct emul_insn {
+    /* Tell LibVMI if it's not safe to free this structure once processed */
+    uint8_t dont_free;
+    uint8_t _pad[7];
+    uint8_t data[16];
+} emul_insn_t;
 
 /**
  * The event structures used during configuration of events and their delivery.
@@ -374,6 +381,8 @@ typedef struct {
 
 typedef struct {
     uint32_t insn_length; /**< Length of the reported instruction */
+    uint32_t leaf;
+    uint32_t subleaf;
     uint32_t _pad;
 } cpuid_event_t;
 
@@ -395,7 +404,8 @@ typedef uint32_t event_response_flags_t;
 #define VMI_EVENT_RESPONSE_SLAT_ID              (1u << 6)
 #define VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID     VMI_EVENT_RESPONSE_SLAT_ID
 #define VMI_EVENT_RESPONSE_SET_REGISTERS        (1u << 7)
-#define __VMI_EVENT_RESPONSE_MAX                7
+#define VMI_EVENT_RESPONSE_SET_EMUL_INSN        (1u << 8)
+#define __VMI_EVENT_RESPONSE_MAX                8
 
 /**
  * Bitmap holding event_reponse_flags_t values returned by callback
@@ -466,7 +476,14 @@ struct vmi_event {
          *
          * Read data to be sent back with VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA
          */
-        emul_data_t *emul_data;
+        emul_read_t *emul_read;
+
+        /**
+         * RESPONSE
+         *
+         * Instruction buffer to be sent back with VMI_EVENT_RESPONSE_SET_EMUL_INSN
+         */
+        emul_insn_t *emul_insn;
     };
 
     /**

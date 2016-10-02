@@ -444,7 +444,7 @@ status_t register_debug_event(vmi_instance_t vmi, vmi_event_t *event)
 
     if ( !vmi->debug_event )
     {
-        rc = driver_set_cpuid_event(vmi, 1);
+        rc = driver_set_debug_event(vmi, 1);
         if ( VMI_SUCCESS == rc )
             vmi->debug_event = event;
     };
