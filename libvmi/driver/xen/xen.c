@@ -2150,11 +2150,11 @@ xen_get_vcpureg_arm(
         return VMI_FAILURE;
     }
 
+    /* Xen overlays 64-bit registers to the 32-bit ones */
     switch (reg) {
     case SCTLR:
         *value = ctx.c.sctlr;
         break;
-    case TCR_EL1: /* fall-through */
     case TTBCR:
         *value = ctx.c.ttbcr;
         break;
@@ -2167,43 +2167,43 @@ xen_get_vcpureg_arm(
     case CPSR:
         *value = ctx.c.user_regs.cpsr;
         break;
-    case R0_USR:
+    case R0:
         *value = ctx.c.user_regs.r0_usr;
         break;
-    case R1_USR:
+    case R1:
         *value = ctx.c.user_regs.r1_usr;
         break;
-    case R2_USR:
+    case R2:
         *value = ctx.c.user_regs.r2_usr;
         break;
-    case R3_USR:
+    case R3:
         *value = ctx.c.user_regs.r3_usr;
         break;
-    case R4_USR:
+    case R4:
         *value = ctx.c.user_regs.r4_usr;
         break;
-    case R5_USR:
+    case R5:
         *value = ctx.c.user_regs.r5_usr;
         break;
-    case R6_USR:
+    case R6:
         *value = ctx.c.user_regs.r6_usr;
         break;
-    case R7_USR:
+    case R7:
         *value = ctx.c.user_regs.r7_usr;
         break;
-    case R8_USR:
+    case R8:
         *value = ctx.c.user_regs.r8_usr;
         break;
-    case R9_USR:
+    case R9:
         *value = ctx.c.user_regs.r9_usr;
         break;
-    case R10_USR:
+    case R10:
         *value = ctx.c.user_regs.r10_usr;
         break;
-    case R11_USR:
+    case R11:
         *value = ctx.c.user_regs.r11_usr;
         break;
-    case R12_USR:
+    case R12:
         *value = ctx.c.user_regs.r12_usr;
         break;
     case SP_USR:
@@ -2257,6 +2257,9 @@ xen_get_vcpureg_arm(
     case LR_FIQ:
         *value = ctx.c.user_regs.lr_fiq;
         break;
+    case PC:
+        *value = ctx.c.user_regs.pc32;
+        break;
     case SPSR_SVC:
         *value = ctx.c.user_regs.spsr_svc;
         break;
@@ -2271,6 +2274,15 @@ xen_get_vcpureg_arm(
         break;
     case SPSR_ABT:
         *value = ctx.c.user_regs.spsr_abt;
+        break;
+    case SP_EL0:
+        *value = ctx.c.user_regs.sp_el0;
+        break;
+    case SP_EL1:
+        *value = ctx.c.user_regs.sp_el1;
+        break;
+    case ELR_EL1:
+        *value = ctx.c.user_regs.elr_el1;
         break;
     default:
         return VMI_FAILURE;
@@ -2307,43 +2319,43 @@ xen_set_vcpureg_arm(
     case TTBR1:
         ctx.c.ttbr1 = value;
         break;
-    case R0_USR:
+    case R0:
         ctx.c.user_regs.r0_usr = value;
         break;
-    case R1_USR:
+    case R1:
         ctx.c.user_regs.r1_usr = value;
         break;
-    case R2_USR:
+    case R2:
         ctx.c.user_regs.r2_usr = value;
         break;
-    case R3_USR:
+    case R3:
         ctx.c.user_regs.r3_usr = value;
         break;
-    case R4_USR:
+    case R4:
         ctx.c.user_regs.r4_usr = value;
         break;
-    case R5_USR:
+    case R5:
         ctx.c.user_regs.r5_usr = value;
         break;
-    case R6_USR:
+    case R6:
         ctx.c.user_regs.r6_usr = value;
         break;
-    case R7_USR:
+    case R7:
         ctx.c.user_regs.r7_usr = value;
         break;
-    case R8_USR:
+    case R8:
         ctx.c.user_regs.r8_usr = value;
         break;
-    case R9_USR:
+    case R9:
         ctx.c.user_regs.r9_usr = value;
         break;
-    case R10_USR:
+    case R10:
         ctx.c.user_regs.r10_usr = value;
         break;
-    case R11_USR:
+    case R11:
         ctx.c.user_regs.r11_usr = value;
         break;
-    case R12_USR:
+    case R12:
         ctx.c.user_regs.r12_usr = value;
         break;
     case SP_USR:
@@ -2397,6 +2409,9 @@ xen_set_vcpureg_arm(
     case LR_FIQ:
         ctx.c.user_regs.lr_fiq = value;
         break;
+    case PC:
+        ctx.c.user_regs.pc32 = value;
+        break;
     case SPSR_SVC:
         ctx.c.user_regs.spsr_svc = value;
         break;
@@ -2411,6 +2426,15 @@ xen_set_vcpureg_arm(
         break;
     case SPSR_ABT:
         ctx.c.user_regs.spsr_abt = value;
+        break;
+    case SP_EL0:
+        ctx.c.user_regs.sp_el0 = value;
+        break;
+    case SP_EL1:
+        ctx.c.user_regs.sp_el1 = value;
+        break;
+    case ELR_EL1:
+        ctx.c.user_regs.elr_el1 = value;
         break;
     default:
         return VMI_FAILURE;
@@ -2457,7 +2481,7 @@ xen_set_vcpureg(
     unsigned long vcpu)
 {
 
-#if defined(ARM)
+#if defined(ARM32) || defined(ARM64)
     return xen_set_vcpureg_arm(vmi, value, reg, vcpu);
 #elif defined(I386) || defined (X86_64)
     if (!xen_get_instance(vmi)->hvm) {

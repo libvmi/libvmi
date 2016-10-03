@@ -111,6 +111,104 @@ typedef struct xen_events {
     };
 } xen_events_t;
 
+static inline status_t
+vmi_flags_sanity_check(vmi_mem_access_t page_access_flag)
+{
+    /*
+     * Setting a page write-only or write-execute in EPT triggers and EPT misconfiguration error
+     * which is unhandled by Xen (at least up to 4.3) and instantly crashes the domain on the first trigger.
+     *
+     * See Intel® 64 and IA-32 Architectures Software Developer’s Manual
+     * 28.2.3.1 EPT Misconfigurations
+     * AN EPT misconfiguration occurs if any of the following is identified while translating a guest-physical address:
+     * * The value of bits 2:0 of an EPT paging-structure entry is either 010b (write-only) or 110b (write/execute).
+     */
+    if(page_access_flag == VMI_MEMACCESS_R || page_access_flag == VMI_MEMACCESS_RX) {
+        errprint("%s error: can't set requested memory access, unsupported by EPT.\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+static inline status_t
+convert_vmi_flags_to_hvmmem(vmi_mem_access_t page_access_flag, hvmmem_access_t *access)
+{
+    if ( VMI_FAILURE == vmi_flags_sanity_check(page_access_flag) )
+        return VMI_FAILURE;
+
+    switch ( page_access_flag ) {
+        case VMI_MEMACCESS_N:
+            *access = HVMMEM_access_rwx;
+            break;
+        case VMI_MEMACCESS_W:
+            *access = HVMMEM_access_rx;
+            break;
+        case VMI_MEMACCESS_X:
+            *access = HVMMEM_access_rw;
+            break;
+        case VMI_MEMACCESS_RW:
+            *access = HVMMEM_access_x;
+            break;
+        case VMI_MEMACCESS_WX:
+            *access = HVMMEM_access_r;
+            break;
+        case VMI_MEMACCESS_RWX:
+            *access = HVMMEM_access_n;
+            break;
+        case VMI_MEMACCESS_W2X:
+            *access = HVMMEM_access_rx2rw;
+            break;
+        case VMI_MEMACCESS_RWX2N:
+            *access = HVMMEM_access_n2rwx;
+            break;
+        default:
+            errprint("%s error: invalid memaccess setting requested\n", __FUNCTION__);
+            return VMI_FAILURE;
+    };
+
+    return VMI_SUCCESS;
+}
+
+static inline status_t
+convert_vmi_flags_to_xenmem(vmi_mem_access_t page_access_flag, xenmem_access_t *access)
+{
+    if ( VMI_FAILURE == vmi_flags_sanity_check(page_access_flag) )
+        return VMI_FAILURE;
+
+    switch ( page_access_flag ) {
+        case VMI_MEMACCESS_N:
+            *access = XENMEM_access_rwx;
+            break;
+        case VMI_MEMACCESS_W:
+            *access = XENMEM_access_rx;
+            break;
+        case VMI_MEMACCESS_X:
+            *access = XENMEM_access_rw;
+            break;
+        case VMI_MEMACCESS_RW:
+            *access = XENMEM_access_x;
+            break;
+        case VMI_MEMACCESS_WX:
+            *access = XENMEM_access_r;
+            break;
+        case VMI_MEMACCESS_RWX:
+            *access = XENMEM_access_n;
+            break;
+        case VMI_MEMACCESS_W2X:
+            *access = XENMEM_access_rx2rw;
+            break;
+        case VMI_MEMACCESS_RWX2N:
+            *access = XENMEM_access_n2rwx;
+            break;
+        default:
+            errprint("%s error: invalid memaccess setting requested\n", __FUNCTION__);
+            return VMI_FAILURE;
+    };
+
+    return VMI_SUCCESS;
+}
+
 status_t xen_set_int3_access(vmi_instance_t vmi, bool enable);
 
 /* Interface to Xen 4.1-4.5 events */

@@ -33,6 +33,8 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
+#define VMI_EVENTS_VERSION 0x00000001
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,18 +51,16 @@ extern "C" {
  * The types of events that can be requested of hypervisors with requisite
  *  features.
  */
-typedef enum {
-    VMI_EVENT_INVALID,
-    VMI_EVENT_MEMORY,           /**< Read/write/execute on a region of memory */
-    VMI_EVENT_REGISTER,         /**< Read/write of a specific register */
-    VMI_EVENT_SINGLESTEP,       /**< Instructions being executed on a set of VCPUs */
-    VMI_EVENT_INTERRUPT,        /**< Interrupts being delivered */
-    VMI_EVENT_GUEST_REQUEST,    /**< Guest-requested event */
-    VMI_EVENT_CPUID,            /**< CPUID event */
-    VMI_EVENT_DEBUG_EXCEPTION,  /**< Debug exception event */
+typedef uint16_t vmi_event_type_t;
 
-    __VMI_EVENT_MAX
-} vmi_event_type_t;
+#define VMI_EVENT_INVALID           0
+#define VMI_EVENT_MEMORY            1 /**< Read/write/execute on a region of memory */
+#define VMI_EVENT_REGISTER          2 /**< Read/write of a specific register */
+#define VMI_EVENT_SINGLESTEP        3 /**< Instructions being executed on a set of VCPUs */
+#define VMI_EVENT_INTERRUPT         4 /**< Interrupts being delivered */
+#define VMI_EVENT_GUEST_REQUEST     5 /**< Guest-requested event */
+#define VMI_EVENT_CPUID             6 /**< CPUID event */
+#define VMI_EVENT_DEBUG_EXCEPTION   7 /**< Debug exception event */
 
 /**
  * Max number of vcpus we can set single step on at one time for a domain
@@ -72,38 +72,32 @@ typedef enum {
  *  monitor and also to determine the type of access causing an event to be
  *  recorded.
  */
-typedef enum {
-    VMI_REGACCESS_INVALID = 0,
-    VMI_REGACCESS_N = (1 << 0),
-    VMI_REGACCESS_R = (1 << 1),
-    VMI_REGACCESS_W = (1 << 2),
-    VMI_REGACCESS_RW = (VMI_REGACCESS_R | VMI_REGACCESS_W),
+typedef uint8_t vmi_reg_access_t;
 
-    __VMI_REGACCESS_MAX
-} vmi_reg_access_t;
+#define VMI_REGACCESS_INVALID   0
+#define VMI_REGACCESS_N         (1 << 0)
+#define VMI_REGACCESS_R         (1 << 1)
+#define VMI_REGACCESS_W         (1 << 2)
+#define VMI_REGACCESS_RW        (VMI_REGACCESS_R | VMI_REGACCESS_W)
 
 /**
  * Page permissions used both for configuring type of memory operations to
  *  monitor and also to determine the type of access causing an event to be
  *  recorded.
  */
-typedef enum {
-    VMI_MEMACCESS_INVALID    = 0,
-    VMI_MEMACCESS_N          = (1 << 0),
-    VMI_MEMACCESS_R          = (1 << 1),
-    VMI_MEMACCESS_W          = (1 << 2),
-    VMI_MEMACCESS_X          = (1 << 3),
-    VMI_MEMACCESS_RW         = (VMI_MEMACCESS_R | VMI_MEMACCESS_W),
-    VMI_MEMACCESS_RX         = (VMI_MEMACCESS_R | VMI_MEMACCESS_X),
-    VMI_MEMACCESS_WX         = (VMI_MEMACCESS_W | VMI_MEMACCESS_X),
-    VMI_MEMACCESS_RWX        = (VMI_MEMACCESS_R | VMI_MEMACCESS_W | VMI_MEMACCESS_X),
+typedef uint8_t vmi_mem_access_t;
 
-    // Special cases
-    VMI_MEMACCESS_W2X        = (1 << 4),
-    VMI_MEMACCESS_RWX2N      = (1 << 5),
-
-    __VMI_MEMACCESS_MAX
-} vmi_mem_access_t;
+#define VMI_MEMACCESS_INVALID     0
+#define VMI_MEMACCESS_N           (1 << 0)
+#define VMI_MEMACCESS_R           (1 << 1)
+#define VMI_MEMACCESS_W           (1 << 2)
+#define VMI_MEMACCESS_X           (1 << 3)
+#define VMI_MEMACCESS_RW          (VMI_MEMACCESS_R | VMI_MEMACCESS_W)
+#define VMI_MEMACCESS_RX          (VMI_MEMACCESS_R | VMI_MEMACCESS_X)
+#define VMI_MEMACCESS_WX          (VMI_MEMACCESS_W | VMI_MEMACCESS_X)
+#define VMI_MEMACCESS_RWX         (VMI_MEMACCESS_R | VMI_MEMACCESS_W | VMI_MEMACCESS_X)
+#define VMI_MEMACCESS_W2X         (1 << 4)     // Special cases
+#define VMI_MEMACCESS_RWX2N       (1 << 5)
 
 typedef struct x86_regs {
     uint64_t rax;
@@ -142,14 +136,30 @@ typedef struct x86_regs {
 } x86_registers_t;
 
 typedef struct emul_data {
-    /* Tell LibVMI if it's not safe to free this structure once processed */
-    bool dont_free;
     uint32_t size;
+    /* Tell LibVMI if it's not safe to free this structure once processed */
+    uint8_t dont_free;
+    uint8_t _pad[3];
     uint8_t data[256];
 } emul_data_t;
 
+/**
+ * The event structures used during configuration of events and their delivery.
+ *  "IN" members of the structs are set by the user during event
+ *      registration to configure LibVMI and the hypervisor.
+ *  "OUT" members are set by LibVMI upon observation of an event with
+ *      contextual information helpful to the callback.
+ *  "RESPONSE" members can be set by the user at the end of the callback to signal
+ *      to the hypervisor that a specific type of action should be performed.
+ *  Note that IN and RESPONSE fields can overlap with OUT fields thus the user
+ *      should NOT rely these fields remaining unchanged after event registration.
+ *      IN fields that remain unchanged by LibVMI are marked CONST IN.
+ */
+
 typedef struct {
     /**
+     * CONST IN
+     *
      * Register for which write event is configured.
      * Hypervisors offering register events tend to
      *  have a limited number available for monitoring.
@@ -158,39 +168,36 @@ typedef struct {
      *  Goldberg, meaning that the registers trigger
      *  a VMEXIT, trap, or equivalent.
      */
-    registers_t reg;
+    reg_t reg;
 
     /**
-     * Reserved
-     */
-    reg_t mask;
-
-    /**
+     * CONST IN
+     *
      * Event filter: callback triggers IFF register==<equal>
      */
     reg_t equal;
 
     /**
+     * CONST IN
+     *
      * IFF set to 1, events are delivered asynchronously and
      *  without pausing the originating VCPU
      * Default : 0. (i.e., VCPU is paused at time of event delivery).
      */
-    bool async;
+    uint8_t async;
 
     /**
+     * CONST IN
+     *
      * IFF set to 1, events are only delivered if the written
      *  value differs from the previously held value.
      * Default : 0. (i.e., All write events are delivered).
      */
-    bool onchange;
+    uint8_t onchange;
 
     /**
-     * IFF set to 1, an extended set of MSR events are going to be delivered
-     * Only available on Xen with 4.5 and onwards
-     */
-    bool extended_msr;
-
-    /**
+     * CONST IN
+     *
      * Type of register event being monitored.
      * Hypervisors offering register events do so only for those that trigger a
      *  VMEXIT or similar trap. This predominantly means that only write events
@@ -199,100 +206,146 @@ typedef struct {
     vmi_reg_access_t in_access;
 
     /**
-     * MSR register operations only: holds the specific MSR for which the event occurred.
-     * Unused for other register event types.
-     */
-    reg_t context;
-
-    /**
-     * Register value read or written
-     */
-    reg_t value;
-
-    /**
-     * Previous value of register (only for CR0/CR3/CR4)
-     */
-    reg_t previous;
-
-    /**
+     * OUT
+     *
      * Type of register access that triggered the event
      */
     vmi_reg_access_t out_access;
+
+    uint32_t _pad;
+
+    union {
+        /**
+         * IN
+         *
+         * IFF set to 1, an extended set of MSR events are going to be delivered
+         * Only available on Xen with 4.5 and onwards
+         */
+        uint8_t extended_msr;
+
+        /**
+         * OUT
+         */
+        struct {
+            /**
+             * Register value read or written
+             */
+            reg_t value;
+
+            union {
+                /**
+                 * Previous value of register (only for CR0/CR3/CR4)
+                 */
+                reg_t previous;
+
+                /**
+                 * MSR register operations only: holds the specific MSR for which the event occurred.
+                 * Unused for other register event types.
+                 */
+                reg_t context;
+            };
+        };
+    };
 } reg_event_t;
 
 typedef struct {
+    union {
+        struct {
+            /**
+             * IN: Physical address to set event on.
+             */
+            addr_t physical_address;
+
+            /**
+             * Reserved.
+             */
+            uint64_t npages;
+
+            /**
+             * IN: Generic access violation based event-handler.
+             * If this is set, physical_address must be ~0UL. Use vmi_set_mem_event to
+             * set access permissions on specific pages.
+             */
+            uint8_t generic;
+        };
+
+        struct {
+            /**
+             * OUT: Specific virtual address at which event occurred.
+             */
+            addr_t gla;
+
+            /**
+             * OUT: Page number at which event occurred
+             */
+            addr_t gfn;
+
+            /**
+             * OUT: Offset in bytes (relative to page base) at which the event occurred
+             */
+            addr_t offset;
+        };
+    };
 
     /**
-     * IN: Physical address to set event on.
-     */
-    addr_t physical_address;
-
-    /**
-     * Reserved.
-     */
-    uint64_t npages;
-
-    /**
-     * IN: Page permissions used to trigger memory events. See enum definition
+     * CONST IN: Page permissions used to trigger memory events. See definition
      * for valid values.
      */
     vmi_mem_access_t in_access;
-
-    /**
-     * IN: Generic access violation based event-handler.
-     * If this is set, physical_address must be ~0. Use vmi_set_mem_event to
-     * set access permissions on specific pages.
-     */
-    bool generic;
-
-    /**
-     * OUT: Specific virtual address at which event occurred.
-     */
-    addr_t gla;
-
-    /**
-     * OUT: Page number at which event occurred
-     */
-    addr_t gfn;
-
-    /**
-     * OUT: Offset in bytes (relative to page base) at which the event occurred
-     */
-    uint64_t offset;
 
     /**
      * OUT: Type of page access that caused event to be triggered.
      * Typically a subset of in_access
      */
     vmi_mem_access_t out_access;
+
+    uint16_t _pad[3];
 } mem_access_event_t;
 
-typedef enum {
-    INT_INVALID,
-    INT3                /**< Software breakpoint (INT3/0xCC) */
-} interrupts_t;
+typedef uint8_t interrupts_t;
+
+#define INT_INVALID     0
+#define INT3            1   /**< Software breakpoint (INT3/0xCC) */
 
 typedef struct {
-    addr_t gla;         /**< (Global Linear Address) == RIP of the trapped instruction */
-    addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
-    addr_t offset;      /**< Offset in bytes (relative to GFN) */
-    interrupts_t intr;  /**< Specific interrupt intended to trigger the event */
+    union {
+        /* IN */
+        interrupts_t intr;  /**< Specific interrupt intended to trigger the event */
 
-    /**
-     * Toggle, controls whether interrupt is re-injected after callback.
-     *   Set reinject to 1 to deliver it to guest ("pass through" mode)
-     *   Set reinject to 0 to swallow it silently without
-     */
-    int reinject;
-    uint32_t insn_length; /**< The instruction length when reinjecting */
+        /* OUT */
+        struct {
+            addr_t gla;         /**< (Global Linear Address) == RIP of the trapped instruction */
+            addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
+            addr_t offset;      /**< Offset in bytes (relative to GFN) */
+            uint32_t insn_length; /**< The instruction length when reinjecting */
+
+            /**
+             * Toggle, controls whether interrupt is re-injected after callback.
+             *   Set reinject to 1 to deliver it to guest ("pass through" mode)
+             *   Set reinject to 0 to swallow it silently without
+             */
+            int8_t reinject;
+
+            uint8_t _pad[3];
+        };
+    };
 } interrupt_event_t;
 
 typedef struct {
-    addr_t gla;         /**< The IP of the current instruction */
-    addr_t gfn;         /**< The physical page of the current instruction */
-    addr_t offset;      /**< Offset in bytes (relative to GFN) */
-    uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
-    bool enable;        /**< Set to true to immediately turn vCPU to singlestep. */
+    union {
+        /* IN */
+        struct {
+            uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
+            uint8_t enable;     /**< Set to true to immediately turn vCPU to singlestep. */
+        };
+
+        /* OUT */
+        struct {
+            addr_t gla;         /**< The IP of the current instruction */
+            addr_t gfn;         /**< The physical page of the current instruction */
+            addr_t offset;      /**< Offset in bytes (relative to GFN) */
+        };
+    };
 } single_step_event_t;
 
 typedef struct {
@@ -314,11 +367,14 @@ typedef struct {
      *   Set reinject to 1 to deliver it to guest ("pass through" mode)
      *   Set reinject to 0 to swallow it silently without
      */
-    int reinject;
+    int8_t reinject;
+
+    uint16_t _pad;
 } debug_event_t;
 
 typedef struct {
     uint32_t insn_length; /**< Length of the reported instruction */
+    uint32_t _pad;
 } cpuid_event_t;
 
 struct vmi_event;
@@ -328,20 +384,22 @@ typedef struct vmi_event vmi_event_t;
  * Callbacks can flip the corresponding bits on event_response_t to trigger
  * the following behaviors.
  */
-typedef enum {
-    VMI_EVENT_RESPONSE_NONE,
-    VMI_EVENT_RESPONSE_EMULATE,
-    VMI_EVENT_RESPONSE_EMULATE_NOWRITE,
-    VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA,
-    VMI_EVENT_RESPONSE_DENY,
-    VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP,
-    VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID,
-    VMI_EVENT_RESPONSE_SET_REGISTERS,
-    __VMI_EVENT_RESPONSE_MAX
-} event_response_flags_t;
+typedef uint32_t event_response_flags_t;
+
+#define VMI_EVENT_RESPONSE_NONE                 0
+#define VMI_EVENT_RESPONSE_EMULATE              (1u << 1)
+#define VMI_EVENT_RESPONSE_EMULATE_NOWRITE      (1u << 2)
+#define VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA   (1u << 3)
+#define VMI_EVENT_RESPONSE_DENY                 (1u << 4)
+#define VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP    (1u << 5)
+#define VMI_EVENT_RESPONSE_SLAT_ID              (1u << 6)
+#define VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID     VMI_EVENT_RESPONSE_SLAT_ID
+#define VMI_EVENT_RESPONSE_SET_REGISTERS        (1u << 7)
+#define __VMI_EVENT_RESPONSE_MAX                7
 
 /**
  * Bitmap holding event_reponse_flags_t values returned by callback
+ * (ie. 1u << VMI_EVENT_RESPONSE_*).
  */
 typedef uint32_t event_response_t;
 
@@ -358,19 +416,29 @@ typedef event_response_t (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *ev
  */
 typedef void (*vmi_event_free_t)(vmi_event_t *event, status_t rc);
 
-/**
- * The event structure used during configuration of events and their delivery.
- */
 struct vmi_event {
+    union {
+        /* IN */
+        uint32_t version; /**< User should set it to VMI_EVENTS_VERSION */
+
+        /* OUT */
+        uint32_t vcpu_id; /**< The VCPU relative to which the event occurred. */
+    };
+
+    /* CONST IN */
     vmi_event_type_t type;  /**< The specific type of event */
 
     /**
-     *  The specific event type structure (per event type above)
-     *  "IN" members of the *_event_t are set by the library user during event
-     *      registration to configure LibVMI and the hypervisor.
-     *  "OUT" members are set by LibVMI upon observation of an event with
-     *      contextual information helpful to the callback.
+     * IN/OUT/RESPONSE
+     *
+     * The VMM maintained SLAT ID. Can be specified when registering mem_event (IN).
+     * On an event report (OUT) specifies the active SLAT ID on the vCPU.
+     * Iff VMI_EVENT_RESPONSE_SLAT_ID is set (RESPONSE), switch the vCPU to this VMM pagetable ID.
+     *
+     * Note: on Xen this corresponds to the altp2m_idx.
      */
+    uint16_t slat_id;
+
     union {
         reg_event_t reg_event;
         mem_access_event_t mem_event;
@@ -380,44 +448,51 @@ struct vmi_event {
         debug_event_t debug_event;
     };
 
-    uint32_t vcpu_id; /**< The VCPU relative to which the event occurred. */
-
-    /**
-     * The VMM maintained pagetable ID in which the event occurred. If the
-     * response flag specifies, switch the vCPU to this VMM pagetable ID.
-     * On Xen this corresponds to the altp2m_idx.
+    /*
+     * Note that the following pointers assume compiler compatibility
+     * ie. if you compiled a 32-bit version of LibVMI it will be
+     * incompatable with 64-bit tools and vice verse.
      */
-    uint16_t vmm_pagetable_id;
-
-   /**
-    * An open-ended mechanism allowing a library user to
-    *  associate external data to the event.
-    * Metadata assigned to this pointer at any time (prior to
-    *  or following registration) is delivered to the callback,
-    *  for each matching event. The callback is also free to
-    *  modify in any way. The library user assumes all memory
-    *  management for this referenced data.
-    */
-    void * data;
-
-  /**
-   * The callback function that is invoked when the relevant is observed.
-   */
-    event_callback_t callback;
-
     union {
         /**
+         * OUT
+         *
          * Snapshot of some VCPU registers when the event occurred
          */
-        union {
-            x86_registers_t *x86;
-        } regs;
+        x86_registers_t *x86_regs;
 
         /**
+         * RESPONSE
+         *
          * Read data to be sent back with VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA
          */
         emul_data_t *emul_data;
     };
+
+    /**
+     * CONST IN
+     *
+     * An open-ended mechanism allowing a library user to
+     *  associate external data to the event.
+     * Metadata assigned to this pointer at any time (prior to
+     *  or following registration) is delivered to the callback,
+     *  for each matching event. The callback is also free to
+     *  modify in any way. The library user assumes all memory
+     *  management for this referenced data.
+     */
+    void *data;
+
+    /**
+     * CONST IN
+     *
+     * The callback function that is invoked when the relevant is observed.
+     */
+    event_callback_t callback;
+
+    /**
+     * Reserved for future use
+     */
+    uint64_t _reserved[4];
 };
 
 /**
@@ -443,6 +518,7 @@ struct vmi_event {
  */
 #define SETUP_SINGLESTEP_EVENT(_event, _vcpu_mask, _callback, _enable) \
         do { \
+            (_event)->version = VMI_EVENTS_VERSION; \
             (_event)->type = VMI_EVENT_SINGLESTEP; \
             (_event)->ss_event.vcpus = _vcpu_mask; \
             (_event)->ss_event.enable = _enable; \
@@ -454,6 +530,7 @@ struct vmi_event {
  */
 #define SETUP_MEM_EVENT(_event, _addr, _access, _callback, _generic) \
         do { \
+            (_event)->version = VMI_EVENTS_VERSION; \
             (_event)->type = VMI_EVENT_MEMORY; \
             (_event)->mem_event.physical_address = _generic ? ~0ULL :_addr; \
             (_event)->mem_event.in_access = _access; \
@@ -467,6 +544,7 @@ struct vmi_event {
  */
 #define SETUP_REG_EVENT(_event, _reg, _access, _equal, _callback) \
         do { \
+            (_event)->version = VMI_EVENTS_VERSION; \
             (_event)->type = VMI_EVENT_REGISTER; \
             (_event)->reg_event.reg = _reg; \
             (_event)->reg_event.in_access = _access; \
@@ -479,11 +557,19 @@ struct vmi_event {
  */
 #define SETUP_INTERRUPT_EVENT(_event, _reinject, _callback) \
         do { \
+            (_event)->version = VMI_EVENTS_VERSION; \
             (_event)->type = VMI_EVENT_INTERRUPT; \
             (_event)->interrupt_event.intr = INT3; \
             (_event)->interrupt_event.reinject = _reinject; \
             (_event)->callback = _callback; \
         } while(0)
+
+/**
+ * The maximum events version LibVMI supports.
+ *
+ * @return max supported events version
+ */
+uint32_t vmi_events_version();
 
 /**
  * Register to handle the event specified by the vmi_event object.
