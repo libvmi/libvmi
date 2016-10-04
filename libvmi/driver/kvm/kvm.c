@@ -1381,16 +1381,21 @@ kvm_get_id_from_name(
                            0);
     if (NULL == conn) {
         dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
-        return -1;
+        return VMI_INVALID_DOMID;
     }
 
     dom = virDomainLookupByName(conn, name);
     if (NULL == dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
-        return -1;
-    }
+        domainid = VMI_INVALID_DOMID;
+    } else {
 
-    domainid = (uint64_t) virDomainGetID(dom);
+        domainid = (uint64_t) virDomainGetID(dom);
+        if (domainid == (uint64_t)-1){
+            dbprint(VMI_DEBUG_KVM, "--requested kvm domain may not be running\n");
+            domainid = VMI_INVALID_DOMID;
+        }
+    }
 
     if (dom)
         virDomainFree(dom);
