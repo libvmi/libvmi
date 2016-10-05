@@ -135,6 +135,18 @@ set_os_type_from_config(
         ret = VMI_FAILURE;
     }
 
+#ifdef VMI_DEBUG
+    if (vmi->os_type == VMI_OS_LINUX) {
+        dbprint(VMI_DEBUG_CORE, "**set os_type to Linux.\n");
+    }
+    else if (vmi->os_type == VMI_OS_WINDOWS) {
+        dbprint(VMI_DEBUG_CORE, "**set os_type to Windows.\n");
+    }
+    else {
+        dbprint(VMI_DEBUG_CORE, "**set os_type to unknown.\n");
+    }
+#endif
+
     return ret;
 }
 
@@ -203,18 +215,6 @@ read_config_file(
     } else {
         ret = VMI_SUCCESS;
     }
-
-#ifdef VMI_DEBUG
-    if (vmi->os_type == VMI_OS_LINUX) {
-        dbprint(VMI_DEBUG_CORE, "**set os_type to Linux.\n");
-    }
-    else if (vmi->os_type == VMI_OS_WINDOWS) {
-        dbprint(VMI_DEBUG_CORE, "**set os_type to Windows.\n");
-    }
-    else {
-        dbprint(VMI_DEBUG_CORE, "**set os_type to unknown.\n");
-    }
-#endif
 
 error_exit:
     if (config_file)
