@@ -315,7 +315,10 @@ destroy_domain_socket(
         req.type = 0;   // quit
         req.address = 0;
         req.length = 0;
-        write(kvm->socket_fd, &req, sizeof(struct request));
+        int size = write(kvm->socket_fd, &req, sizeof(struct request));
+        if (size == -1) {
+            dbprint(VMI_DEBUG_KVM, "--destroy domain socket failed\n");
+        }
     }
 }
 
@@ -1213,9 +1216,12 @@ kvm_put_memory(
     else {
         uint8_t status = 0;
 
-        write(kvm_get_instance(vmi)->socket_fd, buf, length);
-        read(kvm_get_instance(vmi)->socket_fd, &status, 1);
-        if (0 == status) {
+        int size = write(kvm_get_instance(vmi)->socket_fd, buf, length);
+        if (size == -1) {
+            goto error_exit;
+        }
+        size = read(kvm_get_instance(vmi)->socket_fd, &status, 1);
+        if (size == -1 || 0 == status) {
             goto error_exit;
         }
     }
