@@ -36,6 +36,8 @@ struct linux_instance {
     addr_t pgd_offset; /**< mm_struct->pgd */
 
     addr_t name_offset; /**< task_struct->comm */
+
+    addr_t kaslr_offset; /**< offset generated at boot time for KASLR */
 };
 typedef struct linux_instance *linux_instance_t;
 

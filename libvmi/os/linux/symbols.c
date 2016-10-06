@@ -237,6 +237,9 @@ linux_symbol_to_address(
                 linux_instance->rekall_profile,
                 symbol, NULL, address);
 
+    if ( VMI_SUCCESS == ret )
+        *address += linux_instance->kaslr_offset;
+
 done:
     return ret;
 }
