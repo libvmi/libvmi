@@ -703,6 +703,12 @@ void xen_events_destroy_new(vmi_instance_t vmi)
 
     if ( xe->vm_event.ring_page ) {
         xen_events_listen(vmi, 0);
+
+        /*
+         * An event response may still have turned singlestep on
+         * so we ensure all vCPUs are clear again.
+         */
+        xen_shutdown_single_step(vmi);
         munmap(xe->vm_event.ring_page, getpagesize());
     }
 
@@ -1241,15 +1247,6 @@ status_t process_requests(vmi_instance_t vmi, vm_event_46_request_t *req,
         rsp->flags = (req->flags & VM_EVENT_FLAG_VCPU_PAUSED);
         rsp->reason = req->reason;
 
-        /*
-         * When we shut down we pull all pending requests from the ring
-         */
-        if ( vmi->shutting_down )
-        {
-            if ( req->reason == VM_EVENT_REASON_MEM_ACCESS )
-                rsp->u.mem_access.gfn = req->u.mem_access.gfn;
-        }
-        else
         switch ( req->reason )
         {
             case VM_EVENT_REASON_MEM_ACCESS:

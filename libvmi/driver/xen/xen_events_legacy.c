@@ -1148,10 +1148,8 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
                 dbprint(VMI_DEBUG_XEN, "--Caught mem event!\n");
                 rsp.gfn = req.gfn;
 
-                if(!vmi->shutting_down) {
-                    vrc = process_mem(vmi, req.access_r, req.access_w, req.access_x,
-                                      req.gfn, req.offset, req.gla, req.vcpu_id, NULL);
-                }
+                vrc = process_mem(vmi, req.access_r, req.access_w, req.access_x,
+                                  req.gfn, req.offset, req.gla, req.vcpu_id, NULL);
 
                 /*MARESCA do we need logic here to reset flags on a page? see xen-access.c
                  *    specifically regarding write/exec/int3 inspection and the code surrounding
@@ -1161,41 +1159,29 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
                 break;
             case MEM_EVENT_REASON_CR0:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR0 event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR0, req.gfn, req.gla, req.vcpu_id, NULL);
-                }
+                vrc = process_register(vmi, CR0, req.gfn, req.gla, req.vcpu_id, NULL);
                 break;
             case MEM_EVENT_REASON_CR3:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR3 event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR3, req.gfn, req.gla, req.vcpu_id, NULL);
-                }
+                vrc = process_register(vmi, CR3, req.gfn, req.gla, req.vcpu_id, NULL);
                 break;
 #ifdef HVM_PARAM_MEMORY_EVENT_MSR
             case MEM_EVENT_REASON_MSR:
-                if(!vmi->shutting_down) {
-                    dbprint(VMI_DEBUG_XEN, "--Caught MSR event!\n");
-                    vrc = process_register(vmi, MSR_ALL, req.gfn, req.gla, req.vcpu_id, NULL);
-                }
+                dbprint(VMI_DEBUG_XEN, "--Caught MSR event!\n");
+                vrc = process_register(vmi, MSR_ALL, req.gfn, req.gla, req.vcpu_id, NULL);
                 break;
 #endif
             case MEM_EVENT_REASON_CR4:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR4 event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR4, req.gfn, req.gla, req.vcpu_id, NULL);
-                }
+                vrc = process_register(vmi, CR4, req.gfn, req.gla, req.vcpu_id, NULL);
                 break;
             case MEM_EVENT_REASON_SINGLESTEP:
                 dbprint(VMI_DEBUG_XEN, "--Caught single step event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_single_step_event(vmi, req.gfn, req.gla, req.vcpu_id, NULL);
-                }
+                vrc = process_single_step_event(vmi, req.gfn, req.gla, req.vcpu_id, NULL);
                 break;
             case MEM_EVENT_REASON_INT3:
-                if(!vmi->shutting_down) {
-                    dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
-                    vrc = process_interrupt_event(vmi, INT3, req.gfn, req.offset, req.gla, req.vcpu_id, NULL);
-                }
+                dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
+                vrc = process_interrupt_event(vmi, INT3, req.gfn, req.offset, req.gla, req.vcpu_id, NULL);
                 break;
             default:
                 errprint("UNKNOWN REASON CODE %d\n", req.reason);
@@ -1254,10 +1240,8 @@ process_requests_45(vmi_instance_t vmi, mem_event_45_request_t *req, mem_event_4
                 rsp->access_w = req->access_w;
                 rsp->access_x = req->access_x;
 
-                if(!vmi->shutting_down) {
-                    vrc = process_mem(vmi, req->access_r, req->access_w, req->access_x,
-                                      req->gfn, req->offset, req->gla, req->vcpu_id, &rsp->flags);
-                }
+                vrc = process_mem(vmi, req->access_r, req->access_w, req->access_x,
+                                  req->gfn, req->offset, req->gla, req->vcpu_id, &rsp->flags);
 
                 /*MARESCA do we need logic here to reset flags on a page? see xen-access.c
                  *    specifically regarding write/exec/int3 inspection and the code surrounding
@@ -1267,39 +1251,27 @@ process_requests_45(vmi_instance_t vmi, mem_event_45_request_t *req, mem_event_4
                 break;
             case MEM_EVENT_REASON_CR0:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR0 event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR0, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
-                }
+                vrc = process_register(vmi, CR0, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
                 break;
             case MEM_EVENT_REASON_CR3:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR3 event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR3, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
-                }
+                vrc = process_register(vmi, CR3, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
                 break;
             case MEM_EVENT_REASON_MSR:
-                if(!vmi->shutting_down) {
-                    dbprint(VMI_DEBUG_XEN, "--Caught MSR event!\n");
-                    vrc = process_register(vmi, MSR_ALL, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
-                }
+                dbprint(VMI_DEBUG_XEN, "--Caught MSR event!\n");
+                vrc = process_register(vmi, MSR_ALL, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
                 break;
             case MEM_EVENT_REASON_CR4:
                 dbprint(VMI_DEBUG_XEN, "--Caught CR4 event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_register(vmi, CR4, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
-                }
+                vrc = process_register(vmi, CR4, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
                 break;
             case MEM_EVENT_REASON_SINGLESTEP:
                 dbprint(VMI_DEBUG_XEN, "--Caught single step event!\n");
-                if(!vmi->shutting_down) {
-                    vrc = process_single_step_event(vmi, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
-                }
+                vrc = process_single_step_event(vmi, req->gfn, req->gla, req->vcpu_id, &rsp->flags);
                 break;
             case MEM_EVENT_REASON_INT3:
-                if(!vmi->shutting_down) {
-                    dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
-                    vrc = process_interrupt_event(vmi, INT3, req->gfn, req->offset, req->gla, req->vcpu_id, &rsp->flags);
-                }
+                dbprint(VMI_DEBUG_XEN, "--Caught int3 interrupt event!\n");
+                vrc = process_interrupt_event(vmi, INT3, req->gfn, req->offset, req->gla, req->vcpu_id, &rsp->flags);
                 break;
             default:
                 errprint("UNKNOWN REASON CODE %d\n", req->reason);
