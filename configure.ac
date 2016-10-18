@@ -141,6 +141,13 @@ AC_ARG_ENABLE([examples],
       [enable_examples=$enableval],
       [enable_examples=yes])
 
+AC_ARG_ENABLE([debug],
+  [AS_HELP_STRING([--enable-debug],
+    [Enable strict compiler checks @<:@no@:>@])],
+  [debug="$enableval"],
+  [debug="no"])
+AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
