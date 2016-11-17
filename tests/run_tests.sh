@@ -2,6 +2,7 @@
 
 function error_exit
 {
+    cat tests/test-suite.log
     sudo make clean
     exit 1
 }
