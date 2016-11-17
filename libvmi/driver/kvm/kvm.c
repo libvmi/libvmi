@@ -403,11 +403,11 @@ link_mmap_shm_snapshot_dev(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    if ((kvm->shm_snapshot_fd = shm_open(kvm->shm_snapshot_path, O_RDONLY, NULL)) < 0) {
+    if ((kvm->shm_snapshot_fd = shm_open(kvm->shm_snapshot_path, O_RDONLY, 0)) < 0) {
         errprint("fail in shm_open %s", kvm->shm_snapshot_path);
         return VMI_FAILURE;
     }
-    ftruncate(kvm->shm_snapshot_fd, vmi->size);
+    ftruncate(kvm->shm_snapshot_fd, vmi->max_physical_address);
 
     /* try memory mapped file I/O */
     int mmap_flags = (MAP_PRIVATE | MAP_NORESERVE | MAP_POPULATE);
@@ -416,7 +416,7 @@ link_mmap_shm_snapshot_dev(
 #endif // MMAP_HUGETLB
 
     kvm->shm_snapshot_map = mmap(NULL,  // addr
-        vmi->size,   // len
+        vmi->max_physical_address,   // len
         PROT_READ,   // prot
         mmap_flags,  // flags
         kvm->shm_snapshot_fd,    // file descriptor
@@ -508,7 +508,7 @@ void insert_v2p_page_pair_to_m2p_chunk_list(
  * @param[in] end_paddr
  */
 void insert_v2p_page_pair_to_v2m_chunk_list(
-    vmi_instance_t vmi,
+    vmi_instance_t UNUSED(vmi),
     v2m_chunk_t *v2m_chunk_list_ptr,
     v2m_chunk_t *v2m_chunk_head_ptr,
     m2p_mapping_clue_chunk_t *m2p_chunk_list_ptr,
@@ -589,7 +589,7 @@ walkthrough_shm_snapshot_pagetable(
         addr_t start_paddr = page->paddr;
         addr_t end_vaddr = start_vaddr | (page->size-1);
         addr_t end_paddr = start_paddr | (page->size-1);
-        if (start_paddr < vmi->size) {
+        if (start_paddr < vmi->max_physical_address) {
             insert_v2p_page_pair_to_v2m_chunk_list(vmi, &v2m_chunk_list, &v2m_chunk_head,
                 &m2p_chunk_list, &m2p_chunk_head,
                 start_vaddr, end_vaddr, start_paddr, end_paddr);
@@ -616,12 +616,12 @@ walkthrough_shm_snapshot_pagetable(
  * @param[out] maddr_indicator_export
  */
 status_t probe_v2m_medial_addr(
-    vmi_instance_t vmi,
+    vmi_instance_t UNUSED(vmi),
     v2m_chunk_t v2m_chunk,
     void** maddr_indicator_export)
 {
     if (NULL != v2m_chunk) {
-        dbprint(VMI_DEBUG_KVM, "probe medial space for va: %016llx - %016llx, size: %dKB\n",
+        dbprint(VMI_DEBUG_KVM, "probe medial space for va: %016"PRIx64" - %016"PRIx64", size: %"PRIu64"KB\n",
             v2m_chunk->vaddr_begin, v2m_chunk->vaddr_end,
             (v2m_chunk->vaddr_end - v2m_chunk->vaddr_begin+1)>>10);
 
@@ -637,8 +637,7 @@ status_t probe_v2m_medial_addr(
             *maddr_indicator_export = map;
             (void) munmap(map, size);
         } else {
-            errprint("Failed to find large enough medial address space,"
-                " size:"PRIu64" MB\n", size>>20);
+            errprint("Failed to find large enough medial address space, size:%"PRIu64" MB\n", size>>20);
             perror("");
             return VMI_FAILURE;
         }
@@ -659,7 +658,7 @@ status_t mmap_m2p_chunks(
 {
     size_t map_offset = 0;
      while (NULL != m2p_chunk_list) {
-         dbprint(VMI_DEBUG_KVM, "map va: %016llx - %016llx, pa: %016llx - %016llx, size: %dKB\n",
+         dbprint(VMI_DEBUG_KVM, "map va: %016"PRIx64" - %016"PRIx64", pa: %016"PRIx64" - %016"PRIx64", size: %"PRIu64"KB\n",
              m2p_chunk_list->vaddr_begin, m2p_chunk_list->vaddr_end,
              m2p_chunk_list->paddr_begin, m2p_chunk_list->paddr_end,
              (m2p_chunk_list->vaddr_end - m2p_chunk_list->vaddr_begin+1)>>10);
@@ -691,7 +690,7 @@ status_t mmap_m2p_chunks(
  * @param[out] m2p_chunk_list_ptr
  */
 status_t delete_m2p_chunks(
-    vmi_instance_t vmi,
+    vmi_instance_t UNUSED(vmi),
     m2p_mapping_clue_chunk_t* m2p_chunk_list_ptr)
 {
     m2p_mapping_clue_chunk_t tmp = *m2p_chunk_list_ptr;
@@ -872,7 +871,7 @@ get_v2m_table(
  */
 size_t
 lookup_v2m_table(
-    vmi_instance_t vmi,
+    vmi_instance_t UNUSED(vmi),
     v2m_chunk_t v2m_chunk_list,
     addr_t vaddr,
     void** medial_vaddr_ptr)
@@ -1005,21 +1004,20 @@ kvm_get_memory_shm_snapshot(
     addr_t paddr,
     uint32_t length)
 {
-    if (paddr + length > vmi->size) {
+    if (paddr + length > vmi->max_physical_address) {
         dbprint
             (VMI_DEBUG_KVM, "--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of shm-snapshot\n",
              __FUNCTION__, paddr, paddr + length);
-        goto error_noprint;
+        goto error;
     }
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     return kvm->shm_snapshot_map + paddr;
 
-error_print:
+error:
     dbprint(VMI_DEBUG_KVM, "%s: failed to read %d bytes at "
             "PA (offset) 0x%.16"PRIx64" [VM size 0x%.16"PRIx64"]\n", __FUNCTION__,
-            length, paddr, vmi->size);
-error_noprint:
+            length, paddr, vmi->max_physical_address);
     return NULL;
 }
 
@@ -1033,8 +1031,8 @@ error_noprint:
  */
 void
 kvm_release_memory_shm_snapshot(
-    void *memory,
-    size_t length)
+    void* UNUSED(memory),
+    size_t UNUSED(length))
 {
 }
 
@@ -1078,7 +1076,7 @@ kvm_teardown_shm_snapshot_mode(
 
     if (VMI_SUCCESS == test_using_shm_snapshot(kvm)) {
         dbprint(VMI_DEBUG_KVM, "--kvm: teardown KVM shm-snapshot\n");
-        munmap_unlink_shm_snapshot_dev(kvm, vmi->size);
+        munmap_unlink_shm_snapshot_dev(kvm, vmi->max_physical_address);
         if (kvm->shm_snapshot_cpu_regs != NULL) {
             free(kvm->shm_snapshot_cpu_regs);
             kvm->shm_snapshot_cpu_regs = NULL;
@@ -1336,13 +1334,12 @@ kvm_init_vmi(
 #if ENABLE_SHM_SNAPSHOT == 1
     /* get the memory size in advance for
      *  link_mmap_shm_snapshot() */
-    if (driver_get_memsize(vmi, &vmi->size) == VMI_FAILURE) {
+    if (driver_get_memsize(vmi, &vmi->allocated_ram_size, &vmi->max_physical_address) == VMI_FAILURE) {
         errprint("Failed to get memory size.\n");
         return VMI_FAILURE;
     }
 
-    dbprint(VMI_DEBUG_KVM, "**set size = %"PRIu64" [0x%"PRIx64"]\n", vmi->size,
-            vmi->size);
+    dbprint(VMI_DEBUG_KVM, "**set size = 0x%"PRIx64"\n", vmi->allocated_ram_size);
 
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT)
         return kvm_create_shm_snapshot(vmi);
@@ -1922,7 +1919,7 @@ size_t kvm_get_dgpma(
     size_t count) {
 
     *medial_addr_ptr = kvm_get_instance(vmi)->shm_snapshot_map + paddr;
-    size_t max_size = vmi->size - (paddr - 0);
+    size_t max_size = vmi->max_physical_address - (paddr - 0);
     return max_size>count?count:max_size;
 }
 
