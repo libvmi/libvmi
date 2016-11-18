@@ -79,10 +79,10 @@ exec_qmp_cmd(
     char *output = safe_malloc(20000);
     size_t length = 0;
     const char *name = virDomainGetName(kvm->dom);
-    int cmd_length = strlen(name) + strnlen(query, QMP_CMD_LENGTH) + 29;
+    int cmd_length = strlen(name) + strnlen(query, QMP_CMD_LENGTH) + 47;
     char *cmd = safe_malloc(cmd_length);
 
-    int rc = snprintf(cmd, cmd_length, "virsh qemu-monitor-command %s %s", name,
+    int rc = snprintf(cmd, cmd_length, "virsh -c qemu:///system qemu-monitor-command %s %s", name,
              query);
     if (rc < 0 || rc >= cmd_length) {
         errprint("Failed to properly format `virsh qemu-monitor-command`\n");
