@@ -111,6 +111,10 @@ lib_LTLIBRARIES= libvmi.la
 libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
 libvmi_la_LIBADD= config/libconfig.la
 libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS)
-libvmi_la_CFLAGS+= -Werror -Wall -Wextra
-libvmi_la_CFLAGS+= -Wno-missing-field-initializers -Wno-unused-but-set-variable
+libvmi_la_CFLAGS+= -Wall -Wextra
 libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS)
+
+if DEBUG
+libvmi_la_CFLAGS+= -Werror
+libvmi_la_CFLAGS+= -Wno-missing-field-initializers -Wno-unused-but-set-variable
+endif
