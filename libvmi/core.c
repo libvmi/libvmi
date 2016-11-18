@@ -687,8 +687,8 @@ vmi_destroy(
         return VMI_FAILURE;
 
     vmi->shutting_down = TRUE;
-    events_destroy(vmi);
     driver_destroy(vmi);
+    events_destroy(vmi);
     if (vmi->os_interface) {
         os_destroy(vmi);
     }
