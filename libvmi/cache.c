@@ -38,16 +38,8 @@
 #include "private.h"
 #include "glib_compat.h"
 
-/* Custom 128-bit key functions */
-struct key_128 {
-    uint64_t low;
-    uint64_t high;
-};
-typedef struct key_128 *key_128_t;
-
 // This function borrowed from cityhash-1.0.3
-static uint64_t
-hash128to64(
+uint64_t hash128to64(
     uint64_t low,
     uint64_t high)
 {
@@ -63,12 +55,12 @@ hash128to64(
     return b;
 }
 
-static guint64 key_128_hash(gconstpointer key){
+guint64 key_128_hash(gconstpointer key){
     const key_128_t cache_key = (const key_128_t) key;
     return hash128to64(cache_key->low, cache_key->high);
 }
 
-static gboolean key_128_equals(gconstpointer key1, gconstpointer key2){
+gboolean key_128_equals(gconstpointer key1, gconstpointer key2){
     const key_128_t cache_key1 = (const key_128_t) key1;
     const key_128_t cache_key2 = (const key_128_t) key2;
     return cache_key1->low == cache_key2->low && cache_key1->high == cache_key2->high;
@@ -78,14 +70,14 @@ static gboolean key_128_equals(gconstpointer key1, gconstpointer key2){
  * Initialize an already allocated key with the given values.
  * This is for performance!
  */
-static void key_128_init(vmi_instance_t vmi, key_128_t key, uint64_t low, uint64_t high)
+void key_128_init(vmi_instance_t vmi, key_128_t key, uint64_t low, uint64_t high)
 {
     low = (low & ~((uint64_t)vmi->page_size - 1));
     key->low = low;
     key->high = high;
 }
 
-static key_128_t key_128_build (vmi_instance_t vmi, uint64_t low, uint64_t high)
+key_128_t key_128_build (vmi_instance_t vmi, uint64_t low, uint64_t high)
 {
     key_128_t key = (key_128_t) safe_malloc(sizeof(struct key_128));
     key_128_init(vmi, key, low, high);
