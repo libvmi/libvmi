@@ -810,29 +810,6 @@ xen_init(
 }
 
 status_t
-xen_init_events(
-    vmi_instance_t vmi)
-{
-    status_t ret = VMI_SUCCESS;
-    xen_instance_t *xen = xen_get_instance(vmi);
-
-    /* Only enable events IFF(mode & VMI_INIT_EVENTS)
-     * Additional checks performed within xen_events_init_*
-     */
-    if(vmi->init_mode & VMI_INIT_EVENTS) {
-        if ( xen->major_version == 4 && xen->minor_version < 6 )
-            ret = xen_init_events_legacy(vmi);
-        else
-            ret = xen_init_events_new(vmi);
-
-        if ( VMI_FAILURE == ret )
-            errprint("Failed to initialize xen events.\n");
-    }
-
-    return ret;
-}
-
-status_t
 xen_init_vmi(
     vmi_instance_t vmi)
 {
@@ -924,10 +901,13 @@ xen_init_vmi(
     if ( VMI_FAILURE == ret )
         goto _bail;
 
-    ret = xen_init_events(vmi);
+    if(vmi->init_mode & VMI_INIT_EVENTS)
+    {
+        ret = xen_init_events(vmi);
 
-    if ( VMI_FAILURE == ret )
-        goto _bail;
+        if ( VMI_FAILURE == ret )
+            goto _bail;
+    }
 
     xen_init_altp2m(vmi);
 
@@ -941,12 +921,8 @@ xen_destroy(
 {
     xen_instance_t *xen = xen_get_instance(vmi);
 
-    if(xen->hvm && (vmi->init_mode & VMI_INIT_EVENTS)){
-        if ( xen->major_version == 4 && xen->minor_version < 6 )
-            xen_events_destroy_legacy(vmi);
-        else
-            xen_events_destroy_new(vmi);
-    }
+    if(xen->hvm && (vmi->init_mode & VMI_INIT_EVENTS))
+        xen_events_destroy(vmi);
 
 #if ENABLE_SHM_SNAPSHOP == 1
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {

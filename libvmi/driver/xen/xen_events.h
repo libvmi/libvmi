@@ -56,9 +56,50 @@
 #ifndef XEN_EVENTS_H
 #define XEN_EVENTS_H
 
-status_t xen_init_events_new(vmi_instance_t vmi);
 status_t xen_init_events_legacy(vmi_instance_t vmi);
-void xen_events_destroy_new(vmi_instance_t vmi);
+status_t xen_init_events_46(vmi_instance_t vmi);
+status_t xen_init_events_48(vmi_instance_t vmi);
+
 void xen_events_destroy_legacy(vmi_instance_t vmi);
+void xen_events_destroy_46(vmi_instance_t vmi);
+void xen_events_destroy_48(vmi_instance_t vmi);
+
+static inline status_t xen_init_events(vmi_instance_t vmi)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    if ( xen->major_version == 4 )
+    {
+        switch(xen->minor_version)
+        {
+        case 2 ... 5:
+            return xen_init_events_legacy(vmi);
+        case 6 ... 7:
+            return xen_init_events_46(vmi);
+        case 8:
+            return xen_init_events_48(vmi);
+        };
+    };
+    return VMI_FAILURE;
+}
+
+static inline void xen_events_destroy(vmi_instance_t vmi)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    if ( xen->major_version == 4 )
+    {
+        switch(xen->minor_version)
+        {
+        case 2 ... 5:
+            xen_events_destroy_legacy(vmi);
+            break;
+        case 6 ... 7:
+            xen_events_destroy_46(vmi);
+            break;
+        case 8:
+            xen_events_destroy_48(vmi);
+            break;
+        };
+    };
+}
 
 #endif

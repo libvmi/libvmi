@@ -103,6 +103,7 @@ typedef enum {
 #define VM_EVENT_FLAG_DENY               (1 << 6)
 #define VM_EVENT_FLAG_ALTERNATE_P2M      (1 << 7)
 #define VM_EVENT_FLAG_SET_REGISTERS      (1 << 8)
+#define VM_EVENT_FLAG_SET_EMUL_INSN_DATA (1 << 9)
 
 #define VM_EVENT_REASON_UNKNOWN                 0
 #define VM_EVENT_REASON_MEM_ACCESS              1
@@ -191,6 +192,15 @@ struct regs_x86 {
     uint32_t _pad;
 };
 
+struct regs_arm {
+    uint64_t ttbr0;
+    uint64_t ttbr1;
+    uint64_t ttbcr;
+    uint64_t pc;
+    uint32_t cpsr;
+    uint32_t _pad;
+};
+
 typedef struct mem_event_st_45 {
     uint32_t flags;
     uint32_t vcpu_id;
@@ -242,6 +252,8 @@ struct vm_event_mov_to_msr {
 
 struct vm_event_cpuid {
     uint32_t insn_length;
+    uint32_t leaf;
+    uint32_t subleaf;
     uint32_t _pad;
 };
 
@@ -250,7 +262,36 @@ struct vm_event_emul_read_data {
     uint8_t  data[sizeof(struct regs_x86) - sizeof(uint32_t)];
 };
 
+struct vm_event_emul_insn_data {
+    uint8_t data[16];
+};
+
 typedef struct vm_event_st_46 {
+    uint32_t version;
+    uint32_t flags;
+    uint32_t reason;
+    uint32_t vcpu_id;
+    uint16_t altp2m_idx;
+    uint16_t _pad[3];
+
+    union {
+        struct vm_event_mem_access            mem_access;
+        struct vm_event_write_ctrlreg         write_ctrlreg;
+        struct vm_event_mov_to_msr            mov_to_msr;
+        struct vm_event_singlestep            singlestep;
+        struct vm_event_debug                 software_breakpoint;
+    } u;
+
+    union {
+        union {
+            struct regs_x86 x86;
+        } regs;
+
+        struct vm_event_emul_read_data emul_read_data;
+    } data;
+} vm_event_46_request_t, vm_event_46_response_t;
+
+typedef struct vm_event_st_48 {
     uint32_t version;
     uint32_t flags;
     uint32_t reason;
@@ -271,14 +312,19 @@ typedef struct vm_event_st_46 {
     union {
         union {
             struct regs_x86 x86;
+            struct regs_arm arm;
         } regs;
 
-        struct vm_event_emul_read_data emul_read_data;
+        union {
+            struct vm_event_emul_read_data read;
+            struct vm_event_emul_insn_data insn;
+        } emul;
     } data;
-} vm_event_46_request_t, vm_event_46_response_t;
+} vm_event_48_request_t, vm_event_48_response_t;
 
 DEFINE_RING_TYPES(mem_event_42, mem_event_42_request_t, mem_event_42_response_t);
 DEFINE_RING_TYPES(mem_event_45, mem_event_45_request_t, mem_event_45_response_t);
 DEFINE_RING_TYPES(vm_event_46, vm_event_46_request_t, vm_event_46_response_t);
+DEFINE_RING_TYPES(vm_event_48, vm_event_48_request_t, vm_event_48_response_t);
 
 #endif

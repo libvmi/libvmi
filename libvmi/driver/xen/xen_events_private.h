@@ -80,7 +80,10 @@ typedef struct {
     int port;
     uint32_t evtchn_port;
     void *ring_page;
-    vm_event_46_back_ring_t back_ring_46;
+    union {
+        vm_event_46_back_ring_t back_ring_46;
+        vm_event_48_back_ring_t back_ring_48;
+    };
     xen_pfn_t max_gpfn;
     uint32_t monitor_capabilities;
     bool monitor_singlestep_on;
@@ -102,6 +105,7 @@ static const unsigned int event_response_conversion[] = {
     [VMI_EVENT_RESPONSE_DENY] = VM_EVENT_FLAG_DENY,
     [VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID] = VM_EVENT_FLAG_ALTERNATE_P2M,
     [VMI_EVENT_RESPONSE_SET_REGISTERS] = VM_EVENT_FLAG_SET_REGISTERS,
+    [VMI_EVENT_RESPONSE_SET_EMUL_INSN] = VM_EVENT_FLAG_SET_EMUL_INSN_DATA,
 };
 
 typedef struct xen_events {
@@ -208,41 +212,5 @@ convert_vmi_flags_to_xenmem(vmi_mem_access_t page_access_flag, xenmem_access_t *
 
     return VMI_SUCCESS;
 }
-
-status_t xen_set_int3_access(vmi_instance_t vmi, bool enable);
-
-/* Interface to Xen 4.1-4.5 events */
-int xen_are_events_pending_41(vmi_instance_t vmi);
-int xen_are_events_pending_42(vmi_instance_t vmi);
-int xen_are_events_pending_45(vmi_instance_t vmi);
-status_t xen_events_listen_41(vmi_instance_t vmi, uint32_t timeout);
-status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout);
-status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout);
-status_t xen_set_reg_access_legacy(vmi_instance_t vmi, reg_event_t *event);
-status_t xen_set_intr_access_legacy(vmi_instance_t vmi, interrupt_event_t *event, bool enabled);
-status_t xen_set_mem_access_legacy(vmi_instance_t vmi,
-                                   addr_t gpfn,
-                                   vmi_mem_access_t page_access_flag,
-                                   uint16_t vmm_pagetable_id);
-status_t xen_start_single_step_legacy(vmi_instance_t vmi, single_step_event_t *event);
-status_t xen_stop_single_step_legacy(vmi_instance_t vmi, uint32_t vcpu);
-status_t xen_shutdown_single_step_legacy(vmi_instance_t vmi);
-
-/* Interface to Xen 4.6+ events */
-int xen_are_events_pending(vmi_instance_t vmi);
-status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout);
-status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event);
-status_t xen_set_intr_access(vmi_instance_t vmi, interrupt_event_t *event, bool enabled);
-status_t xen_set_mem_access(vmi_instance_t vmi,
-                            addr_t gpfn,
-                            vmi_mem_access_t page_access_flag,
-                            uint16_t vmm_pagetable_id);
-status_t xen_set_guest_requested_event(vmi_instance_t vmi, bool enabled);
-status_t xen_set_debug_event(vmi_instance_t vmi, bool enabled);
-status_t xen_set_cpuid_event(vmi_instance_t vmi, bool enabled);
-status_t xen_start_single_step(vmi_instance_t vmi, single_step_event_t *event);
-status_t xen_stop_single_step(vmi_instance_t vmi, uint32_t vcpu);
-status_t xen_shutdown_single_step(vmi_instance_t vmi);
-
 
 #endif
