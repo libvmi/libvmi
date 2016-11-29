@@ -148,6 +148,12 @@ AC_ARG_ENABLE([debug],
   [debug="no"])
 AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
 
+AC_ARG_ENABLE([rekall_profiles],
+  [AS_HELP_STRING([--enable-rekall-profiles],
+    [Enable using Rekall's JSON profiles])],
+  [rekall="$enableval"],
+  [rekall="yes"])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -327,19 +333,20 @@ AC_CHECK_PROGS(LEX, lex flex , [no], [path = $PATH])
 [fi]
 AC_PROG_LEX
 
-have_jsonc='no'
 missing='no'
-AC_CHECK_LIB(json-c, json_object_get_int64,, [missing="yes"])
-[if test x"$missing" = "xno"]
+[if test "$rekall" = "yes"]
 [then]
-        AC_CHECK_HEADERS([json-c/json.h])
-        have_jsonc='yes'
-        AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when working JSON-C library was found to parse Rekall profiles.])
-[else]
-    have_jsonc='Disabled, missing libjson-c-dev.'
-    [echo "No working JSON-C library found (libjson-c-dev), Rekall system profiles won't be supported."]
+    AC_CHECK_LIB(json-c, json_object_get_int64,, [missing="yes"])
+    [if test x"$missing" = "xno"]
+    [then]
+            AC_CHECK_HEADERS([json-c/json.h])
+            AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when working JSON-C library was found to parse Rekall profiles.])
+    [else]
+        rekall='Disabled, missing libjson-c-dev.'
+        [echo "No working JSON-C library found (libjson-c-dev), Rekall system profiles won't be supported."]
+    [fi]
 [fi]
-AM_CONDITIONAL([REKALL_PROFILES], [test x"$have_jsonc" = "xyes"])
+AM_CONDITIONAL([REKALL_PROFILES], [test x$rekall = xyes])
 
 [if test "$enable_address_cache" = "yes"]
 [then]
@@ -413,7 +420,7 @@ VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space  | $have_vmifs
 
 Extra features
 ----------------------------------------------------------------------
-Support of Rekall profiles: $have_jsonc
+Support of Rekall profiles: $rekall
  
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.
