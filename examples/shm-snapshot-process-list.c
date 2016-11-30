@@ -37,7 +37,7 @@
 
 void list_processes(vmi_instance_t vmi, addr_t current_process,
     addr_t list_head, unsigned long tasks_offset, addr_t current_list_entry,
-    status_t status, addr_t next_list_entry, unsigned long pid_offset,
+    addr_t next_list_entry, unsigned long pid_offset,
     vmi_pid_t pid, char* procname, unsigned long name_offset) {
 
     /* demonstrate name and id accessors */
@@ -65,7 +65,7 @@ void list_processes(vmi_instance_t vmi, addr_t current_process,
     /* walk the task list */
     list_head = current_process + tasks_offset;
     current_list_entry = list_head;
-    status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
+    status_t status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
     if (status == VMI_FAILURE) {
         printf("Failed to read next pointer at 0x%"PRIx64" before entering loop\n",
             current_list_entry);
@@ -127,15 +127,11 @@ int main (int argc, char **argv)
 
 #if ENABLE_SHM_SNAPSHOT == 1
     vmi_instance_t vmi;
-    unsigned char *memory = NULL;
-    uint32_t offset;
     addr_t list_head = 0, current_list_entry = 0, next_list_entry = 0;
     addr_t current_process = 0;
-    addr_t tmp_next = 0;
     char *procname = NULL;
     vmi_pid_t pid = 0;
     unsigned long tasks_offset, pid_offset, name_offset;
-    status_t status;
 
     char *name = argv[1];
 
@@ -182,7 +178,7 @@ int main (int argc, char **argv)
 
     /* demonstrate name and id accessors */
     list_processes(vmi, current_process, list_head, tasks_offset,
-        current_list_entry, status, next_list_entry, pid_offset, pid,
+        current_list_entry, next_list_entry, pid_offset, pid,
         procname, name_offset);
 
     error_exit: if (procname)
