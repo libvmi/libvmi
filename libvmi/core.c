@@ -32,6 +32,7 @@
 #include <fnmatch.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <unistd.h>
 
 #include "private.h"
 #include "driver/driver_wrapper.h"
@@ -51,8 +52,24 @@ open_config_file(
     char *location;
     char *sudo_user = NULL;
     struct passwd *pw_entry = NULL;
+    char cwd[1024] = { 0 };
 
-    /* first check home directory of sudo user */
+    /* check current directory */
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        location = safe_malloc(snprintf(NULL,0,"%s/libvmi.conf",
+                                       cwd)+1);
+        sprintf(location, "%s/libvmi.conf", cwd);
+        dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
+
+        f = fopen(location, "r");
+
+        if (f) {
+            goto success;
+        }
+        free(location);
+    }
+
+    /* next check home directory of sudo user */
     if ((sudo_user = getenv("SUDO_USER")) != NULL) {
         if ((pw_entry = getpwnam(sudo_user)) != NULL) {
             location = safe_malloc(snprintf(NULL,0,"%s/etc/libvmi.conf",
