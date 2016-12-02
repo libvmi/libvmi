@@ -901,7 +901,7 @@ xen_init_vmi(
     if ( VMI_FAILURE == ret )
         goto _bail;
 
-    if(vmi->init_mode & VMI_INIT_EVENTS)
+    if(xen->hvm && (vmi->init_mode & VMI_INIT_EVENTS))
     {
         ret = xen_init_events(vmi);
 
