@@ -229,16 +229,16 @@ vmi_get_vmid(
 addr_t vmi_translate_ksym2v (vmi_instance_t vmi, const char *symbol)
 {
     status_t status = VMI_FAILURE;
-    addr_t base_vaddr = 0;
     addr_t address = 0;
 
-    if (VMI_FAILURE == sym_cache_get(vmi, base_vaddr, 0, symbol, &address)) {
+    if (VMI_FAILURE == sym_cache_get(vmi, 0, 0, symbol, &address)) {
 
         if (vmi->os_interface && vmi->os_interface->os_ksym2v) {
-            status = vmi->os_interface->os_ksym2v(vmi, symbol, &base_vaddr, &address);
+            addr_t _base_vaddr;
+            status = vmi->os_interface->os_ksym2v(vmi, symbol, &_base_vaddr, &address);
             if (status == VMI_SUCCESS) {
                 address = canonical_addr(address);
-                sym_cache_set(vmi, base_vaddr, 0, symbol, address);
+                sym_cache_set(vmi, 0, 0, symbol, address);
             }
         }
     }
