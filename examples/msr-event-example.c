@@ -75,6 +75,7 @@ int main (int argc, char **argv) {
 
     /* Register event to track any writes to a MSR. */
     memset(&msr_event, 0, sizeof(vmi_event_t));
+    msr_event.version = VMI_EVENTS_VERSION;
     msr_event.type = VMI_EVENT_REGISTER;
     msr_event.reg_event.reg = MSR_ALL;
     msr_event.reg_event.in_access = VMI_REGACCESS_W;
