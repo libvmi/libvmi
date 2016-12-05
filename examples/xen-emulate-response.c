@@ -32,8 +32,7 @@
 #include <libvmi/events.h>
 
 void print_event(vmi_event_t *event){
-    printf("PAGE %"PRIx64" ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %"PRIu32")\n",
-        event->mem_event.physical_address,
+    printf("PAGE ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %"PRIu32")\n",
         (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
         (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
         (event->mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
@@ -98,8 +97,7 @@ int main (int argc, char **argv)
     memset(&event, 0, sizeof(vmi_event_t));
     event.version = VMI_EVENTS_VERSION;
     event.type = VMI_EVENT_MEMORY;
-    event.mem_event.physical_address = vmi_translate_kv2p(vmi, addr);
-    event.mem_event.npages = 1;
+    event.mem_event.gfn = vmi_translate_kv2p(vmi, addr) >> 12;
     event.mem_event.in_access = VMI_MEMACCESS_X;
     event.callback = cb;
 
