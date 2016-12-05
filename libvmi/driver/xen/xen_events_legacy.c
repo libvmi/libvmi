@@ -1062,7 +1062,7 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
         vmi_pause_vm(vmi); // Pause all vCPUs
         vrc = process_requests_45(vmi, &req, &rsp);
 
-        g_hash_table_foreach_steal(vmi->clear_events, clear_events, vmi);
+        g_hash_table_foreach_remove(vmi->clear_events, clear_events, vmi);
 
         vmi_resume_vm(vmi);
     }
