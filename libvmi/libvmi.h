@@ -1728,7 +1728,7 @@ win_ver_t vmi_get_winver_manual(
  */
 uint64_t vmi_get_offset(
     vmi_instance_t vmi,
-    char *offset_name);
+    const char *offset_name);
 
 /**
  * Gets the memory size of the guest or file that LibVMI is currently
