@@ -432,7 +432,11 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
             event->mem_event.offset = offset;
             event->mem_event.out_access = out_access;
             event->vcpu_id = vcpu_id;
+
+            vmi->event_callback = 1;
             process_response ( event->callback(vmi, event), rsp_flags );
+            vmi->event_callback = 0;
+
             return VMI_SUCCESS;
         }
     }

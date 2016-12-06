@@ -306,7 +306,9 @@ status_t process_interrupt_event(vmi_instance_t vmi,
          *  ..but this basic structure should be adequate for now.
          */
 
+        vmi->event_callback = 1;
         process_response( event->callback(vmi, event), event, rsp );
+        vmi->event_callback = 0;
 
         if(-1 == event->interrupt_event.reinject) {
             errprint("%s Need to specify reinjection behaviour!\n", __FUNCTION__);
