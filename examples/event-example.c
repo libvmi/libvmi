@@ -50,8 +50,7 @@ vmi_event_t kernel_vsyscall_event;
 vmi_event_t kernel_sysenter_target_event;
 
 void print_event(vmi_event_t event){
-    printf("PAGE %"PRIx64" ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %"PRIu32")\n",
-        event.mem_event.physical_address,
+    printf("PAGE ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %"PRIu32")\n",
         (event.mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
         (event.mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
         (event.mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
@@ -334,20 +333,17 @@ int main (int argc, char **argv)
     memset(&msr_syscall_sysenter_event, 0, sizeof(vmi_event_t));
     msr_syscall_sysenter_event.version = VMI_EVENTS_VERSION;
     msr_syscall_sysenter_event.type = VMI_EVENT_MEMORY;
-    msr_syscall_sysenter_event.mem_event.physical_address = phys_sysenter_ip;
-    msr_syscall_sysenter_event.mem_event.npages = 1;
+    msr_syscall_sysenter_event.mem_event.gfn = phys_sysenter_ip >> 12;
 
     memset(&kernel_sysenter_target_event, 0, sizeof(vmi_event_t));
     kernel_sysenter_target_event.version = VMI_EVENTS_VERSION;
     kernel_sysenter_target_event.type = VMI_EVENT_MEMORY;
-    kernel_sysenter_target_event.mem_event.physical_address = phys_ia32_sysenter_target;
-    kernel_sysenter_target_event.mem_event.npages = 1;
+    kernel_sysenter_target_event.mem_event.gfn = phys_ia32_sysenter_target >> 12;
 
     memset(&kernel_vsyscall_event, 0, sizeof(vmi_event_t));
     kernel_vsyscall_event.version = VMI_EVENTS_VERSION;
     kernel_vsyscall_event.type = VMI_EVENT_MEMORY;
-    kernel_vsyscall_event.mem_event.physical_address = phys_vsyscall;
-    kernel_vsyscall_event.mem_event.npages = 1;
+    kernel_vsyscall_event.mem_event.gfn = phys_vsyscall >> 12;
 
     while(!interrupted){
         printf("Waiting for events...\n");

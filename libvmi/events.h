@@ -33,7 +33,7 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
-#define VMI_EVENTS_VERSION 0x00000001
+#define VMI_EVENTS_VERSION 0x00000002
 
 #ifdef __cplusplus
 extern "C" {
@@ -256,43 +256,20 @@ typedef struct {
 } reg_event_t;
 
 typedef struct {
-    union {
-        struct {
-            /**
-             * IN: Physical address to set event on.
-             */
-            addr_t physical_address;
+    /**
+     * IN/OUT: Page number at which to set event (IN) or where event occurred (OUT)
+     */
+    addr_t gfn;
 
-            /**
-             * Reserved.
-             */
-            uint64_t npages;
-
-            /**
-             * IN: Generic access violation based event-handler.
-             * If this is set, physical_address must be ~0UL. Use vmi_set_mem_event to
-             * set access permissions on specific pages.
-             */
-            uint8_t generic;
-        };
-
-        struct {
-            /**
-             * OUT: Specific virtual address at which event occurred.
-             */
-            addr_t gla;
-
-            /**
-             * OUT: Page number at which event occurred
-             */
-            addr_t gfn;
-
-            /**
-             * OUT: Offset in bytes (relative to page base) at which the event occurred
-             */
-            addr_t offset;
-        };
-    };
+    /**
+     * CONST IN: Generic access violation based event-handler.
+     * The goal of generic mem_access events is to be a catch-all event, allowing the user to set
+     * permissions with vmi_set_mem_event without having to create a separate vmi_event_t
+     * structure for each page. The callback specified here will be then called for all gfn's where
+     * a mem_access event is observed with a matching vmi_mem_access_t.
+     * If this is set, gfn must be ~0UL.
+     */
+    uint8_t generic;
 
     /**
      * CONST IN: Page permissions used to trigger memory events. See definition
@@ -306,7 +283,18 @@ typedef struct {
      */
     vmi_mem_access_t out_access;
 
-    uint16_t _pad[3];
+    uint8_t _pad[5];
+
+    /**
+     * OUT: Specific virtual address at which event occurred.
+     */
+    addr_t gla;
+
+    /**
+     * OUT: Offset in bytes (relative to page base) at which the event occurred
+     */
+    addr_t offset;
+
 } mem_access_event_t;
 
 typedef uint8_t interrupts_t;
@@ -315,44 +303,37 @@ typedef uint8_t interrupts_t;
 #define INT3            1   /**< Software breakpoint (INT3/0xCC) */
 
 typedef struct {
-    union {
-        /* IN */
-        interrupts_t intr;  /**< Specific interrupt intended to trigger the event */
+    /* IN */
+    interrupts_t intr;  /**< Specific interrupt intended to trigger the event */
 
-        /* OUT */
-        struct {
-            addr_t gla;         /**< (Global Linear Address) == RIP of the trapped instruction */
-            addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
-            addr_t offset;      /**< Offset in bytes (relative to GFN) */
-            uint32_t insn_length; /**< The instruction length when reinjecting */
+    /* OUT */
+    uint32_t insn_length; /**< The instruction length when reinjecting */
 
-            /**
-             * Toggle, controls whether interrupt is re-injected after callback.
-             *   Set reinject to 1 to deliver it to guest ("pass through" mode)
-             *   Set reinject to 0 to swallow it silently without
-             */
-            int8_t reinject;
+    /**
+     * Toggle, controls whether interrupt is re-injected after callback.
+     *   Set reinject to 1 to deliver it to guest ("pass through" mode)
+     *   Set reinject to 0 to swallow it silently without
+     */
+    int8_t reinject;
 
-            uint8_t _pad[3];
-        };
-    };
+    uint16_t _pad;
+
+    addr_t gla;         /**< (Global Linear Address) == RIP of the trapped instruction */
+    addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
+    addr_t offset;      /**< Offset in bytes (relative to GFN) */
 } interrupt_event_t;
 
 typedef struct {
-    union {
-        /* IN */
-        struct {
-            uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
-            uint8_t enable;     /**< Set to true to immediately turn vCPU to singlestep. */
-        };
+    /* CONST IN */
+    uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
+    uint8_t enable;     /**< Set to true to immediately turn vCPU to singlestep. */
 
-        /* OUT */
-        struct {
-            addr_t gla;         /**< The IP of the current instruction */
-            addr_t gfn;         /**< The physical page of the current instruction */
-            addr_t offset;      /**< Offset in bytes (relative to GFN) */
-        };
-    };
+    uint8_t _pad[3];
+
+    /* OUT */
+    addr_t gla;         /**< The IP of the current instruction */
+    addr_t gfn;         /**< The physical page of the current instruction */
+    addr_t offset;      /**< Offset in bytes (relative to GFN) */
 } single_step_event_t;
 
 typedef struct {
@@ -427,13 +408,8 @@ typedef event_response_t (*event_callback_t)(vmi_instance_t vmi, vmi_event_t *ev
 typedef void (*vmi_event_free_t)(vmi_event_t *event, status_t rc);
 
 struct vmi_event {
-    union {
-        /* IN */
-        uint32_t version; /**< User should set it to VMI_EVENTS_VERSION */
-
-        /* OUT */
-        uint32_t vcpu_id; /**< The VCPU relative to which the event occurred. */
-    };
+    /* CONST IN */
+    uint32_t version; /**< User should set it to VMI_EVENTS_VERSION */
 
     /* CONST IN */
     vmi_event_type_t type;  /**< The specific type of event */
@@ -448,6 +424,34 @@ struct vmi_event {
      * Note: on Xen this corresponds to the altp2m_idx.
      */
     uint16_t slat_id;
+
+    /**
+     * CONST IN
+     *
+     * An open-ended mechanism allowing a library user to
+     *  associate external data to the event.
+     * Metadata assigned to this pointer at any time (prior to
+     *  or following registration) is delivered to the callback,
+     *  for each matching event. The callback is also free to
+     *  modify in any way. The library user assumes all memory
+     *  management for this referenced data.
+     */
+    void *data;
+
+    /**
+     * CONST IN
+     *
+     * The callback function that is invoked when the relevant is observed.
+     */
+    event_callback_t callback;
+
+    /* OUT */
+    uint32_t vcpu_id; /**< The VCPU relative to which the event occurred. */
+
+    /**
+     * Reserved for future use
+     */
+    uint32_t _reserved[7];
 
     union {
         reg_event_t reg_event;
@@ -485,31 +489,6 @@ struct vmi_event {
          */
         emul_insn_t *emul_insn;
     };
-
-    /**
-     * CONST IN
-     *
-     * An open-ended mechanism allowing a library user to
-     *  associate external data to the event.
-     * Metadata assigned to this pointer at any time (prior to
-     *  or following registration) is delivered to the callback,
-     *  for each matching event. The callback is also free to
-     *  modify in any way. The library user assumes all memory
-     *  management for this referenced data.
-     */
-    void *data;
-
-    /**
-     * CONST IN
-     *
-     * The callback function that is invoked when the relevant is observed.
-     */
-    event_callback_t callback;
-
-    /**
-     * Reserved for future use
-     */
-    uint64_t _reserved[4];
 };
 
 /**
@@ -545,13 +524,12 @@ struct vmi_event {
 /**
  * Convenience macro to setup a memory event
  */
-#define SETUP_MEM_EVENT(_event, _addr, _access, _callback, _generic) \
+#define SETUP_MEM_EVENT(_event, _gfn, _access, _callback, _generic) \
         do { \
             (_event)->version = VMI_EVENTS_VERSION; \
             (_event)->type = VMI_EVENT_MEMORY; \
-            (_event)->mem_event.physical_address = _generic ? ~0ULL :_addr; \
+            (_event)->mem_event.gfn = _generic ? ~0ULL :_gfn; \
             (_event)->mem_event.in_access = _access; \
-            (_event)->mem_event.npages = 1; \
             (_event)->mem_event.generic = _generic; \
             (_event)->callback = _callback; \
         } while(0)
@@ -671,13 +649,13 @@ vmi_event_t *vmi_get_reg_event(
  * for a given access type.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] physical_address Physical address on the page to check
+ * @param[in] gfn Guest page-frame number to check
  * @param[in] access Access type to check
  * @return vmi_event_t* or NULL if none found
  */
 vmi_event_t *vmi_get_mem_event(
     vmi_instance_t vmi,
-    addr_t physical_address,
+    addr_t gfn,
     vmi_mem_access_t access);
 
 /**
@@ -685,14 +663,14 @@ vmi_event_t *vmi_get_mem_event(
  * violation-type based mem access event handlers.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] physical_address Physical address on the page to set event
+ * @param[in] gfn Guest page-frame number to set event
  * @param[in] access Requested event type on the page
  * @param[in] vmm_pagetable_id The VMM pagetable ID in which to set the access
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_set_mem_event(
     vmi_instance_t vmi,
-    addr_t physical_address,
+    addr_t gfn,
     vmi_mem_access_t access,
     uint16_t vmm_pagetable_id);
 

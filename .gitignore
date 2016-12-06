@@ -47,6 +47,8 @@ examples/step-event-example
 examples/step-event-example.o
 examples/va-pages
 examples/va-pages.o
+examples/xen-emulate-response
+examples/xen-emulate-response.o
 install-sh
 libtool
 libvmi.pc
