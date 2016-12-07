@@ -63,7 +63,9 @@ endif
 if HAVE_KVM
 drivers     += driver/kvm/kvm.h \
                driver/kvm/kvm_private.h \
-               driver/kvm/kvm.c
+               driver/kvm/kvm.c \
+               driver/kvm/libvirt_wrapper.c \
+               driver/kvm/libvirt_wrapper.h
 if SHM
 drivers     += driver/kvm/kvm_shm.h
 endif
@@ -82,7 +84,9 @@ drivers     += driver/xen/altp2m.c \
                driver/xen/xen_events_48.c \
                driver/xen/xen_events_legacy.c \
                driver/xen/libxc_wrapper.c \
-               driver/xen/libxs_wrapper.c
+               driver/xen/libxc_wrapper.h \
+               driver/xen/libxs_wrapper.c \
+               driver/xen/libxs_wrapper.h
 endif
 
 os =

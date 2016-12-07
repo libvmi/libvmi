@@ -56,7 +56,7 @@ status_t driver_init_mode(vmi_instance_t vmi, uint64_t domainid, const char *nam
     }
 #endif
 #if ENABLE_KVM == 1
-    if (VMI_SUCCESS == kvm_test(domainid, name)) {
+    if (VMI_SUCCESS == kvm_test(vmi, domainid, name)) {
         dbprint(VMI_DEBUG_DRIVER, "--found KVM\n");
         vmi->mode = VMI_KVM;
         count++;

@@ -245,7 +245,7 @@ kvm_space='      '
         enable_kvm='no'
         have_kvm='libm missing'
     [else]
-        AC_CHECK_LIB(virt, virConnectOpen, [], [missing="yes"])
+        AC_CHECK_LIB(virt, virConnectOpen, [missing="no"], [missing="yes"])
         [if test "$missing" = "yes"]
         [then]
             AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
@@ -253,6 +253,7 @@ kvm_space='      '
             enable_kvm='no'
             have_kvm='libvirt missing'
         [else]
+            AC_CHECK_LIB(rt, shm_open)
             AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
             missing='no'
             have_kvm='yes'
