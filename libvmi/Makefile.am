@@ -81,7 +81,8 @@ drivers     += driver/xen/altp2m.c \
                driver/xen/xen_events_46.c \
                driver/xen/xen_events_48.c \
                driver/xen/xen_events_legacy.c \
-               driver/xen/libxc_wrapper.c
+               driver/xen/libxc_wrapper.c \
+               driver/xen/libxs_wrapper.c
 endif
 
 os =

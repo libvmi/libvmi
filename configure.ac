@@ -176,7 +176,7 @@ xen_space='      '
 
     [if test "$with_xenstore" = "yes"]
     [then]
-        AC_CHECK_LIB(xenstore, xs_read, [], [missing="yes"])
+        AC_CHECK_LIB(xenstore, xs_read, [missing="no"], [missing="yes"])
         AC_CHECK_HEADERS([xenstore.h])
         AC_CHECK_HEADERS([xs.h])
     [fi]
@@ -188,7 +188,12 @@ xen_space='      '
         enable_xen='no'
         have_xen='missing xenstore'
     [else]
-        AC_CHECK_LIB(xenctrl, xc_interface_open, [], [missing="yes"])
+        [if test "$with_xenstore" = "yes"]
+        [then]
+            AC_DEFINE(HAVE_LIBXENSTORE, [1], [Define to 1 if enable xenstore access])
+        [fi]
+
+        AC_CHECK_LIB(xenctrl, xc_interface_open, [missing="no"], [missing="yes"])
         [if test "$missing" = "yes"]
         [then]
             AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])

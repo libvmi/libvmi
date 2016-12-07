@@ -49,7 +49,7 @@ status_t driver_init_mode(vmi_instance_t vmi, uint64_t domainid, const char *nam
 
     /* see what systems are accessable */
 #if ENABLE_XEN == 1
-    if (VMI_SUCCESS == xen_test(domainid, name)) {
+    if (VMI_SUCCESS == xen_test(vmi, domainid, name)) {
         dbprint(VMI_DEBUG_DRIVER, "--found Xen\n");
         vmi->mode = VMI_XEN;
         count++;

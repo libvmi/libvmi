@@ -24,13 +24,35 @@
 
 #include "xen_private.h"
 
-static inline status_t sanity_check(xen_instance_t *xen)
+static status_t sanity_check(xen_instance_t *xen)
 {
     status_t ret = VMI_FAILURE;
     libxc_wrapper_t *w = &xen->libxcw;
+    int version;
+
+    if ( !w->xc_interface_open || !w->xc_interface_close || !w->xc_version ||
+         !w->xc_map_foreign_range || !w->xc_vcpu_getcontext || !w->xc_vcpu_setcontext ||
+         !w->xc_domain_hvm_getcontext || !w->xc_domain_hvm_getcontext_partial ||
+         !w->xc_domain_hvm_setcontext || !w->xc_domain_getinfo || !w->xc_domain_getinfolist ||
+         !w->xc_domctl || !w->xc_domain_pause || !w->xc_domain_unpause )
+        return ret;
+
+    xen->xchandle = xen->libxcw.xc_interface_open(NULL, NULL, 0);
+    if ( !xen->xchandle ) {
+        errprint("Failed to open libxc interface.\n");
+        return ret;
+    }
+
+    /* get the Xen version */
+    version = w->xc_version(xen->xchandle, XENVER_version, NULL);
+    xen->major_version = version >> 16;
+    xen->minor_version = version & ((1 << 16) - 1);
+
+    dbprint(VMI_DEBUG_XEN, "**The running Xen version is %u.%u\n",
+            xen->major_version, xen->minor_version);
 
     if ( xen->major_version != 4 )
-        return ret;
+        goto done;
 
     switch ( xen->minor_version )
     {
@@ -46,7 +68,13 @@ static inline status_t sanity_check(xen_instance_t *xen)
             if ( !w->xc_domain_maximum_gpfn || !w->xc_map_foreign_batch ||
                  !w->xc_mem_access_enable || !w->xc_mem_access_disable ||
                  !w->xc_mem_access_resume || !w->xc_hvm_set_mem_access ||
-                 !w->xc_hvm_get_mem_access )
+                 !w->xc_hvm_get_mem_access || !w->xc_domain_debug_control ||
+                 !w->xc_domain_set_access_required || !w->xc_hvm_inject_trap ||
+                 !w->xc_domain_decrease_reservation_exact || !w->xc_domain_populate_physmap_exact ||
+                 !w->xc_evtchn_open || !w->xc_evtchn_close || !w->xc_evtchn_fd ||
+                 !w->xc_evtchn_notify || !w->xc_evtchn_pending || !w->xc_evtchn_unmask ||
+                 !w->xc_evtchn_unbind || !w->xc_evtchn_bind_interdomain ||
+                 !w->xc_set_hvm_param || !w->xc_get_hvm_param )
                 break;
 
             ret = VMI_SUCCESS;
@@ -55,7 +83,8 @@ static inline status_t sanity_check(xen_instance_t *xen)
         case 5:
             if ( !w->xc_domain_maximum_gpfn || !w->xc_set_mem_access ||
                  !w->xc_get_mem_access || !w->xc_mem_access_enable2 ||
-                 !w->xc_mem_access_disable || !w->xc_mem_access_disable )
+                 !w->xc_mem_access_disable || !w->xc_mem_access_disable ||
+                 !w->xc_hvm_param_set || !w->xc_hvm_param_get )
                 break;
 
             ret = VMI_SUCCESS;
@@ -79,7 +108,8 @@ static inline status_t sanity_check(xen_instance_t *xen)
                  !w->xc_altp2m_get_domain_state || !w->xc_altp2m_set_domain_state ||
                  !w->xc_altp2m_set_vcpu_enable_notify || !w->xc_altp2m_create_view ||
                  !w->xc_altp2m_destroy_view || !w->xc_altp2m_switch_to_view ||
-                 !w->xc_altp2m_set_mem_access || !w->xc_altp2m_change_gfn )
+                 !w->xc_altp2m_set_mem_access || !w->xc_altp2m_change_gfn ||
+                 !w->xc_hvm_param_set || !w->xc_hvm_param_get )
                 break;
 
             ret = VMI_SUCCESS;
@@ -88,14 +118,16 @@ static inline status_t sanity_check(xen_instance_t *xen)
             break;
     };
 
+done:
+    if ( VMI_FAILURE == ret )
+        w->xc_interface_close(xen->xchandle);
+
     return ret;
 }
 
 status_t create_libxc_wrapper(xen_instance_t *xen)
 {
     libxc_wrapper_t *wrapper = &xen->libxcw;
-
-    memset ( wrapper, 0, sizeof(libxc_wrapper_t) );
 
     wrapper->handle = dlopen ("libxenctrl.so", RTLD_NOW | RTLD_GLOBAL);
 
@@ -117,9 +149,39 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
         }
     }
 
+    /* Basic */
+    wrapper->xc_interface_open = dlsym(wrapper->handle, "xc_interface_open");
+    wrapper->xc_interface_close = dlsym(wrapper->handle, "xc_interface_close");
+    wrapper->xc_version = dlsym(wrapper->handle, "xc_version");
+    wrapper->xc_map_foreign_range = dlsym(wrapper->handle, "xc_map_foreign_range");
+    wrapper->xc_vcpu_getcontext = dlsym(wrapper->handle, "xc_vcpu_getcontext");
+    wrapper->xc_vcpu_setcontext = dlsym(wrapper->handle, "xc_vcpu_setcontext");
+    wrapper->xc_domain_hvm_getcontext = dlsym(wrapper->handle, "xc_domain_hvm_getcontext");
+    wrapper->xc_domain_hvm_getcontext_partial = dlsym(wrapper->handle, "xc_domain_hvm_getcontext_partial");
+    wrapper->xc_domain_hvm_setcontext = dlsym(wrapper->handle, "xc_domain_hvm_setcontext");
+    wrapper->xc_domain_getinfo = dlsym(wrapper->handle, "xc_domain_getinfo");
+    wrapper->xc_domain_getinfolist = dlsym(wrapper->handle, "xc_domain_getinfolist");
+    wrapper->xc_domctl = dlsym(wrapper->handle, "xc_domctl");
+    wrapper->xc_domain_pause = dlsym(wrapper->handle, "xc_domain_pause");
+    wrapper->xc_domain_unpause = dlsym(wrapper->handle, "xc_domain_unpause");
     wrapper->xc_domain_maximum_gpfn = dlsym(wrapper->handle, "xc_domain_maximum_gpfn");
     wrapper->xc_domain_maximum_gpfn2 = dlsym(wrapper->handle, "xc_domain_maximum_gpfn");
     wrapper->xc_map_foreign_batch = dlsym(wrapper->handle, "xc_map_foreign_batch");
+
+    /* Events */
+    wrapper->xc_domain_debug_control = dlsym(wrapper->handle, "xc_domain_debug_control");
+    wrapper->xc_domain_set_access_required = dlsym(wrapper->handle, "xc_domain_set_access_required");
+    wrapper->xc_domain_decrease_reservation_exact = dlsym(wrapper->handle, "xc_domain_decrease_reservation_exact");
+    wrapper->xc_hvm_inject_trap = dlsym(wrapper->handle, "xc_hvm_inject_trap");
+    wrapper->xc_domain_populate_physmap_exact = dlsym(wrapper->handle, "xc_domain_populate_physmap_exact");
+    wrapper->xc_evtchn_open = dlsym(wrapper->handle, "xc_evtchn_open");
+    wrapper->xc_evtchn_close = dlsym(wrapper->handle, "xc_evtchn_close");
+    wrapper->xc_evtchn_fd = dlsym(wrapper->handle, "xc_evtchn_fd");
+    wrapper->xc_evtchn_notify = dlsym(wrapper->handle, "xc_evtchn_notify");
+    wrapper->xc_evtchn_pending = dlsym(wrapper->handle, "xc_evtchn_pending");
+    wrapper->xc_evtchn_unmask = dlsym(wrapper->handle, "xc_evtchn_unmask");
+    wrapper->xc_evtchn_unbind = dlsym(wrapper->handle, "xc_evtchn_unbind");
+    wrapper->xc_evtchn_bind_interdomain = dlsym(wrapper->handle, "xc_evtchn_bind_interdomain");
     wrapper->xc_hvm_set_mem_access = dlsym(wrapper->handle, "xc_hvm_set_mem_access");
     wrapper->xc_hvm_get_mem_access = dlsym(wrapper->handle, "xc_hvm_get_mem_access");
     wrapper->xc_set_mem_access = dlsym(wrapper->handle, "xc_set_mem_access");
@@ -148,6 +210,10 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_altp2m_change_gfn = dlsym ( wrapper->handle , "xc_altp2m_change_gfn" );
     wrapper->xc_monitor_debug_exceptions = dlsym(wrapper->handle, "xc_monitor_debug_exceptions");
     wrapper->xc_monitor_cpuid = dlsym(wrapper->handle, "xc_monitor_cpuid");
+    wrapper->xc_hvm_param_get = dlsym(wrapper->handle, "xc_hvm_param_get");
+    wrapper->xc_hvm_param_set = dlsym(wrapper->handle, "xc_hvm_param_set");
+    wrapper->xc_get_hvm_param = dlsym(wrapper->handle, "xc_get_hvm_param");
+    wrapper->xc_set_hvm_param = dlsym(wrapper->handle, "xc_set_hvm_param");
 
     return sanity_check(xen);
 }
