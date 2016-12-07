@@ -352,7 +352,7 @@ missing='no'
         [echo "No working JSON-C library found (libjson-c-dev), Rekall system profiles won't be supported."]
     [fi]
 [fi]
-AM_CONDITIONAL([REKALL_PROFILES], [test x$rekall = xyes])
+AM_CONDITIONAL([REKALL_PROFILES], [test x"$rekall" = xyes])
 
 [if test "$enable_address_cache" = "yes"]
 [then]
