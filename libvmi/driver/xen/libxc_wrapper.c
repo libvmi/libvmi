@@ -56,6 +56,9 @@ static status_t sanity_check(xen_instance_t *xen)
 
     switch ( xen->minor_version )
     {
+        case 0:
+            dbprint(VMI_DEBUG_XEN, "Xen 4.0 no longer supported!\n");
+            break;
         case 1:
             if ( !w->xc_domain_maximum_gpfn )
                 break;
@@ -91,6 +94,8 @@ static status_t sanity_check(xen_instance_t *xen)
             break;
 
         /* Things start to be a bit saner from 4.6 */
+        default:
+            /* Fall-through */
         case 8:
             if ( !w->xc_monitor_debug_exceptions || !w->xc_monitor_cpuid ||
                  !w->xc_monitor_mov_to_msr2 )
@@ -113,8 +118,6 @@ static status_t sanity_check(xen_instance_t *xen)
                 break;
 
             ret = VMI_SUCCESS;
-            break;
-        default:
             break;
     };
 
