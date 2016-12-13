@@ -354,6 +354,7 @@ status_t linux_init(vmi_instance_t vmi) {
     os_interface = safe_malloc(sizeof(struct os_interface));
     bzero(os_interface, sizeof(struct os_interface));
     os_interface->os_get_offset = linux_get_offset;
+    os_interface->os_get_kernel_struct_offset = linux_get_kernel_struct_offset;
     os_interface->os_pid_to_pgd = linux_pid_to_pgd;
     os_interface->os_pgd_to_pid = linux_pgd_to_pid;
     os_interface->os_ksym2v = linux_symbol_to_address;
@@ -431,6 +432,11 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
     warnprint("Invalid offset %s given for Linux target\n", key);
 
     _done: return;
+}
+
+status_t linux_get_kernel_struct_offset(vmi_instance_t vmi, const char* symbol, const char* member, addr_t *addr){
+    linux_instance_t linux_instance = vmi->os_data;
+    return rekall_profile_symbol_to_rva(linux_instance->rekall_profile,symbol,member,addr);
 }
 
 uint64_t linux_get_offset(vmi_instance_t vmi, const char* offset_name) {

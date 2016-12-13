@@ -414,6 +414,11 @@ error_exit:
     return VMI_FAILURE;
 }
 
+status_t windows_get_kernel_struct_offset(vmi_instance_t vmi, const char* symbol, const char* member, addr_t *addr){
+    windows_instance_t windows = vmi->os_data;
+    return rekall_profile_symbol_to_rva(windows->rekall_profile,symbol,member,addr);
+}
+
 uint64_t windows_get_offset(vmi_instance_t vmi, const char* offset_name) {
     const size_t max_length = 100;
     windows_instance_t windows = vmi->os_data;
@@ -762,6 +767,7 @@ windows_init(
     /* Need to provide this functions so that find_page_mode will work */
     os_interface = safe_malloc(sizeof(struct os_interface));
     bzero(os_interface, sizeof(struct os_interface));
+    os_interface->os_get_kernel_struct_offset = windows_get_kernel_struct_offset;
     os_interface->os_get_offset = windows_get_offset;
     os_interface->os_pid_to_pgd = windows_pid_to_pgd;
     os_interface->os_pgd_to_pid = windows_pgd_to_pid;

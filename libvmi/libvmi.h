@@ -1731,6 +1731,21 @@ uint64_t vmi_get_offset(
     const char *offset_name);
 
 /**
+ * Get the memory offset associated with the given symbol and subsymbol in the struct
+ * @param[in] vmi LibVMI instance
+ * @param[in] struct_name String name for desired symbol
+ * @param[in] subsymbol String name for desired subsymbol
+ * @param[out] offset of subsymbol in struct (symbol)
+ *
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_get_kernel_struct_offset(
+    vmi_instance_t vmi,
+    const char* struct_name,
+    const char* member,
+    addr_t *addr);
+
+/**
  * Gets the memory size of the guest or file that LibVMI is currently
  * accessing.  This is the amount of RAM allocated to the guest, but
  * does not necessarily indicate the highest addressable physical address;

@@ -141,6 +141,16 @@ vmi_get_offset(
     return vmi->os_interface->os_get_offset(vmi, offset_name);
 }
 
+status_t
+vmi_get_kernel_struct_offset(
+    vmi_instance_t vmi,
+    const char* symbol,
+    const char* member,
+    addr_t *addr)
+{
+    return vmi->os_interface->os_get_kernel_struct_offset(vmi,symbol,member,addr);
+}
+
 uint64_t
 vmi_get_memsize(
     vmi_instance_t vmi)
