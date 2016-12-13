@@ -433,7 +433,14 @@ event_response_t issue_mem_cb(vmi_instance_t vmi,
                   vm_event_46_request_t *req,
                   vmi_mem_access_t out_access)
 {
-    event->mem_event.gla = req->u.mem_access.gla;
+    if ( req->u.mem_access.flags | MEM_ACCESS_GLA_VALID )
+    {
+        event->mem_event.gptw = !!(req->u.mem_access.flags | MEM_ACCESS_FAULT_IN_GPT);
+        event->mem_event.gla_valid = 1;
+        event->mem_event.gla = req->u.mem_access.gla;
+    } else
+        event->mem_event.gla = 0ull;
+
     event->mem_event.gfn = req->u.mem_access.gfn;
     event->mem_event.offset = req->u.mem_access.offset;
     event->mem_event.out_access = out_access;

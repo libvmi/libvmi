@@ -399,8 +399,8 @@ status_t process_register(vmi_instance_t vmi,
 
 static
 status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool access_x,
-                     uint64_t gfn, uint64_t offset, uint64_t gla, uint32_t vcpu_id,
-                     uint32_t *rsp_flags)
+                     uint64_t gfn, uint64_t offset, bool gla_valid, uint64_t gla,
+                     uint32_t vcpu_id, uint32_t *rsp_flags)
 {
 
     xc_interface * xch;
@@ -427,7 +427,8 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
         event = g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
 
         if (event && event->mem_event.in_access & out_access) {
-            event->mem_event.gla = gla;
+            event->mem_event.gla_valid = gla_valid
+            event->mem_event.gla = gla_valid ? gla : 0ull;
             event->mem_event.gfn = gfn;
             event->mem_event.offset = offset;
             event->mem_event.out_access = out_access;
@@ -448,7 +449,7 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
 
         ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
             if ( event->mem_event.in_access & out_access ) {
-                event->mem_event.gla = gla;
+                event->mem_event.gla = gla_valid ? gla : ~0ull;
                 event->mem_event.gfn = gfn;
                 event->mem_event.offset = offset;
                 event->mem_event.out_access = out_access;
@@ -839,7 +840,8 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
 
                 if(!vmi->shutting_down) {
                     vrc = process_mem(vmi, req.access_r, req.access_w, req.access_x,
-                                      req.gfn, req.offset, req.gla, req.vcpu_id, NULL);
+                                      req.gfn, req.offset, req.gla_valid, req.gla,
+                                      req.vcpu_id, NULL);
                 }
 
                 /*MARESCA do we need logic here to reset flags on a page? see xen-access.c
@@ -945,7 +947,8 @@ process_requests_45(vmi_instance_t vmi, mem_event_45_request_t *req, mem_event_4
 
                 if(!vmi->shutting_down) {
                     vrc = process_mem(vmi, req->access_r, req->access_w, req->access_x,
-                                      req->gfn, req->offset, req->gla, req->vcpu_id, &rsp->flags);
+                                      req->gfn, req->offset, req->gla_valid, req->gla,
+                                      req->vcpu_id, &rsp->flags);
                 }
 
                 /*MARESCA do we need logic here to reset flags on a page? see xen-access.c

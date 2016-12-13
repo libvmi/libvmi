@@ -33,7 +33,7 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
-#define VMI_EVENTS_VERSION 0x00000002
+#define VMI_EVENTS_VERSION 0x00000003
 
 #ifdef __cplusplus
 extern "C" {
@@ -283,10 +283,21 @@ typedef struct {
      */
     vmi_mem_access_t out_access;
 
-    uint8_t _pad[5];
+    /**
+     * OUT: Whether fault occured during a guest page-table walk.
+     */
+    uint8_t gptw;
 
     /**
-     * OUT: Specific virtual address at which event occurred.
+     * OUT: Whether the value in gla is an actual virtual address
+     */
+    uint8_t gla_valid;
+
+    uint8_t _pad[3];
+
+    /**
+     * OUT: Specific virtual address at which event occurred. If gptw is set, the fault occured
+     * while trying to translate this virtual address.
      */
     addr_t gla;
 
