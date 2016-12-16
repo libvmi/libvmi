@@ -34,8 +34,9 @@
 vmi_event_t interrupt_event;
 
 event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event){
-    printf("Int 3 happened: GFN=%"PRIx64" RIP=%"PRIx64"\n",
-        event->interrupt_event.gfn, event->interrupt_event.gla);
+    printf("Int 3 happened: GFN=%"PRIx64" RIP=%"PRIx64" Length: %"PRIu32"\n",
+        event->interrupt_event.gfn, event->interrupt_event.gla,
+        event->interrupt_event.insn_length);
 
     /* This callback assumes that all INT3 events are caused by
      *  a debugger or similar inside the guest, and therefore
@@ -48,10 +49,13 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event){
      * there are prefixes attached. As adding prefixes to int3 have
      * no effect, under normal circumstances no legitimate compiler/debugger
      * would add any. However, a malicious guest could add prefixes to change
-     * the instruction length. For this example we simply assume a non-malicious
-     * guest.
+     * the instruction length. Older Xen versions (prior to 4.8) don't include this
+     * information and thus this length is reported as 0. In those cases the length
+     * have to be established manually, or assume a non-malicious guest as we do here.
      */
-    event->interrupt_event.insn_length = 1;
+    if ( !event->interrupt_event.insn_length )
+        event->interrupt_event.insn_length = 1;
+
     return 0;
 }
 
