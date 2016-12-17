@@ -182,7 +182,7 @@ def main():
 		if opts.infile: #if -f option is provided, use that filename
 			dump_types(opts.infile, opts.outfile)
 		else: #otherwise use stdin (piped from downloadPDB.py)
-			infile = sys.stdin.read().rstrip() #read stdin, strip out newline
+			infile = sys.stdin.read().rstrip().split("\n")[-1].strip() #read stdin, strip out newline
 			dump_types(infile, opts.outfile)
 	else:
 		print "Must supply an output filename.  Use -h for help"
