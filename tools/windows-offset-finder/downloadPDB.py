@@ -50,40 +50,7 @@ from shutil import copyfileobj
 from urllib import FancyURLopener
 from pdbparse.dbgold import CV_RSDS_HEADER, CV_NB10_HEADER, DebugDirectoryType
 
-
-
-class PDBOpener(FancyURLopener):
-    """ Open and download the PDB file from the MS Symbol Server."""
-    USER_AGENT = 'Microsoft-Symbol-Server/6.6.0007.5'
-    version = USER_AGENT
-
-    def http_error_default(self, url, fp, errcode, errmsg, headers):
-        if errcode == 404:
-            raise urllib2.HTTPError(url, errcode, errmsg, headers, fp)
-        else:
-            FancyURLopener.http_error_default(url, fp, errcode, errmsg, headers)
-
-
-lastprog = None
-def progress(blocks,blocksz,totalsz):
-    """Shows progress when user requests more verbose output.
-
-       :param blocks: ??
-       :param blocksz: ??
-       :param totalsz: ??
-    """
-    global lastprog
-    if lastprog is None:
-        print "Connected. Downloading data..."
-    percent = int((100*(blocks*blocksz)/float(totalsz)))
-    if lastprog != percent and percent % 5 == 0: print "%d%%" % percent,
-    lastprog = percent
-    sys.stdout.flush()
-
 #download_file function
-#
-#From: symchk.py
-#
 #Purpose: download pdb file, when given a GUID and filename.
 def download_file(guid,fname,verbose,path=""):
     '''
@@ -93,44 +60,20 @@ def download_file(guid,fname,verbose,path=""):
     which default to the current directory.
     '''
 
-    # A normal GUID is 32 bytes. With the age field appended
-    # the GUID argument should therefore be longer to be valid.
-    # Exception: old-style PEs without a debug section use
-    # TimeDateStamp+SizeOfImage
-    #if len(guid) == 32:
-        #print "Warning: GUID is too short to be valid. Did you append the Age field?"
+    url = "http://msdl.microsoft.com/download/symbols/%s/%s/" % (fname,guid.upper())
 
-    url = "http://msdl.microsoft.com/download/symbols/%s/%s/" % (fname,guid)
-    opener = urllib2.build_opener()
+    types = [fname[:-1] + '_', fname]
 
-    # Whatever extension the user has supplied it must be replaced with .pd_
-    tries = [ fname[:-1] + '_', fname ]
+    for saved_file in types:
+      if verbose:
+        print "Trying %s" % (url + saved_file)
 
-    if verbose:
-      for t in tries:
-        print "Trying %s" % (url+t)
-        try:
-            PDBOpener().retrieve(url+t, path+t, reporthook=progress)
-            print
-            print "Saved symbols to %s" % (path+t)
-            return path+t
-        except urllib2.HTTPError, e:
-            print "HTTP error %u" % (e.code)
-            pass
-      return None
+      retval = os.system('curl %s --user-agent "Microsoft-Symbol-Server" %s --output %s' % ("" if verbose else "-s", url + saved_file, saved_file))
 
+      if retval == 0:
+        return saved_file
 
-    elif not verbose:
-       for t in tries:
-           #print "Trying %s" % (url+t)
-           try:
-               PDBOpener().retrieve(url+t, path+t)
-               #print "Saved symbols to %s" % (path+t)
-               return path+t
-           except urllib2.HTTPError, e:
-               #print "HTTP error %u" % (e.code)
-               pass
-       return None
+    return None
 
 def error():
 	print "Must pipe the output of getGUID into this program"
