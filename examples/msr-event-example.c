@@ -34,7 +34,7 @@
 vmi_event_t msr_event;
 
 event_response_t msr_write_cb(vmi_instance_t vmi, vmi_event_t *event) {
-    printf("MSR write happened: MSR=%lx Value=%lx\n", event->reg_event.context, event->reg_event.value);
+    printf("MSR write happened: MSR=%x Value=%lx\n", event->reg_event.msr, event->reg_event.value);
     return 0;
 }
 

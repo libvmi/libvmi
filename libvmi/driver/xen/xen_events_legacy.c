@@ -381,7 +381,7 @@ status_t process_register(vmi_instance_t vmi,
 
             /* Special case: indicate which MSR is being written (passed in gla) */
             if(xen->major_version == 4 && xen->minor_version > 2 && event->reg_event.reg == MSR_ALL)
-                event->reg_event.context = gla;
+                event->reg_event.msr = gla;
 
             /* TODO MARESCA: note that vmi_event_t lacks a flags member
              *   so we have no req.flags equivalent. might need to add
@@ -427,7 +427,7 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
         event = g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
 
         if (event && event->mem_event.in_access & out_access) {
-            event->mem_event.gla_valid = gla_valid
+            event->mem_event.gla_valid = gla_valid;
             event->mem_event.gla = gla_valid ? gla : 0ull;
             event->mem_event.gfn = gfn;
             event->mem_event.offset = offset;

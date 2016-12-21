@@ -392,7 +392,7 @@ status_t process_register(vmi_instance_t vmi,
         switch ( reg )
         {
             case MSR_ALL:
-                event->reg_event.context = req->u.mov_to_msr.msr;
+                event->reg_event.msr = req->u.mov_to_msr.msr;
                 event->reg_event.value = req->u.mov_to_msr.value;
                 break;
             case CR0:
@@ -811,7 +811,7 @@ status_t xen_set_reg_access_46(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->vm_event.monitor_msr_on )
                 goto done;
 
-            rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, enable, event->extended_msr);
+            rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, enable, 1);
             if ( rc )
                 goto done;
 
@@ -1134,6 +1134,7 @@ void xen_events_destroy_46(vmi_instance_t vmi)
     rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
     rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
     rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
+    rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, false, 0);
     rc = xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
     xen_set_guest_requested_event_46(vmi, 0);
 
