@@ -79,6 +79,7 @@ int main (int argc, char **argv) {
     msr_event.type = VMI_EVENT_REGISTER;
     msr_event.reg_event.reg = MSR_ALL;
     msr_event.reg_event.in_access = VMI_REGACCESS_W;
+    msr_event.reg_event.extended_msr = 1;
     msr_event.callback = msr_write_cb;
 
     vmi_register_event(vmi, &msr_event);

@@ -266,6 +266,8 @@ typedef reg_t registers_t;
 #define MSR_EFER         74
 #define MSR_TSC_AUX      75
 
+#define MSR_STAR         119
+
 /**
  * Special generic case for handling MSRs, given their understandably
  * generic treatment for events in Xen and elsewhere. Not relevant for

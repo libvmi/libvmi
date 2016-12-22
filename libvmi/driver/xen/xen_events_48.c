@@ -59,6 +59,7 @@
 #include "driver/xen/xen_private.h"
 #include "driver/xen/xen_events.h"
 #include "driver/xen/xen_events_private.h"
+#include "driver/xen/msr-index.h"
 
 static inline
 xen_events_t *xen_get_events(vmi_instance_t vmi)
@@ -930,8 +931,17 @@ status_t xen_set_reg_access_48(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->vm_event.monitor_msr_on )
                 goto done;
 
-            rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, enable, event->extended_msr);
-            if ( rc )
+            if ( xen->libxcw.xc_monitor_mov_to_msr(xch, dom, _MSR_EFER, event->extended_msr) )
+                goto done;
+            if ( xen->libxcw.xc_monitor_mov_to_msr(xch, dom, _MSR_STAR, event->extended_msr) )
+                goto done;
+            if ( xen->libxcw.xc_monitor_mov_to_msr(xch, dom, _MSR_LSTAR, event->extended_msr) )
+                goto done;
+            if ( xen->libxcw.xc_monitor_mov_to_msr(xch, dom, _MSR_CSTAR, event->extended_msr) )
+                goto done;
+            if ( xen->libxcw.xc_monitor_mov_to_msr(xch, dom, _MSR_SYSCALL_MASK, event->extended_msr) )
+                goto done;
+            if ( xen->libxcw.xc_monitor_mov_to_msr(xch, dom, _MSR_TSC_AUX, event->extended_msr) )
                 goto done;
 
             xe->vm_event.monitor_msr_on = enable;
