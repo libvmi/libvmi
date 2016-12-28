@@ -383,32 +383,32 @@ vmi_init_private(
     status_t status = VMI_FAILURE;
 
     /* allocate memory for instance structure */
-    *vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
-    memset(*vmi, 0, sizeof(struct vmi_instance));
+    vmi_instance_t _vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
+    memset(_vmi, 0, sizeof(struct vmi_instance));
 
     /* initialize instance struct to default values */
     dbprint(VMI_DEBUG_CORE, "LibVMI Version 0.11.0\n");  //TODO change this with each release
 
     /* save the flags and init mode */
-    (*vmi)->flags = flags;
-    (*vmi)->init_mode = init_mode;
-    (*vmi)->config_mode = config_mode;
+    _vmi->flags = flags;
+    _vmi->init_mode = init_mode;
+    _vmi->config_mode = config_mode;
 
     /* the config hash table is set up later based on mode */
-    (*vmi)->config = NULL;
+    _vmi->config = NULL;
 
     /* set page mode to unknown */
-    (*vmi)->page_mode = VMI_PM_UNKNOWN;
+    _vmi->page_mode = VMI_PM_UNKNOWN;
 
     /* setup the caches */
-    pid_cache_init(*vmi);
-    sym_cache_init(*vmi);
-    rva_cache_init(*vmi);
-    v2p_cache_init(*vmi);
+    pid_cache_init(_vmi);
+    sym_cache_init(_vmi);
+    rva_cache_init(_vmi);
+    v2p_cache_init(_vmi);
 
     if ( init_mode & VMI_INIT_SHM_SNAPSHOT ) {
 #if ENABLE_SHM_SNAPSHOT == 1
-        v2m_cache_init(*vmi);
+        v2m_cache_init(_vmi);
 #else
         errprint("LibVMI wasn't compiled with SHM support!\n");
         status = VMI_FAILURE;
@@ -417,47 +417,47 @@ vmi_init_private(
     }
 
     /* connecting to xen, kvm, file, etc */
-    if (VMI_FAILURE == set_driver_type(*vmi, access_mode, id, name)) {
+    if (VMI_FAILURE == set_driver_type(_vmi, access_mode, id, name)) {
         goto error_exit;
     }
 
     /* driver-specific initilization */
-    if (VMI_FAILURE == driver_init(*vmi)) {
+    if (VMI_FAILURE == driver_init(_vmi)) {
         goto error_exit;
     }
     dbprint(VMI_DEBUG_CORE, "--completed driver init.\n");
 
     /* resolve the id and name */
-    if (VMI_FAILURE == set_id_and_name(*vmi, id, name)) {
+    if (VMI_FAILURE == set_id_and_name(_vmi, id, name)) {
         goto error_exit;
     }
 
     /* init vmi for specific file/domain through the driver */
-    if (VMI_FAILURE == driver_init_vmi(*vmi)) {
+    if (VMI_FAILURE == driver_init_vmi(_vmi)) {
         goto error_exit;
     }
 
     /* setup the page offset size */
-    if (VMI_FAILURE == init_page_offset(*vmi)) {
+    if (VMI_FAILURE == init_page_offset(_vmi)) {
         goto error_exit;
     }
 
     /* get the memory size */
-    if (driver_get_memsize(*vmi, &(*vmi)->allocated_ram_size, &(*vmi)->max_physical_address) == VMI_FAILURE) {
+    if (driver_get_memsize(_vmi, &_vmi->allocated_ram_size, &_vmi->max_physical_address) == VMI_FAILURE) {
         errprint("Failed to get memory size.\n");
         goto error_exit;
     }
 
     dbprint(VMI_DEBUG_CORE, "**set allocated_ram_size = %"PRIx64", "
                             "max_physical_address = 0x%"PRIx64"\n",
-                            (*vmi)->allocated_ram_size,
-                            (*vmi)->max_physical_address);
+                            _vmi->allocated_ram_size,
+                            _vmi->max_physical_address);
 
     // for file mode we need os-specific heuristics to deduce the architecture
     // for live mode, having arch_interface set even in VMI_PARTIAL mode
     // allows use of dtb-based translation methods.
-    if (VMI_FILE != (*vmi)->mode) {
-        if(VMI_FAILURE == arch_init(*vmi)) {
+    if (VMI_FILE != _vmi->mode) {
+        if(VMI_FAILURE == arch_init(_vmi)) {
             if (init_mode & VMI_INIT_COMPLETE) {
                 dbprint(VMI_DEBUG_CORE, "--failed to determine architecture of live vm and INIT_COMPLETE.\n");
                 goto error_exit;
@@ -473,16 +473,16 @@ vmi_init_private(
     /* we check VMI_INIT_COMPLETE first as
        VMI_INIT_PARTIAL is not exclusive */
     if (init_mode & VMI_INIT_COMPLETE) {
-        switch((*vmi)->config_mode) {
+        switch(_vmi->config_mode) {
             case VMI_CONFIG_STRING:
                 /* read and parse the config string */
-                if(VMI_FAILURE == read_config_string(*vmi, (char*)config)) {
+                if(VMI_FAILURE == read_config_string(_vmi, (char*)config)) {
                     goto error_exit;
                 }
                 break;
             case VMI_CONFIG_GLOBAL_FILE_ENTRY:
                 /* read and parse the config file */
-                if(VMI_FAILURE == read_config_file_entry(*vmi)) {
+                if(VMI_FAILURE == read_config_file_entry(_vmi)) {
                     goto error_exit;
                 }
                 break;
@@ -491,7 +491,7 @@ vmi_init_private(
                 if (!config) {
                     goto error_exit;
                 }
-                (*vmi)->config = (GHashTable*)config;
+                _vmi->config = (GHashTable*)config;
                 break;
             case VMI_CONFIG_NONE:
             default:
@@ -501,24 +501,24 @@ vmi_init_private(
                 goto error_exit;
         }
 
-        if(VMI_FAILURE == set_os_type_from_config(*vmi)) {
+        if(VMI_FAILURE == set_os_type_from_config(_vmi)) {
             dbprint(VMI_DEBUG_CORE, "--failed to determine os type from config\n");
             goto error_exit;
         }
 
         /* setup OS specific stuff */
-        switch ( (*vmi)->os_type )
+        switch ( _vmi->os_type )
         {
 #ifdef ENABLE_LINUX
         case VMI_OS_LINUX:
-            if(VMI_FAILURE == linux_init(*vmi)) {
+            if(VMI_FAILURE == linux_init(_vmi)) {
                 goto error_exit;
             }
             break;
 #endif
 #ifdef ENABLE_WINDOWS
         case VMI_OS_WINDOWS:
-            if(VMI_FAILURE == windows_init(*vmi)) {
+            if(VMI_FAILURE == windows_init(_vmi)) {
                 goto error_exit;
             }
             break;
@@ -542,12 +542,15 @@ vmi_init_private(
 
     if(init_mode & VMI_INIT_EVENTS) {
         /* Enable event handlers */
-        events_init(*vmi);
+        events_init(_vmi);
     }
 
 error_exit:
-    if ( VMI_FAILURE == status )
-        vmi_destroy(*vmi);
+    if ( VMI_FAILURE == status ) {
+        vmi_destroy(_vmi);
+        *vmi = NULL;
+    } else
+        *vmi = _vmi;
 
     return status;
 }
