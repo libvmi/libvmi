@@ -392,7 +392,7 @@ status_t process_register(vmi_instance_t vmi,
         switch ( reg )
         {
             case MSR_ALL:
-                event->reg_event.context = req->u.mov_to_msr.msr;
+                event->reg_event.msr = req->u.mov_to_msr.msr;
                 event->reg_event.value = req->u.mov_to_msr.value;
                 break;
             case CR0:
@@ -433,7 +433,14 @@ event_response_t issue_mem_cb(vmi_instance_t vmi,
                   vm_event_46_request_t *req,
                   vmi_mem_access_t out_access)
 {
-    event->mem_event.gla = req->u.mem_access.gla;
+    if ( req->u.mem_access.flags | MEM_ACCESS_GLA_VALID )
+    {
+        event->mem_event.gptw = !!(req->u.mem_access.flags | MEM_ACCESS_FAULT_IN_GPT);
+        event->mem_event.gla_valid = 1;
+        event->mem_event.gla = req->u.mem_access.gla;
+    } else
+        event->mem_event.gla = 0ull;
+
     event->mem_event.gfn = req->u.mem_access.gfn;
     event->mem_event.offset = req->u.mem_access.offset;
     event->mem_event.out_access = out_access;
@@ -804,7 +811,7 @@ status_t xen_set_reg_access_46(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->vm_event.monitor_msr_on )
                 goto done;
 
-            rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, enable, event->extended_msr);
+            rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, enable, 1);
             if ( rc )
                 goto done;
 
@@ -1127,6 +1134,7 @@ void xen_events_destroy_46(vmi_instance_t vmi)
     rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
     rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
     rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
+    rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, false, 0);
     rc = xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
     xen_set_guest_requested_event_46(vmi, 0);
 

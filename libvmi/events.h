@@ -33,7 +33,7 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
-#define VMI_EVENTS_VERSION 0x00000002
+#define VMI_EVENTS_VERSION 0x00000003
 
 #ifdef __cplusplus
 extern "C" {
@@ -174,6 +174,14 @@ typedef struct {
      * 'sensitive register instructions' by Popek and
      *  Goldberg, meaning that the registers trigger
      *  a VMEXIT, trap, or equivalent.
+     *
+     * Note for MSR events on Xen: up to Xen 4.7 only MSR_ALL is supported.
+     *  Starting with Xen 4.8 the user has the option to subscribe to specific
+     *  MSR events, or to continue using MSR_ALL. However, in this case MSR_ALL
+     *  only corresponds to common MSRs that are defined by LibVMI in libvmi.h.
+     *  To subscribe to MSR events that are NOT defined by LibVMI, the user can specify
+     *  MSR_UNDEFINED here and then set the specific MSR index in the 'msr' field
+     *  below.
      */
     reg_t reg;
 
@@ -221,37 +229,34 @@ typedef struct {
 
     uint32_t _pad;
 
+    /**
+     * OUT
+     *
+     * Register value read or written
+     */
+    reg_t value;
+
     union {
         /**
-         * IN
+         * OUT
          *
-         * IFF set to 1, an extended set of MSR events are going to be delivered
-         * Only available on Xen with 4.5 and onwards
+         * Previous value of register (only for CR0/CR3/CR4)
          */
-        uint8_t extended_msr;
+        reg_t previous;
 
         /**
-         * OUT
+         * CONST IN/OUT
+         *
+         * MSR register operations only
+         *
+         * CONST IN: Starting from Xen 4.8 the user can use this field to specify an
+         *  MSR index to subscribe to when the MSR is not formally defined by LibVMI.
+         *
+         * OUT: holds the specific MSR for which the event occurred
+         *  when the user registered with MSR_ALL.
+         * Unused for other register event types.
          */
-        struct {
-            /**
-             * Register value read or written
-             */
-            reg_t value;
-
-            union {
-                /**
-                 * Previous value of register (only for CR0/CR3/CR4)
-                 */
-                reg_t previous;
-
-                /**
-                 * MSR register operations only: holds the specific MSR for which the event occurred.
-                 * Unused for other register event types.
-                 */
-                reg_t context;
-            };
-        };
+        uint32_t msr;
     };
 } reg_event_t;
 
@@ -283,10 +288,21 @@ typedef struct {
      */
     vmi_mem_access_t out_access;
 
-    uint8_t _pad[5];
+    /**
+     * OUT: Whether fault occured during a guest page-table walk.
+     */
+    uint8_t gptw;
 
     /**
-     * OUT: Specific virtual address at which event occurred.
+     * OUT: Whether the value in gla is an actual virtual address
+     */
+    uint8_t gla_valid;
+
+    uint8_t _pad[3];
+
+    /**
+     * OUT: Specific virtual address at which event occurred. If gptw is set, the fault occured
+     * while trying to translate this virtual address.
      */
     addr_t gla;
 

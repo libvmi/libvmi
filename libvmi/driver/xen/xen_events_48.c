@@ -59,6 +59,7 @@
 #include "driver/xen/xen_private.h"
 #include "driver/xen/xen_events.h"
 #include "driver/xen/xen_events_private.h"
+#include "driver/xen/msr-index.h"
 
 static inline
 xen_events_t *xen_get_events(vmi_instance_t vmi)
@@ -407,7 +408,7 @@ status_t process_register(vmi_instance_t vmi,
         switch ( reg )
         {
             case MSR_ALL:
-                event->reg_event.context = req->u.mov_to_msr.msr;
+                event->reg_event.msr = req->u.mov_to_msr.msr;
                 event->reg_event.value = req->u.mov_to_msr.value;
                 break;
             case CR0:
@@ -449,7 +450,14 @@ event_response_t issue_mem_cb(vmi_instance_t vmi,
                   vm_event_48_request_t *req,
                   vmi_mem_access_t out_access)
 {
-    event->mem_event.gla = req->u.mem_access.gla;
+    if ( req->u.mem_access.flags | MEM_ACCESS_GLA_VALID )
+    {
+        event->mem_event.gptw = !!(req->u.mem_access.flags | MEM_ACCESS_FAULT_IN_GPT);
+        event->mem_event.gla_valid = 1;
+        event->mem_event.gla = req->u.mem_access.gla;
+    } else
+        event->mem_event.gla = 0ull;
+
     event->mem_event.gfn = req->u.mem_access.gfn;
     event->mem_event.offset = req->u.mem_access.offset;
     event->mem_event.out_access = out_access;
@@ -930,12 +938,32 @@ status_t xen_set_reg_access_48(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->vm_event.monitor_msr_on )
                 goto done;
 
-            rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, enable, event->extended_msr);
-            if ( rc )
+            size_t i;
+            for (i=0; i<sizeof(msr_all)/sizeof(reg_t); i++) {
+                 dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" to %i\n", msr_index[msr_all[i]], enable);
+                 if ( xen->libxcw.xc_monitor_mov_to_msr2(xch, dom, msr_index[msr_all[i]], enable) )
+                     dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" FAILED\n", msr_index[msr_all[i]]);
+             }
+
+             xe->vm_event.monitor_msr_on = enable;
+             break;
+        case MSR_FLAGS ... MSR_TSC_AUX:
+        case MSR_STAR ... MSR_HYPERVISOR:
+            if ( xen->libxcw.xc_monitor_mov_to_msr2(xch, dom, msr_index[event->reg], enable) ) {
+                dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" FAILED\n", event->msr);
+                goto done;
+            }
+            break;
+        case MSR_UNDEFINED:
+            if ( !event->msr )
                 goto done;
 
-            xe->vm_event.monitor_msr_on = enable;
+            if ( xen->libxcw.xc_monitor_mov_to_msr2(xch, dom, event->msr, enable) ) {
+                dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" FAILED\n", event->msr);
+                goto done;
+            }
             break;
+
         default:
             errprint("Tried to register for unsupported register event.\n");
             goto done;
@@ -1304,6 +1332,12 @@ void xen_events_destroy_48(vmi_instance_t vmi)
     xen_set_guest_requested_event_48(vmi, 0);
     xen_set_cpuid_event_48(vmi, 0);
     xen_set_debug_event_48(vmi, 0);
+
+    size_t i;
+    for (i=0; i<sizeof(msr_all)/sizeof(reg_t); i++) {
+        xen->libxcw.xc_monitor_mov_to_msr2(xch, dom, msr_index[msr_all[i]], 0);
+    }
+
 
     if ( xe->vm_event.ring_page ) {
         xen_events_listen_48(vmi, 0);

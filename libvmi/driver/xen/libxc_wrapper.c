@@ -63,7 +63,8 @@ static inline status_t sanity_check(xen_instance_t *xen)
 
         /* Things start to be a bit saner from 4.6 */
         case 8:
-            if ( !w->xc_monitor_debug_exceptions || !w->xc_monitor_cpuid )
+            if ( !w->xc_monitor_debug_exceptions || !w->xc_monitor_cpuid ||
+                 !w->xc_monitor_mov_to_msr2 )
                 break;
             /* Fall-through */
         case 7:
@@ -133,6 +134,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_monitor_get_capabilities = dlsym(wrapper->handle, "xc_monitor_get_capabilities");
     wrapper->xc_monitor_write_ctrlreg = dlsym(wrapper->handle, "xc_monitor_write_ctrlreg");
     wrapper->xc_monitor_mov_to_msr = dlsym(wrapper->handle, "xc_monitor_mov_to_msr");
+    wrapper->xc_monitor_mov_to_msr2 = dlsym(wrapper->handle, "xc_monitor_mov_to_msr");
     wrapper->xc_monitor_singlestep = dlsym(wrapper->handle, "xc_monitor_singlestep");
     wrapper->xc_monitor_software_breakpoint = dlsym(wrapper->handle, "xc_monitor_software_breakpoint");
     wrapper->xc_monitor_guest_request = dlsym(wrapper->handle, "xc_monitor_guest_request");

@@ -90,7 +90,7 @@ typedef struct {
             (xc_interface *xch, domid_t domain_id, uint16_t index, bool enable, bool sync, bool onchangeonly);
 
     int (*xc_monitor_mov_to_msr)
-            (xc_interface *xch, domid_t domain_id, uint32_t msr, bool enable);
+            (xc_interface *xch, domid_t domain_id, bool enable, bool extended_capture);
 
     int (*xc_monitor_singlestep)
             (xc_interface *xch, domid_t domain_id, bool enable);
@@ -132,6 +132,9 @@ typedef struct {
 
     int (*xc_monitor_cpuid)
             (xc_interface *xch, domid_t domain_id, bool enable);
+
+    int (*xc_monitor_mov_to_msr2)
+            (xc_interface *xch, domid_t domain_id, uint32_t msr, bool enable);
 
 } libxc_wrapper_t;
 

@@ -1283,6 +1283,9 @@ xen_get_vcpureg_hvm(
     case MSR_EFER:
         *value = (reg_t) hvm_cpu->msr_efer;
         break;
+    case MSR_STAR:
+        *value = (reg_t) hvm_cpu->msr_star;
+        break;
 
 #ifdef DECLARE_HVM_SAVE_TYPE_COMPAT
         /* Handle churn in struct hvm_hw_cpu (from xen/hvm/save.h)
@@ -1605,6 +1608,9 @@ xen_set_vcpureg_hvm(
         break;
     case MSR_EFER:
         cpu->msr_efer = value;
+        break;
+    case MSR_STAR:
+        cpu->msr_star = value;
         break;
 
 #ifdef DECLARE_HVM_SAVE_TYPE_COMPAT

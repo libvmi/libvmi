@@ -166,6 +166,8 @@ struct vmi_instance {
 
     GHashTable *reg_events; /**< reg event to functions mapping (key: reg) */
 
+    GHashTable *msr_events; /**< reg event to functions mapping (key: msr index) */
+
     GHashTable *ss_events; /**< single step event to functions mapping (key: vcpu_id) */
 
     GSList *step_events; /**< events to be re-registered after single-stepping them */
