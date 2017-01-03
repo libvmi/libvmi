@@ -435,7 +435,7 @@ event_response_t issue_mem_cb(vmi_instance_t vmi,
                   vm_event_46_request_t *req,
                   vmi_mem_access_t out_access)
 {
-    if ( req->u.mem_access.flags | MEM_ACCESS_GLA_VALID )
+    if ( req->u.mem_access.flags & MEM_ACCESS_GLA_VALID )
     {
         event->mem_event.gptw = !!(req->u.mem_access.flags | MEM_ACCESS_FAULT_IN_GPT);
         event->mem_event.gla_valid = 1;
