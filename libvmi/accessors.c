@@ -211,6 +211,21 @@ vmi_get_name(
     }
 }
 
+const char *
+vmi_get_rekall_path(
+    vmi_instance_t vmi){
+
+    switch(vmi_get_ostype(vmi))
+    {
+    case VMI_OS_LINUX:
+        return (const char*)((linux_instance_t)vmi->os_data)->rekall_profile;
+    case VMI_OS_WINDOWS:
+        return (const char*)((windows_instance_t)vmi->os_data)->rekall_profile;
+    default:
+        return NULL;
+    }
+}
+
 uint64_t
 vmi_get_vmid(
     vmi_instance_t vmi)
