@@ -17,7 +17,7 @@ make || error_exit
 sudo LIBVMI_CHECK_TESTVM=$1 make check || error_exit
 
 # poor man's integration tests
-sudo LIBVMI_CHECK_TESTVM=$LIBVMI_CHECK_TESTVM ./examples/process-list $LIBVMI_CHECK_TESTVM || error_exit
-sudo LIBVMI_CHECK_TESTVM=$LIBVMI_CHECK_TESTVM ./examples/module-list $LIBVMI_CHECK_TESTVM || error_exit
+sudo LIBVMI_CHECK_TESTVM=$LIBVMI_CHECK_TESTVM ./examples/vmi-process-list $LIBVMI_CHECK_TESTVM || error_exit
+sudo LIBVMI_CHECK_TESTVM=$LIBVMI_CHECK_TESTVM ./examples/vmi-module-list $LIBVMI_CHECK_TESTVM || error_exit
 
 exit 0
