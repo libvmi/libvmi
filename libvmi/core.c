@@ -40,6 +40,29 @@
 #include "os/os_interface.h"
 #include "os/windows/windows.h"
 #include "os/linux/linux.h"
+
+#ifndef ENABLE_CONFIGFILE
+static inline status_t
+read_config_file(vmi_instance_t UNUSED(vmi),
+                 FILE* UNUSED(config_file))
+{
+    return VMI_FAILURE;
+}
+
+static inline status_t
+read_config_string(vmi_instance_t UNUSED(vmi),
+                   const char* UNUSED(config))
+{
+    return VMI_FAILURE;
+}
+
+static inline status_t
+read_config_file_entry(vmi_instance_t UNUSED(vmi))
+{
+    return VMI_FAILURE;
+}
+#else
+
 #include "config/config_parser.h"
 
 extern FILE *yyin;
@@ -117,59 +140,7 @@ success:
     return f;
 }
 
-status_t
-set_os_type_from_config(
-    vmi_instance_t vmi)
-{
-    status_t ret = VMI_FAILURE;
-    GHashTable *configtbl = (GHashTable *)vmi->config;
-    const char* ostype = NULL;
-
-    vmi->os_type = VMI_OS_UNKNOWN;
-    if (vmi->os_data) {
-        free(vmi->os_data);
-        vmi->os_data = NULL;
-    }
-
-    ostype = g_hash_table_lookup(configtbl, "ostype");
-    if (ostype == NULL) {
-        ostype = g_hash_table_lookup(configtbl, "os_type");
-    }
-
-    if (ostype == NULL) {
-        errprint("Undefined OS type!\n");
-        return VMI_FAILURE;
-    }
-
-    if (strncmp(ostype, "Linux", CONFIG_STR_LENGTH) == 0) {
-        vmi->os_type = VMI_OS_LINUX;
-        ret = VMI_SUCCESS;
-    } else if (strncmp(ostype, "Windows", CONFIG_STR_LENGTH) == 0) {
-        vmi->os_type = VMI_OS_WINDOWS;
-        ret = VMI_SUCCESS;
-    } else {
-        errprint("VMI_ERROR: Unknown OS type: %s!\n", ostype);
-        ret = VMI_FAILURE;
-    }
-
-#ifdef VMI_DEBUG
-    if (vmi->os_type == VMI_OS_LINUX) {
-        dbprint(VMI_DEBUG_CORE, "**set os_type to Linux.\n");
-    }
-    else if (vmi->os_type == VMI_OS_WINDOWS) {
-        dbprint(VMI_DEBUG_CORE, "**set os_type to Windows.\n");
-    }
-    else {
-        dbprint(VMI_DEBUG_CORE, "**set os_type to unknown.\n");
-    }
-#endif
-
-    return ret;
-}
-
-status_t
-read_config_file(
-    vmi_instance_t vmi, FILE* config_file);
+status_t read_config_file(vmi_instance_t vmi, FILE* config_file);
 
 status_t read_config_string(vmi_instance_t vmi,
         const char *config) {
@@ -214,7 +185,7 @@ status_t
 read_config_file(
     vmi_instance_t vmi, FILE* config_file)
 {
-    status_t ret = VMI_SUCCESS;
+    status_t ret = VMI_FAILURE;
 
     yyin = config_file;
 
@@ -236,6 +207,58 @@ read_config_file(
 error_exit:
     if (config_file)
         fclose(config_file);
+
+    return ret;
+}
+#endif
+
+status_t
+set_os_type_from_config(
+    vmi_instance_t vmi)
+{
+    status_t ret = VMI_FAILURE;
+    GHashTable *configtbl = (GHashTable *)vmi->config;
+    const char* ostype = NULL;
+
+    vmi->os_type = VMI_OS_UNKNOWN;
+    if (vmi->os_data) {
+        free(vmi->os_data);
+        vmi->os_data = NULL;
+    }
+
+    ostype = g_hash_table_lookup(configtbl, "ostype");
+    if (ostype == NULL) {
+        ostype = g_hash_table_lookup(configtbl, "os_type");
+    }
+
+    if (ostype == NULL) {
+        errprint("Undefined OS type!\n");
+        return VMI_FAILURE;
+    }
+
+    if (!strcmp(ostype, "Linux")) {
+        vmi->os_type = VMI_OS_LINUX;
+        ret = VMI_SUCCESS;
+    } else if (!strcmp(ostype, "Windows")) {
+        vmi->os_type = VMI_OS_WINDOWS;
+        ret = VMI_SUCCESS;
+    } else {
+        errprint("VMI_ERROR: Unknown OS type: %s!\n", ostype);
+        ret = VMI_FAILURE;
+    }
+
+#ifdef VMI_DEBUG
+    if (vmi->os_type == VMI_OS_LINUX) {
+        dbprint(VMI_DEBUG_CORE, "**set os_type to Linux.\n");
+    }
+    else if (vmi->os_type == VMI_OS_WINDOWS) {
+        dbprint(VMI_DEBUG_CORE, "**set os_type to Windows.\n");
+    }
+    else {
+        dbprint(VMI_DEBUG_CORE, "**set os_type to unknown.\n");
+    }
+#endif
+
     return ret;
 }
 

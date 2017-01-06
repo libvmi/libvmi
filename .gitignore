@@ -188,4 +188,3 @@ tools/linux-offset-finder/findoffsets.mod.o
 tools/linux-offset-finder/findoffsets.o
 tools/linux-offset-finder/modules.order
 tools/pyvmi/build/
-
