@@ -601,7 +601,7 @@ windows_rva_to_export(
         if(VMI_FAILURE==vmi_read_16(vmi, &_ctx, &ordinal))
             continue;
 
-        _ctx.addr = base3 + ordinal + sizeof(uint32_t);
+        _ctx.addr = base3 + ordinal * sizeof(uint32_t);
         if(VMI_FAILURE==vmi_read_32(vmi, &_ctx, &loc))
             continue;
 
