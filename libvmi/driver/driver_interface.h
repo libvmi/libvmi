@@ -176,9 +176,9 @@ typedef struct driver_interface {
 } driver_interface_t;
 
 status_t driver_init_mode(
-    vmi_instance_t vmi,
+    const char *name,
     uint64_t domainid,
-    const char *name);
+    vmi_mode_t *mode);
 
 status_t driver_init(
     vmi_instance_t vmi);

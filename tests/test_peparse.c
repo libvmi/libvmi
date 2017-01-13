@@ -261,7 +261,8 @@ status_t check_pe_sections(vmi_instance_t vmi, addr_t image_base_v, uint8_t *pe)
 START_TEST (test_peparse)
 {
     vmi_instance_t vmi = NULL;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     addr_t kernbase;
 
     if (VMI_OS_WINDOWS == vmi_get_ostype(vmi) && VMI_OS_WINDOWS_XP == vmi_get_winver(vmi)){

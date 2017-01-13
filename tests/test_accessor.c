@@ -34,7 +34,8 @@ START_TEST (test_vmi_get_name)
     vmi_instance_t vmi = NULL;
     char *name = NULL;
     int compare = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     name = vmi_get_name(vmi);
     compare = strcmp(name, get_testvm());
     fail_unless(compare == 0, "vmi_get_name failed");
@@ -49,7 +50,8 @@ START_TEST (test_vmi_get_memsize_max_phys_addr)
     uint64_t memsize = 0;
     addr_t max_physical_addr = 0;
 
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
 
     memsize = vmi_get_memsize(vmi);
     max_physical_addr = vmi_get_max_physical_address(vmi);

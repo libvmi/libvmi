@@ -41,7 +41,7 @@ struct linux_instance {
 };
 typedef struct linux_instance *linux_instance_t;
 
-status_t linux_init(vmi_instance_t instance);
+status_t linux_init(vmi_instance_t instance, GHashTable *config);
 
 uint64_t linux_get_offset(vmi_instance_t vmi, const char* offset_name);
 

@@ -28,7 +28,19 @@
 #include "check_tests.h"
 #include "../libvmi/libvmi.h"
 
-char *testvm = NULL;
+TCase *init_tcase();
+TCase *translate_tcase();
+TCase *read_tcase();
+TCase *write_tcase();
+TCase *print_tcase();
+TCase *accessor_tcase();
+TCase *util_tcase();
+TCase *peparse_tcase();
+TCase *cache_tcase();
+TCase *get_va_pages_tcase();
+TCase *shm_snapshot_tcase();
+
+const char *testvm = NULL;
 
 const char *get_testvm (void)
 {
@@ -60,11 +72,12 @@ main (void)
     suite_add_tcase(s, accessor_tcase());
     suite_add_tcase(s, util_tcase());
     suite_add_tcase(s, peparse_tcase());
+    suite_add_tcase(s, cache_tcase());
+    suite_add_tcase(s, get_va_pages_tcase());
+
 #if ENABLE_SHM_SNAPSHOT == 1
     suite_add_tcase(s, shm_snapshot_tcase());
 #endif
-    suite_add_tcase(s, cache_tcase());
-    suite_add_tcase(s, get_va_pages_tcase());
 
     /* run the tests */
     SRunner *sr = srunner_create(s);

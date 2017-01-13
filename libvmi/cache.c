@@ -137,7 +137,8 @@ void
 pid_cache_destroy(
     vmi_instance_t vmi)
 {
-    g_hash_table_destroy(vmi->pid_cache);
+    if ( vmi->pid_cache )
+        g_hash_table_destroy(vmi->pid_cache);
 }
 
 status_t
@@ -262,7 +263,8 @@ void
 sym_cache_destroy(
     vmi_instance_t vmi)
 {
-    g_hash_table_destroy(vmi->sym_cache);
+    if ( vmi->sym_cache )
+        g_hash_table_destroy(vmi->sym_cache);
 }
 
 status_t
@@ -415,7 +417,8 @@ void
 rva_cache_destroy(
     vmi_instance_t vmi)
 {
-    g_hash_table_destroy(vmi->rva_cache);
+    if ( vmi->rva_cache )
+        g_hash_table_destroy(vmi->rva_cache);
 }
 
 status_t
@@ -541,7 +544,8 @@ void
 v2p_cache_destroy(
     vmi_instance_t vmi)
 {
-    g_hash_table_destroy(vmi->v2p_cache);
+    if ( vmi->v2p_cache )
+        g_hash_table_destroy(vmi->v2p_cache);
 }
 
 status_t

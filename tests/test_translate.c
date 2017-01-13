@@ -36,7 +36,9 @@ START_TEST (test_libvmi_piddtb)
     int tasks_offset, pid_offset, name_offset;
     int failed = 1;
 
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
+
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
         tasks_offset = vmi_get_offset(vmi, "linux_tasks");
         name_offset = vmi_get_offset(vmi, "linux_name");
@@ -92,7 +94,8 @@ START_TEST (test_libvmi_invalid_pid)
     uint8_t buffer[8];
     size_t bytes_read = 0;
 
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
 
     bytes_read = vmi_read(vmi, &ctx, &buffer, sizeof(buffer));
 
@@ -106,7 +109,9 @@ END_TEST
 START_TEST (test_libvmi_kv2p)
 {
     vmi_instance_t vmi = NULL;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
+
     addr_t va = 0;
     if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
         va = vmi_translate_ksym2v(vmi, "PsInitialSystemProcess");
@@ -135,7 +140,9 @@ END_TEST
 START_TEST (test_libvmi_ksym2v)
 {
     vmi_instance_t vmi = NULL;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
+
     addr_t va = 0;
     if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
         va = vmi_translate_ksym2v(vmi, "PsInitialSystemProcess");

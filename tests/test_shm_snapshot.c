@@ -38,9 +38,10 @@
 START_TEST (test_libvmi_shm_snapshot_create)
 {
     vmi_instance_t vmi = NULL;
-    status_t ret = vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE | VMI_INIT_SHM_SNAPSHOT, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME | VMI_INIT_SHM,
+                      NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
 
-    ret = vmi_shm_snapshot_create(vmi);
+    status_t ret = vmi_shm_snapshot_create(vmi);
     vmi_shm_snapshot_destroy(vmi);
 
     fail_unless(ret == VMI_SUCCESS,
@@ -56,7 +57,8 @@ END_TEST
 START_TEST (test_vmi_get_dgpma)
 {
     vmi_instance_t vmi = NULL;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE | VMI_INIT_SHM_SNAPSHOT, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME | VMI_INIT_SHM,
+                      NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     vmi_shm_snapshot_create(vmi);
 
     addr_t pa = 0x1000; // just because vmi_read_page() deny to fetch frame 0.
@@ -93,7 +95,8 @@ END_TEST
 START_TEST (test_vmi_get_dgvma)
 {
     vmi_instance_t vmi = NULL;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME | VMI_INIT_SHM,
+                      NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     vmi_shm_snapshot_create(vmi);
 
     addr_t va = 0x0;

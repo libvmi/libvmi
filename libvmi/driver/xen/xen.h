@@ -95,7 +95,6 @@ status_t xen_write(
 int xen_is_pv(
     vmi_instance_t vmi);
 status_t xen_test(
-    vmi_instance_t vmi,
     uint64_t domainid,
     const char *name);
 status_t xen_pause_vm(

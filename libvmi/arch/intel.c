@@ -288,7 +288,7 @@ status_t v2p_nopae (vmi_instance_t vmi,
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd = 0x%.8"PRIx64"\n", info->x86_legacy.pgd_value);
 
-    if (!ENTRY_PRESENT(vmi->os_type, info->x86_legacy.pgd_value)) {
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_legacy.pgd_value)) {
         buffalo_nopae(vmi, info->x86_legacy.pgd_value, 0);
         status = VMI_FAILURE;
         goto done;
@@ -309,7 +309,7 @@ status_t v2p_nopae (vmi_instance_t vmi,
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte = 0x%.8"PRIx64"\n", info->x86_legacy.pte_value);
 
-    if (!ENTRY_PRESENT(vmi->os_type, info->x86_legacy.pte_value)) {
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_legacy.pte_value)) {
         buffalo_nopae(vmi, info->x86_legacy.pte_value, 1);
         status = VMI_FAILURE;
         goto done;
@@ -340,7 +340,7 @@ status_t v2p_pae (vmi_instance_t vmi,
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pdpe = 0x%"PRIx64"\n", info->x86_pae.pdpe_value);
 
-    if (!ENTRY_PRESENT(vmi->os_type, info->x86_pae.pdpe_value)) {
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_pae.pdpe_value)) {
         goto done;
     }
 
@@ -349,7 +349,7 @@ status_t v2p_pae (vmi_instance_t vmi,
         goto done;
     }
 
-    if (!ENTRY_PRESENT(vmi->os_type, info->x86_pae.pgd_value)) {
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_pae.pgd_value)) {
         status = VMI_FAILURE;
         goto done;
     }
@@ -367,7 +367,7 @@ status_t v2p_pae (vmi_instance_t vmi,
         goto done;
     }
 
-    if (!ENTRY_PRESENT(vmi->os_type, info->x86_pae.pte_value)) {
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_pae.pte_value)) {
         status = VMI_FAILURE;
         goto done;
     }
@@ -472,7 +472,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb) {
         uint64_t pdp_base_va = pdp_index * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PGD * PTRS_PER_PAE_PTE * entry_size;
         uint64_t pdp_entry = pdpi_table[pdp_index];
 
-        if(!ENTRY_PRESENT(vmi->os_type, pdp_entry)) {
+        if(!ENTRY_PRESENT(vmi->x86.transition_pages, pdp_entry)) {
             continue;
         }
 

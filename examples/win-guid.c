@@ -324,7 +324,8 @@ void print_pe_header(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
 
 int main(int argc, char **argv) {
 
-    vmi_instance_t vmi;
+    vmi_instance_t vmi = NULL;
+    vmi_mode_t mode;
 
     /* this is the VM that we are looking at */
     if (argc != 3) {
@@ -332,27 +333,32 @@ int main(int argc, char **argv) {
         return 1;
     }   // if
 
+    void *domain;
     uint64_t domid = VMI_INVALID_DOMID;
-    GHashTable *config = g_hash_table_new(g_str_hash, g_str_equal);
+    uint64_t init_flags = 0;
 
     if(strcmp(argv[1],"name")==0) {
-        g_hash_table_insert(config, "name", argv[2]);
+        domain = (void*)argv[2];
+        init_flags |= VMI_INIT_DOMAINNAME;
     } else
     if(strcmp(argv[1],"domid")==0) {
         domid = strtoull(argv[2], NULL, 0);
-        g_hash_table_insert(config, "domid", &domid);
+        domain = (void*)&domid;
+        init_flags |= VMI_INIT_DOMAINID;
     } else {
         printf("You have to specify either name or domid!\n");
         return 1;
     }
 
-    /* partialy initialize the libvmi library */
-    if (vmi_init_custom(&vmi, VMI_AUTO | VMI_INIT_PARTIAL | VMI_CONFIG_GHASHTABLE, config) == VMI_FAILURE) {
+    if (VMI_FAILURE == vmi_get_access_mode(vmi, domain, init_flags, NULL, &mode) )
+        return 1;
+
+    /* initialize the libvmi library */
+    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, NULL, NULL))
+    {
         printf("Failed to init LibVMI library.\n");
-        g_hash_table_destroy(config);
         return 1;
     }
-    g_hash_table_destroy(config);
 
     max_mem = vmi_get_max_physical_address(vmi);
 

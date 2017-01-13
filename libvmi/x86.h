@@ -106,11 +106,11 @@ extern "C" {
  * If a page is called, but not present, a page fault will occur,
  * and the OS should handle it. (See below.)
  */
-#define ENTRY_PRESENT(os_type, entry) \
+#define ENTRY_PRESENT(transition_pages, entry) \
     (VMI_GET_BIT(entry, 0) \
         ? 1 : \
         ( \
-            (os_type == VMI_OS_WINDOWS && \
+            (transition_pages && \
                 (TRANSITION(entry) && !(PROTOTYPE(entry))) \
             ) \
             ? 1 : 0 \

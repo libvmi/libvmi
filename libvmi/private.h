@@ -66,13 +66,7 @@ struct vmi_instance {
 
     driver_interface_t driver; /**< The driver supporting the chosen mode */
 
-    uint32_t flags;         /**< flags passed to init function */
-
-    uint32_t init_mode;     /**< VMI_INIT_PARTIAL or VMI_INIT_COMPLETE */
-
-    GHashTable* config;    /**< configuration */
-
-    uint32_t config_mode;     /**< VMI_CONFIG_NONE/FILE/STRING/GHASHTABLE */
+    uint32_t init_flags;    /**< init flags (events, shm, etc.) */
 
     char *image_type;       /**< image type that we are accessing */
 
@@ -88,11 +82,9 @@ struct vmi_instance {
 
     union {
         struct {
-            int pae;        /**< nonzero if PAE is enabled */
+            bool pse;        /**< true if PSE is enabled */
 
-            int pse;        /**< nonzero if PSE is enabled */
-
-            int lme;        /**< nonzero if LME is enabled */
+            bool transition_pages; /**< true if transition-pages are enabled */
         } x86;
 
         struct {
@@ -299,8 +291,10 @@ status_t vmi_pagetable_lookup_cache(
 
     #define PSR_MODE_BIT 0x10 // set on cpsr iff ARM32
 
-    status_t find_page_mode_live(
-    vmi_instance_t vmi);
+status_t find_page_mode_live(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    page_mode_t *out_pm);
 
 /*-----------------------------------------
  * strmatch.c
@@ -333,7 +327,7 @@ status_t vmi_pagetable_lookup_cache(
 /*----------------------------------------------
  * events.c
  */
-    void events_init(
+    status_t events_init(
         vmi_instance_t vmi);
     void events_destroy(
         vmi_instance_t vmi);

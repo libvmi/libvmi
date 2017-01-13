@@ -47,8 +47,10 @@ main(
     char *name = argv[1];
 
     /* initialize the libvmi library */
-    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) ==
-        VMI_FAILURE) {
+    if (VMI_FAILURE ==
+        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, NULL,
+                          VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
+    {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -92,7 +94,7 @@ main(
         if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
             char *modname = NULL;
 
-            if (VMI_PM_IA32E == vmi_get_page_mode(vmi)) {   // 64-bit paging
+            if (VMI_PM_IA32E == vmi_get_page_mode(vmi, 0)) {   // 64-bit paging
                 modname = vmi_read_str_va(vmi, next_module + 16, 0);
             }
             else {
@@ -111,7 +113,7 @@ main(
              * These offset values are stable (at least) between XP and Windows 7.
              */
 
-            if (VMI_PM_IA32E == vmi_get_page_mode(vmi)) {
+            if (VMI_PM_IA32E == vmi_get_page_mode(vmi, 0)) {
                 us = vmi_read_unicode_str_va(vmi, next_module + 0x58, 0);
             } else {
                 us = vmi_read_unicode_str_va(vmi, next_module + 0x2c, 0);

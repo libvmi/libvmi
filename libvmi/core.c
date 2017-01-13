@@ -44,20 +44,24 @@
 #ifndef ENABLE_CONFIGFILE
 static inline status_t
 read_config_file(vmi_instance_t UNUSED(vmi),
-                 FILE* UNUSED(config_file))
+                 FILE* UNUSED(config_file),
+                 GHashTable** UNUSED(_config))
 {
     return VMI_FAILURE;
 }
 
 static inline status_t
 read_config_string(vmi_instance_t UNUSED(vmi),
-                   const char* UNUSED(config))
+                   const char* UNUSED(config)
+                   GHashTable** UNUSUED(_config))
 {
     return VMI_FAILURE;
 }
 
 static inline status_t
-read_config_file_entry(vmi_instance_t UNUSED(vmi))
+read_config_file_entry(vmi_instance_t UNUSED(vmi),
+                       GHashTable** UNUSED(config),
+                       vmi_init_error_t* UNUSED(error))
 {
     return VMI_FAILURE;
 }
@@ -149,14 +153,53 @@ success:
     return f;
 }
 
-status_t read_config_file(vmi_instance_t vmi, FILE* config_file);
+static status_t
+read_config_file(vmi_instance_t vmi, FILE* config_file,
+                 GHashTable **config, vmi_init_error_t *error)
+{
+    status_t ret = VMI_FAILURE;
+
+    yyin = config_file;
+
+    if (vmi_parse_config(vmi->image_type) != 0) {
+        if ( error )
+            *error = VMI_INIT_ERROR_NO_CONFIG;
+
+        errprint("Failed to read config file.\n");
+        goto error_exit;
+    }
+
+    *config = vmi_get_config();
+
+    if (*config == NULL) {
+        if ( error )
+            *error = VMI_INIT_ERROR_NO_CONFIG_ENTRY;
+
+        errprint("No entry in config file for %s.\n", vmi->image_type);
+        goto error_exit;
+    }
+
+    ret = VMI_SUCCESS;
+
+error_exit:
+    if (config_file)
+        fclose(config_file);
+
+    return ret;
+}
 
 status_t read_config_string(vmi_instance_t vmi,
-        const char *config) {
+        const char *config,
+        GHashTable **_config,
+        vmi_init_error_t *error)
+{
     status_t ret = VMI_SUCCESS;
     FILE* config_file = NULL;
 
     if (config == NULL) {
+        if ( error )
+            *error = VMI_INIT_ERROR_NO_CONFIG;
+
         errprint("VMI_ERROR: NULL string passed for VMI_CONFIG_STRING\n");
         return VMI_FAILURE;
     }
@@ -167,66 +210,35 @@ status_t read_config_string(vmi_instance_t vmi,
     sprintf(config_str, "%s %s", vmi->image_type, config);
 
     config_file = fmemopen(config_str, length, "r");
-    ret = read_config_file(vmi, config_file);
+    ret = read_config_file(vmi, config_file, _config, error);
 
     free(config_str);
 
     return ret;
 }
 
-status_t read_config_file_entry(vmi_instance_t vmi) {
-    status_t ret = VMI_FAILURE;
-    FILE* config_file = NULL;
-
-    config_file = open_config_file();
+static status_t
+read_config_file_entry(vmi_instance_t vmi, GHashTable **config, vmi_init_error_t *error) {
+    FILE* config_file = open_config_file();
     if (NULL == config_file) {
+        if ( error )
+            *error = VMI_INIT_ERROR_NO_CONFIG;
+
         fprintf(stderr, "ERROR: config file not found.\n");
-        ret = VMI_FAILURE;
-        return ret;
+        return VMI_FAILURE;
     }
 
-    ret = read_config_file(vmi, config_file);
-
-    return ret;
+    return read_config_file(vmi, config_file, config, error);
 }
 
-status_t
-read_config_file(
-    vmi_instance_t vmi, FILE* config_file)
-{
-    status_t ret = VMI_FAILURE;
-
-    yyin = config_file;
-
-    if (vmi_parse_config(vmi->image_type) != 0) {
-        errprint("Failed to read config file.\n");
-        ret = VMI_FAILURE;
-        goto error_exit;
-    }
-    vmi->config = vmi_get_config();
-
-    if (vmi->config == NULL) {
-        errprint("No entry in config file for %s.\n", vmi->image_type);
-        ret = VMI_FAILURE;
-        goto error_exit;
-    } else {
-        ret = VMI_SUCCESS;
-    }
-
-error_exit:
-    if (config_file)
-        fclose(config_file);
-
-    return ret;
-}
 #endif
 
 status_t
 set_os_type_from_config(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    GHashTable *configtbl)
 {
     status_t ret = VMI_FAILURE;
-    GHashTable *configtbl = (GHashTable *)vmi->config;
     const char* ostype = NULL;
 
     vmi->os_type = VMI_OS_UNKNOWN;
@@ -271,7 +283,7 @@ set_os_type_from_config(
     return ret;
 }
 
-static status_t
+static inline status_t
 init_page_offset(
     vmi_instance_t vmi)
 {
@@ -284,28 +296,8 @@ init_page_offset(
     return VMI_SUCCESS;
 }
 
-static status_t
-set_driver_type(
-    vmi_instance_t vmi,
-    vmi_mode_t mode,
-    uint64_t id,
-    const char *name)
-{
-    if (VMI_AUTO == mode) {
-        if (VMI_FAILURE == driver_init_mode(vmi, id, name)) {
-            errprint("Failed to identify correct mode.\n");
-            return VMI_FAILURE;
-        }
-    }
-    else {
-        vmi->mode = mode;
-    }
-    dbprint(VMI_DEBUG_CORE, "LibVMI Mode %d\n", vmi->mode);
-    return VMI_SUCCESS;
-}
-
 /* the name passed may contain the full path and we just want the filename */
-static void
+static inline void
 set_image_type_for_file(
     vmi_instance_t vmi,
     const char *name)
@@ -325,17 +317,25 @@ set_image_type_for_file(
 static status_t
 set_id_and_name(
     vmi_instance_t vmi,
-    uint64_t id,
-    const char *name)
+    void *domain)
 {
+    const char *name = NULL;
+    uint64_t id = 0;
 
-    if (!name && id == VMI_INVALID_DOMID) {
-        errprint("Specifying either id or name.\n");
+    if ( vmi->init_flags & VMI_INIT_DOMAINNAME )
+        name = (const char*) domain;
+    if ( vmi->init_flags & VMI_INIT_DOMAINID )
+        id = *(uint64_t*) domain;
+
+    if ( name && id )
+    {
+        errprint("Specifying both name and id is not valid!\n");
         return VMI_FAILURE;
     }
 
-    if (name && id != VMI_INVALID_DOMID) {
-        errprint("Specifying both id and name is undefined.\n");
+    if ( !name && !id )
+    {
+        errprint("Specifying either name or id is required!\n");
         return VMI_FAILURE;
     }
 
@@ -356,8 +356,10 @@ set_id_and_name(
             dbprint(VMI_DEBUG_CORE, "--got id from name (%s --> %"PRIu64")\n", name, id);
             driver_set_id(vmi, id);
             vmi->image_type = strndup(name, 100);
-            driver_set_name(vmi, name);
-            goto done;
+            if ( vmi->image_type ) {
+                driver_set_name(vmi, name);
+                goto done;
+            }
         }
 
         errprint("Failed to get domain id from name.\n");
@@ -376,9 +378,11 @@ set_id_and_name(
     if (VMI_SUCCESS == driver_get_name_from_id(vmi, id, &tmp_name)) {
         dbprint(VMI_DEBUG_CORE, "--got name from id (%"PRIu64" --> %s)\n", id, tmp_name);
         vmi->image_type = strndup(tmp_name, 100);
-        driver_set_name(vmi, tmp_name);
-        free(tmp_name);
-        goto done;
+        if ( vmi->image_type ) {
+            driver_set_name(vmi, tmp_name);
+            free(tmp_name);
+            goto done;
+        }
     }
 
     dbprint(VMI_DEBUG_CORE, "--failed to get domain name from id!\n");
@@ -388,9 +392,11 @@ set_id_and_name(
     if (vmi->mode == VMI_XEN) {
         // create placeholder for image_type
         char *idstring = g_malloc0(snprintf(NULL, 0, "domid-%"PRIu64, id) + 1);
-        sprintf(idstring, "domid-%"PRIu64, id);
-        vmi->image_type = idstring;
-        goto done;
+        if ( idstring ) {
+            sprintf(idstring, "domid-%"PRIu64, id);
+            vmi->image_type = idstring;
+            goto done;
+        }
     }
 #endif
 
@@ -401,17 +407,98 @@ done:
     return VMI_SUCCESS;
 }
 
-static status_t
-vmi_init_private(
-    vmi_instance_t *vmi,
-    uint32_t flags,
-    uint64_t id,
-    const char *name,
-    vmi_config_t config)
+page_mode_t
+vmi_get_page_mode(
+    vmi_instance_t vmi,
+    unsigned long vcpu)
 {
-    uint32_t access_mode = flags & 0x0000FFFF;
-    uint32_t init_mode = flags & 0x00FF0000;
-    uint32_t config_mode = flags & 0xFF000000;
+    page_mode_t pm = VMI_PM_UNKNOWN;
+
+    if ( !vmi )
+        return pm;
+
+    if ( VMI_FILE == vmi->mode )
+        return vmi->page_mode;
+
+    if (VMI_SUCCESS == find_page_mode_live(vmi, vcpu, &pm) )
+    {
+        if ( vcpu == 0 && vmi->page_mode != pm )
+            dbprint(VMI_DEBUG_CORE,
+                    "The page-mode we just identified doesn't match what LibVMI previously recorded! "
+                    "You should re-run vmi_init_paging.\n");
+    }
+
+    return pm;
+}
+
+status_t
+vmi_get_access_mode(
+    vmi_instance_t vmi,
+    void *domain,
+    uint64_t init_flags,
+    void* UNUSED(init_data),
+    vmi_mode_t *mode)
+{
+    if ( vmi )
+    {
+        *mode = vmi->mode;
+        return VMI_SUCCESS;
+    }
+
+    const char *name = NULL;
+    uint64_t id = VMI_INVALID_DOMID;
+
+    if ( init_flags & VMI_INIT_DOMAINNAME )
+        name = (const char *)domain;
+    if ( init_flags & VMI_INIT_DOMAINID )
+        id = *(uint64_t*)domain;
+
+    if ( (!name && id == VMI_INIT_DOMAINID) ||
+          (name && id != VMI_INVALID_DOMID) )
+        return VMI_FAILURE;
+
+    return driver_init_mode(name, id, mode);
+}
+
+static inline status_t driver_sanity_check(vmi_mode_t mode)
+{
+    switch ( mode ) {
+    case VMI_XEN:
+#if ENABLE_XEN != 1
+        return VMI_FAILURE;
+#endif
+        break;
+    case VMI_KVM:
+#if ENABLE_KVM != 1
+        return VMI_FAILURE;
+#endif
+        break;
+    case VMI_FILE:
+#if ENABLE_FILE != 1
+        return VMI_FAILURE;
+#endif
+        break;
+    default:
+        return VMI_FAILURE;
+    };
+
+    return VMI_SUCCESS;
+}
+
+status_t vmi_init(
+    vmi_instance_t *vmi,
+    vmi_mode_t mode,
+    void* domain,
+    uint32_t init_flags,
+    void* UNUSED(init_data),
+    vmi_init_error_t *error)
+{
+    if ( VMI_FAILURE == driver_sanity_check(mode) )
+    {
+        errprint("The selected LibVMI mode is not available!\n");
+        return VMI_FAILURE;
+    }
+
     status_t status = VMI_FAILURE;
 
     /* allocate memory for instance structure */
@@ -420,18 +507,53 @@ vmi_init_private(
         return VMI_FAILURE;
 
     /* initialize instance struct to default values */
-    dbprint(VMI_DEBUG_CORE, "LibVMI Version 0.11.0\n");  //TODO change this with each release
+    dbprint(VMI_DEBUG_CORE, "LibVMI Version %s\n", PACKAGE_VERSION);
 
-    /* save the flags and init mode */
-    _vmi->flags = flags;
-    _vmi->init_mode = init_mode;
-    _vmi->config_mode = config_mode;
+    _vmi->mode = mode;
+    dbprint(VMI_DEBUG_CORE, "LibVMI Driver Mode %d\n", _vmi->mode);
 
-    /* the config hash table is set up later based on mode */
-    _vmi->config = NULL;
+    _vmi->init_flags = init_flags;
 
-    /* set page mode to unknown */
-    _vmi->page_mode = VMI_PM_UNKNOWN;
+    /* driver-specific initilization */
+    if (VMI_FAILURE == driver_init(_vmi)) {
+        if ( error )
+            *error = VMI_INIT_ERROR_DRIVER;
+
+        goto error_exit;
+    }
+    dbprint(VMI_DEBUG_CORE, "--completed driver init.\n");
+
+    /* setup the page offset size */
+    if (VMI_FAILURE == init_page_offset(_vmi)) {
+        if ( error )
+            *error = VMI_INIT_ERROR_DRIVER;
+
+        goto error_exit;
+    }
+
+    /* resolve the id and name */
+    if (VMI_FAILURE == set_id_and_name(_vmi, domain)) {
+        if ( error )
+            *error = VMI_INIT_ERROR_VM_NOT_FOUND;
+
+        goto error_exit;
+    }
+
+    /* init vmi for specific file/domain through the driver */
+    if (VMI_FAILURE == driver_init_vmi(_vmi)) {
+        if ( error )
+            *error = VMI_INIT_ERROR_DRIVER;
+
+        goto error_exit;
+    }
+
+    /* get the memory size */
+    if (driver_get_memsize(_vmi, &_vmi->allocated_ram_size, &_vmi->max_physical_address) == VMI_FAILURE) {
+        if ( error )
+            *error = VMI_INIT_ERROR_DRIVER;
+
+        goto error_exit;
+    }
 
     /* setup the caches */
     pid_cache_init(_vmi);
@@ -439,143 +561,31 @@ vmi_init_private(
     rva_cache_init(_vmi);
     v2p_cache_init(_vmi);
 
-    if ( init_mode & VMI_INIT_SHM_SNAPSHOT ) {
-#if ENABLE_SHM_SNAPSHOT == 1
-        v2m_cache_init(_vmi);
-#else
-        errprint("LibVMI wasn't compiled with SHM support!\n");
-        status = VMI_FAILURE;
-        goto error_exit;
-#endif
-    }
-
-    /* connecting to xen, kvm, file, etc */
-    if (VMI_FAILURE == set_driver_type(_vmi, access_mode, id, name)) {
-        goto error_exit;
-    }
-
-    /* driver-specific initilization */
-    if (VMI_FAILURE == driver_init(_vmi)) {
-        goto error_exit;
-    }
-    dbprint(VMI_DEBUG_CORE, "--completed driver init.\n");
-
-    /* resolve the id and name */
-    if (VMI_FAILURE == set_id_and_name(_vmi, id, name)) {
-        goto error_exit;
-    }
-
-    /* init vmi for specific file/domain through the driver */
-    if (VMI_FAILURE == driver_init_vmi(_vmi)) {
-        goto error_exit;
-    }
-
-    /* setup the page offset size */
-    if (VMI_FAILURE == init_page_offset(_vmi)) {
-        goto error_exit;
-    }
-
-    /* get the memory size */
-    if (driver_get_memsize(_vmi, &_vmi->allocated_ram_size, &_vmi->max_physical_address) == VMI_FAILURE) {
-        errprint("Failed to get memory size.\n");
-        goto error_exit;
-    }
+    status = VMI_SUCCESS;
 
     dbprint(VMI_DEBUG_CORE, "**set allocated_ram_size = %"PRIx64", "
                             "max_physical_address = 0x%"PRIx64"\n",
                             _vmi->allocated_ram_size,
                             _vmi->max_physical_address);
 
-    // for file mode we need os-specific heuristics to deduce the architecture
-    // for live mode, having arch_interface set even in VMI_PARTIAL mode
-    // allows use of dtb-based translation methods.
-    if (VMI_FILE != _vmi->mode) {
-        if(VMI_FAILURE == arch_init(_vmi)) {
-            if (init_mode & VMI_INIT_COMPLETE) {
-                dbprint(VMI_DEBUG_CORE, "--failed to determine architecture of live vm and INIT_COMPLETE.\n");
-                goto error_exit;
-            } else {
-                dbprint(VMI_DEBUG_CORE, "--failed to determine architecture of live vm and INIT_PARTIAL, continuing.\n");
-            }
-        } else {
-            dbprint(VMI_DEBUG_CORE, "--succesfully completed architecture init.\n");
-        }
-    }
+    if ( init_flags & VMI_INIT_SHM )
+    {
+#if ENABLE_SHM_SNAPSHOT == 1
+        v2m_cache_init(_vmi);
+#else
+        if ( error )
+            *error = VMI_INIT_ERROR_SHM;
 
-
-    /* we check VMI_INIT_COMPLETE first as
-       VMI_INIT_PARTIAL is not exclusive */
-    if (init_mode & VMI_INIT_COMPLETE) {
-        switch(_vmi->config_mode) {
-            case VMI_CONFIG_STRING:
-                /* read and parse the config string */
-                if(VMI_FAILURE == read_config_string(_vmi, (char*)config)) {
-                    goto error_exit;
-                }
-                break;
-            case VMI_CONFIG_GLOBAL_FILE_ENTRY:
-                /* read and parse the config file */
-                if(VMI_FAILURE == read_config_file_entry(_vmi)) {
-                    goto error_exit;
-                }
-                break;
-            case VMI_CONFIG_GHASHTABLE:
-                /* read and parse the ghashtable */
-                if (!config) {
-                    goto error_exit;
-                }
-                _vmi->config = (GHashTable*)config;
-                break;
-            case VMI_CONFIG_NONE:
-            default:
-                /* init_complete requires configuration
-                   falling back to VMI_CONFIG_GLOBAL_FILE_ENTRY is unsafe here
-                   as the config pointer is probably NULL */
-                goto error_exit;
-        }
-
-        if(VMI_FAILURE == set_os_type_from_config(_vmi)) {
-            dbprint(VMI_DEBUG_CORE, "--failed to determine os type from config\n");
-            goto error_exit;
-        }
-
-        /* setup OS specific stuff */
-        switch ( _vmi->os_type )
-        {
-#ifdef ENABLE_LINUX
-        case VMI_OS_LINUX:
-            if(VMI_FAILURE == linux_init(_vmi)) {
-                goto error_exit;
-            }
-            break;
-#endif
-#ifdef ENABLE_WINDOWS
-        case VMI_OS_WINDOWS:
-            if(VMI_FAILURE == windows_init(_vmi)) {
-                goto error_exit;
-            }
-            break;
-#endif
-        default:
-            goto error_exit;
-        }
-
-        status = VMI_SUCCESS;
-
-    } else if (init_mode & VMI_INIT_PARTIAL) {
-
-        status = VMI_SUCCESS;
-
-    } else {
-
-        errprint("Need to specify either VMI_INIT_PARTIAL or VMI_INIT_COMPLETE.\n");
+        errprint("LibVMI wasn't compiled with SHM support!\n");
         goto error_exit;
-
+#endif
     }
 
-    if(init_mode & VMI_INIT_EVENTS) {
-        /* Enable event handlers */
-        events_init(_vmi);
+    if ( init_flags & VMI_INIT_EVENTS )
+    {
+        status = events_init(_vmi);
+        if ( error && VMI_FAILURE == status )
+            *error = VMI_INIT_ERROR_EVENTS;
     }
 
 error_exit:
@@ -588,148 +598,169 @@ error_exit:
     return status;
 }
 
-status_t
-vmi_init(
-    vmi_instance_t *vmi,
-    uint32_t flags,
-    const char *name)
+page_mode_t vmi_init_paging(
+    vmi_instance_t vmi,
+    uint64_t flags)
 {
-    return vmi_init_private(vmi, flags | VMI_CONFIG_GLOBAL_FILE_ENTRY, VMI_INVALID_DOMID, name, NULL);
+    if ( !vmi )
+        return VMI_PM_UNKNOWN;
+
+    vmi->page_mode = VMI_PM_UNKNOWN;
+
+    if ( VMI_FAILURE == arch_init(vmi) )
+        return VMI_PM_UNKNOWN;
+
+    if ( flags )
+    {
+        switch(vmi->page_mode){
+            case VMI_PM_LEGACY:
+            case VMI_PM_PAE:
+            case VMI_PM_IA32E:
+                if (flags & VMI_PM_INITFLAG_TRANSITION_PAGES)
+                    vmi->x86.transition_pages = true;
+                break;
+            default:
+                break;
+        };
+    }
+
+    return vmi->page_mode;
 }
 
-status_t
-vmi_init_custom(
-    vmi_instance_t *vmi,
-    uint32_t flags,
-    vmi_config_t config)
+os_t vmi_init_os(
+    vmi_instance_t vmi,
+    vmi_config_t config_mode,
+    void *config,
+    vmi_init_error_t *error)
 {
-    status_t ret = VMI_FAILURE;
-    uint32_t config_mode = flags & 0xFF000000;
+    vmi->os_type = VMI_OS_UNKNOWN;
+    GHashTable *_config = NULL;
 
-    if (NULL == config) {
-        config_mode |= VMI_CONFIG_NONE;
+    switch(config_mode) {
+        case VMI_CONFIG_STRING:
+            /* read and parse the config string */
+            if(VMI_FAILURE == read_config_string(vmi, (const char*)config, &_config, error)) {
+                goto error_exit;
+            }
+            break;
+        case VMI_CONFIG_GLOBAL_FILE_ENTRY:
+            /* read and parse the config file */
+            if(VMI_FAILURE == read_config_file_entry(vmi, &_config, error)) {
+                goto error_exit;
+            }
+            break;
+        case VMI_CONFIG_GHASHTABLE:
+            /* read and parse the ghashtable */
+            if (!config) {
+
+                if (error)
+                    *error = VMI_INIT_ERROR_NO_CONFIG;
+
+                goto error_exit;
+            }
+            _config = (GHashTable*)config;
+            break;
+        default:
+            goto error_exit;
     }
 
-    if (VMI_CONFIG_GLOBAL_FILE_ENTRY == config_mode) {
+    if(VMI_FAILURE == set_os_type_from_config(vmi, _config)) {
+        if ( error )
+            *error = VMI_INIT_ERROR_NO_CONFIG_ENTRY;
 
-        ret = vmi_init(vmi, flags, (char *)config);
-        goto _done;
-
-    } else if (VMI_CONFIG_GHASHTABLE == config_mode) {
-
-        char *name = NULL;
-        uint64_t domid = VMI_INVALID_DOMID;
-        GHashTable *configtbl = (GHashTable *)config;
-        gpointer idptr = NULL;
-
-        name = (char *)g_hash_table_lookup(configtbl, "name");
-        if(g_hash_table_lookup_extended(configtbl, "domid", NULL, &idptr)) {
-            domid = *(uint64_t *)idptr;
-        }
-
-        if (name != NULL && domid != VMI_INVALID_DOMID) {
-            errprint("--specifying both the name and domid is not supported\n");
-        } else if (name != NULL) {
-            ret = vmi_init_private(vmi, flags, VMI_INVALID_DOMID, name, config);
-        } else if (domid != VMI_INVALID_DOMID) {
-            ret = vmi_init_private(vmi, flags, domid, NULL, config);
-        } else {
-            errprint("--you need to specify either the name or the domid\n");
-        }
-
-        goto _done;
-
-    } else {
-        errprint("Custom configuration input type not defined!\n");
+        dbprint(VMI_DEBUG_CORE, "--failed to determine os type from config\n");
+        goto error_exit;
     }
 
-_done:
-    return ret;
+    /*
+     * Initialize paging if it hasn't been done yet. For VMI_FILE mode it
+     * will be called from the OS init function as it requires OS-specific
+     * heuristics.
+     */
+    if ( VMI_FILE != vmi->mode && VMI_PM_UNKNOWN == vmi->page_mode &&
+         VMI_PM_UNKNOWN == vmi_init_paging(vmi, 0) )
+    {
+        if ( error )
+            *error = VMI_INIT_ERROR_PAGING;
+
+        goto error_exit;
+    }
+
+    /* setup OS specific stuff */
+    switch ( vmi->os_type )
+    {
+#ifdef ENABLE_LINUX
+        case VMI_OS_LINUX:
+            if(VMI_FAILURE == linux_init(vmi, _config)) {
+                if ( error )
+                    *error = VMI_INIT_ERROR_OS;
+
+                 goto error_exit;
+            }
+            break;
+#endif
+#ifdef ENABLE_WINDOWS
+        case VMI_OS_WINDOWS:
+            if(VMI_FAILURE == windows_init(vmi, _config)) {
+                if ( error )
+                    *error = VMI_INIT_ERROR_OS;
+
+                goto error_exit;
+            }
+            break;
+#endif
+        default:
+            if ( error )
+                *error = VMI_INIT_ERROR_OS;
+
+            goto error_exit;
+    };
+
+error_exit:
+    return vmi->os_type;
 }
 
 status_t
 vmi_init_complete(
     vmi_instance_t *vmi,
-    const char *config)
+    void *domain,
+    uint64_t init_flags,
+    void *init_data,
+    vmi_config_t config_mode,
+    void *config,
+    vmi_init_error_t *error)
 {
-    uint32_t flags = VMI_INIT_COMPLETE | (*vmi)->mode;
+    vmi_instance_t _vmi = NULL;
+    vmi_mode_t mode;
 
-    char *name = NULL;
+    if ( VMI_FAILURE == vmi_get_access_mode(_vmi, domain, init_flags, init_data, &mode) )
+    {
+        if ( error )
+            *error = VMI_INIT_ERROR_DRIVER_NOT_DETECTED;
 
-    if (VMI_FILE == (*vmi)->mode) {
-        name = strdup((*vmi)->image_type_complete);
-    }
-    else {
-        name = strdup((*vmi)->image_type);
-    }
-
-    if(config) {
-        flags |= VMI_CONFIG_STRING;
-    } else if(name && ((*vmi)->config_mode & VMI_CONFIG_GLOBAL_FILE_ENTRY)) {
-        flags |= VMI_CONFIG_GLOBAL_FILE_ENTRY;
-    } else {
-        flags |= VMI_CONFIG_NONE;
+        return VMI_FAILURE;
     }
 
-    if (((*vmi)->flags) & VMI_INIT_EVENTS) {
-        flags |= VMI_INIT_EVENTS;
-    }
-
-    vmi_destroy(*vmi);
-    return vmi_init_private(vmi,
-                            flags,
-                            VMI_INVALID_DOMID,
-                            name,
-                            (vmi_config_t)config);
-}
-
-status_t
-vmi_init_complete_custom(
-    vmi_instance_t *vmi,
-    uint32_t flags,
-    vmi_config_t config)
-{
-    if (!vmi)
+    if ( VMI_FAILURE == vmi_init(&_vmi, mode, domain, init_flags, init_data, error) )
         return VMI_FAILURE;
 
-    flags |= VMI_INIT_COMPLETE | (*vmi)->mode;
+    /*
+     * For file-mode initialization OS specific heuristics are required,
+     * which are being called in vmi_init_os.
+     */
+    if ( VMI_FILE != mode && VMI_PM_UNKNOWN == vmi_init_paging(_vmi, 0) )
+    {
+        if ( error )
+            *error = VMI_INIT_ERROR_PAGING;
 
-    if ( flags & VMI_CONFIG_STRING ) {
-        char *name = NULL;
-
-        if (VMI_FILE == (*vmi)->mode) {
-            name = strdup((*vmi)->image_type_complete);
-        } else {
-            name = strdup((*vmi)->image_type);
-        }
-
-        vmi_destroy(*vmi);
-        return vmi_init_private(vmi,
-                                flags,
-                                VMI_INVALID_DOMID,
-                                name,
-                                (vmi_config_t)config);
+        return VMI_FAILURE;
     }
 
-    vmi_destroy(*vmi);
-    return vmi_init_custom(vmi, flags, config);
-}
+    if ( VMI_OS_UNKNOWN == vmi_init_os(_vmi, config_mode, config, error) )
+        return VMI_FAILURE;
 
-page_mode_t
-vmi_init_paging(
-    vmi_instance_t vmi,
-    uint8_t force_reinit)
-{
-    if (VMI_PM_UNKNOWN != vmi->page_mode) {
-        if(!force_reinit) {
-            return vmi->page_mode;
-        } else {
-            vmi->page_mode = VMI_PM_UNKNOWN;
-        }
-    }
-
-    (void)arch_init(vmi);
-    return vmi->page_mode;
+    *vmi = _vmi;
+    return VMI_SUCCESS;
 }
 
 status_t
@@ -758,8 +789,7 @@ vmi_destroy(
     v2p_cache_destroy(vmi);
 
 #if ENABLE_SHM_SNAPSHOT == 1
-    if ( vmi->init_mode & VMI_INIT_SHM_SNAPSHOT )
-        v2m_cache_destroy(vmi);
+    v2m_cache_destroy(vmi);
 #endif
 
     memory_cache_destroy(vmi);

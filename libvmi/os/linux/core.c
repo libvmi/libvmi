@@ -296,12 +296,12 @@ status_t init_kaslr(vmi_instance_t vmi) {
     return ret;
 }
 
-status_t linux_init(vmi_instance_t vmi) {
+status_t linux_init(vmi_instance_t vmi, GHashTable *config) {
 
     status_t rc;
     os_interface_t os_interface = NULL;
 
-    if (vmi->config == NULL) {
+    if (!config) {
         errprint("No config table found\n");
         return VMI_FAILURE;
     }
@@ -317,7 +317,7 @@ status_t linux_init(vmi_instance_t vmi) {
 
     linux_instance_t linux_instance = vmi->os_data;
 
-    g_hash_table_foreach(vmi->config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
+    g_hash_table_foreach(config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
 
     if(linux_instance->rekall_profile)
         rc = init_from_rekall_profile(vmi);

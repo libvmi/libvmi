@@ -37,7 +37,7 @@ status_t arch_init(vmi_instance_t vmi) {
     }
 
     if(vmi->page_mode == VMI_PM_UNKNOWN) {
-        if(VMI_FAILURE == find_page_mode_live(vmi)) {
+        if(VMI_FAILURE == find_page_mode_live(vmi, 0, NULL)) {
             return ret;
         }
     }

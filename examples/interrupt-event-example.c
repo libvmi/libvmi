@@ -86,13 +86,14 @@ int main (int argc, char **argv) {
     name = argv[1];
 
     // Initialize the libvmi library.
-    if (vmi_init(&vmi, VMI_XEN | VMI_INIT_PARTIAL | VMI_INIT_EVENTS, name) == VMI_FAILURE){
+    if (VMI_FAILURE ==
+        vmi_init(&vmi, VMI_XEN, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, NULL, NULL))
+    {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
-    else{
-        printf("LibVMI init succeeded!\n");
-    }
+
+    printf("LibVMI init succeeded!\n");
 
     /* Register event to track INT3 interrupts */
     memset(&interrupt_event, 0, sizeof(vmi_event_t));
