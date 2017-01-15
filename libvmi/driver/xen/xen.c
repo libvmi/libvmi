@@ -1018,8 +1018,8 @@ xen_get_memsize(
 static status_t
 xen_get_vcpureg_hvm(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long vcpu)
 {
     status_t ret = VMI_SUCCESS;
@@ -1308,10 +1308,74 @@ _bail:
 }
 
 static status_t
+xen_get_vcpuregs_hvm(
+    vmi_instance_t vmi,
+    registers_t *regs,
+    unsigned long vcpu)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    struct hvm_hw_cpu hw_ctxt = {0}, *hvm_cpu = NULL;
+#if ENABLE_SHM_SNAPSHOT == 1
+    if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
+        hvm_cpu = (struct hvm_hw_cpu*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
+        dbprint(VMI_DEBUG_XEN, "read hvm cpu registers from shm-snapshot\n");
+    }
+#endif
+    if (NULL == hvm_cpu) {
+        if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
+                                                         xen->domainid,
+                                                         HVM_SAVE_CODE(CPU),
+                                                         vcpu,
+                                                         &hw_ctxt,
+                                                         sizeof hw_ctxt))
+        {
+            errprint("Failed to get context information (HVM domain).\n");
+            return VMI_FAILURE;
+        }
+        hvm_cpu = &hw_ctxt;
+    }
+
+    regs->x86.rax = hvm_cpu->rax;
+    regs->x86.rbx = hvm_cpu->rbx;
+    regs->x86.rcx = hvm_cpu->rcx;
+    regs->x86.rdx = hvm_cpu->rdx;
+    regs->x86.rbp = hvm_cpu->rbp;
+    regs->x86.rsi = hvm_cpu->rsi;
+    regs->x86.rdi = hvm_cpu->rdi;
+    regs->x86.rsp = hvm_cpu->rsp;
+    regs->x86.r8 = hvm_cpu->r8;
+    regs->x86.r9 = hvm_cpu->r9;
+    regs->x86.r10 = hvm_cpu->r10;
+    regs->x86.r11 = hvm_cpu->r11;
+    regs->x86.r12 = hvm_cpu->r12;
+    regs->x86.r13 = hvm_cpu->r13;
+    regs->x86.r14 = hvm_cpu->r14;
+    regs->x86.r15 = hvm_cpu->r15;
+    regs->x86.rip = hvm_cpu->rip;
+    regs->x86.rflags = hvm_cpu->rflags;
+    regs->x86.cr0 = hvm_cpu->cr0;
+    regs->x86.cr2 = hvm_cpu->cr2;
+    regs->x86.cr3 = hvm_cpu->cr3;
+    regs->x86.cr4 = hvm_cpu->cr4;
+    regs->x86.dr7 = hvm_cpu->dr7;
+    regs->x86.fs_base = hvm_cpu->fs_base;
+    regs->x86.gs_base = hvm_cpu->gs_base;
+    regs->x86.cs_arbytes = hvm_cpu->cs_arbytes;
+    regs->x86.sysenter_cs = hvm_cpu->sysenter_cs;
+    regs->x86.sysenter_esp = hvm_cpu->sysenter_esp;
+    regs->x86.sysenter_eip = hvm_cpu->sysenter_eip;
+    regs->x86.msr_efer = hvm_cpu->msr_efer;
+    regs->x86.msr_star = hvm_cpu->msr_star;
+    regs->x86.msr_lstar = hvm_cpu->msr_lstar;
+
+    return VMI_SUCCESS;
+}
+
+static status_t
 xen_set_vcpureg_hvm(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
+    uint64_t value,
+    reg_t reg,
     unsigned long vcpu)
 {
     uint32_t size = 0;
@@ -1644,10 +1708,123 @@ _bail:
 }
 
 static status_t
+xen_set_vcpuregs_hvm(
+    vmi_instance_t vmi,
+    registers_t *regs,
+    unsigned long vcpu)
+{
+    uint32_t size = 0;
+    uint32_t off = 0;
+    uint8_t *buf = NULL;
+    status_t ret = VMI_SUCCESS;
+    HVM_SAVE_TYPE(CPU) *cpu = NULL;
+    struct hvm_save_descriptor *desc = NULL;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    /* calling with no arguments --> return is the size of buffer required
+     *  for storing the HVM context
+     */
+    size = xen->libxcw.xc_domain_hvm_getcontext(xen->xchandle,
+                                                xen->domainid, 0, 0);
+
+    if (size <= 0) {
+        errprint("Failed to fetch HVM context buffer size.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    buf = malloc(size);
+    if (buf == NULL) {
+        errprint("Failed to allocate HVM context buffer.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    /* Locate runtime CPU registers in the context record, using the full
+     *  version of xc_domain_hvm_getcontext rather than the partial
+     *  variant, because there is no equivalent setcontext_partial.
+     * NOTE: to avoid inducing race conditions/errors, run while VM is paused.
+     */
+    if (xen->libxcw.xc_domain_hvm_getcontext(xen->xchandle, xen->domainid,
+                                             buf, size) < 0)
+    {
+        errprint("Failed to fetch HVM context buffer.\n");
+        ret = VMI_FAILURE;
+    goto _bail;
+    }
+
+    off = 0;
+    while (off < size) {
+        desc = (struct hvm_save_descriptor *)(buf + off);
+
+        off += sizeof (struct hvm_save_descriptor);
+
+        if (desc->typecode == HVM_SAVE_CODE(CPU) && desc->instance == vcpu) {
+            cpu = (HVM_SAVE_TYPE(CPU) *)(buf + off);
+            break;
+    }
+
+        off += desc->length;
+    }
+
+    if(cpu == NULL){
+        errprint("Failed to locate HVM cpu context.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    cpu->rax = regs->x86.rax;
+    cpu->rbx = regs->x86.rbx;
+    cpu->rcx = regs->x86.rcx;
+    cpu->rdx = regs->x86.rdx;
+    cpu->rbp = regs->x86.rbp;
+    cpu->rsi = regs->x86.rsi;
+    cpu->rdi = regs->x86.rdi;
+    cpu->rsp = regs->x86.rsp;
+    cpu->r8 = regs->x86.r8;
+    cpu->r9 = regs->x86.r9;
+    cpu->r10 = regs->x86.r10;
+    cpu->r11 = regs->x86.r11;
+    cpu->r12 = regs->x86.r12;
+    cpu->r13 = regs->x86.r13;
+    cpu->r14 = regs->x86.r14;
+    cpu->r15 = regs->x86.r15;
+    cpu->rflags = regs->x86.rflags;
+    cpu->cr0 = regs->x86.cr0;
+    cpu->cr2 = regs->x86.cr2;
+    cpu->cr3 = regs->x86.cr3;
+    cpu->cr4 = regs->x86.cr4;
+    cpu->dr7 = regs->x86.dr7;
+    cpu->fs_base = regs->x86.fs_base;
+    cpu->gs_base = regs->x86.gs_base;
+    cpu->cs_arbytes = regs->x86.cs_arbytes;
+    cpu->sysenter_cs = regs->x86.sysenter_cs;
+    cpu->sysenter_esp = regs->x86.sysenter_esp;
+    cpu->sysenter_eip = regs->x86.sysenter_eip;
+    cpu->msr_lstar = regs->x86.msr_lstar;
+    cpu->msr_efer = regs->x86.msr_efer;
+    cpu->msr_star = regs->x86.msr_star;
+
+    if(xen->libxcw.xc_domain_hvm_setcontext(
+        xen->xchandle, xen->domainid, buf, size)){
+        errprint("Failed to set context information (HVM domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    ret = VMI_SUCCESS;
+
+_bail:
+    free(buf);
+
+    return ret;
+}
+
+static status_t
 xen_get_vcpureg_pv64(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long vcpu)
 {
     vcpu_guest_context_x86_64_t* vcpu_ctx = NULL;
@@ -1779,8 +1956,8 @@ xen_get_vcpureg_pv64(
 static status_t
 xen_set_vcpureg_pv64(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
+    uint64_t value,
+    reg_t reg,
     unsigned long vcpu)
 {
     vcpu_guest_context_any_t ctx;
@@ -1906,8 +2083,8 @@ xen_set_vcpureg_pv64(
 static status_t
 xen_get_vcpureg_pv32(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long vcpu)
 {
     vcpu_guest_context_x86_32_t* vcpu_ctx = NULL;
@@ -2008,8 +2185,8 @@ xen_get_vcpureg_pv32(
 static status_t
 xen_set_vcpureg_pv32(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
+    uint64_t value,
+    reg_t reg,
     unsigned long vcpu)
 {
     vcpu_guest_context_any_t ctx;
@@ -2107,8 +2284,8 @@ xen_set_vcpureg_pv32(
 static status_t
 xen_get_vcpureg_arm(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long vcpu)
 {
     vcpu_guest_context_any_t ctx;
@@ -2264,8 +2441,8 @@ xen_get_vcpureg_arm(
 static status_t
 xen_set_vcpureg_arm(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
+    uint64_t value,
+    reg_t reg,
     unsigned long vcpu)
 {
     vcpu_guest_context_any_t ctx;
@@ -2424,8 +2601,8 @@ xen_set_vcpureg_arm(
 status_t
 xen_get_vcpureg(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long vcpu)
 {
 #if defined(ARM32) || defined(ARM64)
@@ -2445,13 +2622,26 @@ xen_get_vcpureg(
 }
 
 status_t
-xen_set_vcpureg(
+xen_get_vcpuregs(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
+    registers_t *regs,
     unsigned long vcpu)
 {
+#if defined(I386) || defined (X86_64)
+    if (xen_get_instance(vmi)->hvm)
+        return xen_get_vcpuregs_hvm(vmi, regs, vcpu);
+#endif
 
+    return VMI_FAILURE;
+}
+
+status_t
+xen_set_vcpureg(
+    vmi_instance_t vmi,
+    uint64_t value,
+    reg_t reg,
+    unsigned long vcpu)
+{
 #if defined(ARM32) || defined(ARM64)
     return xen_set_vcpureg_arm(vmi, value, reg, vcpu);
 #elif defined(I386) || defined (X86_64)
@@ -2465,6 +2655,20 @@ xen_set_vcpureg(
 
     return xen_set_vcpureg_hvm (vmi, value, reg, vcpu);
 #endif
+}
+
+status_t
+xen_set_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *regs,
+    unsigned long vcpu)
+{
+#if defined(I386) || defined (X86_64)
+    if (xen_get_instance(vmi)->hvm)
+        return xen_set_vcpuregs_hvm(vmi, regs, vcpu);
+#endif
+
+    return VMI_FAILURE;
 }
 
 status_t

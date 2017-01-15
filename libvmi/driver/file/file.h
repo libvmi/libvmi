@@ -41,8 +41,8 @@ status_t file_get_memsize(
     addr_t *maximum_physical_address);
 status_t file_get_vcpureg(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long vcpu);
 void *file_read_page(
     vmi_instance_t vmi,
