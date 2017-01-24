@@ -43,20 +43,32 @@ rekall_profile_symbol_to_rva(
     }
 
     if(!subsymbol) {
-        json_object *constants = NULL, *jsymbol = NULL;
-        if (!json_object_object_get_ex(root, "$CONSTANTS", &constants)) {
+        json_object *constants = NULL, *functions = NULL, *jsymbol = NULL;
+        if (json_object_object_get_ex(root, "$CONSTANTS", &constants)) {
+            if (json_object_object_get_ex(constants, symbol, &jsymbol)){
+                *rva = json_object_get_int64(jsymbol);
+
+                ret = VMI_SUCCESS;
+                goto exit;
+            } else {
+                dbprint(VMI_DEBUG_MISC, "Rekall profile: symbol '%s' not found in $CONSTANTS\n", symbol);
+            }
+        } else {
             dbprint(VMI_DEBUG_MISC, "Rekall profile: no $CONSTANTS section found\n");
-            goto exit;
         }
 
-        if (!json_object_object_get_ex(constants, symbol, &jsymbol)){
-            dbprint(VMI_DEBUG_MISC, "Rekall profile: symbol '%s' not found\n", symbol);
-            goto exit;
+        if (json_object_object_get_ex(root, "$FUNCTIONS", &functions)) {
+            if (json_object_object_get_ex(functions, symbol, &jsymbol)){
+                *rva = json_object_get_int64(jsymbol);
+
+                ret = VMI_SUCCESS;
+                goto exit;
+            } else {
+                dbprint(VMI_DEBUG_MISC, "Rekall profile: symbol '%s' not found in $FUNCTIONS\n", symbol);
+            }
+        } else {
+            dbprint(VMI_DEBUG_MISC, "Rekall profile: no $FUNCTIONS section found\n");
         }
-
-        *rva = json_object_get_int64(jsymbol);
-
-        ret = VMI_SUCCESS;
     } else {
         json_object *structs = NULL, *jstruct = NULL, *jstruct2 = NULL, *jmember = NULL, *jvalue = NULL;
         if (!json_object_object_get_ex(root, "$STRUCTS", &structs)) {
