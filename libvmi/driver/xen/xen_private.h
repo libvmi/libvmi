@@ -36,15 +36,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <xenctrl.h>
-#if HAVE_XENSTORE_H
-  #include <xenstore.h>
-#elif HAVE_XS_H
-  #include <xs.h>
-#endif
 #include <xen/hvm/save.h>
 
 #include "private.h"
 #include "libxc_wrapper.h"
+#include "libxs_wrapper.h"
 #include "driver/xen/xen_events_private.h"
 
 typedef struct xen_instance {
@@ -53,7 +49,11 @@ typedef struct xen_instance {
 
     xc_interface* xchandle; /**< handle to xenctrl library (libxc) */
 
-    libxc_wrapper_t libxcw; /**< wrapper for libxc for backwards compatibility */
+    struct xs_handle *xshandle;  /**< handle to xenstore daemon (libxs) */
+
+    libxc_wrapper_t libxcw; /**< wrapper for libxc for cross-compatibility */
+
+    libxs_wrapper_t libxsw; /**< wrapper for libxs for cross-compatibility */
 
     uint64_t domainid; /**< domid that we are accessing */
 
@@ -70,10 +70,6 @@ typedef struct xen_instance {
     uint64_t max_gpfn;    /**< result of xc_domain_maximum_gpfn/2() */
 
     uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
-
-#ifdef HAVE_LIBXENSTORE
-    struct xs_handle *xshandle;  /**< handle to xenstore daemon */
-#endif
 
 #if ENABLE_SHM_SNAPSHOT == 1
     char *shm_snapshot_path;  /** reserved for shared memory snapshot device path in /dev/shm directory */

@@ -78,7 +78,7 @@ exec_qmp_cmd(
     FILE *p;
     char *output = safe_malloc(20000);
     size_t length = 0;
-    const char *name = virDomainGetName(kvm->dom);
+    const char *name = kvm->libvirt.virDomainGetName(kvm->dom);
     int cmd_length = strlen(name) + strnlen(query, QMP_CMD_LENGTH) + 47;
     char *cmd = safe_malloc(cmd_length);
 
@@ -347,7 +347,7 @@ exec_shm_snapshot(
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
     // get a random unique path e.g. /dev/shm/[domain name]xxxxxx.
-    char *unique_shm_path = tempnam("/dev/shm", (char *) virDomainGetName(kvm->dom));
+    char *unique_shm_path = tempnam("/dev/shm", (char *) kvm->libvirt.virDomainGetName(kvm->dom));
 
     if (NULL != unique_shm_path) {
         char *shm_filename = basename(unique_shm_path);
@@ -1282,11 +1282,10 @@ kvm_init(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = g_malloc0(sizeof(kvm_instance_t));
-    virConnectPtr conn = NULL;
+    if ( VMI_FAILURE == create_libvirt_wrapper(kvm) )
+        return VMI_FAILURE;
 
-    conn =
-        virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
-                           0);
+    virConnectPtr conn = kvm->libvirt.virConnectOpenAuth("qemu:///system", kvm->libvirt.virConnectAuthPtrDefault, 0);
     if (NULL == conn) {
         dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
         free(kvm);
@@ -1305,7 +1304,7 @@ kvm_init_vmi(
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     virDomainInfo info;
-    virDomainPtr dom = virDomainLookupByID(kvm->conn, kvm->id);
+    virDomainPtr dom = kvm->libvirt.virDomainLookupByID(kvm->conn, kvm->id);
     if (NULL == dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
@@ -1314,7 +1313,7 @@ kvm_init_vmi(
     // get the libvirt version
     unsigned long libVer = 0;
 
-    if (virConnectGetLibVersion(kvm->conn, &libVer) != 0) {
+    if (kvm->libvirt.virConnectGetLibVersion(kvm->conn, &libVer) != 0) {
         dbprint(VMI_DEBUG_KVM, "--failed to get libvirt version\n");
         return VMI_FAILURE;
     }
@@ -1325,7 +1324,7 @@ kvm_init_vmi(
     vmi->hvm = 1;
 
     //get the VCPU count from virDomainInfo structure
-    if (-1 == virDomainGetInfo(kvm->dom, &info)) {
+    if (-1 == kvm->libvirt.virDomainGetInfo(kvm->dom, &info)) {
         dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
         return VMI_FAILURE;
     }
@@ -1352,7 +1351,8 @@ void
 kvm_destroy(
     vmi_instance_t vmi)
 {
-    destroy_domain_socket(kvm_get_instance(vmi));
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    destroy_domain_socket(kvm);
 
 #if ENABLE_SHM_SNAPSHOT == 1
     if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
@@ -1360,38 +1360,32 @@ kvm_destroy(
     }
 #endif
 
-    if (kvm_get_instance(vmi)->dom) {
-        virDomainFree(kvm_get_instance(vmi)->dom);
+    if (kvm->dom) {
+        kvm->libvirt.virDomainFree(kvm->dom);
     }
-    if (kvm_get_instance(vmi)->conn) {
-        virConnectClose(kvm_get_instance(vmi)->conn);
+    if (kvm->conn) {
+        kvm->libvirt.virConnectClose(kvm->conn);
     }
+
+    dlclose(kvm->libvirt.handle);
 }
 
 uint64_t
 kvm_get_id_from_name(
-    vmi_instance_t UNUSED(vmi),
+    vmi_instance_t vmi,
     const char *name)
 {
-    virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
     uint64_t domainid = VMI_INVALID_DOMID;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    conn =
-        virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
-                           0);
-    if (NULL == conn) {
-        dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
-        return VMI_INVALID_DOMID;
-    }
-
-    dom = virDomainLookupByName(conn, name);
+    dom = kvm->libvirt.virDomainLookupByName(kvm->conn, name);
     if (NULL == dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         domainid = VMI_INVALID_DOMID;
     } else {
 
-        domainid = (uint64_t) virDomainGetID(dom);
+        domainid = (uint64_t) kvm->libvirt.virDomainGetID(dom);
         if (domainid == (uint64_t)-1){
             dbprint(VMI_DEBUG_KVM, "--requested kvm domain may not be running\n");
             domainid = VMI_INVALID_DOMID;
@@ -1399,38 +1393,28 @@ kvm_get_id_from_name(
     }
 
     if (dom)
-        virDomainFree(dom);
-    if (conn)
-        virConnectClose(conn);
+        kvm->libvirt.virDomainFree(dom);
 
     return domainid;
 }
 
 status_t
 kvm_get_name_from_id(
-    vmi_instance_t UNUSED(vmi),
+    vmi_instance_t vmi,
     uint64_t domainid,
     char **name)
 {
-    virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
     const char* temp_name = NULL;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    conn =
-        virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
-                           0);
-    if (NULL == conn) {
-        dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
-        return VMI_FAILURE;
-    }
-
-    dom = virDomainLookupByID(conn, domainid);
+    dom = kvm->libvirt.virDomainLookupByID(kvm->conn, domainid);
     if (NULL == dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
     }
 
-    temp_name = virDomainGetName(dom);
+    temp_name = kvm->libvirt.virDomainGetName(dom);
     if (temp_name) {
         *name = strndup(temp_name, QMP_CMD_LENGTH);
     } else {
@@ -1438,9 +1422,7 @@ kvm_get_name_from_id(
     }
 
     if (dom)
-        virDomainFree(dom);
-    if (conn)
-        virConnectClose(conn);
+        kvm->libvirt.virDomainFree(dom);
 
     if (*name) {
         return VMI_SUCCESS;
@@ -1466,30 +1448,20 @@ kvm_set_id(
 
 status_t
 kvm_check_id(
-    vmi_instance_t UNUSED(vmi),
+    vmi_instance_t vmi,
     uint64_t domainid)
 {
-    virConnectPtr conn = NULL;
     virDomainPtr dom = NULL;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    conn =
-        virConnectOpenAuth("qemu:///system", virConnectAuthPtrDefault,
-                           0);
-    if (NULL == conn) {
-        dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
-        return VMI_FAILURE;
-    }
-
-    dom = virDomainLookupByID(conn, domainid);
+    dom = kvm->libvirt.virDomainLookupByID(kvm->conn, domainid);
     if (NULL == dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
     }
 
     if (dom)
-        virDomainFree(dom);
-    if (conn)
-        virConnectClose(conn);
+        kvm->libvirt.virDomainFree(dom);
 
     return VMI_SUCCESS;
 }
@@ -1499,7 +1471,9 @@ kvm_get_name(
     vmi_instance_t vmi,
     char **name)
 {
-    const char *tmpname = virDomainGetName(kvm_get_instance(vmi)->dom);
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    const char *tmpname = kvm->libvirt.virDomainGetName(kvm->dom);
 
     // don't need to deallocate the name, it will go away with the domain object
 
@@ -1526,9 +1500,10 @@ kvm_get_memsize(
     uint64_t *allocated_ram_size,
     addr_t *maximum_physical_address)
 {
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
     virDomainInfo info;
 
-    if (-1 == virDomainGetInfo(kvm_get_instance(vmi)->dom, &info)) {
+    if (-1 == kvm->libvirt.virDomainGetInfo(kvm->dom, &info)) {
         dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
         goto error_exit;
     }
@@ -1840,21 +1815,31 @@ kvm_is_pv(
 
 status_t
 kvm_test(
+    vmi_instance_t vmi,
     uint64_t domainid,
     const char *name)
 {
+    if ( VMI_FAILURE == kvm_init(vmi) )
+        return VMI_FAILURE;
+
     if (name)
     {
-        domainid = kvm_get_id_from_name(NULL, name);
+        domainid = kvm_get_id_from_name(vmi, name);
         if (domainid != VMI_INVALID_DOMID)
             return VMI_SUCCESS;
     }
 
     if (domainid != VMI_INVALID_DOMID)
     {
-        return kvm_get_name_from_id(NULL, domainid, NULL);
+        char *_name = NULL;
+        status_t rc = kvm_get_name_from_id(vmi, domainid, &_name);
+        free(_name);
+
+        if ( VMI_SUCCESS == rc )
+            return rc;
     }
 
+    kvm_destroy(vmi);
     return VMI_FAILURE;
 }
 
@@ -1862,7 +1847,9 @@ status_t
 kvm_pause_vm(
     vmi_instance_t vmi)
 {
-    if (-1 == virDomainSuspend(kvm_get_instance(vmi)->dom)) {
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    if (-1 == kvm->libvirt.virDomainSuspend(kvm->dom)) {
         return VMI_FAILURE;
     }
     return VMI_SUCCESS;
@@ -1872,7 +1859,9 @@ status_t
 kvm_resume_vm(
     vmi_instance_t vmi)
 {
-    if (-1 == virDomainResume(kvm_get_instance(vmi)->dom)) {
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    if (-1 == kvm->libvirt.virDomainResume(kvm->dom)) {
         return VMI_FAILURE;
     }
     return VMI_SUCCESS;

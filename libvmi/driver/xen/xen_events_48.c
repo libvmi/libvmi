@@ -68,10 +68,10 @@ xen_events_t *xen_get_events(vmi_instance_t vmi)
 }
 
 static
-int wait_for_event_or_timeout(xc_evtchn *xce, unsigned long ms)
+int wait_for_event_or_timeout(xen_instance_t *xen, xc_evtchn *xce, unsigned long ms)
 {
     struct pollfd fd = {
-            .fd = xc_evtchn_fd(xce),
+            .fd = xen->libxcw.xc_evtchn_fd(xce),
             .events = POLLIN | POLLERR
         };
     int port;
@@ -88,14 +88,14 @@ int wait_for_event_or_timeout(xc_evtchn *xce, unsigned long ms)
 
     if ( rc == 1 )
     {
-        port = xc_evtchn_pending(xce);
+        port = xen->libxcw.xc_evtchn_pending(xce);
         if ( port == -1 )
         {
             errprint("Failed to read port from event channel\n");
             goto err;
         }
 
-        rc = xc_evtchn_unmask(xce, port);
+        rc = xen->libxcw.xc_evtchn_unmask(xce, port);
         if ( rc != 0 )
         {
             errprint("Failed to unmask event channel port\n");
@@ -154,6 +154,7 @@ static int resume_domain(vmi_instance_t vmi)
     xc_interface * xch = xen_get_xchandle(vmi);
     xen_events_t * xe = xen_get_events(vmi);
     domid_t dom = xen_get_domainid(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
 
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
@@ -168,7 +169,7 @@ static int resume_domain(vmi_instance_t vmi)
         return -1;
     }
 
-    return xc_evtchn_notify(xe->vm_event.xce_handle, xe->vm_event.port);
+    return xen->libxcw.xc_evtchn_notify(xe->vm_event.xce_handle, xe->vm_event.port);
 }
 
 static status_t xen_set_int3_access(vmi_instance_t vmi, bool enable)
@@ -279,6 +280,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
     vmi_event_t * event = g_hash_table_lookup(vmi->interrupt_events, &lookup);
     xc_interface * xch  = xen_get_xchandle(vmi);
     domid_t domain_id   = xen_get_domainid(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
 
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
@@ -343,7 +345,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                      *  reinjection.
                      */
                     #define TRAP_int3              3
-                    rc = xc_hvm_inject_trap(xch, domain_id, req->vcpu_id,
+                    rc = xen->libxcw.xc_hvm_inject_trap(xch, domain_id, req->vcpu_id,
                             TRAP_int3,         /* Vector 3 for INT3 */
                             HVMOP_TRAP_sw_exc, /* Trap type, here a software intr */
                             ~0u, /* error code. ~0u means 'ignore' */
@@ -450,7 +452,7 @@ event_response_t issue_mem_cb(vmi_instance_t vmi,
                   vm_event_48_request_t *req,
                   vmi_mem_access_t out_access)
 {
-    if ( req->u.mem_access.flags | MEM_ACCESS_GLA_VALID )
+    if ( req->u.mem_access.flags & MEM_ACCESS_GLA_VALID )
     {
         event->mem_event.gptw = !!(req->u.mem_access.flags | MEM_ACCESS_FAULT_IN_GPT);
         event->mem_event.gla_valid = 1;
@@ -656,6 +658,7 @@ status_t process_debug_event(vmi_instance_t vmi,
                              vm_event_48_request_t *req,
                              vm_event_48_response_t *rsp)
 {
+    xen_instance_t *xen = xen_get_instance(vmi);
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t dom = xen_get_domainid(vmi);
     int rc;
@@ -700,7 +703,7 @@ status_t process_debug_event(vmi_instance_t vmi,
 
     if ( vmi->debug_event->debug_event.reinject )
     {
-        rc = xc_hvm_inject_trap(xen_get_xchandle(vmi),
+        rc = xen->libxcw.xc_hvm_inject_trap(xen_get_xchandle(vmi),
                                 xen_get_domainid(vmi),
                                 rsp->vcpu_id,
                                 X86_TRAP_DEBUG,
@@ -1212,11 +1215,12 @@ int xen_are_events_pending_48(vmi_instance_t vmi)
 
 status_t xen_events_listen_48(vmi_instance_t vmi, uint32_t timeout)
 {
+    xc_interface *xch = xen_get_xchandle(vmi);
+    xen_events_t *xe = xen_get_events(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
     vm_event_48_request_t req;
     vm_event_48_response_t rsp;
-    xc_interface * xch = xen_get_xchandle(vmi);
-    xen_events_t * xe = xen_get_events(vmi);
-    domid_t dom = xen_get_domainid(vmi);
 
     int rc = -1;
     status_t vrc = VMI_SUCCESS;
@@ -1235,7 +1239,7 @@ status_t xen_events_listen_48(vmi_instance_t vmi, uint32_t timeout)
     }
 
     // Set whether the access listener is required
-    rc = xc_domain_set_access_required(xch, dom, vmi->event_listener_required);
+    rc = xen->libxcw.xc_domain_set_access_required(xch, dom, vmi->event_listener_required);
     if ( rc < 0 ) {
         errprint("Error %d setting mem_access listener required to %d\n",
             rc, vmi->event_listener_required);
@@ -1243,7 +1247,7 @@ status_t xen_events_listen_48(vmi_instance_t vmi, uint32_t timeout)
 
     if(!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
-        rc = wait_for_event_or_timeout(xe->vm_event.xce_handle, timeout);
+        rc = wait_for_event_or_timeout(xen, xe->vm_event.xce_handle, timeout);
         if ( rc < -1 ) {
             errprint("Error while waiting for event.\n");
             return VMI_FAILURE;
@@ -1312,7 +1316,7 @@ void xen_events_destroy_48(vmi_instance_t vmi)
 
 
     xc_dominfo_t info = {0};
-    rc = xc_domain_getinfo(xch, dom, 1, &info);
+    rc = xen->libxcw.xc_domain_getinfo(xch, dom, 1, &info);
 
     if(rc==1 && info.domid==dom && !info.paused && VMI_SUCCESS == vmi_pause_vm(vmi)) {
         resume = 1;
@@ -1355,12 +1359,12 @@ void xen_events_destroy_48(vmi_instance_t vmi)
 
     // Unbind VIRQ
     if ( xe->vm_event.port > 0 )
-        if ( xc_evtchn_unbind(xe->vm_event.xce_handle, xe->vm_event.port) )
+        if ( xen->libxcw.xc_evtchn_unbind(xe->vm_event.xce_handle, xe->vm_event.port) )
             errprint("Error unbinding event port.\n");
 
     // Close event channel
     if ( xe->vm_event.xce_handle )
-        if ( xc_evtchn_close(xe->vm_event.xce_handle) )
+        if ( xen->libxcw.xc_evtchn_close(xe->vm_event.xce_handle) )
             errprint("Error closing event channel.\n");
 
     free(xe);
@@ -1429,7 +1433,7 @@ status_t xen_init_events_48(vmi_instance_t vmi)
     }
 
     /* Open event channel */
-    xe->vm_event.xce_handle = xc_evtchn_open(NULL, 0);
+    xe->vm_event.xce_handle = xen->libxcw.xc_evtchn_open(NULL, 0);
     if ( !xe->vm_event.xce_handle )
     {
         errprint("Failed to open event channel\n");
@@ -1437,7 +1441,7 @@ status_t xen_init_events_48(vmi_instance_t vmi)
     }
 
     /* Bind event notification */
-    rc = xc_evtchn_bind_interdomain(xe->vm_event.xce_handle,
+    rc = xen->libxcw.xc_evtchn_bind_interdomain(xe->vm_event.xce_handle,
                                     dom,
                                     xe->vm_event.evtchn_port);
     if ( rc < 0 ) {

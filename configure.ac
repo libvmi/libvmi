@@ -183,7 +183,7 @@ xen_space='      '
 
     [if test "$with_xenstore" = "yes"]
     [then]
-        AC_CHECK_LIB(xenstore, xs_read, [], [missing="yes"])
+        AC_CHECK_LIB(xenstore, xs_read, [missing="no"], [missing="yes"])
         AC_CHECK_HEADERS([xenstore.h])
         AC_CHECK_HEADERS([xs.h])
     [fi]
@@ -195,7 +195,12 @@ xen_space='      '
         enable_xen='no'
         have_xen='missing xenstore'
     [else]
-        AC_CHECK_LIB(xenctrl, xc_interface_open, [], [missing="yes"])
+        [if test "$with_xenstore" = "yes"]
+        [then]
+            AC_DEFINE(HAVE_LIBXENSTORE, [1], [Define to 1 if enable xenstore access])
+        [fi]
+
+        AC_CHECK_LIB(xenctrl, xc_interface_open, [missing="no"], [missing="yes"])
         [if test "$missing" = "yes"]
         [then]
             AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
@@ -247,7 +252,7 @@ kvm_space='      '
         enable_kvm='no'
         have_kvm='libm missing'
     [else]
-        AC_CHECK_LIB(virt, virConnectOpen, [], [missing="yes"])
+        AC_CHECK_LIB(virt, virConnectOpen, [missing="no"], [missing="yes"])
         [if test "$missing" = "yes"]
         [then]
             AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
@@ -255,6 +260,7 @@ kvm_space='      '
             enable_kvm='no'
             have_kvm='libvirt missing'
         [else]
+            AC_CHECK_LIB(rt, shm_open)
             AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
             missing='no'
             have_kvm='yes'
@@ -357,7 +363,7 @@ missing='no'
         [echo "No working JSON-C library found (libjson-c-dev), Rekall system profiles won't be supported."]
     [fi]
 [fi]
-AM_CONDITIONAL([REKALL_PROFILES], [test x$rekall = xyes])
+AM_CONDITIONAL([REKALL_PROFILES], [test x"$rekall" = xyes])
 
 [if test "$enable_address_cache" = "yes"]
 [then]

@@ -71,11 +71,14 @@ static inline status_t xen_init_events(vmi_instance_t vmi)
     {
         switch(xen->minor_version)
         {
+        case 0 ... 1:
+            dbprint(VMI_DEBUG_XEN, "Xen 4.0/4.1 has no events support!\n");
+            break;
         case 2 ... 5:
             return xen_init_events_legacy(vmi);
         case 6 ... 7:
             return xen_init_events_46(vmi);
-        case 8:
+        default:
             return xen_init_events_48(vmi);
         };
     };
@@ -89,13 +92,15 @@ static inline void xen_events_destroy(vmi_instance_t vmi)
     {
         switch(xen->minor_version)
         {
+        case 0 ... 1:
+            break;
         case 2 ... 5:
             xen_events_destroy_legacy(vmi);
             break;
         case 6 ... 7:
             xen_events_destroy_46(vmi);
             break;
-        case 8:
+        default:
             xen_events_destroy_48(vmi);
             break;
         };

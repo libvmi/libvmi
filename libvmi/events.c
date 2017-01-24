@@ -128,7 +128,7 @@ void events_destroy(vmi_instance_t vmi)
         vmi->reg_events = NULL;
     }
 
-    if (vmi->reg_events)
+    if (vmi->msr_events)
     {
         dbprint(VMI_DEBUG_EVENTS, "Destroying MSR events\n");
         g_hash_table_foreach_remove(vmi->msr_events, event_entry_free, vmi);

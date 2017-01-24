@@ -31,6 +31,9 @@
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
 
+#include "private.h"
+#include "libvirt_wrapper.h"
+
 #if ENABLE_SHM_SNAPSHOT == 1
 #include "driver/kvm/kvm_shm.h"
 #endif
@@ -42,6 +45,7 @@ typedef struct kvm_instance {
     char *name;
     char *ds_path;
     int socket_fd;
+    libvirt_wrapper_t libvirt;
 #if ENABLE_SHM_SNAPSHOT == 1
     char *shm_snapshot_path;  /** shared memory snapshot device path in /dev/shm directory */
     int   shm_snapshot_fd;    /** file description of the shared memory snapshot device */
