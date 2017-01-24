@@ -154,6 +154,13 @@ AC_ARG_ENABLE([rekall_profiles],
   [rekall="$enableval"],
   [rekall="yes"])
 
+AC_ARG_ENABLE([config-file],
+  [AS_HELP_STRING([--disable-config-file],
+    [Disable using LibVMI config files @<:@no@:>@])],
+  [configfile="$enableval"],
+  [configfile="yes"])
+AM_CONDITIONAL([CONFIGFILE], [test x$configfile = xyes])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -309,29 +316,33 @@ vmifs_space='       '
     [fi]
 [fi]
 
-AC_CHECK_PROGS(YACC, bison yacc byacc, [no], [path = $PATH])
-[if test "$YACC" = "no"]
+[if test "$configfile" = "yes"]
 [then]
-    [echo "yacc not found in the search path. Please ensure that it is"]
-    [echo "installed and its directory is included in the search path."]
-    [echo "Then run configure again before attempting to build LibVMI."]
-    [exit 1]
-[else]
-    [echo "Found yacc as $YACC."]
-[fi]
-AC_PROG_YACC
+    AC_CHECK_PROGS(YACC, bison yacc byacc, [no], [path = $PATH])
+    [if test "$YACC" = "no"]
+    [then]
+        [echo "yacc not found in the search path. Please ensure that it is"]
+        [echo "installed and its directory is included in the search path."]
+        [echo "Then run configure again before attempting to build LibVMI."]
+        [exit 1]
+    [else]
+        [echo "Found yacc as $YACC."]
+    [fi]
+    AC_PROG_YACC
 
-AC_CHECK_PROGS(LEX, lex flex , [no], [path = $PATH])
-[if test "$LEX" = "no"]
-[then]
-    [echo "lex not found in the search path. Please ensure that it is"]
-    [echo "installed and its directory is included in the search path".]
-    [echo "Then run configure again before attempting to build LibVMI."]
-    [exit 1]
-[else]
-    [echo "Found lex as $LEX."]
+    AC_CHECK_PROGS(LEX, lex flex , [no], [path = $PATH])
+    [if test "$LEX" = "no"]
+    [then]
+        [echo "lex not found in the search path. Please ensure that it is"]
+        [echo "installed and its directory is included in the search path".]
+        [echo "Then run configure again before attempting to build LibVMI."]
+        [exit 1]
+    [else]
+        [echo "Found lex as $LEX."]
+    [fi]
+    AC_PROG_LEX
+    AC_DEFINE([ENABLE_CONFIGFILE], [1], [Enable libvmi.conf])
 [fi]
-AC_PROG_LEX
 
 missing='no'
 [if test "$rekall" = "yes"]
@@ -366,7 +377,6 @@ dnl -----------------------------------------------
 AC_CONFIG_FILES(Makefile \
                 libvmi.pc \
                 libvmi/Makefile \
-                libvmi/config/Makefile
 )
 
 examples_space='     '
@@ -383,6 +393,13 @@ examples_space='     '
     AC_CONFIG_FILES(tests/Makefile)
     test_dir="tests"
     AC_SUBST([test_dir])
+[fi]
+
+[if test "$configfile" = "yes"]
+[then]
+    AC_CONFIG_FILES(libvmi/config/Makefile)
+    config_dir="libvmi/config"
+    AC_SUBST([config_dir])
 [fi]
 
 AC_OUTPUT

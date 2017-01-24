@@ -4,7 +4,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
 #Build in these directories:
-SUBDIRS= $(LIBRARY_NAME) @examples_dir@ @test_dir@ @vmifs_dir@
+SUBDIRS= @config_dir@ $(LIBRARY_NAME) @examples_dir@ @test_dir@ @vmifs_dir@
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvmi.pc
