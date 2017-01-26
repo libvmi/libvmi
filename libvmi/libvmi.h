@@ -1864,7 +1864,11 @@ status_t vmi_get_vcpureg(
  * Sets the current value of a VCPU register.  This currently only
  * supports control registers.  When LibVMI is accessing a raw
  * memory file, this function will fail. Operating upon an unpaused
- * VM with this function is likely to have unexpected results.
+ * vCPU with this function is likely to have unexpected results.
+ *
+ * On Xen HVM VMs the entire domain must be paused. Using this function in an event
+ * callback where only the vCPU is paused will have unexpected results as this
+ * function is not multi-vCPU safe.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] value Value to assign to the register
