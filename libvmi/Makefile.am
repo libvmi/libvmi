@@ -53,12 +53,12 @@ c_sources   += shm.c
 endif
 
 drivers =
-if HAVE_FILE
+if WITH_FILE
 drivers     += driver/file/file.h \
                driver/file/file_private.h \
                driver/file/file.c
 endif
-if HAVE_KVM
+if WITH_KVM
 drivers     += driver/kvm/kvm.h \
                driver/kvm/kvm_private.h \
                driver/kvm/kvm.c \
@@ -69,7 +69,7 @@ drivers     += driver/kvm/kvm_shm.h
 endif
 endif
 
-if HAVE_XEN
+if WITH_XEN
 h_public    += events.h
 drivers     += driver/xen/altp2m.c \
                driver/xen/altp2m_private.h \
