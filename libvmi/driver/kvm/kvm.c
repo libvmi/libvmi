@@ -1051,7 +1051,7 @@ kvm_setup_shm_snapshot_mode(
         pid_cache_flush(vmi);
         sym_cache_flush(vmi);
         rva_cache_flush(vmi);
-        v2p_cache_flush(vmi);
+        v2p_cache_flush(vmi, ~0ull);
         v2m_cache_flush(vmi);
         memory_cache_destroy(vmi);
         memory_cache_init(vmi, kvm_get_memory_shm_snapshot, kvm_release_memory_shm_snapshot,
@@ -1085,7 +1085,7 @@ kvm_teardown_shm_snapshot_mode(
         pid_cache_flush(vmi);
         sym_cache_flush(vmi);
         rva_cache_flush(vmi);
-        v2p_cache_flush(vmi);
+        v2p_cache_flush(vmi, ~0ull);
         memory_cache_destroy(vmi);
     }
     return VMI_SUCCESS;
@@ -1245,7 +1245,7 @@ kvm_setup_live_mode(
         pid_cache_flush(vmi);
         sym_cache_flush(vmi);
         rva_cache_flush(vmi);
-        v2p_cache_flush(vmi);
+        v2p_cache_flush(vmi, ~0ull);
         memory_cache_destroy(vmi);
         memory_cache_init(vmi, kvm_get_memory_patch, kvm_release_memory,
                           1);

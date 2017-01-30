@@ -1985,9 +1985,11 @@ status_t vmi_resume_vm(
  * the cache is incorrect, or out of date.
  *
  * @param[in] vmi LibVMI instance
+ * @param[in] dtb The process address space to flush, or ~0ull for all.
  */
 void vmi_v2pcache_flush(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi,
+    addr_t dtb);
 
 /**
  * Adds one entry to LibVMI's internal virtual to physical address
