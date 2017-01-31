@@ -109,7 +109,10 @@ linux_system_map_symbol_to_address(
         goto done;
     }
 
-    row = safe_malloc(MAX_ROW_LENGTH);
+    row = g_malloc0(MAX_ROW_LENGTH);
+    if ( !row )
+        goto done;
+
     if ((f = fopen(linux_instance->sysmap, "r")) == NULL) {
         fprintf(stderr,
                 "ERROR: could not find System.map file after checking:\n");
@@ -172,7 +175,10 @@ char* linux_system_map_address_to_symbol(
         goto done;
     }
 
-    row = safe_malloc(MAX_ROW_LENGTH);
+    row = g_malloc0(MAX_ROW_LENGTH);
+    if ( !row )
+        goto done;
+
     if ((f = fopen(linux_instance->sysmap, "r")) == NULL) {
         fprintf(stderr,
                 "ERROR: could not find System.map file after checking:\n");

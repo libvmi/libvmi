@@ -79,8 +79,10 @@ open_config_file(
 
     /* check current directory */
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        location = safe_malloc(snprintf(NULL,0,"%s/libvmi.conf",
-                                       cwd)+1);
+        location = g_malloc0(snprintf(NULL,0,"%s/libvmi.conf", cwd)+1);
+        if ( !location )
+            return NULL;
+
         sprintf(location, "%s/libvmi.conf", cwd);
         dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
 
@@ -89,14 +91,16 @@ open_config_file(
         if (f) {
             goto success;
         }
-        free(location);
+        g_free(location);
     }
 
     /* next check home directory of sudo user */
     if ((sudo_user = getenv("SUDO_USER")) != NULL) {
         if ((pw_entry = getpwnam(sudo_user)) != NULL) {
-            location = safe_malloc(snprintf(NULL,0,"%s/etc/libvmi.conf",
-                                          pw_entry->pw_dir)+1);
+            location = g_malloc0(snprintf(NULL,0,"%s/etc/libvmi.conf", pw_entry->pw_dir)+1);
+            if ( !location )
+                return NULL;
+
             sprintf(location, "%s/etc/libvmi.conf",
                      pw_entry->pw_dir);
             dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
@@ -106,13 +110,15 @@ open_config_file(
             if (f) {
                 goto success;
             }
-            free(location);
+            g_free(location);
         }
     }
 
     /* next check home directory for current user */
-    location = safe_malloc(snprintf(NULL,0,"%s/etc/libvmi.conf",
-                                  getenv("HOME"))+1);
+    location = g_malloc0(snprintf(NULL,0,"%s/etc/libvmi.conf", getenv("HOME"))+1);
+    if ( !location )
+        return NULL;
+
     sprintf(location, "%s/etc/libvmi.conf", getenv("HOME"));
     dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
 
@@ -121,17 +127,20 @@ open_config_file(
     if (f) {
         goto success;
     }
-    free(location);
+    g_free(location);
 
     /* finally check in /etc */
     dbprint(VMI_DEBUG_CORE, "--looking for config file at /etc/libvmi.conf\n");
-    location = safe_malloc(strlen("/etc/libvmi.conf")+1);
+    location = g_malloc0(strlen("/etc/libvmi.conf")+1);
+    if ( !location )
+        return NULL;
+
     sprintf(location, "/etc/libvmi.conf");
     f = fopen(location, "r");
     if (f) {
         goto success;
     }
-    free(location);
+    g_free(location);
 
     return NULL;
 success:
@@ -406,8 +415,9 @@ vmi_init_private(
     status_t status = VMI_FAILURE;
 
     /* allocate memory for instance structure */
-    vmi_instance_t _vmi = (vmi_instance_t) safe_malloc(sizeof(struct vmi_instance));
-    memset(_vmi, 0, sizeof(struct vmi_instance));
+    vmi_instance_t _vmi = (vmi_instance_t) g_malloc0(sizeof(struct vmi_instance));
+    if ( !_vmi )
+        return VMI_FAILURE;
 
     /* initialize instance struct to default values */
     dbprint(VMI_DEBUG_CORE, "LibVMI Version 0.11.0\n");  //TODO change this with each release

@@ -44,7 +44,10 @@ windows_get_eprocess_name(
     }
 
     addr_t name_paddr = paddr + windows->pname_offset;
-    char *name = (char *) safe_malloc(name_length);
+    char *name = (char *) g_malloc0(name_length);
+
+    if ( !name )
+        return NULL;
 
     if (name_length == vmi_read_pa(vmi, name_paddr, name, name_length)) {
         return name;

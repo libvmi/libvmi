@@ -359,8 +359,9 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
 status_t amd64_init(vmi_instance_t vmi) {
 
     if(!vmi->arch_interface) {
-        vmi->arch_interface = safe_malloc(sizeof(struct arch_interface));
-        bzero(vmi->arch_interface, sizeof(struct arch_interface));
+        vmi->arch_interface = g_malloc0(sizeof(struct arch_interface));
+        if ( !vmi->arch_interface )
+            return VMI_FAILURE;
     }
 
     vmi->arch_interface->v2p = v2p_ia32e;

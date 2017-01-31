@@ -543,8 +543,9 @@ status_t intel_init(vmi_instance_t vmi) {
     status_t ret = VMI_SUCCESS;
 
     if(!vmi->arch_interface) {
-        vmi->arch_interface = safe_malloc(sizeof(struct arch_interface));
-        bzero(vmi->arch_interface, sizeof(struct arch_interface));
+        vmi->arch_interface = g_malloc0(sizeof(struct arch_interface));
+        if ( !vmi->arch_interface )
+            return VMI_FAILURE;
     }
 
     if(vmi->page_mode == VMI_PM_LEGACY) {
@@ -555,7 +556,7 @@ status_t intel_init(vmi_instance_t vmi) {
         vmi->arch_interface->get_va_pages = get_va_pages_pae;
     } else {
         ret = VMI_FAILURE;
-        free(vmi->arch_interface);
+        g_free(vmi->arch_interface);
         vmi->arch_interface = NULL;
     }
 

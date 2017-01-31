@@ -136,7 +136,10 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
 
     memory_cache_entry_t entry =
         (memory_cache_entry_t)
-        safe_malloc(sizeof(struct memory_cache_entry));
+        g_malloc0(sizeof(struct memory_cache_entry));
+
+    if ( !entry )
+        return NULL;
 
     entry->paddr = paddr;
     entry->length = length;
@@ -201,11 +204,16 @@ memory_cache_insert(
             return 0;
         }
 
-        key = safe_malloc(sizeof(gint64));
+        key = g_malloc0(sizeof(gint64));
+        if ( !key )
+            return 0;
+
         *key = paddr;
         g_hash_table_insert(vmi->memory_cache, key, entry);
 
-        gint64 *key2 = safe_malloc(sizeof(gint64));
+        gint64 *key2 = g_malloc0(sizeof(gint64));
+        if ( !key2 )
+            return 0;
 
         *key2 = paddr;
         g_queue_push_head(vmi->memory_cache_lru, key2);
