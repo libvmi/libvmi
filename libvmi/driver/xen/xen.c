@@ -475,6 +475,10 @@ xen_put_memory(
     addr_t offset = 0;
     size_t buf_offset = 0;
 
+#if defined(ARM32) || defined(ARM64)
+    xen_instance_t *xen = xen_get_instance(vmi);
+#endif
+
     while (count > 0) {
         size_t write_len = 0;
 
@@ -495,8 +499,25 @@ xen_put_memory(
             write_len = count;
         }
 
+        /*
+         * The ARM architecture doesn't provide cache coherence guarantees.
+         * To ensure that the CPUs won't use stale data we need to flush
+         * the l1&l2 cache manually.
+         * Prior to Xen 4.9 xc_domain_cacheflush only flushes the data caches.
+         * As such, if the modification is made to code that is actively in use,
+         * the CPUs may still execute stale instructions afterwards.
+         */
+#if defined(ARM32) || defined(ARM64)
+        xen_pause_vm(vmi);
+#endif
+
         /* do the write */
         memcpy(memory + offset, ((char *) buf) + buf_offset, write_len);
+
+#if defined(ARM32) || defined(ARM64)
+        xen->libxcw.xc_domain_cacheflush(xen->xchandle, xen->domainid, pfn, 1);
+        xen_resume_vm(vmi);
+#endif
 
         /*
          * We need to refresh the page cache after a page is written to
