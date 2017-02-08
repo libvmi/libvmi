@@ -348,7 +348,7 @@ status_t process_interrupt_event(vmi_instance_t vmi, interrupts_t intr,
 
 static
 status_t process_register(vmi_instance_t vmi,
-                          registers_t reg, uint64_t gfn, uint32_t vcpu_id, uint64_t gla,
+                          reg_t reg, uint64_t gfn, uint32_t vcpu_id, uint64_t gla,
                           uint32_t *rsp_flags)
 {
     gint lookup         = reg;

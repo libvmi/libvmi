@@ -158,7 +158,6 @@ typedef enum page_size {
 } page_size_t;
 
 typedef uint64_t reg_t;
-typedef reg_t registers_t;
 
 /**
  * The following definitions are used where the API defines
@@ -415,6 +414,51 @@ typedef reg_t registers_t;
 #define PC64        PC
 #define SPSR_EL1    SPSR_SVC
 #define TCR_EL1     TTBCR
+
+/*
+ * Commonly used x86 registers
+ */
+typedef struct x86_regs {
+    uint64_t rax;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rbx;
+    uint64_t rsp;
+    uint64_t rbp;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t rflags;
+    uint64_t dr7;
+    uint64_t rip;
+    uint64_t cr0;
+    uint64_t cr2;
+    uint64_t cr3;
+    uint64_t cr4;
+    uint64_t sysenter_cs;
+    uint64_t sysenter_esp;
+    uint64_t sysenter_eip;
+    uint64_t msr_efer;
+    uint64_t msr_star;
+    uint64_t msr_lstar;
+    uint64_t fs_base;
+    uint64_t gs_base;
+    uint32_t cs_arbytes;
+    uint32_t _pad;
+} x86_registers_t;
+
+typedef struct registers {
+    union {
+        x86_registers_t x86;
+    };
+} registers_t;
 
 /**
  * typedef for forward compatibility with 64-bit guests
@@ -1856,8 +1900,23 @@ unsigned int vmi_get_num_vcpus (
  */
 status_t vmi_get_vcpureg(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
+    unsigned long vcpu);
+
+/**
+ * Gets the current value of VCPU registers.  This currently only
+ * supports x86 registers.  When LibVMI is accessing a raw
+ * memory file or KVM, this function will fail.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[out] regs The register struct to be filled
+ * @param[in] vcpu The index of the VCPU to access, use 0 for single VCPU systems
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_get_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *regs,
     unsigned long vcpu);
 
 /**
@@ -1874,8 +1933,26 @@ status_t vmi_get_vcpureg(
  */
 status_t vmi_set_vcpureg(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
+    uint64_t value,
+    reg_t reg,
+    unsigned long vcpu);
+
+/**
+ * Sets the vCPU registers to the ones passed in the struct. It is important to have
+ * a valid value in all registers when calling this function, so the user likely
+ * wants to call vmi_get_vcpuregs before calling this function.
+ * When LibVMI is accessing a raw memory file or KVM, this function will fail.
+ * Operating upon an unpaused VM with this function is likely to have unexpected
+ * results.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[regs] regs The register struct holding the values to be set
+ * @param[in] vcpu The index of the VCPU to access, use 0 for single VCPU systems
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_set_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *regs,
     unsigned long vcpu);
 
 /**

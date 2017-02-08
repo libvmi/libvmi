@@ -382,7 +382,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
 
 static inline
 status_t process_register(vmi_instance_t vmi,
-                          registers_t reg,
+                          reg_t reg,
                           vm_event_46_request_t *req,
                           vm_event_46_request_t *rsp)
 {

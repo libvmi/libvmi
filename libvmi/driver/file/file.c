@@ -238,8 +238,8 @@ error_exit:
 status_t
 file_get_vcpureg(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long UNUSED(vcpu))
 {
     switch (reg) {

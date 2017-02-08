@@ -65,14 +65,21 @@ status_t xen_get_memsize(
     addr_t *maximum_physical_address);
 status_t xen_get_vcpureg(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long vcpu);
-status_t
-xen_set_vcpureg(
+status_t xen_get_vcpuregs(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
+    registers_t *regs,
+    unsigned long vcpu);
+status_t xen_set_vcpureg(
+    vmi_instance_t vmi,
+    uint64_t value,
+    reg_t reg,
+    unsigned long vcpu);
+status_t xen_set_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *regs,
     unsigned long vcpu);
 status_t xen_get_address_width(
     vmi_instance_t vmi,
@@ -126,7 +133,9 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.set_name_ptr = &xen_set_domainname;
     driver.get_memsize_ptr = &xen_get_memsize;
     driver.get_vcpureg_ptr = &xen_get_vcpureg;
+    driver.get_vcpuregs_ptr = &xen_get_vcpuregs;
     driver.set_vcpureg_ptr = &xen_set_vcpureg;
+    driver.set_vcpuregs_ptr = &xen_set_vcpuregs;
     driver.get_address_width_ptr = &xen_get_address_width;
     driver.read_page_ptr = &xen_read_page;
     driver.write_ptr = &xen_write;

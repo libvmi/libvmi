@@ -175,21 +175,39 @@ vmi_get_num_vcpus(
 status_t
 vmi_get_vcpureg(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long vcpu)
 {
     return driver_get_vcpureg(vmi, value, reg, vcpu);
 }
 
 status_t
+vmi_get_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *regs,
+    unsigned long vcpu)
+{
+    return driver_get_vcpuregs(vmi, regs, vcpu);
+}
+
+status_t
 vmi_set_vcpureg(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
+    uint64_t value,
+    reg_t reg,
     unsigned long vcpu)
 {
     return driver_set_vcpureg(vmi, value, reg, vcpu);
+}
+
+status_t
+vmi_set_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *regs,
+    unsigned long vcpu)
+{
+    return driver_set_vcpuregs(vmi, regs, vcpu);
 }
 
 status_t

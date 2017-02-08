@@ -164,8 +164,8 @@ driver_get_memsize(
 static inline status_t
 driver_get_vcpureg(
     vmi_instance_t vmi,
-    reg_t *value,
-    registers_t reg,
+    uint64_t *value,
+    reg_t reg,
     unsigned long vcpu)
 {
     if (vmi->driver.initialized && vmi->driver.get_vcpureg_ptr) {
@@ -179,10 +179,26 @@ driver_get_vcpureg(
 }
 
 static inline status_t
+driver_get_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t* regs,
+    unsigned long vcpu)
+{
+    if (vmi->driver.initialized && vmi->driver.get_vcpuregs_ptr) {
+        return vmi->driver.get_vcpuregs_ptr(vmi, regs, vcpu);
+    }
+    else {
+        dbprint
+            (VMI_DEBUG_DRIVER, "WARNING: driver_get_vcpuregs function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
 driver_set_vcpureg(
     vmi_instance_t vmi,
-    reg_t value,
-    registers_t reg,
+    uint64_t value,
+    reg_t reg,
     unsigned long vcpu)
 {
     if (vmi->driver.initialized && vmi->driver.set_vcpureg_ptr){
@@ -190,6 +206,21 @@ driver_set_vcpureg(
     }
     else{
         dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_vcpureg function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
+driver_set_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *regs,
+    unsigned long vcpu)
+{
+    if (vmi->driver.initialized && vmi->driver.set_vcpuregs_ptr){
+        return vmi->driver.set_vcpuregs_ptr(vmi, regs, vcpu);
+    }
+    else{
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_vcpuregs function not implemented.\n");
         return VMI_FAILURE;
     }
 }
