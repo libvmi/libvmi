@@ -236,6 +236,9 @@ typedef struct {
     int (*xc_monitor_mov_to_msr2)
             (xc_interface *xch, domid_t domain_id, uint32_t msr, bool enable);
 
+    int (*xc_domain_cacheflush)
+            (xc_interface *xch, uint32_t domid, xen_pfn_t start_pfn, xen_pfn_t nr_pfns);
+
 } libxc_wrapper_t;
 
 status_t create_libxc_wrapper(struct xen_instance *xen);

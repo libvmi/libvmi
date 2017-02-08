@@ -77,7 +77,7 @@ static status_t sanity_check(xen_instance_t *xen)
                  !w->xc_evtchn_open || !w->xc_evtchn_close || !w->xc_evtchn_fd ||
                  !w->xc_evtchn_notify || !w->xc_evtchn_pending || !w->xc_evtchn_unmask ||
                  !w->xc_evtchn_unbind || !w->xc_evtchn_bind_interdomain ||
-                 !w->xc_set_hvm_param || !w->xc_get_hvm_param )
+                 !w->xc_set_hvm_param || !w->xc_get_hvm_param || !w->xc_domain_cacheflush)
                 break;
 
             ret = VMI_SUCCESS;
@@ -87,7 +87,8 @@ static status_t sanity_check(xen_instance_t *xen)
             if ( !w->xc_domain_maximum_gpfn || !w->xc_set_mem_access ||
                  !w->xc_get_mem_access || !w->xc_mem_access_enable2 ||
                  !w->xc_mem_access_disable || !w->xc_mem_access_disable ||
-                 !w->xc_hvm_param_set || !w->xc_hvm_param_get )
+                 !w->xc_hvm_param_set || !w->xc_hvm_param_get ||
+                 !w->xc_domain_cacheflush)
                 break;
 
             ret = VMI_SUCCESS;
@@ -98,7 +99,7 @@ static status_t sanity_check(xen_instance_t *xen)
             /* Fall-through */
         case 8:
             if ( !w->xc_monitor_debug_exceptions || !w->xc_monitor_cpuid ||
-                 !w->xc_monitor_mov_to_msr2 )
+                 !w->xc_monitor_mov_to_msr2)
                 break;
             /* Fall-through */
         case 7:
@@ -114,7 +115,8 @@ static status_t sanity_check(xen_instance_t *xen)
                  !w->xc_altp2m_set_vcpu_enable_notify || !w->xc_altp2m_create_view ||
                  !w->xc_altp2m_destroy_view || !w->xc_altp2m_switch_to_view ||
                  !w->xc_altp2m_set_mem_access || !w->xc_altp2m_change_gfn ||
-                 !w->xc_hvm_param_set || !w->xc_hvm_param_get )
+                 !w->xc_hvm_param_set || !w->xc_hvm_param_get ||
+                 !w->xc_domain_cacheflush )
                 break;
 
             ret = VMI_SUCCESS;
@@ -170,6 +172,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_domain_maximum_gpfn = dlsym(wrapper->handle, "xc_domain_maximum_gpfn");
     wrapper->xc_domain_maximum_gpfn2 = dlsym(wrapper->handle, "xc_domain_maximum_gpfn");
     wrapper->xc_map_foreign_batch = dlsym(wrapper->handle, "xc_map_foreign_batch");
+    wrapper->xc_domain_cacheflush = dlsym(wrapper->handle, "xc_domain_cacheflush");
 
     /* Events */
     wrapper->xc_domain_debug_control = dlsym(wrapper->handle, "xc_domain_debug_control");
