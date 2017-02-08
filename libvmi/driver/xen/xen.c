@@ -2666,15 +2666,50 @@ xen_set_vcpureg(
 #if defined(ARM32) || defined(ARM64)
     return xen_set_vcpureg_arm(vmi, value, reg, vcpu);
 #elif defined(I386) || defined (X86_64)
-    if (!xen_get_instance(vmi)->hvm) {
-        if (8 == xen_get_instance(vmi)->addr_width) {
-            return xen_set_vcpureg_pv64(vmi, value, reg, vcpu);
-        } else {
-            return xen_set_vcpureg_pv32(vmi, value, reg, vcpu);
+    if (xen_get_instance(vmi)->hvm) {
+        switch (reg) {
+        case RAX:
+        case RBX:
+        case RCX:
+        case RDX:
+        case RBP:
+        case RSI:
+        case RDI:
+        case RSP:
+        case R8:
+        case R9:
+        case R10:
+        case R11:
+        case R12:
+        case R13:
+        case R14:
+        case R15:
+        case RIP:
+        case RFLAGS:
+        case CR0:
+        case CR2:
+        case CR4:
+        case DR0:
+        case DR1:
+        case DR2:
+        case DR3:
+        case DR6:
+        case DR7:
+        case FS_BASE:
+        case GS_BASE:
+        case LDTR_BASE:
+            goto pv_compatible;
+        default:
+            return xen_set_vcpureg_hvm(vmi, value, reg, vcpu);
         }
     }
-
-    return xen_set_vcpureg_hvm (vmi, value, reg, vcpu);
+    
+pv_compatible:
+    if (8 == xen_get_instance(vmi)->addr_width) {
+        return xen_set_vcpureg_pv64(vmi, value, reg, vcpu);
+    } else {
+        return xen_set_vcpureg_pv32(vmi, value, reg, vcpu);
+    }
 #endif
 }
 
