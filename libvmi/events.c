@@ -63,20 +63,14 @@ gint swap_search_from(gconstpointer a, gconstpointer b)
 //----------------------------------------------------------------------------
 //  General event callback management.
 
-gboolean event_entry_free(gpointer UNUSED(key), gpointer value, gpointer data)
-{
-    vmi_instance_t vmi = (vmi_instance_t) data;
-    vmi_event_t *event = (vmi_event_t*) value;
-    vmi_clear_event(vmi, event, NULL);
-    return TRUE;
-}
-
-gboolean clear_events(gpointer key, gpointer value, gpointer data)
+gboolean clear_events(gpointer key, gpointer value, gpointer UNUSED(data))
 {
     vmi_event_t *event = *(vmi_event_t**) key;
     vmi_event_free_t free_event = (vmi_event_free_t) value;
-    vmi_instance_t vmi = (vmi_instance_t)data;
-    vmi_clear_event(vmi, event, free_event);
+
+    if ( free_event )
+        free_event(event, VMI_SUCCESS);
+
     return TRUE;
 }
 
@@ -107,7 +101,6 @@ void events_destroy(vmi_instance_t vmi)
     if (vmi->mem_events_on_gfn)
     {
         dbprint(VMI_DEBUG_EVENTS, "Destroying memaccess on gfn events\n");
-        g_hash_table_foreach_remove(vmi->mem_events_on_gfn, event_entry_free, vmi);
         g_hash_table_destroy(vmi->mem_events_on_gfn);
         vmi->mem_events_on_gfn = NULL;
     }
@@ -115,7 +108,6 @@ void events_destroy(vmi_instance_t vmi)
     if (vmi->mem_events_generic)
     {
         dbprint(VMI_DEBUG_EVENTS, "Destroying memaccess generic events\n");
-        g_hash_table_foreach_remove(vmi->mem_events_generic, event_entry_free, vmi);
         g_hash_table_destroy(vmi->mem_events_generic);
         vmi->mem_events_generic = NULL;
     }
@@ -123,7 +115,6 @@ void events_destroy(vmi_instance_t vmi)
     if (vmi->reg_events)
     {
         dbprint(VMI_DEBUG_EVENTS, "Destroying register events\n");
-        g_hash_table_foreach_remove(vmi->reg_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->reg_events);
         vmi->reg_events = NULL;
     }
@@ -131,7 +122,6 @@ void events_destroy(vmi_instance_t vmi)
     if (vmi->msr_events)
     {
         dbprint(VMI_DEBUG_EVENTS, "Destroying MSR events\n");
-        g_hash_table_foreach_remove(vmi->msr_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->msr_events);
         vmi->msr_events = NULL;
     }
@@ -151,7 +141,6 @@ void events_destroy(vmi_instance_t vmi)
     if (vmi->ss_events)
     {
         dbprint(VMI_DEBUG_EVENTS, "Destroying singlestep events\n");
-        g_hash_table_foreach_remove(vmi->ss_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->ss_events);
         vmi->ss_events = NULL;
     }
@@ -159,7 +148,6 @@ void events_destroy(vmi_instance_t vmi)
     if (vmi->interrupt_events)
     {
         dbprint(VMI_DEBUG_EVENTS, "Destroying interrupt events\n");
-        g_hash_table_foreach_remove(vmi->interrupt_events, event_entry_free, vmi);
         g_hash_table_destroy(vmi->interrupt_events);
         vmi->interrupt_events = NULL;
     }
