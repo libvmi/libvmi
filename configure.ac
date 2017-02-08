@@ -71,7 +71,7 @@ AC_ARG_ENABLE([xen],
          [Support memory introspection with live Xen domains (default is yes)])],
       [enable_xen=$enableval],
       [enable_xen=yes])
-AM_CONDITIONAL([XEN], [test x"$enable_xen" = xyes])
+AM_CONDITIONAL([WITH_XEN], [test x"$enable_xen" = xyes])
 
 AC_ARG_WITH([xenstore],
       [AS_HELP_STRING([--without-xenstore],
@@ -85,7 +85,7 @@ AC_ARG_ENABLE([kvm],
          [Support memory introspection with live KVM VMs (default is yes)])],
       [enable_kvm=$enableval],
       [enable_kvm=yes])
-AM_CONDITIONAL([KVM], [test x"$enable_kvm" = xyes])
+AM_CONDITIONAL([WITH_KVM], [test x"$enable_kvm" = xyes])
 
 AC_ARG_ENABLE([shm_snapshot],
       [AS_HELP_STRING([--disable-shm-snapshot],
@@ -99,7 +99,7 @@ AC_ARG_ENABLE([file],
          [Support memory introspection with physical memory dumps in a file (default is yes)])],
       [enable_file=$enableval],
       [enable_file=yes])
-AM_CONDITIONAL([FILE], [test x"$enable_file" = xyes])
+AM_CONDITIONAL([WITH_FILE], [test x"$enable_file" = xyes])
 
 AC_ARG_ENABLE([windows],
       [AS_HELP_STRING([--disable-windows],
@@ -174,120 +174,58 @@ PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16])
 AC_SUBST([GLIB_CFLAGS])
 AC_SUBST([GLIB_LIBS])
-AC_CHECK_LIB(dl, dlopen)
 
-have_xen='no'
-xen_space='      '
+[if test "$enable_xen" = "yes" || test "$enable_kvm" = "yes"]
+[then]
+    AC_CHECK_LIB(dl, dlopen, [],
+        [AC_MSG_ERROR(No dl found. Install missing package or re-run with --disable-kvm --disable-xen)])
+[fi]
+
 [if test "$enable_xen" = "yes"]
 [then]
+    AC_CHECK_TYPE(
+        [hvmmem_access_t],
+        [AC_DEFINE([HAVE_HVMMEM_ACCESS_T], [1], [xen headers define hvmmem_access_t])],
+        [],
+        [#include <xenctrl.h> #include <xen/hvm/save.h>])
+
+    AC_CHECK_TYPE(
+        [xenmem_access_t],
+        [AC_DEFINE([HAVE_XENMEM_ACCESS_T], [1], [xen headers define xenmem_access_t])],
+        [],
+        [#include <xenctrl.h> #include <xen/memory.h>])
+
+    AC_DEFINE([ENABLE_XEN], [1], [Define to 1 to enable Xen support.])
 
     [if test "$with_xenstore" = "yes"]
     [then]
-        AC_CHECK_LIB(xenstore, xs_read, [missing="no"], [missing="yes"])
         AC_CHECK_HEADERS([xenstore.h])
         AC_CHECK_HEADERS([xs.h])
+
+        AC_DEFINE([HAVE_LIBXENSTORE], [1], [Define to 1 to enable Xenstore support.])
     [fi]
-
-    [if test "$with_xenstore" = "yes" -a "$missing" = "yes"]
-    [then]
-        AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
-        missing='no'
-        enable_xen='no'
-        have_xen='missing xenstore'
-    [else]
-        [if test "$with_xenstore" = "yes"]
-        [then]
-            AC_DEFINE(HAVE_LIBXENSTORE, [1], [Define to 1 if enable xenstore access])
-        [fi]
-
-        AC_CHECK_LIB(xenctrl, xc_interface_open, [missing="no"], [missing="yes"])
-        [if test "$missing" = "yes"]
-        [then]
-            AC_DEFINE([ENABLE_XEN], [0], [Define to 1 to enable Xen support.])
-            missing='no'
-            enable_xen='no'
-            have_xen='missing xenctrl'
-        [else]
-            AC_DEFINE([ENABLE_XEN], [1], [Define to 1 to enable Xen support.])
-            have_xen='yes'
-            xen_space='     '
-
-            AC_CHECK_TYPE(
-                    [hvmmem_access_t],
-                    [
-                        have_hvmmem_access_t='yes'
-                        AC_DEFINE([HAVE_HVMMEM_ACCESS_T], [1], [xen headers define hvmmem_access_t])],
-                    [],
-                    [#include <xenctrl.h> #include <xen/hvm/save.h>]
-                )
-
-            AC_CHECK_TYPE(
-                    [xenmem_access_t],
-                    [
-                        have_xenmem_access_t='yes'
-                        AC_DEFINE([HAVE_XENMEM_ACCESS_T], [1], [xen headers define xenmem_access_t])],
-                    [],
-                    [#include <xenctrl.h> #include <xen/memory.h>]
-                )
-        [fi]
-    [fi]
-
-    AC_CHECK_TYPE(
-        [vcpu_guest_context_any_t],
-        AC_DEFINE([HAVE_CONTEXT_ANY], [1], [Checks existence of vcpu_guest_context_any_t to know how to check cpu context on this libxc version.]),
-        [],
-        [#include "xenctrl.h"])
 [fi]
-AM_CONDITIONAL([HAVE_XEN], [test x"$have_xen" = "xyes"])
 
-have_kvm='no'
-kvm_space='      '
 [if test "$enable_kvm" = "yes"]
 [then]
-    AC_CHECK_LIB(m, ceil, [], [missing="yes"])
-    [if test "$missing" = "yes"]
-    [then]
-        AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
-        missing='no'
-        enable_kvm='no'
-        have_kvm='libm missing'
-    [else]
-        AC_CHECK_LIB(virt, virConnectOpen, [missing="no"], [missing="yes"])
-        [if test "$missing" = "yes"]
-        [then]
-            AC_DEFINE([ENABLE_KVM], [0], [Define to 1 to enable KVM support.])
-            missing='no'
-            enable_kvm='no'
-            have_kvm='libvirt missing'
-        [else]
-            AC_CHECK_LIB(rt, shm_open)
-            AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
-            missing='no'
-            have_kvm='yes'
-            kvm_space='     '
-        [fi]
-    [fi]
+    AC_CHECK_LIB(m, ceil, [],
+        [AC_MSG_ERROR(No libm found. Install missing package or re-run with --disable-kvm)])
+    AC_CHECK_HEADER(libvirt/libvirt.h, [],
+        [AC_MSG_ERROR([No libvirt headers found. Install missing package or re-run with --disable-kvm])])
+    AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
 [fi]
-AM_CONDITIONAL([HAVE_KVM], [test x"$have_kvm" = "xyes"])
 
-have_shm_snapshot='no'
-shm_snapshot_space=' '
 [if test "$enable_shm_snapshot" = "yes"]
 [then]
+    AC_CHECK_LIB(rt, shm_open, [],
+        [AC_MSG_ERROR(No shm_open in rt. Install missing package or re-run with --disable-shm-snapshot)])
     AC_DEFINE([ENABLE_SHM_SNAPSHOT], [1], [Define to 1 to enable shm-snapshot support.])
-    shm_snapshot_space=''
-    have_shm_snapshot='yes'
 [fi]
 
-have_file='no'
-file_space='      '
 [if test "$enable_file" = "yes"]
 [then]
     AC_DEFINE([ENABLE_FILE], [1], [Define to 1 to enable file support.])
-    file_space='     '
-    have_file='yes'
 [fi]
-AM_CONDITIONAL([HAVE_FILE], [test x"$have_file" = "xyes"])
 
 [if test "$enable_windows" = "yes"]
 [then]
@@ -422,29 +360,26 @@ Host system type: $host
 Build system type: $build
 Installation prefix: $prefix
 
-Feature      | Option                    | Reason
--------------|---------------------------|----------------------------
-Xen Support  | --enable-xen=$enable_xen$xen_space     | $have_xen
-KVM Support  | --enable-kvm=$enable_kvm$kvm_space     | $have_kvm
-File Support | --enable-file=$enable_file$file_space    | $have_file
-Shm-snapshot | --enable-shm-snapshot=$enable_shm_snapshot$shm_snapshot_space | $have_shm_snapshot
--------------|---------------------------|----------------------------
+Feature         | Option
+----------------|---------------------------
+Xen Support     | --enable-xen=$enable_xen
+KVM Support     | --enable-kvm=$enable_kvm
+File Support    | --enable-file=$enable_file
+Shm-snapshot    | --enable-shm-snapshot=$enable_shm_snapshot
+Rekall profiles | --enable-rekall-profiles=$rekall
+----------------|---------------------------
 
-OS           | Option
--------------|--------------------------------------------------------
-Windows      | --enable-windows=$enable_windows
-Linux        | --enable-linux=$enable_linux
+OS              | Option
+----------------|---------------------------
+Windows         | --enable-windows=$enable_windows
+Linux           | --enable-linux=$enable_linux
 
 
-Tools        | Option                    | Reason
--------------|---------------------------|----------------------------
-Examples     | --enable-examples=$enable_examples$examples_space | $enable_examples
-VMIFS        | --enable-vmifs=$enable_vmifs$vmifs_space  | $have_vmifs
+Tools           | Option                    | Reason
+----------------|---------------------------|----------------------------
+Examples        | --enable-examples=$enable_examples
+VMIFS           | --enable-vmifs=$enable_vmifs$vmifs_space  | $have_vmifs
 
-Extra features
-----------------------------------------------------------------------
-Support of Rekall profiles: $rekall
- 
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.
 ])
