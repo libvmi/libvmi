@@ -171,7 +171,11 @@ AM_PROG_LIBTOOL
 AM_SANITY_CHECK
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
-PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16])
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16],
+                  [AC_DEFINE([GLIB_VERSION],
+                    [m4_esyscmd_s([pkg-config --modversion glib-2.0 | tr -d . | cut -c1-3])],
+                    [GLib version])],
+                  [AC_MSG_ERROR(GLib 2.16 or newer not found. Install missing package and re-run)])
 AC_SUBST([GLIB_CFLAGS])
 AC_SUBST([GLIB_LIBS])
 

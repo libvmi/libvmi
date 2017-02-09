@@ -175,8 +175,7 @@ pid_cache_set(
     if ( !entry )
         return;
 
-    if ( !g_hash_table_insert(vmi->pid_cache, key, entry) )
-    {
+    if ( !g_hash_table_insert_compat(vmi->pid_cache, key, entry) ) {
         g_free(key);
         g_free(entry);
     }
@@ -326,7 +325,7 @@ sym_cache_set(
             return;
         }
 
-        if ( !g_hash_table_insert(vmi->sym_cache, key, symbol_table) )
+        if ( !g_hash_table_insert_compat(vmi->sym_cache, key, symbol_table) )
         {
             g_hash_table_destroy(symbol_table);
             g_free(key);
@@ -349,7 +348,7 @@ sym_cache_set(
         return;
     }
 
-    if ( !g_hash_table_insert(symbol_table, sym_dup, entry) )
+    if ( !g_hash_table_insert_compat(symbol_table, sym_dup, entry) )
     {
         g_free(key);
         g_free(entry);
@@ -461,6 +460,7 @@ rva_cache_set(
     GHashTable *rva_table = NULL;
     sym_cache_entry_t entry = sym_cache_entry_create(sym, rva, base_addr, dtb);
 
+    gboolean new_table;
     key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)dtb);
     if ( !key )
     {
@@ -469,15 +469,25 @@ rva_cache_set(
     }
 
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
+        new_table = 1;
         rva_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
                               sym_cache_entry_free);
-        g_hash_table_insert(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table);
+        if ( !g_hash_table_insert_compat(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table) ) {
+            g_free(key);
+            g_hash_table_destroy(rva_table);
+            return;
+        }
     } else {
         g_free(key);
+        return;
     }
 
-    g_hash_table_insert(rva_table, GUINT_TO_POINTER(rva), entry);
-    dbprint(VMI_DEBUG_RVACACHE, "--RVA cache set %s -- 0x%.16"PRIx64"\n", sym, rva);
+    if ( g_hash_table_insert_compat(rva_table, GUINT_TO_POINTER(rva), entry) )
+        dbprint(VMI_DEBUG_RVACACHE, "--RVA cache set %s -- 0x%.16"PRIx64"\n", sym, rva);
+    else {
+        if ( new_table ) g_hash_table_destroy(rva_table);
+        g_free(key);
+    }
 }
 
 status_t
@@ -582,7 +592,7 @@ v2p_cache_set(
         if ( !_dtb )
             return;
 
-        if ( !g_hash_table_insert(vmi->v2p_cache, _dtb, v) )
+        if ( !g_hash_table_insert_compat(vmi->v2p_cache, _dtb, v) )
         {
             g_free(_dtb);
             g_hash_table_destroy(v);
@@ -600,7 +610,7 @@ v2p_cache_set(
 
     *_pa = pa & ~VMI_BIT_MASK(0,11);
 
-    if ( g_hash_table_insert(v, _va, _pa) )
+    if ( g_hash_table_insert_compat(v, _va, _pa) )
     {
         dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache set 0x%.16"PRIx64" -- 0x%.16"PRIx64"\n",
                 va, pa);
