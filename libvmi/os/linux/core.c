@@ -359,7 +359,8 @@ status_t linux_init(vmi_instance_t vmi) {
     os_interface->os_pgd_to_pid = linux_pgd_to_pid;
     os_interface->os_ksym2v = linux_symbol_to_address;
     os_interface->os_usym2rva = NULL;
-    os_interface->os_v2sym = linux_system_map_address_to_symbol;
+    os_interface->os_v2sym = NULL;
+    os_interface->os_v2ksym = linux_system_map_address_to_symbol;
     os_interface->os_read_unicode_struct = NULL;
     os_interface->os_teardown = linux_teardown;
 

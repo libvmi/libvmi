@@ -353,6 +353,37 @@ const char* vmi_translate_v2sym(vmi_instance_t vmi, const access_context_t *ctx,
     return ret;
 }
 
+/* convert a VA into a symbol */
+const char* vmi_translate_v2ksym(vmi_instance_t vmi, const access_context_t *ctx, addr_t va)
+{
+    char *ret = NULL;
+    addr_t dtb = 0;
+
+    switch(ctx->translate_mechanism) {
+        case VMI_TM_PROCESS_PID:
+            dtb = vmi_pid_to_dtb(vmi, ctx->pid);
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            break;
+        default:
+            dbprint(VMI_DEBUG_MISC, "v2ksym only supported in a virtual context!\n");
+            return 0;
+    };
+
+    if (VMI_FAILURE == rva_cache_get(vmi, ctx->addr, dtb, va, &ret)) {
+        if (vmi->os_interface && vmi->os_interface->os_v2ksym) {
+            ret = vmi->os_interface->os_v2ksym(vmi, va, ctx);
+        }
+
+        if (ret) {
+            rva_cache_set(vmi, ctx->addr, dtb, va, ret);
+        }
+    }
+
+    return ret;
+}
+
 /* finds the address of the page global directory for a given pid */
 addr_t vmi_pid_to_dtb (vmi_instance_t vmi, vmi_pid_t pid)
 {
