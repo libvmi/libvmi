@@ -83,14 +83,21 @@ exec_qmp_cmd(
     size_t length = 0;
     const char *name = kvm->libvirt.virDomainGetName(kvm->dom);
     int cmd_length = strlen(name) + strnlen(query, QMP_CMD_LENGTH) + 47;
+
     char *cmd = g_malloc0(cmd_length);
     if ( !cmd )
+    {
+        g_free(output);
         return NULL;
+    }
 
     int rc = snprintf(cmd, cmd_length, "virsh -c qemu:///system qemu-monitor-command %s %s", name,
              query);
+
     if (rc < 0 || rc >= cmd_length) {
         errprint("Failed to properly format `virsh qemu-monitor-command`\n");
+        g_free(cmd);
+        g_free(output);
         return NULL;
     }
     dbprint(VMI_DEBUG_KVM, "--qmp: %s\n", cmd);
@@ -98,16 +105,17 @@ exec_qmp_cmd(
     p = popen(cmd, "r");
     if (NULL == p) {
         dbprint(VMI_DEBUG_KVM, "--failed to run QMP command\n");
-        free(cmd);
+        g_free(cmd);
+        g_free(output);
         return NULL;
     }
 
     length = fread(output, 1, 20000, p);
     pclose(p);
-    free(cmd);
+    g_free(cmd);
 
     if (length == 0) {
-        free(output);
+        g_free(output);
         return NULL;
     }
     else {
@@ -204,13 +212,13 @@ parse_seg_reg_value(
 {
     int offset;
     char *ptr, *tmp_ptr;
-    char keyword[4];
+    char keyword[4] = { [0 ... 3] = '\0' };
 
     if (NULL == ir_output || NULL == regname) {
         return 0;
     }
 
-    strcpy(keyword, regname);
+    strncpy(keyword, regname, 3);
     if(strlen(regname) == 2)
         strcat(keyword, " =");
     else
@@ -308,6 +316,7 @@ init_domain_socket(
     if (connect(socket_fd, (struct sockaddr *) &address, address_length)
         != 0) {
         dbprint(VMI_DEBUG_KVM, "--connect() failed to %s\n", kvm->ds_path);
+        close(socket_fd);
         return VMI_FAILURE;
     }
 
@@ -1159,24 +1168,16 @@ kvm_get_memory_native(
 {
     int numwords = ceil(length / 4);
     char *buf = g_malloc0(numwords * 4);
-    if ( !buf )
-        return NULL;
-
     char *bufstr = exec_xp(kvm_get_instance(vmi), numwords, paddr);
     char *paddrstr = g_malloc0(32);
 
-    if ( !paddrstr )
-    {
-        g_free(buf);
-        return NULL;
-    }
+    if ( !buf || !bufstr || !paddrstr )
+        goto error;
 
     int rc = snprintf(paddrstr, 32, "%.16lx", paddr);
     if (rc < 0 || rc >= 32) {
         errprint("Failed to properly format physical address\n");
-        g_free(buf);
-        g_free(paddrstr);
-        return NULL;
+        goto error;
     }
 
     char *ptr = strcasestr(bufstr, paddrstr);
@@ -1196,7 +1197,7 @@ kvm_get_memory_native(
         rc = snprintf(paddrstr, 32, "%.16lx", paddr + i * 4);
         if (rc < 0 || rc >= 32) {
             errprint("Failed to properly format physical address\n");
-            return NULL;
+            goto error;
         }
         ptr = strcasestr(ptr, paddrstr);
     }
@@ -1204,6 +1205,12 @@ kvm_get_memory_native(
     g_free(bufstr);
     g_free(paddrstr);
     return buf;
+
+error:
+    g_free(buf);
+    g_free(bufstr);
+    g_free(paddrstr);
+    return NULL;
 }
 
 void

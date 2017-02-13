@@ -635,7 +635,7 @@ status_t swap_events(vmi_instance_t vmi, vmi_event_t *swap_from, vmi_event_t *sw
 //----------------------------------------------------------------------------
 // Public event functions.
 
-vmi_event_t *vmi_get_reg_event(vmi_instance_t vmi, registers_t reg)
+vmi_event_t *vmi_get_reg_event(vmi_instance_t vmi, reg_t reg)
 {
     return g_hash_table_lookup(vmi->reg_events, &reg);
 }

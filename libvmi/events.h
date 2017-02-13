@@ -622,7 +622,7 @@ status_t vmi_clear_event(
  */
 vmi_event_t *vmi_get_reg_event(
     vmi_instance_t vmi,
-    registers_t reg);
+    reg_t reg);
 
 /**
  * Return the pointer to the vmi_event_t if one is set on the given page or
