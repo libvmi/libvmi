@@ -67,7 +67,10 @@ file_get_memory(
         goto error_noprint;
     }   // if
 
-    memory = safe_malloc(length);
+    memory = g_malloc0(length);
+
+    if ( !memory )
+        return NULL;
 
 #if USE_MMAP
     (void) memcpy(memory,

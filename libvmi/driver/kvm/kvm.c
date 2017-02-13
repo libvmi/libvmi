@@ -76,11 +76,16 @@ exec_qmp_cmd(
     char *query)
 {
     FILE *p;
-    char *output = safe_malloc(20000);
+    char *output = g_malloc0(20000);
+    if ( !output )
+        return NULL;
+
     size_t length = 0;
     const char *name = kvm->libvirt.virDomainGetName(kvm->dom);
     int cmd_length = strlen(name) + strnlen(query, QMP_CMD_LENGTH) + 47;
-    char *cmd = safe_malloc(cmd_length);
+    char *cmd = g_malloc0(cmd_length);
+    if ( !cmd )
+        return NULL;
 
     int rc = snprintf(cmd, cmd_length, "virsh -c qemu:///system qemu-monitor-command %s %s", name,
              query);
@@ -124,7 +129,10 @@ exec_memory_access(
     kvm_instance_t *kvm)
 {
     char *tmpfile = tempnam("/tmp", "vmi");
-    char *query = (char *) safe_malloc(QMP_CMD_LENGTH);
+    char *query = (char *) g_malloc0(QMP_CMD_LENGTH);
+
+    if ( !query )
+        return NULL;
 
     int rc = snprintf(query,
             QMP_CMD_LENGTH,
@@ -149,7 +157,9 @@ exec_xp(
     int numwords,
     addr_t paddr)
 {
-    char *query = (char *) safe_malloc(QMP_CMD_LENGTH);
+    char *query = (char *) g_malloc0(QMP_CMD_LENGTH);
+    if ( !query )
+        return NULL;
 
     int rc = snprintf(query,
             QMP_CMD_LENGTH,
@@ -353,12 +363,15 @@ exec_shm_snapshot(
         char *shm_filename = basename(unique_shm_path);
         char *query_template = "'{\"execute\": \"snapshot-create\", \"arguments\": {"
             " \"filename\": \"/%s\"}}'";
-        char *query = (char *) safe_malloc(strlen(query_template) - strlen("%s") + NAME_MAX + 1);
+        char *query = (char *) g_malloc0(strlen(query_template) - strlen("%s") + NAME_MAX + 1);
+        if ( !query )
+            return NULL;
+
         sprintf(query, query_template, shm_filename);
         kvm->shm_snapshot_path = strdup(shm_filename);
         free(unique_shm_path);
         char *output = exec_qmp_cmd(kvm, query);
-        free(query);
+        g_free(query);
         return output;
     }
     else {
@@ -1051,7 +1064,7 @@ kvm_setup_shm_snapshot_mode(
         pid_cache_flush(vmi);
         sym_cache_flush(vmi);
         rva_cache_flush(vmi);
-        v2p_cache_flush(vmi);
+        v2p_cache_flush(vmi, ~0ull);
         v2m_cache_flush(vmi);
         memory_cache_destroy(vmi);
         memory_cache_init(vmi, kvm_get_memory_shm_snapshot, kvm_release_memory_shm_snapshot,
@@ -1085,7 +1098,7 @@ kvm_teardown_shm_snapshot_mode(
         pid_cache_flush(vmi);
         sym_cache_flush(vmi);
         rva_cache_flush(vmi);
-        v2p_cache_flush(vmi);
+        v2p_cache_flush(vmi, ~0ull);
         memory_cache_destroy(vmi);
     }
     return VMI_SUCCESS;
@@ -1098,7 +1111,10 @@ kvm_get_memory_patch(
     addr_t paddr,
     uint32_t length)
 {
-    char *buf = safe_malloc(length + 1);
+    char *buf = g_malloc0(length + 1);
+    if ( !buf )
+        return NULL;
+
     struct request req;
 
     req.type = 1;   // read request
@@ -1142,13 +1158,24 @@ kvm_get_memory_native(
     uint32_t length)
 {
     int numwords = ceil(length / 4);
-    char *buf = safe_malloc(numwords * 4);
+    char *buf = g_malloc0(numwords * 4);
+    if ( !buf )
+        return NULL;
+
     char *bufstr = exec_xp(kvm_get_instance(vmi), numwords, paddr);
-    char *paddrstr = safe_malloc(32);
+    char *paddrstr = g_malloc0(32);
+
+    if ( !paddrstr )
+    {
+        g_free(buf);
+        return NULL;
+    }
 
     int rc = snprintf(paddrstr, 32, "%.16lx", paddr);
     if (rc < 0 || rc >= 32) {
         errprint("Failed to properly format physical address\n");
+        g_free(buf);
+        g_free(paddrstr);
         return NULL;
     }
 
@@ -1173,10 +1200,9 @@ kvm_get_memory_native(
         }
         ptr = strcasestr(ptr, paddrstr);
     }
-    if (bufstr)
-        free(bufstr);
-    if (paddrstr)
-        free(paddrstr);
+
+    g_free(bufstr);
+    g_free(paddrstr);
     return buf;
 }
 
@@ -1245,7 +1271,7 @@ kvm_setup_live_mode(
         pid_cache_flush(vmi);
         sym_cache_flush(vmi);
         rva_cache_flush(vmi);
-        v2p_cache_flush(vmi);
+        v2p_cache_flush(vmi, ~0ull);
         memory_cache_destroy(vmi);
         memory_cache_init(vmi, kvm_get_memory_patch, kvm_release_memory,
                           1);

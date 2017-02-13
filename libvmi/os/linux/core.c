@@ -308,11 +308,13 @@ status_t linux_init(vmi_instance_t vmi) {
 
     if (vmi->os_data != NULL) {
         errprint("os data already initialized, reinitializing\n");
-        free(vmi->os_data);
+        g_free(vmi->os_data);
     }
 
-    vmi->os_data = safe_malloc(sizeof(struct linux_instance));
-    bzero(vmi->os_data, sizeof(struct linux_instance));
+    vmi->os_data = g_malloc0(sizeof(struct linux_instance));
+    if ( !vmi->os_data )
+        return VMI_FAILURE;
+
     linux_instance_t linux_instance = vmi->os_data;
 
     g_hash_table_foreach(vmi->config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
@@ -351,7 +353,10 @@ status_t linux_init(vmi_instance_t vmi) {
 
     dbprint(VMI_DEBUG_MISC, "**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
 
-    os_interface = safe_malloc(sizeof(struct os_interface));
+    os_interface = g_malloc(sizeof(struct os_interface));
+    if ( !os_interface )
+        goto _exit;
+
     bzero(os_interface, sizeof(struct os_interface));
     os_interface->os_get_offset = linux_get_offset;
     os_interface->os_get_kernel_struct_offset = linux_get_kernel_struct_offset;
@@ -368,7 +373,7 @@ status_t linux_init(vmi_instance_t vmi) {
     return VMI_SUCCESS;
 
     _exit:
-    free(vmi->os_data);
+    g_free(vmi->os_data);
     vmi->os_data = NULL;
     return VMI_FAILURE;
 }

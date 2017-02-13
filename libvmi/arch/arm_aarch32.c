@@ -189,8 +189,9 @@ GSList* get_va_pages_aarch32(vmi_instance_t UNUSED(vmi), addr_t UNUSED(dtb)) {
 status_t aarch32_init(vmi_instance_t vmi) {
 
     if(!vmi->arch_interface) {
-        vmi->arch_interface = safe_malloc(sizeof(struct arch_interface));
-        bzero(vmi->arch_interface, sizeof(struct arch_interface));
+        vmi->arch_interface = g_malloc0(sizeof(struct arch_interface));
+        if ( !vmi->arch_interface )
+            return VMI_FAILURE;
     }
 
     vmi->arch_interface->v2p = v2p_aarch32;
