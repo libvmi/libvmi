@@ -1276,7 +1276,7 @@ status_t xen_events_listen_48(vmi_instance_t vmi, uint32_t timeout)
             loop = loop->next;
         }
 
-        g_hash_table_foreach_remove(vmi->clear_events, clear_events, vmi);
+        g_hash_table_foreach_remove(vmi->clear_events, clear_events_full, vmi);
 
         vmi_resume_vm(vmi);
     }
