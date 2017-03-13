@@ -321,11 +321,13 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config) {
 
     if(linux_instance->rekall_profile)
         rc = init_from_rekall_profile(vmi);
-    else
+    else if ( !vmi->init_task )
         rc = linux_symbol_to_address(vmi, "init_task", NULL, &vmi->init_task);
+    else
+        rc = VMI_SUCCESS;
 
-    if (VMI_FAILURE == rc) {
-        errprint("Could not get init_task from Rekall profile or System.map\n");
+    if ( VMI_FAILURE == rc ) {
+        errprint("Failed to determine init_task!\n");
         goto _exit;
     }
 
@@ -415,6 +417,11 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
 
     if (strncmp(key, "linux_pgd", CONFIG_STR_LENGTH) == 0) {
         linux_instance->pgd_offset = *(addr_t *)value;
+        goto _done;
+    }
+
+    if (strncmp(key, "linux_init_task", CONFIG_STR_LENGTH) == 0) {
+        vmi->init_task = *(addr_t*)value;
         goto _done;
     }
 
