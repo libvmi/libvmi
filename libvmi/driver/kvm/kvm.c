@@ -212,7 +212,7 @@ parse_seg_reg_value(
 {
     int offset;
     char *ptr, *tmp_ptr;
-    char keyword[4] = { [0 ... 3] = '\0' };
+    char keyword[5] = { [0 ... 4] = '\0' };
 
     if (NULL == ir_output || NULL == regname) {
         return 0;
