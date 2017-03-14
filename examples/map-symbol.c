@@ -51,8 +51,10 @@ main(
     char *symbol = argv[2];
 
     /* initialize the libvmi library */
-    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) ==
-        VMI_FAILURE) {
+    if (VMI_FAILURE ==
+        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, NULL,
+                          VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
+    {
         printf("Failed to init LibVMI library.\n");
         goto error_exit;
     }

@@ -43,7 +43,7 @@ windows_read_unicode_struct(
     addr_t buffer_va = 0;
     uint16_t buffer_len = 0;
 
-    if (VMI_PM_IA32E == vmi_get_page_mode(vmi)) {   // 64 bit guest
+    if (VMI_PM_IA32E == vmi->page_mode) {   // 64 bit guest
         win64_unicode_string_t us64 = { 0 };
         struct_size = sizeof(us64);
         // read the UNICODE_STRING struct

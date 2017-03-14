@@ -739,15 +739,14 @@ init_core(vmi_instance_t vmi)
 }
 
 status_t
-windows_init(
-    vmi_instance_t vmi)
+windows_init(vmi_instance_t vmi, GHashTable *config)
 {
     status_t status = VMI_FAILURE;
     windows_instance_t windows = NULL;
     os_interface_t os_interface = NULL;
     status_t real_kpgd_found = VMI_FAILURE;
 
-    if (vmi->config == NULL) {
+    if (!config) {
         errprint("VMI_ERROR: No config table found\n");
         return VMI_FAILURE;
     }
@@ -764,12 +763,12 @@ windows_init(
     windows = vmi->os_data;
     windows->version = VMI_OS_WINDOWS_UNKNOWN;
 
-    g_hash_table_foreach(vmi->config, (GHFunc)windows_read_config_ghashtable_entries, vmi);
+    g_hash_table_foreach(config, (GHFunc)windows_read_config_ghashtable_entries, vmi);
 
     /* Need to provide this functions so that find_page_mode will work */
     os_interface = g_malloc0(sizeof(struct os_interface));
     if ( !os_interface )
-        goto error_exit;
+        goto done;
 
     bzero(os_interface, sizeof(struct os_interface));
     os_interface->os_get_kernel_struct_offset = windows_get_kernel_struct_offset;
@@ -784,9 +783,8 @@ windows_init(
 
     vmi->os_interface = os_interface;
 
-    if(VMI_FAILURE == check_pdbase_offset(vmi)) {
-        goto error_exit;
-    }
+    if(VMI_FAILURE == check_pdbase_offset(vmi))
+        goto done;
 
     /* At this point we still don't have a directory table base,
      * so first we try to get it via the driver (fastest way).
@@ -795,20 +793,19 @@ windows_init(
     if(VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
         if(VMI_FAILURE == get_kpgd_method2(vmi)) {
             errprint("Could not get kpgd, will not be able to determine page mode\n");
-            goto error_exit;
+            goto done;
         } else {
             real_kpgd_found = VMI_SUCCESS;
         }
     }
 
-    if(VMI_FAILURE == init_core(vmi)) {
-        goto error_exit;
-    }
+    if(VMI_FAILURE == init_core(vmi))
+        goto done;
 
     if (VMI_PM_UNKNOWN == vmi->page_mode) {
         if (VMI_FAILURE == find_page_mode(vmi)) {
             errprint("Failed to find correct page mode.\n");
-            goto error_exit;
+            goto done;
         }
     }
 
@@ -843,14 +840,14 @@ windows_init(
 
     vmi->kpgd = 0;
     errprint("Failed to find kernel page directory.\n");
-    goto error_exit;
 
 done:
-    return status;
+    if ( VMI_FAILURE == status )
+        windows_teardown(vmi);
+    else
+        vmi->x86.transition_pages = true;
 
-error_exit:
-    windows_teardown(vmi);
-    return VMI_FAILURE;
+    return status;
 }
 
 status_t windows_teardown(vmi_instance_t vmi) {

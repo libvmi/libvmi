@@ -108,16 +108,15 @@ int main (int argc, char **argv)
     sigaction(SIGALRM, &act, NULL);
 
     // Initialize the libvmi library.
-    if (vmi_init(&vmi, VMI_XEN | VMI_INIT_COMPLETE | VMI_INIT_EVENTS, name) == VMI_FAILURE){
+    if (VMI_FAILURE ==
+        vmi_init_complete(&vmi, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
+                          NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
+    {
         printf("Failed to init LibVMI library.\n");
-        if (vmi != NULL ) {
-            vmi_destroy(vmi);
-        }
         return 1;
     }
-    else{
-        printf("LibVMI init succeeded!\n");
-    }
+
+    printf("LibVMI init succeeded!\n");
 
     /* Configure an event to track when the process is running.
      * (The CR3 register is updated on task context switch, allowing

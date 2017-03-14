@@ -80,8 +80,17 @@ void step_event_free(vmi_event_t *event, status_t rc)
         g_free(event);
 }
 
-void events_init(vmi_instance_t vmi)
+status_t events_init(vmi_instance_t vmi)
 {
+    switch (vmi->mode)
+    {
+        case VMI_XEN:
+            break;
+        default:
+            errprint("The selected hypervisor has no events support!\n");
+            return VMI_FAILURE;
+    };
+
     vmi->interrupt_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);
     vmi->mem_events_on_gfn = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, NULL);
     vmi->mem_events_generic = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);
@@ -89,15 +98,12 @@ void events_init(vmi_instance_t vmi)
     vmi->msr_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);
     vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);
     vmi->clear_events = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, NULL);
+
+    return VMI_SUCCESS;
 }
 
 void events_destroy(vmi_instance_t vmi)
 {
-    if (!(vmi->init_mode & VMI_INIT_EVENTS))
-    {
-        return;
-    }
-
     if (vmi->mem_events_on_gfn)
     {
         dbprint(VMI_DEBUG_EVENTS, "Destroying memaccess on gfn events\n");
@@ -725,7 +731,7 @@ status_t vmi_register_event(vmi_instance_t vmi, vmi_event_t* event)
 {
     status_t rc = VMI_FAILURE;
 
-    if (!(vmi->init_mode & VMI_INIT_EVENTS))
+    if (!(vmi->init_flags & VMI_INIT_EVENTS))
     {
         dbprint(VMI_DEBUG_EVENTS, "LibVMI wasn't initialized with events!\n");
         return VMI_FAILURE;
@@ -794,7 +800,7 @@ status_t vmi_clear_event(vmi_instance_t vmi, vmi_event_t* event,
 {
     status_t rc = VMI_FAILURE;
 
-    if (!(vmi->init_mode & VMI_INIT_EVENTS))
+    if (!(vmi->init_flags & VMI_INIT_EVENTS))
     {
         return VMI_FAILURE;
     }
@@ -925,7 +931,7 @@ done:
 int vmi_are_events_pending(vmi_instance_t vmi)
 {
 
-    if (!(vmi->init_mode & VMI_INIT_EVENTS))
+    if (!(vmi->init_flags & VMI_INIT_EVENTS))
     {
         return -1;
     }
@@ -938,7 +944,7 @@ int vmi_are_events_pending(vmi_instance_t vmi)
 status_t vmi_events_listen(vmi_instance_t vmi, uint32_t timeout)
 {
 
-    if (!(vmi->init_mode & VMI_INIT_EVENTS))
+    if (!(vmi->init_flags & VMI_INIT_EVENTS))
     {
         return VMI_FAILURE;
     }
@@ -966,7 +972,7 @@ status_t vmi_stop_single_step_vcpu(vmi_instance_t vmi, vmi_event_t* event,
     uint32_t vcpu)
 {
 
-    if (!(vmi->init_mode & VMI_INIT_EVENTS))
+    if (!(vmi->init_flags & VMI_INIT_EVENTS))
     {
         return VMI_FAILURE;
     }
@@ -980,7 +986,7 @@ status_t vmi_stop_single_step_vcpu(vmi_instance_t vmi, vmi_event_t* event,
 status_t vmi_shutdown_single_step(vmi_instance_t vmi)
 {
 
-    if (!(vmi->init_mode & VMI_INIT_EVENTS))
+    if (!(vmi->init_flags & VMI_INIT_EVENTS))
     {
         return VMI_FAILURE;
     }

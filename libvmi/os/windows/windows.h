@@ -51,7 +51,7 @@ struct windows_instance {
 };
 typedef struct windows_instance *windows_instance_t;
 
-status_t windows_init(vmi_instance_t instance);
+status_t windows_init(vmi_instance_t instance, GHashTable *config);
 
 addr_t windows_pid_to_pgd(vmi_instance_t vmi, vmi_pid_t pid);
 vmi_pid_t windows_pgd_to_pid(vmi_instance_t vmi, addr_t pgd);

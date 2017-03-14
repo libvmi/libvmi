@@ -890,7 +890,7 @@ xen_init_vmi(
     }
 
 #if ENABLE_SHM_SNAPSHOT == 1
-    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
+    if (vmi->init_flags & VMI_INIT_SHM) {
         ret = xen_create_shm_snapshot(vmi);
     }
     else {
@@ -909,7 +909,7 @@ xen_init_vmi(
     if ( VMI_FAILURE == ret )
         goto _bail;
 
-    if(xen->hvm && (vmi->init_mode & VMI_INIT_EVENTS))
+    if(xen->hvm && (vmi->init_flags & VMI_INIT_EVENTS))
     {
         ret = xen_init_events(vmi);
 
@@ -929,7 +929,7 @@ xen_destroy(
 {
     xen_instance_t *xen = xen_get_instance(vmi);
 
-    if(xen->hvm && (vmi->init_mode & VMI_INIT_EVENTS))
+    if(xen->hvm && (vmi->init_flags & VMI_INIT_EVENTS))
         xen_events_destroy(vmi);
 
 #if ENABLE_SHM_SNAPSHOP == 1
@@ -2730,10 +2730,12 @@ xen_is_pv(
 
 status_t
 xen_test(
-    vmi_instance_t vmi,
     uint64_t domainid,
     const char *name)
 {
+    struct vmi_instance _vmi = {0};
+    vmi_instance_t vmi = &_vmi;
+
     if (domainid == VMI_INVALID_DOMID && name == NULL) {
         errprint("VMI_ERROR: xen_test: domid or name must be specified\n");
         return VMI_FAILURE;
@@ -2755,6 +2757,7 @@ xen_test(
         return VMI_FAILURE;
     }
 
+    xen_destroy(vmi);
     return VMI_SUCCESS;
 }
 

@@ -57,7 +57,8 @@ START_TEST (test_vmi_read_ksym)
     char *sym = NULL;
     char *buf = malloc(100);
     size_t count = 100;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     sym = get_sym(vmi);
     size_t read = vmi_read_ksym(vmi, sym, buf, count);
     fail_unless(read == count, "vmi_read_ksym failed");
@@ -72,7 +73,8 @@ START_TEST (test_vmi_read_va)
     addr_t va = 0;
     char *buf = malloc(100);
     size_t count = 100;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     va = get_vaddr(vmi);
     size_t read = vmi_read_va(vmi, va, 0, buf, count);
     fail_unless(read == count, "vmi_read_va failed");
@@ -87,7 +89,8 @@ START_TEST (test_vmi_read_pa)
     addr_t pa = 0;
     char *buf = malloc(100);
     size_t count = 100;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     pa = get_paddr(vmi);
     size_t read = vmi_read_pa(vmi, pa, buf, count);
     fail_unless(read == count, "vmi_read_pa failed");
@@ -102,7 +105,8 @@ START_TEST (test_vmi_read_8_ksym)
     char *sym = NULL;
     status_t status = VMI_FAILURE;
     uint8_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     sym = get_sym(vmi);
     status = vmi_read_8_ksym(vmi, sym, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_8_ksym failed");
@@ -116,7 +120,8 @@ START_TEST (test_vmi_read_16_ksym)
     char *sym = NULL;
     status_t status = VMI_FAILURE;
     uint16_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     sym = get_sym(vmi);
     status = vmi_read_16_ksym(vmi, sym, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_16_ksym failed");
@@ -130,7 +135,8 @@ START_TEST (test_vmi_read_32_ksym)
     char *sym = NULL;
     status_t status = VMI_FAILURE;
     uint32_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     sym = get_sym(vmi);
     status = vmi_read_32_ksym(vmi, sym, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_32_ksym failed");
@@ -144,7 +150,8 @@ START_TEST (test_vmi_read_64_ksym)
     char *sym = NULL;
     status_t status = VMI_FAILURE;
     uint64_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     sym = get_sym(vmi);
     status = vmi_read_64_ksym(vmi, sym, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_64_ksym failed");
@@ -158,7 +165,8 @@ START_TEST (test_vmi_read_8_va)
     addr_t va = 0;
     status_t status = VMI_FAILURE;
     uint8_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     va = get_vaddr(vmi);
     status = vmi_read_8_va(vmi, va, 0, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_8_va failed");
@@ -172,7 +180,8 @@ START_TEST (test_vmi_read_16_va)
     addr_t va = 0;
     status_t status = VMI_FAILURE;
     uint16_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     va = get_vaddr(vmi);
     status = vmi_read_16_va(vmi, va, 0, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_16_va failed");
@@ -186,7 +195,8 @@ START_TEST (test_vmi_read_32_va)
     addr_t va = 0;
     status_t status = VMI_FAILURE;
     uint32_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     va = get_vaddr(vmi);
     status = vmi_read_32_va(vmi, va, 0, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_32_va failed");
@@ -200,7 +210,8 @@ START_TEST (test_vmi_read_64_va)
     addr_t va = 0;
     status_t status = VMI_FAILURE;
     uint64_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     va = get_vaddr(vmi);
     status = vmi_read_64_va(vmi, va, 0, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_64_va failed");
@@ -214,7 +225,8 @@ START_TEST (test_vmi_read_8_pa)
     addr_t pa = 0;
     status_t status = VMI_FAILURE;
     uint8_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     pa = get_paddr(vmi);
     status = vmi_read_8_pa(vmi, pa, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_8_pa failed");
@@ -228,7 +240,8 @@ START_TEST (test_vmi_read_16_pa)
     addr_t pa = 0;
     status_t status = VMI_FAILURE;
     uint16_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     pa = get_paddr(vmi);
     status = vmi_read_16_pa(vmi, pa, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_16_pa failed");
@@ -242,7 +255,8 @@ START_TEST (test_vmi_read_32_pa)
     addr_t pa = 0;
     status_t status = VMI_FAILURE;
     uint32_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     pa = get_paddr(vmi);
     status = vmi_read_32_pa(vmi, pa, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_32_pa failed");
@@ -256,7 +270,8 @@ START_TEST (test_vmi_read_64_pa)
     addr_t pa = 0;
     status_t status = VMI_FAILURE;
     uint64_t value = 0;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     pa = get_paddr(vmi);
     status = vmi_read_64_pa(vmi, pa, &value);
     fail_unless(status == VMI_SUCCESS, "vmi_read_64_pa failed");

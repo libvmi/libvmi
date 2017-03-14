@@ -72,14 +72,14 @@ int main (int argc, char **argv) {
     sigaction(SIGINT,  &act, NULL);
     sigaction(SIGALRM, &act, NULL);
 
-    // Initialize the libvmi library.
-    if (vmi_init(&vmi, VMI_XEN | VMI_INIT_PARTIAL | VMI_INIT_EVENTS, name) == VMI_FAILURE){
+    /* initialize the libvmi library */
+    if (VMI_FAILURE == vmi_init(&vmi, VMI_XEN, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, NULL, NULL))
+    {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
-    else{
-        printf("LibVMI init succeeded!\n");
-    }
+
+    printf("LibVMI init succeeded!\n");
 
     //Single step setup
     memset(&single_event, 0, sizeof(vmi_event_t));

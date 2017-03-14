@@ -274,6 +274,7 @@ int vmi_parse_config (const char *target_name)
 %token<str>    LINUX_NAME
 %token<str>    LINUX_PGD
 %token<str>    LINUX_ADDR
+%token<str>    LINUX_INIT_TASK
 %token<str>    WIN_NTOSKRNL
 %token<str>    WIN_NTOSKRNL_VA
 %token<str>    WIN_TASKS
@@ -335,6 +336,8 @@ assignment:
         linux_pgd_assignment
         |
         linux_addr_assignment
+        |
+        linux_init_task_assignment
         |
         win_ntoskrnl_assignment
         |
@@ -415,6 +418,17 @@ linux_addr_assignment:
         LINUX_ADDR EQUALS NUM
         {
             fprintf(stderr, "VMI_WARNING: linux_addr is no longer used and should be removed from your config file\n");
+            free($3);
+        }
+        ;
+
+linux_init_task_assignment:
+        LINUX_INIT_TASK EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);
         }
         ;

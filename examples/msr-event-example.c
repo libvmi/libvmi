@@ -64,14 +64,16 @@ int main (int argc, char **argv) {
     // Arg 1 is the VM name.
     name = argv[1];
 
-    // Initialize the libvmi library.
-    if (vmi_init(&vmi, VMI_XEN | VMI_INIT_PARTIAL | VMI_INIT_EVENTS, name) == VMI_FAILURE){
+    /* initialize the libvmi library */
+    if (VMI_FAILURE ==
+        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
+                          NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
+    {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
-    else{
-        printf("LibVMI init succeeded!\n");
-    }
+
+    printf("LibVMI init succeeded!\n");
 
     /* Register event to track any writes to a MSR. */
     memset(&msr_event, 0, sizeof(vmi_event_t));

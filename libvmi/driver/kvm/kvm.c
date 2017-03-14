@@ -1328,6 +1328,7 @@ kvm_init(
     kvm->conn = conn;
 
     vmi->driver.driver_data = (void*)kvm;
+
     return VMI_SUCCESS;
 }
 
@@ -1848,10 +1849,12 @@ kvm_is_pv(
 
 status_t
 kvm_test(
-    vmi_instance_t vmi,
     uint64_t domainid,
     const char *name)
 {
+    struct vmi_instance _vmi = {0};
+    vmi_instance_t vmi = &_vmi;
+
     if ( VMI_FAILURE == kvm_init(vmi) )
         return VMI_FAILURE;
 

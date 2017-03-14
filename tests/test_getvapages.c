@@ -38,7 +38,8 @@
 START_TEST (test_get_va_pages)
 {
     vmi_instance_t vmi = NULL;
-    vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, get_testvm());
+    vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
+                      VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     GHashTable *config = NULL;
 
     if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){

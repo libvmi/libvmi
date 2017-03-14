@@ -52,7 +52,10 @@ int main (int argc, char **argv)
     char *name = argv[1];
 
     /* initialize the libvmi library */
-    if (vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, name) == VMI_FAILURE) {
+    if (VMI_FAILURE ==
+        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, NULL,
+                          VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
+    {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -90,8 +93,12 @@ int main (int argc, char **argv)
 
     /* demonstrate name and id accessors */
     char *name2 = vmi_get_name(vmi);
+    vmi_mode_t mode;
 
-    if (VMI_FILE != vmi_get_access_mode(vmi)) {
+    if (VMI_FAILURE == vmi_get_access_mode(vmi, NULL, 0, NULL, &mode))
+        goto error_exit;
+
+    if ( VMI_FILE != mode ) {
         uint64_t id = vmi_get_vmid(vmi);
 
         printf("Process listing for VM %s (id=%"PRIu64")\n", name2, id);

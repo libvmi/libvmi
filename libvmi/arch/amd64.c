@@ -168,7 +168,7 @@ status_t v2p_ia32e (vmi_instance_t vmi,
         goto done;
     }
 
-    if (!ENTRY_PRESENT(vmi->os_type, info->x86_ia32e.pml4e_value)) {
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pml4e_value)) {
         status = VMI_FAILURE;
         goto done;
     }
@@ -179,7 +179,7 @@ status_t v2p_ia32e (vmi_instance_t vmi,
         goto done;
     }
 
-    if (!ENTRY_PRESENT(vmi->os_type, info->x86_ia32e.pdpte_value)) {
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pdpte_value)) {
         status = VMI_FAILURE;
         goto done;
     }
@@ -198,7 +198,7 @@ status_t v2p_ia32e (vmi_instance_t vmi,
         goto done;
     }
 
-    if (!ENTRY_PRESENT(vmi->os_type, info->x86_ia32e.pgd_value)) {
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pgd_value)) {
         status = VMI_FAILURE;
         goto done;
     }
@@ -217,7 +217,7 @@ status_t v2p_ia32e (vmi_instance_t vmi,
         goto done;
     }
 
-    if (!ENTRY_PRESENT(vmi->os_type, info->x86_ia32e.pte_value)) {
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pte_value)) {
         status = VMI_FAILURE;
         goto done;
     }
@@ -255,7 +255,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
 
         uint64_t pml4e_value = pml4_page[pml4e_index];
 
-        if(!ENTRY_PRESENT(vmi->os_type, pml4e_value)) {
+        if(!ENTRY_PRESENT(vmi->x86.transition_pages, pml4e_value)) {
             continue;
         }
 
@@ -270,7 +270,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb) {
 
             uint64_t pdpte_value = pdpt_page[pdpte_index];
 
-            if(!ENTRY_PRESENT(vmi->os_type, pdpte_value)) {
+            if(!ENTRY_PRESENT(vmi->x86.transition_pages, pdpte_value)) {
                 continue;
             }
 

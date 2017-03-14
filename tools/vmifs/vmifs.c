@@ -130,27 +130,33 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    vmi_mode_t mode;
+    vmi_instance_t vmi;
+    uint64_t init_flags;
     uint64_t domid = VMI_INVALID_DOMID;
-    GHashTable *config = g_hash_table_new(g_str_hash, g_str_equal);
+    void *domain;
 
     if(strcmp(argv[1],"name")==0) {
-        g_hash_table_insert(config, "name", argv[2]);
+        init_flags = VMI_INIT_DOMAINNAME;
+        domain = (void*)argv[2];
     } else
     if(strcmp(argv[1],"domid")==0) {
+        init_flags = VMI_INIT_DOMAINID;
         domid = strtoull(argv[2], NULL, 0);
-        g_hash_table_insert(config, "domid", &domid);
+        domain = (void*)&domid;
     } else {
         printf("You have to specify either name or domid!\n");
         return 1;
     }
 
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init_flags, NULL, &mode))
+        return 1;
+
     /* initialize the libvmi library */
-    if (vmi_init_custom(&vmi, VMI_AUTO | VMI_INIT_PARTIAL | VMI_CONFIG_GHASHTABLE, (vmi_config_t)config) == VMI_FAILURE) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
-
-    g_hash_table_destroy(config);
 
     char *fuse_argv[2] = { argv[0], argv[3] };
 
