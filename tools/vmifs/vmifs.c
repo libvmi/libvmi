@@ -131,7 +131,6 @@ int main(int argc, char *argv[])
     }
 
     vmi_mode_t mode;
-    vmi_instance_t vmi;
     uint64_t init_flags;
     uint64_t domid = VMI_INVALID_DOMID;
     void *domain;
