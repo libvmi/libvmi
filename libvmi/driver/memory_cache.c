@@ -78,7 +78,7 @@ static void
 clean_cache(
     vmi_instance_t vmi)
 {
-    while (g_queue_get_length(vmi->memory_cache_lru) > vmi->memory_cache_size_max / 2) {
+    while (g_queue_get_length(vmi->memory_cache_lru)) {
         gint64 *paddr = g_queue_pop_tail(vmi->memory_cache_lru);
 
         g_hash_table_remove(vmi->memory_cache, paddr);
@@ -261,6 +261,13 @@ memory_cache_destroy(
     release_data_callback = NULL;
 }
 
+void
+memory_cache_flush(
+        vmi_instance_t vmi)
+{
+    clean_cache(vmi);
+}
+
 #else
 void
 memory_cache_init(
@@ -314,4 +321,16 @@ memory_cache_destroy(
     get_data_callback = NULL;
     release_data_callback = NULL;
 }
+
+void
+memory_cache_flush(
+        vmi_instance_t vmi)
+{
+    if(vmi->last_used_page_key && vmi->last_used_page) {
+        release_data_callback(vmi->last_used_page, vmi->page_size);
+    }
+    vmi->last_used_page_key = 0;
+    vmi->last_used_page = NULL;
+}
+
 #endif
