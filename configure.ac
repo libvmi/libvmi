@@ -66,6 +66,11 @@ YES_IS_DEFINED
 dnl -----------------------------------------------
 dnl Check package options
 dnl -----------------------------------------------
+ AC_CHECK_HEADER([qemu/libvmi_request.h],
+                 [AC_DEFINE([HAVE_LIBVMI_REQUEST], 1,
+                    [Define to 1 if you have <stdio.h>.])],
+                 [])
+
 AC_ARG_ENABLE([xen],
       [AS_HELP_STRING([--disable-xen],
          [Support memory introspection with live Xen domains (default is yes)])],

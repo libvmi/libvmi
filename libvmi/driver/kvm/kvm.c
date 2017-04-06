@@ -51,12 +51,18 @@
 
 #define QMP_CMD_LENGTH 256
 
+#ifdef HAVE_LIBVMI_REQUEST
+# include <qemu/libvmi_request.h>
+#else
+
 // request struct matches a definition in qemu source code
 struct request {
     uint8_t type;   // 0 quit, 1 read, 2 write, ... rest reserved
     uint64_t address;   // address to read from OR write to
     uint64_t length;    // number of bytes to read OR write
 };
+
+#endif
 
 enum segment_type {
   SEGMENT_SELECTOR,
