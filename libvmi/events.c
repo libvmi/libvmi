@@ -74,6 +74,17 @@ gboolean clear_events(gpointer key, gpointer value, gpointer UNUSED(data))
     return TRUE;
 }
 
+gboolean clear_events_full(gpointer key, gpointer value, gpointer data)
+{
+    vmi_event_t *event = *(vmi_event_t**) key;
+    vmi_event_free_t free_event = (vmi_event_free_t) value;
+    vmi_instance_t vmi = (vmi_instance_t) data;
+
+    vmi_clear_event(vmi, event, free_event);
+
+    return TRUE;
+}
+
 void step_event_free(vmi_event_t *event, status_t rc)
 {
     if ( VMI_SUCCESS == rc )
