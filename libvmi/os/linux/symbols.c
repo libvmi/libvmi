@@ -152,6 +152,8 @@ char* linux_system_map_address_to_symbol(
     int size = 0;
     linux_instance_t linux_instance = vmi->os_data;
 
+    address -= linux_instance->kaslr_offset;
+
     switch(ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
             if(ctx->pid != 0)

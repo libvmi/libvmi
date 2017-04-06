@@ -823,7 +823,6 @@ addr_t vmi_translate_sym2v(
 /**
  * Performs the translation from an RVA to a symbol
  * On Windows this function walks the PE export table.
- * The Linux translation works currently only for kernel symbols (pid=0 & base_vaddr=0).
  * Only the first matching symbol of System.map is returned.
  * ELF Headers are not supported.
  *
@@ -836,6 +835,21 @@ const char* vmi_translate_v2sym(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     addr_t rva);
+
+/**
+ * Performs the translation from a VA to a symbol for Linux with KASLR offset
+ * Windows is not supported at this moment
+ * Only the first matching symbol of System.map is returned.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[in] va VA to translate
+ * @return Symbol, or NULL on error
+ */
+const char* vmi_translate_v2ksym(
+    vmi_instance_t vmi,
+    const access_context_t *ctx,
+    addr_t va);
 
 /**
  * Given a pid, this function returns the virtual address of the
