@@ -929,6 +929,8 @@ xen_destroy(
 {
     xen_instance_t *xen = xen_get_instance(vmi);
 
+    if(!xen) return;
+
     if(xen->hvm && (vmi->init_flags & VMI_INIT_EVENTS))
         xen_events_destroy(vmi);
 
