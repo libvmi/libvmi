@@ -1,0 +1,393 @@
+diff --git a/Makefile b/Makefile
+index 474cc5e..2d569d9 100644
+--- a/Makefile
++++ b/Makefile
+@@ -459,9 +459,13 @@ ifneq (,$(findstring qemu-ga,$(TOOLS)))
+ endif
+ endif
+ 
++install-headers:
++	$(INSTALL_DIR) "$(DESTDIR)$(includedir)/qemu"
++	$(INSTALL_DATA) "$(SRC_PATH)/libvmi_request.h" "$(DESTDIR)$(includedir)/qemu/libvmi_request.h"
++
+ 
+ install: all $(if $(BUILD_DOCS),install-doc) \
+-install-datadir install-localstatedir
++install-datadir install-localstatedir install-headers
+ ifneq ($(TOOLS),)
+ 	$(call install-prog,$(subst qemu-ga,qemu-ga$(EXESUF),$(TOOLS)),$(DESTDIR)$(bindir))
+ endif
+diff --git a/Makefile.target b/Makefile.target
+index 7a5080e..a2f55df 100644
+--- a/Makefile.target
++++ b/Makefile.target
+@@ -134,7 +134,8 @@ endif #CONFIG_BSD_USER
+ #########################################################
+ # System emulator target
+ ifdef CONFIG_SOFTMMU
+-obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o numa.o
++obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o numa.o \
++			memory-access.o
+ obj-y += qtest.o bootdevice.o
+ obj-y += hw/
+ obj-$(CONFIG_KVM) += kvm-all.o
+diff --git a/docs/qmp-commands.txt b/docs/qmp-commands.txt
+index abf210a..8910e1f 100644
+--- a/docs/qmp-commands.txt
++++ b/docs/qmp-commands.txt
+@@ -3822,3 +3822,18 @@ Example for pc machine type started with
+             "props": {"core-id": 0, "socket-id": 0, "thread-id": 0}
+          }
+        ]}
++
++
++pmemaccess
++----------
++
++open A UNIX Socket access to physical memory at 'path'
++
++Arguments:
++
++- "file": force ejection (json-string, required)
++
++Example:
++
++-> { "execute": "pmemaccess", "arguments": { "file": "/tmp/dKtrhM39cC.sock" } }
++<- { "return": {} }
+diff --git a/hmp.c b/hmp.c
+index b869617..e721830 100644
+--- a/hmp.c
++++ b/hmp.c
+@@ -1029,6 +1029,15 @@ void hmp_pmemsave(Monitor *mon, const QDict *qdict)
+     hmp_handle_error(mon, &err);
+ }
+ 
++void hmp_pmemaccess(Monitor *mon, const QDict *qdict)
++{
++    const char *path = qdict_get_str(qdict, "path");
++    Error *err = NULL;
++
++    qmp_pmemaccess(path, &err);
++    hmp_handle_error(mon, &err);
++}
++
+ void hmp_ringbuf_write(Monitor *mon, const QDict *qdict)
+ {
+     const char *chardev = qdict_get_str(qdict, "device");
+diff --git a/hmp.h b/hmp.h
+index 05daf7c..f6571dd 100644
+--- a/hmp.h
++++ b/hmp.h
+@@ -49,6 +49,7 @@ void hmp_system_powerdown(Monitor *mon, const QDict *qdict);
+ void hmp_cpu(Monitor *mon, const QDict *qdict);
+ void hmp_memsave(Monitor *mon, const QDict *qdict);
+ void hmp_pmemsave(Monitor *mon, const QDict *qdict);
++void hmp_pmemaccess(Monitor *mon, const QDict *qdict);
+ void hmp_ringbuf_write(Monitor *mon, const QDict *qdict);
+ void hmp_ringbuf_read(Monitor *mon, const QDict *qdict);
+ void hmp_cont(Monitor *mon, const QDict *qdict);
+diff --git a/libvmi_request.h b/libvmi_request.h
+new file mode 100644
+index 0000000..e4fc87a
+--- /dev/null
++++ b/libvmi_request.h
+@@ -0,0 +1,10 @@
++#ifndef LIBVMI_REQUEST_H
++#define LIBVMI_REQUEST_H
++
++struct request{
++    uint64_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
++    uint64_t address;  // address to read from OR write to
++    uint64_t length;   // number of bytes to read OR write
++};
++
++#endif /* LIBVMI_REQUEST_H */
+diff --git a/memory-access.c b/memory-access.c
+new file mode 100644
+index 0000000..d23b7cf
+--- /dev/null
++++ b/memory-access.c
+@@ -0,0 +1,214 @@
++/*
++ * Access guest physical memory via a domain socket.
++ *
++ * Copyright (C) 2011 Sandia National Laboratories
++ * Original Author: Bryan D. Payne (bdpayne@acm.org)
++ *
++ * Refurbished for modern QEMU by Valerio Aimale (valerio@aimale.com), in 2015
++ */
++
++#include <stdlib.h>
++#include <stdio.h>
++#include <string.h>
++#include <pthread.h>
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <sys/un.h>
++#include <unistd.h>
++#include <signal.h>
++#include <stdint.h>
++
++#include "memory-access.h"
++#include "exec/cpu-common.h"
++#include "libvmi_request.h"
++
++
++static uint64_t
++connection_read_memory (uint64_t user_paddr, void *buf, uint64_t user_len)
++{
++    hwaddr paddr = (hwaddr) user_paddr;
++    hwaddr len = (hwaddr) user_len;
++    void *guestmem = cpu_physical_memory_map(paddr, &len, 0);
++    if (!guestmem){
++        return 0;
++    }
++    memcpy(buf, guestmem, len);
++    cpu_physical_memory_unmap(guestmem, len, 0, len);
++
++    return len;
++}
++
++static uint64_t
++connection_write_memory (uint64_t user_paddr, void *buf, uint64_t user_len)
++{
++    hwaddr paddr = (hwaddr) user_paddr;
++    hwaddr len = (hwaddr) user_len;
++    void *guestmem = cpu_physical_memory_map(paddr, &len, 1);
++    if (!guestmem){
++        return 0;
++    }
++    memcpy(guestmem, buf, len);
++    cpu_physical_memory_unmap(guestmem, len, 0, len);
++
++    return len;
++}
++
++static void
++send_success_ack (int connection_fd)
++{
++    uint8_t success = 1;
++    int nbytes = write(connection_fd, &success, 1);
++    if (1 != nbytes){
++        fprintf(stderr, "Qemu pmemaccess: failed to send success ack\n");
++    }
++}
++
++static void
++send_fail_ack (int connection_fd)
++{
++    uint8_t fail = 0;
++    int nbytes = write(connection_fd, &fail, 1);
++    if (1 != nbytes){
++        fprintf(stderr, "Qemu pmemaccess: failed to send fail ack\n");
++    }
++}
++
++static void
++connection_handler (int connection_fd)
++{
++    int nbytes;
++    struct request req;
++
++    while (1){
++        // client request should match the struct request format
++        nbytes = read(connection_fd, &req, sizeof(struct request));
++        if (nbytes != sizeof(struct request)){
++            // error
++            continue;
++        }
++        else if (req.type == 0){
++            // request to quit, goodbye
++            break;
++        }
++        else if (req.type == 1){
++            // request to read
++            char *buf = malloc(req.length + 1);
++            nbytes = connection_read_memory(req.address, buf, req.length);
++            if (nbytes != req.length){
++                // read failure, return failure message
++                buf[req.length] = 0; // set last byte to 0 for failure
++                nbytes = write(connection_fd, buf, 1);
++            }
++            else{
++                // read success, return bytes
++                buf[req.length] = 1; // set last byte to 1 for success
++                nbytes = write(connection_fd, buf, nbytes + 1);
++            }
++            free(buf);
++        }
++        else if (req.type == 2){
++            // request to write
++            void *write_buf = malloc(req.length);
++            nbytes = read(connection_fd, write_buf, req.length);
++            if (nbytes != req.length){
++                // failed reading the message to write
++                send_fail_ack(connection_fd);
++            }
++            else{
++                // do the write
++                nbytes = connection_write_memory(req.address, write_buf, req.length);
++                if (nbytes == req.length){
++                    send_success_ack(connection_fd);
++                }
++                else{
++                    send_fail_ack(connection_fd);
++                }
++            }
++            free(write_buf);
++        }
++        else{
++            // unknown command
++            fprintf(stderr, "Qemu pmemaccess: ignoring unknown command (%" PRIu64 ")\n", req.type);
++            char *buf = malloc(1);
++            buf[0] = 0;
++            nbytes = write(connection_fd, buf, 1);
++            free(buf);
++        }
++    }
++
++    close(connection_fd);
++}
++
++static void *
++memory_access_thread (void *p)
++{
++    int connection_fd;
++    struct pmemaccess_args *pargs = (struct pmemaccess_args *)p;
++
++    // accept incoming connections
++    connection_fd = accept(pargs->socket_fd, (struct sockaddr *) pargs->address, &(pargs->address_length));
++    connection_handler(connection_fd);
++
++    close(pargs->socket_fd);
++    unlink(pargs->path);
++    free(pargs->path);
++    free(pargs->address);
++    free(pargs);
++    return NULL;
++}
++
++void
++qmp_pmemaccess (const char *path, Error **errp)
++{
++    pthread_t thread;
++    sigset_t set, oldset;
++    struct pmemaccess_args *pargs;
++
++    // create the args struct
++    pargs = (struct pmemaccess_args *) malloc(sizeof(struct pmemaccess_args));
++    if (pargs == NULL){
++        error_setg(errp, "Qemu pmemaccess: malloc failed");
++        return;
++    }
++
++    pargs->errp = errp;
++    // create a copy of path that we can safely use
++    size_t path_size = strlen(path);
++    pargs->path = malloc(path_size + 1);
++    memcpy(pargs->path, path, path_size);
++    pargs->path[path_size] = '\0';
++
++    // create socket
++    pargs->socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
++    if (pargs->socket_fd < 0){
++        error_setg(pargs->errp, "Qemu pmemaccess: socket failed");
++        return;
++    }
++    // unlink path if already exists
++    unlink(path);
++    // bind socket
++    pargs->address = malloc(sizeof(struct sockaddr_un));
++    if (pargs->address == NULL){
++        error_setg(pargs->errp, "Qemu pmemaccess: malloc failed");
++        return;
++    }
++    pargs->address->sun_family = AF_UNIX;
++    pargs->address_length = sizeof(pargs->address->sun_family) + sprintf(pargs->address->sun_path, "%s", (char *) pargs->path);
++    if (bind(pargs->socket_fd, (struct sockaddr *) pargs->address, pargs->address_length) != 0){
++        printf("could not bind\n");
++        error_setg(pargs->errp, "Qemu pmemaccess: bind failed");
++        return;
++    }
++
++    // listen
++    if (listen(pargs->socket_fd, 0) != 0){
++        error_setg(pargs->errp, "Qemu pmemaccess: listen failed");
++        return;
++    }
++
++    // start the thread
++    sigfillset(&set);
++    pthread_sigmask(SIG_SETMASK, &set, &oldset);
++    pthread_create(&thread, NULL, memory_access_thread, pargs);
++    pthread_sigmask(SIG_SETMASK, &oldset, NULL);
++}
+diff --git a/memory-access.h b/memory-access.h
+new file mode 100644
+index 0000000..21c7137
+--- /dev/null
++++ b/memory-access.h
+@@ -0,0 +1,24 @@
++/*
++ * Open A UNIX Socket access to physical memory
++ *
++ * Author: Valerio G. Aimale <valerio@aimale.com>
++ */
++
++#ifndef MEMORY_ACCESS_H
++#define MEMORY_ACCESS_H
++
++#include <sys/socket.h>
++#include "qemu/osdep.h"
++#include "qapi/error.h"
++
++void qmp_pmemaccess (const char *path, Error **errp);
++
++struct pmemaccess_args {
++    int socket_fd;
++    struct sockaddr_un *address;
++    socklen_t address_length;
++    char *path;
++    Error **errp;
++};
++
++#endif /* MEMORY_ACCESS_H */
+diff --git a/qapi-schema.json b/qapi-schema.json
+index a0d3b5d..f4bc922 100644
+--- a/qapi-schema.json
++++ b/qapi-schema.json
+@@ -1679,6 +1679,34 @@
+   'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
+ 
+ ##
++# @pmemaccess:
++#
++# Open A UNIX Socket access to physical memory
++#
++# @path: the name of the UNIX socket pipe
++#
++# Returns: Nothing on success
++#
++# Since: 2.4.0.1
++#
++# Notes: Derived from previously existing patches. When command
++# succeeds connect to the open socket. Write a binary structure to
++# the socket as:
++#
++# struct request {
++#     uint64_t type;   // 0 quit, 1 read, 2 write, ... rest reserved
++#     uint64_t address;   // address to read from OR write to
++#     uint64_t length;    // number of bytes to read OR write
++# };
++#
++# If it is a read operation, Qemu will return lenght+1 bytes. Read lenght+1
++# bytes. the last byte will be a 1 for success, or a 0 for failure.
++#
++##
++{ 'command': 'pmemaccess',
++  'data': {'path': 'str'} }
++
++##
+ # @cont:
+ #
+ # Resume guest VCPU execution.
