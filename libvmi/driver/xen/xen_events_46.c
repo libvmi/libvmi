@@ -542,11 +542,15 @@ status_t process_single_step_event(vmi_instance_t vmi,
 
     if (event)
     {
+        uint32_t vcpus = event->ss_event.vcpus;
+        uint8_t enable = event->ss_event.enable;
         event->ss_event.gfn = req->u.singlestep.gfn;
         event->ss_event.offset = req->data.regs.x86.rip & VMI_BIT_MASK(0,11);
         event->ss_event.gla = req->data.regs.x86.rip;
         event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
         event->vcpu_id = req->vcpu_id;
+        event->ss_event.enable = enable;
+        event->ss_event.vcpus = vcpus;
 
         vmi->event_callback = 1;
         process_response ( event->callback(vmi, event), event, rsp );
