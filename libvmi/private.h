@@ -259,19 +259,6 @@ addr_t canonical_addr(addr_t va) {
 #  define UNUSED_FUNCTION(x) UNUSED_ ## x
 #endif
 
-static inline gboolean
-g_hash_table_insert_compat(GHashTable *table,
-                           gpointer key,
-                           gpointer value)
-{
-#if GLIB_VERSION <= 238
-    g_hash_table_insert(table, key, value);
-    return true;
-#else
-    return g_hash_table_insert(table, key, value);
-#endif
-}
-
 /*-------------------------------------
  * accessors.c
  */

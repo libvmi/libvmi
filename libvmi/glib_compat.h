@@ -34,7 +34,7 @@
 #ifndef LIBVMI_GLIB_COMPAT_H
 #define LIBVMI_GLIB_COMPAT_H
 
-#if GLIB_MAJOR_VERSION == 2 && GLIB_MINOR_VERSION < 22
+#if !GLIB_CHECK_VERSION(2,22,0)
 
 /* Pointers to these convenience functions are passed as parameters to many other
  *  functions related to GHashTable initialization and manipulation, so we cannot
@@ -56,5 +56,18 @@ g_int64_equal(
 }
 
 #endif
+
+static inline gboolean
+g_hash_table_insert_compat(GHashTable *table,
+                           gpointer key,
+                           gpointer value)
+{
+#if GLIB_CHECK_VERSION(2,39,0)
+    return g_hash_table_insert(table, key, value);
+#else
+    g_hash_table_insert(table, key, value);
+    return true;
+#endif
+}
 
 #endif
