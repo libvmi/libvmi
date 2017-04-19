@@ -187,6 +187,9 @@ AC_SUBST([GLIB_LIBS])
 
 [if test "$enable_xen" = "yes"]
 [then]
+    AC_CHECK_HEADERS([xenctrl.h xen/io/ring.h], [],
+        [AC_MSG_ERROR([Required Xen headers not found. Install missing package or re-run with --disable-xen])])
+
     AC_CHECK_TYPE(
         [hvmmem_access_t],
         [AC_DEFINE([HAVE_HVMMEM_ACCESS_T], [1], [xen headers define hvmmem_access_t])],
@@ -203,9 +206,7 @@ AC_SUBST([GLIB_LIBS])
 
     [if test "$with_xenstore" = "yes"]
     [then]
-        AC_CHECK_HEADERS([xenstore.h])
-        AC_CHECK_HEADERS([xs.h])
-
+        AC_CHECK_HEADERS([xenstore.h xs.h])
         AC_DEFINE([HAVE_LIBXENSTORE], [1], [Define to 1 to enable Xenstore support.])
     [fi]
 [fi]
