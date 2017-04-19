@@ -285,6 +285,7 @@ status_t process_interrupt_event(vmi_instance_t vmi,
         event->interrupt_event.gla = req->data.regs.x86.rip;
         event->interrupt_event.intr = intr;
         event->interrupt_event.reinject = -1;
+        event->interrupt_event.insn_length = 0;
         event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
         event->vcpu_id = req->vcpu_id;
 
