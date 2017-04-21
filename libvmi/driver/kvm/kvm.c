@@ -42,6 +42,7 @@
 #include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
+#include <json-c/json.h>
 
 #include "private.h"
 #include "driver/driver_wrapper.h"
@@ -137,6 +138,19 @@ exec_info_registers(
         "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info registers\"}}'";
     return exec_qmp_cmd(kvm, query);
 }
+
+static struct json_object *
+exec_info_version(
+    kvm_instance_t *kvm)
+{
+    char *query =
+        "'{\"execute\": \"query-version\"}'";
+    char *output = exec_qmp_cmd(kvm, query);
+    struct json_object *jobj = json_tokener_parse(output);
+    free(output);
+    return jobj;
+}
+
 
 static char *
 exec_memory_access(
@@ -1369,6 +1383,63 @@ kvm_init_vmi(
         return VMI_FAILURE;
     }
     vmi->num_vcpus = info.nrVirtCpu;
+
+#ifndef HAVE_LIBVMI_REQUEST
+    struct json_object *qemu_version_obj = exec_info_version(kvm);
+    dbprint(VMI_DEBUG_KVM, "--Checking QEMU version string...\n");
+    // qemu_version JSON string :
+    // {
+    //   "return": {
+    //     "qemu": {
+    //       "micro": 0,
+    //       "minor": 8,
+    //       "major": 2
+    //     },
+    //     "package": ""
+    //   },
+    //   "id": "libvirt-42"
+    // }
+
+    // get "return" object
+    struct json_object *return_obj= NULL;
+    if (FALSE == json_object_object_get_ex(qemu_version_obj, "return", &return_obj))
+        goto out_error;
+
+    // get "qemu" object
+    struct json_object *qemu_obj = NULL;
+    if (FALSE == json_object_object_get_ex(return_obj, "qemu", &qemu_obj))
+        goto out_error;
+
+    // get "major" object
+    struct json_object *major_obj = NULL;
+    if (FALSE == json_object_object_get_ex(qemu_obj, "major", &major_obj))
+        goto out_error;
+
+    // get major int number
+    int major = json_object_get_int(major_obj);
+
+    // get "minor" object
+    struct json_object *minor_obj = NULL;
+    if (FALSE == json_object_object_get_ex(qemu_obj, "minor", &minor_obj))
+        goto out_error;
+
+    // get major int number
+    int minor = json_object_get_int(minor_obj);
+    // QEMU should be < 2.8.0
+    if (major >= 2 && minor >= 8)
+        dbprint(VMI_DEBUG_KVM, "--Fail: incompatibility between libvmi and QEMU request definition detected\n");
+        goto out_error;
+    goto success;
+out_error:
+    free(qemu_version_obj);
+    free(return_obj);
+    free(qemu_obj);
+    free(major_obj);
+    free(minor_obj);
+    return VMI_FAILURE;
+success:
+    dbprint(VMI_DEBUG_KVM, "--SUCCESS\n");
+#endif
 
 #if ENABLE_SHM_SNAPSHOT == 1
     /* get the memory size in advance for
