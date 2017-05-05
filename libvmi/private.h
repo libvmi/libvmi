@@ -48,9 +48,20 @@
 #include "slat.h"
 #include "rekall.h"
 #include "debug.h"
-#include "driver/driver_interface.h"
 #include "arch/arch_interface.h"
 #include "os/os_interface.h"
+
+/**
+ * Internal-only enumeration for various VM types.
+ */
+typedef enum vm_type {
+    NORMAL,
+    HVM,
+    PV32,
+    PV64
+} vm_type_t;
+
+#include "driver/driver_interface.h"
 
 /**
  * @brief LibVMI Instance.
@@ -106,7 +117,7 @@ struct vmi_instance {
 
     addr_t max_physical_address; /**< maximum valid physical memory address + 1 */
 
-    int hvm;                /**< nonzero if HVM */
+    vm_type_t vm_type;      /**< VM type */
 
     os_t os_type;           /**< type of os: VMI_OS_LINUX, etc */
 

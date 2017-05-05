@@ -1184,7 +1184,7 @@ status_t xen_init_events_legacy(vmi_instance_t vmi)
      *  This is likely to expand to PV in the future, but
      *  until such time, enforce this restriction
      */
-    if(!xen->hvm){
+    if(vmi->vm_type != HVM){
         errprint("Xen events: only HVM domains are supported.\n");
         return VMI_FAILURE;
     }

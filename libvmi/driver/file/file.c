@@ -171,7 +171,7 @@ file_init_vmi(
 
 #endif // USE_MMAP
 
-    vmi->hvm = 0;
+    vmi->vm_type = NORMAL;
     return VMI_SUCCESS;
 
 fail:

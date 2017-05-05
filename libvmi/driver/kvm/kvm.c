@@ -1355,7 +1355,7 @@ kvm_init_vmi(
 
     kvm->dom = dom;
     kvm->socket_fd = 0;
-    vmi->hvm = 1;
+    vmi->vm_type = NORMAL;
 
     //get the VCPU count from virDomainInfo structure
     if (-1 == kvm->libvirt.virDomainGetInfo(kvm->dom, &info)) {

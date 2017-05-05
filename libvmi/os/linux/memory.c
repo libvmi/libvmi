@@ -108,11 +108,7 @@ linux_get_taskstruct_addr_from_pgd(
     next_process = vmi->init_task;
     list_head = next_process;
 
-    /* May fail for some drivers, but handle gracefully below by
-     * testing width
-     */
-    if ( VMI_FAILURE == driver_get_address_width(vmi, &width) )
-        return 0;
+    width = vmi_get_address_width(vmi);
 
     do {
         addr_t ptr = 0;

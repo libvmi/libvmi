@@ -80,9 +80,6 @@ typedef struct driver_interface {
         vmi_instance_t,
         registers_t *,
         unsigned long);
-    status_t (*get_address_width_ptr) (
-        vmi_instance_t vmi,
-        uint8_t * width);
     void *(*read_page_ptr) (
         vmi_instance_t,
         addr_t);
