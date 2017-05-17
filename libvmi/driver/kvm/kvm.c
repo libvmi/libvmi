@@ -315,7 +315,7 @@ init_domain_socket(
 
     if (connect(socket_fd, (struct sockaddr *) &address, address_length)
         != 0) {
-        dbprint(VMI_DEBUG_KVM, "--connect() failed to %s\n", kvm->ds_path);
+        dbprint(VMI_DEBUG_KVM, "--connect() failed to %s, %s\n", kvm->ds_path, strerror(errno));
         close(socket_fd);
         return VMI_FAILURE;
     }
