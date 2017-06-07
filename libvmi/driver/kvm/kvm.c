@@ -334,7 +334,11 @@ destroy_domain_socket(
         req.type = 0;   // quit
         req.address = 0;
         req.length = 0;
-        (void)write(kvm->socket_fd, &req, sizeof(struct request));
+        if (kvm->socket_fd) {
+            (void)write(kvm->socket_fd, &req, sizeof(struct request));
+            close(kvm->socket_fd);
+            kvm->socket_fd = 0;
+        }
     }
 }
 
