@@ -1374,7 +1374,7 @@ kvm_init_vmi(
 
     dbprint(VMI_DEBUG_KVM, "**set size = 0x%"PRIx64"\n", vmi->allocated_ram_size);
 
-    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT)
+    if (vmi->init_flags & VMI_INIT_SHM)
         return kvm_create_shm_snapshot(vmi);
 #endif
 
@@ -1389,7 +1389,7 @@ kvm_destroy(
     destroy_domain_socket(kvm);
 
 #if ENABLE_SHM_SNAPSHOT == 1
-    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
+    if (vmi->init_flags & VMI_INIT_SHM) {
         kvm_teardown_shm_snapshot_mode(vmi);
     }
 #endif
