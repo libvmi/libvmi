@@ -299,7 +299,7 @@ init_domain_socket(
     kvm_instance_t *kvm)
 {
     struct sockaddr_un address;
-    int socket_fd;
+    int socket_fd, i, retval;
     size_t address_length;
 
     socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
@@ -313,9 +313,18 @@ init_domain_socket(
         sizeof(address.sun_family) + sprintf(address.sun_path, "%s",
                                              kvm->ds_path);
 
-    if (connect(socket_fd, (struct sockaddr *) &address, address_length)
-        != 0) {
-        dbprint(VMI_DEBUG_KVM, "--connect() failed to %s, %s\n", kvm->ds_path, strerror(errno));
+    for(i = 0; i < 3; i ++) {
+        retval = connect(socket_fd, (struct sockaddr *) &address, address_length);
+        if (0 == retval)
+            break;
+
+        dbprint(VMI_DEBUG_KVM, "--connect() try %d\n", i);
+        usleep(50*1000);    
+    }
+    
+    if (retval) {
+        dbprint(VMI_DEBUG_KVM, "--connect() failed to %s, err:%s\n", 
+            kvm->ds_path, strerror(errno));
         close(socket_fd);
         return VMI_FAILURE;
     }
@@ -334,7 +343,11 @@ destroy_domain_socket(
         req.type = 0;   // quit
         req.address = 0;
         req.length = 0;
-        (void)write(kvm->socket_fd, &req, sizeof(struct request));
+        if (kvm->socket_fd) {
+            (void)write(kvm->socket_fd, &req, sizeof(struct request));
+            close(kvm->socket_fd);
+            kvm->socket_fd = 0;
+        }
     }
 }
 
@@ -1374,7 +1387,7 @@ kvm_init_vmi(
 
     dbprint(VMI_DEBUG_KVM, "**set size = 0x%"PRIx64"\n", vmi->allocated_ram_size);
 
-    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT)
+    if (vmi->init_flags & VMI_INIT_SHM)
         return kvm_create_shm_snapshot(vmi);
 #endif
 
@@ -1389,7 +1402,7 @@ kvm_destroy(
     destroy_domain_socket(kvm);
 
 #if ENABLE_SHM_SNAPSHOT == 1
-    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
+    if (vmi->init_flags & VMI_INIT_SHM) {
         kvm_teardown_shm_snapshot_mode(vmi);
     }
 #endif

@@ -753,11 +753,15 @@ vmi_init_complete(
         if ( error )
             *error = VMI_INIT_ERROR_PAGING;
 
+        vmi_destroy(_vmi);
         return VMI_FAILURE;
     }
 
     if ( VMI_OS_UNKNOWN == vmi_init_os(_vmi, config_mode, config, error) )
+    {
+        vmi_destroy(_vmi);
         return VMI_FAILURE;
+    }
 
     *vmi = _vmi;
     return VMI_SUCCESS;
