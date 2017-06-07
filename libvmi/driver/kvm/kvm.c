@@ -299,7 +299,7 @@ init_domain_socket(
     kvm_instance_t *kvm)
 {
     struct sockaddr_un address;
-    int socket_fd;
+    int socket_fd, i, retval;
     size_t address_length;
 
     socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
@@ -313,9 +313,18 @@ init_domain_socket(
         sizeof(address.sun_family) + sprintf(address.sun_path, "%s",
                                              kvm->ds_path);
 
-    if (connect(socket_fd, (struct sockaddr *) &address, address_length)
-        != 0) {
-        dbprint(VMI_DEBUG_KVM, "--connect() failed to %s, %s\n", kvm->ds_path, strerror(errno));
+    for(i = 0; i < 3; i ++) {
+        retval = connect(socket_fd, (struct sockaddr *) &address, address_length);
+        if (0 == retval)
+            break;
+
+        dbprint(VMI_DEBUG_KVM, "--connect() try %d\n", i);
+        usleep(50*1000);    
+    }
+    
+    if (retval) {
+        dbprint(VMI_DEBUG_KVM, "--connect() failed to %s, err:%s\n", 
+            kvm->ds_path, strerror(errno));
         close(socket_fd);
         return VMI_FAILURE;
     }
