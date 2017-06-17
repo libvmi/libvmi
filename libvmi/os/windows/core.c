@@ -689,7 +689,9 @@ init_from_rekall_profile(vmi_instance_t vmi)
         goto done;
     }
 
-    if (ntbuild2version(ntbuildnumber) == VMI_OS_WINDOWS_UNKNOWN) {
+    windows->version = ntbuild2version(ntbuildnumber);
+
+    if (windows->version == VMI_OS_WINDOWS_UNKNOWN) {
         dbprint(VMI_DEBUG_MISC, "Unknown Windows NtBuildNumber: %u, the Rekall Profile may be incorrect for this Windows!\n", ntbuildnumber);
     }
 
