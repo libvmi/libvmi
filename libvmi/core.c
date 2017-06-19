@@ -680,6 +680,7 @@ os_t vmi_init_os(
     if ( VMI_FILE != vmi->mode && VMI_PM_UNKNOWN == vmi->page_mode &&
          VMI_PM_UNKNOWN == vmi_init_paging(vmi, 0) )
     {
+        vmi->os_type = VMI_OS_UNKNOWN;
         if ( error )
             *error = VMI_INIT_ERROR_PAGING;
 
@@ -692,6 +693,7 @@ os_t vmi_init_os(
 #ifdef ENABLE_LINUX
         case VMI_OS_LINUX:
             if(VMI_FAILURE == linux_init(vmi, _config)) {
+                vmi->os_type = VMI_OS_UNKNOWN;
                 if ( error )
                     *error = VMI_INIT_ERROR_OS;
 
@@ -702,6 +704,7 @@ os_t vmi_init_os(
 #ifdef ENABLE_WINDOWS
         case VMI_OS_WINDOWS:
             if(VMI_FAILURE == windows_init(vmi, _config)) {
+                vmi->os_type = VMI_OS_UNKNOWN;
                 if ( error )
                     *error = VMI_INIT_ERROR_OS;
 
@@ -710,6 +713,7 @@ os_t vmi_init_os(
             break;
 #endif
         default:
+            vmi->os_type = VMI_OS_UNKNOWN;
             if ( error )
                 *error = VMI_INIT_ERROR_OS;
 
