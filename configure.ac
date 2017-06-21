@@ -217,6 +217,10 @@ AC_SUBST([GLIB_LIBS])
     AC_CHECK_HEADER(libvirt/libvirt.h, [],
         [AC_MSG_ERROR([No libvirt headers found. Install missing package or re-run with --disable-kvm])])
     AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
+    AC_CHECK_HEADER([qemu/libvmi_request.h],
+        [AC_DEFINE([HAVE_LIBVMI_REQUEST], 1,
+           [Define to 1 if you have <qemu/libvmi_request.h>.])],
+        [])
 [fi]
 
 [if test "$enable_shm_snapshot" = "yes"]
