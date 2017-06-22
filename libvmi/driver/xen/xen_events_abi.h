@@ -55,8 +55,6 @@ typedef enum {
 #endif
 
 #ifdef HAVE_HVMMEM_ACCESS_T
-#include <xen/hvm/hvm_op.h>
-
 typedef enum {
     XENMEM_access_n,
     XENMEM_access_r,
@@ -71,6 +69,13 @@ typedef enum {
     XENMEM_access_default
 } xenmem_access_t;
 #endif
+
+#define X86_TRAP_ext_int    0 /* external interrupt */
+#define X86_TRAP_nmi        2 /* nmi */
+#define X86_TRAP_hw_exc     3 /* hardware exception */
+#define X86_TRAP_sw_int     4 /* software interrupt (CD nn) */
+#define X86_TRAP_pri_sw_exc 5 /* ICEBP (F1) */
+#define X86_TRAP_sw_exc     6 /* INT3 (CC), INTO (CE) */
 
 #define HVMPME_mode_disabled   0
 #define HVMPME_mode_async      1
