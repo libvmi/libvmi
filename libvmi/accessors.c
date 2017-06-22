@@ -33,11 +33,17 @@
 uint8_t vmi_get_address_width(
     vmi_instance_t vmi)
 {
-    uint8_t width = 0;
-
-    driver_get_address_width(vmi, &width);
-
-    return width;
+    switch(vmi->page_mode) {
+    case VMI_PM_AARCH64:
+    case VMI_PM_IA32E:
+        return 8;
+    case VMI_PM_AARCH32:
+    case VMI_PM_LEGACY:
+    case VMI_PM_PAE:
+        return 4;
+    default:
+        return 0;
+    }
 }
 
 os_t

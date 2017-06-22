@@ -61,15 +61,13 @@ typedef struct xen_instance {
 
     int minor_version;  /**< Minor version of Xen LibMVI is running on */
 
-    int hvm;                /**< nonzero if HVM */
+    vm_type_t type; /**< VM type (HVM/PV32/PV64) */
 
     xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
 
     xen_events_t *events; /**< handle to events data */
 
     uint64_t max_gpfn;    /**< result of xc_domain_maximum_gpfn/2() */
-
-    uint8_t addr_width;     /**< guest's address width in bytes: 4 or 8 */
 
 #if ENABLE_SHM_SNAPSHOT == 1
     char *shm_snapshot_path;  /** reserved for shared memory snapshot device path in /dev/shm directory */

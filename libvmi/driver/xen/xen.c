@@ -313,16 +313,18 @@ dump_vcpureg_snapshot(
     vmi_instance_t vmi,
     unsigned long vcpu)
 {
-    if (!xen_get_instance(vmi)->hvm) {
-        // 64 bits memory address is 8 bytes in width.
-        if (8 == xen_get_instance(vmi)->addr_width) {
-            return dump_vcpureg_pv64_snapshot(vmi, vcpu);
-        }
-        else {
-            return dump_vcpureg_pv32_snapshot(vmi, vcpu);
-        }
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if (vmi->vm_type == HVM)
+        return dump_vcpureg_hvm_snapshot (vmi, value, reg, vcpu);
+    else {
+        if (vmi->vm_type == PV64)
+            return dump_vcpureg_pv64_snapshot(vmi, value, reg, vcpu);
+        else if (vmi->vm-type == PV32)
+            return dump_vcpureg_pv32_snapshot(vmi, value, reg, vcpu);
     }
-    return dump_vcpureg_hvm_snapshot(vmi, vcpu);
+
+    return VMI_FAILURE;
 }
 
 /**
@@ -696,92 +698,56 @@ xen_check_domainid(
     return ret;
 }
 
-status_t
-xen_discover_guest_addr_width(
+static inline status_t
+xen_discover_pv_type(
     vmi_instance_t vmi)
 {
+    status_t ret = VMI_SUCCESS;
+
+/* Only for x86 */
+#if defined(I386) || defined(X86_64)
+
     xen_instance_t *xen = xen_get_instance(vmi);
-#if defined(ARM32)
-
-    xen->addr_width = 4;
-    return VMI_SUCCESS;
-
-#elif defined(ARM64)
-
-    vcpu_guest_context_any_t ctx = { 0 };
-
-    if (xen->libxcw.xc_vcpu_getcontext(xen->xchandle, xen->domainid, 0, &ctx)) {
-        errprint("Failed to get context information (ARM domain).\n");
-        return VMI_FAILURE;
-    }
-
-    if ( ctx.c.user_regs.cpsr & PSR_MODE_BIT )
-        xen->addr_width = 4;
-    else
-        xen->addr_width = 8;
-
-    return VMI_SUCCESS;
-
-#elif defined(I386) || defined(X86_64)
-
     int rc;
-    status_t ret = VMI_FAILURE;
+    xen_domctl_t domctl = { 0 };
 
-    xen->addr_width = 0;
+    domctl.domain = xen->domainid;
 
-    if (xen->hvm) {   // HVM
-        struct hvm_hw_cpu hw_ctxt;
+    // TODO: test this on a 32-bit PV guest
+    // Note: it appears that this DOMCTL does not wok on an HVM
+    domctl.cmd = XEN_DOMCTL_get_address_size;
 
-        rc = xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
-                                                          xen->domainid,
-                                                          HVM_SAVE_CODE(CPU),
-                                                          0,  //vcpu,
-                                                          &hw_ctxt,
-                                                          sizeof(hw_ctxt));
-        if (rc) {
-            errprint
-                ("Failed to get context information (HVM domain).\n");
-            goto _bail;
-        }
+    // This DOMCTL always returns 0 (Xen 4.1.2)
+    //domctl.cmd    = XEN_DOMCTL_get_machine_address_size;
 
-        xen->addr_width = (VMI_GET_BIT(hw_ctxt.msr_efer, 8) == 0 ? 4 : 8);
-    }
-    else {  // PV
-        xen_domctl_t domctl = { 0 };
-        domctl.domain = xen->domainid;
+    rc = xen->libxcw.xc_domctl(xen->xchandle, &domctl);
+    if (rc) {
+        errprint("Failed to get domain address width (#1), value retrieved %d\n",
+                 domctl.u.address_size.size);
+        goto _bail;
+    }   // if
 
-        // TODO: test this on a 32-bit PV guest
-        // Note: it appears that this DOMCTL does not wok on an HVM
-        domctl.cmd = XEN_DOMCTL_get_address_size;
+    // translate width to bytes from bits
+    uint32_t addr_width = domctl.u.address_size.size / 8;
+    dbprint(VMI_DEBUG_XEN, "**guest address width is %d bytes\n", addr_width);
 
-        // This DOMCTL always returns 0 (Xen 4.1.2)
-        //domctl.cmd    = XEN_DOMCTL_get_machine_address_size;
-
-        rc = xen->libxcw.xc_domctl(xen->xchandle, &domctl);
-        if (rc) {
-            errprint("Failed to get domain address width (#1), value retrieved %d\n",
-                     domctl.u.address_size.size);
-            goto _bail;
-        }   // if
-
-        // translate width to bytes from bits
-        xen->addr_width = domctl.u.address_size.size / 8;
-
-        if (8 != xen->addr_width && 4 != xen->addr_width) {
-            errprint("Failed to get domain address width (#2), value retrieved %d\n",
-                     domctl.u.address_size.size);
-            goto _bail;
-        }
-
-        dbprint(VMI_DEBUG_XEN, "**guest address width is %d bits\n",
-                xen->addr_width * 8);
-    }   // if-else
-
-    ret = VMI_SUCCESS;
+    switch(addr_width) {
+    case 8:
+        vmi->vm_type = PV64;
+        break;
+    case 4:
+        vmi->vm_type = PV32;
+        break;
+    default:
+        errprint("Failed to get domain address width (#2), value retrieved %d\n",
+                 domctl.u.address_size.size);
+        ret = VMI_FAILURE;
+        goto _bail;
+    };
+#endif
 
 _bail:
     return ret;
-#endif
 }
 
 /**
@@ -857,15 +823,19 @@ xen_init_vmi(
     vmi->num_vcpus = xen->info.max_vcpu_id + 1;
 
     /* determine if target is hvm or pv */
-    vmi->hvm = xen->hvm = xen->info.hvm;
-#ifdef VMI_DEBUG
-    if (xen->hvm) {
-        dbprint(VMI_DEBUG_XEN, "**set hvm to true (HVM).\n");
+    if ( xen->info.hvm ) {
+        vmi->vm_type = HVM;
+    } else if ( VMI_FAILURE == xen_discover_pv_type(vmi) ) {
+        errprint("Failed to determine PV type for Xen.\n");
+        goto _bail;
     }
-    else {
-        dbprint(VMI_DEBUG_XEN, "**set hvm to false (PV).\n");
-    }
-#endif /* VMI_DEBUG */
+
+    if ( vmi->vm_type == HVM )
+        dbprint(VMI_DEBUG_XEN, "**set vm_type HVM\n");
+    if ( vmi->vm_type == PV32 )
+        dbprint(VMI_DEBUG_XEN, "**set vm_type PV32\n");
+    if ( vmi->vm_type == PV64 )
+        dbprint(VMI_DEBUG_XEN, "**set vm_type PV64\n");
 
     if ( xen->major_version == 4 && xen->minor_version < 6 )
         xen->max_gpfn = (uint64_t)xen->libxcw.xc_domain_maximum_gpfn(xen->xchandle, xen->domainid);
@@ -903,13 +873,7 @@ xen_init_vmi(
     if ( VMI_FAILURE == ret )
         goto _bail;
 
-    // Determine the guest address width
-    ret = xen_discover_guest_addr_width(vmi);
-
-    if ( VMI_FAILURE == ret )
-        goto _bail;
-
-    if(xen->hvm && (vmi->init_flags & VMI_INIT_EVENTS))
+    if(vmi->vm_type == HVM && (vmi->init_flags & VMI_INIT_EVENTS))
     {
         ret = xen_init_events(vmi);
 
@@ -931,7 +895,7 @@ xen_destroy(
 
     if(!xen) return;
 
-    if(xen->hvm && (vmi->init_flags & VMI_INIT_EVENTS))
+    if(vmi->vm_type == HVM && (vmi->init_flags & VMI_INIT_EVENTS))
         xen_events_destroy(vmi);
 
 #if ENABLE_SHM_SNAPSHOP == 1
@@ -2631,16 +2595,16 @@ xen_get_vcpureg(
 #if defined(ARM32) || defined(ARM64)
     return xen_get_vcpureg_arm(vmi, value, reg, vcpu);
 #elif defined(I386) || defined (X86_64)
-    if (!xen_get_instance(vmi)->hvm) {
-        if (8 == xen_get_instance(vmi)->addr_width) {
+    if (vmi->vm_type == HVM)
+        return xen_get_vcpureg_hvm (vmi, value, reg, vcpu);
+    else {
+        if (vmi->vm_type == PV64)
             return xen_get_vcpureg_pv64(vmi, value, reg, vcpu);
-        }
-        else {
+        else if (vmi->vm_type == PV32)
             return xen_get_vcpureg_pv32(vmi, value, reg, vcpu);
-        }
     }
 
-    return xen_get_vcpureg_hvm(vmi, value, reg, vcpu);
+    return VMI_FAILURE;
 #endif
 }
 
@@ -2651,7 +2615,7 @@ xen_get_vcpuregs(
     unsigned long vcpu)
 {
 #if defined(I386) || defined (X86_64)
-    if (xen_get_instance(vmi)->hvm)
+    if (vmi->vm_type == HVM)
         return xen_get_vcpuregs_hvm(vmi, regs, vcpu);
 #endif
 
@@ -2668,15 +2632,16 @@ xen_set_vcpureg(
 #if defined(ARM32) || defined(ARM64)
     return xen_set_vcpureg_arm(vmi, value, reg, vcpu);
 #elif defined(I386) || defined (X86_64)
-    if (!xen_get_instance(vmi)->hvm) {
-        if (8 == xen_get_instance(vmi)->addr_width) {
+    if (vmi->vm_type == HVM)
+        return xen_set_vcpureg_hvm (vmi, value, reg, vcpu);
+    else {
+        if (vmi->vm_type == PV64)
             return xen_set_vcpureg_pv64(vmi, value, reg, vcpu);
-        } else {
+        else if (vmi->vm_type == PV32)
             return xen_set_vcpureg_pv32(vmi, value, reg, vcpu);
-        }
     }
 
-    return xen_set_vcpureg_hvm (vmi, value, reg, vcpu);
+    return VMI_FAILURE;
 #endif
 }
 
@@ -2687,20 +2652,11 @@ xen_set_vcpuregs(
     unsigned long vcpu)
 {
 #if defined(I386) || defined (X86_64)
-    if (xen_get_instance(vmi)->hvm)
+    if (vmi->vm_type == HVM)
         return xen_set_vcpuregs_hvm(vmi, regs, vcpu);
 #endif
 
     return VMI_FAILURE;
-}
-
-status_t
-xen_get_address_width(
-    vmi_instance_t vmi,
-    uint8_t * width)
-{
-    *width = xen_get_instance(vmi)->addr_width;
-    return VMI_SUCCESS;
 }
 
 void *
@@ -2727,7 +2683,7 @@ int
 xen_is_pv(
     vmi_instance_t vmi)
 {
-    return !xen_get_instance(vmi)->hvm;
+    return !(vmi->vm_type == HVM);
 }
 
 status_t

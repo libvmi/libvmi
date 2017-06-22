@@ -225,21 +225,6 @@ driver_set_vcpuregs(
     }
 }
 
-static inline status_t
-driver_get_address_width(
-    vmi_instance_t vmi,
-    uint8_t * width)
-{
-    if (vmi->driver.initialized && vmi->driver.get_address_width_ptr) {
-        return vmi->driver.get_address_width_ptr(vmi, width);
-    }
-    else {
-        dbprint
-            (VMI_DEBUG_DRIVER, "WARNING: driver_get_address_width function not implemented.\n");
-        return VMI_FAILURE;
-    }
-}
-
 static inline void *
 driver_read_page(
     vmi_instance_t vmi,

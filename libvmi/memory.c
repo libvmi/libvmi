@@ -44,7 +44,6 @@ status_t probe_memory_layout_x86(vmi_instance_t vmi, unsigned long vcpu, page_mo
 
     status_t ret = VMI_FAILURE;
     page_mode_t pm = VMI_PM_UNKNOWN;
-    uint8_t dom_addr_width = 0; // domain address width (bytes)
 
     /* pull info from registers, if we can */
     reg_t cr0, cr3, cr4, efer;
@@ -82,25 +81,14 @@ status_t probe_memory_layout_x86(vmi_instance_t vmi, unsigned long vcpu, page_mo
     pse = VMI_GET_BIT(cr4, 4);
     dbprint(VMI_DEBUG_CORE, "**set pse = %d\n", pse);
 
-    ret = driver_get_vcpureg(vmi, &efer, MSR_EFER, vcpu);
-    if (VMI_SUCCESS == ret) {
+    if (VMI_SUCCESS == driver_get_vcpureg(vmi, &efer, MSR_EFER, vcpu)) {
         lme = VMI_GET_BIT(efer, 8);
         dbprint(VMI_DEBUG_CORE, "**set lme = %d\n", lme);
-    } else {
-        dbprint(VMI_DEBUG_CORE, "**failed to get MSR_EFER, trying method #2\n");
+    } else if ( vmi->vm_type == PV64 ) {
+        lme = 1;
+        dbprint(VMI_DEBUG_CORE, "**set lme = %d\n", lme);
+    }
 
-        // does this trick work in all cases?
-        ret = driver_get_address_width(vmi, &dom_addr_width);
-        if (VMI_FAILURE == ret) {
-            errprint
-                ("Failed to get domain address width. Giving up.\n");
-            goto _exit;
-        }
-        lme = (8 == dom_addr_width);
-        dbprint
-            (VMI_DEBUG_CORE, "**found guest address width is %d bytes; assuming IA32_EFER.LME = %d\n",
-             dom_addr_width, lme);
-    }   // if
     // Get current cr3 for sanity checking
     if (driver_get_vcpureg(vmi, &cr3, CR3, vcpu) == VMI_FAILURE) {
         errprint("**failed to get CR3\n");
@@ -137,6 +125,8 @@ status_t probe_memory_layout_x86(vmi_instance_t vmi, unsigned long vcpu, page_mo
         vmi->page_mode = pm;
         vmi->x86.pse = pse;
     }
+
+    ret = VMI_SUCCESS;
 
 _exit:
     return ret;
