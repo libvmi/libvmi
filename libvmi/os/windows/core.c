@@ -63,6 +63,72 @@ win_ver_t ntbuild2version(uint16_t ntbuildnumber)
 };
 
 static inline
+win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa) {
+    // Examine the PE header to determine the version
+    uint16_t major_os_version = 0;
+    uint16_t minor_os_version = 0;
+    uint16_t optional_header_type = 0;
+    struct optional_header_pe32 *oh32 = NULL;
+    struct optional_header_pe32plus *oh32plus = NULL;
+    uint8_t pe[VMI_PS_4KB];
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+        .addr = kernbase_pa
+    };
+
+    if ( VMI_FAILURE == peparse_get_image(vmi, &ctx, VMI_PS_4KB, pe) ) {
+        return VMI_OS_WINDOWS_NONE;
+    }
+
+    peparse_assign_headers(pe, NULL, NULL, &optional_header_type, NULL, &oh32, &oh32plus);
+
+    switch(optional_header_type) {
+        case IMAGE_PE32_MAGIC:
+            major_os_version=oh32->major_os_version;
+            minor_os_version=oh32->minor_os_version;
+            break;
+        case IMAGE_PE32_PLUS_MAGIC:
+            major_os_version=oh32plus->major_os_version;
+            minor_os_version=oh32plus->minor_os_version;
+            break;
+        default:
+            return VMI_OS_WINDOWS_NONE;
+    };
+
+    switch(major_os_version) {
+        case 3:
+        case 4:
+            // This is Windows NT but it is not supported
+            return VMI_OS_WINDOWS_NONE;
+        case 5:
+            switch(minor_os_version) {
+                case 0:
+                    return VMI_OS_WINDOWS_2000;
+                case 1:
+                    return VMI_OS_WINDOWS_XP;
+                case 2:
+                    return VMI_OS_WINDOWS_2003;
+            };
+        case 6:
+            switch(minor_os_version) {
+                case 0:
+                    return VMI_OS_WINDOWS_VISTA;
+                case 1:
+                    return VMI_OS_WINDOWS_7;
+                case 2:
+                    return VMI_OS_WINDOWS_8;
+            };
+        case 10:
+            switch(minor_os_version) {
+                case 0:
+                    return VMI_OS_WINDOWS_10;
+            };
+    };
+
+    return VMI_OS_WINDOWS_NONE;
+}
+
+static inline
 status_t check_pdbase_offset(vmi_instance_t vmi) {
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
@@ -689,10 +755,19 @@ init_from_rekall_profile(vmi_instance_t vmi)
         goto done;
     }
 
+    // Let's see if we know the buildnumber
     windows->version = ntbuild2version(ntbuildnumber);
 
-    if (windows->version == VMI_OS_WINDOWS_UNKNOWN) {
-        dbprint(VMI_DEBUG_MISC, "Unknown Windows NtBuildNumber: %u, the Rekall Profile may be incorrect for this Windows!\n", ntbuildnumber);
+    if (VMI_OS_WINDOWS_UNKNOWN == windows->version) {
+
+        // Let's check the PE header if the buildnumber is unknown
+        windows->version = pe2version(vmi, windows->ntoskrnl);
+
+        if (VMI_OS_WINDOWS_NONE == windows->version) {
+            dbprint(VMI_DEBUG_MISC, "Failed to find a known version of Windows, "
+                    "the Rekall Profile may be incorrect for this VM or the version of Windows is not supported!\n");
+            goto done;
+        }
     }
 
     // The system map seems to be good, lets grab all the required offsets
