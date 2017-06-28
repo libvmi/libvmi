@@ -68,6 +68,12 @@ windows_read_unicode_struct(
         buffer_len = us32.length;
     }   // if-else
 
+    if ( buffer_len > VMI_PS_4KB ) {
+        dbprint(VMI_DEBUG_READ, "--%s: the length of %" PRIu16 " in the UNICODE_STRING at 0x%" PRIx64 " is excessive, bailing out.\n",
+                __FUNCTION__, buffer_len, ctx->addr);
+        return NULL;
+    }
+
     // allocate the return value
     us = g_malloc0(sizeof(unicode_string_t));
     if ( !us )
