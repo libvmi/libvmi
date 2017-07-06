@@ -86,7 +86,9 @@ status_t driver_init_mode(const char *name, uint64_t domainid, vmi_mode_t *mode)
     }
 }
 
-status_t driver_init(vmi_instance_t vmi)
+status_t driver_init(vmi_instance_t vmi,
+                     uint32_t init_flags,
+                     void *init_data)
 {
     status_t rc = VMI_FAILURE;
     if (vmi->driver.initialized)
@@ -119,16 +121,18 @@ status_t driver_init(vmi_instance_t vmi)
     };
 
     if (rc == VMI_SUCCESS && vmi->driver.init_ptr)
-        rc = vmi->driver.init_ptr(vmi);
+        rc = vmi->driver.init_ptr(vmi, init_flags, init_data);
 
     return rc;
 }
 
-status_t driver_init_vmi(vmi_instance_t vmi)
+status_t driver_init_vmi(vmi_instance_t vmi,
+                         uint32_t init_flags,
+                         void *init_data)
 {
     status_t rc = VMI_FAILURE;
     if (vmi->driver.init_vmi_ptr)
-        rc = vmi->driver.init_vmi_ptr(vmi);
+        rc = vmi->driver.init_vmi_ptr(vmi, init_flags, init_data);
 
     return rc;
 }

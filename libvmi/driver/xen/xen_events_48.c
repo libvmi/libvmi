@@ -1374,7 +1374,10 @@ void xen_events_destroy_48(vmi_instance_t vmi)
         vmi_resume_vm(vmi);
 }
 
-status_t xen_init_events_48(vmi_instance_t vmi)
+status_t xen_init_events_48(
+    vmi_instance_t vmi,
+    uint32_t init_flags,
+    void *init_data)
 {
     xen_events_t * xe = NULL;
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -1432,12 +1435,17 @@ status_t xen_init_events_48(vmi_instance_t vmi)
         goto err;
     }
 
-    /* Open event channel */
-    xe->vm_event.xce_handle = xen->libxcw.xc_evtchn_open(NULL, 0);
-    if ( !xe->vm_event.xce_handle )
+    if ( init_flags & VMI_INIT_XEN_EVTCHN )
+        xe->vm_event.xce_handle = init_data;
+    else
     {
-        errprint("Failed to open event channel\n");
-        goto err;
+        /* Open event channel */
+        xe->vm_event.xce_handle = xen->libxcw.xc_evtchn_open(NULL, 0);
+        if ( !xe->vm_event.xce_handle )
+        {
+            errprint("Failed to open event channel\n");
+            goto err;
+        }
     }
 
     /* Bind event notification */

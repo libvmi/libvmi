@@ -1332,7 +1332,9 @@ kvm_setup_live_mode(
 
 status_t
 kvm_init(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    uint32_t UNUSED(init_flags),
+    void *UNUSED(init_data))
 {
     kvm_instance_t *kvm = g_malloc0(sizeof(kvm_instance_t));
     if ( VMI_FAILURE == create_libvirt_wrapper(kvm) )
@@ -1354,7 +1356,9 @@ kvm_init(
 
 status_t
 kvm_init_vmi(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    uint32_t UNUSED(init_flags),
+    void *UNUSED(init_data))
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     virDomainInfo info;
@@ -1932,7 +1936,7 @@ kvm_test(
     struct vmi_instance _vmi = {0};
     vmi_instance_t vmi = &_vmi;
 
-    if ( VMI_FAILURE == kvm_init(vmi) )
+    if ( VMI_FAILURE == kvm_init(vmi, 0, NULL) )
         return VMI_FAILURE;
 
     if (name)

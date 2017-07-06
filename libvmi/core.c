@@ -490,7 +490,7 @@ status_t vmi_init(
     vmi_mode_t mode,
     void* domain,
     uint32_t init_flags,
-    void* UNUSED(init_data),
+    void *init_data,
     vmi_init_error_t *error)
 {
     if ( VMI_FAILURE == driver_sanity_check(mode) )
@@ -515,7 +515,7 @@ status_t vmi_init(
     _vmi->init_flags = init_flags;
 
     /* driver-specific initilization */
-    if (VMI_FAILURE == driver_init(_vmi)) {
+    if (VMI_FAILURE == driver_init(_vmi, init_flags, init_data)) {
         if ( error )
             *error = VMI_INIT_ERROR_DRIVER;
 
@@ -540,7 +540,7 @@ status_t vmi_init(
     }
 
     /* init vmi for specific file/domain through the driver */
-    if (VMI_FAILURE == driver_init_vmi(_vmi)) {
+    if (VMI_FAILURE == driver_init_vmi(_vmi, init_flags, init_data)) {
         if ( error )
             *error = VMI_INIT_ERROR_DRIVER;
 

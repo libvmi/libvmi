@@ -29,9 +29,13 @@
 #define KVM_H
 
 status_t kvm_init(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi,
+    uint32_t init_flags,
+    void *init_data);
 status_t kvm_init_vmi(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi,
+    uint32_t init_flags,
+    void *init_data);
 void kvm_destroy(
     vmi_instance_t vmi);
 uint64_t kvm_get_id_from_name(

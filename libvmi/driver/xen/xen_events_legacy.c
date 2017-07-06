@@ -1169,7 +1169,10 @@ void xen_events_destroy_legacy(vmi_instance_t vmi)
     vmi_resume_vm(vmi);
 }
 
-status_t xen_init_events_legacy(vmi_instance_t vmi)
+status_t xen_init_events_legacy(
+    vmi_instance_t vmi,
+    uint32_t init_flags,
+    void *init_data)
 {
     xen_events_t * xe = NULL;
     xc_interface * xch = NULL;
@@ -1344,12 +1347,17 @@ enable_done:
         goto err;
     }
 
-    // Open event channel
-    xe->mem_event.xce_handle = xen->libxcw.xc_evtchn_open(NULL, 0);
-    if ( xe->mem_event.xce_handle == NULL )
+    if ( init_flags & VMI_INIT_XEN_EVTCHN )
+        xe->mem_event.xce_handle = init_data;
+    else
     {
-        errprint("Failed to open event channel\n");
-        goto err;
+        /* Open event channel */
+        xe->mem_event.xce_handle = xen->libxcw.xc_evtchn_open(NULL, 0);
+        if ( !xe->vm_event.xce_handle )
+        {
+            errprint("Failed to open event channel\n");
+            goto err;
+        }
     }
 
     // Bind event notification

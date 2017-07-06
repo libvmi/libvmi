@@ -24,9 +24,13 @@
 #define FILE_DRIVER_H
 
 status_t file_init(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi,
+    uint32_t init_flags,
+    void *init_data);
 status_t file_init_vmi(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi,
+    uint32_t init_flags,
+    void *init_data);
 void file_destroy(
     vmi_instance_t vmi);
 status_t file_get_name(
