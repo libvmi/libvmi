@@ -113,7 +113,9 @@ file_release_memory(
 
 status_t
 file_init(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    uint32_t UNUSED(init_flags),
+    void *UNUSED(init_data))
 {
     vmi->driver.driver_data = g_malloc0(sizeof(file_instance_t));
     return VMI_SUCCESS;
@@ -121,7 +123,9 @@ file_init(
 
 status_t
 file_init_vmi(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    uint32_t UNUSED(init_flags),
+    void *UNUSED(init_data))
 {
     file_instance_t *fi = file_get_instance(vmi);
     FILE *fhandle = NULL;

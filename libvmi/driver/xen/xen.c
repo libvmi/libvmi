@@ -765,7 +765,9 @@ xen_setup_live_mode(
 
 status_t
 xen_init(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    uint32_t UNUSED(init_flags),
+    void *UNUSED(init_data))
 {
     if ( xen_get_instance(vmi) )
         return VMI_SUCCESS;
@@ -803,7 +805,9 @@ xen_init(
 
 status_t
 xen_init_vmi(
-    vmi_instance_t vmi)
+    vmi_instance_t vmi,
+    uint32_t init_flags,
+    void *init_data)
 {
     status_t ret = VMI_FAILURE;
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -875,7 +879,7 @@ xen_init_vmi(
 
     if(vmi->vm_type == HVM && (vmi->init_flags & VMI_INIT_EVENTS))
     {
-        ret = xen_init_events(vmi);
+        ret = xen_init_events(vmi, init_flags, init_data);
 
         if ( VMI_FAILURE == ret )
             goto _bail;
@@ -2699,7 +2703,7 @@ xen_test(
         return VMI_FAILURE;
     }
 
-    if ( VMI_FAILURE == xen_init(vmi) )
+    if ( VMI_FAILURE == xen_init(vmi, 0, NULL) )
         return VMI_FAILURE;
 
     if (domainid == VMI_INVALID_DOMID) { /* name != NULL */

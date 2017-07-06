@@ -55,6 +55,8 @@ extern "C" {
 
 #define VMI_INIT_SHM (1u << 3) /**< initialize SHM mode */
 
+#define VMI_INIT_XEN_EVTCHN (1u << 4) /**< use provided Xen file descriptor */
+
 typedef enum vmi_mode {
 
     VMI_XEN, /**< libvmi is monitoring a Xen VM */
@@ -651,7 +653,9 @@ typedef struct vmi_instance *vmi_instance_t;
  *                       to initialize further LibVMI features, such as events.
  * @param[in] init_data In case initialization requires additional information
  *                      for a given hypervisor, it can be provided via this
- *                      input.
+ *                      input. A subsequent call to vmi_destroy will release
+ *                      any handles provided here, and so the calling application
+ *                      cannot continue to use them after calling vmi_destroy.
  * @param[out] error Optional. If not NULL and the function returns VMI_FAILURE,
  *                   this will specify the stage at which initialization failed.
  * @return VMI_SUCCESS or VMI_FAILURE
@@ -684,7 +688,9 @@ status_t vmi_init(
  * @param[in] init_flags Additional flags to initialize
  * @param[in] init_data In case initialization requires additional information
  *                      for a given hypervisor, it can be provided via this
- *                      input.
+ *                      input. A subsequent call to vmi_destroy will release
+ *                      any handles provided here, and so the calling application
+ *                      cannot continue to use them after calling vmi_destroy.
  * @param[in] config_mode The type of OS configuration that is provided.
  * @param[in] config Configuration is passed directly to LibVMI (ie. in a string
  *                   or in a GHashTable) or NULL of global config file is used.
