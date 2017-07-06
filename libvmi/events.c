@@ -963,15 +963,15 @@ status_t vmi_events_listen(vmi_instance_t vmi, uint32_t timeout)
     return driver_events_listen(vmi, timeout);
 }
 
-status_t vmi_event_listener_required(vmi_instance_t vmi, int required)
+status_t vmi_event_listener_required(vmi_instance_t vmi, bool required)
 {
 
-    if ( required )
-        vmi->event_listener_required = 1;
-    else
-        vmi->event_listener_required = 0;
+    if (!(vmi->init_flags & VMI_INIT_EVENTS))
+    {
+        return VMI_FAILURE;
+    }
 
-    return VMI_SUCCESS;
+    return driver_set_access_listener_required(vmi, required);
 }
 
 vmi_event_t *vmi_get_singlestep_event(vmi_instance_t vmi, uint32_t vcpu)

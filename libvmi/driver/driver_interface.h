@@ -163,6 +163,9 @@ typedef struct driver_interface {
         uint16_t slat_idx,
         addr_t old_gfn,
         addr_t new_gfn);
+    status_t (*set_access_required_ptr)(
+        vmi_instance_t vmi,
+        bool required);
 
     /* Driver-specific data storage. */
     void* driver_data;

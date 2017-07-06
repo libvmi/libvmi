@@ -1238,13 +1238,6 @@ status_t xen_events_listen_48(vmi_instance_t vmi, uint32_t timeout)
         return VMI_FAILURE;
     }
 
-    // Set whether the access listener is required
-    rc = xen->libxcw.xc_domain_set_access_required(xch, dom, vmi->event_listener_required);
-    if ( rc < 0 ) {
-        errprint("Error %d setting mem_access listener required to %d\n",
-            rc, vmi->event_listener_required);
-    }
-
     if(!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
         rc = wait_for_event_or_timeout(xen, xe->vm_event.xce_handle, timeout);
