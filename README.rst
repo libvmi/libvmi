@@ -19,11 +19,11 @@ kernel symbols from Windows and Linux.
 
 If you would like higher level semantic information, then we suggest using
 LibVMI with PyVMI (python wrapper, included with LibVMI) and Volatility.
-Volatility (http://code.google.com/p/volatility/) is a forensic memory analysis
-framework supporting both Linux and Windows systems that can aid significantly
-in performing useful memory analysis tasks.  PyVMI includes a Volatility
-address space plugin that enables you to use Volatility on a live virtual
-machine.
+Volatility (https://github.com/volatilityfoundation/volatility/) is a forensic
+memory analysis framework supporting both Linux and Windows systems that can aid
+significantly in performing useful memory analysis tasks.  PyVMI includes a
+Volatility address space plugin that enables you to use Volatility on a live
+virtual machine.
 
 This file contains very basic instructions to get you up and running.  If you
 want more details about installation, or programming with LibVMI, then see
@@ -68,7 +68,7 @@ Installation and Configuration
 For complete details on installation and configuration, please see the
 related online documentation:
 
-http://code.google.com/p/vmitools/wiki/LibVMIInstallation
+http://libvmi.com/docs/gcode-install.html
 
 
 Python Interface
@@ -78,12 +78,17 @@ the tools/pyvmi/ directory after installing LibVMI.  PyVMI provides a
 feature complete python interface to LibVMI with a relatively small
 performance overhead.
 
+PyVMI is currently being reworked and thus the version
+in the master branch is unstable. Please use PyVMI from the latest release
+while the rework is completed.
+
 
 Xen Support
 -----------
 If you would like LibVMI to work on Xen domains, you must simply ensure
 that you have Xen installed along with any Xen development packages.
 LibVMI should effectively just work on any recent version of Xen.
+
 
 XenServer Support
 -----------
@@ -94,6 +99,7 @@ matching what XenServer runs on. Make sure to remove the libvirt packages
 from CentOS (yum remove libvirt*) as to avoid the KVM driver getting
 activated in LibVMI. The compiled LibVMI library and tools can then be
 transferred to the XenServer dom0 and run natively.
+
 
 KVM Support
 -----------
@@ -218,16 +224,17 @@ following:
 
 Rekall profiles
 ------------------------------
-LibVMI also supports the use of Rekall profiles for introspecting Windows. By using Rekall
-profiles, LibVMI is able to bypass the use if the in-memory KdDebuggerData (KDBG) structure
-normally used by memory forensics tools and thus allows introspecting domains
+LibVMI also supports the use of Rekall profiles for introspecting Windows and Linux. By using
+Rekall profiles, LibVMI is able to bypass the use if the in-memory KdDebuggerData (KDBG)
+structure normally used by memory forensics tools and thus allows introspecting domains
 where this structure is either corrupted, or encoded (like in the case of Windows 8 x64).
 However, Rekall profiles have to be created for each kernel version, and therefore if an
 update is made to the kernel, the profile has to be re-generated, thus it's a bit less stable
-as the standard LibVMI configuration entries which are generally stable for specific releases
-of Windows.
+as the standard LibVMI configuration entries.
 
-Rekall is available at https://github.com/google/rekall. You will also need to install libjson-c-dev from your distribution's repository or compile it from source that can be found at https://github.com/json-c/json-c.
+Rekall is available at https://github.com/google/rekall. You will also need to install libjson-c-dev
+from your distribution's repository or compile it from source that can be found at
+https://github.com/json-c/json-c.
 
 To create a Rekall profile for Windows you need to determine the PDB filename and GUID of the
 kernel. This can be done either by running the win-guid example shipped with LibVMI, or by
@@ -245,11 +252,13 @@ Once the PDB filename and GUID is known, creating the Rekall profile is done in 
 
 .. code::
 
-    rekall fetch_pdb --pdb_filename <PDB filename> --guid <GUID> -D .
+    rekall fetch_pdb <PDB filename> <GUID>
     rekall parse_pdb <PDB filename> > rekall-profile.json
 
-The Rekall profile can be used directly in the LibVMI config via an additional rekall_profile entry pointing to this file with an absolute path. There is no need to specify any of the offsets normally required as those offsets will be available
-via the profile itself.
+The Rekall profile can be used directly in the LibVMI config via an additional rekall_profile entry
+pointing to this file with an absolute path. There is no need to specify any of the offsets normally
+required as those offsets will be available via the profile itself.
+
 
 Building
 --------
@@ -270,19 +279,14 @@ make install
 The default installation prefix is /usr/local.  You may need to run
 'ldconfig' after performing a 'make install'.
 
+
 Debugging
 ---------
 To enable LibVMI debug output, modify the libvmi/debug.h header file
 and recompile libvmi.
 
+
 Community
 ---------
 The LibVMI forums are available at https://groups.google.com/forum/#!forum/vmitools
 
-
-Transition from XenAccess
--------------------------
-If you are just making the transition form XenAccess, please see the transition
-documentation online:
-
-http://code.google.com/p/vmitools/wiki/TransitionFromXenAccess
