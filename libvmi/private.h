@@ -184,6 +184,10 @@ struct vmi_instance {
     gboolean shutting_down; /**< flag indicating that libvmi is shutting down */
 
     GSList *swap_events; /**< list to save vmi_swap_events requests when event_callback is set */
+
+    void *(*get_data_callback) (vmi_instance_t, addr_t, uint32_t); /**< memory_cache function */
+
+    void (*release_data_callback) (void *, size_t); /**< memory_cache function */
 };
 
 /** Event singlestep reregister wrapper */
