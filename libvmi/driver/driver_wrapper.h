@@ -598,5 +598,19 @@ driver_slat_change_gfn (
     }
 }
 
+static inline status_t
+driver_set_access_listener_required(
+    vmi_instance_t vmi,
+    bool required)
+{
+    if (vmi->driver.initialized && vmi->driver.set_access_required_ptr) {
+        return vmi->driver.set_access_required_ptr (vmi, required);
+    }
+    else {
+        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_change_gfn function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
 #endif /* DRIVER_WRAPPER_H */
 

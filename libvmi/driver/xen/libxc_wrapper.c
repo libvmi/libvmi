@@ -116,7 +116,7 @@ static status_t sanity_check(xen_instance_t *xen)
                  !w->xc_altp2m_destroy_view || !w->xc_altp2m_switch_to_view ||
                  !w->xc_altp2m_set_mem_access || !w->xc_altp2m_change_gfn ||
                  !w->xc_hvm_param_set || !w->xc_hvm_param_get ||
-                 !w->xc_domain_cacheflush )
+                 !w->xc_domain_cacheflush || !w->xc_domain_set_access_required)
                 break;
 
             ret = VMI_SUCCESS;

@@ -153,8 +153,6 @@ struct vmi_instance {
 
     unsigned int num_vcpus; /**< number of VCPUs used by this instance */
 
-    int event_listener_required; /**< Non-zero if event listener is required for the domain to run */
-
     vmi_event_t *guest_requested_event; /**< Handler of guest-requested events */
 
     vmi_event_t *cpuid_event; /**< Handler of CPUID events */

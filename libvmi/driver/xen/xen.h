@@ -115,6 +115,9 @@ size_t xen_get_dgpma(
     addr_t paddr,
     void** medial_addr_ptr,
     size_t count);
+status_t xen_set_access_required(
+    vmi_instance_t vmi,
+    bool required);
 
 static inline status_t
 driver_xen_setup(vmi_instance_t vmi)
@@ -141,6 +144,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.is_pv_ptr = &xen_is_pv;
     driver.pause_vm_ptr = &xen_pause_vm;
     driver.resume_vm_ptr = &xen_resume_vm;
+    driver.set_access_required_ptr = &xen_set_access_required;
 #if ENABLE_SHM_SNAPSHOT == 1
     driver.create_shm_snapshot_ptr = &xen_create_shm_snapshot;
     driver.destroy_shm_snapshot_ptr = &xen_destroy_shm_snapshot;

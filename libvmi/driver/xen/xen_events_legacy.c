@@ -578,11 +578,10 @@ status_t xen_set_reg_access_legacy(vmi_instance_t vmi, reg_event_t *event)
 
     switch(event->reg){
         case CR0:
-#if XEN_EVENTS_VERSION == 420
             /* More info as to why:
              * http://xenbits.xen.org/gitweb/?p=xen.git;a=commit;h=5d570c1d0274cac3b333ef378af3325b3b69905e */
-            errprint("The majority of events on CR0 are unavailable for Xen 4.2 - 4.4.\n");
-#endif
+            if ( xen->minor_version >=2 && xen->minor_version <= 4 )
+                errprint("The majority of events on CR0 are unavailable for Xen 4.2 - 4.4.\n");
             hvm_param = HVM_PARAM_MEMORY_EVENT_CR0;
             break;
         case CR3:
@@ -794,20 +793,6 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
     if ( dom == VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
-    }
-
-    // Set whether the access listener is required
-    rc = xen->libxcw.xc_domain_set_access_required(xch, dom, vmi->event_listener_required);
-    if ( rc < 0 ) {
-#if XEN_EVENTS_VERSION == 410
-        // FIXME41: Xen 4.1.2 apparently mostly returns -1 for any call to this,
-        // so just suppress the error for now
-        dbprint(VMI_DEBUG_XEN, "Error %d setting mem_access listener required to %d\n",
-            rc, vmi->event_listener_required);
-#else
-        errprint("Error %d setting mem_access listener required to %d\n",
-            rc, vmi->event_listener_required);
-#endif
     }
 
     if(!vmi->shutting_down && timeout > 0) {
@@ -1034,12 +1019,6 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-
-    // Set whether the access listener is required
-    rc = xen->libxcw.xc_domain_set_access_required(xch, dom, vmi->event_listener_required);
-    if ( rc < 0 )
-        errprint("Error %d setting mem_access listener required to %d\n",
-            rc, vmi->event_listener_required);
 
     if(!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);

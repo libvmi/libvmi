@@ -689,15 +689,16 @@ status_t vmi_events_listen(
     uint32_t timeout);
 
 /**
- * Set wether to pause the domain if the event listener is no longer present.
+ * Set whether to crash the domain if the event listener is no longer present.
+ * By default Xen assumes the listener is not required.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] required Set to 0 if not required, 1 if required.
+ * @param[in] required Set to false if not required, true if required.
  * @return VMI_FAILURE or VMI_SUCCESS
  */
 status_t vmi_event_listener_required(
     vmi_instance_t vmi,
-    int required);
+    bool required);
 
 /**
  * Check if there are events pending to be processed.

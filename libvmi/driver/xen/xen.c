@@ -2789,6 +2789,23 @@ xen_set_domain_debug_control(
     return (rc == 0) ? VMI_SUCCESS : VMI_FAILURE;
 }
 
+status_t
+xen_set_access_required(
+    vmi_instance_t vmi,
+    bool required)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    // Set whether the access listener is required
+    int rc = xen->libxcw.xc_domain_set_access_required(xen->xchandle, xen->domainid, required);
+    if ( rc < 0 ) {
+       errprint("Error %d setting listener required to %d\n", rc, required);
+       return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+
 #if ENABLE_SHM_SNAPSHOT == 1
 status_t
 xen_create_shm_snapshot(
