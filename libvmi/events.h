@@ -33,7 +33,7 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
-#define VMI_EVENTS_VERSION 0x00000003
+#define VMI_EVENTS_VERSION 0x00000004
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,6 +61,8 @@ typedef uint16_t vmi_event_type_t;
 #define VMI_EVENT_GUEST_REQUEST     5 /**< Guest-requested event */
 #define VMI_EVENT_CPUID             6 /**< CPUID event */
 #define VMI_EVENT_DEBUG_EXCEPTION   7 /**< Debug exception event */
+#define VMI_EVENT_PRIVILEGED_CALL   8 /**< Privileged call (ie. SMC on ARM) */
+#define VMI_EVENT_DESCRIPTOR_ACCESS 9 /**< A descriptor table register was accessed */
 
 /**
  * Max number of vcpus we can set single step on at one time for a domain
@@ -277,27 +279,60 @@ typedef struct {
 
 } mem_access_event_t;
 
+/*
+ * Xen allows for subscribing to interrupt events in two ways as of Xen 4.9.
+ * One method is to subscribe to specific interrupts, currently limited
+ * to Int3. When such an interrupt is bound to be delivered to the guest,
+ * Xen will instead notify the listener. It is the responsibility of the
+ * subscriber to decide whether to reinject the interrupt to the guest or not.
+ *
+ * Another method is to request information about the next interrupt that
+ * will be delivered to the guest, be it of any kind. This can only be
+ * requested in the response of another type of event. The interrupt will
+ * automatically going to be reinjected into the guest once the event is
+ * processed, so it is not possible to block interrupts this way.
+ *
+ */
 typedef uint8_t interrupts_t;
 
 #define INT_INVALID     0
 #define INT3            1   /**< Software breakpoint (INT3/0xCC) */
+#define INT_NEXT        2   /**< Catch-all when next interrupt is reported */
 
 typedef struct {
-    /* IN */
+    /* CONST IN */
     interrupts_t intr;  /**< Specific interrupt intended to trigger the event */
 
+    union {
+        /* INT3 */
+        struct {
+            /* IN/OUT */
+            uint32_t insn_length; /**< The instruction length to be used when reinjecting */
+
+            /**
+             * OUT
+             *
+             * Toggle, controls whether interrupt is re-injected after callback.
+             *   Set reinject to 1 to deliver it to guest ("pass through" mode)
+             *   Set reinject to 0 to swallow it silently without
+             */
+            int8_t reinject;
+
+            uint16_t _pad1;
+        };
+
+        /* INT_NEXT */
+        struct {
+            /* OUT */
+            uint32_t vector;
+            uint32_t type;
+            uint32_t error_code;
+            uint32_t _pad2;
+            uint64_t cr2;
+        };
+    };
+
     /* OUT */
-    uint32_t insn_length; /**< The instruction length when reinjecting */
-
-    /**
-     * Toggle, controls whether interrupt is re-injected after callback.
-     *   Set reinject to 1 to deliver it to guest ("pass through" mode)
-     *   Set reinject to 0 to swallow it silently without
-     */
-    int8_t reinject;
-
-    uint16_t _pad;
-
     addr_t gla;         /**< (Global Linear Address) == RIP of the trapped instruction */
     addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
     addr_t offset;      /**< Offset in bytes (relative to GFN) */
@@ -347,6 +382,25 @@ typedef struct {
     uint32_t _pad;
 } cpuid_event_t;
 
+#define VMI_DESCRIPTOR_IDTR           1
+#define VMI_DESCRITPOR_GDTR           2
+#define VMI_DESCRIPTOR_LDTR           3
+#define VMI_DESCRIPTOR_TR             4
+
+typedef struct desriptor_event {
+    union {
+        struct {
+            uint32_t instr_info;         /* VMX: VMCS Instruction-Information */
+            uint32_t _pad;
+            uint64_t exit_qualification; /* VMX: VMCS Exit Qualification */
+        };
+        uint64_t exit_info;              /* SVM: VMCB EXITINFO */
+    };
+    uint8_t descriptor;                  /* VMI_DESCRIPTOR_* */
+    uint8_t is_write;
+    uint8_t _pad2[6];
+} descriptor_event_t;
+
 struct vmi_event;
 typedef struct vmi_event vmi_event_t;
 
@@ -366,7 +420,8 @@ typedef uint32_t event_response_flags_t;
 #define VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID     VMI_EVENT_RESPONSE_SLAT_ID
 #define VMI_EVENT_RESPONSE_SET_REGISTERS        (1u << 7)
 #define VMI_EVENT_RESPONSE_SET_EMUL_INSN        (1u << 8)
-#define __VMI_EVENT_RESPONSE_MAX                8
+#define VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT   (1u << 9)
+#define __VMI_EVENT_RESPONSE_MAX                9
 
 /**
  * Bitmap holding event_reponse_flags_t values returned by callback
@@ -440,6 +495,7 @@ struct vmi_event {
         interrupt_event_t interrupt_event;
         cpuid_event_t cpuid_event;
         debug_event_t debug_event;
+        descriptor_event_t descriptor_event;
     };
 
     /*
@@ -453,7 +509,10 @@ struct vmi_event {
          *
          * Snapshot of some VCPU registers when the event occurred
          */
-        x86_registers_t *x86_regs;
+        union {
+            x86_registers_t *x86_regs;
+            arm_registers_t *arm_regs;
+        };
 
         /**
          * RESPONSE

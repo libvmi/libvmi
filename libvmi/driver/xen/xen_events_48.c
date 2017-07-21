@@ -293,12 +293,22 @@ status_t process_interrupt_event(vmi_instance_t vmi,
 
     if ( event )
     {
-        event->interrupt_event.gfn = req->u.software_breakpoint.gfn;
+        switch ( intr ) {
+        case INT3:
+            event->interrupt_event.gfn = req->u.software_breakpoint.gfn;
+            event->interrupt_event.reinject = -1;
+            event->interrupt_event.insn_length = req->u.software_breakpoint.insn_length;
+            break;
+        case INT_NEXT:
+            event->interrupt_event.gfn = vmi_pagetable_lookup(vmi, req->data.regs.x86.cr3, req->data.regs.x86.rip) >> 12;
+            event->interrupt_event.vector = req->u.interrupt.x86.vector;
+            event->interrupt_event.type = req->u.interrupt.x86.type;
+            event->interrupt_event.cr2 = req->u.interrupt.x86.cr2;
+            break;
+        };
+
         event->interrupt_event.offset = req->data.regs.x86.rip & VMI_BIT_MASK(0,11);
         event->interrupt_event.gla = req->data.regs.x86.rip;
-        event->interrupt_event.intr = intr;
-        event->interrupt_event.reinject = -1;
-        event->interrupt_event.insn_length = req->u.software_breakpoint.insn_length;
 
         event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
         event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
@@ -383,6 +393,8 @@ status_t process_interrupt_event(vmi_instance_t vmi,
                     }
                 }
 
+        /* Fall-through */
+        case INT_NEXT:
             status = VMI_SUCCESS;
             break;
 
@@ -720,6 +732,85 @@ status_t process_debug_event(vmi_instance_t vmi,
     return VMI_SUCCESS;
 }
 
+static
+status_t process_privcall_event(vmi_instance_t vmi,
+                                vm_event_48_request_t *req,
+                                vm_event_48_request_t *rsp)
+{
+    status_t status     = VMI_FAILURE;
+    vmi_event_t * event = vmi->privcall_event;
+    xc_interface * xch  = xen_get_xchandle(vmi);
+    domid_t domain_id   = xen_get_domainid(vmi);
+
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( domain_id == (domid_t)VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    if ( !event )
+    {
+        errprint("%s error: no privileged call event handler is registered in LibVMI\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    vmi->privcall_event->arm_regs = (arm_registers_t *)&req->data.regs.arm;
+    vmi->privcall_event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
+    vmi->privcall_event->vcpu_id = req->vcpu_id;
+
+    vmi->event_callback = 1;
+    process_response ( vmi->privcall_event->callback(vmi, vmi->privcall_event),
+                       vmi->privcall_event, rsp );
+    vmi->event_callback = 0;
+
+    return status;
+}
+
+static
+status_t process_desc_access_event(vmi_instance_t vmi,
+                                   vm_event_48_request_t *req,
+                                   vm_event_48_request_t *rsp)
+{
+    status_t status     = VMI_FAILURE;
+    vmi_event_t * event = vmi->descriptor_access_event;
+    xc_interface * xch  = xen_get_xchandle(vmi);
+    domid_t domain_id   = xen_get_domainid(vmi);
+
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( domain_id == (domid_t)VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    if ( !event )
+    {
+        errprint("%s error: no descriptor access event handler is registered in LibVMI\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    vmi->descriptor_access_event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
+    vmi->descriptor_access_event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
+    vmi->descriptor_access_event->vcpu_id = req->vcpu_id;
+
+    vmi->descriptor_access_event->descriptor_event.exit_info = req->u.desc_access.arch.svm.exitinfo;
+    vmi->descriptor_access_event->descriptor_event.exit_qualification = req->u.desc_access.arch.vmx.exit_qualification;
+    vmi->descriptor_access_event->descriptor_event.descriptor = req->u.desc_access.descriptor;
+    vmi->descriptor_access_event->descriptor_event.is_write = req->u.desc_access.is_write;
+
+    vmi->event_callback = 1;
+    process_response ( vmi->descriptor_access_event->callback(vmi, vmi->descriptor_access_event),
+                       vmi->descriptor_access_event, rsp );
+    vmi->event_callback = 0;
+
+    return status;
+}
+
 static inline
 status_t process_requests(vmi_instance_t vmi, vm_event_48_request_t *req,
                           vm_event_48_response_t *rsp)
@@ -795,6 +886,11 @@ status_t process_requests(vmi_instance_t vmi, vm_event_48_request_t *req,
                 vrc = process_interrupt_event(vmi, INT3, req, rsp);
                 break;
 
+            case VM_EVENT_REASON_INTERRUPT:
+                dbprint(VMI_DEBUG_XEN, "--Caught generic interrupt event!\n");
+                vrc = process_interrupt_event(vmi, INT_NEXT, req, rsp);
+                break;
+
             case VM_EVENT_REASON_GUEST_REQUEST:
                 dbprint(VMI_DEBUG_XEN, "--Caught guest requested event!\n");
                 vrc = process_guest_requested_event(vmi, req, rsp);
@@ -808,6 +904,16 @@ status_t process_requests(vmi_instance_t vmi, vm_event_48_request_t *req,
             case VM_EVENT_REASON_CPUID:
                 dbprint(VMI_DEBUG_XEN, "--Caught CPUID event!\n");
                 vrc = process_cpuid_event(vmi, req, rsp);
+                break;
+
+            case VM_EVENT_REASON_PRIVILEGED_CALL:
+                dbprint(VMI_DEBUG_XEN, "--Caught privileged call event!\n");
+                vrc = process_privcall_event(vmi, req, rsp);
+                break;
+
+            case VM_EVENT_REASON_DESCRIPTOR_ACCESS:
+                dbprint(VMI_DEBUG_XEN, "--Caught descriptor access event!\n");
+                vrc = process_desc_access_event(vmi, req, rsp);
                 break;
 
             default:
@@ -1023,7 +1129,8 @@ status_t xen_set_intr_access_48(vmi_instance_t vmi, interrupt_event_t *event, bo
     {
         case INT3:
             return xen_set_int3_access(vmi, enabled);
-            break;
+        case INT_NEXT:
+            return VMI_SUCCESS;
         default:
             errprint("Xen driver does not support enabling events for interrupt: %"PRIu32"\n", event->intr);
             break;
@@ -1194,6 +1301,52 @@ status_t xen_set_cpuid_event_48(vmi_instance_t vmi, bool enabled) {
     if ( rc < 0 )
     {
         errprint("Error %i setting CPUID event monitor\n", rc);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t xen_set_privcall_event_48(vmi_instance_t vmi, bool enabled) {
+    int rc;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 8 )
+        return VMI_FAILURE;
+
+    if ( !enabled && !vmi->cpuid_event )
+        return VMI_SUCCESS;
+
+    rc = xen->libxcw.xc_monitor_privileged_call(xen_get_xchandle(vmi),
+                                                xen_get_domainid(vmi),
+                                                 enabled);
+
+    if ( rc < 0 )
+    {
+        errprint("Error %i setting privcall event monitor\n", rc);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t xen_set_desc_access_event_410(vmi_instance_t vmi, bool enabled) {
+    int rc;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 10 )
+        return VMI_FAILURE;
+
+    if ( !enabled && !vmi->cpuid_event )
+        return VMI_SUCCESS;
+
+    rc = xen->libxcw.xc_monitor_descriptor_access(xen_get_xchandle(vmi),
+                                                  xen_get_domainid(vmi),
+                                                  enabled);
+
+    if ( rc < 0 )
+    {
+        errprint("Error %i setting descriptor access event monitor\n", rc);
         return VMI_FAILURE;
     }
 
@@ -1400,6 +1553,8 @@ status_t xen_init_events_48(
     vmi->driver.set_guest_requested_ptr = &xen_set_guest_requested_event_48;
     vmi->driver.set_cpuid_event_ptr = &xen_set_cpuid_event_48;
     vmi->driver.set_debug_event_ptr = &xen_set_debug_event_48;
+    vmi->driver.set_privcall_event_ptr = xen_set_privcall_event_48;
+    vmi->driver.set_desc_access_event_ptr = xen_set_desc_access_event_410;
 
     // Allocate memory
     xe = g_malloc0(sizeof(xen_events_t));
