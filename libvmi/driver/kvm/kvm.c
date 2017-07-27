@@ -1654,132 +1654,7 @@ kvm_get_vcpureg(
 
     status_t ret = VMI_SUCCESS;
 
-    if (VMI_PM_IA32E == vmi->page_mode) {
-        switch (reg) {
-        case RAX:
-            *value = parse_reg_value("RAX", regs);
-            break;
-        case RBX:
-            *value = parse_reg_value("RBX", regs);
-            break;
-        case RCX:
-            *value = parse_reg_value("RCX", regs);
-            break;
-        case RDX:
-            *value = parse_reg_value("RDX", regs);
-            break;
-        case RBP:
-            *value = parse_reg_value("RBP", regs);
-            break;
-        case RSI:
-            *value = parse_reg_value("RSI", regs);
-            break;
-        case RDI:
-            *value = parse_reg_value("RDI", regs);
-            break;
-        case RSP:
-            *value = parse_reg_value("RSP", regs);
-            break;
-        case R8:
-            *value = parse_reg_value("R8", regs);
-            break;
-        case R9:
-            *value = parse_reg_value("R9", regs);
-            break;
-        case R10:
-            *value = parse_reg_value("R10", regs);
-            break;
-        case R11:
-            *value = parse_reg_value("R11", regs);
-            break;
-        case R12:
-            *value = parse_reg_value("R12", regs);
-            break;
-        case R13:
-            *value = parse_reg_value("R13", regs);
-            break;
-        case R14:
-            *value = parse_reg_value("R14", regs);
-            break;
-        case R15:
-            *value = parse_reg_value("R15", regs);
-            break;
-        case RIP:
-            *value = parse_reg_value("RIP", regs);
-            break;
-        case RFLAGS:
-            *value = parse_reg_value("RFL", regs);
-            break;
-        case CR0:
-            *value = parse_reg_value("CR0", regs);
-            break;
-        case CR2:
-            *value = parse_reg_value("CR2", regs);
-            break;
-        case CR3:
-            *value = parse_reg_value("CR3", regs);
-            break;
-        case CR4:
-            *value = parse_reg_value("CR4", regs);
-            break;
-        case DR0:
-            *value = parse_reg_value("DR0", regs);
-            break;
-        case DR1:
-            *value = parse_reg_value("DR1", regs);
-            break;
-        case DR2:
-            *value = parse_reg_value("DR2", regs);
-            break;
-        case DR3:
-            *value = parse_reg_value("DR3", regs);
-            break;
-        case DR6:
-            *value = parse_reg_value("DR6", regs);
-            break;
-        case DR7:
-            *value = parse_reg_value("DR7", regs);
-            break;
-        case MSR_EFER:
-            *value = parse_reg_value("EFER", regs);
-            break;
-        default:
-            ret = VMI_FAILURE;
-            break;
-        }
-    }
-    else {
-        switch (reg) {
-        case RAX:
-            *value = parse_reg_value("EAX", regs);
-            break;
-        case RBX:
-            *value = parse_reg_value("EBX", regs);
-            break;
-        case RCX:
-            *value = parse_reg_value("ECX", regs);
-            break;
-        case RDX:
-            *value = parse_reg_value("EDX", regs);
-            break;
-        case RBP:
-            *value = parse_reg_value("EBP", regs);
-            break;
-        case RSI:
-            *value = parse_reg_value("ESI", regs);
-            break;
-        case RDI:
-            *value = parse_reg_value("EDI", regs);
-            break;
-        case RSP:
-            *value = parse_reg_value("ESP", regs);
-            break;
-        case RIP:
-            *value = parse_reg_value("EIP", regs);
-            break;
-        case RFLAGS:
-            *value = parse_reg_value("EFL", regs);
-            break;
+    switch(reg) {
         case CR0:
             *value = parse_reg_value("CR0", regs);
             break;
@@ -1892,9 +1767,105 @@ kvm_get_vcpureg(
             *value = parse_reg_value("EFER", regs);
             break;
         default:
-            ret = VMI_FAILURE;
+            if ( VMI_PM_IA32E == vmi->page_mode) {
+                switch (reg) {
+                case RAX:
+                    *value = parse_reg_value("RAX", regs);
+                    break;
+                case RBX:
+                    *value = parse_reg_value("RBX", regs);
+                    break;
+                case RCX:
+                    *value = parse_reg_value("RCX", regs);
+                    break;
+                case RDX:
+                    *value = parse_reg_value("RDX", regs);
+                    break;
+                case RBP:
+                    *value = parse_reg_value("RBP", regs);
+                    break;
+                case RSI:
+                    *value = parse_reg_value("RSI", regs);
+                    break;
+                case RDI:
+                    *value = parse_reg_value("RDI", regs);
+                    break;
+                case RSP:
+                    *value = parse_reg_value("RSP", regs);
+                    break;
+                case R8:
+                    *value = parse_reg_value("R8", regs);
+                    break;
+                case R9:
+                    *value = parse_reg_value("R9", regs);
+                    break;
+                case R10:
+                    *value = parse_reg_value("R10", regs);
+                    break;
+                case R11:
+                    *value = parse_reg_value("R11", regs);
+                    break;
+                case R12:
+                    *value = parse_reg_value("R12", regs);
+                    break;
+                case R13:
+                    *value = parse_reg_value("R13", regs);
+                    break;
+                case R14:
+                    *value = parse_reg_value("R14", regs);
+                    break;
+                case R15:
+                    *value = parse_reg_value("R15", regs);
+                    break;
+                case RIP:
+                    *value = parse_reg_value("RIP", regs);
+                    break;
+                case RFLAGS:
+                    *value = parse_reg_value("RFL", regs);
+                    break;
+                default:
+                    ret = VMI_FAILURE;
+                    break;
+                }
+            } else {
+                switch (reg) {
+                case RAX:
+                    *value = parse_reg_value("EAX", regs);
+                    break;
+                case RBX:
+                    *value = parse_reg_value("EBX", regs);
+                    break;
+                case RCX:
+                    *value = parse_reg_value("ECX", regs);
+                    break;
+                case RDX:
+                    *value = parse_reg_value("EDX", regs);
+                    break;
+                case RBP:
+                    *value = parse_reg_value("EBP", regs);
+                    break;
+                case RSI:
+                    *value = parse_reg_value("ESI", regs);
+                    break;
+                case RDI:
+                    *value = parse_reg_value("EDI", regs);
+                    break;
+                case RSP:
+                    *value = parse_reg_value("ESP", regs);
+                    break;
+                case RIP:
+                    *value = parse_reg_value("EIP", regs);
+                    break;
+                case RFLAGS:
+                    *value = parse_reg_value("EFL", regs);
+                    break;
+                default:
+                    ret = VMI_FAILURE;
+                    break;
+                }
+            }
+
             break;
-        }
     }
 
     if (regs)
