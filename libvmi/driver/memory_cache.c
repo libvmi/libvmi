@@ -32,6 +32,7 @@
 #include "glib_compat.h"
 
 struct memory_cache_entry {
+    vmi_instance_t vmi;
     addr_t paddr;
     uint32_t length;
     time_t last_updated;
@@ -39,15 +40,6 @@ struct memory_cache_entry {
     void *data;
 };
 typedef struct memory_cache_entry *memory_cache_entry_t;
-static void *(
-    *get_data_callback) (
-    vmi_instance_t,
-    addr_t,
-    uint32_t) = NULL;
-static void (
-    *release_data_callback) (
-    void *,
-    size_t) = NULL;
 
 static inline
 void *get_memory_data(
@@ -55,7 +47,7 @@ void *get_memory_data(
     addr_t paddr,
     uint32_t length)
 {
-    return get_data_callback(vmi, paddr, length);
+    return vmi->get_data_callback(vmi, paddr, length);
 }
 
 #if ENABLE_PAGE_CACHE == 1
@@ -69,7 +61,7 @@ memory_cache_entry_free(
     memory_cache_entry_t entry = (memory_cache_entry_t) data;
 
     if (entry) {
-        release_data_callback(entry->data, entry->length);
+        entry->vmi->release_data_callback(entry->data, entry->length);
         free(entry);
     }
 }
@@ -99,7 +91,7 @@ validate_and_return_data(
     if (vmi->memory_cache_age &&
         (now - entry->last_updated > vmi->memory_cache_age)) {
         dbprint(VMI_DEBUG_MEMCACHE, "--MEMORY cache refresh 0x%"PRIx64"\n", entry->paddr);
-        release_data_callback(entry->data, entry->length);
+        vmi->release_data_callback(entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
         entry->last_updated = now;
 
@@ -141,6 +133,7 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
     if ( !entry )
         return NULL;
 
+    entry->vmi = vmi;
     entry->paddr = paddr;
     entry->length = length;
     entry->last_updated = time(NULL);
@@ -169,8 +162,8 @@ memory_cache_init(
     vmi->memory_cache_lru = g_queue_new();
     vmi->memory_cache_age = age_limit;
     vmi->memory_cache_size_max = MAX_PAGE_CACHE_SIZE;
-    get_data_callback = get_data;
-    release_data_callback = release_data;
+    vmi->get_data_callback = get_data;
+    vmi->release_data_callback = release_data;
 }
 
 void *
@@ -257,14 +250,14 @@ memory_cache_destroy(
 
     vmi->memory_cache_age = 0;
     vmi->memory_cache_size_max = 0;
-    get_data_callback = NULL;
-    release_data_callback = NULL;
+    vmi->get_data_callback = NULL;
+    vmi->release_data_callback = NULL;
 }
 
 #else
 void
 memory_cache_init(
-    vmi_instance_t UNUSED(vmi),
+    vmi_instance_t vmi,
     void *(*get_data) (vmi_instance_t,
                        addr_t,
                        uint32_t),
@@ -272,8 +265,8 @@ memory_cache_init(
                           size_t),
     unsigned long UNUSED(age_limit))
 {
-    get_data_callback = get_data;
-    release_data_callback = release_data;
+    vmi->get_data_callback = get_data;
+    vmi->release_data_callback = release_data;
 }
 
 void *
@@ -285,7 +278,7 @@ memory_cache_insert(
         return vmi->last_used_page;
     } else {
         if(vmi->last_used_page_key && vmi->last_used_page) {
-            release_data_callback(vmi->last_used_page, vmi->page_size);
+            vmi->release_data_callback(vmi->last_used_page, vmi->page_size);
         }
         vmi->last_used_page = get_memory_data(vmi, paddr, vmi->page_size);
         vmi->last_used_page_key = paddr;
@@ -298,7 +291,7 @@ void memory_cache_remove(
     addr_t paddr)
 {
     if(paddr == vmi->last_used_page_key && vmi->last_used_page) {
-        release_data_callback(vmi->last_used_page, vmi->page_size);
+        vmi->release_data_callback(vmi->last_used_page, vmi->page_size);
     }
 }
 
@@ -307,11 +300,11 @@ memory_cache_destroy(
     vmi_instance_t vmi)
 {
     if(vmi->last_used_page_key && vmi->last_used_page) {
-        release_data_callback(vmi->last_used_page, vmi->page_size);
+        vmi->release_data_callback(vmi->last_used_page, vmi->page_size);
     }
     vmi->last_used_page_key = 0;
     vmi->last_used_page = NULL;
-    get_data_callback = NULL;
-    release_data_callback = NULL;
+    vmi->get_data_callback = NULL;
+    vmi->release_data_callback = NULL;
 }
 #endif
