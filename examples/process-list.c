@@ -128,9 +128,22 @@ int main (int argc, char **argv)
     next_list_entry = list_head;
 
     /* walk the task list */
-    do {
+    while (1) {
 
         current_process = next_list_entry - tasks_offset;
+
+        /* follow the next pointer */
+        status = vmi_read_addr_va(vmi, next_list_entry, 0, &next_list_entry);
+        if (status == VMI_FAILURE) {
+            printf("Failed to read next pointer in loop at %"PRIx64"\n", next_list_entry);
+            goto error_exit;
+        }
+        /* If the next pointer points to the head of list, this pointer is actually the
+         * address of PsActiveProcessHead symbol, not the address of an ActiveProcessLink in
+         * EPROCESS struct. We should escape from the loop here. */
+        if (next_list_entry == list_head) {
+            break;
+        }
 
         /* Note: the task_struct that we are looking at has a lot of
          * information.  However, the process name and id are burried
@@ -159,15 +172,8 @@ int main (int argc, char **argv)
             procname = NULL;
         }
 
-        /* follow the next pointer */
 
-        status = vmi_read_addr_va(vmi, next_list_entry, 0, &next_list_entry);
-        if (status == VMI_FAILURE) {
-            printf("Failed to read next pointer in loop at %"PRIx64"\n", next_list_entry);
-            goto error_exit;
-        }
-
-    } while(next_list_entry != list_head);
+    };
 
 error_exit:
     /* resume the vm */
