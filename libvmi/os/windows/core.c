@@ -647,7 +647,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
     dbprint(VMI_DEBUG_MISC, "**Trying to init from Rekall profile\n");
 
     reg_t kpcr = 0;
-    addr_t kpcr_rva = 0;
+    addr_t kpcr_rva = 0, int0_rva = 0;
 
     // try to find the kernel if we are not connecting to a file and the kernel pa/va were not already specified.
     if(vmi->mode != VMI_FILE && ! ( windows->ntoskrnl && windows->ntoskrnl_va ) ) {
@@ -675,8 +675,28 @@ init_from_rekall_profile(vmi_instance_t vmi)
             // If the Rekall profile has KiInitialPCR we have Win 7+
             windows->ntoskrnl_va = kpcr - kpcr_rva;
             windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
-        } else if(kpcr == 0x00000000ffdff000) {
-            // If we are in live mode without KiInitialPCR, the KPCR has to be
+        } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiDivideErrorFault", NULL, &int0_rva) ) {
+            reg_t idt = 0;
+            uint32_t int0_high = 0;
+            uint16_t int0_low = 0, int0_middle = 0;
+
+            // Some Windows10+ rekall profiles don't have KiInitialPCR defined so we use the IDT route
+            // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &idt, IDTR_BASE, 0))
+                goto done;
+            if (VMI_FAILURE == vmi_read_16_va(vmi, idt, 0, &int0_low))
+                goto done;
+            if (VMI_FAILURE == vmi_read_16_va(vmi, idt + 6, 0, &int0_middle))
+                goto done;
+            if (VMI_PM_IA32E == vmi->page_mode && VMI_FAILURE == vmi_read_32_va(vmi, idt + 8, 0, &int0_high))
+                goto done;
+
+            windows->ntoskrnl_va = (((uint64_t)int0_high << 32) | ((uint64_t)int0_middle << 16) | int0_low) - int0_rva;
+            windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+        }
+
+        if(!windows->ntoskrnl && kpcr == 0x00000000ffdff000) {
+            // If we are in live mode and still don't have the kernel base the KPCR has to be
             // at this VA (XP/Vista) and the KPCR trick [1] is still valid.
             // [1] http://moyix.blogspot.de/2008/04/finding-kernel-global-variables-in.html
             addr_t kdvb = 0, kdvb_offset = 0, kernbase_offset = 0;
@@ -691,9 +711,10 @@ init_from_rekall_profile(vmi_instance_t vmi)
                 goto done;
 
             windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
-        } else {
-            goto done;
         }
+
+        if ( !windows->ntoskrnl )
+            goto done;
 
         dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
 
