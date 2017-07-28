@@ -239,6 +239,13 @@ typedef struct {
     int (*xc_domain_cacheflush)
             (xc_interface *xch, uint32_t domid, xen_pfn_t start_pfn, xen_pfn_t nr_pfns);
 
+    int (*xc_monitor_privileged_call)
+            (xc_interface *xch, domid_t domain_id, bool enable);
+
+    /* Xen 4.10+ */
+    int (*xc_monitor_descriptor_access)
+            (xc_interface *xch, domid_t domain_id, bool enable);
+
 } libxc_wrapper_t;
 
 status_t create_libxc_wrapper(struct xen_instance *xen);

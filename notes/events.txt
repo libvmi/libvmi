@@ -1,7 +1,7 @@
 LibVMI Events
 Author: Steven Maresca <steve@zentific.com>
 Author: Tamas K Lengyel <tamas.lengyel@zentific.com>
-Document: version 1.2, 2013-10-27
+Document: version 1.3, 2017-07-27
 Relevant LibVMI release: 0.11
 
 Overview:
@@ -12,14 +12,22 @@ user-provided code upon receipt of an event.  This capability should greatly
 improve long-term guest observation by reducing the necessity to poll
 continuously to detect change of state.
 
+Currently only the Xen Hypervisor provides these features, and some of these
+are specifically only available on Intel CPUs. Certain events are also
+supported on ARM CPUs.
+
 In particular, LibVMI now supports the following for hypervisor drivers which
 provide the requisite features:
     Memory events to observe read, write, and/or execute operations on specific
      regions of memory.
     Register events to observe read and write access to specific VCPU
-     registers, including CR0, CR3, CR4, and MSR registers.
-    Single-step events for each instruction executed upon a VCPU/set of VCPUs.
+     registers, including CR0, CR3, CR4, MSR registers, IDTR, LDTR, GDTR and TR
+    Single-step events for each instruction executed upon a VCPU/set of VCPUs
+     using the Monitor Trap Flag Intel-feature.
     Interrupt events (e.g., INT3)
+    CPUID events
+    Debug exception events, such as hardware breakpoints and singlestepping
+    Privileged call events, currently only the execution of SMC on ARM
 
 This new set of features is made possible by the flexibility of modern
 hypervisors, which provide rich access to their internal facilities. In
@@ -49,11 +57,8 @@ by an external service which accesses this buffer from an observation VM.
 Within its Xen driver, LibVMI enables event delivery when the initialization
 mode has the VMI_INIT_EVENTS mode set:
 
-    vmi_init(&vmi, VMI_XEN | VMI_INIT_PARTIAL | VMI_INIT_EVENTS, vm_name)
-
-It is possible to use events in both VMI_INIT_PARTIAL and VMI_INIT_COMPLETE
-modes; some event types (e.g. MSR register writes) are likely best observed
-when VMI_INIT_PARTIAL is the only option.
+    vmi_init_complete(&vmi, vm_name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
+                      NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
 
 Using LibVMI events is possible in four general steps:
     1) The allocation of an event structure to configure delivery of
@@ -72,18 +77,12 @@ Using LibVMI events is possible in four general steps:
         an individual event must be performed via vmi_clear_event or
         implicitly via vmi_destroy at program exit.
 
-Three event types are currently possible to use in the API, defined in the
-enum vmi_event_type_t:
-
-    VMI_EVENT_MEMORY        /* Read/write/execute on a region of memory */
-    VMI_EVENT_REGISTER      /* Read/write of a specific register */
-    VMI_EVENT_SINGLESTEP    /* Instructions being executed on a set of VCPUs */
-
 An example vmi_event_t allocation and subsequent configuration is shown below.
 For full demonstrations, please consult the examples/ directory within the
 LibVMI source tree.
 
     vmi_event_t *cr3_write_event = calloc(1, sizeof(vmi_event_t));
+    cr3_write_event->version = VMI_EVENTS_VERSION;
     cr3_write_event->type = VMI_EVENT_REGISTER;
     cr3_write_event->reg_event.reg = CR3;
     cr3_write_event->reg_event.in_access = VMI_REGACCESS_W;
@@ -203,11 +202,26 @@ Warning: For INT3 to be handled correctly by the VM kernel and subsequently
 passed on to the debugger within a VM (via OS-specified signalling mechanism),
 the trap must be re-injected. Failure to do so may constitute a serious error.
 
-3) Xen version capabilities
+Warning: Xen version prior to Xen 4.7 don't report the INT3 instruction length
+to the event subscriber. While normally INT3 has an instruction length of 1,
+a malicious guest could add superflous prefixes and thus changing the instruction
+length. This could lead to the guest discovering external monitoring of INT3
+instructions.
+
+4) Memory events race-condition
+
+In order to allow page-accesses by the guest to continue, it is normally
+necessary to change the memory permissions, otherwise the guest will forever
+fault. Doing so requires special attention as lifting memory permissions
+may result in events going unreported in case there are multiple vCPUs attached
+to the guest. It is advised to either use features such as altp2m or emulation
+to avoid (or at least limit) the racecondition.
+
+5) Xen version capabilities
 
 Xen memory events in general are only supported for Xen 4.1.2 and newer.
 
-4) Documentation bias
+6) Documentation bias
 
 At the time this document was first written, Xen was the only hypervisor
 with an events framework supported by LibVMI. As such, some of the behavior

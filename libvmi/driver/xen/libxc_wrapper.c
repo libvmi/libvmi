@@ -97,9 +97,13 @@ static status_t sanity_check(xen_instance_t *xen)
         /* Things start to be a bit saner from 4.6 */
         default:
             /* Fall-through */
+        case 10:
+            if ( !w->xc_monitor_descriptor_access )
+                break;
+            /* Fall-through */
         case 8:
             if ( !w->xc_monitor_debug_exceptions || !w->xc_monitor_cpuid ||
-                 !w->xc_monitor_mov_to_msr2)
+                 !w->xc_monitor_mov_to_msr2 || !w->xc_monitor_privileged_call)
                 break;
             /* Fall-through */
         case 7:
@@ -206,6 +210,8 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_monitor_singlestep = dlsym(wrapper->handle, "xc_monitor_singlestep");
     wrapper->xc_monitor_software_breakpoint = dlsym(wrapper->handle, "xc_monitor_software_breakpoint");
     wrapper->xc_monitor_guest_request = dlsym(wrapper->handle, "xc_monitor_guest_request");
+    wrapper->xc_monitor_privileged_call = dlsym(wrapper->handle, "xc_monitor_privileged_call");
+    wrapper->xc_monitor_descriptor_access = dlsym(wrapper->handle, "xc_monitor_descriptor_access");
     wrapper->xc_altp2m_get_domain_state = dlsym ( wrapper->handle , "xc_altp2m_get_domain_state" );
     wrapper->xc_altp2m_set_domain_state = dlsym ( wrapper->handle , "xc_altp2m_set_domain_state" );
     wrapper->xc_altp2m_set_vcpu_enable_notify = dlsym ( wrapper->handle , "xc_altp2m_set_vcpu_enable_notify" );

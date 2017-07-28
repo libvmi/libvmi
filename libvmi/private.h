@@ -159,6 +159,10 @@ struct vmi_instance {
 
     vmi_event_t *debug_event; /**< Handler of debug exception events */
 
+    vmi_event_t *privcall_event; /**< Handler of privileged call events */
+
+    vmi_event_t *descriptor_access_event; /**< Handler of discriptor access events */
+
     GHashTable *interrupt_events; /**< interrupt event to function mapping (key: interrupt) */
 
     GHashTable *mem_events_on_gfn; /**< mem event to functions mapping (key: physical address) */

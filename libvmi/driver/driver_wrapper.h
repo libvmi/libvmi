@@ -513,6 +513,34 @@ driver_set_debug_event(
 }
 
 static inline status_t
+driver_set_privcall_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+    if (vmi->driver.initialized && vmi->driver.set_privcall_event_ptr)
+        return vmi->driver.set_debug_event_ptr(vmi, enabled);
+    else
+    {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_privcall_event function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
+driver_set_desc_access_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+    if (vmi->driver.initialized && vmi->driver.set_desc_access_event_ptr)
+        return vmi->driver.set_desc_access_event_ptr(vmi, enabled);
+    else
+    {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_desc_access_event function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
 driver_slat_get_domain_state (
     vmi_instance_t vmi ,
     bool *state )

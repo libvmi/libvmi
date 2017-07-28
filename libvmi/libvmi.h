@@ -483,9 +483,19 @@ typedef struct x86_regs {
     uint32_t _pad;
 } x86_registers_t;
 
+typedef struct arm_registers {
+    uint64_t ttbr0;
+    uint64_t ttbr1;
+    uint64_t ttbcr;
+    uint64_t pc;
+    uint32_t cpsr;
+    uint32_t _pad;
+} arm_registers_t;
+
 typedef struct registers {
     union {
         x86_registers_t x86;
+        arm_registers_t arm;
     };
 } registers_t;
 
