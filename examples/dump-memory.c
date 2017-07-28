@@ -80,7 +80,7 @@ main(
     while (address < size) {
 
         /* write memory to file */
-        if (PAGE_SIZE == vmi_read_pa(vmi, address, memory, PAGE_SIZE)) {
+        if (VMI_SUCCESS == vmi_read_pa(vmi, address, PAGE_SIZE, memory, NULL)) {
             /* memory mapped, just write to file */
             size_t written = fwrite(memory, 1, PAGE_SIZE, f);
 

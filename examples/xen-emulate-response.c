@@ -96,7 +96,8 @@ int main (int argc, char **argv)
     memset(&event, 0, sizeof(vmi_event_t));
     event.version = VMI_EVENTS_VERSION;
     event.type = VMI_EVENT_MEMORY;
-    event.mem_event.gfn = vmi_translate_kv2p(vmi, addr) >> 12;
+    vmi_translate_kv2p(vmi, addr, &event.mem_event.gfn);
+    event.mem_event.gfn >>= 12;
     event.mem_event.in_access = VMI_MEMACCESS_X;
     event.callback = cb;
 

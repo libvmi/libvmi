@@ -60,7 +60,7 @@ main(
     }
 
     /* get memory starting at symbol for the next PAGE_SIZE bytes */
-    if (PAGE_SIZE != vmi_read_ksym(vmi, symbol, memory, PAGE_SIZE)) {
+    if (VMI_FAILURE == vmi_read_ksym(vmi, symbol, PAGE_SIZE, memory, NULL)) {
         printf("failed to get symbol's memory.\n");
         goto error_exit;
     }

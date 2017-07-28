@@ -62,27 +62,20 @@ int main (int argc, char **argv)
 
     /* init the offset values */
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
-        tasks_offset = vmi_get_offset(vmi, "linux_tasks");
-        name_offset = vmi_get_offset(vmi, "linux_name");
-        pid_offset = vmi_get_offset(vmi, "linux_pid");
+        if ( VMI_FAILURE == vmi_get_offset(vmi, "linux_tasks", &tasks_offset) )
+            goto error_exit;
+        if ( VMI_FAILURE == vmi_get_offset(vmi, "linux_name", &name_offset) )
+            goto error_exit;
+        if ( VMI_FAILURE == vmi_get_offset(vmi, "linux_pid", &pid_offset) )
+            goto error_exit;
     }
     else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
-        tasks_offset = vmi_get_offset(vmi, "win_tasks");
-        name_offset = vmi_get_offset(vmi, "win_pname");
-        pid_offset = vmi_get_offset(vmi, "win_pid");
-    }
-
-    if (0 == tasks_offset) {
-        printf("Failed to find win_tasks\n");
-        goto error_exit;
-    }
-    if (0 == pid_offset) {
-        printf("Failed to find win_pid\n");
-        goto error_exit;
-    }
-    if (0 == name_offset) {
-        printf("Failed to find win_pname\n");
-        goto error_exit;
+        if ( VMI_FAILURE == vmi_get_offset(vmi, "win_tasks", &tasks_offset) )
+            goto error_exit;
+        if ( VMI_FAILURE == vmi_get_offset(vmi, "win_pname", &name_offset) )
+            goto error_exit;
+        if ( VMI_FAILURE == vmi_get_offset(vmi, "win_pid", &pid_offset) )
+            goto error_exit;
     }
 
     /* pause the vm for consistent memory access */
@@ -116,7 +109,10 @@ int main (int argc, char **argv)
          *  utilities, but it is indeed part of the task list and useful to
          *  display as such.
          */
-        list_head = vmi_translate_ksym2v(vmi, "init_task") + tasks_offset;
+        if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "init_task", &list_head) )
+            goto error_exit;
+
+        list_head += tasks_offset;
     }
     else if (VMI_OS_WINDOWS == os) {
 

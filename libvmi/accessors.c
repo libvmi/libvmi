@@ -121,16 +121,16 @@ vmi_get_winver_manual(
 #endif
 }
 
-uint64_t
+status_t
 vmi_get_offset(
     vmi_instance_t vmi,
-    const char *offset_name)
+    const char *offset_name,
+    addr_t *offset)
 {
-    if (vmi->os_interface == NULL || vmi->os_interface->os_get_offset == NULL ) {
-        return 0;
-    }
+    if ( !vmi->os_interface || !vmi->os_interface->os_get_offset )
+        return VMI_FAILURE;
 
-    return vmi->os_interface->os_get_offset(vmi, offset_name);
+    return vmi->os_interface->os_get_offset(vmi, offset_name, offset);
 }
 
 status_t
@@ -261,57 +261,62 @@ vmi_get_vmid(
 }
 
 /* convert a kernel symbol into an address */
-addr_t vmi_translate_ksym2v (vmi_instance_t vmi, const char *symbol)
+status_t vmi_translate_ksym2v (vmi_instance_t vmi, const char *symbol, addr_t *vaddr)
 {
     status_t status = VMI_FAILURE;
     addr_t address = 0;
 
-    if (VMI_FAILURE == sym_cache_get(vmi, 0, 0, symbol, &address)) {
+    status = sym_cache_get(vmi, 0, 0, symbol, &address);
 
+    if ( VMI_FAILURE == status ) {
         if (vmi->os_interface && vmi->os_interface->os_ksym2v) {
             addr_t _base_vaddr;
             status = vmi->os_interface->os_ksym2v(vmi, symbol, &_base_vaddr, &address);
-            if (status == VMI_SUCCESS) {
+            if ( VMI_SUCCESS == status ) {
                 address = canonical_addr(address);
                 sym_cache_set(vmi, 0, 0, symbol, address);
             }
         }
     }
 
-    return address;
+    *vaddr = address;
+    return status;
 }
 
 /* convert a symbol into an address */
-addr_t vmi_translate_sym2v (vmi_instance_t vmi, const access_context_t *ctx, const char *symbol)
+status_t vmi_translate_sym2v (vmi_instance_t vmi, const access_context_t *ctx, const char *symbol, addr_t *vaddr)
 {
-    status_t status = VMI_FAILURE;
+    status_t status;
     addr_t rva = 0;
     addr_t address = 0;
     addr_t dtb = 0;
 
     switch(ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
-            dtb = vmi_pid_to_dtb(vmi, ctx->pid);
+            if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                return VMI_FAILURE;
             break;
         case VMI_TM_PROCESS_DTB:
             dtb = ctx->dtb;
             break;
         default:
             dbprint(VMI_DEBUG_MISC, "sym2v only supported in a virtual context!\n");
-            return 0;
+            return VMI_FAILURE;
     };
 
-    if (VMI_FAILURE == sym_cache_get(vmi, ctx->addr, dtb, symbol, &address)) {
+    status = sym_cache_get(vmi, ctx->addr, dtb, symbol, &address);
+    if( VMI_FAILURE == status) {
         if (vmi->os_interface && vmi->os_interface->os_usym2rva) {
             status  = vmi->os_interface->os_usym2rva(vmi, ctx, symbol, &rva);
-            if (status == VMI_SUCCESS) {
+            if ( VMI_SUCCESS == status ) {
                 address = canonical_addr(ctx->addr + rva);
                 sym_cache_set(vmi, ctx->addr, dtb, symbol, address);
             }
         }
     }
 
-    return address;
+    *vaddr = address;
+    return status;
 }
 
 /* convert an RVA into a symbol */
@@ -322,14 +327,15 @@ const char* vmi_translate_v2sym(vmi_instance_t vmi, const access_context_t *ctx,
 
     switch(ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
-            dtb = vmi_pid_to_dtb(vmi, ctx->pid);
+            if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                return NULL;
             break;
         case VMI_TM_PROCESS_DTB:
             dtb = ctx->dtb;
             break;
         default:
             dbprint(VMI_DEBUG_MISC, "v2sym only supported in a virtual context!\n");
-            return 0;
+            return NULL;
     };
 
     if (VMI_FAILURE == rva_cache_get(vmi, ctx->addr, dtb, rva, &ret)) {
@@ -353,14 +359,15 @@ const char* vmi_translate_v2ksym(vmi_instance_t vmi, const access_context_t *ctx
 
     switch(ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
-            dtb = vmi_pid_to_dtb(vmi, ctx->pid);
+            if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                return NULL;
             break;
         case VMI_TM_PROCESS_DTB:
             dtb = ctx->dtb;
             break;
         default:
             dbprint(VMI_DEBUG_MISC, "v2ksym only supported in a virtual context!\n");
-            return 0;
+            return NULL;
     };
 
     if (VMI_FAILURE == rva_cache_get(vmi, ctx->addr, dtb, va, &ret)) {
@@ -377,41 +384,43 @@ const char* vmi_translate_v2ksym(vmi_instance_t vmi, const access_context_t *ctx
 }
 
 /* finds the address of the page global directory for a given pid */
-addr_t vmi_pid_to_dtb (vmi_instance_t vmi, vmi_pid_t pid)
+status_t vmi_pid_to_dtb (vmi_instance_t vmi, vmi_pid_t pid, addr_t *dtb)
 {
-    addr_t dtb = 0;
+    status_t ret = VMI_FAILURE;
+    addr_t _dtb = 0;
 
-    if (!vmi->os_interface) {
-        return 0;
+    if (!vmi->os_interface)
+        return VMI_FAILURE;
+
+    if ( !pid ) {
+        *dtb = vmi->kpgd;
+        return VMI_SUCCESS;
     }
 
-    if (pid == 0) {
-        return vmi->kpgd;
+    ret = pid_cache_get(vmi, pid, &_dtb);
+    if ( VMI_FAILURE == ret ) {
+        if (vmi->os_interface->os_pid_to_pgd)
+            ret = vmi->os_interface->os_pid_to_pgd(vmi, pid, &_dtb);
+
+        if ( VMI_SUCCESS == ret )
+            pid_cache_set(vmi, pid, _dtb);
     }
 
-    if (VMI_FAILURE == pid_cache_get(vmi, pid, &dtb)) {
-        if (vmi->os_interface->os_pid_to_pgd) {
-            dtb = vmi->os_interface->os_pid_to_pgd(vmi, pid);
-        }
-
-        if (dtb) {
-            pid_cache_set(vmi, pid, dtb);
-        }
-    }
-
-    return dtb;
+    *dtb = _dtb;
+    return ret;
 }
 
 /* finds the pid for a given dtb */
-vmi_pid_t vmi_dtb_to_pid (vmi_instance_t vmi, addr_t dtb)
+status_t vmi_dtb_to_pid (vmi_instance_t vmi, addr_t dtb, vmi_pid_t *pid)
 {
-    vmi_pid_t pid = -1;
+    status_t ret = VMI_FAILURE;
+    vmi_pid_t _pid = -1;
 
-    if (vmi->os_interface && vmi->os_interface->os_pgd_to_pid) {
-        pid = vmi->os_interface->os_pgd_to_pid(vmi, dtb);
-    }
+    if (vmi->os_interface && vmi->os_interface->os_pgd_to_pid)
+        ret = vmi->os_interface->os_pgd_to_pid(vmi, dtb, &_pid);
 
-    return pid;
+    *pid = _pid;
+    return ret;
 }
 
 void *
@@ -429,17 +438,9 @@ GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb) {
     }
 }
 
-addr_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr)
+status_t vmi_pagetable_lookup (vmi_instance_t vmi, addr_t dtb, addr_t vaddr, addr_t *paddr)
 {
-    addr_t paddr = 0;
-
-    status_t status = vmi_pagetable_lookup_cache(vmi, dtb, vaddr, &paddr);
-
-    if (status != VMI_SUCCESS) {
-        return 0;
-    }
-
-    return paddr;
+    return vmi_pagetable_lookup_cache(vmi, dtb, vaddr, paddr);
 }
 
 /*
@@ -522,41 +523,43 @@ status_t vmi_pagetable_lookup_extended(
 }
 
 /* expose virtual to physical mapping for kernel space via api call */
-addr_t vmi_translate_kv2p (vmi_instance_t vmi, addr_t virt_address)
+status_t vmi_translate_kv2p (vmi_instance_t vmi, addr_t virt_address, addr_t *paddr)
 {
     if (!vmi->kpgd) {
         dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because the kernel page global directory is unknown\n");
-        return 0;
+        return VMI_FAILURE;
     }
-    else {
-        return vmi_pagetable_lookup(vmi, vmi->kpgd, virt_address);
-    }
+
+    return vmi_pagetable_lookup(vmi, vmi->kpgd, virt_address, paddr);
 }
 
-addr_t vmi_translate_uv2p (vmi_instance_t vmi, addr_t virt_address, vmi_pid_t pid)
+status_t vmi_translate_uv2p (vmi_instance_t vmi, addr_t virt_address, vmi_pid_t pid, addr_t *paddr)
 {
-    addr_t paddr = 0;
-    addr_t dtb = vmi_pid_to_dtb(vmi, pid);
-
-    if (!dtb) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because dtb is zero\n");
-        return 0;
+    status_t ret = VMI_FAILURE;
+    addr_t dtb = 0;
+    if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, pid, &dtb) || !dtb ) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because dtb not found\n");
+        return VMI_FAILURE;
     }
 
-    if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, virt_address, &paddr)) {
-        if ( VMI_FAILURE == pid_cache_del(vmi, pid) )
-            return 0;
+    ret = vmi_pagetable_lookup_cache(vmi, dtb, virt_address, paddr);
 
-        dtb = vmi_pid_to_dtb(vmi, pid);
-        if (dtb) {
+    if ( VMI_FAILURE == ret) {
+        if ( VMI_FAILURE == pid_cache_del(vmi, pid) )
+            return VMI_FAILURE;
+
+        ret = vmi_pid_to_dtb(vmi, pid, &dtb);
+        if (VMI_SUCCESS == ret) {
             page_info_t info = {0};
             /* _extended() skips the v2p_cache lookup that must have already failed */
-            if (VMI_SUCCESS == vmi_pagetable_lookup_extended(vmi, dtb, virt_address, &info)) {
-                paddr = info.paddr;
-            }
+            ret = vmi_pagetable_lookup_extended(vmi, dtb, virt_address, &info);
+
+            if ( VMI_SUCCESS == ret )
+                *paddr = info.paddr;
         }
     }
-    return paddr;
+
+    return ret;
 }
 
 const char *

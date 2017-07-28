@@ -300,7 +300,11 @@ status_t process_interrupt_event(vmi_instance_t vmi,
             event->interrupt_event.insn_length = req->u.software_breakpoint.insn_length;
             break;
         case INT_NEXT:
-            event->interrupt_event.gfn = vmi_pagetable_lookup(vmi, req->data.regs.x86.cr3, req->data.regs.x86.rip) >> 12;
+            if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, req->data.regs.x86.cr3, req->data.regs.x86.rip, &event->interrupt_event.gfn) )
+                event->interrupt_event.gfn >>= 12;
+            else
+                event->interrupt_event.gfn = ~0ull;
+
             event->interrupt_event.vector = req->u.interrupt.x86.vector;
             event->interrupt_event.type = req->u.interrupt.x86.type;
             event->interrupt_event.cr2 = req->u.interrupt.x86.cr2;

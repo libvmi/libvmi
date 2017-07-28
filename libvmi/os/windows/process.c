@@ -49,7 +49,7 @@ windows_get_eprocess_name(
     if ( !name )
         return NULL;
 
-    if (name_length == vmi_read_pa(vmi, name_paddr, name, name_length)) {
+    if ( VMI_FAILURE == vmi_read_pa(vmi, name_paddr, name_length, name, NULL)) {
         return name;
     }
     else {
@@ -135,7 +135,6 @@ find_pname_offset(
     addr_t block_pa = 0;
     addr_t offset = 0;
     uint32_t value = 0;
-    size_t read = 0;
     void *bm = 0;
 
     bm = boyer_moore_init((unsigned char *)"Idle", 4);
@@ -148,8 +147,7 @@ find_pname_offset(
     }
 
     for (block_pa = 4096; block_pa + BLOCK_SIZE < vmi->max_physical_address; block_pa += BLOCK_SIZE) {
-        read = vmi_read_pa(vmi, block_pa, block_buffer, BLOCK_SIZE);
-        if (BLOCK_SIZE != read) {
+        if ( VMI_FAILURE == vmi_read_pa(vmi, block_pa, BLOCK_SIZE, block_buffer, NULL) ) {
             continue;
         }
 
@@ -163,10 +161,7 @@ find_pname_offset(
 
                 unsigned char haystack[0x500];
 
-                read =
-                    vmi_read_pa(vmi, block_pa + offset, haystack,
-                                0x500);
-                if (0x500 != read) {
+                if ( VMI_FAILURE == vmi_read_pa(vmi, block_pa + offset, 0x500, haystack, NULL) ) {
                     continue;
                 }
 
@@ -176,8 +171,7 @@ find_pname_offset(
                     continue;
                 }
                 else {
-                    vmi->init_task =
-                        block_pa + offset;
+                    vmi->init_task = block_pa + offset;
                     dbprint
                         (VMI_DEBUG_MISC, "--%s: found Idle process at 0x%.8"PRIx64" + 0x%x\n",
                          __FUNCTION__, block_pa + offset, i);
@@ -204,7 +198,6 @@ find_process_by_name(
     addr_t block_pa = 0;
     addr_t offset = 0;
     uint32_t value = 0;
-    size_t read = 0;
 
     unsigned char block_buffer[VMI_PS_4KB];
 
@@ -214,10 +207,8 @@ find_process_by_name(
 
     for (block_pa = start_address; block_pa + VMI_PS_4KB < vmi->max_physical_address;
          block_pa += VMI_PS_4KB) {
-        read = vmi_read_pa(vmi, block_pa, block_buffer, VMI_PS_4KB);
-        if (VMI_PS_4KB != read) {
+        if ( VMI_FAILURE == vmi_read_pa(vmi, block_pa, VMI_PS_4KB, block_buffer, NULL) )
             continue;
-        }
 
         for (offset = 0; offset < VMI_PS_4KB; offset += 8) {
             memcpy(&value, block_buffer + offset, 4);
@@ -285,14 +276,22 @@ eprocess_list_search(
         void *value)
 {
     addr_t next_process = 0;
-    int tasks_offset = 0;
-    void *buf = alloca(len);
+    addr_t tasks_offset = 0;
     addr_t rtnval = 0;
+    void *buf = g_malloc0(len);
 
-    tasks_offset = vmi_get_offset(vmi, "win_tasks");
+    if ( !buf )
+        goto exit;
 
-    vmi_read_addr_va(vmi, list_head + tasks_offset, 0, &next_process);
-    vmi_read_va(vmi, list_head + offset, 0, buf, len);
+    if ( VMI_FAILURE == vmi_get_offset(vmi, "win_tasks", &tasks_offset) )
+        goto exit;
+
+    if ( VMI_FAILURE == vmi_read_addr_va(vmi, list_head + tasks_offset, 0, &next_process) )
+        goto exit;
+
+    if ( VMI_FAILURE == vmi_read_va(vmi, list_head + offset, 0, len, buf, NULL) )
+        goto exit;
+
     if (memcmp(buf, value, len) == 0) {
         rtnval = list_head + tasks_offset;
         goto exit;
@@ -301,11 +300,17 @@ eprocess_list_search(
 
     while(1) {
         addr_t tmp_next = 0;
-        vmi_read_addr_va(vmi, next_process, 0, &tmp_next);
+
+        if ( VMI_FAILURE == vmi_read_addr_va(vmi, next_process, 0, &tmp_next) )
+            goto exit;
+
         if (list_head == tmp_next) {
             break;
         }
-        vmi_read_va(vmi, next_process + offset - tasks_offset, 0, buf, len);
+
+        if ( VMI_FAILURE == vmi_read_va(vmi, next_process + offset - tasks_offset, 0, len, buf, NULL) )
+            goto exit;
+
         if (memcmp(buf, value, len) == 0) {
             rtnval = next_process;
             goto exit;
@@ -314,6 +319,7 @@ eprocess_list_search(
     }
 
 exit:
+    g_free(buf);
     return rtnval;
 }
 
@@ -326,13 +332,11 @@ windows_find_eprocess_list_pid(
     int pid_offset = 0;
     addr_t list_head = 0;
 
-    if (vmi->os_data == NULL) {
+    if ( !vmi->os_data )
         return 0;
-    }
 
-    if (VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head)) {
+    if ( VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head) )
         return 0;
-    }
 
     pid_offset = ((windows_instance_t)vmi->os_data)->pid_offset;
 
@@ -348,13 +352,11 @@ windows_find_eprocess_list_pgd(
     size_t len = 0;
     addr_t list_head = 0;
 
-    if (vmi->os_data == NULL) {
+    if ( !vmi->os_data )
         return 0;
-    }
 
-    if (VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head)) {
+    if ( VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head) )
         return 0;
-    }
 
     pdbase_offset = ((windows_instance_t)vmi->os_data)->pdbase_offset;
 

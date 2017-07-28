@@ -57,7 +57,7 @@ status_t check_sections(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
             + c*sizeof(struct section_header);
 
         // Read the section from memory
-        if ( sizeof(struct section_header) != vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header)) )
+        if ( VMI_FAILURE == vmi_read_pa(vmi, section_addr, sizeof(struct section_header), (uint8_t *)&section, NULL) )
             return VMI_FAILURE;
 
         //printf("S: %s\n", section.short_name);
@@ -84,8 +84,10 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_p, uint8_t *pe) {
     // The kernel's export table is continuously allocated on the PA level with the PE header
     // This trick may not work for other PE headers (though may work for some drivers)
     if ( base_p + export_header_offset < base_p + VMI_PS_4KB ) {
-        uint32_t nbytes = vmi_read_pa(vmi, base_p + export_header_offset, &et, sizeof(struct export_table));
-        if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name)) {
+        if( VMI_SUCCESS == vmi_read_pa(vmi, base_p + export_header_offset, sizeof(struct export_table), &et, NULL) &&
+            !(et.export_flags || !et.name))
+        {
+
             char *name = vmi_read_str_pa(vmi, base_p + et.name);
 
             if(name) {
@@ -173,7 +175,9 @@ bool kernel_debug_search(vmi_instance_t vmi, struct cv_info_pdb70 *pdb_header) {
     addr_t i;
     for(i=0; i < max_mem; i += PAGE_SIZE) {
         uint8_t pe[VMI_PS_4KB];
-        vmi_read_pa(vmi, i, pe, VMI_PS_4KB);
+        if ( VMI_FAILURE == vmi_read_pa(vmi, i, VMI_PS_4KB, pe, NULL) )
+            continue;
+
         uint32_t c;
         for (c=0;c<VMI_PS_4KB-PDB_FILENAME_LENGTH;c++) {
             if(!strncmp((char*)&pe[c], "ntkrnlmp.pdb", PDB_FILENAME_LENGTH) ||
@@ -181,7 +185,9 @@ bool kernel_debug_search(vmi_instance_t vmi, struct cv_info_pdb70 *pdb_header) {
                !strncmp((char*)&pe[c], "ntkrnlpa.pdb", PDB_FILENAME_LENGTH) ||
                !strncmp((char*)&pe[c], "ntkrpamp.pdb", PDB_FILENAME_LENGTH)
             ) {
-                vmi_read_pa(vmi, i+c - 2*sizeof(uint32_t) - sizeof(struct guid), pdb_header, sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH);
+                if ( VMI_FAILURE == vmi_read_pa(vmi, i+c - 2*sizeof(uint32_t) - sizeof(struct guid), sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH, pdb_header,NULL) )
+                    continue;
+
                 if ( pdb_header->cv_signature != RSDS)
                     continue;
                 else
@@ -219,7 +225,8 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
 
     struct image_debug_directory debug_directory = { 0 };
     struct cv_info_pdb70 *pdb_header = g_malloc0(sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH+1);
-    vmi_read_pa(vmi, kernel_base_p + debug_offset, (uint8_t *)&debug_directory, sizeof(struct image_debug_directory));
+    if ( VMI_FAILURE == vmi_read_pa(vmi, kernel_base_p + debug_offset, sizeof(struct image_debug_directory), (uint8_t *)&debug_directory, NULL) )
+        return;
 
     printf("\tPE GUID: %.8x%.5x\n",pe_header->time_date_stamp,size_of_image);
 
@@ -244,7 +251,8 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe) {
             goto done;
         }
 
-        vmi_read_pa(vmi, kernel_base_p + debug_directory.address_of_raw_data, pdb_header, sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH);
+        if ( VMI_FAILURE == vmi_read_pa(vmi, kernel_base_p + debug_directory.address_of_raw_data, sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH, pdb_header, NULL) )
+            goto done;
 
         // The PDB header has to be PDB 7.0
         // http://www.debuginfo.com/articles/debuginfomatch.html
@@ -314,7 +322,7 @@ void print_pe_header(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe) {
             + c*sizeof(struct section_header);
 
         // Read the section from memory
-        if ( sizeof(struct section_header) != vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header)) )
+        if ( VMI_FAILURE == vmi_read_pa(vmi, section_addr, sizeof(struct section_header), (uint8_t *)&section, NULL) )
             return;
 
         // The character array is not null terminated, so only print the first 8 characters!

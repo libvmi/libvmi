@@ -60,7 +60,7 @@ void list_processes(vmi_instance_t vmi, addr_t current_process,
          *  utilities, but it is indeed part of the task list and useful to
          *  display as such.
          */
-        current_process = vmi_translate_ksym2v(vmi, "init_task");
+        vmi_translate_ksym2v(vmi, "init_task", &current_process);
     } else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         // find PEPROCESS PsInitialSystemProcess
         vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &current_process);

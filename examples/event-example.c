@@ -140,7 +140,8 @@ event_response_t syscall_lm_cb(vmi_instance_t vmi, vmi_event_t *event){
 
 event_response_t cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
 
-    vmi_pid_t pid = vmi_dtb_to_pid(vmi, event->reg_event.value);
+    vmi_pid_t pid = -1;
+    vmi_dtb_to_pid(vmi, event->reg_event.value, &pid);
 
     printf("one_task callback\n");
     if(event->reg_event.value == cr3){
@@ -168,7 +169,8 @@ event_response_t cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
 }
 
 event_response_t cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event){
-    vmi_pid_t pid = vmi_dtb_to_pid(vmi, event->reg_event.value);
+    vmi_pid_t pid = -1;
+    vmi_dtb_to_pid(vmi, event->reg_event.value, &pid);
     printf("PID %i with CR3=%"PRIx64" executing on vcpu %"PRIu32". Previous CR3=%"PRIx64"\n",
         pid, event->reg_event.value, event->vcpu_id, event->reg_event.previous);
 
@@ -242,7 +244,7 @@ int main (int argc, char **argv)
 
     // Get the cr3 for this process.
     if(pid != -1) {
-        cr3 = vmi_pid_to_dtb(vmi, pid);
+        vmi_pid_to_dtb(vmi, pid, &cr3);
         printf("CR3 for process (%d) == %llx\n", pid, (unsigned long long)cr3);
     }
 
@@ -255,7 +257,7 @@ int main (int argc, char **argv)
     printf("vcpu 0 MSR_CSTAR == %llx\n", (unsigned long long)cstar);
     printf("vcpu 0 MSR_SYSENTER_IP == %llx\n", (unsigned long long)sysenter_ip);
 
-    ia32_sysenter_target = vmi_translate_ksym2v(vmi, "ia32_sysenter_target");
+    vmi_translate_ksym2v(vmi, "ia32_sysenter_target", &ia32_sysenter_target);
     printf("ksym ia32_sysenter_target == %llx\n", (unsigned long long)ia32_sysenter_target);
 
     /* Per Linux ABI, this VA represents the start of the vsyscall page 
@@ -265,18 +267,18 @@ int main (int argc, char **argv)
     vsyscall = 0xffffffffff600000;
 
     // Translate to a physical address.
-    phys_lstar= vmi_translate_kv2p(vmi, lstar);
+    vmi_translate_kv2p(vmi, lstar, &phys_lstar);
     printf("Physical LSTAR == %llx\n", (unsigned long long)phys_lstar);
 
-    phys_cstar= vmi_translate_kv2p(vmi, cstar);
+    vmi_translate_kv2p(vmi, cstar, &phys_cstar);
     printf("Physical CSTAR == %llx\n", (unsigned long long)phys_cstar);
 
-    phys_sysenter_ip= vmi_translate_kv2p(vmi, sysenter_ip);
+    vmi_translate_kv2p(vmi, sysenter_ip, &phys_sysenter_ip);
     printf("Physical SYSENTER_IP == %llx\n", (unsigned long long)phys_sysenter_ip);
 
-    phys_ia32_sysenter_target = vmi_translate_kv2p(vmi,ia32_sysenter_target);
+    vmi_translate_kv2p(vmi,ia32_sysenter_target, &phys_ia32_sysenter_target);
     printf("Physical ia32_sysenter_target == %llx\n", (unsigned long long)ia32_sysenter_target);
-    phys_vsyscall = vmi_translate_kv2p(vmi,vsyscall);
+    vmi_translate_kv2p(vmi,vsyscall,&phys_vsyscall);
     printf("Physical phys_vsyscall == %llx\n", (unsigned long long)phys_vsyscall);
 
 

@@ -779,9 +779,8 @@ status_t find_kdbg_address(
 
         find_ofs = 0;
 
-        if(VMI_PS_4KB != vmi_read_pa(vmi, paddr, &haystack, VMI_PS_4KB)) {
+        if(VMI_FAILURE == vmi_read_pa(vmi, paddr, VMI_PS_4KB, &haystack, NULL))
             continue;
-        }
 
         int match_offset = boyer_moore2(bm64, haystack, VMI_PS_4KB);
         if (-1 != match_offset) {
@@ -837,7 +836,6 @@ find_kdbg_address_fast(
 
     addr_t memsize = vmi_get_max_physical_address(vmi);
     GSList *va_pages = vmi_get_va_pages(vmi, (addr_t)cr3);
-    size_t read = 0;
     void *bm = 0;   // boyer-moore internal state
     unsigned char haystack[VMI_PS_4KB];
     int find_ofs = 0;
@@ -867,11 +865,8 @@ find_kdbg_address_fast(
                 continue;
             }
 
-            read = vmi_read_pa(vmi, page_paddr, haystack, VMI_PS_4KB);
-
-            if (VMI_PS_4KB != read) {
+            if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr, VMI_PS_4KB, haystack, NULL) )
                 continue;
-            }
 
             int match_offset = boyer_moore2(bm, haystack, VMI_PS_4KB);
 
@@ -884,10 +879,8 @@ find_kdbg_address_fast(
                     continue;
                 }
 
-                tmp_kpa = vmi_pagetable_lookup(vmi, cr3, tmp_kva);
-                if(!tmp_kpa) {
+                if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, cr3, tmp_kva, &tmp_kpa) )
                     continue;
-                }
 
                 *kdbg_pa = tmp_kdbg;
                 *kernel_va = tmp_kva;
@@ -974,7 +967,11 @@ find_kdbg_address_faster(
     };
 
 scan:
-    page_paddr = (vmi_pagetable_lookup(vmi, cr3, fsgs) >> 12) << 12;
+    if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, cr3, fsgs, &page_paddr) )
+        goto done;
+
+    page_paddr &= ~VMI_BIT_MASK(0,11);
+
     for(; page_paddr + step < vmi->max_physical_address; page_paddr += step) {
 
         uint8_t page[VMI_PS_4KB];
@@ -997,14 +994,15 @@ scan:
         if(!export_header_offset || page_paddr + export_header_offset >= vmi->max_physical_address)
             continue;
 
-        uint32_t nbytes = vmi_read_pa(vmi, page_paddr + export_header_offset, &et, sizeof(struct export_table));
-        if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
-
-            if(page_paddr + et.name + 12 >= vmi->max_physical_address)
+        if ( VMI_SUCCESS == vmi_read_pa(vmi, page_paddr + export_header_offset, sizeof(struct export_table), &et, NULL))
+        {
+            if ( !(et.export_flags || !et.name) && page_paddr + et.name + 12 >= vmi->max_physical_address)
                 continue;
 
             unsigned char name[13] = {0};
-            vmi_read_pa(vmi, page_paddr + et.name, name, 12);
+            if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + et.name, 12, name, NULL) )
+                continue;
+
             if(strcmp("ntoskrnl.exe", (const char *)name)) {
                 continue;
             }
@@ -1023,7 +1021,8 @@ scan:
                 + c*sizeof(struct section_header);
 
             // Read the section header from memory
-            vmi_read_pa(vmi, section_addr, (uint8_t *)&section, sizeof(struct section_header));
+            if ( VMI_FAILURE == vmi_read_pa(vmi, section_addr, sizeof(struct section_header), (uint8_t *)&section, NULL) )
+                continue;
 
             // .data check
             if(memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) != 0) {
@@ -1031,7 +1030,8 @@ scan:
             }
 
             uint8_t *haystack = alloca(section.size_of_raw_data);
-            vmi_read_pa(vmi, page_paddr + section.virtual_address, haystack, section.size_of_raw_data);
+            if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + section.virtual_address, section.size_of_raw_data, haystack, NULL) )
+                continue;
 
             int match_offset = boyer_moore2(bm, haystack, section.size_of_raw_data);
 
@@ -1121,11 +1121,13 @@ find_kdbg_address_instant(
     }
 
     addr_t kernelbase_va = fsgs - windows->kpcr_offset;
-    addr_t kernelbase_pa = vmi_pagetable_lookup(vmi, cr3, kernelbase_va);
+    addr_t kernelbase_pa = 0;
 
-    if (!kernelbase_pa) {
+    if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, cr3, kernelbase_va, &kernelbase_pa) )
         goto done;
-    }
+
+    if ( !kernelbase_pa )
+        goto done;
 
     *kernel_pa = kernelbase_pa;
     *kernel_va = kernelbase_va;
@@ -1245,13 +1247,14 @@ init_from_kdbg(
         goto find_kdbg;
     }
 
+    addr_t test = 0;
+
     if (!windows->ntoskrnl) {
-        windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
-        if (windows->ntoskrnl == 0) {
+        if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
             goto find_kdbg;
-        }
+
         dbprint(VMI_DEBUG_MISC, "**set KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
-    } else if(vmi_translate_kv2p(vmi, windows->ntoskrnl_va) != windows->ntoskrnl) {
+    } else if(VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &test) || test != windows->ntoskrnl) {
         errprint("Invalid configuration values, win_ntoskrnl not match translated KernBase physical address\n");
         goto exit;
     }

@@ -97,20 +97,20 @@ exit:
 }
 
 /* finds the address of the page global directory for a given pid */
-addr_t
+status_t
 windows_pid_to_pgd(
     vmi_instance_t vmi,
-    vmi_pid_t pid)
+    vmi_pid_t pid,
+    addr_t *dtb)
 {
-    addr_t pgd = 0;
+    status_t ret = VMI_FAILURE;
     addr_t eprocess = 0;
     int tasks_offset = 0;
     int pdbase_offset = 0;
     windows_instance_t windows = vmi->os_data;
 
-    if (vmi->os_data == NULL) {
+    if (!vmi->os_data)
         return VMI_FAILURE;
-    }
 
     tasks_offset = windows->tasks_offset;
     pdbase_offset = windows->pdbase_offset;
@@ -123,26 +123,26 @@ windows_pid_to_pgd(
     }
 
     /* now follow the pointer to the memory descriptor and grab the pgd value */
-    vmi_read_addr_va(vmi, eprocess + pdbase_offset - tasks_offset, 0, &pgd);
+    ret = vmi_read_addr_va(vmi, eprocess + pdbase_offset - tasks_offset, 0, dtb);
 
 error_exit:
-    return pgd;
+    return ret;
 }
 
-vmi_pid_t
+status_t
 windows_pgd_to_pid(
     vmi_instance_t vmi,
-    addr_t pgd)
+    addr_t pgd,
+    vmi_pid_t *pid)
 {
-    vmi_pid_t pid = -1;
+    status_t ret = VMI_FAILURE;
     addr_t eprocess = 0;
     int tasks_offset = 0;
     int pid_offset = 0;
     windows_instance_t windows = vmi->os_data;
 
-    if (vmi->os_data == NULL) {
+    if (!vmi->os_data)
         return VMI_FAILURE;
-    }
 
     tasks_offset = windows->tasks_offset;
     pid_offset = windows->pid_offset;
@@ -155,9 +155,9 @@ windows_pgd_to_pid(
     }
 
     /* now follow the pointer to the memory descriptor and grab the pgd value */
-    vmi_read_32_va(vmi, eprocess + pid_offset - tasks_offset, 0,
-                   (uint32_t*)&pid);
+    ret = vmi_read_32_va(vmi, eprocess + pid_offset - tasks_offset, 0,
+                         (uint32_t*)pid);
 
 error_exit:
-    return pid;
+    return ret;
 }

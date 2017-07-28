@@ -25,15 +25,15 @@
 #include "os/windows/windows.h"
 #include "os/linux/linux.h"
 
-typedef uint64_t (*os_get_offset_t)(vmi_instance_t vmi,
-        const char* offset_name);
+typedef status_t (*os_get_offset_t)(vmi_instance_t vmi,
+        const char* offset_name, addr_t *offset);
 
 typedef status_t (*os_get_kernel_struct_offset_t)(vmi_instance_t vmi,
 	const char* symbol, const char* member, addr_t *addr);
 
-typedef vmi_pid_t (*os_pgd_to_pid_t)(vmi_instance_t vmi, addr_t pgd);
+typedef status_t (*os_pgd_to_pid_t)(vmi_instance_t vmi, addr_t pgd, vmi_pid_t *pid);
 
-typedef addr_t (*os_pid_to_pgd_t)(vmi_instance_t vmi, vmi_pid_t pid);
+typedef status_t (*os_pid_to_pgd_t)(vmi_instance_t vmi, vmi_pid_t pid, addr_t *dtb);
 
 typedef status_t (*os_kernel_symbol_to_address_t)(vmi_instance_t instance,
         const char *symbol, addr_t *kernel_base_vaddr, addr_t *address);
