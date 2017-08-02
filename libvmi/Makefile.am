@@ -76,6 +76,7 @@ drivers     += driver/xen/altp2m.c \
                driver/xen/xen.h \
                driver/xen/xen_private.h \
                driver/xen/xen.c \
+               driver/xen/xen_events.c \
                driver/xen/xen_events.h \
                driver/xen/xen_events_private.h \
                driver/xen/xen_events_46.c \

@@ -94,4 +94,9 @@ xc_interface* xen_get_xchandle(
     return xen_get_instance(vmi)->xchandle;
 }
 
+static inline xen_events_t*
+xen_get_events(vmi_instance_t vmi)
+{
+    return xen_get_instance(vmi)->events;
+}
 #endif /* XEN_PRIVATE_H */

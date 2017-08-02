@@ -214,4 +214,9 @@ convert_vmi_flags_to_xenmem(vmi_mem_access_t page_access_flag, xenmem_access_t *
     return VMI_SUCCESS;
 }
 
+typedef struct xen_instance xen_instance_t;
+
+status_t wait_for_event_or_timeout(xen_instance_t *xen, xc_evtchn *xce, unsigned long ms);
+int resume_domain(vmi_instance_t vmi);
+
 #endif

@@ -63,54 +63,6 @@
 /*----------------------------------------------------------------------------
  * Helper functions
  */
-static inline xen_events_t *xen_get_events(vmi_instance_t vmi)
-{
-    return xen_get_instance(vmi)->events;
-}
-
-static
-int wait_for_event_or_timeout(xen_instance_t *xen, xc_evtchn *xce, unsigned long ms)
-{
-    struct pollfd fd = {.fd = xen->libxcw.xc_evtchn_fd(xce),
-                        .events = POLLIN | POLLERR };
-    int port;
-    int rc;
-
-    rc = poll(&fd, 1, ms);
-    if ( rc == -1 )
-    {
-        if (errno == EINTR)
-            return 0;
-
-        errprint("Poll exited with an error\n");
-        goto err;
-    }
-
-    if ( rc == 1 )
-    {
-        port = xen->libxcw.xc_evtchn_pending(xce);
-        if ( port == -1 )
-        {
-            errprint("Failed to read port from event channel\n");
-            goto err;
-        }
-
-        rc = xen->libxcw.xc_evtchn_unmask(xce, port);
-        if ( rc != 0 )
-        {
-            errprint("Failed to unmask event channel port\n");
-            goto err;
-        }
-    }
-    else
-        port = -1;
-
-    return port;
-
- err:
-    return -errno;
-}
-
 static inline int get_mem_event_42(xen_mem_event_t *mem_event, mem_event_42_request_t *req)
 {
     mem_event_42_back_ring_t *back_ring;
@@ -183,31 +135,6 @@ static inline int put_mem_response_45(xen_mem_event_t *mem_event, mem_event_45_r
     RING_PUSH_RESPONSES(back_ring);
 
     return 0;
-}
-
-static int resume_domain(vmi_instance_t vmi)
-{
-    xc_interface *xch = xen_get_xchandle(vmi);
-    xen_events_t *xe = xen_get_events(vmi);
-    unsigned long dom = xen_get_domainid(vmi);
-    xen_instance_t *xen = xen_get_instance(vmi);
-    int ret;
-
-    if ( !xch ) {
-        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return -1;
-    }
-    if ( !xe ) {
-        errprint("%s error: invalid xen_event_t handle\n", __FUNCTION__);
-        return -1;
-    }
-    if ( dom == VMI_INVALID_DOMID ) {
-        errprint("%s error: invalid domid\n", __FUNCTION__);
-        return -1;
-    }
-
-    ret = xen->libxcw.xc_evtchn_notify(xe->mem_event.xce_handle, xe->mem_event.port);
-    return ret;
 }
 
 static inline void process_response ( event_response_t response, uint32_t *rsp_flags )
@@ -797,8 +724,7 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
 
     if(!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
-        rc = wait_for_event_or_timeout(xen, xe->mem_event.xce_handle, timeout);
-        if ( rc < -1 ) {
+        if ( VMI_FAILURE == wait_for_event_or_timeout(xen, xe->mem_event.xce_handle, timeout) ) {
             errprint("Error while waiting for event.\n");
             return VMI_FAILURE;
         }
@@ -887,8 +813,8 @@ status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
     }
 
     // We only resume the domain once all requests are processed from the ring
-    rc = resume_domain(vmi);
-    if ( rc != 0 ) {
+    rc = xen->libxcw.xc_evtchn_notify(xe->mem_event.xce_handle, xe->mem_event.port);
+    if ( rc ) {
         errprint("Error resuming domain.\n");
         return VMI_FAILURE;
     }
@@ -1022,8 +948,7 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
 
     if(!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
-        rc = wait_for_event_or_timeout(xen, xe->mem_event.xce_handle, timeout);
-        if ( rc < -1 ) {
+        if ( VMI_FAILURE == wait_for_event_or_timeout(xen, xe->mem_event.xce_handle, timeout) ) {
             errprint("Error while waiting for event.\n");
             return VMI_FAILURE;
         }
@@ -1048,8 +973,8 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
     }
 
     // We only resume the domain once all requests are processed from the ring
-    rc = resume_domain(vmi);
-    if ( rc != 0 ) {
+    rc = xen->libxcw.xc_evtchn_notify(xe->mem_event.xce_handle, xe->mem_event.port);
+    if ( rc ) {
         errprint("Error resuming domain.\n");
         return VMI_FAILURE;
     }
