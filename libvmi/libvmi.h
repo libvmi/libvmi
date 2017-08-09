@@ -595,10 +595,10 @@ typedef enum arch {
 typedef struct {
     translation_mechanism_t translate_mechanism;
 
-    addr_t addr;    /**< specify iff using VMI_TM_NONE, VMI_TM_PROCESS_DTB or VMI_TM_PROCESS_PID */
-    char *ksym;     /**< specify iff using VMI_TM_KERNEL_SYMBOL */
-    addr_t dtb;     /**< specify iff using VMI_TM_PROCESS_DTB */
-    vmi_pid_t pid;  /**< specify iff using VMI_TM_PROCESS_PID */
+    addr_t addr;      /**< specify iff using VMI_TM_NONE, VMI_TM_PROCESS_DTB or VMI_TM_PROCESS_PID */
+    const char *ksym; /**< specify iff using VMI_TM_KERNEL_SYMBOL */
+    addr_t dtb;       /**< specify iff using VMI_TM_PROCESS_DTB */
+    vmi_pid_t pid;    /**< specify iff using VMI_TM_PROCESS_PID */
 } access_context_t;
 
 /**
@@ -790,11 +790,13 @@ const char *vmi_get_rekall_path(
  *
  * @param[in] vmi LibVMI instance
  * @param[in] vaddr Desired kernel virtual address to translate
- * @return Physical address, or zero on error
+ * @param[out] paddr Physical address
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-addr_t vmi_translate_kv2p(
+status_t vmi_translate_kv2p(
     vmi_instance_t vmi,
-    addr_t vaddr);
+    addr_t vaddr,
+    addr_t *paddr);
 
 /**
  * Performs the translation from a user virtual address to a
@@ -803,23 +805,27 @@ addr_t vmi_translate_kv2p(
  * @param[in] vmi LibVMI instance
  * @param[in] vaddr Desired kernel virtual address to translate
  * @param[in] pid Process id for desired user address space
- * @return Physical address, or zero on error
+ * @param[out] paddr Physical address
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-addr_t vmi_translate_uv2p(
+status_t vmi_translate_uv2p(
     vmi_instance_t vmi,
     addr_t vaddr,
-    vmi_pid_t pid);
+    vmi_pid_t pid,
+    addr_t *paddr);
 
 /**
  * Performs the translation from a kernel symbol to a virtual address.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] symbol Desired kernel symbol to translate
- * @return Virtual address, or zero on error
+ * @param[out] paddr Virtual address
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-addr_t vmi_translate_ksym2v(
+status_t vmi_translate_ksym2v(
     vmi_instance_t vmi,
-    const char *symbol);
+    const char *symbol,
+    addr_t *vaddr);
 
 /**
  * Performs the translation from a symbol to a virtual address.
@@ -829,12 +835,14 @@ addr_t vmi_translate_ksym2v(
  * @param[in] vmi LibVMI instance
  * @param[in] ctx Access context (beginning of PE header in Windows)
  * @param[in] symbol Desired symbol to translate
- * @return Virtual address, or zero on error
+ * @param[out] vaddr Virtual address
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-addr_t vmi_translate_sym2v(
+status_t vmi_translate_sym2v(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    const char *symbol);
+    const char *symbol,
+    addr_t *vaddr);
 
 /**
  * Performs the translation from an RVA to a symbol
@@ -853,7 +861,7 @@ const char* vmi_translate_v2sym(
     addr_t rva);
 
 /**
- * Performs the translation from a VA to a symbol for Linux with KASLR offset
+ * Performs the translation from VA to a symbol for Linux with KASLR offset
  * Windows is not supported at this moment
  * Only the first matching symbol of System.map is returned.
  *
@@ -875,11 +883,13 @@ const char* vmi_translate_v2ksym(
  *
  * @param[in] vmi LibVMI instance
  * @param[in] pid Desired process id to lookup
- * @return The directory table base virtual address for \a pid
+ * @param[out] dtb The directory table base virtual address for a pid
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-addr_t vmi_pid_to_dtb(
+status_t vmi_pid_to_dtb(
     vmi_instance_t vmi,
-    vmi_pid_t pid);
+    vmi_pid_t pid,
+    addr_t *dtb);
 
 /**
  * Given a dtb, this function returns the PID corresponding to the
@@ -888,11 +898,13 @@ addr_t vmi_pid_to_dtb(
  *
  * @param[in] vmi LibVMI instance
  * @param[in] dtb Desired dtb to lookup
- * @return The PID corresponding to the dtb
+ * @param[out] pid The PID corresponding to the dtb
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-vmi_pid_t vmi_dtb_to_pid(
+status_t vmi_dtb_to_pid(
     vmi_instance_t vmi,
-    addr_t dtb);
+    addr_t dtb,
+    vmi_pid_t *pid);
 
 /**
  * Translates a virtual address to a physical address.
@@ -900,13 +912,15 @@ vmi_pid_t vmi_dtb_to_pid(
  * @param[in] vmi LibVMI instance
  * @param[in] dtb address of the relevant page directory base
  * @param[in] vaddr virtual address to translate via dtb
- * @return Physical address, or zero on error
+ * @param[out] paddr Physical address
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
 
-addr_t vmi_pagetable_lookup (
+status_t vmi_pagetable_lookup (
     vmi_instance_t vmi,
     addr_t dtb,
-    addr_t vaddr);
+    addr_t vaddr,
+    addr_t *paddr);
 
 /**
  * Gets the physical address and page size of the VA
@@ -930,19 +944,21 @@ status_t vmi_pagetable_lookup_extended(
  */
 
 /**
- * Reads \a count bytes from memory and stores the output in \a buf.
+ * Reads count bytes from memory and stores the output in a buf.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] ctx Access context
- * @param[out] buf The data read from memory
  * @param[in] count The number of bytes to read
- * @return The number of bytes read.
+ * @param[out] buf The data read from memory
+ * @param[out] bytes_read Optional. The number of bytes read
+ * @return VMI_SUCCESS if read is complete, VMI_FAILURE otherwise
  */
-size_t vmi_read(
+status_t vmi_read(
     vmi_instance_t vmi,
     const access_context_t *ctx,
+    size_t count,
     void *buf,
-    size_t count);
+    size_t *bytes_read);
 
 /**
  * Reads 8 bits from memory.
@@ -1039,54 +1055,63 @@ unicode_string_t *vmi_read_unicode_str(
     const access_context_t *ctx);
 
 /**
- * Reads \a count bytes from memory located at the kernel symbol \a sym
- * and stores the output in \a buf.
+ * Reads count bytes from memory located at the kernel symbol sym
+ * and stores the output in a buf.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] sym Kernel symbol to read from
- * @param[out] buf The data read from memory
  * @param[in] count The number of bytes to read
- * @return The number of bytes read.
+ * @param[out] buf The data read from memory
+ * @param[out] bytes_read Optional. The number of bytes read
+ * @return VMI_SUCCESS if read is complete, VMI_FAILURE otherwise
  */
-size_t vmi_read_ksym(
+status_t vmi_read_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
+    size_t count,
     void *buf,
-    size_t count);
+    size_t *bytes_read
+);
 
 /**
- * Reads \a count bytes from memory located at the virtual address \a vaddr
- * and stores the output in \a buf.
+ * Reads count bytes from memory located at the virtual address vaddr
+ * and stores the output in buf.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] vaddr Virtual address to read from
  * @param[in] pid Pid of the virtual address space (0 for kernel)
- * @param[out] buf The data read from memory
  * @param[in] count The number of bytes to read
- * @return The number of bytes read.
+ * @param[out] buf The data read from memory
+ * @param[out] bytes_read Optional. The number of bytes read
+ * @return VMI_SUCCESS if read is complete, VMI_FAILURE otherwise
  */
-size_t vmi_read_va(
+status_t vmi_read_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
+    size_t count,
     void *buf,
-    size_t count);
+    size_t *bytes_read
+);
 
 /**
- * Reads \a count bytes from memory located at the physical address \a paddr
- * and stores the output in \a buf.
+ * Reads count bytes from memory located at the physical address paddr
+ * and stores the output in a buf.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] paddr Physical address to read from
- * @param[out] buf The data read from memory
  * @param[in] count The number of bytes to read
- * @return The number of bytes read.
+ * @param[out] buf The data read from memory
+ * @param[out] bytes_read Optional. The number of bytes read
+ * @return VMI_SUCCESS if read is complete, VMI_FAILURE otherwise
  */
-size_t vmi_read_pa(
+status_t vmi_read_pa(
     vmi_instance_t vmi,
     addr_t paddr,
+    size_t count,
     void *buf,
-    size_t count);
+    size_t *bytes_read
+);
 
 /**
  * Reads 8 bits from memory, given a kernel symbol.
@@ -1379,69 +1404,77 @@ char *vmi_read_str_pa(
 
 
 /**
- * Writes \a count bytes to memory
+ * Writes count bytes to memory
  *
  * @param[in] vmi LibVMI instance
  * @param[in] ctx Access context
- * @param[in] buf The data written to memory
  * @param[in] count The number of bytes to write
- * @return The number of bytes written.
+ * @param[in] buf The data written to memory
+ * @param[out] bytes_written Optional. The numer of bytes written
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-size_t vmi_write(
+status_t vmi_write(
     vmi_instance_t vmi,
     const access_context_t *ctx,
+    size_t count,
     void *buf,
-    size_t count);
+    size_t *bytes_written);
 
 /**
- * Writes \a count bytes to memory located at the kernel symbol \a sym
- * from \a buf.
+ * Writes count bytes to memory located at the kernel symbol sym
+ * from a buf.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] sym Kernel symbol to write to
- * @param[in] buf The data written to memory
  * @param[in] count The number of bytes to write
- * @return The number of bytes written.
+ * @param[in] buf The data written to memory
+ * @param[out] bytes_written Optional. The numer of bytes written
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-size_t vmi_write_ksym(
+status_t vmi_write_ksym(
     vmi_instance_t vmi,
     char *sym,
+    size_t count,
     void *buf,
-    size_t count);
+    size_t *bytes_written);
 
 /**
- * Writes \a count bytes to memory located at the virtual address \a vaddr
- * from \a buf.
+ * Writes count bytes to memory located at the virtual address vaddr
+ * from buf.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] vaddr Virtual address to write to
  * @param[in] pid Pid of the virtual address space (0 for kernel)
- * @param[in] buf The data written to memory
  * @param[in] count The number of bytes to write
- * @return The number of bytes written.
+ * @param[in] buf The data written to memory
+ * @param[out] bytes_written Optional. The numer of bytes written
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-size_t vmi_write_va(
+status_t vmi_write_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
+    size_t count,
     void *buf,
-    size_t count);
+    size_t *bytes_written);
 
 /**
- * Writes \a count bytes to memory located at the physical address \a paddr
- * from \a buf.
+ * Writes count bytes to memory located at the physical address paddr
+ * from buf.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] paddr Physical address to write to
  * @param[in] buf The data written to memory
  * @param[in] count The number of bytes to write
- * @return The number of bytes written.
+ * @param[out] bytes_written Optional. The numer of bytes written
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-size_t vmi_write_pa(
+status_t vmi_write_pa(
     vmi_instance_t vmi,
     addr_t paddr,
+    size_t count,
     void *buf,
-    size_t count);
+    size_t *bytes_written);
 
 /**
  * Writes 8 bits to memory
@@ -1906,11 +1939,13 @@ win_ver_t vmi_get_winver_manual(
  *
  * @param[in] vmi LibVMI instance
  * @param[in] offset_name String name for desired offset
- * @return The offset value
+ * @param[out] offset The offset value
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-uint64_t vmi_get_offset(
+status_t vmi_get_offset(
     vmi_instance_t vmi,
-    const char *offset_name);
+    const char *offset_name,
+    addr_t *offset);
 
 /**
  * Get the memory offset associated with the given symbol and subsymbol in the struct
@@ -2086,7 +2121,7 @@ void vmi_v2pcache_flush(
  *
  * @param[in] vmi LibVMI instance
  * @param[in] va Virtual address
- * @param[in] dtb Directory table base for \a va
+ * @param[in] dtb Directory table base for va
  * @param[in] pa Physical address
  */
 void vmi_v2pcache_add(

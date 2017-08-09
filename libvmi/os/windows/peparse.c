@@ -280,9 +280,7 @@ peparse_get_image(
     size_t len,
     const uint8_t * const image)
 {
-    uint32_t nbytes = vmi_read(vmi, ctx, (void *)image, len);
-
-    if(nbytes != len) {
+    if ( VMI_FAILURE == vmi_read(vmi, ctx, len, (void *)image, NULL) ) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to read PE header\n");
         return VMI_FAILURE;
     }
@@ -450,7 +448,6 @@ peparse_get_export_table(
     access_context_t _ctx = *ctx;
     addr_t export_header_rva = 0;
     size_t export_header_size = 0;
-    size_t nbytes = 0;
 
 #define MAX_HEADER_BYTES 1024   // keep under 1 page
     uint8_t image[MAX_HEADER_BYTES];
@@ -478,8 +475,7 @@ peparse_get_export_table(
             ctx->addr, export_header_rva, export_header_size);
 
     _ctx.addr = ctx->addr + export_header_rva;
-    nbytes = vmi_read(vmi, &_ctx, et, sizeof(struct export_table));
-    if (nbytes != sizeof(struct export_table)) {
+    if ( VMI_FAILURE == vmi_read(vmi, &_ctx,  sizeof(struct export_table), et, NULL) ) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: failed to map export header\n");
 
         /*
@@ -490,9 +486,8 @@ peparse_get_export_table(
         if (!((_ctx.addr+4) & 0xfff)) {
             dbprint(VMI_DEBUG_PEPARSE, "--PEParse: export table is mapped on page boundary\n");
             _ctx.addr += 4;
-            nbytes = vmi_read(vmi, &_ctx, (void*)((char*)et+4), sizeof(struct export_table)-4);
-            if( nbytes != sizeof(struct export_table)-4 ) {
-               dbprint(VMI_DEBUG_PEPARSE, "--PEParse: still failed to map export header\n");
+            if ( VMI_FAILURE == vmi_read(vmi, &_ctx, sizeof(struct export_table)-4, (void*)((char*)et+4), NULL) ) {
+                dbprint(VMI_DEBUG_PEPARSE, "--PEParse: still failed to map export header\n");
                 return VMI_FAILURE;
             }
 

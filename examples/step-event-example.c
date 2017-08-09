@@ -65,8 +65,9 @@ event_response_t step_callback(vmi_instance_t vmi, vmi_event_t *event) {
 
 event_response_t mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
 
+    vmi_pid_t current_pid = -1;
     vmi_get_vcpureg(vmi, &cr3, CR3, 0);
-    vmi_pid_t current_pid = vmi_dtb_to_pid(vmi, cr3);
+    vmi_dtb_to_pid(vmi, cr3, &current_pid);
 
     reg_t rip_test;
     vmi_get_vcpureg(vmi, &rip_test, RIP, 0);
@@ -93,7 +94,8 @@ event_response_t mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
 }
 
 event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event){
-    vmi_pid_t current_pid = vmi_dtb_to_pid(vmi, event->reg_event.value);
+    vmi_pid_t current_pid = -1;
+    vmi_dtb_to_pid(vmi, event->reg_event.value, &current_pid);
     printf("PID %i with CR3=%"PRIx64" executing on vcpu %u.\n", current_pid, event->reg_event.value, event->vcpu_id);
 
     if(current_pid == pid) {
@@ -165,11 +167,11 @@ int main (int argc, char **argv)
     printf("Current value of RIP is 0x%lx\n", rip);
     rip -= 0x1;
 
-    pid = vmi_dtb_to_pid(vmi, cr3);
+    vmi_dtb_to_pid(vmi, cr3, &pid);
     if(pid==4) {
-        rip_pa = vmi_translate_uv2p(vmi, rip, pid);
+        vmi_translate_uv2p(vmi, rip, pid, &rip_pa);
     } else {
-        rip_pa = vmi_translate_kv2p(vmi, rip);
+        vmi_translate_kv2p(vmi, rip, &rip_pa);
     }
 
     printf("Preparing memory event to catch next RIP 0x%lx, PA 0x%lx, page 0x%lx for PID %u\n",

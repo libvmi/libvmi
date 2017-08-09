@@ -61,7 +61,7 @@ main(
     }
 
     /* get the symbol's memory page */
-    if (PAGE_SIZE != vmi_read_va(vmi, addr, 0, memory, PAGE_SIZE)) {
+    if (VMI_FAILURE == vmi_read_va(vmi, addr, 0, PAGE_SIZE, memory, NULL)) {
         printf("failed to map memory.\n");
         goto error_exit;
     }

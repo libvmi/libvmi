@@ -94,9 +94,7 @@ static int vmifs_read(const char *path, char *buf, size_t size, off_t offset,
             size = memsize-offset;
 
         uint8_t *buffer = g_malloc0(sizeof(uint8_t)*size);
-        size_t size_read = vmi_read_pa(vmi, offset, buffer, size);
-
-        if(size != size_read) {
+        if ( VMI_FAILURE == vmi_read_pa(vmi, offset, size, buffer, NULL) ) {
             g_free(buffer);
         } else {
             memcpy(buf, buffer, size);

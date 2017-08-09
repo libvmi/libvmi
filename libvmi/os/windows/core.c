@@ -179,15 +179,15 @@ get_ntoskrnl_base(
         if(!export_header_offset || ctx.addr + export_header_offset >= vmi->max_physical_address)
             continue;
 
-        uint32_t nbytes = vmi_read_pa(vmi, ctx.addr + export_header_offset, &et, sizeof(struct export_table));
-        if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
-
-            if(ctx.addr + et.name + 12 >= vmi->max_physical_address) {
+        if ( VMI_SUCCESS == vmi_read_pa(vmi, ctx.addr + export_header_offset, sizeof(struct export_table), &et, NULL) )
+        {
+            if ( !(et.export_flags || !et.name) && ctx.addr + et.name + 12 >= vmi->max_physical_address)
                 continue;
-            }
 
             unsigned char name[13] = {0};
-            vmi_read_pa(vmi, ctx.addr + et.name, name, 12);
+            if ( VMI_FAILURE == vmi_read_pa(vmi, ctx.addr + et.name, 12, name, NULL) )
+                continue;
+
             if(!strcmp("ntoskrnl.exe", (char*)name)) {
                 ret = ctx.addr;
                 break;
@@ -230,7 +230,10 @@ find_page_mode(
 
     /* As the size of vmi->kpgd is 64-bit, we mask it to be 32-bit here */
     if (VMI_SUCCESS == arch_init(vmi)) {
-        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
+        addr_t test = 0;
+        if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va, &test) &&
+             test == windows->ntoskrnl)
+        {
             vmi->kpgd &= mask;
             goto found_pm;
         }
@@ -241,7 +244,10 @@ find_page_mode(
 
     /* As the size of vmi->kpgd is 64-bit, we mask it to be only 32-bit here */
     if (VMI_SUCCESS == arch_init(vmi)) {
-        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va)) {
+        addr_t test = 0;
+        if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, (vmi->kpgd & mask), windows->ntoskrnl_va, &test) &&
+             test == windows->ntoskrnl)
+        {
             vmi->kpgd &= mask;
             goto found_pm;
         }
@@ -251,7 +257,10 @@ find_page_mode(
     vmi->page_mode = VMI_PM_IA32E;
 
     if (VMI_SUCCESS == arch_init(vmi)) {
-        if (windows->ntoskrnl == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va)) {
+        addr_t test = 0;
+        if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va, &test) &&
+             test == windows->ntoskrnl)
+        {
             goto found_pm;
         }
     }
@@ -375,7 +384,10 @@ get_kpgd_method1(
         dbprint(VMI_DEBUG_MISC, "--failed to read pointer for system process\n");
         goto error_exit;
     }
-    sysproc = vmi_translate_kv2p(vmi, sysproc);
+
+    if (VMI_FAILURE == vmi_translate_kv2p(vmi, sysproc, &sysproc) )
+        goto error_exit;
+
     dbprint(VMI_DEBUG_MISC, "--got PA to PsInitialSystemProcess (0x%.16"PRIx64").\n",
             sysproc);
 
@@ -446,9 +458,7 @@ get_kpgd_method0(
 
     sysproc_va -= windows->tasks_offset;
     dbprint(VMI_DEBUG_MISC, "--Found System process at %lx\n", sysproc_va);
-    sysproc_pa = vmi_translate_kv2p(vmi, sysproc_va);
-
-    if (sysproc_pa == 0) {
+    if ( VMI_FAILURE == vmi_translate_kv2p(vmi, sysproc_va, &sysproc_pa) ) {
         dbprint(VMI_DEBUG_MISC, "--failed to translate System process\n");
         goto error_exit;
     }
@@ -485,36 +495,40 @@ status_t windows_get_kernel_struct_offset(vmi_instance_t vmi, const char* symbol
     return rekall_profile_symbol_to_rva(windows->rekall_profile,symbol,member,addr);
 }
 
-uint64_t windows_get_offset(vmi_instance_t vmi, const char* offset_name) {
+status_t windows_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *offset) {
     const size_t max_length = 100;
     windows_instance_t windows = vmi->os_data;
 
     if (windows == NULL) {
         errprint("VMI_ERROR: OS instance not initialized\n");
-        return 0;
+        return VMI_FAILURE;
     }
 
     if (strncmp(offset_name, "win_tasks", max_length) == 0) {
-        return windows->tasks_offset;
+        *offset = windows->tasks_offset;
+        return VMI_SUCCESS;
     } else if (strncmp(offset_name, "win_pdbase", max_length) == 0) {
-        return windows->pdbase_offset;
+        *offset = windows->pdbase_offset;
+        return VMI_SUCCESS;
     } else if (strncmp(offset_name, "win_pid", max_length) == 0) {
-        return windows->pid_offset;
+        *offset = windows->pid_offset;
+        return VMI_SUCCESS;
     } else if (strncmp(offset_name, "win_pname", max_length) == 0) {
         if (windows->pname_offset == 0) {
-            windows->pname_offset = find_pname_offset(vmi,
-                    NULL );
+            windows->pname_offset = find_pname_offset(vmi, NULL);
             if (windows->pname_offset == 0) {
                 dbprint(VMI_DEBUG_MISC, "--failed to find pname_offset\n");
-                return 0;
+                return VMI_FAILURE;
             }
         }
-        return windows->pname_offset;
-    } else {
-        warnprint("Invalid offset name in windows_get_offset (%s).\n",
-                offset_name);
-        return 0;
+
+        *offset = windows->pname_offset;
+        return VMI_SUCCESS;
     }
+
+    warnprint("Invalid offset name in windows_get_offset (%s).\n",
+              offset_name);
+    return VMI_FAILURE;
 }
 
 void windows_read_config_ghashtable_entries(char* key, gpointer value,
@@ -628,8 +642,7 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
         dbprint(VMI_DEBUG_MISC, "**Found PsInitialSystemProcess at 0x%lx\n", windows->sysproc);
     }
 
-    sysproc_pdbase_addr = vmi_pagetable_lookup(vmi, vmi->kpgd, windows->sysproc + windows->pdbase_offset);
-    if ( !sysproc_pdbase_addr )
+    if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->sysproc + windows->pdbase_offset, &sysproc_pdbase_addr) )
         return VMI_FAILURE;
 
     ret = vmi_read_addr_pa(vmi, sysproc_pdbase_addr, &vmi->kpgd);
@@ -674,7 +687,9 @@ init_from_rekall_profile(vmi_instance_t vmi)
 
             // If the Rekall profile has KiInitialPCR we have Win 7+
             windows->ntoskrnl_va = kpcr - kpcr_rva;
-            windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
+                goto done;
+
         } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiDivideErrorFault", NULL, &int0_rva) ) {
             reg_t idt = 0;
             uint32_t int0_high = 0;
@@ -692,7 +707,8 @@ init_from_rekall_profile(vmi_instance_t vmi)
                 goto done;
 
             windows->ntoskrnl_va = (((uint64_t)int0_high << 32) | ((uint64_t)int0_middle << 16) | int0_low) - int0_rva;
-            windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
+                goto done;
         }
 
         if(!windows->ntoskrnl && kpcr == 0x00000000ffdff000) {
@@ -709,8 +725,8 @@ init_from_rekall_profile(vmi_instance_t vmi)
                 goto done;
             if ( VMI_FAILURE == vmi_read_addr_va(vmi, kdvb+kernbase_offset, 0, &windows->ntoskrnl_va) )
                 goto done;
-
-            windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
+                goto done;
         }
 
         if ( !windows->ntoskrnl )
@@ -725,7 +741,8 @@ init_from_rekall_profile(vmi_instance_t vmi)
         if (windows->ntoskrnl_va && !windows->ntoskrnl)
         {
             windows_find_cr3(vmi);
-            windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
+                goto done;
         }
     }
 

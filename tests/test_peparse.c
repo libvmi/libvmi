@@ -55,8 +55,7 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_v, uint8_t *pe) {
 
     // The kernel's export table is continuously allocated on the PA level with the PE header
     // This trick may not work for other PE headers (though may work for some drivers)
-    uint32_t nbytes = vmi_read_va(vmi, base_v + export_header_offset, 0, &et, sizeof(struct export_table));
-    if(nbytes == sizeof(struct export_table) && !(et.export_flags || !et.name) ) {
+    if( VMI_SUCCESS == vmi_read_va(vmi, base_v + export_header_offset, 0, sizeof(struct export_table), &et, NULL) ) {
 
         char *name = vmi_read_str_va(vmi, base_v + et.name, 0);
 
@@ -174,7 +173,7 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
     }
 
     struct image_debug_directory debug_directory;
-    vmi_read_va(vmi, kernel_base_v + debug_offset, 0, (uint8_t *)&debug_directory, sizeof(struct image_debug_directory));
+    vmi_read_va(vmi, kernel_base_v + debug_offset, 0, sizeof(struct image_debug_directory), (uint8_t *)&debug_directory, NULL);
 
     if(debug_directory.type == IMAGE_DEBUG_TYPE_MISC) {
         /*printf("This operating system uses .dbg instead of .pdb\n");
@@ -192,7 +191,7 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
     }
 
     struct cv_info_pdb70 *pdb_header = malloc(debug_directory.size_of_data);
-    vmi_read_va(vmi, kernel_base_v + debug_directory.address_of_raw_data, 0, pdb_header, debug_directory.size_of_data);
+    vmi_read_va(vmi, kernel_base_v + debug_directory.address_of_raw_data, 0, debug_directory.size_of_data, pdb_header, NULL);
 
     // The PDB header has to be PDB 7.0
     // http://www.debuginfo.com/articles/debuginfomatch.html
@@ -263,11 +262,11 @@ START_TEST (test_peparse)
     vmi_instance_t vmi = NULL;
     vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
                       VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
-    addr_t kernbase;
+    addr_t kernbase = 0;
 
     if (VMI_OS_WINDOWS == vmi_get_ostype(vmi) && VMI_OS_WINDOWS_XP == vmi_get_winver(vmi)){
 
-        kernbase = vmi_translate_ksym2v(vmi, "KernBase");
+        vmi_translate_ksym2v(vmi, "KernBase", &kernbase);
 
         uint8_t pe[MAX_HEADER_SIZE];
         access_context_t ctx = {

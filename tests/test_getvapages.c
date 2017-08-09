@@ -43,7 +43,8 @@ START_TEST (test_get_va_pages)
     GHashTable *config = NULL;
 
     if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
-        addr_t dtb = vmi_pid_to_dtb(vmi, 4);
+        addr_t dtb = 0;
+        vmi_pid_to_dtb(vmi, 4, &dtb);
         GSList *list = vmi_get_va_pages(vmi, dtb);
         fail_unless(list != NULL, "vmi_get_va_pages failed");
         GSList *loop = list;

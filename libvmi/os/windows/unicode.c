@@ -39,7 +39,6 @@ windows_read_unicode_struct(
     access_context_t _ctx = *ctx;
     unicode_string_t *us = 0;   // return val
     size_t struct_size = 0;
-    size_t read = 0;
     addr_t buffer_va = 0;
     uint16_t buffer_len = 0;
 
@@ -47,8 +46,7 @@ windows_read_unicode_struct(
         win64_unicode_string_t us64 = { 0 };
         struct_size = sizeof(us64);
         // read the UNICODE_STRING struct
-        read = vmi_read(vmi, ctx, &us64, struct_size);
-        if (read != struct_size) {
+        if ( VMI_FAILURE == vmi_read(vmi, ctx, struct_size, &us64, NULL) ) {
             dbprint(VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING\n",__FUNCTION__);
             goto out_error;
         }   // if
@@ -59,8 +57,7 @@ windows_read_unicode_struct(
         win32_unicode_string_t us32 = { 0 };
         struct_size = sizeof(us32);
         // read the UNICODE_STRING struct
-        read = vmi_read(vmi, ctx, &us32, struct_size);
-        if (read != struct_size) {
+        if ( VMI_FAILURE == vmi_read(vmi, ctx, struct_size, &us32, NULL) ) {
             dbprint(VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING\n",__FUNCTION__);
             goto out_error;
         }   // if
@@ -86,10 +83,8 @@ windows_read_unicode_struct(
         goto out_error;
 
     _ctx.addr = buffer_va;
-    read = vmi_read(vmi, &_ctx, us->contents, us->length);
-    if (read != us->length) {
-        dbprint
-            (VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING buffer\n",__FUNCTION__);
+    if ( VMI_FAILURE == vmi_read(vmi, &_ctx, us->length, us->contents, NULL) ) {
+        dbprint(VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING buffer\n",__FUNCTION__);
         goto out_error;
     }   // if
 
@@ -102,12 +97,8 @@ windows_read_unicode_struct(
     return us;
 
 out_error:
-    if (us) {
-        if (us->contents) {
-            g_free(us->contents);
-        }
-        g_free(us);
-    }
+    if (us) g_free(us->contents);
+    g_free(us);
     return 0;
 }
 
