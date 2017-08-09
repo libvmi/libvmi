@@ -408,7 +408,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
             if(PAGE_SIZE(pgd_entry) && (VMI_FILE == vmi->mode || vmi->x86.pse)) {
                 page_info_t *p = g_malloc0(sizeof(page_info_t));
                 if ( !p )
-                    return ret;
+                    continue;
 
                 p->vaddr = pgd_base_vaddr;
                 p->paddr = get_large_paddr_nopae(p->vaddr, pgd_base_vaddr);
@@ -431,7 +431,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb) {
                 if(ENTRY_PRESENT(vmi->os_type, pte_entry)) {
                     page_info_t *p = g_malloc0(sizeof(page_info_t));
                     if ( !p )
-                        return ret;
+                        continue;
 
                     p->vaddr = pgd_base_vaddr + pte_index * VMI_PS_4KB;
                     p->paddr = get_paddr_nopae(p->vaddr, pte_entry);
