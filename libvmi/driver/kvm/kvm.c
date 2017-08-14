@@ -867,8 +867,8 @@ create_v2m_table(
         }
         else {
             // user process page table
-            dtb = vmi_pid_to_dtb(vmi, pid);
-            if (!dtb) {
+            dtb = vmi->kpgd;
+            if (VMI_FAILURE == vmi_pid_to_dtb(vmi, pid, &dtb)) {
                 dbprint(VMI_DEBUG_KVM, "--early bail on TEVAT create because dtb is zero\n");
                 return VMI_FAILURE;
             }
@@ -1456,7 +1456,7 @@ success:
 
     dbprint(VMI_DEBUG_KVM, "**set size = 0x%"PRIx64"\n", vmi->allocated_ram_size);
 
-    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT)
+    if (vmi->init_flags & VMI_INIT_SHM)
         return kvm_create_shm_snapshot(vmi);
 #endif
 
@@ -1471,7 +1471,7 @@ kvm_destroy(
     destroy_domain_socket(kvm);
 
 #if ENABLE_SHM_SNAPSHOT == 1
-    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
+    if (vmi->init_flags & VMI_INIT_SHM) {
         kvm_teardown_shm_snapshot_mode(vmi);
     }
 #endif
