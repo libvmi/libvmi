@@ -867,7 +867,6 @@ create_v2m_table(
         }
         else {
             // user process page table
-            dtb = vmi->kpgd;
             if (VMI_FAILURE == vmi_pid_to_dtb(vmi, pid, &dtb)) {
                 dbprint(VMI_DEBUG_KVM, "--early bail on TEVAT create because dtb is zero\n");
                 return VMI_FAILURE;
