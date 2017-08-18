@@ -106,15 +106,6 @@ status_t xen_set_domain_debug_control(
     vmi_instance_t vmi,
     unsigned long vcpu,
     int enable);
-status_t xen_create_shm_snapshot(
-    vmi_instance_t vmi);
-status_t xen_destroy_shm_snapshot(
-    vmi_instance_t vmi);
-size_t xen_get_dgpma(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void** medial_addr_ptr,
-    size_t count);
 status_t xen_set_access_required(
     vmi_instance_t vmi,
     bool required);
@@ -145,11 +136,6 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.pause_vm_ptr = &xen_pause_vm;
     driver.resume_vm_ptr = &xen_resume_vm;
     driver.set_access_required_ptr = &xen_set_access_required;
-#if ENABLE_SHM_SNAPSHOT == 1
-    driver.create_shm_snapshot_ptr = &xen_create_shm_snapshot;
-    driver.destroy_shm_snapshot_ptr = &xen_destroy_shm_snapshot;
-    driver.get_dgpma_ptr = &xen_get_dgpma;
-#endif
     vmi->driver = driver;
     return VMI_SUCCESS;
 }

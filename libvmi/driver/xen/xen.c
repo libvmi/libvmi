@@ -40,379 +40,6 @@
 //----------------------------------------------------------------------------
 // Xen-Specific Interface Functions (no direct mapping to driver_*)
 
-#if ENABLE_SHM_SNAPSHOT == 1
-status_t
-test_using_shm_snapshot(
-    xen_instance_t *xen)
-{
-    if (NULL != xen->shm_snapshot_map && NULL != xen->shm_snapshot_cpu_regs) {
-        dbprint(VMI_DEBUG_XEN, "is using shm-snapshot\n");
-        return VMI_SUCCESS;
-    } else {
-        dbprint(VMI_DEBUG_XEN, "is not using shm-snapshot\n");
-        return VMI_FAILURE;
-    }
-}
-
-/**
- * xen_get_memory_shm_snapshot
- *
- *  xen shm-snapshot driver need not memcpy(), just return valid mapped address.
- */
-void *
-xen_get_memory_shm_snapshot(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    uint32_t length)
-{
-    if (paddr + length > vmi->size) {
-        dbprint
-            (VMI_DEBUG_XEN, "--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of shm-snapshot\n",
-             __FUNCTION__, paddr, paddr + length);
-        return NULL;
-    }
-
-    xen_instance_t *xen = xen_get_instance(vmi);
-    return xen->shm_snapshot_map + paddr;
-}
-
-/**
- * xen_release_memory_shm_snapshot
- *
- *  Since xen_get_memory_shm_snapshot() didn't copy memory contents to a temporary buffer,
- *  shm-snapshot need not free memory.
- *  However, this dummy function is still required as memory_cache.c need release_data_callback() to
- *  free entries and it never checks if the callback is not NULL, which must cause segmentation fault.
- */
-void
-xen_release_memory_shm_snapshot(
-    void *memory,
-    size_t length)
-{
-}
-
-typedef struct xen_phy_mem_chunk_struct {
-    unsigned long start_pfn;
-    unsigned long end_pfn;
-    struct xen_phy_mem_chunk_struct* next;
-} xen_pmem_chunk, *xen_pmem_chunk_t;
-
-void
-add_pmem_page_to_list(
-    xen_pmem_chunk_t* pmem_list,
-    xen_pmem_chunk_t* pmem_head,
-    uint32_t pfn) {
-
-    dbprint(VMI_DEBUG_XEN, "add pfn %d to list\n", pfn);
-    // add to list
-    if (NULL == *pmem_list) {
-        *pmem_list = malloc(sizeof(xen_pmem_chunk));
-        memset(*pmem_list, 0, sizeof(xen_pmem_chunk));
-        (*pmem_list)->start_pfn = pfn;
-        (*pmem_list)->end_pfn = pfn;
-        (*pmem_head) = *pmem_list;
-    } else {
-        if (pfn == (*pmem_head)->end_pfn + 1) {
-            // merge
-            (*pmem_head)->end_pfn = pfn;
-        } else {
-            // new entry
-            xen_pmem_chunk_t new_page = malloc(sizeof(xen_pmem_chunk));
-            memset(new_page, 0, sizeof(xen_pmem_chunk));
-            new_page->start_pfn = pfn;
-            new_page->end_pfn = pfn;
-            (*pmem_head)->next = new_page;
-            (*pmem_head) = new_page;
-        }
-    }
-}
-
-/**
- * As there are memory holes in guest physical memory that can't be
- * xc_map_foreign_range, we need to probe the valid pages one by one.
- * TODO : Given that the probe function runs for a few seconds, it
- * will be better if we can learn the memory holes from Xen than to
- * probe it.
- */
-status_t
-probe_mappable_pages(
-    vmi_instance_t vmi,
-    xen_pmem_chunk_t* pmem_list,
-    uint64_t mem_size) {
-
-    xen_instance_t *xen = xen_get_instance(vmi);
-    xen_pmem_chunk_t pmem_head = *pmem_list;
-
-    unsigned long end_pfn = mem_size >> XC_PAGE_SHIFT;
-    unsigned long i = 0;
-    for (; i <= end_pfn; i++) {
-        void *memory = xen->libxcw.xc_map_foreign_range(xen->xchandle,
-                                                        xen->domainid,
-                                                        XC_PAGE_SIZE,
-                                                        PROT_READ,
-                                                        i);
-
-        if (MAP_FAILED != memory && NULL != memory) {
-            add_pmem_page_to_list(pmem_list, &pmem_head, i);
-            munmap(memory, XC_PAGE_SIZE);
-        }
-        else {
-            dbprint(VMI_DEBUG_XEN, "xc_map_foreign_range failed on pfn_offset=%d\n", i);
-        }
-    }
-    return VMI_SUCCESS;
-}
-
-/**
- * Create snapshot : copy guest physical memory to LibVMI process.
- */
-status_t
-copy_guest_pmem_chunks(
-    vmi_instance_t vmi,
-    xen_pmem_chunk_t pmem_list)
-{
-    xen_instance_t *xen = xen_get_instance(vmi);
-    if (NULL != pmem_list) {
-        do {
-            dbprint(VMI_DEBUG_XEN, "pmem chunk pfn: %d - %d\n", pmem_list->start_pfn, pmem_list->end_pfn);
-
-            addr_t addr_offset = pmem_list->start_pfn << XC_PAGE_SHIFT;
-            unsigned long pfn_num = pmem_list->end_pfn - pmem_list->start_pfn;
-            uint32_t chunk_size = XC_PAGE_SIZE * pfn_num;
-
-            void *memory = xen->libxcw.xc_map_foreign_range(xen->xchandle,
-                                                            xen->domainid,
-                                                            chunk_size,
-                                                            PROT_READ,
-                                                            pmem_list->start_pfn);
-
-            if (MAP_FAILED != memory && NULL != memory) {
-                memcpy(xen->shm_snapshot_map + addr_offset, memory, chunk_size);
-                munmap(memory, chunk_size);
-            }
-            else {
-                dbprint(VMI_DEBUG_XEN, "xc_map_foreign_range failed on pfn %d ~ %d\n",
-                    pmem_list->start_pfn, pmem_list->end_pfn);
-                return VMI_FAILURE;
-            }
-            pmem_list = pmem_list->next;
-        } while (NULL!= pmem_list);
-        return VMI_SUCCESS;
-    } else {
-        errprint("fail to copy_guest_pmem_chunks as pmem_list == NULL");
-        return VMI_FAILURE;
-    }
-}
-
-status_t
-free_memory_chunks_link_list(
-    xen_pmem_chunk_t* pmem_list)
-{
-    xen_pmem_chunk_t tail = *pmem_list;
-    if (NULL != tail) {
-        do {
-            xen_pmem_chunk_t tmp = tail->next;
-            free(tail);
-            tail = tmp;
-        } while (NULL != tail);
-        *pmem_list = NULL;
-        return VMI_SUCCESS;
-    } else {
-        errprint("try to free NULL pmem_list");
-        return VMI_FAILURE;
-    }
-}
-
-status_t
-dump_vcpureg_pv64_snapshot(
-    vmi_instance_t vmi,
-    unsigned long vcpu)
-{
-    xen_instance_t *xen = xen_get_instance(vmi);
-    vcpu_guest_context_any_t ctx = { 0 };
-    xen_domctl_t domctl = { 0 };
-
-    if (xen->libxcw.xc_vcpu_getcontext(xen->xchandle,
-                                       xen->domainid,
-                                       vcpu, &ctx))
-    {
-        errprint("Failed to get context information (PV domain).\n");
-        return VMI_FAILURE;
-    }
-    void * mem  = malloc(sizeof(vcpu_guest_context_x86_64_t));
-    if (NULL != mem) {
-        xen->shm_snapshot_cpu_regs = mem;
-        memcpy (xen->shm_snapshot_cpu_regs, &ctx.x64,
-            sizeof(vcpu_guest_context_x86_64_t));
-        return VMI_SUCCESS;
-    } else {
-        errprint("fail to snapshot pv_64 cpu registers\n");
-        return VMI_FAILURE;
-    }
-}
-
-status_t
-dump_vcpureg_pv32_snapshot(
-    vmi_instance_t vmi,
-    unsigned long vcpu)
-{
-    xen_instance_t *xen = xen_get_instance(vmi);
-    vcpu_guest_context_any_t ctx = { 0 };
-    xen_domctl_t domctl = { 0 };
-
-    if (xen->libxcw.xc_vcpu_getcontext(xen->xchandle,
-                                       xen->domainid,
-                                       vcpu, &ctx))
-    {
-        errprint("Failed to get context information (PV domain).\n");
-        return VMI_FAILURE;
-    }
-    void * mem  = malloc(sizeof(vcpu_guest_context_x86_32_t));
-    if (NULL != mem) {
-        xen->shm_snapshot_cpu_regs = mem;
-        memcpy (xen->shm_snapshot_cpu_regs, &ctx.x32,
-            sizeof(vcpu_guest_context_x86_32_t));
-        return VMI_SUCCESS;
-    } else {
-        errprint("fail to snapshot pv_32 cpu registers\n");
-        return VMI_FAILURE;
-    }
-}
-
-status_t
-dump_vcpureg_hvm_snapshot(
-    vmi_instance_t vmi,
-    unsigned long vcpu)
-{
-    xen_instance_t *xen = xen_get_instance(vmi);
-    struct hvm_hw_cpu hw_ctxt = { 0 };
-
-    if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
-                                                     xen->domainid,
-                                                     HVM_SAVE_CODE(CPU),
-                                                     vcpu, &hw_ctxt,
-                                                     sizeof(struct hvm_hw_cpu)))
-    {
-        errprint("Failed to get context information (HVM domain).\n");
-        return VMI_FAILURE;
-    }
-    void * mem  = malloc(sizeof(struct hvm_hw_cpu));
-    if (NULL != mem) {
-        xen->shm_snapshot_cpu_regs = mem;
-        memcpy (xen->shm_snapshot_cpu_regs, &hw_ctxt,
-            sizeof(struct hvm_hw_cpu));
-        return VMI_SUCCESS;
-    } else {
-        errprint("fail to snapshot hvm cpu registers\n");
-        return VMI_FAILURE;
-    }
-}
-
-status_t
-dump_vcpureg_snapshot(
-    vmi_instance_t vmi,
-    unsigned long vcpu)
-{
-    xen_instance_t *xen = xen_get_instance(vmi);
-
-    if (vmi->vm_type == HVM)
-        return dump_vcpureg_hvm_snapshot (vmi, value, reg, vcpu);
-    else {
-        if (vmi->vm_type == PV64)
-            return dump_vcpureg_pv64_snapshot(vmi, value, reg, vcpu);
-        else if (vmi->vm-type == PV32)
-            return dump_vcpureg_pv32_snapshot(vmi, value, reg, vcpu);
-    }
-
-    return VMI_FAILURE;
-}
-
-/**
- * TODO: Since this is currently a physical memory snapshot created
- * by LibVMI, I will appreciate anyone to write shm-snaphsot feature
- * for Xen hypervisor like KVM.
- */
-status_t
-xen_setup_shm_snapshot_mode(
-    vmi_instance_t vmi)
-{
-    xen_instance_t *xen = xen_get_instance(vmi);
-
-    // probe mappable pages, e.g. :
-    //  chunk 1: start_pfn, end_pfn, next == "chunk 2"
-    //  chunk 2: start_pfn, end_pfn, next == NULL
-    xen_pmem_chunk_t pmem_list = NULL;
-    xen_get_memsize(vmi, &vmi->allocated_ram_size, &vmi->max_physical_address);
-    if (VMI_SUCCESS != probe_mappable_pages(vmi, &pmem_list, vmi->max_physical_address)) {
-        errprint("fail to probe mappable pages\n");
-        return VMI_FAILURE;
-    }
-
-    // allocate memory to store guest physical memory snapshot
-    void* padding_mem = malloc(vmi->size);
-    if (NULL != padding_mem) {
-        xen->shm_snapshot_map = padding_mem;
-    }
-    else{
-        errprint("fail to allocate padding memory\n");
-        return VMI_FAILURE;
-    }
-
-    if (VMI_SUCCESS != xen_pause_vm(vmi)){
-        dbprint(VMI_DEBUG_XEN, "fail to pause VM, may produce inconsistent shm-snapshot\n");
-    }
-
-    // create snapshot: copy physical memory chunks from foreign_mmap
-    if (VMI_SUCCESS != copy_guest_pmem_chunks(vmi, pmem_list)) {
-        errprint("fail to copy_guest_pmem_chunks\n");
-        return VMI_FAILURE;
-    }
-
-    // dump cpu registers
-    if (VMI_SUCCESS != dump_vcpureg_snapshot(vmi, 0)) {
-        errprint("fail to dump vcpu registers shm-snapshot");
-        return VMI_FAILURE;
-    }
-
-    if (VMI_SUCCESS != xen_resume_vm(vmi)){
-        dbprint(VMI_DEBUG_XEN, "fail to resume VM\n");
-    }
-
-    // destroy memory chunks link list
-    if (VMI_SUCCESS != free_memory_chunks_link_list(&pmem_list)) {
-        dbprint(VMI_DEBUG_XEN, "fail to free pmem_list\n");
-    }
-
-    // setup LibVMI memory_cache
-    memory_cache_destroy(vmi);
-    memory_cache_init(vmi, xen_get_memory_shm_snapshot, xen_release_memory_shm_snapshot,
-        1);
-
-    return VMI_SUCCESS;
-}
-
-status_t
-xen_teardown_shm_snapshot_mode(
-    vmi_instance_t vmi)
-{
-    xen_instance_t *xen = xen_get_instance(vmi);
-
-    if (VMI_SUCCESS == test_using_shm_snapshot(xen)) {
-        dbprint(VMI_DEBUG_XEN, "--xen: teardown shm-snapshot\n");
-        if (xen->shm_snapshot_map != NULL) {
-            free(xen->shm_snapshot_map);
-            xen->shm_snapshot_map = NULL;
-        }
-        if (xen->shm_snapshot_cpu_regs != NULL) {
-            free(xen->shm_snapshot_cpu_regs);
-            xen->shm_snapshot_cpu_regs = NULL;
-        }
-        memory_cache_destroy(vmi);
-    }
-    return VMI_SUCCESS;
-}
-#endif
-
 //TODO assuming length == page size is safe for now, but isn't the most clean approach
 void *
 xen_get_memory_pfn(
@@ -863,16 +490,7 @@ xen_init_vmi(
         xen->max_gpfn = (xen->info.max_memkb * 1024) >> 12;
     }
 
-#if ENABLE_SHM_SNAPSHOT == 1
-    if (vmi->init_flags & VMI_INIT_SHM) {
-        ret = xen_create_shm_snapshot(vmi);
-    }
-    else {
-        ret = xen_setup_live_mode(vmi);
-    }
-#else
     ret = xen_setup_live_mode(vmi);
-#endif
 
     if ( VMI_FAILURE == ret )
         goto _bail;
@@ -901,12 +519,6 @@ xen_destroy(
 
     if(vmi->vm_type == HVM && (vmi->init_flags & VMI_INIT_EVENTS))
         xen_events_destroy(vmi);
-
-#if ENABLE_SHM_SNAPSHOP == 1
-    if (vmi->flags & VMI_INIT_SHM_SNAPSHOT) {
-        xen_teardown_shm_snapshot_mode(vmi);
-    }
-#endif
 
     xc_interface *xchandle = xen_get_xchandle(vmi);
     if ( xchandle )
@@ -1017,12 +629,6 @@ xen_get_vcpureg_hvm(
     struct hvm_hw_cpu* hvm_cpu = NULL;
     xen_instance_t *xen = xen_get_instance(vmi);
 
-#if ENABLE_SHM_SNAPSHOT == 1
-    if (NULL != xen->shm_snapshot_cpu_regs) {
-        hvm_cpu = (struct hvm_hw_cpu*)&xen->shm_snapshot_cpu_regs;
-        dbprint(VMI_DEBUG_XEN, "read hvm cpu registers from shm-snapshot\n");
-    }
-#endif
     struct hvm_hw_cpu hw_ctxt;
     if (NULL == hvm_cpu) {
         if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
@@ -1306,12 +912,7 @@ xen_get_vcpuregs_hvm(
 {
     xen_instance_t *xen = xen_get_instance(vmi);
     struct hvm_hw_cpu hw_ctxt = {0}, *hvm_cpu = NULL;
-#if ENABLE_SHM_SNAPSHOT == 1
-    if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
-        hvm_cpu = (struct hvm_hw_cpu*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
-        dbprint(VMI_DEBUG_XEN, "read hvm cpu registers from shm-snapshot\n");
-    }
-#endif
+
     if (NULL == hvm_cpu) {
         if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
                                                          xen->domainid,
@@ -1822,13 +1423,6 @@ xen_get_vcpureg_pv64(
     vcpu_guest_context_any_t ctx;
     xen_instance_t *xen = xen_get_instance(vmi);
 
-#if ENABLE_SHM_SNAPSHOT == 1
-    if (NULL != xen_get_instance(vmi)->shm_snapshot_cpu_regs) {
-        vcpu_ctx = (vcpu_guest_context_x86_64_t*)&xen_get_instance(vmi)->shm_snapshot_cpu_regs;
-        dbprint(VMI_DEBUG_XEN, "read pv_64 cpu registers from shm-snapshot\n");
-    }
-#endif
-
     if ( !vcpu_ctx ) {
         if (xen->libxcw.xc_vcpu_getcontext(xen->xchandle, xen->domainid, vcpu, &ctx))
         {
@@ -2080,14 +1674,8 @@ xen_get_vcpureg_pv32(
 {
     vcpu_guest_context_x86_32_t* vcpu_ctx = NULL;
     xen_instance_t *xen = xen_get_instance(vmi);
-
-#if ENABLE_SHM_SNAPSHOT == 1
-    if (NULL != xen->shm_snapshot_cpu_regs) {
-        vcpu_ctx = (vcpu_guest_context_x86_32_t*)&xen->shm_snapshot_cpu_regs;
-        dbprint(VMI_DEBUG_XEN, "read pv_32 cpu registers from shm-snapshot\n");
-    }
-#else
     vcpu_guest_context_any_t ctx;
+
     if (NULL == vcpu_ctx) {
         if (xen->libxcw.xc_vcpu_getcontext(xen->xchandle, xen->domainid, vcpu, &ctx))
         {
@@ -2096,7 +1684,6 @@ xen_get_vcpureg_pv32(
         }
         vcpu_ctx = &ctx.x32;
     }
-#endif
 
     switch (reg) {
     case RAX:
@@ -2804,39 +2391,3 @@ xen_set_access_required(
 
     return VMI_SUCCESS;
 }
-
-
-#if ENABLE_SHM_SNAPSHOT == 1
-status_t
-xen_create_shm_snapshot(
-    vmi_instance_t vmi)
-{
-    // teardown the old shm-snapshot if existed.
-    if (VMI_SUCCESS == test_using_shm_snapshot(xen_get_instance(vmi))) {
-        xen_teardown_shm_snapshot_mode(vmi);
-    }
-
-    return xen_setup_shm_snapshot_mode(vmi);
-}
-
-status_t
-xen_destroy_shm_snapshot(
-    vmi_instance_t vmi)
-{
-    xen_teardown_shm_snapshot_mode(vmi);
-
-    return xen_setup_live_mode(vmi);
-}
-
-size_t
-xen_get_dgpma(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void** medial_addr_ptr,
-    size_t count) {
-
-    *medial_addr_ptr = xen_get_instance(vmi)->shm_snapshot_map + paddr;
-    size_t max_size = vmi->size - (paddr - 0);
-    return max_size>count?count:max_size;
-}
-#endif
