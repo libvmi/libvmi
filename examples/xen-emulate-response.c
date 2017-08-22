@@ -70,7 +70,7 @@ int main (int argc, char **argv)
 
     // Arg 1 is the VM name.
     name = argv[1];
-    addr = (int) strtoul(argv[2], NULL, 16);
+    addr = (addr_t) strtoul(argv[2], NULL, 16);
 
     /* for a clean exit */
     act.sa_handler = close_handler;
