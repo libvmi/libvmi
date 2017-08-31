@@ -30,6 +30,7 @@ import sys
 
 def get_os_params(vmi):
     ostype = vmi.get_ostype()
+
     if ostype.lower() == "windows":
         return get_windows_params(vmi)
     elif ostype.lower() == "linux":
@@ -77,15 +78,8 @@ def processes(vmi):
             break
 
 def main(argv):
-    vmi = pyvmi.init(argv[1], "complete")
-
-    if vmi.get_access_mode() == 'file':
-        print("Process listing for File {}".format(vmi.get_name()))
-    else:
-        print("Process listing for VM {}".format(vmi.get_name()))
-
+    vmi = pyvmi.init_complete(argv[1])
     for pid, procname in processes(vmi):
         print "[%5d] %s" % (pid, procname)
-
 if __name__ == "__main__":
     main(sys.argv)
