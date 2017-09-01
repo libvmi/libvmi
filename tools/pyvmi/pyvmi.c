@@ -131,6 +131,8 @@ pyvmi_init(
     uint32_t flags = 0;
     PyObject *dict = NULL;
     vmi_config_t vmiconfig;
+    vmi_mode_t mode;
+    vmi_init_error_t *error = NULL;
 
     if (PyArg_ParseTuple(args, "s", &vmname))
     {
@@ -171,27 +173,18 @@ pyvmi_init(
         goto init_fail;
     }
 
-
-    // if (VMI_FAILURE == vmi_init_custom(&(vmi(object)), flags, vmiconfig)) {
-    //    PyErr_SetString(PyExc_ValueError, "Init failed");
-    //     goto init_fail;
-    // }
-    vmi_mode_t mode;
-    vmi_init_error_t *error = NULL;
-    printf("access \n");
     if(VMI_FAILURE == vmi_get_access_mode(NULL,vmname,flags,NULL,&mode))
     {
-        PyErr_SetString(PyExc_ValueError, "Init failed 1");
+        PyErr_SetString(PyExc_ValueError, "Init failed in get_access_mode");
 
         goto init_fail;
     }
-    printf("access com\n");
+
     if(VMI_FAILURE == vmi_init(&(vmi(object)),mode,vmname,flags,NULL,error))
     {
-        PyErr_SetString(PyExc_ValueError, "Init failed 2");
+        PyErr_SetString(PyExc_ValueError, "Init failed in vmi_init");
         goto init_fail;
     }
-    printf("init com\n");
 
     // Once libvmi inits we don't need to keep the config anymore
     if(flags & VMI_CONFIG_GHASHTABLE)
@@ -230,6 +223,8 @@ pyvmi_init_complete(
     PyObject * args)
 {
     char *vmname = NULL;
+    vmi_instance_t vmi;
+    pyvmi_instance *object = NULL;
 
     if (!PyArg_ParseTuple(args, "s", &vmname))
     {
@@ -237,8 +232,7 @@ pyvmi_init_complete(
                         "Invalid argument(s) to function");
         return NULL;
     }
-    vmi_instance_t vmi;
-    pyvmi_instance *object = NULL;
+
     object = PyObject_NEW(pyvmi_instance, &pyvmi_instance_Type);
 
     if (VMI_FAILURE == vmi_init_complete(&vmi(object),vmname,VMI_INIT_DOMAINNAME,NULL,VMI_CONFIG_GLOBAL_FILE_ENTRY,NULL,NULL))
@@ -247,7 +241,7 @@ pyvmi_init_complete(
         return NULL;
     }
 
-    return (PyObject *)object;//Py_BuildValue("");   // return None
+    return (PyObject *)object;
 }
 
 static void
