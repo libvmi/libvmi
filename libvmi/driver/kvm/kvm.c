@@ -355,6 +355,7 @@ destroy_domain_socket(
         req.address = 0;
         req.length = 0;
         (void)write(kvm->socket_fd, &req, sizeof(struct request));
+        close(kvm->socket_fd);
     }
 }
 
