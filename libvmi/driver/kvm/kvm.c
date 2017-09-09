@@ -151,6 +151,14 @@ exec_info_version(
     return jobj;
 }
 
+static char *
+exec_info_mtree(
+  kvm_instance_t *kvm)
+  {
+    char *query =
+      "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info mtree\"}}'";
+    return exec_qmp_cmd(kvm, query);
+  }
 
 static char *
 exec_memory_access(
@@ -275,6 +283,18 @@ parse_seg_reg_value(
 
     ptr += offset;
     return (reg_t) strtoll(ptr, (char **) NULL, 16);
+}
+
+static addr_t
+parse_mtree(char *mtree_output)
+{
+    char *ptr;
+
+    if(NULL == (ptr = strstr(mtree_output, "alias ram-above-4g")))
+    return 0;
+
+    ptr -= 32;
+    return (addr_t) strtoll(ptr, (char **) NULL, 16);
 }
 
 status_t
@@ -1623,7 +1643,13 @@ kvm_get_memsize(
         goto error_exit;
     }
     *allocated_ram_size = info.maxMem * 1024; // convert KBytes to bytes
-    *maximum_physical_address = *allocated_ram_size;
+    char *bufstr = exec_info_mtree(kvm_get_instance(vmi));
+    addr_t parsed_max = parse_mtree(bufstr);
+
+    if(parsed_max != 0)
+        *maximum_physical_address = (addr_t) parsed_max;
+    else
+        *maximum_physical_address = *allocated_ram_size;
 
     return VMI_SUCCESS;
 error_exit:
