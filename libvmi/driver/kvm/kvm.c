@@ -291,10 +291,23 @@ parse_mtree(char *mtree_output)
     char *ptr;
 
     if(NULL == (ptr = strstr(mtree_output, "alias ram-above-4g")))
+    goto error;
+
+    for(int i = 0; i <= 50;i++) {
+      if(ptr[0] == '-') {
+        ptr++;
+        goto success;
+      }
+      ptr--;
+    }
+
+    goto error;
+
+    error:
     return 0;
 
-    ptr -= 32;
-    return (addr_t) strtoll(ptr, (char **) NULL, 16);
+    success:
+    return (addr_t) strtoll(ptr, (char **) NULL, 16) + 1;
 }
 
 status_t
