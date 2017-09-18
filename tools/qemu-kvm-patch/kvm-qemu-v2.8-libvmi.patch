@@ -104,10 +104,10 @@ index 0000000..e4fc87a
 +#endif /* LIBVMI_REQUEST_H */
 diff --git a/memory-access.c b/memory-access.c
 new file mode 100644
-index 0000000..d23b7cf
+index 0000000..09b7cf8
 --- /dev/null
 +++ b/memory-access.c
-@@ -0,0 +1,214 @@
+@@ -0,0 +1,213 @@
 +/*
 + * Access guest physical memory via a domain socket.
 + *
@@ -291,7 +291,7 @@ index 0000000..d23b7cf
 +    // create socket
 +    pargs->socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 +    if (pargs->socket_fd < 0){
-+        error_setg(pargs->errp, "Qemu pmemaccess: socket failed");
++        error_setg(pargs->errp, "Qemu pmemaccess: socket failed: %s", strerror(errno));
 +        return;
 +    }
 +    // unlink path if already exists
@@ -305,14 +305,13 @@ index 0000000..d23b7cf
 +    pargs->address->sun_family = AF_UNIX;
 +    pargs->address_length = sizeof(pargs->address->sun_family) + sprintf(pargs->address->sun_path, "%s", (char *) pargs->path);
 +    if (bind(pargs->socket_fd, (struct sockaddr *) pargs->address, pargs->address_length) != 0){
-+        printf("could not bind\n");
-+        error_setg(pargs->errp, "Qemu pmemaccess: bind failed");
++        error_setg(pargs->errp, "Qemu pmemaccess: bind failed: %s", strerror(errno));
 +        return;
 +    }
 +
 +    // listen
 +    if (listen(pargs->socket_fd, 0) != 0){
-+        error_setg(pargs->errp, "Qemu pmemaccess: listen failed");
++        error_setg(pargs->errp, "Qemu pmemaccess: listen failed: %s", strerror(errno));
 +        return;
 +    }
 +
