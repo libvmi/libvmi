@@ -1,98 +1,115 @@
-pyvmi -- A Python adapter for LibVMI by Bryan D. Payne
+# Libvmi Python bindings
 
-If you'd rather perform introspection using python, instead of C, then this
-adapter will help get you going.  This adapter is also useful for connecting
-the Volatility memory analysis tool to a running VM.  Follow the steps below
-to build, install, and use pyvmi.
+A Python adapter for LibVMI
 
-1) Build and install LibVMI
-    ./autogen.sh
-    ./configure
-    make
-    make install
-    ldconfig
+If you'd rather perform introspection using Python, instead of C, then this
+adapter will help get you going.
 
-2) Build and install pyvmi
+The bindings are `Python 2` compatible.
+
+Contributors
+- Bryan D. Payne
+- Mathieu Tarral
+
+## Requirements
+
+- `python3-pkgconfig`
+- `python3-cffi` (`> 1.6.0`)
+- `python3-six`
+- `libvmi`
+
+## Setup
+
     python setup.py build
     python setup.py install
 
-3) Start having fun with Python
-    import pyvmi
-    vmi = pyvmi.init("win7", "partial"|"complete")  # win7 is the target name
-    vmi.init_complete(config)
-    paddr = vmi.translate_kv2p(vaddr)
-    paddr = vmi.translate_uv2p(vaddr, pid)
-    vaddr = vmi.translate_ksym2v(sym)
-    dtb = vmi.pid_to_dtb(pid)
-    memory = vmi.read_pa(paddr, length)
-    memory = vmi.read_va(vaddr, pid, length)
-    memory = vmi.read_ksym(sym, length)
-    memory = vmi.read_8_pa(paddr)
-    memory = vmi.read_16_pa(paddr)
-    memory = vmi.read_32_pa(paddr)
-    memory = vmi.read_64_pa(paddr)
-    address = vmi.read_addr_pa(paddr)
-    string = vmi.read_str_pa(paddr)
-    memory = vmi.read_8_va(vaddr, pid)
-    memory = vmi.read_16_va(vaddr, pid)
-    memory = vmi.read_32_va(vaddr, pid)
-    memory = vmi.read_64_va(vaddr, pid)
-    address = vmi.read_addr_va(vaddr, pid)
-    string = vmi.read_str_va(vaddr, pid)
-    memory = vmi.read_8_ksym(sym)
-    memory = vmi.read_16_ksym(sym)
-    memory = vmi.read_32_ksym(sym)
-    memory = vmi.read_64_ksym(sym)
-    address = vmi.read_addr_ksym(sym)
-    string = vmi.read_str_ksym(sym)
-    #read_unicode_str_va  # not implemented
-    #convert_str_encoding # not implemented
-    #free_unicode_str     # not implemented
-    <bytes written> = vmi.write_pa(paddr, buf)
-    <bytes written> = vmi.write_va(vaddr, pid, buf)
-    <bytes written> = vmi.write_ksym(sym, buf)
-    vmi.write_8_pa(paddr, value)
-    vmi.write_16_pa(paddr, value)
-    vmi.write_32_pa(paddr, value)
-    vmi.write_64_pa(paddr, value)
-    vmi.write_8_va(vaddr, pid, value)
-    vmi.write_16_va(vaddr, pid, value)
-    vmi.write_32_va(vaddr, pid, value)
-    vmi.write_64_va(vaddr, pid, value)
-    vmi.write_8_ksym(sym, value)
-    vmi.write_16_ksym(sym, value)
-    vmi.write_32_ksym(sym, value)
-    vmi.write_64_ksym(sym, value)
-    get_name()
-    get_vmid()
-    get_access_mode()
-    get_winver() # not implemented
-    get_winver_str()
-    reg_value = vmi.get_vcpureg(reg_name, vcpu_num)
-    size = vmi.get_memsize()
-    offset = vmi.get_offset(offset_name)
-    ostype = vmi.get_ostype()
-    <string> = vmi.get_page_mode()
-    vmi.print_hex(memory)
-    vmi.print_hex_pa(paddr, length)
-    vmi.print_hex_va(vaddr, pid, length)
-    vmi.print_hex_ksym(sym, length)
-    vmi.pause_vm()
-    vmi.resume_vm()
-    v2pcache_flush()
-    v2pcache_add(va, dtb, pa)
-    symcache_flush()
-    symcache_add(sym, va)
-    pidcache_flush()
-    pidcache_add(pid, dtb)
+## API
 
-4) Start using pyvmi!
-   - Write your own memory introspection programs in python.
-   - Connect Volatility 2.0 to a running VM.  To do this, simply install
-     pyvmi and then copy the pyvmiaddressspace.py file into the following
-     directory under Volatility 2.0: volatility/plugins/addrspaces/.  Then
-     run Volatility as you normally would, specifying the VM name with the
-     '-l' command line option.  More information on Volatility and a link
-     to download it are available at http://code.google.com/p/volatility/.
+### Constructor
 
-     Example --> python vol.py -l vmi://win7 pslist  # win7 is the target name
+The main class that you need to import is `Libvmi`.
+
+The default parameters uses `VMI_CONFIG_GLOBAL_FILE_ENTRY` and calls `vmi_init_complete`:
+~~~Python
+from libvmi import Libvmi
+
+with Libvmi("Windows_7") as vmi:
+    os = vmi.get_ostype()
+~~~
+
+You can specify a `string` (`VMI_CONFIG_STRING`):
+~~~Python
+from libvmi import Libvmi, VMIConfig
+
+config_str = '{ostype = "Windows";win_pdbase=0x28;win_pid=0x180;win_tasks=0x188;win_pname=0x2e0;}'
+
+with Libvmi("Windows_7", mode=VMIConfig.STRING, config=config_str) as vmi:
+    os = vmi.get_ostype()
+~~~
+
+Or a `dict` (`VMI_CONFIG_GHASHTABLE`):
+~~~Python
+from libvmi import Libvmi, VMIConfig
+
+hash = {
+    "ostype": "Windows",
+    "win_pdbase": 0x28,
+    "win_tasks": 0x188,
+    "win_pid": 0x180,
+    "win_pname": 0x2e0,
+}
+
+with Libvmi("Windows_7", mode=VMIConfig.DICT, config=hash) as vmi:
+    os = vmi.get_ostype()
+~~~
+
+You can also use a `partial` initialization, which calls `vmi_init`.
+(It doesn't require a configuration):
+~~~Python
+from libvmi import Libvmi
+
+with Libvmi("Windows_7", partial=True) as vmi:
+
+~~~
+
+### Examples
+
+~~~Python
+from libvmi import Libvmi, AccessContext, TranslateMechanism
+
+with Libvmi("Windows_7") as vmi:
+    pshead = vmi.read_addr_ksym("PsActiveProcessHead")
+    name = vmi.get_name()
+    id = vmi.get_vmid()
+    buffer, bytes_read = vmi.read_va(pshead, 4, 16)
+    vmi.write_va(pshead, 4, buffer)
+    ctx = AccessContext(TranslateMechanism.KERNEL_SYMBOL, ksym="PsActiveProcessHead")
+    buffer, bytes_read = vmi.read(ctx, 8)
+~~~
+
+
+Note: The implementation already checks if the return value is `VMI_FAILURE` and
+raises a `LibvmiError` in such case.
+
+
+## Integration
+
+### Volatility
+
+You can use the [`volatlity`](https://github.com/volatilityfoundation/volatility) framework directly in top of `PyVMI` !
+
+    git clone https://github.com/volatilityfoundation/volatility /tmp
+    cp ./volatility/vmi.py /tmp/volatility/volatility/plugins/addrspaces/
+
+Usage
+
+    python vol.py -l vmi://domain --profile=Win7SP0x64 pslist
+
+### Rekall
+
+The [`Rekall`](https://github.com/google/rekall) address space is
+already integrated [upstream](https://github.com/google/rekall/blob/master/rekall-core/rekall/plugins/addrspaces/vmi.py) !
+
+Usage
+
+    rekall -f vmi://domain pslist
