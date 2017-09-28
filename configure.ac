@@ -218,6 +218,8 @@ AC_SUBST([GLIB_LIBS])
         [AC_DEFINE([HAVE_LIBVMI_REQUEST], 1,
            [Define to 1 if you have <qemu/libvmi_request.h>.])],
         [])
+    AC_CHECK_HEADER(json-c/json.h, [],
+                     [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
 [fi]
 
 [if test "$enable_shm_snapshot" = "yes"]
