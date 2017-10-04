@@ -1274,6 +1274,9 @@ kvm_put_memory(
         }
     }
 
+    /* Remove page from cache as cached contents are now stale */
+    memory_cache_remove(vmi, paddr);
+
     return VMI_SUCCESS;
 error_exit:
     return VMI_FAILURE;
