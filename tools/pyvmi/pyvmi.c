@@ -1304,8 +1304,7 @@ pyvmi_get_vcpureg(
         return NULL;
     }
 
-    reg_t value;
-    registers_t reg;
+    reg_t reg = 0, value = 0;
 
     if (strcmp(reg_name, "RAX") == 0 || strcmp(reg_name, "rax") == 0) {
         reg = RAX;
@@ -1902,7 +1901,14 @@ pyvmi_v2pcache_flush(
     PyObject * self,
     PyObject * args)
 {
-    vmi_v2pcache_flush(vmi(self));
+    addr_t dtb;
+    if (!PyArg_ParseTuple(args, "K", &dtb)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Invalid argument(s) to function");
+        return NULL;
+    }
+
+    vmi_v2pcache_flush(vmi(self), dtb);
     return Py_BuildValue("");   // return None
 }
 
