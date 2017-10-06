@@ -10,8 +10,8 @@ Build-Depends: debhelper (>= 8.0.0),
  flex,
  bison,
  libglib2.0-dev,
- libvirt-dev,
- check
+ check,
+ libjson-c-dev
 Standards-Version: 3.9.3
 Section: libs
 Homepage: https://github.com/bdpayne/libvmi
