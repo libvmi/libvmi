@@ -147,6 +147,9 @@ uint64_t
 vmi_get_memsize(
     vmi_instance_t vmi)
 {
+    if ( VMI_FAILURE == driver_get_memsize(vmi, &vmi->allocated_ram_size, &vmi->max_physical_address) )
+        return 0;
+
     return vmi->allocated_ram_size;
 }
 
@@ -154,6 +157,9 @@ addr_t
 vmi_get_max_physical_address(
     vmi_instance_t vmi)
 {
+    if ( VMI_FAILURE == driver_get_memsize(vmi, &vmi->allocated_ram_size, &vmi->max_physical_address) )
+        return 0;
+
     return vmi->max_physical_address;
 }
 
