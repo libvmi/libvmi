@@ -217,7 +217,7 @@ parse_reg_value(
 
     if (NULL != ptr) {
         ptr += strlen(regname) + 1;
-        return (reg_t) strtoll(ptr, (char **) NULL, 16);
+        return (reg_t) strtoull(ptr, (char **) NULL, 16);
     }
     else {
         return 0;
@@ -274,7 +274,7 @@ parse_seg_reg_value(
     }
 
     ptr += offset;
-    return (reg_t) strtoll(ptr, (char **) NULL, 16);
+    return (reg_t) strtoull(ptr, (char **) NULL, 16);
 }
 
 status_t
