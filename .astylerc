@@ -1,0 +1,6 @@
+indent-switches
+suffix=none
+style=kr
+indent=spaces=4
+keep-one-line-blocks
+pad-header

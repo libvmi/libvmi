@@ -1,0 +1,88 @@
+dist: trusty
+language: c
+sudo: false
+
+matrix:
+    include:
+
+#
+# Whitespace check
+#
+    - env:
+        - TEST="whitespace"
+      script:
+        - git remote add upstream https://github.com/$TRAVIS_REPO_SLUG.git
+        - git fetch upstream
+        - git diff --check upstream/master
+
+#
+# Astyle check
+#
+    - env:
+        - TEST="astyle"
+      sudo: required
+      before_install:
+        - sudo add-apt-repository "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted universe multiverse" -y
+        - sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 3B4FE6ACC0B21F32
+        - sudo apt-get update -qq
+      install:
+        - sudo apt-get install astyle
+      script:
+        - export ARTISTIC_STYLE_OPTIONS=".astylerc" && astyle `find . | egrep "\.c|\.h"` > astyle.out
+        - TEST=$(cat astyle.out | grep Formatted | wc -l)
+        - |
+          if [[ $TEST -ne 0 ]]; then
+            git --no-pager diff
+            echo "Please fix style issues as shown above"
+            exit 1
+          fi
+
+#
+# gcc compile test
+#
+    - env:
+        - TEST="gcc compile"
+      compiler: gcc
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --enable-debug
+        - make
+
+#
+# clang compile test
+#
+    - env:
+        - TEST="clang compile"
+      compiler: clang
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --enable-debug
+        - make
