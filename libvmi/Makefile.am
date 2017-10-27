@@ -124,6 +124,7 @@ endif
 
 if DEBUG
 libvmi_la_CFLAGS+= -Werror
-libvmi_la_CFLAGS+= -Wno-missing-field-initializers -Wno-unused-but-set-variable
+libvmi_la_CFLAGS+= -Wno-missing-field-initializers
 libvmi_la_CFLAGS+= -Wno-missing-braces
+libvmi_la_CFLAGS+= -Wno-unused-result
 endif
