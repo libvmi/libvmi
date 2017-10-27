@@ -127,4 +127,5 @@ libvmi_la_CFLAGS+= -Werror
 libvmi_la_CFLAGS+= -Wno-missing-field-initializers
 libvmi_la_CFLAGS+= -Wno-missing-braces
 libvmi_la_CFLAGS+= -Wno-unused-result
+libvmi_la_CFLAGS+= -Wno-ignored-attributes
 endif
