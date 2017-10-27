@@ -1390,18 +1390,20 @@ kvm_init_vmi(
     //   "id": "libvirt-42"
     // }
 
-    // get "return" object
     struct json_object *return_obj= NULL;
+    struct json_object *qemu_obj = NULL;
+    struct json_object *major_obj = NULL;
+    struct json_object *minor_obj = NULL;
+
+    // get "return" object
     if (FALSE == json_object_object_get_ex(qemu_version_obj, "return", &return_obj))
         goto out_error;
 
     // get "qemu" object
-    struct json_object *qemu_obj = NULL;
     if (FALSE == json_object_object_get_ex(return_obj, "qemu", &qemu_obj))
         goto out_error;
 
     // get "major" object
-    struct json_object *major_obj = NULL;
     if (FALSE == json_object_object_get_ex(qemu_obj, "major", &major_obj))
         goto out_error;
 
@@ -1409,7 +1411,6 @@ kvm_init_vmi(
     int major = json_object_get_int(major_obj);
 
     // get "minor" object
-    struct json_object *minor_obj = NULL;
     if (FALSE == json_object_object_get_ex(qemu_obj, "minor", &minor_obj))
         goto out_error;
 
