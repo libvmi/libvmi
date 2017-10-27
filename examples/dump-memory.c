@@ -63,8 +63,7 @@ main(
         goto error_exit;
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME, NULL, NULL))
-    {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         goto error_exit;
     }
@@ -88,8 +87,7 @@ main(
                 printf("failed to write memory to file.\n");
                 goto error_exit;
             }
-        }
-        else {
+        } else {
             /* memory not mapped, write zeros to maintain offset */
             size_t written = fwrite(zeros, 1, PAGE_SIZE, f);
 

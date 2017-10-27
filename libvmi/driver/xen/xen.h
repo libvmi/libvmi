@@ -29,7 +29,7 @@
 #define XEN_DRIVER_H
 
 #if ENABLE_XEN_EVENTS == 1
- #include "driver/xen/xen_events.h"
+#include "driver/xen/xen_events.h"
 #endif
 
 status_t xen_init(

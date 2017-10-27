@@ -75,12 +75,12 @@ START_TEST (test_vmi_get_dgpma)
         }
 
         fail_unless(read_pa == read_dgpma, "vmi_get_dgpma(0x%"PRIx64
-            ") read size %d dosn't conform to %d of vmi_read_pa()",
-            pa, read_dgpma, read_pa);
+                    ") read size %d dosn't conform to %d of vmi_read_pa()",
+                    pa, read_dgpma, read_pa);
 
         int cmp = memcmp(buf_readpa, buf_dgpma, read_pa);
         fail_unless(0 == cmp, "vmi_get_dgpma(0x%"PRIx64
-            ") contents dosn't conform to vmi_read_pa()", pa);
+                    ") contents dosn't conform to vmi_read_pa()", pa);
     }
     free(buf_readpa);
 
@@ -108,12 +108,12 @@ START_TEST (test_vmi_get_dgvma)
         size_t read_va = vmi_read_va(vmi, va, 0, buf_readva, count);
         size_t read_dgvma = vmi_get_dgvma(vmi, va, 0, &buf_dgvma, count);
         fail_unless(read_va == read_dgvma, "vmi_get_dgvma(0x%"PRIx64
-            ") read size %d dosn't conform to %d of vmi_read_va()",
-            va, read_dgvma, read_va);
+                    ") read size %d dosn't conform to %d of vmi_read_va()",
+                    va, read_dgvma, read_va);
 
         int cmp = memcmp(buf_readva, buf_dgvma, read_va);
         fail_unless(0 == cmp, "vmi_get_dgvma(0x%"PRIx64
-            ") contents dosn't conform to vmi_read_va()", va);
+                    ") contents dosn't conform to vmi_read_va()", va);
     }
     free(buf_readva);
 
@@ -132,9 +132,9 @@ TCase *shm_snapshot_tcase (void)
 #if ENABLE_SHM_SNAPSHOT == 1
     tcase_add_test(tc_init, test_libvmi_shm_snapshot_create);
     tcase_add_test(tc_init, test_vmi_get_dgpma);
-    #if ENABLE_KVM == 1
+#if ENABLE_KVM == 1
     tcase_add_test(tc_init, test_vmi_get_dgvma);
-    #endif
+#endif
 #endif
     return tc_init;
 }

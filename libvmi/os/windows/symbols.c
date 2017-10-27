@@ -39,28 +39,26 @@ windows_rekall_profile_symbol_to_rva(
 
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
-    if(!windows || !symbol) {
+    if (!windows || !symbol) {
         goto exit;
     }
 
     json_error_t error;
     json_t *root = json_load_file(windows->rekall_profile, 0, &error);
-    if(!root)
-    {
+    if (!root) {
         errprint("Rekall profile error on line %d: %s\n", error.line, error.text);
         goto exit;
     }
 
-    if(!json_is_object(root))
-    {
+    if (!json_is_object(root)) {
         errprint("Rekall profile: root is not an objet\n");
         goto err_exit;
     }
 
-    if(!subsymbol) {
+    if (!subsymbol) {
         json_t *constants = json_object_get(root, "$CONSTANTS");
         json_t *jsymbol = json_object_get(constants, symbol);
-        if(!jsymbol) {
+        if (!jsymbol) {
             dbprint(VMI_DEBUG_MISC, "Rekall profile: symbol '%s' not found\n", symbol);
             goto err_exit;
         }
@@ -71,14 +69,14 @@ windows_rekall_profile_symbol_to_rva(
     } else {
         json_t *structs = json_object_get(root, "$STRUCTS");
         json_t *jstruct = json_object_get(structs, symbol);
-        if(!jstruct) {
+        if (!jstruct) {
             dbprint(VMI_DEBUG_MISC, "Rekall profile: structure '%s' not found\n", symbol);
             goto err_exit;
         }
 
         json_t *jstruct2 = json_array_get(jstruct, 1);
         json_t *jmember = json_object_get(jstruct2, subsymbol);
-        if(!jmember) {
+        if (!jmember) {
             dbprint(VMI_DEBUG_MISC, "Rekall profile: structure member '%s' not found\n", subsymbol);
             goto err_exit;
         }

@@ -40,7 +40,7 @@ dbprint(
     char *format,
     ...)
 {
-    if(category & VMI_DEBUG) {
+    if (category & VMI_DEBUG) {
         va_list args;
 
         va_start(args, format);
@@ -150,8 +150,7 @@ vmi_convert_str_encoding(
         if (EINVAL == errno) {
             dbprint(VMI_DEBUG_READ, "%s: conversion from '%s' to '%s' not supported\n",
                     __FUNCTION__, in->encoding, out->encoding);
-        }
-        else {
+        } else {
             dbprint(VMI_DEBUG_READ, "%s: Initializiation failure: %s\n", __FUNCTION__,
                     strerror(errno));
         }   // if-else
@@ -166,18 +165,18 @@ vmi_convert_str_encoding(
                 "out string '%s' length %zu\n", __FUNCTION__,
                 in->contents, in->length, out->contents, outlen);
         switch (errno) {
-        case EILSEQ:
-            dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
-            break;
-        case EINVAL:
-            dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
-            break;
-        case E2BIG:
-            dbprint(VMI_DEBUG_READ, "no more room");
-            break;
-        default:
-            dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
-            break;
+            case EILSEQ:
+                dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
+                break;
+            case EINVAL:
+                dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
+                break;
+            case E2BIG:
+                dbprint(VMI_DEBUG_READ, "no more room");
+                break;
+            default:
+                dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
+                break;
         }   // switch
         goto fail;
     }   // if failure

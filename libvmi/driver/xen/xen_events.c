@@ -35,31 +35,28 @@ status_t wait_for_event_or_timeout(xen_instance_t *xen, xc_evtchn *xce, unsigned
     };
 
     switch ( poll(&fd, 1, ms) ) {
-    case -1:
-        if (errno == EINTR)
+        case -1:
+            if (errno == EINTR)
+                return VMI_SUCCESS;
+
+            errprint("Poll exited with an error\n");
+            return VMI_FAILURE;
+        case 0:
             return VMI_SUCCESS;
+        default: {
+            int port = xen->libxcw.xc_evtchn_pending(xce);
+            if ( -1 == port ) {
+                errprint("Failed to read port from event channel\n");
+                return VMI_FAILURE;
+            }
 
-        errprint("Poll exited with an error\n");
-        return VMI_FAILURE;
-    case 0:
-        return VMI_SUCCESS;
-    default:
-    {
-        int port = xen->libxcw.xc_evtchn_pending(xce);
-        if ( -1 == port )
-        {
-            errprint("Failed to read port from event channel\n");
-            return VMI_FAILURE;
+            if ( xen->libxcw.xc_evtchn_unmask(xce, port) ) {
+                errprint("Failed to unmask event channel port\n");
+                return VMI_FAILURE;
+            }
+
+            return VMI_SUCCESS;
         }
-
-        if ( xen->libxcw.xc_evtchn_unmask(xce, port) )
-        {
-            errprint("Failed to unmask event channel port\n");
-            return VMI_FAILURE;
-        }
-
-        return VMI_SUCCESS;
-    }
     };
 
     return VMI_FAILURE;

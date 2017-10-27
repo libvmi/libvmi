@@ -46,8 +46,7 @@ vmi_print_hex(
             index = i * 16 + j;
             if (index < length) {
                 printf("%.2x ", data[index]);
-            }
-            else {
+            } else {
                 printf("   ");
             }
         }
@@ -58,8 +57,7 @@ vmi_print_hex(
             index = i * 16 + j;
             if (index < length) {
                 printf("%.2x ", data[index]);
-            }
-            else {
+            } else {
                 printf("   ");
             }
         }
@@ -71,8 +69,7 @@ vmi_print_hex(
             if (index < length) {
                 if (isprint((int) data[index])) {
                     printf("%c", data[index]);
-                }
-                else {
+                } else {
                     printf(".");
                 }
             }
@@ -89,7 +86,7 @@ vmi_print_hex_pa(
 {
     unsigned char *buf = safe_malloc(length);
 
-    if( VMI_SUCCESS == vmi_read_pa(vmi, paddr, length, buf, NULL) )
+    if ( VMI_SUCCESS == vmi_read_pa(vmi, paddr, length, buf, NULL) )
         vmi_print_hex(buf, length);
     free(buf);
 }

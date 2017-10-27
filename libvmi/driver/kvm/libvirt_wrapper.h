@@ -32,37 +32,37 @@ typedef struct {
     void *handle;
 
     virConnectPtr (*virConnectOpenAuth)
-        (const char *name, virConnectAuthPtr auth, unsigned int flags);
+    (const char *name, virConnectAuthPtr auth, unsigned int flags);
 
     int (*virConnectGetLibVersion)
-        (virConnectPtr conn, unsigned long *libVer);
+    (virConnectPtr conn, unsigned long *libVer);
 
     int (*virConnectClose)
-        (virConnectPtr conn);
+    (virConnectPtr conn);
 
     const char* (*virDomainGetName)
-        (virDomainPtr domain);
+    (virDomainPtr domain);
 
     unsigned int (*virDomainGetID)
-        (virDomainPtr domain);
+    (virDomainPtr domain);
 
     virDomainPtr (*virDomainLookupByID)
-        (virConnectPtr conn, int id);
+    (virConnectPtr conn, int id);
 
     virDomainPtr (*virDomainLookupByName)
-        (virConnectPtr conn, const char *name);
+    (virConnectPtr conn, const char *name);
 
     int (*virDomainGetInfo)
-        (virDomainPtr domain, virDomainInfoPtr info);
+    (virDomainPtr domain, virDomainInfoPtr info);
 
     int (*virDomainFree)
-        (virDomainPtr domain);
+    (virDomainPtr domain);
 
     int (*virDomainSuspend)
-        (virDomainPtr domain);
+    (virDomainPtr domain);
 
     int (*virDomainResume)
-        (virDomainPtr domain);
+    (virDomainPtr domain);
 
     virConnectAuthPtr virConnectAuthPtrDefault;
 

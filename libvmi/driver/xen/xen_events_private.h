@@ -128,7 +128,7 @@ vmi_flags_sanity_check(vmi_mem_access_t page_access_flag)
      * AN EPT misconfiguration occurs if any of the following is identified while translating a guest-physical address:
      * * The value of bits 2:0 of an EPT paging-structure entry is either 010b (write-only) or 110b (write/execute).
      */
-    if(page_access_flag == VMI_MEMACCESS_R || page_access_flag == VMI_MEMACCESS_RX) {
+    if (page_access_flag == VMI_MEMACCESS_R || page_access_flag == VMI_MEMACCESS_RX) {
         errprint("%s error: can't set requested memory access, unsupported by EPT.\n", __FUNCTION__);
         return VMI_FAILURE;
     }

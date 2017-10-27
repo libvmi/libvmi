@@ -776,7 +776,7 @@ int vmi_are_events_pending(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 vmi_event_t *vmi_get_singlestep_event (vmi_instance_t vmi,
-    uint32_t vcpu);
+                                       uint32_t vcpu);
 
 /**
  * Disables the MTF single step flag from a vcpu as well as the

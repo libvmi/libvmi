@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -53,9 +53,8 @@ int main (int argc, char **argv)
 
     /* initialize the libvmi library */
     if (VMI_FAILURE ==
-        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, NULL,
-                          VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
-    {
+            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, NULL,
+                              VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -68,8 +67,7 @@ int main (int argc, char **argv)
             goto error_exit;
         if ( VMI_FAILURE == vmi_get_offset(vmi, "linux_pid", &pid_offset) )
             goto error_exit;
-    }
-    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
+    } else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         if ( VMI_FAILURE == vmi_get_offset(vmi, "win_tasks", &tasks_offset) )
             goto error_exit;
         if ( VMI_FAILURE == vmi_get_offset(vmi, "win_pname", &name_offset) )
@@ -95,8 +93,7 @@ int main (int argc, char **argv)
         uint64_t id = vmi_get_vmid(vmi);
 
         printf("Process listing for VM %s (id=%"PRIu64")\n", name2, id);
-    }
-    else {
+    } else {
         printf("Process listing for file %s\n", name2);
     }
     free(name2);
@@ -113,11 +110,10 @@ int main (int argc, char **argv)
             goto error_exit;
 
         list_head += tasks_offset;
-    }
-    else if (VMI_OS_WINDOWS == os) {
+    } else if (VMI_OS_WINDOWS == os) {
 
         // find PEPROCESS PsInitialSystemProcess
-        if(VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsActiveProcessHead", &list_head)) {
+        if (VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsActiveProcessHead", &list_head)) {
             printf("Failed to find PsActiveProcessHead\n");
             goto error_exit;
         }
@@ -176,8 +172,7 @@ int main (int argc, char **argv)
          */
         if (VMI_OS_WINDOWS == os && next_list_entry == list_head) {
             break;
-        }
-        else if (VMI_OS_LINUX == os && cur_list_entry == list_head) {
+        } else if (VMI_OS_LINUX == os && cur_list_entry == list_head) {
             break;
         }
 

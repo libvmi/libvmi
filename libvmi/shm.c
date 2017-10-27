@@ -155,10 +155,9 @@ v2m_cache_del(
     // key collision doesn't really matter here because worst case
     // scenario we incur an small performance hit
 
-    if (TRUE == g_hash_table_remove(vmi->v2m_cache, key)){
+    if (TRUE == g_hash_table_remove(vmi->v2m_cache, key)) {
         return VMI_SUCCESS;
-    }
-    else{
+    } else {
         return VMI_FAILURE;
     }
 }

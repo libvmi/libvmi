@@ -33,16 +33,16 @@
 uint8_t vmi_get_address_width(
     vmi_instance_t vmi)
 {
-    switch(vmi->page_mode) {
-    case VMI_PM_AARCH64:
-    case VMI_PM_IA32E:
-        return 8;
-    case VMI_PM_AARCH32:
-    case VMI_PM_LEGACY:
-    case VMI_PM_PAE:
-        return 4;
-    default:
-        return 0;
+    switch (vmi->page_mode) {
+        case VMI_PM_AARCH64:
+        case VMI_PM_IA32E:
+            return 8;
+        case VMI_PM_AARCH32:
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE:
+            return 4;
+        default:
+            return 0;
     }
 }
 
@@ -87,24 +87,24 @@ vmi_get_winver_str(
     win_ver_t ver = vmi_get_winver(vmi);
 
     switch (ver) {
-    case VMI_OS_WINDOWS_NONE:
-        return "VMI_OS_WINDOWS_NONE";
-    case VMI_OS_WINDOWS_UNKNOWN:
-        return "VMI_OS_WINDOWS_UNKNOWN";
-    case VMI_OS_WINDOWS_2000:
-        return "VMI_OS_WINDOWS_2000";
-    case VMI_OS_WINDOWS_XP:
-        return "VMI_OS_WINDOWS_XP";
-    case VMI_OS_WINDOWS_2003:
-        return "VMI_OS_WINDOWS_2003";
-    case VMI_OS_WINDOWS_VISTA:
-        return "VMI_OS_WINDOWS_VISTA";
-    case VMI_OS_WINDOWS_2008:
-        return "VMI_OS_WINDOWS_2008";
-    case VMI_OS_WINDOWS_7:
-        return "VMI_OS_WINDOWS_7";
-    default:
-        return "<Illegal value for Windows version>";
+        case VMI_OS_WINDOWS_NONE:
+            return "VMI_OS_WINDOWS_NONE";
+        case VMI_OS_WINDOWS_UNKNOWN:
+            return "VMI_OS_WINDOWS_UNKNOWN";
+        case VMI_OS_WINDOWS_2000:
+            return "VMI_OS_WINDOWS_2000";
+        case VMI_OS_WINDOWS_XP:
+            return "VMI_OS_WINDOWS_XP";
+        case VMI_OS_WINDOWS_2003:
+            return "VMI_OS_WINDOWS_2003";
+        case VMI_OS_WINDOWS_VISTA:
+            return "VMI_OS_WINDOWS_VISTA";
+        case VMI_OS_WINDOWS_2008:
+            return "VMI_OS_WINDOWS_2008";
+        case VMI_OS_WINDOWS_7:
+            return "VMI_OS_WINDOWS_7";
+        default:
+            return "<Illegal value for Windows version>";
     }   // switch
 }
 
@@ -231,24 +231,23 @@ vmi_get_name(
 
     if (VMI_FAILURE == driver_get_name(vmi, &name)) {
         return NULL;
-    }
-    else {
+    } else {
         return name;
     }
 }
 
 const char *
 vmi_get_rekall_path(
-    vmi_instance_t vmi){
+    vmi_instance_t vmi)
+{
 
-    switch(vmi_get_ostype(vmi))
-    {
-    case VMI_OS_LINUX:
-        return (const char*)((linux_instance_t)vmi->os_data)->rekall_profile;
-    case VMI_OS_WINDOWS:
-        return (const char*)((windows_instance_t)vmi->os_data)->rekall_profile;
-    default:
-        return NULL;
+    switch (vmi_get_ostype(vmi)) {
+        case VMI_OS_LINUX:
+            return (const char*)((linux_instance_t)vmi->os_data)->rekall_profile;
+        case VMI_OS_WINDOWS:
+            return (const char*)((windows_instance_t)vmi->os_data)->rekall_profile;
+        default:
+            return NULL;
     }
 }
 
@@ -257,7 +256,7 @@ vmi_get_vmid(
     vmi_instance_t vmi)
 {
     uint64_t domid = VMI_INVALID_DOMID;
-    if(VMI_INVALID_DOMID == (domid = driver_get_id(vmi))) {
+    if (VMI_INVALID_DOMID == (domid = driver_get_id(vmi))) {
         char *name = vmi_get_name(vmi);
         domid = driver_get_id_from_name(vmi, name);
         free(name);
@@ -297,7 +296,7 @@ status_t vmi_translate_sym2v (vmi_instance_t vmi, const access_context_t *ctx, c
     addr_t address = 0;
     addr_t dtb = 0;
 
-    switch(ctx->translate_mechanism) {
+    switch (ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
             if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
                 return VMI_FAILURE;
@@ -311,7 +310,7 @@ status_t vmi_translate_sym2v (vmi_instance_t vmi, const access_context_t *ctx, c
     };
 
     status = sym_cache_get(vmi, ctx->addr, dtb, symbol, &address);
-    if( VMI_FAILURE == status) {
+    if ( VMI_FAILURE == status) {
         if (vmi->os_interface && vmi->os_interface->os_usym2rva) {
             status  = vmi->os_interface->os_usym2rva(vmi, ctx, symbol, &rva);
             if ( VMI_SUCCESS == status ) {
@@ -331,7 +330,7 @@ const char* vmi_translate_v2sym(vmi_instance_t vmi, const access_context_t *ctx,
     char *ret = NULL;
     addr_t dtb = 0;
 
-    switch(ctx->translate_mechanism) {
+    switch (ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
             if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
                 return NULL;
@@ -363,7 +362,7 @@ const char* vmi_translate_v2ksym(vmi_instance_t vmi, const access_context_t *ctx
     char *ret = NULL;
     addr_t dtb = 0;
 
-    switch(ctx->translate_mechanism) {
+    switch (ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
             if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
                 return NULL;
@@ -435,8 +434,9 @@ vmi_read_page (vmi_instance_t vmi, addr_t frame_num)
     return driver_read_page(vmi, frame_num);
 }
 
-GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb) {
-    if(vmi->arch_interface && vmi->arch_interface->get_va_pages) {
+GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb)
+{
+    if (vmi->arch_interface && vmi->arch_interface->get_va_pages) {
         return vmi->arch_interface->get_va_pages(vmi, dtb);
     } else {
         dbprint(VMI_DEBUG_PTLOOKUP, "Invalid or not supported paging mode during get_va_pages\n");
@@ -466,7 +466,7 @@ status_t vmi_pagetable_lookup_cache(
                          .dtb = dtb
                        };
 
-    if(!paddr) return ret;
+    if (!paddr) return ret;
 
     *paddr = 0;
 
@@ -478,14 +478,13 @@ status_t vmi_pagetable_lookup_cache(
 
         if (VMI_SUCCESS == vmi_read_8_pa(vmi, *paddr, &value)) {
             return VMI_SUCCESS;
-        }
-        else {
+        } else {
             if ( VMI_FAILURE == v2p_cache_del(vmi, vaddr, dtb) )
                 return VMI_FAILURE;
         }
     }
 
-    if(vmi->arch_interface && vmi->arch_interface->v2p) {
+    if (vmi->arch_interface && vmi->arch_interface->v2p) {
         ret = vmi->arch_interface->v2p(vmi, dtb, vaddr, &info);
     } else {
         errprint("Invalid paging mode during vmi_pagetable_lookup\n");
@@ -509,13 +508,13 @@ status_t vmi_pagetable_lookup_extended(
 {
     status_t ret = VMI_FAILURE;
 
-    if(!info) return ret;
+    if (!info) return ret;
 
     memset(info, 0, sizeof(page_info_t));
     info->vaddr = vaddr;
     info->dtb = dtb;
 
-    if(vmi->arch_interface && vmi->arch_interface->v2p) {
+    if (vmi->arch_interface && vmi->arch_interface->v2p) {
         ret = vmi->arch_interface->v2p(vmi, dtb, vaddr, info);
     } else {
         errprint("Invalid paging mode during vmi_pagetable_lookup\n");
@@ -574,11 +573,11 @@ vmi_get_linux_sysmap(
 {
     linux_instance_t linux_instance = NULL;
 
-    if(VMI_OS_LINUX != vmi->os_type){
+    if (VMI_OS_LINUX != vmi->os_type) {
         return NULL;
     }
 
-    if(!vmi->os_data){
+    if (!vmi->os_data) {
         return NULL;
     }
 

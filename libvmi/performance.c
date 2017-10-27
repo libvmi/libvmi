@@ -96,12 +96,12 @@ UNUSED_FUNCTION(avg_measurement)(
     }
     printf("mean %f, stdev %f\n",
            (double) ((double) sum / (double) loops), stddev(data,
-                                                            loops));
+                   loops));
 }
 
 void
 timer_start(
-    )
+)
 {
     gettimeofday(&startTime, 0);
 }

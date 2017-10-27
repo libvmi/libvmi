@@ -42,13 +42,13 @@ START_TEST (test_get_va_pages)
                       VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     GHashTable *config = NULL;
 
-    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
+    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         addr_t dtb = 0;
         vmi_pid_to_dtb(vmi, 4, &dtb);
         GSList *list = vmi_get_va_pages(vmi, dtb);
         fail_unless(list != NULL, "vmi_get_va_pages failed");
         GSList *loop = list;
-        while(loop) {
+        while (loop) {
             free(loop->data);
             loop=loop->next;
         }

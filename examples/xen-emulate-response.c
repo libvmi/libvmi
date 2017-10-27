@@ -31,25 +31,28 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-void print_event(vmi_event_t *event){
+void print_event(vmi_event_t *event)
+{
     printf("PAGE ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %"PRIu32")\n",
-        (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
-        (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
-        (event->mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
-        event->mem_event.gfn,
-        event->mem_event.offset,
-        event->mem_event.gla,
-        event->vcpu_id
-    );
+           (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
+           (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
+           (event->mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
+           event->mem_event.gfn,
+           event->mem_event.offset,
+           event->mem_event.gla,
+           event->vcpu_id
+          );
 }
 
-event_response_t cb(vmi_instance_t vmi, vmi_event_t *event) {
+event_response_t cb(vmi_instance_t vmi, vmi_event_t *event)
+{
     print_event(event);
     return VMI_EVENT_RESPONSE_EMULATE;
 }
 
 static int interrupted = 0;
-static void close_handler(int sig){
+static void close_handler(int sig)
+{
     interrupted = sig;
 }
 
@@ -59,7 +62,7 @@ int main (int argc, char **argv)
     status_t status = VMI_SUCCESS;
     struct sigaction act;
 
-    if(argc < 3){
+    if (argc < 3) {
         fprintf(stderr, "Usage: xen-emulate-response <name of VM> <kernel virtual address trap in hex>\n");
         return 1;
     }
@@ -83,9 +86,8 @@ int main (int argc, char **argv)
 
     // Initialize the libvmi library.
     if (VMI_FAILURE ==
-        vmi_init_complete(&vmi, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                          NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
-    {
+            vmi_init_complete(&vmi, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
+                              NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -104,7 +106,7 @@ int main (int argc, char **argv)
     if ( VMI_FAILURE == vmi_register_event(vmi, &event) )
         goto leave;
 
-    while(!interrupted){
+    while (!interrupted) {
         printf("Waiting for events...\n");
         status = vmi_events_listen(vmi,500);
         if (status != VMI_SUCCESS) {

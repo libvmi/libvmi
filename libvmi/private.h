@@ -213,7 +213,7 @@ typedef struct _windows_unicode_string32 {
     uint16_t maximum_length;
     uint32_t pBuffer;   // pointer to string contents
 } __attribute__ ((packed))
-    win32_unicode_string_t;
+win32_unicode_string_t;
 
 /** Windows' UNICODE_STRING structure (x64) */
 typedef struct _windows_unicode_string64 {
@@ -222,13 +222,14 @@ typedef struct _windows_unicode_string64 {
     uint32_t padding;   // align pBuffer
     uint64_t pBuffer;   // pointer to string contents
 } __attribute__ ((packed))
-    win64_unicode_string_t;
+win64_unicode_string_t;
 
 /*----------------------------------------------
  * Misc functions
  */
 static inline
-addr_t canonical_addr(addr_t va) {
+addr_t canonical_addr(addr_t va)
+{
     return VMI_GET_BIT(va, 47) ? (va | 0xffff000000000000) : va;
 }
 
@@ -238,29 +239,29 @@ addr_t canonical_addr(addr_t va) {
 #ifndef VMI_DEBUG
 #define dbprint(category, format, args...) ((void)0)
 #else
-    void dbprint(
+void dbprint(
     vmi_debug_flag_t category,
     char *format,
     ...) __attribute__((format(printf,2,3)));
 #endif
-    void errprint(
+void errprint(
     char *format,
     ...) __attribute__((format(printf,1,2)));
-    void warnprint(
+void warnprint(
     char *format,
     ...) __attribute__((format(printf,1,2)));
 
 #define safe_malloc(size) safe_malloc_ (size, __FILE__, __LINE__)
-    void *safe_malloc_(
+void *safe_malloc_(
     size_t size,
     char const *file,
     int line);
-    unsigned long get_reg32(
+unsigned long get_reg32(
     reg_t r);
-    addr_t aligned_addr(
+addr_t aligned_addr(
     vmi_instance_t vmi,
     addr_t addr);
-    int is_addr_aligned(
+int is_addr_aligned(
     vmi_instance_t vmi,
     addr_t addr);
 
@@ -279,7 +280,7 @@ addr_t canonical_addr(addr_t va) {
 /*-------------------------------------
  * accessors.c
  */
-    void *vmi_read_page(
+void *vmi_read_page(
     vmi_instance_t vmi,
     addr_t frame_num);
 
@@ -293,7 +294,7 @@ status_t vmi_pagetable_lookup_cache(
  * memory.c
  */
 
-    #define PSR_MODE_BIT 0x10 // set on cpsr iff ARM32
+#define PSR_MODE_BIT 0x10 // set on cpsr iff ARM32
 
 status_t find_page_mode_live(
     vmi_instance_t vmi,
@@ -304,17 +305,17 @@ status_t find_page_mode_live(
  * strmatch.c
  */
 
-    void *boyer_moore_init(
+void *boyer_moore_init(
     unsigned char *x,
     int m);
-    int boyer_moore2(
+int boyer_moore2(
     void *bm,
     unsigned char *y,
     int n);
-    void boyer_moore_fini(
+void boyer_moore_fini(
     void *bm);
 
-    int boyer_moore(
+int boyer_moore(
     unsigned char *x,
     int m,
     unsigned char *y,
@@ -323,52 +324,52 @@ status_t find_page_mode_live(
 /*-----------------------------------------
  * performance.c
  */
-    void timer_start(
-    );
-    void timer_stop(
+void timer_start(
+);
+void timer_stop(
     const char *id);
 
 /*----------------------------------------------
  * events.c
  */
-    status_t events_init(
-        vmi_instance_t vmi);
-    void events_destroy(
-        vmi_instance_t vmi);
-    gboolean event_entry_free (
-        gpointer key,
-        gpointer value,
-        gpointer data);
-    status_t swap_events(
-        vmi_instance_t vmi,
-        vmi_event_t *swap_from,
-        vmi_event_t *swap_to,
-        vmi_event_free_t free_routine);
-    gboolean clear_events(
-        gpointer key,
-        gpointer value,
-        gpointer data);
-    gboolean clear_events_full(
-        gpointer key,
-        gpointer value,
-        gpointer data);
+status_t events_init(
+    vmi_instance_t vmi);
+void events_destroy(
+    vmi_instance_t vmi);
+gboolean event_entry_free (
+    gpointer key,
+    gpointer value,
+    gpointer data);
+status_t swap_events(
+    vmi_instance_t vmi,
+    vmi_event_t *swap_from,
+    vmi_event_t *swap_to,
+    vmi_event_free_t free_routine);
+gboolean clear_events(
+    gpointer key,
+    gpointer value,
+    gpointer data);
+gboolean clear_events_full(
+    gpointer key,
+    gpointer value,
+    gpointer data);
 
-    #define ghashtable_foreach(table, iter, key, val) \
+#define ghashtable_foreach(table, iter, key, val) \
         g_hash_table_iter_init(&iter, table); \
         while(g_hash_table_iter_next(&iter,(void**)key,(void**)val))
 
 /*----------------------------------------------
  * os/windows/core.c
  */
-    addr_t get_ntoskrnl_base(
-        vmi_instance_t vmi,
-        addr_t page_paddr);
+addr_t get_ntoskrnl_base(
+    vmi_instance_t vmi,
+    addr_t page_paddr);
 
 /*----------------------------------------------
  * os/windows/kdbg.c
  */
-    win_ver_t find_windows_version(
-        vmi_instance_t vmi,
-        addr_t kdbg);
+win_ver_t find_windows_version(
+    vmi_instance_t vmi,
+    addr_t kdbg);
 
 #endif /* PRIVATE_H */

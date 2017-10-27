@@ -34,7 +34,8 @@
  * check that this vm uses a paging method that we support
  * and set pm/cr3/pae/pse/lme flags optionally on the given pointers
  */
-status_t probe_memory_layout_x86(vmi_instance_t vmi, unsigned long vcpu, page_mode_t *out_pm) {
+status_t probe_memory_layout_x86(vmi_instance_t vmi, unsigned long vcpu, page_mode_t *out_pm)
+{
     // To get the paging layout, the following bits are needed:
     // 1. CR0.PG
     // 2. CR4.PAE
@@ -132,7 +133,8 @@ _exit:
     return ret;
 }
 
-status_t probe_memory_layout_arm(vmi_instance_t vmi, unsigned long vcpu, page_mode_t *out_pm) {
+status_t probe_memory_layout_arm(vmi_instance_t vmi, unsigned long vcpu, page_mode_t *out_pm)
+{
     //Note: this will need to be a more comprehensive check when we start supporting AArch64
     status_t ret = VMI_FAILURE;
     page_mode_t pm = VMI_PM_UNKNOWN;
@@ -148,7 +150,7 @@ status_t probe_memory_layout_arm(vmi_instance_t vmi, unsigned long vcpu, page_mo
             if ( !out_pm && VMI_SUCCESS == driver_get_vcpureg(vmi, &tcr_el1, TCR_EL1, vcpu)) {
                 vmi->arm64.t0sz = tcr_el1 & VMI_BIT_MASK(0,5);
                 vmi->arm64.t1sz = (tcr_el1 & VMI_BIT_MASK(16,21)) >> 16;
-                switch((tcr_el1 & VMI_BIT_MASK(14,15)) >> 14) {
+                switch ((tcr_el1 & VMI_BIT_MASK(14,15)) >> 14) {
                     case 0b00:
                         vmi->arm64.tg0 = VMI_PS_4KB;
                         break;
@@ -159,7 +161,7 @@ status_t probe_memory_layout_arm(vmi_instance_t vmi, unsigned long vcpu, page_mo
                         vmi->arm64.tg0 = VMI_PS_16KB;
                         break;
                 };
-                switch((tcr_el1 & VMI_BIT_MASK(30,31)) >> 30) {
+                switch ((tcr_el1 & VMI_BIT_MASK(30,31)) >> 30) {
                     case 0b01:
                         vmi->arm64.tg1 = VMI_PS_16KB;
                         break;
@@ -182,8 +184,7 @@ status_t probe_memory_layout_arm(vmi_instance_t vmi, unsigned long vcpu, page_mo
         ret = VMI_SUCCESS;
     }
 
-    if ( VMI_SUCCESS == ret )
-    {
+    if ( VMI_SUCCESS == ret ) {
         if ( out_pm )
             *out_pm = pm;
         else
@@ -197,7 +198,8 @@ status_t probe_memory_layout_arm(vmi_instance_t vmi, unsigned long vcpu, page_mo
  * This function attempts to probe the memory layout
  * of a live VM to find the correct page mode.
  */
-status_t find_page_mode_live(vmi_instance_t vmi, unsigned long vcpu, page_mode_t *out_pm) {
+status_t find_page_mode_live(vmi_instance_t vmi, unsigned long vcpu, page_mode_t *out_pm)
+{
     if (VMI_FILE == vmi->mode) {
         /* skip all of this for files */
         return VMI_FAILURE;

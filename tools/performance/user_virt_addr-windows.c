@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -22,7 +22,7 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
- */  
+ */
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -33,7 +33,7 @@
 #include "xenaccess/xenaccess.h"
 #include "common.h"
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
     xa_instance_t xai;
     xa_windows_peb_t peb;
@@ -49,8 +49,8 @@ int main(int argc, char **argv)
     int i = 0;
     long int diff;
     long int *data = malloc(loops * sizeof(int));
-    
-    /* initialize the xen access library */ 
+
+    /* initialize the xen access library */
     xa_init_vm_id_strict(dom, &xai);
     if (xa_windows_get_peb(&xai, pid, &peb) == XA_FAILURE) {
         perror("failed to get windows peb");

@@ -75,13 +75,11 @@ status_t driver_init_mode(const char *name, uint64_t domainid, vmi_mode_t *mode)
         errprint("Could not find a live guest VM or file to use.\n");
         errprint("Opening a live guest VM requires root access.\n");
         return VMI_FAILURE;
-    }
-    else if (count > 1) {
+    } else if (count > 1) {
         errprint
-            ("Found more than one VMM or file to use,\nplease specify what you want instead of using VMI_AUTO.\n");
+        ("Found more than one VMM or file to use,\nplease specify what you want instead of using VMI_AUTO.\n");
         return VMI_FAILURE;
-    }
-    else {  // count == 1
+    } else { // count == 1
         return VMI_SUCCESS;
     }
 }
@@ -91,33 +89,31 @@ status_t driver_init(vmi_instance_t vmi,
                      void *init_data)
 {
     status_t rc = VMI_FAILURE;
-    if (vmi->driver.initialized)
-    {
+    if (vmi->driver.initialized) {
         errprint("Driver is already initialized.\n");
         return rc;
     }
 
     bzero(&vmi->driver, sizeof(driver_interface_t));
 
-    switch (vmi->mode)
-    {
+    switch (vmi->mode) {
 #if ENABLE_XEN == 1
-    case VMI_XEN:
-        rc = driver_xen_setup(vmi);
-        break;
+        case VMI_XEN:
+            rc = driver_xen_setup(vmi);
+            break;
 #endif
 #if ENABLE_KVM == 1
-    case VMI_KVM:
-        rc = driver_kvm_setup(vmi);
-        break;
+        case VMI_KVM:
+            rc = driver_kvm_setup(vmi);
+            break;
 #endif
 #if ENABLE_FILE == 1
-    case VMI_FILE:
-        rc = driver_file_setup(vmi);
-        break;
+        case VMI_FILE:
+            rc = driver_file_setup(vmi);
+            break;
 #endif
-    default:
-        break;
+        default:
+            break;
     };
 
     if (rc == VMI_SUCCESS && vmi->driver.init_ptr)

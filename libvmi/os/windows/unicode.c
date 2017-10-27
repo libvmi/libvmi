@@ -52,8 +52,7 @@ windows_read_unicode_struct(
         }   // if
         buffer_va = us64.pBuffer;
         buffer_len = us64.length;
-    }
-    else {
+    } else {
         win32_unicode_string_t us32 = { 0 };
         struct_size = sizeof(us32);
         // read the UNICODE_STRING struct

@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -49,16 +49,17 @@ vmi_event_t kernel_vdso_event;
 vmi_event_t kernel_vsyscall_event;
 vmi_event_t kernel_sysenter_target_event;
 
-void print_event(vmi_event_t event){
+void print_event(vmi_event_t event)
+{
     printf("PAGE ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %"PRIu32")\n",
-        (event.mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
-        (event.mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
-        (event.mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
-        event.mem_event.gfn,
-        event.mem_event.offset,
-        event.mem_event.gla,
-        event.vcpu_id
-    );
+           (event.mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
+           (event.mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
+           (event.mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
+           event.mem_event.gfn,
+           event.mem_event.offset,
+           event.mem_event.gla,
+           event.vcpu_id
+          );
 }
 
 
@@ -66,14 +67,15 @@ void print_event(vmi_event_t event){
  *  used in concert with long mode for certain system calls.
  *  e.g. in 3.2.0 ioctl, getrlimit, etc. (see /usr/include/asm-generic/unistd.h)
  * MSR_STAR     -    legacy mode SYSCALL target (not addressed here)
- * MSR_LSTAR    -    long mode SYSCALL target 
- * MSR_CSTAR    -    compat mode SYSCALL target 
- * 
- * Note that modern code tends to employ the sysenter and/or vDSO mechanisms for 
+ * MSR_LSTAR    -    long mode SYSCALL target
+ * MSR_CSTAR    -    compat mode SYSCALL target
+ *
+ * Note that modern code tends to employ the sysenter and/or vDSO mechanisms for
  *    performance reasons.
  */
 
-event_response_t msr_syscall_sysenter_cb(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t msr_syscall_sysenter_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
     reg_t rdi, rax;
     vmi_get_vcpureg(vmi, &rax, RAX, event->vcpu_id);
     vmi_get_vcpureg(vmi, &rdi, RDI, event->vcpu_id);
@@ -86,7 +88,8 @@ event_response_t msr_syscall_sysenter_cb(vmi_instance_t vmi, vmi_event_t *event)
     return 0;
 }
 
-event_response_t syscall_compat_cb(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t syscall_compat_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
     reg_t rdi, rax;
     vmi_get_vcpureg(vmi, &rax, RAX, event->vcpu_id);
     vmi_get_vcpureg(vmi, &rdi, RDI, event->vcpu_id);
@@ -99,7 +102,8 @@ event_response_t syscall_compat_cb(vmi_instance_t vmi, vmi_event_t *event){
     return 0;
 }
 
-event_response_t vsyscall_cb(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t vsyscall_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
     reg_t rdi, rax;
     vmi_get_vcpureg(vmi, &rax, RAX, event->vcpu_id);
     vmi_get_vcpureg(vmi, &rdi, RDI, event->vcpu_id);
@@ -112,7 +116,8 @@ event_response_t vsyscall_cb(vmi_instance_t vmi, vmi_event_t *event){
     return 0;
 }
 
-event_response_t ia32_sysenter_target_cb(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t ia32_sysenter_target_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
     reg_t rdi, rax;
     vmi_get_vcpureg(vmi, &rax, RAX, event->vcpu_id);
     vmi_get_vcpureg(vmi, &rdi, RDI, event->vcpu_id);
@@ -125,7 +130,8 @@ event_response_t ia32_sysenter_target_cb(vmi_instance_t vmi, vmi_event_t *event)
     return 0;
 }
 
-event_response_t syscall_lm_cb(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t syscall_lm_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
     reg_t rdi, rax;
     vmi_get_vcpureg(vmi, &rax, RAX, event->vcpu_id);
     vmi_get_vcpureg(vmi, &rdi, RDI, event->vcpu_id);
@@ -138,13 +144,14 @@ event_response_t syscall_lm_cb(vmi_instance_t vmi, vmi_event_t *event){
     return 0;
 }
 
-event_response_t cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event)
+{
 
     vmi_pid_t pid = -1;
     vmi_dtb_to_pid(vmi, event->reg_event.value, &pid);
 
     printf("one_task callback\n");
-    if(event->reg_event.value == cr3){
+    if (event->reg_event.value == cr3) {
         printf("My process with PID %"PRIi32", CR3=%"PRIx64" is executing on vcpu %"PRIu32". Previous CR3=%"PRIx64"\n",
                pid, event->reg_event.value, event->vcpu_id, event->reg_event.previous);
         msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
@@ -154,37 +161,38 @@ event_response_t cr3_one_task_callback(vmi_instance_t vmi, vmi_event_t *event){
         kernel_vsyscall_event.mem_event.in_access = VMI_MEMACCESS_X;
         kernel_vsyscall_event.callback=vsyscall_cb;
 
-        if(vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
+        if (vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
             fprintf(stderr, "Could not install sysenter syscall handler.\n");
-        if(vmi_register_event(vmi, &kernel_sysenter_target_event) == VMI_FAILURE)
+        if (vmi_register_event(vmi, &kernel_sysenter_target_event) == VMI_FAILURE)
             fprintf(stderr, "Could not install sysenter syscall handler.\n");
-        if(vmi_register_event(vmi, &kernel_vsyscall_event) == VMI_FAILURE)
+        if (vmi_register_event(vmi, &kernel_vsyscall_event) == VMI_FAILURE)
             fprintf(stderr, "Could not install sysenter syscall handler.\n");
-    }
-    else{
+    } else {
         printf("PID %i is executing, not my process!\n", pid);
         vmi_clear_event(vmi, &msr_syscall_sysenter_event, NULL);
     }
     return 0;
 }
 
-event_response_t cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event)
+{
     vmi_pid_t pid = -1;
     vmi_dtb_to_pid(vmi, event->reg_event.value, &pid);
     printf("PID %i with CR3=%"PRIx64" executing on vcpu %"PRIu32". Previous CR3=%"PRIx64"\n",
-        pid, event->reg_event.value, event->vcpu_id, event->reg_event.previous);
+           pid, event->reg_event.value, event->vcpu_id, event->reg_event.previous);
 
     msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
     msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
 
-    if(vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
+    if (vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
         fprintf(stderr, "Could not install sysenter syscall handler.\n");
     vmi_clear_event(vmi, &msr_syscall_sysenter_event, NULL);
     return 0;
 }
 
 static int interrupted = 0;
-static void close_handler(int sig){
+static void close_handler(int sig)
+{
     interrupted = sig;
 }
 
@@ -210,7 +218,7 @@ int main (int argc, char **argv)
     char *name = NULL;
     vmi_pid_t pid = -1;
 
-    if(argc < 2){
+    if (argc < 2) {
         fprintf(stderr, "Usage: events_example <name of VM> <PID of process to track {optional}>\n");
         exit(1);
     }
@@ -219,7 +227,7 @@ int main (int argc, char **argv)
     name = argv[1];
 
     // Arg 2 is the pid of the process to track.
-    if(argc == 3)
+    if (argc == 3)
         pid = (int) strtoul(argv[2], NULL, 0);
 
     /* for a clean exit */
@@ -233,9 +241,8 @@ int main (int argc, char **argv)
 
     /* initialize the libvmi library */
     if (VMI_FAILURE ==
-        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                          NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
-    {
+            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
+                              NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -243,7 +250,7 @@ int main (int argc, char **argv)
     printf("LibVMI init succeeded!\n");
 
     // Get the cr3 for this process.
-    if(pid != -1) {
+    if (pid != -1) {
         vmi_pid_to_dtb(vmi, pid, &cr3);
         printf("CR3 for process (%d) == %llx\n", pid, (unsigned long long)cr3);
     }
@@ -260,10 +267,10 @@ int main (int argc, char **argv)
     vmi_translate_ksym2v(vmi, "ia32_sysenter_target", &ia32_sysenter_target);
     printf("ksym ia32_sysenter_target == %llx\n", (unsigned long long)ia32_sysenter_target);
 
-    /* Per Linux ABI, this VA represents the start of the vsyscall page 
-     *  If vsyscall support is enabled (deprecated or disabled on many newer 
+    /* Per Linux ABI, this VA represents the start of the vsyscall page
+     *  If vsyscall support is enabled (deprecated or disabled on many newer
      *  3.0+ kernels), it is accessible at this address in every process.
-     */ 
+     */
     vsyscall = 0xffffffffff600000;
 
     // Translate to a physical address.
@@ -298,14 +305,14 @@ int main (int argc, char **argv)
     cr3_event.type = VMI_EVENT_REGISTER;
     cr3_event.reg_event.reg = CR3;
 
-    /* Observe only write events to the given register. 
+    /* Observe only write events to the given register.
      *   NOTE: read events are unsupported at this time.
      */
     cr3_event.reg_event.in_access = VMI_REGACCESS_W;
 
-    /* Optional (default = 0): Trigger on change 
+    /* Optional (default = 0): Trigger on change
      *  Causes events to be delivered by the hypervisor to this monitoring
-     *   program if and only if the register value differs from that previously 
+     *   program if and only if the register value differs from that previously
      *   observed.
      *  Usage: cr3_event.reg_event.onchange = 1;
      *
@@ -316,7 +323,7 @@ int main (int argc, char **argv)
      *  Usage: cr3_event.reg_event.async =1;
      */
 
-    if(pid == -1){
+    if (pid == -1) {
         cr3_event.callback = cr3_all_tasks_callback;
         vmi_register_event(vmi, &cr3_event);
     } else {
@@ -346,7 +353,7 @@ int main (int argc, char **argv)
     kernel_vsyscall_event.type = VMI_EVENT_MEMORY;
     kernel_vsyscall_event.mem_event.gfn = phys_vsyscall >> 12;
 
-    while(!interrupted){
+    while (!interrupted) {
         printf("Waiting for events...\n");
         status = vmi_events_listen(vmi,500);
         if (status != VMI_SUCCESS) {

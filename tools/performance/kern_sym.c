@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -22,7 +22,7 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
- */  
+ */
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -33,7 +33,7 @@
 #include "libvmi/libvmi.h"
 #include "common.h"
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
     vmi_instance_t vmi;
     addr_t vaddr;
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     long int diff;
     long int *data = malloc(loops * sizeof(long int));
 
-    /* initialize the xen access library */ 
+    /* initialize the xen access library */
     vmi_init(&vmi, VMI_AUTO | VMI_INIT_COMPLETE, vm);
     for (i = 0; i < loops; ++i) {
         gettimeofday(&ktv_start, 0);

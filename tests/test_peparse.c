@@ -38,7 +38,8 @@
 #define MAX_HEADER_SIZE     1024
 #define MAX_SEARCH_SIZE     536715264 //512MB
 
-status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_v, uint8_t *pe) {
+status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_v, uint8_t *pe)
+{
 
     status_t ret = VMI_FAILURE;
 
@@ -49,17 +50,17 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_v, uint8_t *pe) {
     peparse_assign_headers(pe, NULL, NULL, &optional_header_type, &optional_pe_header, NULL, NULL);
     addr_t export_header_offset = peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
 
-    if(export_header_offset == 0) {
+    if (export_header_offset == 0) {
         return ret;
     }
 
     // The kernel's export table is continuously allocated on the PA level with the PE header
     // This trick may not work for other PE headers (though may work for some drivers)
-    if( VMI_SUCCESS == vmi_read_va(vmi, base_v + export_header_offset, 0, sizeof(struct export_table), &et, NULL) ) {
+    if ( VMI_SUCCESS == vmi_read_va(vmi, base_v + export_header_offset, 0, sizeof(struct export_table), &et, NULL) ) {
 
         char *name = vmi_read_str_va(vmi, base_v + et.name, 0);
 
-        if(strcmp("ntoskrnl.exe", name)==0)
+        if (strcmp("ntoskrnl.exe", name)==0)
             ret = VMI_SUCCESS;
 
         free(name);
@@ -68,7 +69,8 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_v, uint8_t *pe) {
     return ret;
 }
 
-status_t check_os_version(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
+status_t check_os_version(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe)
+{
 
     status_t ret=VMI_SUCCESS;
     uint16_t major_os_version;
@@ -82,15 +84,14 @@ status_t check_os_version(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe)
 
     //printf("\tVersion: ");
 
-    if(optional_header_type == IMAGE_PE32_MAGIC) {
+    if (optional_header_type == IMAGE_PE32_MAGIC) {
 
         major_os_version=oh32->major_os_version;
         minor_os_version=oh32->minor_os_version;
 
         //printf("32-bit");
 
-    } else
-    if(optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
+    } else if (optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
 
         major_os_version=oh32plus->major_os_version;
         minor_os_version=oh32plus->minor_os_version;
@@ -99,51 +100,44 @@ status_t check_os_version(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe)
 
     }
 
-    if(major_os_version == 3) {
+    if (major_os_version == 3) {
         if (minor_os_version == 1)
-                printf(" Windows NT 3.1");
-        else
-        if (minor_os_version == 5)
-                printf(" Windows NT 3.5");
+            printf(" Windows NT 3.1");
+        else if (minor_os_version == 5)
+            printf(" Windows NT 3.5");
         else
             ret = VMI_FAILURE;
-    } else
-    if(major_os_version == 4) {
-            printf(" Windows NT 4.0");
-    } else
-    if(major_os_version == 5) {
+    } else if (major_os_version == 4) {
+        printf(" Windows NT 4.0");
+    } else if (major_os_version == 5) {
         if (minor_os_version == 0)
-                printf(" Windows 2000");
-        else
-        if (minor_os_version == 1)
-                printf(" Windows XP");
-        else
-        if (minor_os_version == 2)
-                printf(" Windows Server_2003");
+            printf(" Windows 2000");
+        else if (minor_os_version == 1)
+            printf(" Windows XP");
+        else if (minor_os_version == 2)
+            printf(" Windows Server_2003");
         else
             ret = VMI_FAILURE;
-    } else
-    if(major_os_version == 6) {
+    } else if (major_os_version == 6) {
         if (minor_os_version == 0)
-                printf(" Windows Vista or Server 2008");
-        else
-        if (minor_os_version == 1)
-                printf(" Windows 7");
-        else
-        if (minor_os_version == 2)
-                printf(" Windows 8?");
+            printf(" Windows Vista or Server 2008");
+        else if (minor_os_version == 1)
+            printf(" Windows 7");
+        else if (minor_os_version == 2)
+            printf(" Windows 8?");
         else
             ret = VMI_FAILURE;
     } else {
-            printf("OS version unknown or not Windows\n");
-            ret = VMI_FAILURE;
+        printf("OS version unknown or not Windows\n");
+        ret = VMI_FAILURE;
     }
 
     return ret;
 
 }
 
-status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
+status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe)
+{
 
     uint16_t major_os_version;
     uint16_t minor_os_version;
@@ -157,14 +151,13 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
     peparse_assign_headers(pe, NULL, &pe_header, &optional_header_type, NULL, &oh32, &oh32plus);
     addr_t debug_offset = peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_DEBUG, NULL, NULL, oh32, oh32plus);
 
-    if(optional_header_type == IMAGE_PE32_MAGIC) {
+    if (optional_header_type == IMAGE_PE32_MAGIC) {
 
         major_os_version=oh32->major_os_version;
         minor_os_version=oh32->minor_os_version;
         size_of_image=oh32->size_of_image;
 
-    } else
-    if(optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
+    } else if (optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
 
         major_os_version=oh32plus->major_os_version;
         minor_os_version=oh32plus->minor_os_version;
@@ -175,7 +168,7 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
     struct image_debug_directory debug_directory;
     vmi_read_va(vmi, kernel_base_v + debug_offset, 0, sizeof(struct image_debug_directory), (uint8_t *)&debug_directory, NULL);
 
-    if(debug_directory.type == IMAGE_DEBUG_TYPE_MISC) {
+    if (debug_directory.type == IMAGE_DEBUG_TYPE_MISC) {
         /*printf("This operating system uses .dbg instead of .pdb\n");
 
         if(major_os_version == 5 && minor_os_version == 0)
@@ -184,8 +177,7 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
         }*/
 
         return VMI_SUCCESS;
-    } else
-    if(debug_directory.type != IMAGE_DEBUG_TYPE_CODEVIEW) {
+    } else if (debug_directory.type != IMAGE_DEBUG_TYPE_CODEVIEW) {
         printf("The header is not in CodeView format, unable to deal with that!\n");
         return VMI_FAILURE;
     }
@@ -195,28 +187,29 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe) {
 
     // The PDB header has to be PDB 7.0
     // http://www.debuginfo.com/articles/debuginfomatch.html
-    if(pdb_header->cv_signature != RSDS) {
-       printf("The CodeView debug information has to be in PDB 7.0 for the kernel!\n");
-       return VMI_FAILURE;
+    if (pdb_header->cv_signature != RSDS) {
+        printf("The CodeView debug information has to be in PDB 7.0 for the kernel!\n");
+        return VMI_FAILURE;
     }
 
-     printf("\tGUID: ");
-     printf("%.8x", pdb_header->signature.data1);
-     printf("%.4x", pdb_header->signature.data2);
-     printf("%.4x", pdb_header->signature.data3);
+    printf("\tGUID: ");
+    printf("%.8x", pdb_header->signature.data1);
+    printf("%.4x", pdb_header->signature.data2);
+    printf("%.4x", pdb_header->signature.data3);
 
-     int c;
-     for(c=0;c<8;c++) printf("%.2x", pdb_header->signature.data4[c]);
+    int c;
+    for (c=0; c<8; c++) printf("%.2x", pdb_header->signature.data4[c]);
 
-     printf("%.1x", pdb_header->age & 0xf);
-     printf("\n");
-     printf("\tKernel filename: %s\n", pdb_header->pdb_file_name);
+    printf("%.1x", pdb_header->age & 0xf);
+    printf("\n");
+    printf("\tKernel filename: %s\n", pdb_header->pdb_file_name);
 
-     free(pdb_header);
-     return VMI_SUCCESS;
+    free(pdb_header);
+    return VMI_SUCCESS;
 }
 
-status_t check_pe_sections(vmi_instance_t vmi, addr_t image_base_v, uint8_t *pe) {
+status_t check_pe_sections(vmi_instance_t vmi, addr_t image_base_v, uint8_t *pe)
+{
 
     struct pe_header *pe_header = NULL;
     struct dos_header *dos_header = NULL;
@@ -232,7 +225,7 @@ status_t check_pe_sections(vmi_instance_t vmi, addr_t image_base_v, uint8_t *pe)
     printf("\tOptional header size: %u.\n", pe_header->size_of_optional_header);
     printf("\tOptional header type: 0x%x\n", optional_header_type);*/
 
-    if(pe_header->number_of_sections == 0) {
+    if (pe_header->number_of_sections == 0) {
         return VMI_FAILURE;
     }
 
@@ -264,7 +257,7 @@ START_TEST (test_peparse)
                       VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
     addr_t kernbase = 0;
 
-    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi) && VMI_OS_WINDOWS_XP == vmi_get_winver(vmi)){
+    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi) && VMI_OS_WINDOWS_XP == vmi_get_winver(vmi)) {
 
         vmi_translate_ksym2v(vmi, "KernBase", &kernbase);
 
@@ -275,16 +268,16 @@ START_TEST (test_peparse)
             .pid = 0
         };
 
-        if(VMI_SUCCESS == peparse_get_image(vmi, &ctx, MAX_HEADER_SIZE, pe)) {
-            if(VMI_SUCCESS == is_WINDOWS_KERNEL(vmi, kernbase, pe)) {
+        if (VMI_SUCCESS == peparse_get_image(vmi, &ctx, MAX_HEADER_SIZE, pe)) {
+            if (VMI_SUCCESS == is_WINDOWS_KERNEL(vmi, kernbase, pe)) {
 
-                if(VMI_FAILURE == check_os_version(vmi, kernbase, pe))
+                if (VMI_FAILURE == check_os_version(vmi, kernbase, pe))
                     fail_unless(0, "Failed to determine Windows version");
 
-                if(VMI_FAILURE == check_guid(vmi, kernbase, pe))
+                if (VMI_FAILURE == check_guid(vmi, kernbase, pe))
                     fail_unless(0, "Failed to get Windows GUID");
 
-                if(VMI_FAILURE == check_pe_sections(vmi, kernbase, pe))
+                if (VMI_FAILURE == check_pe_sections(vmi, kernbase, pe))
                     fail_unless(0, "Failed to enumerate PE sections");
 
             } else {

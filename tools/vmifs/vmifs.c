@@ -38,16 +38,14 @@ static int vmifs_getattr(const char *path, struct stat *stbuf)
     int res = 0;
 
     memset(stbuf, 0, sizeof(struct stat));
-    if(strcmp(path, "/") == 0) {
+    if (strcmp(path, "/") == 0) {
         stbuf->st_mode = S_IFDIR | 0755;
         stbuf->st_nlink = 2;
-    }
-    else if(strcmp(path, mem_path) == 0) {
+    } else if (strcmp(path, mem_path) == 0) {
         stbuf->st_mode = S_IFREG | 0444;
         stbuf->st_nlink = 1;
         stbuf->st_size = vmi_get_memsize(vmi);
-    }
-    else
+    } else
         res = -ENOENT;
 
     return res;
@@ -59,7 +57,7 @@ static int vmifs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     (void) offset;
     (void) fi;
 
-    if(strcmp(path, "/") != 0)
+    if (strcmp(path, "/") != 0)
         return -ENOENT;
 
     filler(buf, ".", NULL, 0);
@@ -71,11 +69,11 @@ static int vmifs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int vmifs_open(const char *path, struct fuse_file_info *fi)
 {
-    if(strcmp(path, mem_path) != 0)
+    if (strcmp(path, mem_path) != 0)
         return -ENOENT;
 
     uint32_t accmod = O_RDONLY | O_WRONLY | O_RDWR;
-    if((fi->flags & accmod) != O_RDONLY)
+    if ((fi->flags & accmod) != O_RDONLY)
         return -EACCES;
 
     return 0;
@@ -85,12 +83,12 @@ static int vmifs_read(const char *path, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi)
 {
     (void) fi;
-    if(strcmp(path, mem_path) != 0)
+    if (strcmp(path, mem_path) != 0)
         return -ENOENT;
 
     unsigned long memsize = vmi_get_memsize(vmi);
-    if(offset < memsize && size) {
-        if(offset + size > memsize)
+    if (offset < memsize && size) {
+        if (offset + size > memsize)
             size = memsize-offset;
 
         uint8_t *buffer = g_malloc0(sizeof(uint8_t)*size);
@@ -108,7 +106,8 @@ static int vmifs_read(const char *path, char *buf, size_t size, off_t offset,
     return size;
 }
 
-void vmifs_destroy() {
+void vmifs_destroy()
+{
     vmi_destroy(vmi);
 }
 
@@ -133,11 +132,10 @@ int main(int argc, char *argv[])
     uint64_t domid = VMI_INVALID_DOMID;
     void *domain;
 
-    if(strcmp(argv[1],"name")==0) {
+    if (strcmp(argv[1],"name")==0) {
         init_flags = VMI_INIT_DOMAINNAME;
         domain = (void*)argv[2];
-    } else
-    if(strcmp(argv[1],"domid")==0) {
+    } else if (strcmp(argv[1],"domid")==0) {
         init_flags = VMI_INIT_DOMAINID;
         domid = strtoull(argv[2], NULL, 0);
         domain = (void*)&domid;

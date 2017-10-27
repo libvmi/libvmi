@@ -24,9 +24,9 @@
 #include <dlfcn.h>
 
 #if HAVE_XENSTORE_H
-  #include <xenstore.h>
+#include <xenstore.h>
 #elif HAVE_XS_H
-  #include <xs.h>
+#include <xs.h>
 #endif
 
 #include "libvmi.h"
@@ -42,16 +42,16 @@ typedef struct {
     struct xs_handle* handle;
 
     struct xs_handle* (*xs_open)
-        (unsigned long flags);
+    (unsigned long flags);
 
     void (*xs_close)
-        (struct xs_handle *xsh);
+    (struct xs_handle *xsh);
 
     char** (*xs_directory)
-        (struct xs_handle *h, xs_transaction_t t, const char *path, unsigned int *num);
+    (struct xs_handle *h, xs_transaction_t t, const char *path, unsigned int *num);
 
     void* (*xs_read)
-        (struct xs_handle *h, xs_transaction_t t, const char *path, unsigned int *len);
+    (struct xs_handle *h, xs_transaction_t t, const char *path, unsigned int *len);
 
 } libxs_wrapper_t;
 

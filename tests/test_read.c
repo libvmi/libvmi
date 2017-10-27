@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2012 VMITools Project
@@ -32,8 +32,7 @@ char *get_sym (vmi_instance_t vmi)
     char *sym = NULL;
     if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
         sym = "init_task";
-    }
-    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
+    } else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         sym = "PsInitialSystemProcess";
     }
     return sym;
@@ -306,13 +305,13 @@ TCase *read_tcase (void)
     // vmi_read_unicode_str_va
     // vmi_convert_str_encoding
     // vmi_free_unicode_str
-   
+
     tcase_add_test(tc_read, test_vmi_read_8_pa);
     tcase_add_test(tc_read, test_vmi_read_16_pa);
     tcase_add_test(tc_read, test_vmi_read_32_pa);
     tcase_add_test(tc_read, test_vmi_read_64_pa);
     // vmi_read_addr_pa
     // vmi_read_str_pa
-  
+
     return tc_read;
 }

@@ -31,10 +31,10 @@ static status_t sanity_check(xen_instance_t *xen)
     int version;
 
     if ( !w->xc_interface_open || !w->xc_interface_close || !w->xc_version ||
-         !w->xc_map_foreign_range || !w->xc_vcpu_getcontext || !w->xc_vcpu_setcontext ||
-         !w->xc_domain_hvm_getcontext || !w->xc_domain_hvm_getcontext_partial ||
-         !w->xc_domain_hvm_setcontext || !w->xc_domain_getinfo || !w->xc_domain_getinfolist ||
-         !w->xc_domctl || !w->xc_domain_pause || !w->xc_domain_unpause )
+            !w->xc_map_foreign_range || !w->xc_vcpu_getcontext || !w->xc_vcpu_setcontext ||
+            !w->xc_domain_hvm_getcontext || !w->xc_domain_hvm_getcontext_partial ||
+            !w->xc_domain_hvm_setcontext || !w->xc_domain_getinfo || !w->xc_domain_getinfolist ||
+            !w->xc_domctl || !w->xc_domain_pause || !w->xc_domain_unpause )
         return ret;
 
     xen->xchandle = xen->libxcw.xc_interface_open(NULL, NULL, 0);
@@ -54,8 +54,7 @@ static status_t sanity_check(xen_instance_t *xen)
     if ( xen->major_version != 4 )
         goto done;
 
-    switch ( xen->minor_version )
-    {
+    switch ( xen->minor_version ) {
         case 0:
             dbprint(VMI_DEBUG_XEN, "Xen 4.0 no longer supported!\n");
             break;
@@ -69,15 +68,15 @@ static status_t sanity_check(xen_instance_t *xen)
         case 3:
         case 4:
             if ( !w->xc_domain_maximum_gpfn || !w->xc_map_foreign_batch ||
-                 !w->xc_mem_access_enable || !w->xc_mem_access_disable ||
-                 !w->xc_mem_access_resume || !w->xc_hvm_set_mem_access ||
-                 !w->xc_hvm_get_mem_access || !w->xc_domain_debug_control ||
-                 !w->xc_domain_set_access_required || !w->xc_hvm_inject_trap ||
-                 !w->xc_domain_decrease_reservation_exact || !w->xc_domain_populate_physmap_exact ||
-                 !w->xc_evtchn_open || !w->xc_evtchn_close || !w->xc_evtchn_fd ||
-                 !w->xc_evtchn_notify || !w->xc_evtchn_pending || !w->xc_evtchn_unmask ||
-                 !w->xc_evtchn_unbind || !w->xc_evtchn_bind_interdomain ||
-                 !w->xc_set_hvm_param || !w->xc_get_hvm_param || !w->xc_domain_cacheflush)
+                    !w->xc_mem_access_enable || !w->xc_mem_access_disable ||
+                    !w->xc_mem_access_resume || !w->xc_hvm_set_mem_access ||
+                    !w->xc_hvm_get_mem_access || !w->xc_domain_debug_control ||
+                    !w->xc_domain_set_access_required || !w->xc_hvm_inject_trap ||
+                    !w->xc_domain_decrease_reservation_exact || !w->xc_domain_populate_physmap_exact ||
+                    !w->xc_evtchn_open || !w->xc_evtchn_close || !w->xc_evtchn_fd ||
+                    !w->xc_evtchn_notify || !w->xc_evtchn_pending || !w->xc_evtchn_unmask ||
+                    !w->xc_evtchn_unbind || !w->xc_evtchn_bind_interdomain ||
+                    !w->xc_set_hvm_param || !w->xc_get_hvm_param || !w->xc_domain_cacheflush)
                 break;
 
             ret = VMI_SUCCESS;
@@ -85,42 +84,42 @@ static status_t sanity_check(xen_instance_t *xen)
 
         case 5:
             if ( !w->xc_domain_maximum_gpfn || !w->xc_set_mem_access ||
-                 !w->xc_get_mem_access || !w->xc_mem_access_enable2 ||
-                 !w->xc_mem_access_disable || !w->xc_mem_access_disable ||
-                 !w->xc_hvm_param_set || !w->xc_hvm_param_get ||
-                 !w->xc_domain_cacheflush)
+                    !w->xc_get_mem_access || !w->xc_mem_access_enable2 ||
+                    !w->xc_mem_access_disable || !w->xc_mem_access_disable ||
+                    !w->xc_hvm_param_set || !w->xc_hvm_param_get ||
+                    !w->xc_domain_cacheflush)
                 break;
 
             ret = VMI_SUCCESS;
             break;
 
-        /* Things start to be a bit saner from 4.6 */
         default:
-            /* Fall-through */
+        /* Things start to be a bit saner from 4.6 */
+        /* Fall-through */
         case 10:
             if ( !w->xc_monitor_descriptor_access )
                 break;
-            /* Fall-through */
+        /* Fall-through */
         case 8:
             if ( !w->xc_monitor_debug_exceptions || !w->xc_monitor_cpuid ||
-                 !w->xc_monitor_mov_to_msr2 || !w->xc_monitor_privileged_call)
+                    !w->xc_monitor_mov_to_msr2 || !w->xc_monitor_privileged_call)
                 break;
-            /* Fall-through */
+        /* Fall-through */
         case 7:
-            /* Fall-through */
+        /* Fall-through */
         case 6:
             if ( !w->xc_domain_maximum_gpfn2 || !w->xc_set_mem_access ||
-                 !w->xc_get_mem_access || !w->xc_monitor_enable ||
-                 !w->xc_monitor_disable || !w->xc_monitor_resume ||
-                 !w->xc_monitor_get_capabilities || !w->xc_monitor_write_ctrlreg ||
-                 !w->xc_monitor_mov_to_msr || !w->xc_monitor_singlestep ||
-                 !w->xc_monitor_software_breakpoint || !w->xc_monitor_guest_request ||
-                 !w->xc_altp2m_get_domain_state || !w->xc_altp2m_set_domain_state ||
-                 !w->xc_altp2m_set_vcpu_enable_notify || !w->xc_altp2m_create_view ||
-                 !w->xc_altp2m_destroy_view || !w->xc_altp2m_switch_to_view ||
-                 !w->xc_altp2m_set_mem_access || !w->xc_altp2m_change_gfn ||
-                 !w->xc_hvm_param_set || !w->xc_hvm_param_get ||
-                 !w->xc_domain_cacheflush || !w->xc_domain_set_access_required)
+                    !w->xc_get_mem_access || !w->xc_monitor_enable ||
+                    !w->xc_monitor_disable || !w->xc_monitor_resume ||
+                    !w->xc_monitor_get_capabilities || !w->xc_monitor_write_ctrlreg ||
+                    !w->xc_monitor_mov_to_msr || !w->xc_monitor_singlestep ||
+                    !w->xc_monitor_software_breakpoint || !w->xc_monitor_guest_request ||
+                    !w->xc_altp2m_get_domain_state || !w->xc_altp2m_set_domain_state ||
+                    !w->xc_altp2m_set_vcpu_enable_notify || !w->xc_altp2m_create_view ||
+                    !w->xc_altp2m_destroy_view || !w->xc_altp2m_switch_to_view ||
+                    !w->xc_altp2m_set_mem_access || !w->xc_altp2m_change_gfn ||
+                    !w->xc_hvm_param_set || !w->xc_hvm_param_get ||
+                    !w->xc_domain_cacheflush || !w->xc_domain_set_access_required)
                 break;
 
             ret = VMI_SUCCESS;
@@ -140,8 +139,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
 
     wrapper->handle = dlopen ("libxenctrl.so", RTLD_NOW | RTLD_GLOBAL);
 
-    if ( !wrapper->handle )
-    {
+    if ( !wrapper->handle ) {
         char *alternate = g_malloc0(snprintf(NULL, 0, "libxenctrl.so.%u.%u",
                                              xen->major_version, xen->minor_version)+1);
         sprintf(alternate, "libxenctrl.so.%u.%u", xen->major_version, xen->minor_version);
@@ -151,8 +149,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
         wrapper->handle = dlopen (alternate, RTLD_NOW | RTLD_GLOBAL);
         g_free(alternate);
 
-        if ( !wrapper->handle )
-        {
+        if ( !wrapper->handle ) {
             fprintf(stderr, "Failed to find a suitable libxenctrl.so at any of the standard paths!\n");
             return VMI_FAILURE;
         }
@@ -212,14 +209,14 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_monitor_guest_request = dlsym(wrapper->handle, "xc_monitor_guest_request");
     wrapper->xc_monitor_privileged_call = dlsym(wrapper->handle, "xc_monitor_privileged_call");
     wrapper->xc_monitor_descriptor_access = dlsym(wrapper->handle, "xc_monitor_descriptor_access");
-    wrapper->xc_altp2m_get_domain_state = dlsym ( wrapper->handle , "xc_altp2m_get_domain_state" );
-    wrapper->xc_altp2m_set_domain_state = dlsym ( wrapper->handle , "xc_altp2m_set_domain_state" );
-    wrapper->xc_altp2m_set_vcpu_enable_notify = dlsym ( wrapper->handle , "xc_altp2m_set_vcpu_enable_notify" );
-    wrapper->xc_altp2m_create_view = dlsym ( wrapper->handle , "xc_altp2m_create_view" );
+    wrapper->xc_altp2m_get_domain_state = dlsym ( wrapper->handle, "xc_altp2m_get_domain_state" );
+    wrapper->xc_altp2m_set_domain_state = dlsym ( wrapper->handle, "xc_altp2m_set_domain_state" );
+    wrapper->xc_altp2m_set_vcpu_enable_notify = dlsym ( wrapper->handle, "xc_altp2m_set_vcpu_enable_notify" );
+    wrapper->xc_altp2m_create_view = dlsym ( wrapper->handle, "xc_altp2m_create_view" );
     wrapper->xc_altp2m_destroy_view = dlsym(wrapper->handle, "xc_altp2m_destroy_view");
-    wrapper->xc_altp2m_switch_to_view = dlsym ( wrapper->handle , "xc_altp2m_switch_to_view" );
-    wrapper->xc_altp2m_set_mem_access = dlsym ( wrapper->handle , "xc_altp2m_set_mem_access" );
-    wrapper->xc_altp2m_change_gfn = dlsym ( wrapper->handle , "xc_altp2m_change_gfn" );
+    wrapper->xc_altp2m_switch_to_view = dlsym ( wrapper->handle, "xc_altp2m_switch_to_view" );
+    wrapper->xc_altp2m_set_mem_access = dlsym ( wrapper->handle, "xc_altp2m_set_mem_access" );
+    wrapper->xc_altp2m_change_gfn = dlsym ( wrapper->handle, "xc_altp2m_change_gfn" );
     wrapper->xc_monitor_debug_exceptions = dlsym(wrapper->handle, "xc_monitor_debug_exceptions");
     wrapper->xc_monitor_cpuid = dlsym(wrapper->handle, "xc_monitor_cpuid");
     wrapper->xc_hvm_param_get = dlsym(wrapper->handle, "xc_hvm_param_get");
