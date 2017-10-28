@@ -170,6 +170,8 @@ linux_pid_to_pgd(
 
     /* now follow the pointer to the memory descriptor and grab the pgd value */
     rc = vmi_read_addr_va(vmi, ts_addr + mm_offset, 0, &ptr);
+    if ( VMI_FAILURE == rc )
+        return VMI_FAILURE;
 
     /* task_struct->mm is NULL when Linux is executing on the behalf
      * of a task, or if the task represents a kthread. In this context,

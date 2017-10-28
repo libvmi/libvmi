@@ -105,6 +105,8 @@ error_exit:
     if (f)
         fclose(f);
 
+    free(filename);
+
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);
 

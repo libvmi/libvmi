@@ -197,15 +197,20 @@ memory_cache_insert(
         }
 
         key = g_malloc0(sizeof(gint64));
-        if ( !key )
+        if ( !key ) {
+            g_free(entry);
             return 0;
+        }
+
+        gint64 *key2 = g_malloc0(sizeof(gint64));
+        if ( !key2 ) {
+            g_free(entry);
+            g_free(key);
+            return 0;
+        }
 
         *key = paddr;
         g_hash_table_insert(vmi->memory_cache, key, entry);
-
-        gint64 *key2 = g_malloc0(sizeof(gint64));
-        if ( !key2 )
-            return 0;
 
         *key2 = paddr;
         g_queue_push_head(vmi->memory_cache_lru, key2);

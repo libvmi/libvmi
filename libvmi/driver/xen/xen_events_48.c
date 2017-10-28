@@ -1269,17 +1269,17 @@ void xen_events_destroy_48(vmi_instance_t vmi)
     /*
      * Shutdown all events to make sure VM is in a stable state
      */
-    xen_shutdown_single_step_48(vmi);
-    rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
-    rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xen->max_gpfn);
-    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0, false, false, false);
-    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
-    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
-    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
-    rc = xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
-    xen_set_guest_requested_event_48(vmi, 0);
-    xen_set_cpuid_event_48(vmi, 0);
-    xen_set_debug_event_48(vmi, 0);
+    (void)xen_shutdown_single_step_48(vmi);
+    (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
+    (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xen->max_gpfn);
+    (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0, false, false, false);
+    (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
+    (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
+    (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
+    (void)xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
+    (void)xen_set_guest_requested_event_48(vmi, 0);
+    (void)xen_set_cpuid_event_48(vmi, 0);
+    (void)xen_set_debug_event_48(vmi, 0);
 
     size_t i;
     for (i=0; i<sizeof(msr_all)/sizeof(reg_t); i++) {

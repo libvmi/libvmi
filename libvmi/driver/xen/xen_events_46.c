@@ -968,17 +968,17 @@ void xen_events_destroy_46(vmi_instance_t vmi)
     }
 
     //A precaution to not leave vcpus stuck in single step
-    xen_shutdown_single_step_46(vmi);
+    (void)xen_shutdown_single_step_46(vmi);
 
-    rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
-    rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xen->max_gpfn);
-    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0, false, false, false);
-    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
-    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
-    rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
-    rc = xen->libxcw.xc_monitor_mov_to_msr(xch, dom, false, 0);
-    rc = xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
-    xen_set_guest_requested_event_46(vmi, 0);
+    (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
+    (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xen->max_gpfn);
+    (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0, false, false, false);
+    (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
+    (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
+    (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
+    (void)xen->libxcw.xc_monitor_mov_to_msr(xch, dom, false, 0);
+    (void)xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
+    (void)xen_set_guest_requested_event_46(vmi, 0);
 
     if ( xe->vm_event.ring_page ) {
         xen_events_listen_46(vmi, 0);

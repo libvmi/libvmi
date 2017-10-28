@@ -175,8 +175,10 @@ pid_cache_set(
     *key = pid;
     pid_cache_entry_t entry = pid_cache_entry_create(pid, dtb);
 
-    if ( !entry )
+    if ( !entry ) {
+        g_free(key);
         return;
+    }
 
     if ( !g_hash_table_insert_compat(vmi->pid_cache, key, entry) ) {
         g_free(key);
@@ -347,17 +349,19 @@ sym_cache_set(
     }
 
     if ( !g_hash_table_insert_compat(symbol_table, sym_dup, entry) ) {
+        if ( new_symbol_table )
+            g_hash_table_remove(vmi->sym_cache, key);
+
         g_free(key);
         g_free(entry);
         g_free(sym_dup);
-
-        if ( new_symbol_table )
-            g_hash_table_remove(vmi->sym_cache, key);
+        goto done;
     }
 
     if ( !new_symbol_table )
         g_free(key);
 
+done:
     dbprint(VMI_DEBUG_SYMCACHE, "--SYM cache set %s -- 0x%.16"PRIx64"\n", sym, va);
 }
 
@@ -471,11 +475,13 @@ rva_cache_set(
                                           sym_cache_entry_free);
         if ( !g_hash_table_insert_compat(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table) ) {
             g_free(key);
+            g_free(entry);
             g_hash_table_destroy(rva_table);
             return;
         }
     } else {
         g_free(key);
+        g_free(entry);
         return;
     }
 
@@ -484,6 +490,7 @@ rva_cache_set(
     else {
         if ( new_table ) g_hash_table_destroy(rva_table);
         g_free(key);
+        g_free(entry);
     }
 }
 
@@ -601,8 +608,10 @@ v2p_cache_set(
         return;
 
     addr_t *_pa = g_malloc0(sizeof(addr_t));
-    if ( !_pa )
+    if ( !_pa ) {
+        g_free(_va);
         return;
+    }
 
     *_pa = pa & ~VMI_BIT_MASK(0,11);
 

@@ -371,7 +371,7 @@ set_id_and_name(
     driver_set_id(vmi, id);
 
     char *tmp_name = NULL;
-    if (VMI_SUCCESS == driver_get_name_from_id(vmi, id, &tmp_name)) {
+    if (VMI_SUCCESS == driver_get_name_from_id(vmi, id, &tmp_name) && tmp_name) {
         dbprint(VMI_DEBUG_CORE, "--got name from id (%"PRIu64" --> %s)\n", id, tmp_name);
         vmi->image_type = strndup(tmp_name, 100);
         if ( vmi->image_type ) {

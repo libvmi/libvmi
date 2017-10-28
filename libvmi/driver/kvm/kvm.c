@@ -165,6 +165,7 @@ exec_memory_access(
                       "'{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}'",
                       tmpfile);
     if (rc < 0 || rc >= QMP_CMD_LENGTH) {
+        g_free(query);
         errprint("Failed to properly format `pmemaccess` command\n");
         return NULL;
     }
@@ -173,7 +174,7 @@ exec_memory_access(
 
     char *output = exec_qmp_cmd(kvm, query);
 
-    free(query);
+    g_free(query);
     return output;
 }
 
@@ -192,13 +193,14 @@ exec_xp(
                       "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%lx\"}}'",
                       numwords, paddr);
     if (rc < 0 || rc >= QMP_CMD_LENGTH) {
+        g_free(query);
         errprint("Failed to properly format `human-monitor-command` command\n");
         return NULL;
     }
 
     char *output = exec_qmp_cmd(kvm, query);
 
-    free(query);
+    g_free(query);
     return output;
 }
 

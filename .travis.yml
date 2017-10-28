@@ -120,3 +120,32 @@ matrix:
       script:
       - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
+#
+# clang --analyze test
+#
+    - env:
+        - TEST="clang --analyze"
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+                - llvm-toolchain-trusty-5.0
+            packages:
+                - clang-5.0
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      before_install:
+        - export CC=clang-5.0
+        - export CXX=clang++-5.0
+      install:
+        - ./autogen.sh
+      script:
+        - scan-build-5.0 --status-bugs --use-cc=clang-5.0 ./configure --enable-debug
+        - cd libvmi/config && make && cd ../..
+        - scan-build-5.0 --status-bugs --use-cc=clang-5.0 make

@@ -1018,22 +1018,22 @@ void xen_events_destroy_legacy(vmi_instance_t vmi)
     /* Unregister for all events */
     if ( xen->major_version == 4 && xen->minor_version < 5 ) {
         /* HVMMEM_* and xc_hvm_set_mem_access was used before 4.5 */
-        rc = xen->libxcw.xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, ~0ull, 0);
-        rc = xen->libxcw.xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, 0, xe->mem_event.max_pages);
+        (void)xen->libxcw.xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, ~0ull, 0);
+        (void)xen->libxcw.xc_hvm_set_mem_access(xch, dom, HVMMEM_access_rwx, 0, xe->mem_event.max_pages);
     } else {
         /* XENMEM_* and xc_set_mem_access are used from 4.5 onwards */
-        rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
-        rc = xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xe->mem_event.max_pages);
+        (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
+        (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xe->mem_event.max_pages);
     }
-    rc = xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_INT3, HVMPME_mode_disabled);
-    rc = xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR0, HVMPME_mode_disabled);
-    rc = xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR3, HVMPME_mode_disabled);
-    rc = xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR4, HVMPME_mode_disabled);
-    rc = xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_SINGLE_STEP, HVMPME_mode_disabled);
+    (void)xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_INT3, HVMPME_mode_disabled);
+    (void)xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR0, HVMPME_mode_disabled);
+    (void)xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR3, HVMPME_mode_disabled);
+    (void)xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_CR4, HVMPME_mode_disabled);
+    (void)xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_SINGLE_STEP, HVMPME_mode_disabled);
 
     /* MSR events got introduced in 4.2 */
     if ( xen->major_version == 4 && xen->minor_version > 2 )
-        rc = xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_MSR, HVMPME_mode_disabled);
+        (void)xen->libxcw.xc_set_hvm_param(xch, dom, HVM_PARAM_MEMORY_EVENT_MSR, HVMPME_mode_disabled);
 
     if ( xen->major_version == 4 && xen->minor_version < 5 )
         xen_events_listen_42(vmi, 0);
