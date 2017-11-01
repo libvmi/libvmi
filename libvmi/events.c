@@ -352,13 +352,6 @@ static status_t register_mem_event_generic(vmi_instance_t vmi, vmi_event_t *even
 
 static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event)
 {
-    if ( event->mem_event.gfn > (vmi->max_physical_address >> vmi->page_shift) )
-    {
-        errprint("Invalid GFN for setting memory event: 0x%lx, beyond max physical address\n",
-                 event->mem_event.gfn);
-        return VMI_FAILURE;
-    }
-
     if ( VMI_MEMACCESS_INVALID == event->mem_event.in_access )
     {
         dbprint(VMI_DEBUG_EVENTS, "Invalid VMI_MEMACCESS requested: %d\n",
@@ -386,6 +379,10 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
                                              event->slat_id))
     {
         g_hash_table_insert(vmi->mem_events_on_gfn, g_memdup(&event->mem_event.gfn, sizeof(addr_t)), event);
+
+        if ( event->mem_event.gfn > (vmi->max_physical_address >> vmi->page_shift) )
+            vmi->max_physical_address = event->mem_event.gfn << vmi->page_shift;
+
         return VMI_SUCCESS;
     }
 
@@ -703,13 +700,6 @@ vmi_event_t *vmi_get_mem_event(vmi_instance_t vmi, addr_t gfn, vmi_mem_access_t 
 status_t vmi_set_mem_event(vmi_instance_t vmi, addr_t gfn,
                            vmi_mem_access_t access, uint16_t slat_id)
 {
-    if ( gfn > (vmi->max_physical_address >> vmi->page_shift) )
-    {
-        errprint("Invalid GFN for setting memory event: 0x%lx, beyond max physical address\n",
-                 gfn);
-        return VMI_FAILURE;
-    }
-
     if ( VMI_MEMACCESS_N != access )
     {
         bool handler_found = 0;
@@ -731,7 +721,15 @@ status_t vmi_set_mem_event(vmi_instance_t vmi, addr_t gfn,
         }
     }
 
-    return driver_set_mem_access(vmi, gfn, access, slat_id);
+    if ( VMI_SUCCESS == driver_set_mem_access(vmi, gfn, access, slat_id) )
+    {
+        if ( gfn > (vmi->max_physical_address >> vmi->page_shift) )
+            vmi->max_physical_address = gfn << vmi->page_shift;
+
+        return VMI_SUCCESS;
+    }
+
+    return VMI_FAILURE;
 }
 
 status_t vmi_swap_events(vmi_instance_t vmi, vmi_event_t* swap_from, vmi_event_t *swap_to,
