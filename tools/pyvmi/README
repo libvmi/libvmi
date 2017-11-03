@@ -18,8 +18,8 @@ to build, install, and use pyvmi.
 
 3) Start having fun with Python
     import pyvmi
-    vmi = pyvmi.init("win7", "partial"|"complete")  # win7 is the target name
-    vmi.init_complete(config)
+    #vmi = pyvmi.init("win7", "partial"|"complete")  # win7 is the target name
+    vmi.init_complete("linux1604") # linux1604 is the target name
     paddr = vmi.translate_kv2p(vaddr)
     paddr = vmi.translate_uv2p(vaddr, pid)
     vaddr = vmi.translate_ksym2v(sym)
@@ -65,21 +65,21 @@ to build, install, and use pyvmi.
     vmi.write_64_ksym(sym, value)
     get_name()
     get_vmid()
-    get_access_mode()
+    get_access_mode() # not implemented 
     get_winver() # not implemented
     get_winver_str()
     reg_value = vmi.get_vcpureg(reg_name, vcpu_num)
     size = vmi.get_memsize()
     offset = vmi.get_offset(offset_name)
     ostype = vmi.get_ostype()
-    <string> = vmi.get_page_mode()
+    <string> = vmi.get_page_mode() # not implemented
     vmi.print_hex(memory)
     vmi.print_hex_pa(paddr, length)
     vmi.print_hex_va(vaddr, pid, length)
     vmi.print_hex_ksym(sym, length)
     vmi.pause_vm()
     vmi.resume_vm()
-    v2pcache_flush()
+    v2pcache_flush() # not implemented
     v2pcache_add(va, dtb, pa)
     symcache_flush()
     symcache_add(sym, va)
@@ -95,4 +95,4 @@ to build, install, and use pyvmi.
      '-l' command line option.  More information on Volatility and a link
      to download it are available at http://code.google.com/p/volatility/.
 
-     Example --> python vol.py -l vmi://win7 pslist  # win7 is the target name
+     Example --> python process-list.py linux1604  # linux1604 is the target name
