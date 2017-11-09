@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2012 VMITools Project
@@ -36,17 +36,17 @@ TCase *write_tcase (void)
     // vmi_write_ksym
     // vmi_write_va
     // vmi_write_pa
-    
+
     // vmi_write_8_ksym
     // vmi_write_16_ksym
     // vmi_write_32_ksym
     // vmi_write_64_ksym
-    
+
     // vmi_write_8_va
     // vmi_write_16_va
     // vmi_write_32_va
     // vmi_write_64_va
-    
+
     // vmi_write_8_pa
     // vmi_write_16_pa
     // vmi_write_32_pa

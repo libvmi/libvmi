@@ -66,10 +66,10 @@ struct request {
 #endif
 
 enum segment_type {
-  SEGMENT_SELECTOR,
-  SEGMENT_BASE,
-  SEGMENT_LIMIT,
-  SEGMENT_ATTR
+    SEGMENT_SELECTOR,
+    SEGMENT_BASE,
+    SEGMENT_LIMIT,
+    SEGMENT_ATTR
 };
 
 //----------------------------------------------------------------------------
@@ -92,14 +92,13 @@ exec_qmp_cmd(
     int cmd_length = strlen(name) + strnlen(query, QMP_CMD_LENGTH) + 47;
 
     char *cmd = g_malloc0(cmd_length);
-    if ( !cmd )
-    {
+    if ( !cmd ) {
         g_free(output);
         return NULL;
     }
 
     int rc = snprintf(cmd, cmd_length, "virsh -c qemu:///system qemu-monitor-command %s %s", name,
-             query);
+                      query);
 
     if (rc < 0 || rc >= cmd_length) {
         errprint("Failed to properly format `virsh qemu-monitor-command`\n");
@@ -124,8 +123,7 @@ exec_qmp_cmd(
     if (length == 0) {
         g_free(output);
         return NULL;
-    }
-    else {
+    } else {
         return output;
     }
 }
@@ -163,10 +161,11 @@ exec_memory_access(
         return NULL;
 
     int rc = snprintf(query,
-            QMP_CMD_LENGTH,
-            "'{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}'",
-            tmpfile);
+                      QMP_CMD_LENGTH,
+                      "'{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}'",
+                      tmpfile);
     if (rc < 0 || rc >= QMP_CMD_LENGTH) {
+        g_free(query);
         errprint("Failed to properly format `pmemaccess` command\n");
         return NULL;
     }
@@ -175,7 +174,7 @@ exec_memory_access(
 
     char *output = exec_qmp_cmd(kvm, query);
 
-    free(query);
+    g_free(query);
     return output;
 }
 
@@ -190,17 +189,18 @@ exec_xp(
         return NULL;
 
     int rc = snprintf(query,
-            QMP_CMD_LENGTH,
-            "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%lx\"}}'",
-            numwords, paddr);
+                      QMP_CMD_LENGTH,
+                      "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%lx\"}}'",
+                      numwords, paddr);
     if (rc < 0 || rc >= QMP_CMD_LENGTH) {
+        g_free(query);
         errprint("Failed to properly format `human-monitor-command` command\n");
         return NULL;
     }
 
     char *output = exec_qmp_cmd(kvm, query);
 
-    free(query);
+    g_free(query);
     return output;
 }
 
@@ -218,8 +218,7 @@ parse_reg_value(
     if (NULL != ptr) {
         ptr += strlen(regname) + 1;
         return (reg_t) strtoull(ptr, (char **) NULL, 16);
-    }
-    else {
+    } else {
         return 0;
     }
 }
@@ -239,16 +238,16 @@ parse_seg_reg_value(
     }
 
     strncpy(keyword, regname, 3);
-    if(strlen(regname) == 2)
+    if (strlen(regname) == 2)
         strcat(keyword, " =");
     else
         strcat(keyword, "=");
 
-    if(NULL == (ptr = strcasestr(ir_output, keyword)))
-         return 0;
+    if (NULL == (ptr = strcasestr(ir_output, keyword)))
+        return 0;
 
     tmp_ptr = ptr;
-    switch(type) {
+    switch (type) {
         case SEGMENT_SELECTOR:
             offset = 4;
             break;
@@ -257,14 +256,14 @@ parse_seg_reg_value(
             break;
         case SEGMENT_LIMIT:
             tmp_ptr += 9;
-            if(8 == strlen(tmp_ptr))
+            if (8 == strlen(tmp_ptr))
                 offset = 18;
             else
                 offset = 26;
             break;
         case SEGMENT_ATTR:
             tmp_ptr += 9;
-            if(8 == strlen(tmp_ptr))
+            if (8 == strlen(tmp_ptr))
                 offset = 27;
             else
                 offset = 35;
@@ -289,8 +288,7 @@ exec_memory_access_success(
 
     if (NULL == ptr) {
         return VMI_SUCCESS;
-    }
-    else {
+    } else {
         return VMI_FAILURE;
     }
 }
@@ -331,10 +329,10 @@ init_domain_socket(
     address.sun_family = AF_UNIX;
     address_length =
         sizeof(address.sun_family) + sprintf(address.sun_path, "%s",
-                                             kvm->ds_path);
+                kvm->ds_path);
 
     if (connect(socket_fd, (struct sockaddr *) &address, address_length)
-        != 0) {
+            != 0) {
         dbprint(VMI_DEBUG_KVM, "--connect() failed to %s, %s\n", kvm->ds_path, strerror(errno));
         close(socket_fd);
         return VMI_FAILURE;
@@ -367,7 +365,7 @@ test_using_shm_snapshot(
     kvm_instance_t *kvm)
 {
     if (NULL != kvm->shm_snapshot_path && 0 != kvm->shm_snapshot_fd
-        && NULL != kvm->shm_snapshot_map && NULL != kvm->shm_snapshot_cpu_regs) {
+            && NULL != kvm->shm_snapshot_map && NULL != kvm->shm_snapshot_cpu_regs) {
         dbprint(VMI_DEBUG_KVM, "is using shm-snapshot\n");
         return VMI_SUCCESS;
     } else {
@@ -391,7 +389,7 @@ exec_shm_snapshot(
     if (NULL != unique_shm_path) {
         char *shm_filename = basename(unique_shm_path);
         char *query_template = "'{\"execute\": \"snapshot-create\", \"arguments\": {"
-            " \"filename\": \"/%s\"}}'";
+                               " \"filename\": \"/%s\"}}'";
         char *query = (char *) g_malloc0(strlen(query_template) - strlen("%s") + NAME_MAX + 1);
         if ( !query )
             return NULL;
@@ -402,8 +400,7 @@ exec_shm_snapshot(
         char *output = exec_qmp_cmd(kvm, query);
         g_free(query);
         return output;
-    }
-    else {
+    } else {
         return NULL;
     }
 }
@@ -428,8 +425,7 @@ exec_shm_snapshot_success(
             errprint ("--kvm: fail to shm-snapshot\n");
             return VMI_FAILURE;
         }
-    }
-    else {
+    } else {
         //qmp status e.g. : CommandNotFound
         errprint("--kvm: didn't find shm-snapshot support\n");
         return VMI_FAILURE;
@@ -458,11 +454,11 @@ link_mmap_shm_snapshot_dev(
 #endif // MMAP_HUGETLB
 
     kvm->shm_snapshot_map = mmap(NULL,  // addr
-        vmi->max_physical_address,   // len
-        PROT_READ,   // prot
-        mmap_flags,  // flags
-        kvm->shm_snapshot_fd,    // file descriptor
-        (off_t) 0);  // offset
+                                 vmi->max_physical_address,   // len
+                                 PROT_READ,   // prot
+                                 mmap_flags,  // flags
+                                 kvm->shm_snapshot_fd,    // file descriptor
+                                 (off_t) 0);  // offset
     if (MAP_FAILED == kvm->shm_snapshot_map) {
         perror("Failed to mmap shared memory snapshot dev");
         return VMI_FAILURE;
@@ -573,14 +569,14 @@ void insert_v2p_page_pair_to_v2m_chunk_list(
 
         // the first m2p chunk
         insert_v2p_page_pair_to_m2p_chunk_list(m2p_chunk_list_ptr, m2p_chunk_head_ptr, start_vaddr,
-            end_vaddr, start_paddr, end_paddr);
+                                               end_vaddr, start_paddr, end_paddr);
         (*v2m_chunk_head_ptr)->m2p_chunks = *m2p_chunk_list_ptr;
     } else {
         if (start_vaddr == (*v2m_chunk_head_ptr)->vaddr_end + 1) {
             // continuous vaddr
             //  1. insert p2m chunk.
             insert_v2p_page_pair_to_m2p_chunk_list(m2p_chunk_list_ptr, m2p_chunk_head_ptr, start_vaddr,
-                end_vaddr, start_paddr, end_paddr);
+                                                   end_vaddr, start_paddr, end_paddr);
             //  2. expand v2m chunk
             (*v2m_chunk_head_ptr)->vaddr_end = end_vaddr;
         } else {
@@ -597,7 +593,7 @@ void insert_v2p_page_pair_to_v2m_chunk_list(
 
             // the first p2m chunk
             insert_v2p_page_pair_to_m2p_chunk_list(m2p_chunk_list_ptr, m2p_chunk_head_ptr, start_vaddr,
-                end_vaddr, start_paddr, end_paddr);
+                                                   end_vaddr, start_paddr, end_paddr);
             (*v2m_chunk_head_ptr)->m2p_chunks = *m2p_chunk_list_ptr;
         }
     }
@@ -625,7 +621,7 @@ walkthrough_shm_snapshot_pagetable(
 
     GSList *pages = vmi_get_va_pages(vmi, dtb);
     GSList *loop = pages;
-    while(loop) {
+    while (loop) {
         page_info_t *page = pages->data;
         addr_t start_vaddr = page->vaddr;
         addr_t start_paddr = page->paddr;
@@ -633,15 +629,15 @@ walkthrough_shm_snapshot_pagetable(
         addr_t end_paddr = start_paddr | (page->size-1);
         if (start_paddr < vmi->max_physical_address) {
             insert_v2p_page_pair_to_v2m_chunk_list(vmi, &v2m_chunk_list, &v2m_chunk_head,
-                &m2p_chunk_list, &m2p_chunk_head,
-                start_vaddr, end_vaddr, start_paddr, end_paddr);
+                                                   &m2p_chunk_list, &m2p_chunk_head,
+                                                   start_vaddr, end_vaddr, start_paddr, end_paddr);
         }
 
         free(page);
         loop = loop->next;
     }
 
-    if(pages) {
+    if (pages) {
         g_slist_free(pages);
         return VMI_SUCCESS;
     }
@@ -664,17 +660,17 @@ status_t probe_v2m_medial_addr(
 {
     if (NULL != v2m_chunk) {
         dbprint(VMI_DEBUG_KVM, "probe medial space for va: %016"PRIx64" - %016"PRIx64", size: %"PRIu64"KB\n",
-            v2m_chunk->vaddr_begin, v2m_chunk->vaddr_end,
-            (v2m_chunk->vaddr_end - v2m_chunk->vaddr_begin+1)>>10);
+                v2m_chunk->vaddr_begin, v2m_chunk->vaddr_end,
+                (v2m_chunk->vaddr_end - v2m_chunk->vaddr_begin+1)>>10);
 
         // find a large enough vaddr base
         size_t size = v2m_chunk->vaddr_end - v2m_chunk->vaddr_begin;
         void *map = mmap(NULL,  // addr
-            (long long unsigned int)size,   // vaddr space
-            PROT_READ,   // prot
-            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,  // flags
-            0,    // file descriptor
-            0);  // offset
+                         (long long unsigned int)size,   // vaddr space
+                         PROT_READ,   // prot
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,  // flags
+                         0,    // file descriptor
+                         0);  // offset
         if (MAP_FAILED != map) {
             *maddr_indicator_export = map;
             (void) munmap(map, size);
@@ -699,30 +695,30 @@ status_t mmap_m2p_chunks(
     m2p_mapping_clue_chunk_t m2p_chunk_list)
 {
     size_t map_offset = 0;
-     while (NULL != m2p_chunk_list) {
-         dbprint(VMI_DEBUG_KVM, "map va: %016"PRIx64" - %016"PRIx64", pa: %016"PRIx64" - %016"PRIx64", size: %"PRIu64"KB\n",
-             m2p_chunk_list->vaddr_begin, m2p_chunk_list->vaddr_end,
-             m2p_chunk_list->paddr_begin, m2p_chunk_list->paddr_end,
-             (m2p_chunk_list->vaddr_end - m2p_chunk_list->vaddr_begin+1)>>10);
-         size_t size = m2p_chunk_list->vaddr_end - m2p_chunk_list->vaddr_begin + 1;
+    while (NULL != m2p_chunk_list) {
+        dbprint(VMI_DEBUG_KVM, "map va: %016"PRIx64" - %016"PRIx64", pa: %016"PRIx64" - %016"PRIx64", size: %"PRIu64"KB\n",
+                m2p_chunk_list->vaddr_begin, m2p_chunk_list->vaddr_end,
+                m2p_chunk_list->paddr_begin, m2p_chunk_list->paddr_end,
+                (m2p_chunk_list->vaddr_end - m2p_chunk_list->vaddr_begin+1)>>10);
+        size_t size = m2p_chunk_list->vaddr_end - m2p_chunk_list->vaddr_begin + 1;
 
-         void *map = mmap(medial_addr_indicator + map_offset,  // addr
-             (long long unsigned int)size,   // len
-             PROT_READ,   // prot
-             MAP_PRIVATE | MAP_NORESERVE | MAP_POPULATE | MAP_FIXED,  // flags
-             kvm_get_instance(vmi)->shm_snapshot_fd,    // file descriptor
-             m2p_chunk_list->paddr_begin);  // offset
+        void *map = mmap(medial_addr_indicator + map_offset,  // addr
+                         (long long unsigned int)size,   // len
+                         PROT_READ,   // prot
+                         MAP_PRIVATE | MAP_NORESERVE | MAP_POPULATE | MAP_FIXED,  // flags
+                         kvm_get_instance(vmi)->shm_snapshot_fd,    // file descriptor
+                         m2p_chunk_list->paddr_begin);  // offset
 
-         if (MAP_FAILED == map) {
-             perror("Failed to mmap page");
-             return VMI_FAILURE;
-         }
+        if (MAP_FAILED == map) {
+            perror("Failed to mmap page");
+            return VMI_FAILURE;
+        }
 
-         map_offset += size;
-         m2p_chunk_list->medial_mapping_addr = map;
-         m2p_chunk_list = m2p_chunk_list->next;
-     }
-     return VMI_SUCCESS;
+        map_offset += size;
+        m2p_chunk_list->medial_mapping_addr = map;
+        m2p_chunk_list = m2p_chunk_list->next;
+    }
+    return VMI_SUCCESS;
 }
 
 /**
@@ -761,8 +757,7 @@ insert_v2m_table(
     if (kvm->shm_snapshot_v2m_tables == NULL) {
         kvm->shm_snapshot_v2m_tables = entry;
         return VMI_SUCCESS;
-    }
-    else {
+    } else {
         // append to the existed v2m table link list
         v2m_table_t head = kvm->shm_snapshot_v2m_tables;
         while (NULL != head->next) {
@@ -791,8 +786,7 @@ setup_v2m_table(
     v2m_chunk_t v2m_chunk_head = NULL;
 
     if (VMI_SUCCESS ==
-        walkthrough_shm_snapshot_pagetable(vmi, dtb, &v2m_chunk_list, &v2m_chunk_head))
-    {
+            walkthrough_shm_snapshot_pagetable(vmi, dtb, &v2m_chunk_list, &v2m_chunk_head)) {
         v2m_chunk_t v2m_chunk_tmp = v2m_chunk_list;
         while (NULL != v2m_chunk_tmp) {
             // probe v2m medial address
@@ -803,13 +797,13 @@ setup_v2m_table(
 
             // mmap each m2p memory chunk
             if (VMI_SUCCESS !=
-                mmap_m2p_chunks(vmi, maddr_indicator, v2m_chunk_tmp->m2p_chunks)) {
+                    mmap_m2p_chunks(vmi, maddr_indicator, v2m_chunk_tmp->m2p_chunks)) {
                 return VMI_FAILURE;
             }
 
             // delete m2p chunks
             if (VMI_SUCCESS !=
-                delete_m2p_chunks(vmi, &v2m_chunk_tmp->m2p_chunks)) {
+                    delete_m2p_chunks(vmi, &v2m_chunk_tmp->m2p_chunks)) {
                 return VMI_FAILURE;
             }
 
@@ -853,19 +847,16 @@ create_v2m_table(
 
             if (vmi->kpgd) {
                 cr3 = vmi->kpgd;
-            }
-            else {
+            } else {
                 driver_get_vcpureg(vmi, &cr3, CR3, 0);
             }
             if (!cr3) {
                 dbprint(VMI_DEBUG_KVM, "--early bail on TEVAT create because cr3 is zero\n");
                 return VMI_FAILURE;
-            }
-            else {
+            } else {
                 dtb = cr3;
             }
-        }
-        else {
+        } else {
             // user process page table
             if (VMI_FAILURE == vmi_pid_to_dtb(vmi, pid, &dtb)) {
                 dbprint(VMI_DEBUG_KVM, "--early bail on TEVAT create because dtb is zero\n");
@@ -873,8 +864,7 @@ create_v2m_table(
             }
         }
         return setup_v2m_table(vmi, pid, dtb, v2m_table_pt);
-    }
-    else {
+    } else {
         errprint("can't create TEVAT because shm-snapshot is not using.\n");
         return VMI_FAILURE;
     }
@@ -944,13 +934,12 @@ munmap_m2p_chunks(
         do {
             v2m_chunk_t tmp = tail->next;
             munmap(tail->medial_mapping_addr,
-                (tail->vaddr_end - tail->vaddr_begin + 1));
+                   (tail->vaddr_end - tail->vaddr_begin + 1));
             free(tail);
             tail = tmp;
         } while (NULL != tail);
         return VMI_SUCCESS;
-    }
-    else {
+    } else {
         errprint("try to free NULL v2m_entry->chunks");
         return VMI_FAILURE;
     }
@@ -970,7 +959,7 @@ delete_v2m_table(
 
     // the 1st entry matches
     if (NULL != kvm->shm_snapshot_v2m_tables
-        && v2m_table == kvm->shm_snapshot_v2m_tables) {
+            && v2m_table == kvm->shm_snapshot_v2m_tables) {
         v2m_table_t tmp = kvm->shm_snapshot_v2m_tables;
         kvm->shm_snapshot_v2m_tables = tmp->next;
         free(tmp);
@@ -978,7 +967,7 @@ delete_v2m_table(
     }
     // there are two or more entries
     else if (NULL != kvm->shm_snapshot_v2m_tables
-        && NULL != kvm->shm_snapshot_v2m_tables->next) {
+             && NULL != kvm->shm_snapshot_v2m_tables->next) {
         v2m_table_t tmp[2];
         tmp[0] = kvm->shm_snapshot_v2m_tables;
         tmp[1] = kvm->shm_snapshot_v2m_tables->next;
@@ -1016,7 +1005,7 @@ destroy_v2m(
             v2m_table_t tmp = tail->next;
 
             if (VMI_SUCCESS
-                != munmap_m2p_chunks(tail->v2m_chunks)) {
+                    != munmap_m2p_chunks(tail->v2m_chunks)) {
                 errprint("fail to free_chunks_of_tevat_mapping_table_entry\n");
                 return VMI_FAILURE;
             }
@@ -1047,8 +1036,8 @@ kvm_get_memory_shm_snapshot(
 {
     if (paddr + length > vmi->max_physical_address) {
         dbprint
-            (VMI_DEBUG_KVM, "--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of shm-snapshot\n",
-             __FUNCTION__, paddr, paddr + length);
+        (VMI_DEBUG_KVM, "--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of shm-snapshot\n",
+         __FUNCTION__, paddr, paddr + length);
         goto error;
     }
 
@@ -1096,7 +1085,7 @@ kvm_setup_shm_snapshot_mode(
         v2m_cache_flush(vmi);
         memory_cache_destroy(vmi);
         memory_cache_init(vmi, kvm_get_memory_shm_snapshot, kvm_release_memory_shm_snapshot,
-                                1);
+                          1);
 
         if (shm_snapshot_status)
             free (shm_snapshot_status);
@@ -1154,8 +1143,7 @@ kvm_get_memory_patch(
               sizeof(struct request));
     if (nbytes != sizeof(struct request)) {
         goto error_exit;
-    }
-    else {
+    } else {
         // get the data from kvm
         nbytes = read(kvm_get_instance(vmi)->socket_fd, buf, length + 1);
         if ( nbytes <= 0 )
@@ -1259,8 +1247,7 @@ kvm_put_memory(
               sizeof(struct request));
     if (nbytes != sizeof(struct request)) {
         goto error_exit;
-    }
-    else {
+    } else {
         uint8_t status = 0;
 
         if ( length != write(kvm_get_instance(vmi)->socket_fd, buf, length) )
@@ -1316,10 +1303,9 @@ kvm_setup_live_mode(
         if (status)
             free(status);
         return init_domain_socket(kvm_get_instance(vmi));
-    }
-    else {
+    } else {
         dbprint
-            (VMI_DEBUG_KVM, "--kvm: didn't find patch, falling back to slower native access\n");
+        (VMI_DEBUG_KVM, "--kvm: didn't find patch, falling back to slower native access\n");
         memory_cache_destroy(vmi);
         memory_cache_init(vmi, kvm_get_memory_native,
                           kvm_release_memory, 1);
@@ -1406,18 +1392,20 @@ kvm_init_vmi(
     //   "id": "libvirt-42"
     // }
 
-    // get "return" object
     struct json_object *return_obj= NULL;
+    struct json_object *qemu_obj = NULL;
+    struct json_object *major_obj = NULL;
+    struct json_object *minor_obj = NULL;
+
+    // get "return" object
     if (FALSE == json_object_object_get_ex(qemu_version_obj, "return", &return_obj))
         goto out_error;
 
     // get "qemu" object
-    struct json_object *qemu_obj = NULL;
     if (FALSE == json_object_object_get_ex(return_obj, "qemu", &qemu_obj))
         goto out_error;
 
     // get "major" object
-    struct json_object *major_obj = NULL;
     if (FALSE == json_object_object_get_ex(qemu_obj, "major", &major_obj))
         goto out_error;
 
@@ -1425,7 +1413,6 @@ kvm_init_vmi(
     int major = json_object_get_int(major_obj);
 
     // get "minor" object
-    struct json_object *minor_obj = NULL;
     if (FALSE == json_object_object_get_ex(qemu_obj, "minor", &minor_obj))
         goto out_error;
 
@@ -1504,7 +1491,7 @@ kvm_get_id_from_name(
     } else {
 
         domainid = (uint64_t) kvm->libvirt.virDomainGetID(dom);
-        if (domainid == (uint64_t)-1){
+        if (domainid == (uint64_t)-1) {
             dbprint(VMI_DEBUG_KVM, "--requested kvm domain may not be running\n");
             domainid = VMI_INVALID_DOMID;
         }
@@ -1598,8 +1585,7 @@ kvm_get_name(
     if (NULL != tmpname) {
         *name = strdup(tmpname);
         return VMI_SUCCESS;
-    }
-    else {
+    } else {
         return VMI_FAILURE;
     }
 }
@@ -1656,7 +1642,7 @@ kvm_get_vcpureg(
 
     status_t ret = VMI_SUCCESS;
 
-    switch(reg) {
+    switch (reg) {
         case CR0:
             *value = parse_reg_value("CR0", regs);
             break;
@@ -1771,99 +1757,99 @@ kvm_get_vcpureg(
         default:
             if ( VMI_PM_IA32E == vmi->page_mode) {
                 switch (reg) {
-                case RAX:
-                    *value = parse_reg_value("RAX", regs);
-                    break;
-                case RBX:
-                    *value = parse_reg_value("RBX", regs);
-                    break;
-                case RCX:
-                    *value = parse_reg_value("RCX", regs);
-                    break;
-                case RDX:
-                    *value = parse_reg_value("RDX", regs);
-                    break;
-                case RBP:
-                    *value = parse_reg_value("RBP", regs);
-                    break;
-                case RSI:
-                    *value = parse_reg_value("RSI", regs);
-                    break;
-                case RDI:
-                    *value = parse_reg_value("RDI", regs);
-                    break;
-                case RSP:
-                    *value = parse_reg_value("RSP", regs);
-                    break;
-                case R8:
-                    *value = parse_reg_value("R8", regs);
-                    break;
-                case R9:
-                    *value = parse_reg_value("R9", regs);
-                    break;
-                case R10:
-                    *value = parse_reg_value("R10", regs);
-                    break;
-                case R11:
-                    *value = parse_reg_value("R11", regs);
-                    break;
-                case R12:
-                    *value = parse_reg_value("R12", regs);
-                    break;
-                case R13:
-                    *value = parse_reg_value("R13", regs);
-                    break;
-                case R14:
-                    *value = parse_reg_value("R14", regs);
-                    break;
-                case R15:
-                    *value = parse_reg_value("R15", regs);
-                    break;
-                case RIP:
-                    *value = parse_reg_value("RIP", regs);
-                    break;
-                case RFLAGS:
-                    *value = parse_reg_value("RFL", regs);
-                    break;
-                default:
-                    ret = VMI_FAILURE;
-                    break;
+                    case RAX:
+                        *value = parse_reg_value("RAX", regs);
+                        break;
+                    case RBX:
+                        *value = parse_reg_value("RBX", regs);
+                        break;
+                    case RCX:
+                        *value = parse_reg_value("RCX", regs);
+                        break;
+                    case RDX:
+                        *value = parse_reg_value("RDX", regs);
+                        break;
+                    case RBP:
+                        *value = parse_reg_value("RBP", regs);
+                        break;
+                    case RSI:
+                        *value = parse_reg_value("RSI", regs);
+                        break;
+                    case RDI:
+                        *value = parse_reg_value("RDI", regs);
+                        break;
+                    case RSP:
+                        *value = parse_reg_value("RSP", regs);
+                        break;
+                    case R8:
+                        *value = parse_reg_value("R8", regs);
+                        break;
+                    case R9:
+                        *value = parse_reg_value("R9", regs);
+                        break;
+                    case R10:
+                        *value = parse_reg_value("R10", regs);
+                        break;
+                    case R11:
+                        *value = parse_reg_value("R11", regs);
+                        break;
+                    case R12:
+                        *value = parse_reg_value("R12", regs);
+                        break;
+                    case R13:
+                        *value = parse_reg_value("R13", regs);
+                        break;
+                    case R14:
+                        *value = parse_reg_value("R14", regs);
+                        break;
+                    case R15:
+                        *value = parse_reg_value("R15", regs);
+                        break;
+                    case RIP:
+                        *value = parse_reg_value("RIP", regs);
+                        break;
+                    case RFLAGS:
+                        *value = parse_reg_value("RFL", regs);
+                        break;
+                    default:
+                        ret = VMI_FAILURE;
+                        break;
                 }
             } else {
                 switch (reg) {
-                case RAX:
-                    *value = parse_reg_value("EAX", regs);
-                    break;
-                case RBX:
-                    *value = parse_reg_value("EBX", regs);
-                    break;
-                case RCX:
-                    *value = parse_reg_value("ECX", regs);
-                    break;
-                case RDX:
-                    *value = parse_reg_value("EDX", regs);
-                    break;
-                case RBP:
-                    *value = parse_reg_value("EBP", regs);
-                    break;
-                case RSI:
-                    *value = parse_reg_value("ESI", regs);
-                    break;
-                case RDI:
-                    *value = parse_reg_value("EDI", regs);
-                    break;
-                case RSP:
-                    *value = parse_reg_value("ESP", regs);
-                    break;
-                case RIP:
-                    *value = parse_reg_value("EIP", regs);
-                    break;
-                case RFLAGS:
-                    *value = parse_reg_value("EFL", regs);
-                    break;
-                default:
-                    ret = VMI_FAILURE;
-                    break;
+                    case RAX:
+                        *value = parse_reg_value("EAX", regs);
+                        break;
+                    case RBX:
+                        *value = parse_reg_value("EBX", regs);
+                        break;
+                    case RCX:
+                        *value = parse_reg_value("ECX", regs);
+                        break;
+                    case RDX:
+                        *value = parse_reg_value("EDX", regs);
+                        break;
+                    case RBP:
+                        *value = parse_reg_value("EBP", regs);
+                        break;
+                    case RSI:
+                        *value = parse_reg_value("ESI", regs);
+                        break;
+                    case RDI:
+                        *value = parse_reg_value("EDI", regs);
+                        break;
+                    case RSP:
+                        *value = parse_reg_value("ESP", regs);
+                        break;
+                    case RIP:
+                        *value = parse_reg_value("EIP", regs);
+                        break;
+                    case RFLAGS:
+                        *value = parse_reg_value("EFL", regs);
+                        break;
+                    default:
+                        ret = VMI_FAILURE;
+                        break;
                 }
             }
 
@@ -1913,15 +1899,13 @@ kvm_test(
     if ( VMI_FAILURE == kvm_init(vmi, 0, NULL) )
         return VMI_FAILURE;
 
-    if (name)
-    {
+    if (name) {
         domainid = kvm_get_id_from_name(vmi, name);
         if (domainid != VMI_INVALID_DOMID)
             return VMI_SUCCESS;
     }
 
-    if (domainid != VMI_INVALID_DOMID)
-    {
+    if (domainid != VMI_INVALID_DOMID) {
         char *_name = NULL;
         status_t rc = kvm_get_name_from_id(vmi, domainid, &_name);
         free(_name);
@@ -1996,7 +1980,8 @@ size_t kvm_get_dgpma(
     vmi_instance_t vmi,
     addr_t paddr,
     void** medial_addr_ptr,
-    size_t count) {
+    size_t count)
+{
 
     *medial_addr_ptr = kvm_get_instance(vmi)->shm_snapshot_map + paddr;
     size_t max_size = vmi->max_physical_address - (paddr - 0);
@@ -2041,7 +2026,7 @@ kvm_get_dgvma(
 
     // get medial addr
     size_t v2m_size = lookup_v2m_table(vmi,v2m->v2m_chunks, vaddr,
-        medial_addr_ptr);
+                                       medial_addr_ptr);
 
     // add this to the cache
     if (*medial_addr_ptr) {

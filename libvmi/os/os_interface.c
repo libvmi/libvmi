@@ -20,7 +20,8 @@
 
 #include "private.h"
 
-status_t os_destroy(vmi_instance_t vmi) {
+status_t os_destroy(vmi_instance_t vmi)
+{
     status_t status = VMI_SUCCESS;
 
     if (vmi->os_interface == NULL ) {

@@ -57,9 +57,9 @@ struct guid {
 } __attribute__ ((packed));
 
 struct cv_info_pdb70 {
-  uint32_t      cv_signature;
-  struct guid   signature;
-  uint32_t      age;
-  uint8_t       pdb_file_name[];
+    uint32_t      cv_signature;
+    struct guid   signature;
+    uint32_t      age;
+    uint8_t       pdb_file_name[];
 } __attribute__ ((packed));
 

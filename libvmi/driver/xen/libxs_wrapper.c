@@ -44,8 +44,7 @@ status_t create_libxs_wrapper(xen_instance_t *xen)
     libxs_wrapper_t *wrapper = &xen->libxsw;
 
     wrapper->handle = dlopen ("libxenstore.so", RTLD_NOW | RTLD_GLOBAL);
-    if ( !wrapper->handle )
-    {
+    if ( !wrapper->handle ) {
         fprintf(stderr, "Failed to find a suitable libxenstore.so at any of the standard paths!\n");
         return VMI_FAILURE;
     }

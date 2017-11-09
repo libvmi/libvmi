@@ -32,20 +32,20 @@ rekall_profile_symbol_to_rva(
     addr_t *rva)
 {
     status_t ret = VMI_FAILURE;
-    if(!rekall_profile || !symbol) {
+    if (!rekall_profile || !symbol) {
         return ret;
     }
 
     json_object *root = json_object_from_file(rekall_profile);
-    if(!root) {
+    if (!root) {
         errprint("Rekall profile couldn't be opened!\n");
         return ret;
     }
 
-    if(!subsymbol) {
+    if (!subsymbol) {
         json_object *constants = NULL, *functions = NULL, *jsymbol = NULL;
         if (json_object_object_get_ex(root, "$CONSTANTS", &constants)) {
-            if (json_object_object_get_ex(constants, symbol, &jsymbol)){
+            if (json_object_object_get_ex(constants, symbol, &jsymbol)) {
                 *rva = json_object_get_int64(jsymbol);
 
                 ret = VMI_SUCCESS;
@@ -58,7 +58,7 @@ rekall_profile_symbol_to_rva(
         }
 
         if (json_object_object_get_ex(root, "$FUNCTIONS", &functions)) {
-            if (json_object_object_get_ex(functions, symbol, &jsymbol)){
+            if (json_object_object_get_ex(functions, symbol, &jsymbol)) {
                 *rva = json_object_get_int64(jsymbol);
 
                 ret = VMI_SUCCESS;

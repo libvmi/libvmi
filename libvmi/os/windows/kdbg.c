@@ -209,504 +209,419 @@ kdbg_symbol_offset(
     if (strncmp(symbol, "KernBase", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KernBase)) - (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "BreakpointWithStatus", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "BreakpointWithStatus", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.BreakpointWithStatus)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "SavedContext", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "SavedContext", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.SavedContext)) - (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KiCallUserMode", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "KiCallUserMode", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KiCallUserMode)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "KeUserCallbackDispatcher",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "KeUserCallbackDispatcher",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KeUserCallbackDispatcher)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "PsLoadedModuleList", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "PsLoadedModuleList", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.PsLoadedModuleList)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "PsActiveProcessHead", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "PsActiveProcessHead", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.PsActiveProcessHead)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "PspCidTable", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "PspCidTable", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.PspCidTable)) - (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "ExpSystemResourcesList",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "ExpSystemResourcesList",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.ExpSystemResourcesList)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "ExpPagedPoolDescriptor",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "ExpPagedPoolDescriptor",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.ExpPagedPoolDescriptor)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "ExpNumberOfPagedPools", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "ExpNumberOfPagedPools", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.ExpNumberOfPagedPools)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KeTimeIncrement", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "KeTimeIncrement", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KeTimeIncrement)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "KeBugCheckCallbackListHead",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "KeBugCheckCallbackListHead",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KeBugCheckCallbackListHead)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KiBugcheckData", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "KiBugcheckData", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KiBugcheckData)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "IopErrorLogListHead", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "IopErrorLogListHead", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.IopErrorLogListHead)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "ObpRootDirectoryObject",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "ObpRootDirectoryObject",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.ObpRootDirectoryObject)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "ObpTypeObjectType", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "ObpTypeObjectType", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.ObpTypeObjectType)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSystemCacheStart", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmSystemCacheStart", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmSystemCacheStart)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSystemCacheEnd", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmSystemCacheEnd", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmSystemCacheEnd)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSystemCacheWs", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmSystemCacheWs", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmSystemCacheWs)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmPfnDatabase", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmPfnDatabase", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmPfnDatabase)) - (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSystemPtesStart", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmSystemPtesStart", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmSystemPtesStart)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSystemPtesEnd", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmSystemPtesEnd", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmSystemPtesEnd)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSubsectionBase", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmSubsectionBase", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmSubsectionBase)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmNumberOfPagingFiles", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmNumberOfPagingFiles", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmNumberOfPagingFiles)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmLowestPhysicalPage", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmLowestPhysicalPage", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmLowestPhysicalPage)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmHighestPhysicalPage", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmHighestPhysicalPage", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmHighestPhysicalPage)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmNumberOfPhysicalPages",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmNumberOfPhysicalPages",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmNumberOfPhysicalPages)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmMaximumNonPagedPoolInBytes",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmMaximumNonPagedPoolInBytes",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmMaximumNonPagedPoolInBytes)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmNonPagedSystemStart", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmNonPagedSystemStart", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmNonPagedSystemStart)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmNonPagedPoolStart", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmNonPagedPoolStart", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmNonPagedPoolStart)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmNonPagedPoolEnd", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmNonPagedPoolEnd", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmNonPagedPoolEnd)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmPagedPoolStart", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmPagedPoolStart", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmPagedPoolStart)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmPagedPoolEnd", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmPagedPoolEnd", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmPagedPoolEnd)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmPagedPoolInformation",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmPagedPoolInformation",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmPagedPoolInformation)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmPageSize", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmPageSize", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmPageSize)) - (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmSizeOfPagedPoolInBytes",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmSizeOfPagedPoolInBytes",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmSizeOfPagedPoolInBytes)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmTotalCommitLimit", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmTotalCommitLimit", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmTotalCommitLimit)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmTotalCommittedPages", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmTotalCommittedPages", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmTotalCommittedPages)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSharedCommit", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmSharedCommit", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmSharedCommit)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmDriverCommit", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmDriverCommit", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmDriverCommit)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmProcessCommit", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmProcessCommit", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmProcessCommit)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmPagedPoolCommit", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmPagedPoolCommit", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmPagedPoolCommit)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmExtendedCommit", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmExtendedCommit", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmExtendedCommit)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmZeroedPageListHead", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmZeroedPageListHead", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmZeroedPageListHead)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmFreePageListHead", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmFreePageListHead", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmFreePageListHead)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmStandbyPageListHead", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmStandbyPageListHead", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmStandbyPageListHead)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmModifiedPageListHead",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmModifiedPageListHead",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmModifiedPageListHead)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmModifiedNoWritePageListHead",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmModifiedNoWritePageListHead",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmModifiedNoWritePageListHead)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmAvailablePages", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmAvailablePages", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmAvailablePages)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmResidentAvailablePages",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmResidentAvailablePages",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmResidentAvailablePages)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "PoolTrackTable", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "PoolTrackTable", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.PoolTrackTable)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "NonPagedPoolDescriptor",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "NonPagedPoolDescriptor",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.NonPagedPoolDescriptor)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmHighestUserAddress", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmHighestUserAddress", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmHighestUserAddress)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSystemRangeStart", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmSystemRangeStart", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmSystemRangeStart)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmUserProbeAddress", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmUserProbeAddress", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmUserProbeAddress)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KdPrintCircularBuffer", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "KdPrintCircularBuffer", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.KdPrintCircularBuffer)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "KdPrintCircularBufferEnd",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "KdPrintCircularBufferEnd",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KdPrintCircularBufferEnd)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KdPrintWritePointer", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "KdPrintWritePointer", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.KdPrintWritePointer)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KdPrintRolloverCount", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "KdPrintRolloverCount", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.KdPrintRolloverCount)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmLoadedUserImageList", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmLoadedUserImageList", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmLoadedUserImageList)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "NtBuildLab", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "NtBuildLab", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.NtBuildLab)) - (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KiNormalSystemCall", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "KiNormalSystemCall", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.KiNormalSystemCall)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KiProcessorBlock", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "KiProcessorBlock", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.KiProcessorBlock)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmUnloadedDrivers", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmUnloadedDrivers", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmUnloadedDrivers)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmLastUnloadedDriver", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmLastUnloadedDriver", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmLastUnloadedDriver)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmTriageActionTaken", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmTriageActionTaken", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmTriageActionTaken)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSpecialPoolTag", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmSpecialPoolTag", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmSpecialPoolTag)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KernelVerifier", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "KernelVerifier", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KernelVerifier)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmVerifierData", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmVerifierData", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmVerifierData)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmAllocatedNonPagedPool",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmAllocatedNonPagedPool",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmAllocatedNonPagedPool)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmPeakCommitment", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "MmPeakCommitment", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.MmPeakCommitment)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmTotalCommitLimitMaximum",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmTotalCommitLimitMaximum",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmTotalCommitLimitMaximum)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "CmNtCSDVersion", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "CmNtCSDVersion", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.CmNtCSDVersion)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmPhysicalMemoryBlock", max_symbol_length)
-             == 0) {
+    } else if (strncmp(symbol, "MmPhysicalMemoryBlock", max_symbol_length)
+               == 0) {
         *offset =
             (unsigned long) (&(d.MmPhysicalMemoryBlock)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSessionBase", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmSessionBase", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmSessionBase)) - (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "MmSessionSize", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "MmSessionSize", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmSessionSize)) - (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmSystemParentTablePage",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmSystemParentTablePage",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmSystemParentTablePage)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "MmVirtualTranslationBase",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "MmVirtualTranslationBase",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.MmVirtualTranslationBase)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "KdPrintCircularBufferPtr",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "KdPrintCircularBufferPtr",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KdPrintCircularBufferPtr)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KdPrintBufferSize", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "KdPrintBufferSize", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.KdPrintBufferSize)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "KeLoaderBlock", max_symbol_length) == 0) {
+    } else if (strncmp(symbol, "KeLoaderBlock", max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.KeLoaderBlock)) - (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "IopNumTriageDumpDataBlocks",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "IopNumTriageDumpDataBlocks",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.IopNumTriageDumpDataBlocks)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp
-             (symbol, "IopTriageDumpDataBlocks",
-              max_symbol_length) == 0) {
+    } else if (strncmp
+               (symbol, "IopTriageDumpDataBlocks",
+                max_symbol_length) == 0) {
         *offset =
             (unsigned long) (&(d.IopTriageDumpDataBlocks)) -
             (unsigned long) (&d);
-    }
-    else if (strncmp(symbol, "VfCrashDataBlock", max_symbol_length) ==
-             0) {
+    } else if (strncmp(symbol, "VfCrashDataBlock", max_symbol_length) ==
+               0) {
         *offset =
             (unsigned long) (&(d.VfCrashDataBlock)) -
             (unsigned long) (&d);
-    }
-    else {
+    } else {
         return VMI_FAILURE;
     }
 
@@ -730,7 +645,7 @@ find_windows_version(
 
     // no need to repeat this work if we already have the answer
     if (windows->version &&
-        windows->version != VMI_OS_WINDOWS_UNKNOWN) {
+            windows->version != VMI_OS_WINDOWS_UNKNOWN) {
         return windows->version;
     }
 
@@ -739,7 +654,7 @@ find_windows_version(
 
     // Check if it's a version we know about.
     // The known KDBG magic values are defined in win_ver_t
-    switch(version) {
+    switch (version) {
         case VMI_OS_WINDOWS_2000:
         case VMI_OS_WINDOWS_XP:
         case VMI_OS_WINDOWS_2003:
@@ -775,11 +690,11 @@ status_t find_kdbg_address(
                                   12);
     uint32_t find_ofs_64 = 0xc, find_ofs_32 = 0x8, find_ofs = 0;
 
-    for(;paddr<memsize;paddr+=VMI_PS_4KB) {
+    for (; paddr<memsize; paddr+=VMI_PS_4KB) {
 
         find_ofs = 0;
 
-        if(VMI_FAILURE == vmi_read_pa(vmi, paddr, VMI_PS_4KB, &haystack, NULL))
+        if (VMI_FAILURE == vmi_read_pa(vmi, paddr, VMI_PS_4KB, &haystack, NULL))
             continue;
 
         int match_offset = boyer_moore2(bm64, haystack, VMI_PS_4KB);
@@ -791,7 +706,7 @@ status_t find_kdbg_address(
 
         if (-1 != match_offset) {
 
-            if(!find_ofs) {
+            if (!find_ofs) {
                 find_ofs = find_ofs_32;
             }
 
@@ -830,7 +745,7 @@ find_kdbg_address_fast(
 
     status_t ret = VMI_FAILURE;
     reg_t cr3;
-    if(VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
+    if (VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
         return ret;
     }
 
@@ -843,25 +758,24 @@ find_kdbg_address_fast(
     if (VMI_PM_IA32E == vmi->page_mode) {
         bm = boyer_moore_init((unsigned char *)"\x00\xf8\xff\xffKDBG", 8);
         find_ofs = 0xc;
-    }
-    else {
+    } else {
         bm = boyer_moore_init((unsigned char *)"\x00\x00\x00\x00\x00\x00\x00\x00KDBG",
                               12);
         find_ofs = 0x8;
     }   // if-else
 
     GSList *va_pages_loop = va_pages;
-    while(va_pages_loop) {
+    while (va_pages_loop) {
 
         page_info_t *vap = (page_info_t *)va_pages_loop->data;
 
         // We might get pages that are greater than 4Kb
         // so we are just going to split them to 4Kb pages
-        while(vap && vap->size >= VMI_PS_4KB) {
+        while (vap && vap->size >= VMI_PS_4KB) {
             vap->size -= VMI_PS_4KB;
             addr_t page_paddr = vap->paddr+vap->size;
 
-            if(page_paddr + VMI_PS_4KB - 1 > memsize) {
+            if (page_paddr + VMI_PS_4KB - 1 > memsize) {
                 continue;
             }
 
@@ -875,7 +789,7 @@ find_kdbg_address_fast(
                 addr_t tmp_kva = 0, tmp_kpa = 0;
                 addr_t tmp_kdbg = page_paddr + (unsigned int) match_offset - find_ofs;
 
-                if(VMI_FAILURE == vmi_read_64_pa(vmi, tmp_kdbg + sizeof(DBGKD_DEBUG_DATA_HEADER64), &tmp_kva)) {
+                if (VMI_FAILURE == vmi_read_64_pa(vmi, tmp_kdbg + sizeof(DBGKD_DEBUG_DATA_HEADER64), &tmp_kva)) {
                     continue;
                 }
 
@@ -897,7 +811,7 @@ find_kdbg_address_fast(
 
 done:
     // free the rest of the list
-    while(va_pages_loop) {
+    while (va_pages_loop) {
         g_free(va_pages_loop->data);
         va_pages_loop = va_pages_loop->next;
     }
@@ -924,7 +838,7 @@ find_kdbg_address_faster(
     // This scan requires the location of the KPCR
     // which we get from the GS/FS register on live machines.
     // For file mode this needs to be further investigated.
-    if(VMI_FILE == vmi->mode) {
+    if (VMI_FILE == vmi->mode) {
         return ret;
     }
 
@@ -932,19 +846,18 @@ find_kdbg_address_faster(
     int find_ofs = 0x10;
 
     reg_t cr3 = 0, fsgs = 0;
-    if(VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
+    if (VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
         goto done;
     }
 
-    switch ( vmi->page_mode )
-    {
+    switch ( vmi->page_mode ) {
         case VMI_PM_IA32E:
-            if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0))
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0))
                 goto done;
             break;
         case VMI_PM_LEGACY: /* Fall-through */
         case VMI_PM_PAE:
-            if(VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0))
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0))
                 goto done;
             break;
         default:
@@ -972,12 +885,12 @@ scan:
 
     page_paddr &= ~VMI_BIT_MASK(0,11);
 
-    for(; page_paddr + step < vmi->max_physical_address; page_paddr += step) {
+    for (; page_paddr + step < vmi->max_physical_address; page_paddr += step) {
 
         uint8_t page[VMI_PS_4KB];
         ctx.addr = page_paddr;
         status_t rc = peparse_get_image(vmi, &ctx, VMI_PS_4KB, page);
-        if(VMI_FAILURE == rc) {
+        if (VMI_FAILURE == rc) {
             continue;
         }
 
@@ -991,11 +904,10 @@ scan:
         addr_t export_header_offset =
             peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
 
-        if(!export_header_offset || page_paddr + export_header_offset >= vmi->max_physical_address)
+        if (!export_header_offset || page_paddr + export_header_offset >= vmi->max_physical_address)
             continue;
 
-        if ( VMI_SUCCESS == vmi_read_pa(vmi, page_paddr + export_header_offset, sizeof(struct export_table), &et, NULL))
-        {
+        if ( VMI_SUCCESS == vmi_read_pa(vmi, page_paddr + export_header_offset, sizeof(struct export_table), &et, NULL)) {
             if ( !(et.export_flags || !et.name) && page_paddr + et.name + 12 >= vmi->max_physical_address)
                 continue;
 
@@ -1003,7 +915,7 @@ scan:
             if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + et.name, 12, name, NULL) )
                 continue;
 
-            if(strcmp("ntoskrnl.exe", (const char *)name)) {
+            if (strcmp("ntoskrnl.exe", (const char *)name)) {
                 continue;
             }
         } else {
@@ -1011,21 +923,21 @@ scan:
         }
 
         uint32_t c;
-        for(c=0; c < pe_header->number_of_sections; c++) {
+        for (c=0; c < pe_header->number_of_sections; c++) {
 
             struct section_header section;
             addr_t section_addr = page_paddr
-                + dos_header->offset_to_pe
-                + sizeof(struct pe_header)
-                + pe_header->size_of_optional_header
-                + c*sizeof(struct section_header);
+                                  + dos_header->offset_to_pe
+                                  + sizeof(struct pe_header)
+                                  + pe_header->size_of_optional_header
+                                  + c*sizeof(struct section_header);
 
             // Read the section header from memory
             if ( VMI_FAILURE == vmi_read_pa(vmi, section_addr, sizeof(struct section_header), (uint8_t *)&section, NULL) )
                 continue;
 
             // .data check
-            if(memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) != 0) {
+            if (memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) != 0) {
                 continue;
             }
 
@@ -1044,7 +956,7 @@ scan:
                 uint64_t *kernbase = (uint64_t *)&haystack[(unsigned int) match_offset + sizeof(uint64_t)];
                 int zeroes = __builtin_clzll(page_paddr);
 
-                if((*kernbase) << zeroes == page_paddr << zeroes) {
+                if ((*kernbase) << zeroes == page_paddr << zeroes) {
 
                     *kernel_pa = page_paddr;
                     *kernel_va = *kernbase;
@@ -1053,13 +965,13 @@ scan:
                     ret = VMI_SUCCESS;
 
                     dbprint(VMI_DEBUG_MISC,
-                        "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
+                            "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
 
                     goto done;
                 } else {
                     dbprint(VMI_DEBUG_MISC,
-                        "--WARNING: KernBase in KdDebuggerDataBlock at PA %.16"PRIx64" doesn't point back to this page.\n",
-                        page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs);
+                            "--WARNING: KernBase in KdDebuggerDataBlock at PA %.16"PRIx64" doesn't point back to this page.\n",
+                            page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs);
                 }
             }
 
@@ -1067,7 +979,7 @@ scan:
         }
     }
 
-    if(step<0) {
+    if (step<0) {
         step = VMI_PS_4KB;
         goto scan;
     }
@@ -1208,9 +1120,9 @@ init_from_kdbg(
 
     if (windows->kdbg_va) {
         dbprint(VMI_DEBUG_MISC, "**using KdDebuggerDataBlock address=0x%"PRIx64" from config\n",
-            windows->kdbg_va);
+                windows->kdbg_va);
 
-        if(VMI_SUCCESS != windows_kdbg_lookup(vmi, "KernBase", &windows->ntoskrnl_va)) {
+        if (VMI_SUCCESS != windows_kdbg_lookup(vmi, "KernBase", &windows->ntoskrnl_va)) {
             dbprint(VMI_DEBUG_MISC, "**Error reading KernBase value, falling back to search methods\n");
             goto find_kdbg;
         }
@@ -1231,7 +1143,7 @@ init_from_kdbg(
         /* Calculate ntoskrnl_va and kdbg_va */
         unsigned long offset = 0;
         kdbg_symbol_offset("KernBase", &offset);
-        if(VMI_FAILURE == vmi_read_addr_pa(vmi, windows->ntoskrnl + windows->kdbg_offset + offset, &windows->ntoskrnl_va)) {
+        if (VMI_FAILURE == vmi_read_addr_pa(vmi, windows->ntoskrnl + windows->kdbg_offset + offset, &windows->ntoskrnl_va)) {
             errprint("Inconsistent addresses passed in the config!\n");
             goto exit;
         }
@@ -1240,7 +1152,7 @@ init_from_kdbg(
 
         windows->kdbg_va = windows->ntoskrnl_va - windows->kdbg_offset;
         dbprint(VMI_DEBUG_MISC, "**set KdDebuggerDataBlock address=0x%"PRIx64"\n",
-            windows->kdbg_va);
+                windows->kdbg_va);
     } else {
         /* only ntoskrnl or kdbg_offset were given, which are not
          * enough to find and calculate the others, so fall back to search methods. */
@@ -1254,7 +1166,7 @@ init_from_kdbg(
             goto find_kdbg;
 
         dbprint(VMI_DEBUG_MISC, "**set KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
-    } else if(VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &test) || test != windows->ntoskrnl) {
+    } else if (VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &test) || test != windows->ntoskrnl) {
         errprint("Invalid configuration values, win_ntoskrnl not match translated KernBase physical address\n");
         goto exit;
     }
@@ -1266,18 +1178,18 @@ init_from_kdbg(
 find_kdbg:
     dbprint(VMI_DEBUG_MISC, "**Attempting KdDebuggerDataBlock search methods\n");
 
-    if(VMI_SUCCESS == find_kdbg_address_instant(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
+    if (VMI_SUCCESS == find_kdbg_address_instant(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
         goto found;
     }
-    if(VMI_SUCCESS == find_kdbg_address_faster(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
+    if (VMI_SUCCESS == find_kdbg_address_faster(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
         goto found;
     }
-    if(VMI_SUCCESS == find_kdbg_address_fast(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
+    if (VMI_SUCCESS == find_kdbg_address_fast(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
         goto found;
     }
 
     /* NOTE: This is the only method that does anything for VMI_FILE */
-    if(VMI_SUCCESS == find_kdbg_address(vmi, &kdbg_pa, &kernbase_va)) {
+    if (VMI_SUCCESS == find_kdbg_address(vmi, &kdbg_pa, &kernbase_va)) {
         kernbase_pa = get_ntoskrnl_base(vmi, 0);
         goto found;
     }
@@ -1292,30 +1204,30 @@ found:
     if (!windows->ntoskrnl) {
         windows->ntoskrnl = kernbase_pa;
         printf("LibVMI Suggestion: set win_ntoskrnl=0x%"PRIx64" in libvmi.conf for faster startup.\n",
-                windows->ntoskrnl);
+               windows->ntoskrnl);
     } else if (windows->ntoskrnl != kernbase_pa) {
         errprint("LibVMI found physical kernel base address 0x%"PRIx64" that conflicts with provided value from config file!\n",
-                kernbase_pa);
+                 kernbase_pa);
         goto exit;
     }
 
     if (!windows->kdbg_offset) {
         windows->kdbg_offset = kdbg_pa - windows->ntoskrnl;
         printf("LibVMI Suggestion: set win_kdbg=0x%"PRIx64" in libvmi.conf for faster startup.\n",
-                windows->kdbg_offset);
+               windows->kdbg_offset);
     } else if (windows->kdbg_offset != kdbg_pa - kernbase_pa) {
         errprint("LibVMI found win_kdbg offset 0x%"PRIx64" that conflicts with provided value from config file!\n",
-            kdbg_pa - kernbase_pa);
+                 kdbg_pa - kernbase_pa);
         goto exit;
     }
 
     if (!windows->kdbg_va) {
         windows->kdbg_va = windows->ntoskrnl_va + windows->kdbg_offset;
         printf("LibVMI Suggestion: set win_kdvb=0x%"PRIx64" in libvmi.conf for faster startup.\n",
-                windows->kdbg_va);
+               windows->kdbg_va);
     } else if (windows->kdbg_va != windows->ntoskrnl_va + windows->kdbg_offset) {
         errprint("LibVMI found win_kdvb offset 0x%"PRIx64" that conflicts with provided value from config file!\n",
-            windows->ntoskrnl_va + windows->kdbg_offset);
+                 windows->ntoskrnl_va + windows->kdbg_offset);
         goto exit;
     }
 
@@ -1324,7 +1236,7 @@ done:
         kdbg_pa = windows->ntoskrnl + windows->kdbg_offset;
     }
     windows->version = find_windows_version(vmi, kdbg_pa);
-    if(VMI_OS_WINDOWS_UNKNOWN == windows->version) {
+    if (VMI_OS_WINDOWS_UNKNOWN == windows->version) {
         errprint("Unsupported Windows version or incorrect configuration\n");
     }
 

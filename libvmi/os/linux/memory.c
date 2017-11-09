@@ -72,7 +72,7 @@ linux_get_taskstruct_addr_from_pid(
         next_process -= tasks_offset;
 
         /* if we are back at the list head, we are done */
-    } while(list_head != next_process);
+    } while (list_head != next_process);
 
     return 0;
 }
@@ -120,12 +120,12 @@ linux_get_taskstruct_addr_from_pgd(
          * a fallback. task_struct->active_mm can be found very reliably
          * at task_struct->mm + 1 pointer width
          */
-        if(!ptr && width)
+        if (!ptr && width)
             vmi_read_addr_va(vmi, next_process + mm_offset + width, 0, &ptr);
         vmi_read_addr_va(vmi, ptr + pgd_offset, 0, &task_pgd);
 
         if ( VMI_SUCCESS == vmi_translate_kv2p(vmi, task_pgd, &task_pgd) &&
-             task_pgd == pgd)
+                task_pgd == pgd)
             return next_process;
 
         vmi_read_addr_va(vmi, next_process + tasks_offset, 0, &next_process);
@@ -170,6 +170,8 @@ linux_pid_to_pgd(
 
     /* now follow the pointer to the memory descriptor and grab the pgd value */
     rc = vmi_read_addr_va(vmi, ts_addr + mm_offset, 0, &ptr);
+    if ( VMI_FAILURE == rc )
+        return VMI_FAILURE;
 
     /* task_struct->mm is NULL when Linux is executing on the behalf
      * of a task, or if the task represents a kthread. In this context,
@@ -177,10 +179,8 @@ linux_pid_to_pgd(
      * a fallback. task_struct->active_mm can be found very reliably
      * at task_struct->mm + 1 pointer width
      */
-    if(!ptr)
-    {
-        switch(vmi->page_mode)
-        {
+    if (!ptr) {
+        switch (vmi->page_mode) {
             case VMI_PM_AARCH64:// intentional fall-through
             case VMI_PM_IA32E:
                 width = 8;
@@ -196,7 +196,7 @@ linux_pid_to_pgd(
 
         rc = vmi_read_addr_va(vmi, ts_addr + mm_offset + width, 0, &ptr);
 
-        if( VMI_FAILURE == rc || !ptr )
+        if ( VMI_FAILURE == rc || !ptr )
             return rc;
     }
 

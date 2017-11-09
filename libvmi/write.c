@@ -73,7 +73,7 @@ vmi_write(
             if (!vmi->arch_interface || !vmi->os_interface)
                 goto done;
 
-            if(!ctx->pid)
+            if (!ctx->pid)
                 dtb = vmi->kpgd;
             else if (ctx->pid > 0) {
                 if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
@@ -100,7 +100,7 @@ vmi_write(
     while (count > 0) {
         size_t write_len = 0;
 
-        if(dtb) {
+        if (dtb) {
             if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, start_addr + buf_offset, &paddr))
                 goto done;
         } else
@@ -116,9 +116,9 @@ vmi_write(
 
         /* do the write */
         if (VMI_FAILURE ==
-            driver_write(vmi, paddr,
-                         ((char *) buf + (addr_t) buf_offset),
-                         write_len)) {
+                driver_write(vmi, paddr,
+                             ((char *) buf + (addr_t) buf_offset),
+                             write_len)) {
             goto done;
         }
 
@@ -230,7 +230,7 @@ vmi_write_addr(
     const access_context_t *ctx,
     addr_t * value)
 {
-    switch(vmi->page_mode) {
+    switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
             return vmi_write(vmi, ctx, 8, value, NULL);
@@ -240,8 +240,8 @@ vmi_write_addr(
             return vmi_write(vmi, ctx, 4, value, NULL);
         default:
             dbprint(VMI_DEBUG_WRITE,
-                "--%s: unknown page mode, can't write addr as pointer width is unknown\n",
-                __FUNCTION__);
+                    "--%s: unknown page mode, can't write addr as pointer width is unknown\n",
+                    __FUNCTION__);
             break;
     }
 

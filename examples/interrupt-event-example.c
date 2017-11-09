@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Author: Steven Maresca (steven.maresca@zentific.com)
@@ -33,10 +33,11 @@
 
 vmi_event_t interrupt_event;
 
-event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
     printf("Int 3 happened: GFN=%"PRIx64" RIP=%"PRIx64" Length: %"PRIu32"\n",
-        event->interrupt_event.gfn, event->interrupt_event.gla,
-        event->interrupt_event.insn_length);
+           event->interrupt_event.gfn, event->interrupt_event.gla,
+           event->interrupt_event.insn_length);
 
     /* This callback assumes that all INT3 events are caused by
      *  a debugger or similar inside the guest, and therefore
@@ -60,11 +61,13 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event){
 }
 
 static int interrupted = 0;
-static void close_handler(int sig){
+static void close_handler(int sig)
+{
     interrupted = sig;
 }
 
-int main (int argc, char **argv) {
+int main (int argc, char **argv)
+{
     vmi_instance_t vmi;
     struct sigaction act;
     act.sa_handler = close_handler;
@@ -77,7 +80,7 @@ int main (int argc, char **argv) {
 
     char *name = NULL;
 
-    if(argc < 2){
+    if (argc < 2) {
         fprintf(stderr, "Usage: interrupt_events_example <name of VM>\n");
         exit(1);
     }
@@ -87,8 +90,7 @@ int main (int argc, char **argv) {
 
     // Initialize the libvmi library.
     if (VMI_FAILURE ==
-        vmi_init(&vmi, VMI_XEN, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, NULL, NULL))
-    {
+            vmi_init(&vmi, VMI_XEN, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -105,7 +107,7 @@ int main (int argc, char **argv) {
     vmi_register_event(vmi, &interrupt_event);
 
     printf("Waiting for events...\n");
-    while(!interrupted){
+    while (!interrupted) {
         vmi_events_listen(vmi,500);
     }
     printf("Finished with test.\n");

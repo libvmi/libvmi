@@ -1,0 +1,151 @@
+dist:   trusty
+language: c
+sudo: false
+env:
+  global:
+    - secure: "IizhTUvAKYbz1Kf4EST9UwxRVXjNlsQtIOshTjY0zoTOXT4W5A2r7sbQJu/FwTqTPbz6FDVz1kGQvXUq19Wj4wbgBJUtWgpC4SnRJ0HTTRIsxTg0dceip2m3eLHWR9wATEsun0dnqfwY78P9QxCsIAWlxnOANifhTLxV9HhuYc4="
+
+matrix:
+    include:
+
+#
+# Whitespace check
+#
+    - env:
+        - TEST="whitespace"
+      script:
+        - git remote add upstream https://github.com/$TRAVIS_REPO_SLUG.git
+        - git fetch upstream
+        - git diff --check upstream/master
+
+#
+# Astyle check
+#
+    - env:
+        - TEST="astyle"
+      sudo: required
+      before_install:
+        - sudo add-apt-repository "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted universe multiverse" -y
+        - sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 3B4FE6ACC0B21F32
+        - sudo apt-get update -qq
+      install:
+        - sudo apt-get install astyle
+      script:
+        - export ARTISTIC_STYLE_OPTIONS=".astylerc" && astyle `find . | egrep "\.c|\.h"` > astyle.out
+        - TEST=$(cat astyle.out | grep Formatted | wc -l)
+        - |
+          if [[ $TEST -ne 0 ]]; then
+            git --no-pager diff
+            echo "Please fix style issues as shown above"
+            exit 1
+          fi
+
+#
+# gcc compile test
+#
+    - env:
+        - TEST="gcc compile"
+      compiler: gcc
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --enable-debug
+        - make
+
+#
+# clang compile test
+#
+    - env:
+        - TEST="clang compile"
+      compiler: clang
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --enable-debug
+        - make
+
+#
+# Coverity
+#
+    - env:
+        - TEST="Coverity"
+      compiler: gcc
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+        coverity_scan:
+            project:
+                name: "libvmi/libvmi"
+                description: "Build submitted via Travis CI"
+            notification_email: tamas.k.lengyel@gmail.com
+            build_command_prepend: "./autogen.sh; ./configure --enable-debug; make clean"
+            build_command:   "make"
+            branch_pattern: master
+      script:
+      - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
+#
+# clang --analyze test
+#
+    - env:
+        - TEST="clang --analyze"
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+                - llvm-toolchain-trusty-5.0
+            packages:
+                - clang-5.0
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      before_install:
+        - export CC=clang-5.0
+        - export CXX=clang++-5.0
+      install:
+        - ./autogen.sh
+      script:
+        - scan-build-5.0 --status-bugs --use-cc=clang-5.0 ./configure --enable-debug
+        - cd libvmi/config && make && cd ../..
+        - scan-build-5.0 --status-bugs --use-cc=clang-5.0 make

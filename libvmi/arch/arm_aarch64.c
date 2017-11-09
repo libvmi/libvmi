@@ -30,16 +30,18 @@
 
 // 0th Level Page Table Index (4kb Pages)
 static inline
-uint64_t zero_level_4kb_table_index(uint64_t vaddr) {
+uint64_t zero_level_4kb_table_index(uint64_t vaddr)
+{
     return (vaddr >> 39) & VMI_BIT_MASK(0,8);
 }
 
 // 0th Level Descriptor (4kb Pages)
 static inline
-void get_zero_level_4kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info) {
+void get_zero_level_4kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info)
+{
     info->arm_aarch64.zld_location = (dtb & VMI_BIT_MASK(12,47)) | (zero_level_4kb_table_index(vaddr) << 3);
     uint64_t zld_v;
-    if(VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.zld_location, &zld_v)) {
+    if (VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.zld_location, &zld_v)) {
         printf("Got zld_v: 0x%lx\n", zld_v);
         info->arm_aarch64.zld_value = zld_v;
     }
@@ -47,32 +49,36 @@ void get_zero_level_4kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t va
 
 // 1st Level Page Table Index (4kb Pages)
 static inline
-uint64_t first_level_4kb_table_index(uint64_t vaddr) {
+uint64_t first_level_4kb_table_index(uint64_t vaddr)
+{
     return (vaddr >> 30) & VMI_BIT_MASK(0,8);
 }
 
 // 1st Level Descriptor (4kb Pages)
 static inline
-void get_first_level_4kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info) {
+void get_first_level_4kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info)
+{
     info->arm_aarch64.fld_location = (dtb & VMI_BIT_MASK(12,47)) | (first_level_4kb_table_index(vaddr) << 3);
     uint64_t fld_v;
-    if(VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.fld_location, &fld_v)) {
+    if (VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.fld_location, &fld_v)) {
         info->arm_aarch64.fld_value = fld_v;
     }
 }
 
 // 1st Level Page Table Index (64kb Pages)
 static inline
-uint64_t first_level_64kb_table_index(uint64_t vaddr) {
+uint64_t first_level_64kb_table_index(uint64_t vaddr)
+{
     return (vaddr >> 42) & VMI_BIT_MASK(0,5);
 }
 
 // 1st Level Descriptor (64kb Pages)
 static inline
-void get_first_level_64kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info) {
+void get_first_level_64kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info)
+{
     info->arm_aarch64.fld_location = (dtb & VMI_BIT_MASK(9,47)) | (first_level_64kb_table_index(vaddr) << 3);
     uint64_t fld_v;
-    if(VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.fld_location, &fld_v)) {
+    if (VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.fld_location, &fld_v)) {
         info->arm_aarch64.fld_value = fld_v;
     }
 
@@ -81,64 +87,72 @@ void get_first_level_64kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t 
 
 // 2nd Level Page Table Index (4kb Pages)
 static inline
-uint64_t second_level_4kb_table_index(uint64_t vaddr) {
+uint64_t second_level_4kb_table_index(uint64_t vaddr)
+{
     return (vaddr>>21) & VMI_BIT_MASK(0,8);
 }
 
 // 2nd Level Page Table Descriptor (4kb Pages)
 static inline
-void get_second_level_4kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info) {
+void get_second_level_4kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info)
+{
     info->arm_aarch64.sld_location = (dtb & VMI_BIT_MASK(12,47)) | (second_level_4kb_table_index(vaddr) << 3);
     uint64_t sld_v;
-    if(VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.sld_location, &sld_v)) {
+    if (VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.sld_location, &sld_v)) {
         info->arm_aarch64.sld_value = sld_v;
     }
 }
 
 // 2nd Level Page Table Index (64kb Pages)
 static inline
-uint64_t second_level_64kb_table_index(uint64_t vaddr) {
+uint64_t second_level_64kb_table_index(uint64_t vaddr)
+{
     return (vaddr>>29) & VMI_BIT_MASK(0,12);
 }
 
 // 2nd Level Page Table Descriptor (64kb Pages)
 static inline
-void get_second_level_64kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info) {
+void get_second_level_64kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t vaddr, page_info_t *info)
+{
     info->arm_aarch64.sld_location = (dtb & VMI_BIT_MASK(16,47)) | (second_level_64kb_table_index(vaddr) << 3);
     uint64_t sld_v;
-    if(VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.sld_location, &sld_v)) {
+    if (VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.sld_location, &sld_v)) {
         info->arm_aarch64.sld_value = sld_v;
     }
 }
 
 // 3rd Level Page Table Index (4kb Pages)
 static inline
-uint64_t third_level_4kb_table_index(uint64_t vaddr) {
+uint64_t third_level_4kb_table_index(uint64_t vaddr)
+{
     return (vaddr>>12) & VMI_BIT_MASK(0,8);
 }
 
 // 3rd Level Page Table Descriptor (4kb Pages)
 static inline
-void get_third_level_4kb_descriptor(vmi_instance_t vmi, uint64_t vaddr, page_info_t *info) {
+void get_third_level_4kb_descriptor(vmi_instance_t vmi, uint64_t vaddr, page_info_t *info)
+{
     info->arm_aarch64.tld_location = (info->arm_aarch64.sld_value & VMI_BIT_MASK(12,47)) | (third_level_4kb_table_index(vaddr) << 3);
     uint64_t tld_v;
-    if(VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.tld_location, &tld_v)) {
+    if (VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.tld_location, &tld_v)) {
         info->arm_aarch64.tld_value = tld_v;
     }
 }
 
 // 3rd Level Page Table Index (64kb Pages)
 static inline
-uint64_t third_level_64kb_table_index(uint64_t vaddr) {
+uint64_t third_level_64kb_table_index(uint64_t vaddr)
+{
     return (vaddr>>16) & VMI_BIT_MASK(0,12);
 }
 
 // 3rd Level Page Table Descriptor (64kb Pages)
 static inline
-void get_third_level_64kb_descriptor(vmi_instance_t vmi, uint64_t vaddr, page_info_t *info) {
+void get_third_level_64kb_descriptor(vmi_instance_t vmi, uint64_t vaddr, page_info_t *info)
+{
     info->arm_aarch64.tld_location = (info->arm_aarch64.sld_value & VMI_BIT_MASK(16,47)) | (third_level_64kb_table_index(vaddr) << 3);
     uint64_t tld_v;
-    if(VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.tld_location, &tld_v)) {
+    if (VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.tld_location, &tld_v)) {
         info->arm_aarch64.tld_value = tld_v;
     }
 }
@@ -147,9 +161,9 @@ void get_third_level_64kb_descriptor(vmi_instance_t vmi, uint64_t vaddr, page_in
 // D4.3 ARM ARMv8-A VMSAv8-64 translation table format descriptors
 // K7.1.2 ARM ARMv8-A Full translation flows for VMSAv8-64 address translation
 status_t v2p_aarch64 (vmi_instance_t vmi,
-    addr_t dtb,
-    addr_t vaddr,
-    page_info_t *info)
+                      addr_t dtb,
+                      addr_t vaddr,
+                      page_info_t *info)
 {
     status_t status = VMI_FAILURE;
 
@@ -169,7 +183,7 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
     uint8_t levels;
     uint8_t va_width;
 
-    if(dtb == vmi->kpgd)
+    if (dtb == vmi->kpgd)
         is_dtb_ttbr1 = true;
 
     if ( is_dtb_ttbr1 ) {
@@ -196,7 +210,7 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
                 "--ARM AArch64 PTLookup: zld_value = 0x%"PRIx64"\n",
                 info->arm_aarch64.zld_value);
 
-        if( (info->arm_aarch64.zld_value & VMI_BIT_MASK(0,1)) != 0b11)
+        if ( (info->arm_aarch64.zld_value & VMI_BIT_MASK(0,1)) != 0b11)
             goto done;
 
         dtb = info->arm_aarch64.zld_value & VMI_BIT_MASK(12,47);
@@ -207,10 +221,10 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
         if ( VMI_PS_4KB == ps ) {
             get_first_level_4kb_descriptor(vmi, dtb, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
-                "--ARM AArch64 4kb PTLookup: fld_value = 0x%"PRIx64"\n",
-                info->arm_aarch64.fld_value);
+                    "--ARM AArch64 4kb PTLookup: fld_value = 0x%"PRIx64"\n",
+                    info->arm_aarch64.fld_value);
 
-            switch(info->arm_aarch64.fld_value & VMI_BIT_MASK(0,1)) {
+            switch (info->arm_aarch64.fld_value & VMI_BIT_MASK(0,1)) {
                 case 0b11:
                     dtb = info->arm_aarch64.fld_value & VMI_BIT_MASK(12,47);
                     --levels;
@@ -228,10 +242,10 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
         if ( VMI_PS_64KB == ps ) {
             get_first_level_64kb_descriptor(vmi, dtb, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
-                "--ARM AArch64 64kb PTLookup: fld_value = 0x%"PRIx64"\n",
-                info->arm_aarch64.fld_value);
+                    "--ARM AArch64 64kb PTLookup: fld_value = 0x%"PRIx64"\n",
+                    info->arm_aarch64.fld_value);
 
-            switch(info->arm_aarch64.fld_value & VMI_BIT_MASK(0,1)) {
+            switch (info->arm_aarch64.fld_value & VMI_BIT_MASK(0,1)) {
                 case 0b11:
                     dtb = info->arm_aarch64.fld_value & VMI_BIT_MASK(16,47);
                     --levels;
@@ -246,15 +260,15 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
         if ( VMI_PS_4KB == ps ) {
             get_second_level_4kb_descriptor(vmi, dtb, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
-                "--ARM AArch64 4kb PTLookup: sld_value = 0x%"PRIx64"\n",
-                info->arm_aarch64.sld_value);
+                    "--ARM AArch64 4kb PTLookup: sld_value = 0x%"PRIx64"\n",
+                    info->arm_aarch64.sld_value);
 
-            switch(info->arm_aarch64.sld_value & VMI_BIT_MASK(0,1)) {
+            switch (info->arm_aarch64.sld_value & VMI_BIT_MASK(0,1)) {
                 case 0b11:
                     get_third_level_4kb_descriptor(vmi, vaddr, info);
                     dbprint(VMI_DEBUG_PTLOOKUP,
-                        "--ARM AArch64 4kb PTLookup: tld_value = 0x%"PRIx64"\n",
-                        info->arm_aarch64.tld_value);
+                            "--ARM AArch64 4kb PTLookup: tld_value = 0x%"PRIx64"\n",
+                            info->arm_aarch64.tld_value);
 
                     info->size = VMI_PS_4KB;
                     info->paddr = (info->arm_aarch64.tld_value & VMI_BIT_MASK(12,47)) | (vaddr & VMI_BIT_MASK(0,11));
@@ -272,15 +286,15 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
         if ( VMI_PS_64KB == ps ) {
             get_second_level_64kb_descriptor(vmi, dtb, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
-                "--ARM AArch64 64kb PTLookup: sld_value = 0x%"PRIx64"\n",
-                info->arm_aarch64.sld_value);
+                    "--ARM AArch64 64kb PTLookup: sld_value = 0x%"PRIx64"\n",
+                    info->arm_aarch64.sld_value);
 
-            switch(info->arm_aarch64.sld_value & VMI_BIT_MASK(0,1)) {
+            switch (info->arm_aarch64.sld_value & VMI_BIT_MASK(0,1)) {
                 case 0b11:
                     get_third_level_64kb_descriptor(vmi, vaddr, info);
                     dbprint(VMI_DEBUG_PTLOOKUP,
-                        "--ARM AArch64 64kb PTLookup: tld_value = 0x%"PRIx64"\n",
-                        info->arm_aarch64.tld_value);
+                            "--ARM AArch64 64kb PTLookup: tld_value = 0x%"PRIx64"\n",
+                            info->arm_aarch64.tld_value);
 
                     info->size = VMI_PS_4KB;
                     info->paddr = (info->arm_aarch64.tld_value & VMI_BIT_MASK(16,47)) | (vaddr & VMI_BIT_MASK(0,15));
@@ -302,14 +316,16 @@ done:
     return status;
 }
 
-GSList* get_va_pages_aarch64(vmi_instance_t UNUSED(vmi), addr_t UNUSED(dtb)) {
+GSList* get_va_pages_aarch64(vmi_instance_t UNUSED(vmi), addr_t UNUSED(dtb))
+{
     //TODO: investigate best method to loop over all tables
     return NULL;
 }
 
-status_t aarch64_init(vmi_instance_t vmi) {
+status_t aarch64_init(vmi_instance_t vmi)
+{
 
-    if(!vmi->arch_interface) {
+    if (!vmi->arch_interface) {
         vmi->arch_interface = g_malloc0(sizeof(struct arch_interface));
         if ( !vmi->arch_interface )
             return VMI_FAILURE;

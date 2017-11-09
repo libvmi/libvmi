@@ -51,7 +51,7 @@ windows_kernel_symbol_to_address(
         if (VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, symbol, NULL, &rva)) {
             *address = windows->ntoskrnl_va + rva;
             dbprint(VMI_DEBUG_MISC, "--got symbol from kernel sysmap (%s --> 0x%.16"PRIx64").\n",
-                 symbol, *address);
+                    symbol, *address);
             ret = VMI_SUCCESS;
             goto success;
         }
@@ -78,7 +78,7 @@ windows_kernel_symbol_to_address(
     if (VMI_SUCCESS == windows_export_to_rva(vmi, &ctx, symbol, &rva)) {
         *address = windows->ntoskrnl_va + rva;
         dbprint(VMI_DEBUG_MISC, "--got symbol from PE export table (%s --> 0x%.16"PRIx64").\n",
-             symbol, *address);
+                symbol, *address);
         ret = VMI_SUCCESS;
         goto success;
     }

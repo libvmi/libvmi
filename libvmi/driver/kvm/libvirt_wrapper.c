@@ -29,9 +29,9 @@ static inline status_t sanity_check(kvm_instance_t *kvm)
     libvirt_wrapper_t *w = &kvm->libvirt;
 
     if ( !w->virConnectOpenAuth || !w->virConnectGetLibVersion || !w->virConnectAuthPtrDefault ||
-         !w->virConnectClose || !w->virDomainGetName || !w->virDomainGetID ||
-         !w->virDomainLookupByID || !w->virDomainLookupByName || !w->virDomainGetInfo ||
-         !w->virDomainFree || !w->virDomainSuspend || !w->virDomainResume )
+            !w->virConnectClose || !w->virDomainGetName || !w->virDomainGetID ||
+            !w->virDomainLookupByID || !w->virDomainLookupByName || !w->virDomainGetInfo ||
+            !w->virDomainFree || !w->virDomainSuspend || !w->virDomainResume )
         return VMI_FAILURE;
 
     return VMI_SUCCESS;

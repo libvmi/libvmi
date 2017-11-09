@@ -27,7 +27,8 @@
 #include "arch/arm_aarch32.h"
 #include "arch/arm_aarch64.h"
 
-status_t arch_init(vmi_instance_t vmi) {
+status_t arch_init(vmi_instance_t vmi)
+{
 
     status_t ret = VMI_FAILURE;
 
@@ -36,13 +37,13 @@ status_t arch_init(vmi_instance_t vmi) {
         bzero(vmi->arch_interface, sizeof(struct arch_interface));
     }
 
-    if(vmi->page_mode == VMI_PM_UNKNOWN) {
-        if(VMI_FAILURE == find_page_mode_live(vmi, 0, NULL)) {
+    if (vmi->page_mode == VMI_PM_UNKNOWN) {
+        if (VMI_FAILURE == find_page_mode_live(vmi, 0, NULL)) {
             return ret;
         }
     }
 
-    switch(vmi->page_mode) {
+    switch (vmi->page_mode) {
         case VMI_PM_LEGACY: /* fallthrough */
         case VMI_PM_PAE:
             ret = intel_init(vmi);
@@ -62,7 +63,7 @@ status_t arch_init(vmi_instance_t vmi) {
             break;
     }
 
-    if(VMI_FAILURE == ret) {
+    if (VMI_FAILURE == ret) {
         vmi->page_mode = VMI_PM_UNKNOWN;
     }
 

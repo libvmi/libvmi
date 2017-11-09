@@ -68,8 +68,7 @@ get_symbol_row(
                 }
                 ++curpos;
             }
-        }
-        else {  /* some went wrong in the loop above */
+        } else { /* some went wrong in the loop above */
             goto error_exit;
         }
 
@@ -154,13 +153,13 @@ char* linux_system_map_address_to_symbol(
 
     address -= linux_instance->kaslr_offset;
 
-    switch(ctx->translate_mechanism) {
+    switch (ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
-            if(ctx->pid != 0)
+            if (ctx->pid != 0)
                 goto err;
             break;
         case VMI_TM_PROCESS_DTB:
-            if(ctx->dtb != vmi->kpgd)
+            if (ctx->dtb != vmi->kpgd)
                 goto err;
             break;
         default:
@@ -187,7 +186,6 @@ char* linux_system_map_address_to_symbol(
         fprintf(stderr, "\t%s\n", linux_instance->sysmap);
         fprintf(stderr,
                 "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
-        address = 0;
         goto done;
     }
     size = snprintf(NULL,0,"%"PRIx64"", address) + 1;
@@ -198,8 +196,8 @@ char* linux_system_map_address_to_symbol(
     }
 
     // skip two columns
-    for(it=row; *it!=0; it++);
-    for(it++; *it!=0; it++);
+    for (it=row; *it!=0; it++);
+    for (it++; *it!=0; it++);
     it++;
 
     symbol = strdup(it);
@@ -242,8 +240,8 @@ linux_symbol_to_address(
         ret = linux_system_map_symbol_to_address(vmi, symbol, address);
     else
         ret = rekall_profile_symbol_to_rva(
-                linux_instance->rekall_profile,
-                symbol, NULL, address);
+                  linux_instance->rekall_profile,
+                  symbol, NULL, address);
 
     if ( VMI_SUCCESS == ret )
         *address += linux_instance->kaslr_offset;

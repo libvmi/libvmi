@@ -778,7 +778,7 @@ vmi_arch_t vmi_get_library_arch();
  * @return Full path of the rekall profile
  */
 const char *vmi_get_rekall_path(
-  vmi_instance_t vmi);
+    vmi_instance_t vmi);
 
 /*---------------------------------------------------------
  * Memory translation functions from memory.c

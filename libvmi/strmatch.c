@@ -70,8 +70,7 @@ suffixes(
     for (i = m - 2; i >= 0; --i) {
         if (i > g && suff[i + m - 1 - f] < i - g) {
             suff[i] = suff[i + m - 1 - f];
-        }
-        else {
+        } else {
             if (i < g) {
                 g = i;
             }
@@ -142,8 +141,7 @@ boyer_moore(
             free(bmGs);
             return j;
             //j += bmGs[0]; // just returning the first match
-        }
-        else {
+        } else {
             j += MAX(bmGs[i], bmBc[y[i + j]] - m + 1 + i);
         }
     }
@@ -212,8 +210,7 @@ boyer_moore2(
         if (i < 0) {
             return j;
             //j += _bmGs[0]; // just returning the first match
-        }
-        else {
+        } else {
             j += MAX(_bm->bmGs[i], _bm->bmBc[y[i + j]] - m + 1 + i);
         }
     }

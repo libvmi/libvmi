@@ -26,10 +26,10 @@
 #include "os/linux/linux.h"
 
 typedef status_t (*os_get_offset_t)(vmi_instance_t vmi,
-        const char* offset_name, addr_t *offset);
+                                    const char* offset_name, addr_t *offset);
 
 typedef status_t (*os_get_kernel_struct_offset_t)(vmi_instance_t vmi,
-	const char* symbol, const char* member, addr_t *addr);
+        const char* symbol, const char* member, addr_t *addr);
 
 typedef status_t (*os_pgd_to_pid_t)(vmi_instance_t vmi, addr_t pgd, vmi_pid_t *pid);
 
@@ -42,7 +42,7 @@ typedef status_t (*os_user_symbol_to_rva_t)(vmi_instance_t instance,
         const access_context_t *ctx, const char *symbol, addr_t *rva);
 
 typedef char* (*os_address_to_symbol_t)(vmi_instance_t vmi, addr_t address,
-        const access_context_t *ctx);
+                                        const access_context_t *ctx);
 
 typedef char* (*os_address_to_symbol_kaslr_t)(vmi_instance_t vmi, addr_t address,
         const access_context_t *ctx);

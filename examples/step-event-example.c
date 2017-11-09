@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
@@ -41,29 +41,33 @@ addr_t rip_pa;
 int mm_enabled;
 
 static int interrupted = 0;
-static void close_handler(int sig){
+static void close_handler(int sig)
+{
     interrupted = sig;
 }
 
-void print_event(vmi_event_t *event){
+void print_event(vmi_event_t *event)
+{
     printf("\tPAGE ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %u)\n",
-        (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
-        (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
-        (event->mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
-        event->mem_event.gfn,
-        event->mem_event.offset,
-        event->mem_event.gla,
-        event->vcpu_id
-    );
+           (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
+           (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
+           (event->mem_event.out_access & VMI_MEMACCESS_X) ? 'x' : '-',
+           event->mem_event.gfn,
+           event->mem_event.offset,
+           event->mem_event.gla,
+           event->vcpu_id
+          );
 }
 
-event_response_t step_callback(vmi_instance_t vmi, vmi_event_t *event) {
+event_response_t step_callback(vmi_instance_t vmi, vmi_event_t *event)
+{
     printf("Re-registering event\n");
     vmi_register_event(vmi, event);
     return 0;
 }
 
-event_response_t mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
+event_response_t mm_callback(vmi_instance_t vmi, vmi_event_t *event)
+{
 
     vmi_pid_t current_pid = -1;
     vmi_get_vcpureg(vmi, &cr3, CR3, 0);
@@ -76,7 +80,7 @@ event_response_t mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
 
     print_event(event);
 
-    if( current_pid == pid && event->mem_event.gla == rip) {
+    if ( current_pid == pid && event->mem_event.gla == rip) {
         printf("\tCought the original RIP executing again!");
         vmi_clear_event(vmi, event, NULL);
         interrupted = 1;
@@ -93,19 +97,20 @@ event_response_t mm_callback(vmi_instance_t vmi, vmi_event_t *event) {
     return 0;
 }
 
-event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event){
+event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event)
+{
     vmi_pid_t current_pid = -1;
     vmi_dtb_to_pid(vmi, event->reg_event.value, &current_pid);
     printf("PID %i with CR3=%"PRIx64" executing on vcpu %u.\n", current_pid, event->reg_event.value, event->vcpu_id);
 
-    if(current_pid == pid) {
-        if(!mm_enabled) {
+    if (current_pid == pid) {
+        if (!mm_enabled) {
             mm_enabled = 1;
             printf(" -- Enabling mem-event\n");
             vmi_register_event(vmi, &mm_event);
         }
     } else {
-        if(mm_enabled) {
+        if (mm_enabled) {
             mm_enabled = 0;
             printf(" -- Disabling mem-event\n");
             vmi_clear_event(vmi, &mm_event, NULL);
@@ -125,7 +130,7 @@ int main (int argc, char **argv)
 
     char *name = NULL;
 
-    if(argc < 2){
+    if (argc < 2) {
         fprintf(stderr, "Usage: %s <name of VM>\n", argv[0]);
         exit(1);
     }
@@ -144,9 +149,8 @@ int main (int argc, char **argv)
 
     // Initialize the libvmi library.
     if (VMI_FAILURE ==
-        vmi_init_complete(&vmi, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                          NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
-    {
+            vmi_init_complete(&vmi, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
+                              NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -168,19 +172,19 @@ int main (int argc, char **argv)
     rip -= 0x1;
 
     vmi_dtb_to_pid(vmi, cr3, &pid);
-    if(pid==4) {
+    if (pid==4) {
         vmi_translate_uv2p(vmi, rip, pid, &rip_pa);
     } else {
         vmi_translate_kv2p(vmi, rip, &rip_pa);
     }
 
     printf("Preparing memory event to catch next RIP 0x%lx, PA 0x%lx, page 0x%lx for PID %u\n",
-            rip, rip_pa, rip_pa >> 12, pid);
+           rip, rip_pa, rip_pa >> 12, pid);
     SETUP_MEM_EVENT(&mm_event, rip_pa, VMI_MEMACCESS_X, mm_callback, 0);
 
     vmi_resume_vm(vmi);
 
-    while(!interrupted){
+    while (!interrupted) {
         status = vmi_events_listen(vmi,500);
         if (status != VMI_SUCCESS) {
             printf("Error waiting for events, quitting...\n");

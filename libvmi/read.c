@@ -78,7 +78,7 @@ vmi_read(
 
             if ( !ctx->pid )
                 dtb = vmi->kpgd;
-            else if(ctx->pid > 0) {
+            else if (ctx->pid > 0) {
                 if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
                     goto done;
             }
@@ -104,7 +104,7 @@ vmi_read(
     while (count > 0) {
         size_t read_len = 0;
 
-        if(dtb) {
+        if (dtb) {
             if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, start_addr + buf_offset, &paddr))
                 goto done;
         } else {
@@ -199,16 +199,16 @@ vmi_read_ksym(
 // Easy access to memory
 status_t
 vmi_read_8(vmi_instance_t vmi,
-    const access_context_t *ctx,
-    uint8_t * value)
+           const access_context_t *ctx,
+           uint8_t * value)
 {
     return vmi_read(vmi, ctx, 1, value, NULL);
 }
 
 status_t
 vmi_read_16(vmi_instance_t vmi,
-    const access_context_t *ctx,
-    uint16_t * value)
+            const access_context_t *ctx,
+            uint16_t * value)
 {
     return vmi_read(vmi, ctx, 2, value, NULL);
 }
@@ -285,7 +285,7 @@ vmi_read_str(
             break;
         case VMI_TM_KERNEL_SYMBOL:
             if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
-              return NULL;
+                return NULL;
 
             dtb = vmi->kpgd;
             if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &addr) )
@@ -316,7 +316,7 @@ vmi_read_str(
     while (read_more) {
 
         addr += len;
-        if(dtb) {
+        if (dtb) {
             if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, addr, &paddr)) {
                 return rtnval;
             }
@@ -412,7 +412,7 @@ vmi_read_addr_pa(
 {
     status_t ret = VMI_FAILURE;
 
-    switch(vmi->page_mode) {
+    switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
             ret = vmi_read_pa(vmi, paddr, 8, value, NULL);
@@ -428,8 +428,8 @@ vmi_read_addr_pa(
         }
         default:
             dbprint(VMI_DEBUG_READ,
-                "--%s: unknown page mode, can't read addr as width is unknown",
-                __FUNCTION__);
+                    "--%s: unknown page mode, can't read addr as width is unknown",
+                    __FUNCTION__);
             break;
     }
 
@@ -500,7 +500,7 @@ vmi_read_addr_va(
 {
     status_t ret = VMI_FAILURE;
 
-    switch(vmi->page_mode) {
+    switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
             ret = vmi_read_va(vmi, vaddr, pid, 8, value, NULL);
@@ -516,8 +516,8 @@ vmi_read_addr_va(
         }
         default:
             dbprint(VMI_DEBUG_READ,
-                "--%s: unknown page mode, can't read addr as width is unknown",
-                __FUNCTION__);
+                    "--%s: unknown page mode, can't read addr as width is unknown",
+                    __FUNCTION__);
             break;
     }
 
@@ -540,7 +540,8 @@ vmi_read_str_va(
 }
 
 unicode_string_t *
-vmi_read_unicode_str_va(vmi_instance_t vmi, addr_t vaddr, vmi_pid_t pid) {
+vmi_read_unicode_str_va(vmi_instance_t vmi, addr_t vaddr, vmi_pid_t pid)
+{
     access_context_t ctx = {
         .translate_mechanism = VMI_TM_PROCESS_PID,
         .addr = vaddr,
@@ -596,7 +597,7 @@ vmi_read_addr_ksym(
 {
     status_t ret = VMI_FAILURE;
 
-    switch(vmi->page_mode) {
+    switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
             ret = vmi_read_ksym(vmi, sym, 8, value, NULL);
@@ -612,8 +613,8 @@ vmi_read_addr_ksym(
         }
         default:
             dbprint(VMI_DEBUG_READ,
-                "--%s: unknown page mode, can't read addr as width is unknown",
-                __FUNCTION__);
+                    "--%s: unknown page mode, can't read addr as width is unknown",
+                    __FUNCTION__);
             break;
     }
 

@@ -51,7 +51,7 @@ dump_exports(
         char *str = NULL;
 
         _ctx.addr = base1 + i * sizeof(uint32_t);
-        if(VMI_FAILURE == vmi_read_32(vmi, &_ctx, &rva))
+        if (VMI_FAILURE == vmi_read_32(vmi, &_ctx, &rva))
             continue;
 
         if (rva) {
@@ -59,13 +59,13 @@ dump_exports(
             str = vmi_read_str(vmi, &_ctx);
             if (str) {
                 _ctx.addr = base2 + i * sizeof(uint16_t);
-                if(VMI_FAILURE == vmi_read_16(vmi, &_ctx, &ordinal)) {
+                if (VMI_FAILURE == vmi_read_16(vmi, &_ctx, &ordinal)) {
                     free(str);
                     continue;
                 }
 
                 _ctx.addr = base3 + ordinal + sizeof(uint32_t);
-                if(VMI_FAILURE == vmi_read_32(vmi, &_ctx, &loc)) {
+                if (VMI_FAILURE == vmi_read_32(vmi, &_ctx, &loc)) {
                     free(str);
                     continue;
                 }
@@ -89,7 +89,7 @@ get_export_rva(
     _ctx.addr += et->address_of_functions + aof_index * sizeof(uint32_t);
 
     uint32_t tmp = 0;
-    if(VMI_SUCCESS == vmi_read_32(vmi, &_ctx, &tmp)) {
+    if (VMI_SUCCESS == vmi_read_32(vmi, &_ctx, &tmp)) {
         *rva = (addr_t) tmp;
         return VMI_SUCCESS;
     }
@@ -129,7 +129,7 @@ get_aon_index_linear(
         _ctx.addr = ctx->addr + et->address_of_names + i * sizeof(uint32_t);
         uint32_t str_rva = 0;
 
-        if(VMI_SUCCESS == vmi_read_32(vmi, &_ctx, &str_rva) && str_rva) {
+        if (VMI_SUCCESS == vmi_read_32(vmi, &_ctx, &str_rva) && str_rva) {
             _ctx.addr = ctx->addr+str_rva;
             char *rva = vmi_read_str(vmi, &_ctx);
 
@@ -169,13 +169,13 @@ find_aon_idx_bin(
     mid = (low + high) / 2;
 
     _ctx.addr = aon_base_va + mid * sizeof(uint32_t);
-    if(VMI_FAILURE == vmi_read_32(vmi, &_ctx, &str_rva) || !str_rva)
+    if (VMI_FAILURE == vmi_read_32(vmi, &_ctx, &str_rva) || !str_rva)
         goto not_found;
 
     // get the curr string & compare to symbol
     _ctx.addr = ctx->addr + str_rva;
     name = vmi_read_str(vmi, &_ctx);
-    if(!name)
+    if (!name)
         goto not_found;
 
     cmp = strcmp(symbol, name);
@@ -183,11 +183,9 @@ find_aon_idx_bin(
 
     if (cmp < 0) {  // symbol < name ==> try lower region
         return find_aon_idx_bin(vmi, symbol, aon_base_va, low, mid - 1, ctx);
-    }
-    else if (cmp > 0) { // symbol > name ==> try higher region
+    } else if (cmp > 0) { // symbol > name ==> try higher region
         return find_aon_idx_bin(vmi, symbol, aon_base_va, mid + 1, high, ctx);
-    }
-    else {  // symbol == name
+    } else { // symbol == name
         return mid; // found
     }
 
@@ -220,7 +218,7 @@ get_aon_index(
 
     if (-1 == index) {
         dbprint
-            (VMI_DEBUG_PEPARSE, "--PEParse: Falling back to linear search for aon index\n");
+        (VMI_DEBUG_PEPARSE, "--PEParse: Falling back to linear search for aon index\n");
         // This could be useful for malformed PE headers where the list isn't
         // in alpha order (e.g., malware)
         index = get_aon_index_linear(vmi, symbol, et, ctx);
@@ -265,7 +263,7 @@ peparse_validate_pe_image(
         ((uint8_t *) pe_header + sizeof(struct pe_header));
 
     if (IMAGE_PE32_MAGIC != pe_opt_header->magic &&
-        IMAGE_PE32_PLUS_MAGIC != pe_opt_header->magic) {
+            IMAGE_PE32_PLUS_MAGIC != pe_opt_header->magic) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: Optional header magic value unknown\n");
         return VMI_FAILURE;
     }
@@ -285,7 +283,7 @@ peparse_get_image(
         return VMI_FAILURE;
     }
 
-    if(VMI_SUCCESS != peparse_validate_pe_image(image, len)) {
+    if (VMI_SUCCESS != peparse_validate_pe_image(image, len)) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to validate PE header(s)\n");
         return VMI_FAILURE;
     }
@@ -305,31 +303,30 @@ peparse_assign_headers(
 {
 
     struct dos_header *dos_h_t = (struct dos_header *) image;
-    if(dos_header != NULL) {
+    if (dos_header != NULL) {
         *dos_header=dos_h_t;
     }
 
     struct pe_header *pe_h_t = (struct pe_header *) (image + dos_h_t->offset_to_pe);
-    if(pe_header != NULL) {
+    if (pe_header != NULL) {
         *pe_header=pe_h_t;
     }
 
     void *op_h_t = (void *) ((uint8_t *) pe_h_t + sizeof(struct pe_header));
-    if(optional_pe_header != NULL) {
+    if (optional_pe_header != NULL) {
         *optional_pe_header = op_h_t;
     }
 
     uint16_t magic = *((uint16_t *) op_h_t);
-    if(optional_header_type != NULL) {
+    if (optional_header_type != NULL) {
         *optional_header_type = magic;
     }
 
     dbprint(VMI_DEBUG_PEPARSE, "--PEParse: magic is 0x%"PRIx16"\n", magic);
 
-    if(magic == IMAGE_PE32_MAGIC && oh_pe32 != NULL) {
+    if (magic == IMAGE_PE32_MAGIC && oh_pe32 != NULL) {
         *oh_pe32 = (struct optional_header_pe32 *) op_h_t;
-    } else
-    if(magic == IMAGE_PE32_PLUS_MAGIC && oh_pe32plus != NULL) {
+    } else if (magic == IMAGE_PE32_PLUS_MAGIC && oh_pe32plus != NULL) {
         *oh_pe32plus = (struct optional_header_pe32plus *) op_h_t;
     }
 }
@@ -345,45 +342,43 @@ peparse_get_idd_rva(
 
     addr_t rva = 0;
 
-    if(optional_header_type == NULL) {
+    if (optional_header_type == NULL) {
 
-        if(oh_pe32 != NULL && oh_pe32->number_of_rva_and_sizes >= entry_id) {
+        if (oh_pe32 != NULL && oh_pe32->number_of_rva_and_sizes >= entry_id) {
             rva = oh_pe32->idd[entry_id].virtual_address;
             goto done;
         }
 
-        if(oh_pe32plus != NULL && oh_pe32plus->number_of_rva_and_sizes >= entry_id) {
+        if (oh_pe32plus != NULL && oh_pe32plus->number_of_rva_and_sizes >= entry_id) {
             rva = oh_pe32plus->idd[entry_id].virtual_address;
             goto done;
         }
-    } else
-    if(optional_header) {
+    } else if (optional_header) {
 
         switch ( *optional_header_type ) {
-            case IMAGE_PE32_MAGIC:
-            {
+            case IMAGE_PE32_MAGIC: {
                 struct optional_header_pe32 *oh_pe32_t = (struct optional_header_pe32 *)optional_header;
-                if(oh_pe32_t->number_of_rva_and_sizes >= entry_id) {
+                if (oh_pe32_t->number_of_rva_and_sizes >= entry_id) {
                     rva = oh_pe32_t->idd[entry_id].virtual_address;
                 }
                 break;
             }
 
-            case IMAGE_PE32_PLUS_MAGIC:
-            {
+            case IMAGE_PE32_PLUS_MAGIC: {
                 struct optional_header_pe32plus *oh_pe32plus_t = (struct optional_header_pe32plus *)optional_header;
-                if(oh_pe32plus_t->number_of_rva_and_sizes >= entry_id) {
+                if (oh_pe32plus_t->number_of_rva_and_sizes >= entry_id) {
                     rva = oh_pe32plus_t->idd[entry_id].virtual_address;
                 }
                 break;
             }
 
-            default: break;
+            default:
+                break;
         }
     }
 
 done:
-    if(rva == 0) {
+    if (rva == 0) {
         // Could this be legit? If not, we might want to switch this to a status_t function
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: Image data directory RVA is 0\n");
     }
@@ -402,27 +397,26 @@ peparse_get_idd_size(
 
     size_t size = 0;
 
-    if(optional_header_type == NULL) {
+    if (optional_header_type == NULL) {
 
-        if(oh_pe32 != NULL) {
+        if (oh_pe32 != NULL) {
             size = oh_pe32->idd[entry_id].size;
             goto done;
         }
 
-        if(oh_pe32plus != NULL) {
+        if (oh_pe32plus != NULL) {
             size = oh_pe32plus->idd[entry_id].size;
             goto done;
         }
-    } else
-    if(optional_header != NULL) {
+    } else if (optional_header != NULL) {
 
-        if(*optional_header_type == IMAGE_PE32_MAGIC) {
+        if (*optional_header_type == IMAGE_PE32_MAGIC) {
             struct optional_header_pe32 *oh_pe32_t = (struct optional_header_pe32 *)optional_header;
             size = oh_pe32_t->idd[entry_id].size;
             goto done;
         }
 
-        if(*optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
+        if (*optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
             struct optional_header_pe32plus *oh_pe32plus_t = (struct optional_header_pe32plus *)optional_header;
             size = oh_pe32plus_t->idd[entry_id].size;
             goto done;
@@ -452,7 +446,7 @@ peparse_get_export_table(
 #define MAX_HEADER_BYTES 1024   // keep under 1 page
     uint8_t image[MAX_HEADER_BYTES];
 
-    if(VMI_FAILURE == peparse_get_image(vmi, ctx, MAX_HEADER_BYTES, image)) {
+    if (VMI_FAILURE == peparse_get_image(vmi, ctx, MAX_HEADER_BYTES, image)) {
         return VMI_FAILURE;
     }
 
@@ -463,11 +457,11 @@ peparse_get_export_table(
     export_header_rva = peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &magic, optional_header, NULL, NULL);
     export_header_size = peparse_get_idd_size(IMAGE_DIRECTORY_ENTRY_EXPORT, &magic, optional_header, NULL, NULL);
 
-    if(export_table_rva) {
+    if (export_table_rva) {
         *export_table_rva=export_header_rva;
     }
 
-    if(export_table_size) {
+    if (export_table_size) {
         *export_table_size=export_header_size;
     }
 
@@ -542,12 +536,12 @@ windows_export_to_rva(
     }
 
     // find RVA value for export symbol
-    if(VMI_SUCCESS==get_export_rva(vmi, rva, aof_index, &et, ctx)) {
+    if (VMI_SUCCESS==get_export_rva(vmi, rva, aof_index, &et, ctx)) {
 
         // handle forwarded functions
         // If the function's RVA is inside the exports section (as given by the
         // VirtualAddress and Size fields in the idd), the symbol is forwarded.
-        if(*rva>=et_rva && *rva < et_rva+et_size) {
+        if (*rva>=et_rva && *rva < et_rva+et_size) {
             dbprint(VMI_DEBUG_PEPARSE, "--PEParse: %s @ 0x%p is forwarded\n", symbol, ctx);
             return VMI_FAILURE;
         } else {
@@ -576,7 +570,7 @@ windows_rva_to_export(
         return NULL;
     }
 
-    if(rva>=et_rva && rva < et_rva+et_size) {
+    if (rva>=et_rva && rva < et_rva+et_size) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEParse: symbol @ 0x%"PRIx64" is forwarded\n", ctx->addr+rva);
         return NULL;
     }
@@ -593,17 +587,17 @@ windows_rva_to_export(
         uint32_t loc = 0;
 
         _ctx.addr = base2 + i * sizeof(uint16_t);
-        if(VMI_FAILURE==vmi_read_16(vmi, &_ctx, &ordinal))
+        if (VMI_FAILURE==vmi_read_16(vmi, &_ctx, &ordinal))
             continue;
 
         _ctx.addr = base3 + ordinal * sizeof(uint32_t);
-        if(VMI_FAILURE==vmi_read_32(vmi, &_ctx, &loc))
+        if (VMI_FAILURE==vmi_read_32(vmi, &_ctx, &loc))
             continue;
 
-        if(loc==rva) {
+        if (loc==rva) {
 
             _ctx.addr = base1 + i * sizeof(uint32_t);
-            if(i < et.number_of_names && VMI_SUCCESS==vmi_read_32(vmi, &_ctx, &name_rva) && name_rva) {
+            if (i < et.number_of_names && VMI_SUCCESS==vmi_read_32(vmi, &_ctx, &name_rva) && name_rva) {
                 _ctx.addr = ctx->addr + name_rva;
                 return vmi_read_str(vmi, &_ctx);
             }

@@ -39,8 +39,7 @@ status_t xen_altp2m_get_domain_state (vmi_instance_t vmi, bool *state)
         return VMI_FAILURE;
     }
     rc = xen->libxcw.xc_altp2m_get_domain_state (xch, domain_id, state);
-    if ( rc )
-    {
+    if ( rc ) {
         errprint ("xc_altp2m_get_domain_state returned rc: %i\n", rc);
         return VMI_FAILURE;
     }
@@ -63,8 +62,7 @@ status_t xen_altp2m_set_domain_state (vmi_instance_t vmi, bool state)
         return VMI_FAILURE;
     }
     rc = xen->libxcw.xc_altp2m_set_domain_state (xch, domain_id, state);
-    if ( rc )
-    {
+    if ( rc ) {
         errprint ("xc_altp2m_set_domain_state returned rc: %i\n", rc);
         return VMI_FAILURE;
     }
@@ -87,8 +85,7 @@ status_t xen_altp2m_create_p2m ( vmi_instance_t vmi, uint16_t *altp2m_idx )
         return VMI_FAILURE;
     }
     rc = xen->libxcw.xc_altp2m_create_view (xch, domain_id, VMI_MEMACCESS_N, altp2m_idx );
-    if ( rc )
-    {
+    if ( rc ) {
         errprint ("xc_altp2m_create_view returned rc: %i\n", rc);
         return VMI_FAILURE;
     }
@@ -112,8 +109,7 @@ status_t xen_altp2m_destroy_p2m ( vmi_instance_t vmi, uint16_t altp2m_idx )
         return VMI_FAILURE;
     }
     rc = xen->libxcw.xc_altp2m_destroy_view (xch, domain_id, altp2m_idx );
-    if ( rc )
-    {
+    if ( rc ) {
         errprint ("xc_altp2m_destroy_view returned rc: %i\n", rc);
         return VMI_FAILURE;
     }
@@ -136,8 +132,7 @@ status_t xen_altp2m_switch_p2m ( vmi_instance_t vmi, uint16_t altp2m_idx )
         return VMI_FAILURE;
     }
     rc = xen->libxcw.xc_altp2m_switch_to_view (xch, domain_id, altp2m_idx );
-    if ( rc )
-    {
+    if ( rc ) {
         errprint ("xc_altp2m_switch_to_view returned rc: %i\n", rc);
         return VMI_FAILURE;
     }
@@ -159,8 +154,7 @@ status_t xen_altp2m_change_gfn ( vmi_instance_t vmi, uint16_t altp2m_idx, addr_t
         return VMI_FAILURE;
     }
     rc = xen->libxcw.xc_altp2m_change_gfn (xch, domain_id, altp2m_idx, old_gfn, new_gfn );
-    if ( rc )
-    {
+    if ( rc ) {
         errprint ("xc_altp2m_change_gfn returned rc: %i\n", rc);
         return VMI_FAILURE;
     }

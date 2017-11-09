@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Author: Matthew Fusaro (matthew.fusaro@zentific.com)
@@ -34,28 +34,30 @@
 vmi_event_t single_event;
 
 static int interrupted = 0;
-static void close_handler(int sig){
+static void close_handler(int sig)
+{
     interrupted = sig;
 }
 
 event_response_t single_step_callback(vmi_instance_t vmi, vmi_event_t *event)
 {
     printf("Single-step event: VCPU:%u  GFN %"PRIx64" GLA %016"PRIx64"\n",
-        event->vcpu_id,
-        event->ss_event.gfn,
-        event->ss_event.gla);
+           event->vcpu_id,
+           event->ss_event.gfn,
+           event->ss_event.gla);
 
     return 0;
 }
 
-int main (int argc, char **argv) {
+int main (int argc, char **argv)
+{
     vmi_instance_t vmi;
 
     struct sigaction act;
 
     char *name = NULL;
 
-    if(argc < 2){
+    if (argc < 2) {
         fprintf(stderr, "Usage: single_step_example <name of VM> \n");
         exit(1);
     }
@@ -73,8 +75,7 @@ int main (int argc, char **argv) {
     sigaction(SIGALRM, &act, NULL);
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, VMI_XEN, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, NULL, NULL))
-    {
+    if (VMI_FAILURE == vmi_init(&vmi, VMI_XEN, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -89,7 +90,7 @@ int main (int argc, char **argv) {
     single_event.ss_event.enable = 1;
     SET_VCPU_SINGLESTEP(single_event.ss_event, 0);
     vmi_register_event(vmi, &single_event);
-    while(!interrupted ){
+    while (!interrupted ) {
         printf("Waiting for events...\n");
         vmi_events_listen(vmi,500);
     }

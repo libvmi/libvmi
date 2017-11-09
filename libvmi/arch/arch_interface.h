@@ -24,13 +24,13 @@
 #include "private.h"
 
 typedef status_t (*arch_v2p_t)
-    (vmi_instance_t vmi,
-     addr_t dtb,
-     addr_t vaddr,
-     page_info_t *info);
+(vmi_instance_t vmi,
+ addr_t dtb,
+ addr_t vaddr,
+ page_info_t *info);
 typedef GSList* (*arch_get_va_pages_t)
-    (vmi_instance_t vmi,
-     addr_t dtb);
+(vmi_instance_t vmi,
+ addr_t dtb);
 
 struct arch_interface {
     arch_v2p_t v2p;

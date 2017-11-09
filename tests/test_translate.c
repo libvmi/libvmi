@@ -47,8 +47,7 @@ START_TEST (test_libvmi_piddtb)
         addr_t init_task_va;
         vmi_translate_ksym2v(vmi, "init_task", &init_task_va);
         vmi_read_addr_va(vmi, init_task_va + tasks_offset, 0, &next_process);
-    }
-    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
+    } else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         vmi_get_offset(vmi, "win_tasks", &tasks_offset);
         vmi_get_offset(vmi, "win_pname", &name_offset);
         vmi_get_offset(vmi, "win_pid", &pid_offset);
@@ -66,7 +65,7 @@ START_TEST (test_libvmi_piddtb)
         }
         vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
         if ((VMI_OS_LINUX == vmi_get_ostype(vmi)) ||
-            (VMI_OS_WINDOWS == vmi_get_ostype(vmi) && pid > 0)) {
+                (VMI_OS_WINDOWS == vmi_get_ostype(vmi) && pid > 0)) {
             addr_t dtb = 0;
             vmi_pid_to_dtb(vmi, pid, &dtb);
             if (dtb) {
@@ -92,7 +91,7 @@ START_TEST (test_libvmi_invalid_pid)
         .addr = 0x8000000,
         .pid = 0xfeedbeef,
         .ksym = NULL,
-        };
+    };
     uint8_t buffer[8];
     size_t bytes_read = 0;
 
@@ -115,13 +114,11 @@ START_TEST (test_libvmi_kv2p)
                       VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
 
     addr_t va = 0, pa = 0;
-    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
+    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         vmi_translate_ksym2v(vmi, "PsInitialSystemProcess", &va);
-    }
-    else if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
+    } else if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
         vmi_translate_ksym2v(vmi, "init_task", &va);
-    }
-    else{
+    } else {
         fail_unless(0, "vmi set to invalid os type");
     }
     vmi_translate_kv2p(vmi, va, &pa);
@@ -146,13 +143,11 @@ START_TEST (test_libvmi_ksym2v)
                       VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
 
     addr_t va = 0;
-    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)){
+    if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         vmi_translate_ksym2v(vmi, "PsInitialSystemProcess", &va);
-    }
-    else if (VMI_OS_LINUX == vmi_get_ostype(vmi)){
+    } else if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
         vmi_translate_ksym2v(vmi, "init_task", &va);
-    }
-    else{
+    } else {
         fail_unless(0, "vmi set to invalid os type");
     }
     fail_unless(va != 0, "ksym2v translation failed");

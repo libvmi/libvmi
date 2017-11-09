@@ -1,5 +1,5 @@
-/* The LibVMI Library is an introspection library that simplifies access to 
- * memory in a target virtual machine or in a file containing a dump of 
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
  * Copyright 2011 Sandia Corporation. Under the terms of Contract
@@ -36,9 +36,10 @@
 #include <libvmi/shm.h>
 
 void list_processes(vmi_instance_t vmi, addr_t current_process,
-    addr_t list_head, unsigned long tasks_offset, addr_t current_list_entry,
-    addr_t next_list_entry, unsigned long pid_offset,
-    vmi_pid_t pid, char* procname, unsigned long name_offset) {
+                    addr_t list_head, unsigned long tasks_offset, addr_t current_list_entry,
+                    addr_t next_list_entry, unsigned long pid_offset,
+                    vmi_pid_t pid, char* procname, unsigned long name_offset)
+{
     vmi_mode_t mode;
 
     /* demonstrate name and id accessors */
@@ -72,7 +73,7 @@ void list_processes(vmi_instance_t vmi, addr_t current_process,
     status_t status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
     if (status == VMI_FAILURE) {
         printf("Failed to read next pointer at 0x%"PRIx64" before entering loop\n",
-            current_list_entry);
+               current_list_entry);
         goto error_exit;
     }
     printf("Next list entry is at: %"PRIx64"\n", next_list_entry);
@@ -112,12 +113,13 @@ void list_processes(vmi_instance_t vmi, addr_t current_process,
         status = vmi_read_addr_va(vmi, current_list_entry, 0, &next_list_entry);
         if (status == VMI_FAILURE) {
             printf("Failed to read next pointer in loop at %"PRIx64"\n",
-                current_list_entry);
+                   current_list_entry);
             goto error_exit;
         }
 
     } while (next_list_entry != list_head);
-    error_exit: if (procname)
+error_exit:
+    if (procname)
         free(procname);
 }
 
@@ -141,9 +143,8 @@ int main (int argc, char **argv)
 
     /* initialize the libvmi library */
     if (VMI_FAILURE ==
-        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, NULL,
-                          VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL))
-    {
+            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, NULL,
+                              VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -157,12 +158,11 @@ int main (int argc, char **argv)
         if ( VMI_FAILURE == vmi_get_offset(vmi, "linux_pid", &pid_offset) )
             goto error_exit;
 
-        /* NOTE: 
-         *  name_offset is no longer hard-coded. Rather, it is now set 
+        /* NOTE:
+         *  name_offset is no longer hard-coded. Rather, it is now set
          *  via libvmi.conf.
          */
-    }
-    else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
+    } else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
         if ( VMI_FAILURE == vmi_get_offset(vmi, "win_tasks", &tasks_offset) )
             goto error_exit;
         if ( VMI_FAILURE == vmi_get_offset(vmi, "win_pname", &name_offset) )
@@ -179,10 +179,11 @@ int main (int argc, char **argv)
 
     /* demonstrate name and id accessors */
     list_processes(vmi, current_process, list_head, tasks_offset,
-        current_list_entry, next_list_entry, pid_offset, pid,
-        procname, name_offset);
+                   current_list_entry, next_list_entry, pid_offset, pid,
+                   procname, name_offset);
 
-    error_exit: if (procname)
+error_exit:
+    if (procname)
         free(procname);
 
     /* destroy the shm-snapshot, and return live mode */
