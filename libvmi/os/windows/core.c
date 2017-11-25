@@ -639,7 +639,12 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
         if ( VMI_FAILURE == ret )
             return ret;
 
-        ret = vmi_read_addr_pa(vmi, windows->ntoskrnl + sysproc_pointer_rva, &windows->sysproc);
+        // try to find _physical_ address of Initial system process pointer
+        if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, vmi->kpgd, windows->ntoskrnl_va + sysproc_pointer_rva, &sysproc_pdbase_addr) )
+            return ret;
+
+        // read _virtual_ address of Initial system process
+        ret = vmi_read_addr_pa(vmi, sysproc_pdbase_addr, &windows->sysproc);
         if ( VMI_FAILURE == ret )
             return ret;
 
