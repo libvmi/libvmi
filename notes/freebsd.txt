@@ -1,0 +1,173 @@
+LibVMI FreeBSD Support
+Author: Micah Bushouse <mbushou@ncsu.edu>
+Document: version 1.0, 2017-12-20
+
+--
+
+Initial support for monitoring FreeBSD guests.
+
+Tested with FreeBSD 10.4 and 11.1 on x86_64 Xen. See examples/process-list.c
+for a working example.
+
+Known limitations:
+- limited to x86_64 FreeBSD guests
+- untested Rekall support
+
+Note: this initial support borrows a lot of code from the Linux OS driver.
+
+--
+
+1.
+
+Collect the equivalent of FreeBSD's system.map.
+
+Locate the kernel debug symbols on a FreeBSD machine.  FreeBSD releases prior
+to 11.0 store these debug files in the same directory as the kernel itself,
+/boot/kernel/. In FreeBSD 11.0 and later the debug files are stored in
+/usr/lib/debug/boot/kernel/
+(see https://www.freebsd.org/doc/faq/kernelconfig.html).
+
+Example for 11.1:
+
+# ls -la /usr/lib/debug/boot/kernel |grep kernel.debug
+-r-xr-xr-x  1 root  wheel 78083616 Jul 20 22:08 /usr/lib/debug/boot/kernel/kernel.debug
+
+Enumerate addresses for kernel structures, creating FreeBSD's system map.
+
+# nm -v /usr/lib/debug/boot/kernel/kernel.debug > /root/freebsd-11.1.system.map
+
+# ls -la /root/freebsd-11.0.system.map
+-rw-r--r--  1 root  wheel  2697127 Dec 19 14:45 /root/freebsd-11.1.system.map
+
+Move the generated system map onto dom0.
+
+--
+
+2.
+
+Collect the offsets for libvmi.conf.  This requires the kernel.debug file
+mentioned above and libdwarf's pahole utility.  The following was performed on
+Linux after copying over the FreeBSD debug kernel.
+
+Relevant FreeBSD kernel source files:
+struct proc:
+https://github.com/freebsd/freebsd/blob/master/sys/sys/proc.h
+
+struct vmspace:
+https://github.com/freebsd/freebsd/blob/master/sys/vm/vm_map.h
+
+struct pmap:
+https://github.com/freebsd/freebsd/blob/master/sys/amd64/include/pmap.h
+
+Comparing with the Linux offsets:
+- FreeBSD proc is similar to Linux task_struct
+- FreeBSD vmspace is similar to Linux mm_struct
+- FreeBSD's process page table is at freebsd_pmap + freebsd_pgd, as opposed
+  to Linux's page table pointer at linux_mm, see
+  freebsd_get_taskstruct_addr_from_pgd for details.  The FreeBSD page table is
+  also stored as a physical memory address, unlike Linux.
+
+Calculate name, pid, vmspace, pmap, and pgd offsets, and convert the offsets
+to hex.
+$ pahole kernel.debug -C proc |grep comm
+	char                       p_comm[0];            /*   976     0 */
+
+$ printf "%x\n" 976
+3d0
+
+$ pahole kernel.debug -C proc |grep p_pid
+	pid_t                      p_pid;                /*   188     4 */
+
+$ printf "%x\n" 188
+bc
+
+$ pahole kernel.debug -C proc |grep vmspace
+	struct vmspace *           p_vmspace;            /*   496     8 */
+$ printf "%x\n" 496
+1f0
+
+$ pahole kernel.debug -C vmspace |grep pmap
+	struct pmap                vm_pmap;              /*   312  2200 */
+
+$ printf "%x\n" 312
+138
+
+$ pahole kernel.debug -C pmap |grep cr3
+	uint64_t                   pm_cr3;               /*    40     8 */
+
+$ printf "%x\n" 40
+28
+
+Construct the libvmi.conf entry for the FreeBSD guest.  As of this writing,
+these conf entries work:
+
+freebsd11.1 {
+    ostype = "FreeBSD";
+    sysmap = "/path/to/systemmap/freebsd-11.1.system.map";
+    freebsd_name = 0x3d0;
+    freebsd_pid = 0xbc;
+    freebsd_vmspace = 0x1f0;
+    freebsd_pmap = 0x138;
+    freebsd_pgd = 0x28;
+}
+
+freebsd10.4 {
+    ostype = "FreeBSD";
+    sysmap = "/path/to/systemmap/freebsd-10.4.system.map";
+    freebsd_name = 0x344;
+    freebsd_pid = 0xbc;
+    freebsd_vmspace = 0x170;
+    freebsd_pmap = 0x138;
+    freebsd_pgd = 0x28;
+}
+
+--
+
+3. Test.
+
+# ./libvmi/examples/vmi-process-list freebsd11.1
+
+Process listing for VM freebsd11.1 (id=11)
+[  717] csh (struct addr:fffff80005139000)
+[  717] csh (struct addr:fffff80005139000)
+[  713] getty (struct addr:fffff8000513b588)
+[  712] getty (struct addr:fffff80005059588)
+[  711] getty (struct addr:fffff80005530000)
+[  710] getty (struct addr:fffff8000513c588)
+[  709] getty (struct addr:fffff8000513b000)
+[  708] getty (struct addr:fffff8000513a588)
+[  707] getty (struct addr:fffff8000552c000)
+[  706] login (struct addr:fffff8000505a000)
+[  661] cron (struct addr:fffff8000552d000)
+[  657] sendmail (struct addr:fffff8000552e000)
+[  654] sendmail (struct addr:fffff8000552d588)
+[  626] sshd (struct addr:fffff8000552e588)
+[  428] syslogd (struct addr:fffff8000552f000)
+[  355] devd (struct addr:fffff8000513c000)
+[  354] dhclient (struct addr:fffff80005059000)
+[  289] dhclient (struct addr:fffff8000513a000)
+[   24] vnlru (struct addr:fffff8000505a588)
+[   23] syncer (struct addr:fffff8000505b000)
+[   22] bufspacedaemon (struct addr:fffff8000505b588)
+[   21] bufdaemon (struct addr:fffff8000505c000)
+[   20] pagezero (struct addr:fffff8000505c588)
+[   19] vmdaemon (struct addr:fffff8000505d000)
+[   18] pagedaemon (struct addr:fffff800032e1588)
+[   17] soaiod4 (struct addr:fffff80003576000)
+[   16] soaiod3 (struct addr:fffff80003576588)
+[    9] soaiod2 (struct addr:fffff80003577000)
+[    8] soaiod1 (struct addr:fffff80003577588)
+[    7] balloon (struct addr:fffff80003578000)
+[    6] rand_harvestq (struct addr:fffff80003578588)
+[    5] sctp_iterator (struct addr:fffff80003579000)
+[   15] xenstore_rcv (struct addr:fffff80003579588)
+[   14] xenwatch (struct addr:fffff800032dd000)
+[    4] cam (struct addr:fffff800032dd588)
+[    3] crypto returns (struct addr:fffff800032de000)
+[    2] crypto (struct addr:fffff800032de588)
+[   13] geom (struct addr:fffff800032df000)
+[   12] intr (struct addr:fffff800032df588)
+[   11] idle (struct addr:fffff800032e0000)
+[    1] init (struct addr:fffff800032e0588)
+[   10] audit (struct addr:fffff800032e1000)
+[    0] kernel (struct addr:ffffffff81da1cc8)

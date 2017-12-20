@@ -285,6 +285,11 @@ int vmi_parse_config (const char *target_name)
 %token<str>    WIN_KDBG
 %token<str>    WIN_KPCR
 %token<str>    WIN_SYSPROC
+%token<str>    FREEBSD_NAME
+%token<str>    FREEBSD_PID
+%token<str>    FREEBSD_VMSPACE
+%token<str>    FREEBSD_PMAP
+%token<str>    FREEBSD_PGD
 %token<str>    SYSMAPTOK
 %token<str>    REKALL_PROFILE
 %token<str>    OSTYPETOK
@@ -358,6 +363,16 @@ assignment:
         win_kpcr_assignment
         |
         win_sysproc_assignment
+        |
+        freebsd_name_assignment
+        |
+        freebsd_pid_assignment
+        |
+        freebsd_vmspace_assignment
+        |
+        freebsd_pmap_assignment
+        |
+        freebsd_pgd_assignment
         ;
 
 linux_tasks_assignment:
@@ -534,6 +549,57 @@ win_kpcr_assignment:
 
 win_sysproc_assignment:
         WIN_SYSPROC EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+
+freebsd_name_assignment:
+        FREEBSD_NAME EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+freebsd_pid_assignment:
+        FREEBSD_PID EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+freebsd_vmspace_assignment:
+        FREEBSD_VMSPACE EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+freebsd_pmap_assignment:
+        FREEBSD_PMAP EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+freebsd_pgd_assignment:
+        FREEBSD_PGD EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
             uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
