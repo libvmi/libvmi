@@ -74,6 +74,12 @@ int main (int argc, char **argv)
             goto error_exit;
         if ( VMI_FAILURE == vmi_get_offset(vmi, "win_pid", &pid_offset) )
             goto error_exit;
+    } else if (VMI_OS_FREEBSD == vmi_get_ostype(vmi)) {
+        tasks_offset = 0;
+        if ( VMI_FAILURE == vmi_get_offset(vmi, "freebsd_name", &name_offset) )
+            goto error_exit;
+        if ( VMI_FAILURE == vmi_get_offset(vmi, "freebsd_pid", &pid_offset) )
+            goto error_exit;
     }
 
     /* pause the vm for consistent memory access */
@@ -117,12 +123,27 @@ int main (int argc, char **argv)
             printf("Failed to find PsActiveProcessHead\n");
             goto error_exit;
         }
+    } else if (VMI_OS_FREEBSD == vmi_get_ostype(vmi)) {
+        // find initproc
+        if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "allproc", &list_head) )
+            goto error_exit;
     }
 
     cur_list_entry = list_head;
     if (VMI_FAILURE == vmi_read_addr_va(vmi, cur_list_entry, 0, &next_list_entry)) {
         printf("Failed to read next pointer in loop at %"PRIx64"\n", cur_list_entry);
         goto error_exit;
+    }
+
+    if (VMI_OS_FREEBSD == vmi_get_ostype(vmi)) {
+        // FreeBSD's p_list is not circularly linked
+        list_head = 0;
+        // Advance the pointer once
+        status = vmi_read_addr_va(vmi, cur_list_entry, 0, &cur_list_entry);
+        if (status == VMI_FAILURE) {
+            printf("Failed to read next pointer in loop at %"PRIx64"\n", cur_list_entry);
+            goto error_exit;
+        }
     }
 
     /* walk the task list */
@@ -157,6 +178,10 @@ int main (int argc, char **argv)
             procname = NULL;
         }
 
+        if (VMI_OS_FREEBSD == os && next_list_entry == list_head) {
+            break;
+        }
+
         /* follow the next pointer */
         cur_list_entry = next_list_entry;
         status = vmi_read_addr_va(vmi, cur_list_entry, 0, &next_list_entry);
@@ -175,7 +200,6 @@ int main (int argc, char **argv)
         } else if (VMI_OS_LINUX == os && cur_list_entry == list_head) {
             break;
         }
-
     };
 
 error_exit:

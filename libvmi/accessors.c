@@ -586,3 +586,23 @@ vmi_get_linux_sysmap(
     return linux_instance->sysmap;
 
 }
+
+const char *
+vmi_get_freebsd_sysmap(
+    vmi_instance_t vmi)
+{
+    freebsd_instance_t freebsd_instance = NULL;
+
+    if (VMI_OS_FREEBSD != vmi->os_type) {
+        return NULL;
+    }
+
+    if (!vmi->os_data) {
+        return NULL;
+    }
+
+    freebsd_instance = vmi->os_data;
+
+    return freebsd_instance->sysmap;
+
+}

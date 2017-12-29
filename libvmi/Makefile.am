@@ -105,6 +105,13 @@ os          += os/linux/linux.h \
                os/linux/memory.c \
                os/linux/symbols.c
 endif
+if FREEBSD
+os          += os/freebsd/freebsd.h \
+               os/freebsd/core.c \
+               os/freebsd/memory.c \
+               os/freebsd/symbols.c
+endif
+
 
 library_includedir=$(includedir)/$(LIBRARY_NAME)
 library_include_HEADERS = $(h_public)

@@ -115,6 +115,13 @@ AC_ARG_ENABLE([linux],
       [enable_linux=yes])
 AM_CONDITIONAL([LINUX], [test x"$enable_linux" = xyes])
 
+AC_ARG_ENABLE([freebsd],
+      [AS_HELP_STRING([--disable-freebsd],
+         [Support introspecting FreeBSD])],
+      [enable_freebsd=$enableval],
+      [enable_freebsd=yes])
+AM_CONDITIONAL([FREEBSD], [test x"$enable_freebsd" = xyes])
+
 AC_ARG_ENABLE([vmifs],
       [AS_HELP_STRING([--disable-vmifs],
          [Build VMIFS tool: maps memory to a file through FUSE])],
@@ -242,6 +249,10 @@ AC_SUBST([GLIB_LIBS])
 [if test "$enable_linux" = "yes"]
 [then]
     AC_DEFINE([ENABLE_LINUX], [1], [Define to 1 to Linux support.])
+[fi]
+[if test "$enable_freebsd" = "yes"]
+[then]
+    AC_DEFINE([ENABLE_FREEBSD], [1], [Define to 1 to FreeBSD support.])
 [fi]
 
 have_vmifs='no'
@@ -380,7 +391,7 @@ OS              | Option
 ----------------|---------------------------
 Windows         | --enable-windows=$enable_windows
 Linux           | --enable-linux=$enable_linux
-
+FreeBSD         | --enable-freebsd=$enable_freebsd
 
 Tools           | Option                    | Reason
 ----------------|---------------------------|----------------------------

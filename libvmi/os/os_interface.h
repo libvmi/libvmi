@@ -24,6 +24,7 @@
 #include "private.h"
 #include "os/windows/windows.h"
 #include "os/linux/linux.h"
+#include "os/freebsd/freebsd.h"
 
 typedef status_t (*os_get_offset_t)(vmi_instance_t vmi,
                                     const char* offset_name, addr_t *offset);

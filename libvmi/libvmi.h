@@ -111,7 +111,9 @@ typedef enum os {
 
     VMI_OS_LINUX,    /**< OS type is Linux */
 
-    VMI_OS_WINDOWS   /**< OS type is Windows */
+    VMI_OS_WINDOWS,  /**< OS type is Windows */
+
+    VMI_OS_FREEBSD   /**< OS type is FreeBSD */
 } os_t;
 
 /**
@@ -2214,6 +2216,14 @@ void vmi_pidcache_add(
  * @return String file path location of the Linux system map
  */
 const char * vmi_get_linux_sysmap(vmi_instance_t vmi);
+
+/**
+ * Returns the path of the FreeBSD system map file for the given vmi instance
+ *
+ * @param[in] vmi LibVMI instance
+ * @return String file path location of the FreeBSD system map
+ */
+const char * vmi_get_freebsd_sysmap(vmi_instance_t vmi);
 
 #pragma GCC visibility pop
 
