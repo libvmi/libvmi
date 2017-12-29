@@ -141,11 +141,12 @@ matrix:
                 - libxen-dev
                 - libfuse-dev
       before_install:
+        - export PATH=$PATH:/usr/local/clang-5.0.0/bin
         - export CC=clang-5.0
         - export CXX=clang++-5.0
       install:
         - ./autogen.sh
       script:
-        - scan-build-5.0 --status-bugs --use-cc=clang-5.0 ./configure --enable-debug
+        - scan-build --status-bugs --use-cc=clang-5.0 ./configure --enable-debug
         - cd libvmi/config && make && cd ../..
-        - scan-build-5.0 --status-bugs --use-cc=clang-5.0 make
+        - scan-build --status-bugs --use-cc=clang-5.0 make
