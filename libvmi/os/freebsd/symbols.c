@@ -178,7 +178,6 @@ char* freebsd_system_map_address_to_symbol(
         fprintf(stderr, "\t%s\n", freebsd_instance->sysmap);
         fprintf(stderr,
                 "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
-        address = 0;
         goto done;
     }
     size = snprintf(NULL,0,"%"PRIx64"", address) + 1;
