@@ -225,6 +225,8 @@ AC_SUBST([GLIB_LIBS])
         [AC_DEFINE([HAVE_LIBVMI_REQUEST], 1,
            [Define to 1 if you have <qemu/libvmi_request.h>.])],
         [])
+    AC_CHECK_LIB(json-c, json_object_get_int64, [],
+                     [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
     AC_CHECK_HEADER(json-c/json.h, [],
                      [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
 [fi]
