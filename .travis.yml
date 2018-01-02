@@ -62,7 +62,7 @@ matrix:
       install:
         - ./autogen.sh
       script:
-        - ./configure --enable-debug
+        - ./configure
         - make
 
 #
@@ -87,7 +87,7 @@ matrix:
       install:
         - ./autogen.sh
       script:
-        - ./configure --enable-debug
+        - ./configure
         - make
 
 #
@@ -114,7 +114,7 @@ matrix:
                 name: "libvmi/libvmi"
                 description: "Build submitted via Travis CI"
             notification_email: tamas.k.lengyel@gmail.com
-            build_command_prepend: "./autogen.sh; ./configure --enable-debug; make clean"
+            build_command_prepend: "./autogen.sh; ./configure; make clean"
             build_command:   "make"
             branch_pattern: master
       script:
@@ -147,6 +147,129 @@ matrix:
       install:
         - ./autogen.sh
       script:
-        - scan-build --status-bugs --use-cc=clang-5.0 ./configure --enable-debug
+        - scan-build --status-bugs --use-cc=clang-5.0 ./configure
         - cd libvmi/config && make && cd ../..
         - scan-build --status-bugs --use-cc=clang-5.0 make
+
+#
+# debug test
+#
+    - env:
+        - TEST="debug options enabled"
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      before_install:
+        - sed -i 's/#endif/#ifdef VMI_DEBUG\n#undef VMI_DEBUG\n#endif\n#define VMI_DEBUG __VMI_DEBUG_ALL\n#endif/g' libvmi/debug.h
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --enable-debug
+        - make
+
+
+#
+# disable cache
+#
+    - env:
+        - TEST="disable cache"
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --disable-address-cache --disable-page-cache
+        - make
+
+#
+# without xenstore
+#
+    - env:
+        - TEST="without xenstore"
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --without-xenstore
+        - make
+
+#
+# disable config file
+#
+    - env:
+        - TEST="disable libvmi.conf"
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --disable-config-file
+        - make
+
+#
+# disable rekall profiles
+#
+    - env:
+        - TEST="disable rekall profiles"
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --disable-rekall-profiles
+        - make

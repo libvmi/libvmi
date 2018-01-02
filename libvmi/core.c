@@ -53,8 +53,9 @@ read_config_file(vmi_instance_t UNUSED(vmi),
 
 static inline status_t
 read_config_string(vmi_instance_t UNUSED(vmi),
-                   const char* UNUSED(config)
-                   GHashTable** UNUSUED(_config))
+                   const char* UNUSED(config),
+                   GHashTable** UNUSED(_config),
+                   vmi_init_error_t* UNUSED(error))
 {
     return VMI_FAILURE;
 }
