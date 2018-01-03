@@ -490,7 +490,7 @@ status_t vmi_init(
     vmi_instance_t *vmi,
     vmi_mode_t mode,
     void* domain,
-    uint32_t init_flags,
+    uint64_t init_flags,
     void *init_data,
     vmi_init_error_t *error)
 {
