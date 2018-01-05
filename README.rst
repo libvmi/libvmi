@@ -30,6 +30,11 @@ want more details about installation, or programming with LibVMI, then see
 the documentation included in the doc/ subdirectory of LibVMI, or view the
 documentation online at http://www.libvmi.com.
 
+.. image:: https://travis-ci.org/libvmi/libvmi.svg?branch=master
+    :target: https://travis-ci.org/libvmi/libvmi
+
+.. image:: https://scan.coverity.com/projects/14159/badge.svg
+    :target: https://scan.coverity.com/projects/libvmi-libvmi
 
 Dependencies
 ------------
