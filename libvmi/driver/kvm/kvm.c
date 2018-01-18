@@ -50,6 +50,11 @@
 #include "driver/kvm/kvm.h"
 #include "driver/kvm/kvm_private.h"
 
+#ifdef HAVE_LIBKVMI
+#include <sys/time.h>
+#include "driver/kvm/include/kvmi/libkvmi.h"
+#endif
+
 #define QMP_CMD_LENGTH 256
 
 #ifdef HAVE_LIBVMI_REQUEST
@@ -611,6 +616,188 @@ kvm_setup_live_mode(
 }
 
 //----------------------------------------------------------------------------
+// KVMI-Specific Interface Functions (no direction mapping to driver_*)
+
+#ifdef HAVE_LIBKVMI
+static int
+cb_kvmi_connect(
+    void *dom,
+    unsigned char (*uuid)[16],
+    void *ctx)
+{
+    kvm_instance_t *kvm = ctx; 
+
+    pthread_mutex_lock(&kvm->kvm_connect_mutex);
+    kvmi_domain_close(kvm->kvmi_dom); /* previous connection */
+    kvm->kvmi_dom = dom;
+    pthread_cond_signal(&kvm->kvm_start_cond);
+    pthread_mutex_unlock(&kvm->kvm_connect_mutex);
+
+    return 0;
+}
+
+/*
+ * This callback is not used unless some events are enabled
+ * with the kvmi_control_events() command.
+ */
+static int
+cb_new_event(
+    void *UNUSED(dom),
+    unsigned int seq,
+    unsigned int size,
+    void *UNUSED(ctx))
+{
+    dbprint(VMI_DEBUG_KVM, "--event seq:%u size:%u\n", seq, size);
+
+    /* return 0 to continue */
+    return 1; /* this will stop the connection */
+}
+
+static bool
+init_kvmi(
+    kvm_instance_t *kvm)
+{
+    int err = -1;
+
+    pthread_mutex_init(&kvm->kvm_connect_mutex, NULL);
+    pthread_cond_init(&kvm->kvm_start_cond, NULL);
+    kvm->kvmi_dom = NULL;
+
+    pthread_mutex_lock(&kvm->kvm_connect_mutex);
+    kvm->kvmi = kvmi_init_unix_socket("/var/run/testing.sock", cb_kvmi_connect, cb_new_event, kvm);
+    if (kvm->kvmi) {
+        struct timeval now;
+        if (gettimeofday(&now, NULL) == 0) {
+           struct timespec t = {};
+           t.tv_sec = now.tv_sec + 10;
+           err = pthread_cond_timedwait(&kvm->kvm_start_cond, &kvm->kvm_connect_mutex, &t);
+        }
+    }
+    pthread_mutex_unlock(&kvm->kvm_connect_mutex);
+
+    if (err) {
+        /*
+         * The libkvmi may accept the connection after timeout
+         * and our callback can set kvm->kvmi_dom. So, we must
+         * stop to accepting thread first.
+         */
+        kvmi_uninit(kvm->kvmi);
+        /* From this point, kvm->kvmi_dom won't be touched. */
+        kvmi_domain_close(kvm->kvmi_dom);
+        return false;
+    }
+
+    return true;
+}
+
+static bool
+get_kvmi_registers(
+    kvm_instance_t *kvm,
+    reg_t reg,
+    uint64_t *value)
+{
+    struct kvm_regs regs;
+    struct kvm_sregs sregs;
+    struct {
+        struct kvm_msrs      msrs;
+        struct kvm_msr_entry entries[2];
+    } msrs = {0};
+    unsigned int mode;
+    unsigned short vcpu = 0;
+    int err;
+
+    if (!kvm->kvmi_dom)
+        return false;
+
+    msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
+    msrs.entries[0].index = MSR_EFER;
+    msrs.entries[1].index = MSR_STAR;
+
+    err = kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
+    if (!err)
+        return false;
+
+    /* mode should be 8 if VMI_PM_IA32E == vmi->page_mode */
+
+    switch (reg) {
+    case RAX:
+        *value = regs.rax;
+        break;
+    case RBX:
+        *value = regs.rbx;
+        break;
+    case RCX:
+        *value = regs.rcx;
+        break;
+    case RDX:
+        *value = regs.rdx;
+        break;
+    case RBP:
+        *value = regs.rbp;
+        break;
+    case RSI:
+        *value = regs.rsi;
+        break;
+    case RDI:
+        *value = regs.rdi;
+        break;
+    case RSP:
+        *value = regs.rsp;
+        break;
+    case R8:
+        *value = regs.r8;
+        break;
+    case R9:
+        *value = regs.r9;
+        break;
+    case R10:
+        *value = regs.r10;
+        break;
+    case R11:
+        *value = regs.r11;
+        break;
+    case R12:
+        *value = regs.r12;
+        break;
+    case R13:
+        *value = regs.r13;
+        break;
+    case R14:
+        *value = regs.r14;
+        break;
+    case R15:
+        *value = regs.r15;
+        break;
+    case RIP:
+        *value = regs.rip;
+        break;
+    case RFLAGS:
+        *value = regs.rflags;
+        break;
+    case CR0:
+        *value = sregs.cr0;
+        break;
+    case CR2:
+        *value = sregs.cr2;
+        break;
+    case CR3:
+        *value = sregs.cr3;
+        break;
+    case CR4:
+        *value = sregs.cr4;
+        break;
+    case MSR_EFER:
+        *value = msrs.entries[0].data;
+    default:
+        return false;
+    }
+
+    return true;
+}
+
+#endif
+
+//----------------------------------------------------------------------------
 // General Interface Functions (1-1 mapping to driver_* function)
 
 status_t
@@ -730,6 +917,15 @@ success:
     dbprint(VMI_DEBUG_KVM, "--SUCCESS\n");
 #endif
 
+#ifdef HAVE_LIBKVMI
+    dbprint(VMI_DEBUG_KVM, "--Connecting to KVMI...\n");
+    if (!init_kvmi(kvm)) {
+        dbprint(VMI_DEBUG_KVM, "--KVMI failed\n");
+        return VMI_FAILURE;
+    }
+    dbprint(VMI_DEBUG_KVM, "--KVMI connected \o/\n");
+#endif
+
     return kvm_setup_live_mode(vmi);
 }
 
@@ -739,6 +935,13 @@ kvm_destroy(
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     destroy_domain_socket(kvm);
+
+#ifdef HAVE_LIBKVMI
+    kvmi_uninit(kvm->kvmi); /* closes the accepting thread */
+    kvm->kvmi = NULL;
+    kvmi_domain_close(kvm->kvmi_dom);
+    kvm->kvmi_dom = NULL;
+#endif
 
     if (kvm->dom) {
         kvm->libvirt.virDomainFree(kvm->dom);
@@ -909,6 +1112,11 @@ kvm_get_vcpureg(
 {
     // TODO: vCPU specific registers
     char *regs = NULL;
+
+#ifdef HAVE_LIBKVMI
+    if (get_kvmi_registers(kvm_get_instance(vmi), reg, value))
+        return VMI_SUCCESS;
+#endif
 
     if (NULL == regs)
         regs = exec_info_registers(kvm_get_instance(vmi));

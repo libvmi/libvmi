@@ -42,6 +42,12 @@ typedef struct kvm_instance {
     char *ds_path;
     int socket_fd;
     libvirt_wrapper_t libvirt;
+#ifdef HAVE_LIBKVMI
+    void *kvmi;
+    void *kvmi_dom;
+    pthread_mutex_t kvm_connect_mutex;
+    pthread_cond_t kvm_start_cond;
+#endif
 } kvm_instance_t;
 
 static inline kvm_instance_t *
