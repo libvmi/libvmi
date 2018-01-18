@@ -628,7 +628,11 @@ cb_kvmi_connect(
     kvm_instance_t *kvm = ctx; 
 
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
-    kvmi_domain_close(kvm->kvmi_dom); /* previous connection */
+    /*
+     * If kvmi_dom is not NULL it means this is a reconnection.
+     * The previous connection was closed somehow.
+     */
+    kvmi_domain_close(kvm->kvmi_dom);
     kvm->kvmi_dom = dom;
     pthread_cond_signal(&kvm->kvm_start_cond);
     pthread_mutex_unlock(&kvm->kvm_connect_mutex);
@@ -649,8 +653,9 @@ cb_new_event(
 {
     dbprint(VMI_DEBUG_KVM, "--event seq:%u size:%u\n", seq, size);
 
-    /* return 0 to continue */
-    return 1; /* this will stop the connection */
+    /* return kvmi_reply_event(dom, seq, &rpl, sizeof(rpl)) */
+
+    return 0;
 }
 
 static bool
@@ -679,7 +684,7 @@ init_kvmi(
         /*
          * The libkvmi may accept the connection after timeout
          * and our callback can set kvm->kvmi_dom. So, we must
-         * stop to accepting thread first.
+         * stop the accepting thread first.
          */
         kvmi_uninit(kvm->kvmi);
         /* From this point, kvm->kvmi_dom won't be touched. */
