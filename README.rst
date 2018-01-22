@@ -250,7 +250,7 @@ the following the Rekall command:
 
 .. code::
 
-    rekall peinfo <path/to/file>
+    rekall peinfo -f <path/to/ntoskrnl.exe>
 
 
 Once the PDB filename and GUID is known, creating the Rekall profile is done in two steps:
@@ -260,9 +260,10 @@ Once the PDB filename and GUID is known, creating the Rekall profile is done in 
     rekall fetch_pdb <PDB filename> <GUID>
     rekall parse_pdb <PDB filename> > rekall-profile.json
 
-The Rekall profile can be used directly in the LibVMI config via an additional rekall_profile entry
-pointing to this file with an absolute path. There is no need to specify any of the offsets normally
-required as those offsets will be available via the profile itself.
+The PDB filename should not have the .pdb extension in the above commands. The Rekall profile can be
+used directly in the LibVMI config via an additional rekall_profile entry pointing to this file with
+an absolute path. There is no need to specify any of the offsets normally required as those offsets
+will be available via the profile itself.
 
 
 Building
