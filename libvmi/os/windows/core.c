@@ -662,6 +662,280 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
 }
 
 static status_t
+get_interrupt_routine_offset_32(vmi_instance_t vmi, addr_t idt_descriptor_address, addr_t* result)
+{
+    /*
+     * http://wiki.osdev.org/Interrupt_Descriptor_Table#Structure_IA-32
+     * */
+#pragma pack(push)
+#pragma pack(1)
+    struct
+    {
+        uint16_t offset1;   // offset bits 0..15
+        uint16_t selector;  // a code segment selector in GDT or LDT
+        uint8_t zero;       // unused, set to 0
+        uint8_t type_attr;  // type and attributes, see below
+        uint16_t offset2;   // offset bits 16..31
+    } idt_descriptor;
+#pragma pack(pop)
+
+    size_t bytes_readen = 0;
+    if (VMI_FAILURE == vmi_read_va(vmi, idt_descriptor_address, 0, sizeof(idt_descriptor), &idt_descriptor, &bytes_readen) || 
+        bytes_readen != sizeof(idt_descriptor))
+    {
+        return VMI_FAILURE;
+    }
+
+    uint32_t offset = ((uint32_t)idt_descriptor.offset2 << 16) | idt_descriptor.offset1;
+
+    *result = offset;
+    return VMI_SUCCESS;
+}
+
+static status_t
+get_interrupt_routine_offset_64(vmi_instance_t vmi, addr_t idt_descriptor_address, addr_t* result)
+{
+    /*
+     * http://wiki.osdev.org/Interrupt_Descriptor_Table#Structure_AMD64
+     * */
+#pragma pack(push)
+#pragma pack(1)
+    struct 
+    {
+        uint16_t offset1;   // offset bits 0..15
+        uint16_t selector;  // a code segment selector in GDT or LDT
+        uint8_t ist;        // bits 0..2 holds Interrupt Stack Table offset, rest of bits zero.
+        uint8_t type_attr;  // type and attributes
+        uint16_t offset2;   // offset bits 16..31
+        uint32_t offset3;   // offset bits 32..63
+        uint32_t zero;      // reserved
+    } idt_descriptor;
+#pragma pack(pop)
+
+    size_t bytes_readen = 0;
+    if (VMI_FAILURE == vmi_read_va(vmi, idt_descriptor_address, 0, sizeof(idt_descriptor), &idt_descriptor, &bytes_readen) || 
+        bytes_readen != sizeof(idt_descriptor))
+    {
+        return VMI_FAILURE;
+    }
+
+    uint64_t offset = ((uint64_t)idt_descriptor.offset3 << 32) 
+                    | ((uint64_t)idt_descriptor.offset2 << 16)
+                    | idt_descriptor.offset1;
+
+    *result = offset;
+    return VMI_SUCCESS;
+}
+
+static status_t
+find_interrupt_routine_address_va(vmi_instance_t vmi, addr_t* out_addr)
+{
+    addr_t idt_descriptor_address = 0;
+
+    /* At first, we need to determine virtual address of Interrupt Descriptor Table,
+     * by reading value of IDTR_BASE register
+     * */
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &idt_descriptor_address, IDTR_BASE, 0))
+    {
+        return VMI_FAILURE;
+    }
+
+    /* Interrupt Descriptor Table consists of entries
+     * with the structure, that depends on page mode
+     * 
+     * http://wiki.osdev.org/Interrupt_Descriptor_Table
+     * 
+     * We have an address of the first entry of this table
+     * in idt_descriptor_address variable.
+     * We will use it to calculate a
+     * virtual address of Interrupt Service Routine
+     * */
+
+    /* Address of Interrupt Service Routine (ISR) consists of two parts:
+     * * selector - 16-bit selector, that is used as index in Global Descriptor Table (GDT)
+     * * offset - 32(64)-bit offset, represents an offset of entry point of ISR from the start of memory segment
+     * http://wiki.osdev.org/Interrupt_Descriptor_Table
+     * 
+     * selector is uint16_t field, stored by offset 2 bytes
+     * from the beginning of IDT descriptor, like this:
+     * struct IDTDescriptor
+     * {
+     *    uint16_t offset_1; // offset bits 0..15
+     *    uint16_t selector; // a code segment selector in GDT or LDT
+     *    // ...
+     *    // following structure varies depending on page mode
+     * }
+     * 
+     * http://wiki.osdev.org/Interrupt_Descriptor_Table
+     * */
+    uint16_t selector = 0;
+
+    size_t bytes_readen = 0;
+    if (VMI_FAILURE == vmi_read_va(vmi, idt_descriptor_address + sizeof(uint16_t), 0, sizeof(selector), &selector, &bytes_readen) || 
+        bytes_readen != sizeof(selector))
+    {
+        return VMI_FAILURE;
+    }
+
+    /* Selector is a bit field.
+     * Higher 13 bits represents index 
+     * of entry of Global Descriptor Table (GDT)
+     * 
+     * http://wiki.osdev.org/User:Bastl/Selector
+     * */
+    selector >>= 3;
+
+    /* Now we need to determine address of the Global Descriptor Table (GDT)
+     * It is stored in GDTR_BASE register.
+     * */
+    addr_t gdtr = 0;
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &gdtr, GDTR_BASE, 0))
+    {
+        return VMI_FAILURE;
+    }
+
+    gdtr += selector * 8;       // size of each entry in GDT is 8 bytes
+
+    /* Each entry has a complex structure, 
+     * that represents memory segment.
+     * We need to determine starting address
+     * of memory segment.
+     * 
+     * http://wiki.osdev.org/GDT
+     * */
+    uint8_t buffer[8] = {0};
+
+    bytes_readen = 0;
+    if (VMI_FAILURE == vmi_read_va(vmi, gdtr, 0, sizeof(buffer), buffer, &bytes_readen) ||
+        bytes_readen != sizeof(buffer))
+    {
+        return VMI_FAILURE;
+    }
+
+    uint32_t segment = (uint32_t)buffer[7] << 24
+                    | (uint32_t)buffer[4] << 16 
+                    | (uint32_t)buffer[3] << 8
+                    | buffer[2];
+
+    /* We have the starting address of the segment.
+    * Now we need to determine offset of Interrupt Service Routine
+    * inside of this segment, using IDT descriptor
+    * */
+
+    uint64_t address = 0;
+    page_mode_t mode = vmi_get_page_mode(vmi, 0);
+    switch(mode)
+    {
+        case VMI_PM_IA32E:
+            if (VMI_FAILURE == get_interrupt_routine_offset_64(vmi, idt_descriptor_address, &address))
+            {
+                return VMI_FAILURE;
+            }
+            break;
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE:
+            if (VMI_FAILURE == get_interrupt_routine_offset_32(vmi, idt_descriptor_address, &address)) 
+            {
+                return VMI_FAILURE;
+            }
+            break;
+        default:
+            return VMI_FAILURE;
+    };
+
+    *out_addr = address + segment;       // segment start + offset
+
+    return VMI_SUCCESS;
+}
+
+static bool
+nt_kernel_name_check(const char* name)
+{
+    return (0 == strncasecmp(name, "nt", 2) ||
+            0 == strncasecmp(name, "wrkx", 4) || 
+            0 == strncasecmp(name, "xnt", 3));
+}
+
+static status_t
+find_ntoskrnl_va(vmi_instance_t vmi, addr_t start_address_va, addr_t* ntoskrnl_address_va)
+{
+    status_t ret = VMI_FAILURE;
+    const size_t kernel_image_name_max_size = 8;
+    const uint64_t mask_4k = VMI_PS_4KB - 1;
+
+    uint8_t* buffer = malloc(VMI_PS_4KB);
+    if (NULL == buffer)
+    {
+        return ret;
+    }
+
+    struct export_table export_tbl;
+    addr_t et_rva = 0;
+    size_t et_size = 0;
+
+    access_context_t ctx =
+    {
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = 0,
+        .pid = 0
+    };
+
+    // virtual address of PE-image is always aligned to 4K boundaries
+    start_address_va &= ~mask_4k;
+
+    size_t bytes_readen = 0;
+    while (start_address_va > VMI_PS_4KB)       // do not check virtual address 0x1000, because there is no kernel there
+    {
+        // searching backwards for PE image
+
+        if (VMI_FAILURE != vmi_read_va(vmi, start_address_va, 0, VMI_PS_4KB, buffer, &bytes_readen) || 
+            bytes_readen != VMI_PS_4KB)
+        {
+            goto exit;
+        }
+
+        // check for PE-signature here
+        if (VMI_FAILURE == peparse_validate_pe_image(buffer, VMI_PS_4KB))
+        {
+            start_address_va -= VMI_PS_4KB;
+            continue;
+        }
+
+        // it is a PE-image. Let's get the module name
+        ctx.addr = start_address_va;
+        if (VMI_SUCCESS == peparse_get_export_table(vmi, &ctx, &export_tbl, &et_rva, &et_size))
+        {
+            et_rva = start_address_va + export_tbl.name;
+
+            if (kernel_image_name_max_size != vmi_read_va(vmi, et_rva, 0, kernel_image_name_max_size, buffer, &bytes_readen) || 
+                bytes_readen != kernel_image_name_max_size)
+            {
+                goto exit;
+            }
+
+            // check the module name
+            if (nt_kernel_name_check((char*)&buffer[0]))
+            {
+                *ntoskrnl_address_va = start_address_va;
+                ret = VMI_SUCCESS;
+            }
+        }
+
+        /* found a valid PE-header
+         * if it is a ntoskrnl image,
+         * then ret == VMI_SUCCESS here,
+         * otherwise something is wrong and VMI_FAILURE will be returned
+         * anyway, our searching is done
+         * */
+        break;
+    }
+
+exit:
+    free(buffer);
+    return ret;
+}
+
+static status_t
 init_from_rekall_profile(vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
@@ -669,7 +943,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
     dbprint(VMI_DEBUG_MISC, "**Trying to init from Rekall profile\n");
 
     reg_t kpcr = 0;
-    addr_t kpcr_rva = 0, int0_rva = 0;
+    addr_t kpcr_rva = 0;
 
     // try to find the kernel if we are not connecting to a file and the kernel pa/va were not already specified.
     if (vmi->mode != VMI_FILE && ! ( windows->ntoskrnl && windows->ntoskrnl_va ) ) {
@@ -699,25 +973,20 @@ init_from_rekall_profile(vmi_instance_t vmi)
             if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
                 goto done;
 
-        } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiDivideErrorFault", NULL, &int0_rva) ) {
-            reg_t idt = 0;
-            uint32_t int0_high = 0;
-            uint16_t int0_low = 0, int0_middle = 0;
+        }  else if (VMI_SUCCESS == find_interrupt_routine_address_va(vmi, &kpcr_rva)) {
+            // Try to find virtual address of ntoskrnl.exe from the
+            // virtual address of interrupt handler, located within ntoskrnl.exe
 
-            // Some Windows10+ rekall profiles don't have KiInitialPCR defined so we use the IDT route
-            // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
-            if (VMI_FAILURE == driver_get_vcpureg(vmi, &idt, IDTR_BASE, 0))
+            if (VMI_FAILURE == find_ntoskrnl_va(vmi, kpcr_rva, &windows->ntoskrnl_va)) {
                 goto done;
-            if (VMI_FAILURE == vmi_read_16_va(vmi, idt, 0, &int0_low))
-                goto done;
-            if (VMI_FAILURE == vmi_read_16_va(vmi, idt + 6, 0, &int0_middle))
-                goto done;
-            if (VMI_PM_IA32E == vmi->page_mode && VMI_FAILURE == vmi_read_32_va(vmi, idt + 8, 0, &int0_high))
-                goto done;
+            }
 
-            windows->ntoskrnl_va = (((uint64_t)int0_high << 32) | ((uint64_t)int0_middle << 16) | int0_low) - int0_rva;
-            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
+            dbprint(VMI_DEBUG_MISC, "**ntoskrnl.exe has been found by virtual address 0x%"PRIx64"\n", windows->ntoskrnl_va);
+            //windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
+            if (VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl))
+            {
                 goto done;
+            }
         }
 
         if (!windows->ntoskrnl && kpcr == 0x00000000ffdff000) {
