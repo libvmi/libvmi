@@ -670,6 +670,9 @@ init_from_rekall_profile(vmi_instance_t vmi)
 
     reg_t kpcr = 0;
     addr_t kpcr_rva = 0, int0_rva = 0;
+    reg_t lstar=0, cstar=0;
+    addr_t kisystemcall64shadow=0, kisystemcall32shadow=0;
+    addr_t ntbaseaddress=0, ntbaseaddress_chk=0;
 
     // try to find the kernel if we are not connecting to a file and the kernel pa/va were not already specified.
     if (vmi->mode != VMI_FILE && ! ( windows->ntoskrnl && windows->ntoskrnl_va ) ) {
@@ -696,6 +699,40 @@ init_from_rekall_profile(vmi_instance_t vmi)
 
             // If the Rekall profile has KiInitialPCR we have Win 7+
             windows->ntoskrnl_va = kpcr - kpcr_rva;
+            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
+                goto done;
+            //Get kernel base address using cstar/lstar and KiSystemCall32Shadow / KiSystemCall64Shadow
+        } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) ) {
+
+            if (VMI_FAILURE == vmi_get_vcpureg(vmi, &lstar, MSR_LSTAR, 0)) {
+                errprint("Error reading MSR_LSTAR\n");
+                goto done;
+            }
+
+            if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cstar, MSR_CSTAR, 0)) {
+                errprint("Error reading MSR_CSTAR\n");
+                goto done;
+            }
+
+
+            if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiSystemCall32Shadow", NULL, &kisystemcall32shadow)) {
+                errprint("Error retrieving rva of KiSystemCall32Shadow\n");
+                goto done;
+
+            }
+
+            ntbaseaddress = lstar - kisystemcall64shadow;
+            ntbaseaddress_chk = cstar - kisystemcall32shadow;
+
+
+            if (ntbaseaddress != ntbaseaddress_chk) {
+                errprint("Error calculating NT base address\n");
+                goto done;
+            }
+
+
+            windows->ntoskrnl_va = ntbaseaddress;
+
             if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
                 goto done;
 
