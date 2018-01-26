@@ -795,7 +795,6 @@ find_interrupt_routine_address_va(vmi_instance_t vmi, addr_t* out_addr)
      * */
     uint8_t buffer[8] = {0};
 
-    bytes_readen = 0;
     if (VMI_FAILURE == vmi_read_64_va(vmi, gdtr, 0, (uint64_t*)buffer)) {
         return VMI_FAILURE;
     }
@@ -812,7 +811,7 @@ find_interrupt_routine_address_va(vmi_instance_t vmi, addr_t* out_addr)
 
     uint64_t address = 0;
     page_mode_t mode = vmi_get_page_mode(vmi, 0);
-    switch(mode) {
+    switch (mode) {
         case VMI_PM_IA32E:
             if (VMI_FAILURE == get_interrupt_routine_offset_64(vmi, idt_descriptor_address, &address)) {
                 return VMI_FAILURE;
@@ -867,8 +866,8 @@ find_ntoskrnl_va(vmi_instance_t vmi, addr_t start_address_va, addr_t* ntoskrnl_a
     start_address_va &= ~mask_4k;
 
     size_t bytes_readen = 0;
-    while (start_address_va > VMI_PS_4KB)       // do not check virtual address 0x1000, because there is no kernel there
-    {
+    while (start_address_va > VMI_PS_4KB) {      // do not check virtual address 0x1000, because there is no kernel there
+
         // searching backwards for PE image
 
         if (VMI_FAILURE != vmi_read_va(vmi, start_address_va, 0, VMI_PS_4KB, buffer, &bytes_readen) || bytes_readen != VMI_PS_4KB) {
@@ -959,8 +958,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
 
             dbprint(VMI_DEBUG_MISC, "**ntoskrnl.exe has been found by virtual address 0x%"PRIx64"\n", windows->ntoskrnl_va);
             //windows->ntoskrnl = vmi_translate_kv2p(vmi, windows->ntoskrnl_va);
-            if (VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl))
-            {
+            if (VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl)) {
                 goto done;
             }
         }
