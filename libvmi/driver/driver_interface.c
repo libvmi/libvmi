@@ -43,7 +43,11 @@
 #include "driver/kvm/kvm.h"
 #endif
 
-status_t driver_init_mode(const char *name, uint64_t domainid, vmi_mode_t *mode)
+status_t driver_init_mode(const char *name,
+                          uint64_t domainid,
+                          uint64_t UNUSED(init_flags),
+                          void* UNUSED(init_data),
+                          vmi_mode_t *mode)
 {
     unsigned long count = 0;
 

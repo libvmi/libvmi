@@ -188,6 +188,8 @@ typedef struct driver_interface {
 status_t driver_init_mode(
     const char *name,
     uint64_t domainid,
+    uint64_t init_flags,
+    void* init_data,
     vmi_mode_t *mode);
 
 status_t driver_init(
