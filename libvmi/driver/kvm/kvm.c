@@ -288,26 +288,52 @@ parse_seg_reg_value(
 static addr_t
 parse_mtree(char *mtree_output)
 {
-    char *ptr;
+    char *ptr = NULL;
+    char *tmp = NULL;
+    char *line = NULL;
+    const char *line_delim = "\\";
+    const char *above_4g_delim = "-";
+    const char *above_4g = "alias ram-above-4g";
+    char *above_4g_line = NULL;
+    addr_t value = 0;
 
-    if(NULL == (ptr = strstr(mtree_output, "alias ram-above-4g")))
-    goto error;
+    // for each line
+    line = strtok_r(mtree_output, line_delim, &tmp);
+    do {
+        // check for above 4g
+        if (strstr(line, above_4g) != NULL)
+        {
+            above_4g_line = strdup(line);
+            break;
+        }
+        // consume r\n
+        line = strtok_r(NULL, "n", &tmp);
+        if (line == NULL)
+            return 0;
+    } while ((line = strtok_r(NULL, line_delim, &tmp)) != NULL);
 
-    for(int i = 0; i <= 50;i++) {
-      if(ptr[0] == '-') {
-        ptr++;
-        goto success;
-      }
-      ptr--;
-    }
+    // did we find above 4g ?
+    if (above_4g_line == NULL)
+        goto out_error;
 
-    goto error;
+    // example of content for above_4g_str:
+    //    0000000100000000-000000013fffffff (prio 0, RW): alias ram-above-4g @pc.ram 00000000c0000000-00000000ffffffff
+    // we want to extract 000000013fffffff
+    tmp = NULL;
+    ptr = strtok_r(above_4g_line, above_4g_delim, &tmp);
+    if (ptr == NULL)
+        goto out_error;
 
-    error:
-    return 0;
-
-    success:
-    return (addr_t) strtoll(ptr, (char **) NULL, 16) + 1;
+    // ptr: 0000000100000000
+    ptr = strtok_r(NULL, above_4g_delim, &tmp);
+    if (ptr == NULL)
+        goto out_error;
+    // ptr: 000000013fffffff (prio 0, RW): alias ram
+    value = (addr_t) strtoll(ptr, (char **) NULL, 16) + 1;
+out_error:
+    if (above_4g_line)
+        free(above_4g_line);
+    return value;
 }
 
 status_t
