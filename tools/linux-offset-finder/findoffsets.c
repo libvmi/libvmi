@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/mm_types.h>
 
 #define MYMODNAME "FindOffsets "
 
