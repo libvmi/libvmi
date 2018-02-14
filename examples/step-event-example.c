@@ -123,6 +123,7 @@ int main (int argc, char **argv)
 {
     vmi_instance_t vmi = NULL;
     status_t status = VMI_SUCCESS;
+    addr_t gfn;
 
     struct sigaction act;
 
@@ -178,9 +179,10 @@ int main (int argc, char **argv)
         vmi_translate_uv2p(vmi, rip, pid, &rip_pa);
     }
 
+    gfn = rip_pa >> 12;
     printf("Preparing memory event to catch next RIP 0x%lx, PA 0x%lx, page 0x%lx for PID %u\n",
-           rip, rip_pa, rip_pa >> 12, pid);
-    SETUP_MEM_EVENT(&mm_event, rip_pa, VMI_MEMACCESS_X, mm_callback, 0);
+           rip, rip_pa, gfn, pid);
+    SETUP_MEM_EVENT(&mm_event, gfn, VMI_MEMACCESS_X, mm_callback, 0);
 
     vmi_resume_vm(vmi);
 
