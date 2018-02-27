@@ -153,12 +153,12 @@ exec_info_version(
 
 static char *
 exec_info_mtree(
-  kvm_instance_t *kvm)
-  {
+    kvm_instance_t *kvm)
+{
     char *query =
-      "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info mtree\"}}'";
+        "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info mtree\"}}'";
     return exec_qmp_cmd(kvm, query);
-  }
+}
 
 static char *
 exec_memory_access(
@@ -301,8 +301,7 @@ parse_mtree(char *mtree_output)
     line = strtok_r(mtree_output, line_delim, &tmp);
     do {
         // check for above 4g
-        if (strstr(line, above_4g) != NULL)
-        {
+        if (strstr(line, above_4g) != NULL) {
             above_4g_line = strdup(line);
             break;
         }
@@ -1685,7 +1684,7 @@ kvm_get_memsize(
     char *bufstr = exec_info_mtree(kvm_get_instance(vmi));
     addr_t parsed_max = parse_mtree(bufstr);
 
-    if(parsed_max != 0)
+    if (parsed_max != 0)
         *maximum_physical_address = (addr_t) parsed_max;
     else
         *maximum_physical_address = *allocated_ram_size;
