@@ -6,6 +6,7 @@
 #
 # Authors:
 # bdpayne@acm.org (Bryan D. Payne)
+# muscat_mat@hotmail.com (Matthew Muscat)
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +27,6 @@ import volatility.addrspace as addrspace
 import urllib
 import pyvmi
 
-
 class PyVmiAddressSpace(addrspace.BaseAddressSpace):
     """
     This address space can be used in conjunction with LibVMI
@@ -40,10 +40,11 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
     """
 
     order = 90
+    vmi = None
 
     def __init__(self, base, config, layered=False, **kwargs):
         addrspace.BaseAddressSpace.__init__(self, base, config, **kwargs)
-        self.as_assert(base == None or layered, "Must be first Address Space")
+	self.as_assert(base == None or layered, "Must be first Address Space")
         self.as_assert(
                 config.LOCATION.startswith("vmi://"),
                 "Location doesn't start with vmi://")
@@ -57,25 +58,26 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
         else:
             self.name = urllib.url2pathname(config.LOCATION[6:])
             self.config['name'] = self.name
-        self.vmi = pyvmi.init(self.config)
-        self.as_assert(not self.vmi is None, "VM not found")
+	if PyVmiAddressSpace.vmi is None:
+		PyVmiAddressSpace.vmi = pyvmi.init(self.config)
+        self.as_assert(not PyVmiAddressSpace.vmi is None, "VM not found")
         self.dtb = self.get_cr3()
 
     def __read_bytes(self, addr, length, pad):
-        if addr > self.vmi.get_memsize():
+        if addr > PyVmiAddressSpace.vmi.get_memsize():
             return ''
 
         # This should not happen but in case it does
         # pad the end of the read
         end = addr + length
-        if end > self.vmi.get_memsize():
+        if end > PyVmiAddressSpace.vmi.get_memsize():
             pad = True
-        
+
         try:
-            if pad:
-                memory = self.vmi.zread_pa(addr, length)
+	    if pad:
+                memory = PyVmiAddressSpace.vmi.zread_pa(addr, length)
             else:
-                memory = self.vmi.read_pa(addr, length)
+                memory = PyVmiAddressSpace.vmi.read_pa(addr, length)
         except:
             memory = ''
 
@@ -90,18 +92,19 @@ class PyVmiAddressSpace(addrspace.BaseAddressSpace):
     def is_valid_address(self, addr):
         if addr == None:
             return False
-        return 4096 < addr < self.vmi.get_memsize() - 1
+	
+        return 4096 < addr < PyVmiAddressSpace.vmi.get_memsize() - 1
 
     def write(self, addr, data):
-        nbytes = self.vmi.write_pa(addr, data)
+        nbytes = PyVmiAddressSpace.vmi.write_pa(addr, data)
         if nbytes != len(data):
             return False
+
         return True
 
     def get_cr3(self):
-        cr3 = self.vmi.get_vcpureg("cr3", 0)
-        return cr3
+        return PyVmiAddressSpace.vmi.get_vcpureg("cr3", 0)
 
     def get_available_addresses(self):
-        yield (4096, self.vmi.get_memsize() - 4096)
+        yield (0, PyVmiAddressSpace.vmi.get_memsize())
         return
