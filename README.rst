@@ -40,33 +40,58 @@ Dependencies
 ------------
 The following libraries are used in building this code:
 
-- libxc (from Xen, the Xen Control library, required for Xen support)
+- ``autotools``
 
-- libxenstore (from Xen, access to the xenstore, required for Xen support)
+- ``libtool`` Generic library support script
 
-- libvirt (from Red Hat, access to KVM guests, 0.8.7 or newer required for KVM
+- ``check`` Unit test framework for C (optional)
+
+- ``yacc`` OR ``bison`` (optional, for reading the configuration file)
+
+- ``lex`` OR ``flex`` (optional, for reading the configuration file)
+
+- ``glib`` (``>= 2.22``)
+
+Installing the dependencies on Ubuntu::
+
+    $ sudo apt-get install autotools-dev automake check flex bison libglib2.0-dev
+
+Xen support
+~~~~~~~~~~~
+
+- ``libxc`` (from Xen, the Xen Control library, required for Xen support)
+
+- ``libxenstore`` (Optional, from Xen, access to the xenstore, required for Xen support)
+
+Note: If you are installing a packaged version of Xen, you will likely
+need to install something like 'xen-devel' to obtain the files needed
+from libxc and libxenstore in the dependencies listed above.
+
+Installing the dependencies on Ubuntu::
+
+    $ sudo apt-get install libxc1 libxenstore3.0 libxen-dev
+
+KVM support
+~~~~~~~~~~~
+
+- ``libvirt`` (from Red Hat, access to KVM guests, 0.8.7 or newer required for KVM
   support, MUST BE BUILT WITH QMP SUPPORT -- THIS REQUIRES yajl)
 
 - qemu-kvm patch (option 1 for KVM memory access, optional for KVM support,
   still buggy but faster than alternative option, see Note 2)
 
-- gdb enabled kvm VM (option 2 for KVM memory access, optional for KVM
+- ``gdb`` enabled KVM VM (option 2 for KVM memory access, optional for KVM
   support, more stable than option 1 but slower, see Note 2)
 
-- yacc OR bison (for reading the configuration file)
+- ``json-c`` ``JSON`` C library to parse QEMU QMP output
 
-- lex OR flex (for reading the configuration file)
-
-- glib (version 2.22 or better is required)
-
-Note 1: If you are installing a packaged version of Xen, you will likely
-need to install something like 'xen-devel' to obtain the files needed
-from libxc and libxenstore in the dependencies listed above.
-
-Note 2: If you want KVM support then you will need to build your own
+Note: If you want KVM support then you will need to build your own
 version of QEMU-KVM or enable GDB support for your VM.  See the
 section on KVM support (below) for additional information.
 
+Installing the dependencies on Ubuntu::
+
+    $ sudo apt-get install libvirt-dev libjson-c-dev
 
 Installation and Configuration
 ------------------------------
