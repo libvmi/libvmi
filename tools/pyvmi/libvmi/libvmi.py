@@ -1,4 +1,5 @@
 import six
+from builtins import bytes
 from builtins import object
 from enum import Enum
 
@@ -390,6 +391,18 @@ class Libvmi(object):
         # transform into Python bytes
         buffer = ffi.unpack(buffer, bytes_read[0])
         return (buffer, bytes_read[0])
+
+    def read_pa_padded(self, paddr, count):
+        buffer = ffi.new("char[]", count)
+        bytes_read = ffi.new("size_t *")
+        status = lib.vmi_read_pa(self.vmi, paddr, count, buffer, bytes_read)
+        # transform into Python bytes
+        buffer = ffi.unpack(buffer, bytes_read[0])
+        if VMIStatus(status) == VMIStatus.FAILURE:
+            # pad with zeroes
+            pad_size = count - bytes_read[0]
+            buffer += bytes(pad_size)
+        return buffer
 
     def read_8_ksym(self, symbol):
         value = ffi.new("uint8_t *")
