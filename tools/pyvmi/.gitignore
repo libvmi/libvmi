@@ -25,5 +25,8 @@ wheels/
 *.egg
 MANIFEST
 
+# CFFI
+libvmi/*.c
+
 # IDE
 .idea/
