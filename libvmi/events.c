@@ -94,11 +94,11 @@ void step_event_free(vmi_event_t *event, status_t rc)
 status_t events_init(vmi_instance_t vmi)
 {
     switch (vmi->mode) {
-    case VMI_XEN:
-        break;
-    default:
-        errprint("The selected hypervisor has no events support!\n");
-        return VMI_FAILURE;
+		case VMI_XEN:
+			break;
+		default:
+			errprint("The selected hypervisor has no events support!\n");
+			return VMI_FAILURE;
     };
 
     vmi->interrupt_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);

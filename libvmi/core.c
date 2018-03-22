@@ -464,23 +464,23 @@ vmi_get_access_mode(
 static inline status_t driver_sanity_check(vmi_mode_t mode)
 {
     switch ( mode ) {
-    case VMI_XEN:
+		case VMI_XEN:
 #if ENABLE_XEN != 1
-        return VMI_FAILURE;
+			return VMI_FAILURE;
 #endif
-        break;
-    case VMI_KVM:
+			break;
+		case VMI_KVM:
 #if ENABLE_KVM != 1
-        return VMI_FAILURE;
+			return VMI_FAILURE;
 #endif
-        break;
-    case VMI_FILE:
+			break;
+		case VMI_FILE:
 #if ENABLE_FILE != 1
-        return VMI_FAILURE;
+			return VMI_FAILURE;
 #endif
-        break;
-    default:
-        return VMI_FAILURE;
+			break;
+		default:
+			return VMI_FAILURE;
     };
 
     return VMI_SUCCESS;

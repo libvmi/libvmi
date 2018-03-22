@@ -168,18 +168,18 @@ vmi_convert_str_encoding(
                 "out string '%s' length %zu\n", __FUNCTION__,
                 in->contents, in->length, out->contents, outlen);
         switch (errno) {
-        case EILSEQ:
-            dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
-            break;
-        case EINVAL:
-            dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
-            break;
-        case E2BIG:
-            dbprint(VMI_DEBUG_READ, "no more room");
-            break;
-        default:
-            dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
-            break;
+			case EILSEQ:
+				dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
+				break;
+			case EINVAL:
+				dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
+				break;
+			case E2BIG:
+				dbprint(VMI_DEBUG_READ, "no more room");
+				break;
+			default:
+				dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
+				break;
         }   // switch
         goto fail;
     }   // if failure

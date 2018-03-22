@@ -1,28 +1,28 @@
 /* The LibVMI Library is an introspection library that simplifies access to
- * memory in a target virtual machine or in a file containing a dump of
- * a system's physical memory.  LibVMI is based on the XenAccess Library.
- *
- * Copyright 2011 Sandia Corporation. Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
- * retains certain rights in this software.
- *
- * Author: Bryan D. Payne (bdpayne@acm.org)
- *
- * This file is part of LibVMI.
- *
- * LibVMI is free software: you can redistribute it and/or modify it under
- * the terms of the GNU Lesser General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * LibVMI is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
- * License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
- */
+* memory in a target virtual machine or in a file containing a dump of
+* a system's physical memory.  LibVMI is based on the XenAccess Library.
+*
+* Copyright 2011 Sandia Corporation. Under the terms of Contract
+* DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
+* retains certain rights in this software.
+*
+* Author: Bryan D. Payne (bdpayne@acm.org)
+*
+* This file is part of LibVMI.
+*
+* LibVMI is free software: you can redistribute it and/or modify it under
+* the terms of the GNU Lesser General Public License as published by the
+* Free Software Foundation, either version 3 of the License, or (at your
+* option) any later version.
+*
+* LibVMI is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
+* License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "private.h"
 #include "driver/driver_wrapper.h"
@@ -63,44 +63,44 @@ vmi_write(
     }
 
     switch (ctx->translate_mechanism) {
-    case VMI_TM_NONE:
-        start_addr = ctx->addr;
-        break;
-    case VMI_TM_KERNEL_SYMBOL:
-        if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
-            goto done;
+		case VMI_TM_NONE:
+			start_addr = ctx->addr;
+			break;
+		case VMI_TM_KERNEL_SYMBOL:
+			if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
+				goto done;
 
-        dtb = vmi->kpgd;
-        if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &start_addr) )
-            goto done;
+			dtb = vmi->kpgd;
+			if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &start_addr) )
+				goto done;
 
-        break;
-    case VMI_TM_PROCESS_PID:
-        if (!vmi->arch_interface || !vmi->os_interface)
-            goto done;
+			break;
+		case VMI_TM_PROCESS_PID:
+			if (!vmi->arch_interface || !vmi->os_interface)
+				goto done;
 
-        if (!ctx->pid)
-            dtb = vmi->kpgd;
-        else if (ctx->pid > 0) {
-            if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
-                goto done;
-        }
+			if (!ctx->pid)
+				dtb = vmi->kpgd;
+			else if (ctx->pid > 0) {
+				if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+					goto done;
+			}
 
-        if (!dtb)
-            goto done;
+			if (!dtb)
+				goto done;
 
-        start_addr = ctx->addr;
-        break;
-    case VMI_TM_PROCESS_DTB:
-        if (!vmi->arch_interface)
-            goto done;
+			start_addr = ctx->addr;
+			break;
+		case VMI_TM_PROCESS_DTB:
+			if (!vmi->arch_interface)
+				goto done;
 
-        dtb = ctx->dtb;
-        start_addr = ctx->addr;
-        break;
-    default:
-        errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
-        return 0;
+			dtb = ctx->dtb;
+			start_addr = ctx->addr;
+			break;
+		default:
+			errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
+			return 0;
     }
 
     while (count > 0) {
@@ -243,18 +243,18 @@ vmi_write_addr(
     }
 
     switch (vmi->page_mode) {
-    case VMI_PM_AARCH64:// intentional fall-through
-    case VMI_PM_IA32E:
-        return vmi_write(vmi, ctx, 8, value, NULL);
-    case VMI_PM_AARCH32:// intentional fall-through
-    case VMI_PM_LEGACY: // intentional fall-through
-    case VMI_PM_PAE:
-        return vmi_write(vmi, ctx, 4, value, NULL);
-    default:
-        dbprint(VMI_DEBUG_WRITE,
-                "--%s: unknown page mode, can't write addr as pointer width is unknown\n",
-                __FUNCTION__);
-        break;
+		case VMI_PM_AARCH64:// intentional fall-through
+		case VMI_PM_IA32E:
+			return vmi_write(vmi, ctx, 8, value, NULL);
+		case VMI_PM_AARCH32:// intentional fall-through
+		case VMI_PM_LEGACY: // intentional fall-through
+		case VMI_PM_PAE:
+			return vmi_write(vmi, ctx, 4, value, NULL);
+		default:
+			dbprint(VMI_DEBUG_WRITE,
+					"--%s: unknown page mode, can't write addr as pointer width is unknown\n",
+					__FUNCTION__);
+			break;
     }
 
     return VMI_FAILURE;
