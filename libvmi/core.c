@@ -464,23 +464,23 @@ vmi_get_access_mode(
 static inline status_t driver_sanity_check(vmi_mode_t mode)
 {
     switch ( mode ) {
-        case VMI_XEN:
+    case VMI_XEN:
 #if ENABLE_XEN != 1
-            return VMI_FAILURE;
+        return VMI_FAILURE;
 #endif
-            break;
-        case VMI_KVM:
+        break;
+    case VMI_KVM:
 #if ENABLE_KVM != 1
-            return VMI_FAILURE;
+        return VMI_FAILURE;
 #endif
-            break;
-        case VMI_FILE:
+        break;
+    case VMI_FILE:
 #if ENABLE_FILE != 1
-            return VMI_FAILURE;
+        return VMI_FAILURE;
 #endif
-            break;
-        default:
-            return VMI_FAILURE;
+        break;
+    default:
+        return VMI_FAILURE;
     };
 
     return VMI_SUCCESS;
@@ -610,14 +610,14 @@ page_mode_t vmi_init_paging(
 
     if ( flags ) {
         switch (vmi->page_mode) {
-            case VMI_PM_LEGACY:
-            case VMI_PM_PAE:
-            case VMI_PM_IA32E:
-                if (flags & VMI_PM_INITFLAG_TRANSITION_PAGES)
-                    vmi->x86.transition_pages = true;
-                break;
-            default:
-                break;
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE:
+        case VMI_PM_IA32E:
+            if (flags & VMI_PM_INITFLAG_TRANSITION_PAGES)
+                vmi->x86.transition_pages = true;
+            break;
+        default:
+            break;
         };
     }
 
@@ -630,38 +630,38 @@ os_t vmi_init_os(
     void *config,
     vmi_init_error_t *error)
 {
-	if (!vmi)
-		return VMI_OS_UNKNOWN;
+    if (!vmi)
+        return VMI_OS_UNKNOWN;
 
     vmi->os_type = VMI_OS_UNKNOWN;
     GHashTable *_config = NULL;
 
     switch (config_mode) {
-        case VMI_CONFIG_STRING:
-            /* read and parse the config string */
-            if (VMI_FAILURE == read_config_string(vmi, (const char*)config, &_config, error)) {
-                goto error_exit;
-            }
-            break;
-        case VMI_CONFIG_GLOBAL_FILE_ENTRY:
-            /* read and parse the config file */
-            if (VMI_FAILURE == read_config_file_entry(vmi, &_config, error)) {
-                goto error_exit;
-            }
-            break;
-        case VMI_CONFIG_GHASHTABLE:
-            /* read and parse the ghashtable */
-            if (!config) {
-
-                if (error)
-                    *error = VMI_INIT_ERROR_NO_CONFIG;
-
-                goto error_exit;
-            }
-            _config = (GHashTable*)config;
-            break;
-        default:
+    case VMI_CONFIG_STRING:
+        /* read and parse the config string */
+        if (VMI_FAILURE == read_config_string(vmi, (const char*)config, &_config, error)) {
             goto error_exit;
+        }
+        break;
+    case VMI_CONFIG_GLOBAL_FILE_ENTRY:
+        /* read and parse the config file */
+        if (VMI_FAILURE == read_config_file_entry(vmi, &_config, error)) {
+            goto error_exit;
+        }
+        break;
+    case VMI_CONFIG_GHASHTABLE:
+        /* read and parse the ghashtable */
+        if (!config) {
+
+            if (error)
+                *error = VMI_INIT_ERROR_NO_CONFIG;
+
+            goto error_exit;
+        }
+        _config = (GHashTable*)config;
+        break;
+    default:
+        goto error_exit;
     }
 
     if (VMI_FAILURE == set_os_type_from_config(vmi, _config)) {
@@ -689,44 +689,44 @@ os_t vmi_init_os(
     /* setup OS specific stuff */
     switch ( vmi->os_type ) {
 #ifdef ENABLE_LINUX
-        case VMI_OS_LINUX:
-            if (VMI_FAILURE == linux_init(vmi, _config)) {
-                vmi->os_type = VMI_OS_UNKNOWN;
-                if ( error )
-                    *error = VMI_INIT_ERROR_OS;
-
-                goto error_exit;
-            }
-            break;
-#endif
-#ifdef ENABLE_WINDOWS
-        case VMI_OS_WINDOWS:
-            if (VMI_FAILURE == windows_init(vmi, _config)) {
-                vmi->os_type = VMI_OS_UNKNOWN;
-                if ( error )
-                    *error = VMI_INIT_ERROR_OS;
-
-                goto error_exit;
-            }
-            break;
-#endif
-#ifdef ENABLE_FREEBSD
-        case VMI_OS_FREEBSD:
-            if (VMI_FAILURE == freebsd_init(vmi, _config)) {
-                vmi->os_type = VMI_OS_UNKNOWN;
-                if ( error )
-                    *error = VMI_INIT_ERROR_OS;
-
-                goto error_exit;
-            }
-            break;
-#endif
-        default:
+    case VMI_OS_LINUX:
+        if (VMI_FAILURE == linux_init(vmi, _config)) {
             vmi->os_type = VMI_OS_UNKNOWN;
             if ( error )
                 *error = VMI_INIT_ERROR_OS;
 
             goto error_exit;
+        }
+        break;
+#endif
+#ifdef ENABLE_WINDOWS
+    case VMI_OS_WINDOWS:
+        if (VMI_FAILURE == windows_init(vmi, _config)) {
+            vmi->os_type = VMI_OS_UNKNOWN;
+            if ( error )
+                *error = VMI_INIT_ERROR_OS;
+
+            goto error_exit;
+        }
+        break;
+#endif
+#ifdef ENABLE_FREEBSD
+    case VMI_OS_FREEBSD:
+        if (VMI_FAILURE == freebsd_init(vmi, _config)) {
+            vmi->os_type = VMI_OS_UNKNOWN;
+            if ( error )
+                *error = VMI_INIT_ERROR_OS;
+
+            goto error_exit;
+        }
+        break;
+#endif
+    default:
+        vmi->os_type = VMI_OS_UNKNOWN;
+        if ( error )
+            *error = VMI_INIT_ERROR_OS;
+
+        goto error_exit;
     };
 
 error_exit:

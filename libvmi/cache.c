@@ -669,24 +669,24 @@ vmi_pidcache_add(
     vmi_pid_t pid,
     addr_t dtb)
 {
-	if (!vmi)
-		return VMI_FAILURE;
+    if (!vmi)
+        return VMI_FAILURE;
 
     pid_cache_set(vmi, pid, dtb);
 
-	return VMI_SUCCESS;
+    return VMI_SUCCESS;
 }
 
 status_t
 vmi_pidcache_flush(
     vmi_instance_t vmi)
 {
-	if (!vmi)
-		return VMI_FAILURE;
+    if (!vmi)
+        return VMI_FAILURE;
 
     pid_cache_flush(vmi);
 
-	return VMI_SUCCESS;
+    return VMI_SUCCESS;
 }
 
 status_t
@@ -697,24 +697,24 @@ vmi_symcache_add(
     char *sym,
     addr_t va)
 {
-	if (!vmi)
-		return VMI_FAILURE;
+    if (!vmi)
+        return VMI_FAILURE;
 
     sym_cache_set(vmi, base_addr, pid, sym, va);
 
-	return VMI_SUCCESS;
+    return VMI_SUCCESS;
 }
 
 status_t
 vmi_symcache_flush(
     vmi_instance_t vmi)
 {
-	if (!vmi)
-		return VMI_FAILURE;
+    if (!vmi)
+        return VMI_FAILURE;
 
     sym_cache_flush(vmi);
 
-	return VMI_SUCCESS;
+    return VMI_SUCCESS;
 }
 
 status_t
@@ -725,24 +725,24 @@ vmi_rvacache_add(
     addr_t rva,
     char *sym)
 {
-	if (!vmi)
-		return VMI_FAILURE;
+    if (!vmi)
+        return VMI_FAILURE;
 
     rva_cache_set(vmi, base_addr, pid, rva, sym);
 
-	return VMI_SUCCESS;
+    return VMI_SUCCESS;
 }
 
 status_t
 vmi_rvacache_flush(
     vmi_instance_t vmi)
 {
-	if (!vmi)
-		return VMI_FAILURE;
+    if (!vmi)
+        return VMI_FAILURE;
 
     rva_cache_flush(vmi);
 
-	return VMI_SUCCESS;
+    return VMI_SUCCESS;
 }
 
 status_t
@@ -752,12 +752,12 @@ vmi_v2pcache_add(
     addr_t dtb,
     addr_t pa)
 {
-	if (!vmi)
-		return VMI_FAILURE;
+    if (!vmi)
+        return VMI_FAILURE;
 
     v2p_cache_set(vmi, va, dtb, pa);
 
-	return VMI_SUCCESS;
+    return VMI_SUCCESS;
 }
 
 status_t
@@ -765,10 +765,10 @@ vmi_v2pcache_flush(
     vmi_instance_t vmi,
     addr_t dtb)
 {
-	if (!vmi)
-		return VMI_FAILURE;
+    if (!vmi)
+        return VMI_FAILURE;
 
     v2p_cache_flush(vmi, dtb);
 
-	return VMI_SUCCESS;
+    return VMI_SUCCESS;
 }

@@ -131,8 +131,8 @@ vmi_convert_str_encoding(
     iconv_t cd = 0;
     size_t iconv_val = 0;
 
-	if (!in || !out)
-		return VMI_FAILURE;
+    if (!in || !out)
+        return VMI_FAILURE;
 
     size_t inlen = in->length;
     size_t outlen = 2 * (inlen + 1);
@@ -168,18 +168,18 @@ vmi_convert_str_encoding(
                 "out string '%s' length %zu\n", __FUNCTION__,
                 in->contents, in->length, out->contents, outlen);
         switch (errno) {
-            case EILSEQ:
-                dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
-                break;
-            case EINVAL:
-                dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
-                break;
-            case E2BIG:
-                dbprint(VMI_DEBUG_READ, "no more room");
-                break;
-            default:
-                dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
-                break;
+        case EILSEQ:
+            dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
+            break;
+        case EINVAL:
+            dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
+            break;
+        case E2BIG:
+            dbprint(VMI_DEBUG_READ, "no more room");
+            break;
+        default:
+            dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
+            break;
         }   // switch
         goto fail;
     }   // if failure
@@ -207,13 +207,13 @@ status_t
 vmi_free_unicode_str(
     unicode_string_t *p_us)
 {
-	if (!p_us)
-		return VMI_FAILURE;
+    if (!p_us)
+        return VMI_FAILURE;
 
     if (p_us->contents)
         free(p_us->contents);
     memset((void *) p_us, 0, sizeof(*p_us));
     free(p_us);
 
-	return VMI_SUCCESS;
+    return VMI_SUCCESS;
 }
