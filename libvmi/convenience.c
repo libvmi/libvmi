@@ -1,28 +1,28 @@
 /* The LibVMI Library is an introspection library that simplifies access to
- * memory in a target virtual machine or in a file containing a dump of
- * a system's physical memory.  LibVMI is based on the XenAccess Library.
- *
- * Copyright 2011 Sandia Corporation. Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
- * retains certain rights in this software.
- *
- * Author: Bryan D. Payne (bdpayne@acm.org)
- *
- * This file is part of LibVMI.
- *
- * LibVMI is free software: you can redistribute it and/or modify it under
- * the terms of the GNU Lesser General Public License as published by the
- * Free Software Foundation, either version 3 of the License, or (at your
- * option) any later version.
- *
- * LibVMI is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
- * License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
- */
+* memory in a target virtual machine or in a file containing a dump of
+* a system's physical memory.  LibVMI is based on the XenAccess Library.
+*
+* Copyright 2011 Sandia Corporation. Under the terms of Contract
+* DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
+* retains certain rights in this software.
+*
+* Author: Bryan D. Payne (bdpayne@acm.org)
+*
+* This file is part of LibVMI.
+*
+* LibVMI is free software: you can redistribute it and/or modify it under
+* the terms of the GNU Lesser General Public License as published by the
+* Free Software Foundation, either version 3 of the License, or (at your
+* option) any later version.
+*
+* LibVMI is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
+* License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -109,7 +109,7 @@ aligned_addr(
     addr_t mask = ~((addr_t) vmi->page_size - 1);
     addr_t aligned = (addr_t) addr & (addr_t) mask;
 
-    //    printf ("%llx & %llx = %llx\n", addr, mask, aligned);
+//    printf ("%llx & %llx = %llx\n", addr, mask, aligned);
     return aligned;
 
 }
@@ -160,7 +160,7 @@ vmi_convert_str_encoding(
         goto fail;
     }   // if
 
-    // init success
+// init success
 
     iconv_val = iconv(cd, &incurr, &inlen, &outcurr, &outlen);
     if ((size_t) - 1 == iconv_val) {
@@ -168,23 +168,23 @@ vmi_convert_str_encoding(
                 "out string '%s' length %zu\n", __FUNCTION__,
                 in->contents, in->length, out->contents, outlen);
         switch (errno) {
-			case EILSEQ:
-				dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
-				break;
-			case EINVAL:
-				dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
-				break;
-			case E2BIG:
-				dbprint(VMI_DEBUG_READ, "no more room");
-				break;
-			default:
-				dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
-				break;
+            case EILSEQ:
+                dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
+                break;
+            case EINVAL:
+                dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
+                break;
+            case E2BIG:
+                dbprint(VMI_DEBUG_READ, "no more room");
+                break;
+            default:
+                dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
+                break;
         }   // switch
         goto fail;
     }   // if failure
 
-    // conversion success
+// conversion success
     out->length = (size_t) (outcurr - outstart);
     (void) iconv_close(cd);
     return VMI_SUCCESS;
@@ -193,7 +193,7 @@ fail:
     if (out->contents) {
         free(out->contents);
     }
-    // make failure really obvious
+// make failure really obvious
     memset(out, 0, sizeof(*out));
 
     if ((iconv_t) (-1) != cd) { // init succeeded

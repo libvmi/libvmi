@@ -37,15 +37,15 @@ uint8_t vmi_get_address_width(
         return 0;
 
     switch (vmi->page_mode) {
-		case VMI_PM_AARCH64:
-		case VMI_PM_IA32E:
-			return 8;
-		case VMI_PM_AARCH32:
-		case VMI_PM_LEGACY:
-		case VMI_PM_PAE:
-			return 4;
-		default:
-			return 0;
+        case VMI_PM_AARCH64:
+        case VMI_PM_IA32E:
+            return 8;
+        case VMI_PM_AARCH32:
+        case VMI_PM_LEGACY:
+        case VMI_PM_PAE:
+            return 4;
+        default:
+            return 0;
     }
 }
 
@@ -96,24 +96,24 @@ vmi_get_winver_str(
     win_ver_t ver = vmi_get_winver(vmi);
 
     switch (ver) {
-		case VMI_OS_WINDOWS_NONE:
-			return "VMI_OS_WINDOWS_NONE";
-		case VMI_OS_WINDOWS_UNKNOWN:
-			return "VMI_OS_WINDOWS_UNKNOWN";
-		case VMI_OS_WINDOWS_2000:
-			return "VMI_OS_WINDOWS_2000";
-		case VMI_OS_WINDOWS_XP:
-			return "VMI_OS_WINDOWS_XP";
-		case VMI_OS_WINDOWS_2003:
-			return "VMI_OS_WINDOWS_2003";
-		case VMI_OS_WINDOWS_VISTA:
-			return "VMI_OS_WINDOWS_VISTA";
-		case VMI_OS_WINDOWS_2008:
-			return "VMI_OS_WINDOWS_2008";
-		case VMI_OS_WINDOWS_7:
-			return "VMI_OS_WINDOWS_7";
-		default:
-			return "<Illegal value for Windows version>";
+        case VMI_OS_WINDOWS_NONE:
+            return "VMI_OS_WINDOWS_NONE";
+        case VMI_OS_WINDOWS_UNKNOWN:
+            return "VMI_OS_WINDOWS_UNKNOWN";
+        case VMI_OS_WINDOWS_2000:
+            return "VMI_OS_WINDOWS_2000";
+        case VMI_OS_WINDOWS_XP:
+            return "VMI_OS_WINDOWS_XP";
+        case VMI_OS_WINDOWS_2003:
+            return "VMI_OS_WINDOWS_2003";
+        case VMI_OS_WINDOWS_VISTA:
+            return "VMI_OS_WINDOWS_VISTA";
+        case VMI_OS_WINDOWS_2008:
+            return "VMI_OS_WINDOWS_2008";
+        case VMI_OS_WINDOWS_7:
+            return "VMI_OS_WINDOWS_7";
+        default:
+            return "<Illegal value for Windows version>";
     }   // switch
 }
 
@@ -155,7 +155,7 @@ vmi_get_kernel_struct_offset(
     if (!vmi)
         return 0;
 
-    return vmi->os_interface->os_get_kernel_struct_offset(vmi,symbol,member,addr);
+    return vmi->os_interface->os_get_kernel_struct_offset(vmi, symbol, member, addr);
 }
 
 uint64_t
@@ -289,12 +289,12 @@ vmi_get_rekall_path(
         return NULL;
 
     switch (vmi_get_ostype(vmi)) {
-		case VMI_OS_LINUX:
-			return (const char*)((linux_instance_t)vmi->os_data)->rekall_profile;
-		case VMI_OS_WINDOWS:
-			return (const char*)((windows_instance_t)vmi->os_data)->rekall_profile;
-		default:
-			return NULL;
+        case VMI_OS_LINUX:
+            return (const char*)((linux_instance_t)vmi->os_data)->rekall_profile;
+        case VMI_OS_WINDOWS:
+            return (const char*)((windows_instance_t)vmi->os_data)->rekall_profile;
+        default:
+            return NULL;
     }
 }
 
@@ -363,16 +363,16 @@ vmi_translate_sym2v(
         return VMI_FAILURE;
 
     switch (ctx->translate_mechanism) {
-		case VMI_TM_PROCESS_PID:
-			if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
-				return VMI_FAILURE;
-			break;
-		case VMI_TM_PROCESS_DTB:
-			dtb = ctx->dtb;
-			break;
-		default:
-			dbprint(VMI_DEBUG_MISC, "sym2v only supported in a virtual context!\n");
-			return VMI_FAILURE;
+        case VMI_TM_PROCESS_PID:
+            if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                return VMI_FAILURE;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            break;
+        default:
+            dbprint(VMI_DEBUG_MISC, "sym2v only supported in a virtual context!\n");
+            return VMI_FAILURE;
     };
 
     status = sym_cache_get(vmi, ctx->addr, dtb, symbol, &address);
@@ -404,16 +404,16 @@ vmi_translate_v2sym(
         return NULL;
 
     switch (ctx->translate_mechanism) {
-		case VMI_TM_PROCESS_PID:
-			if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
-				return NULL;
-			break;
-		case VMI_TM_PROCESS_DTB:
-			dtb = ctx->dtb;
-			break;
-		default:
-			dbprint(VMI_DEBUG_MISC, "v2sym only supported in a virtual context!\n");
-			return NULL;
+        case VMI_TM_PROCESS_PID:
+            if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                return NULL;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            break;
+        default:
+            dbprint(VMI_DEBUG_MISC, "v2sym only supported in a virtual context!\n");
+            return NULL;
     };
 
     if (VMI_FAILURE == rva_cache_get(vmi, ctx->addr, dtb, rva, &ret)) {
@@ -443,16 +443,16 @@ vmi_translate_v2ksym(
         return NULL;
 
     switch (ctx->translate_mechanism) {
-		case VMI_TM_PROCESS_PID:
-			if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
-				return NULL;
-			break;
-		case VMI_TM_PROCESS_DTB:
-			dtb = ctx->dtb;
-			break;
-		default:
-			dbprint(VMI_DEBUG_MISC, "v2ksym only supported in a virtual context!\n");
-			return NULL;
+        case VMI_TM_PROCESS_PID:
+            if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                return NULL;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            break;
+        default:
+            dbprint(VMI_DEBUG_MISC, "v2ksym only supported in a virtual context!\n");
+            return NULL;
     };
 
     if (VMI_FAILURE == rva_cache_get(vmi, ctx->addr, dtb, va, &ret)) {

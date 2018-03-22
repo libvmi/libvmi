@@ -66,43 +66,43 @@ vmi_read(
     }
 
     switch (ctx->translate_mechanism) {
-		case VMI_TM_NONE:
-			start_addr = ctx->addr;
-			break;
-		case VMI_TM_KERNEL_SYMBOL:
-			if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
-				goto done;
+        case VMI_TM_NONE:
+            start_addr = ctx->addr;
+            break;
+        case VMI_TM_KERNEL_SYMBOL:
+            if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
+                goto done;
 
-			dtb = vmi->kpgd;
-			if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &start_addr) )
-				goto done;
-			break;
-		case VMI_TM_PROCESS_PID:
-			if (!vmi->arch_interface || !vmi->os_interface)
-				goto done;
+            dtb = vmi->kpgd;
+            if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &start_addr) )
+                goto done;
+            break;
+        case VMI_TM_PROCESS_PID:
+            if (!vmi->arch_interface || !vmi->os_interface)
+                goto done;
 
-			if ( !ctx->pid )
-				dtb = vmi->kpgd;
-			else if (ctx->pid > 0) {
-				if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
-					goto done;
-			}
+            if ( !ctx->pid )
+                dtb = vmi->kpgd;
+            else if (ctx->pid > 0) {
+                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                    goto done;
+            }
 
-			if (!dtb)
-				goto done;
+            if (!dtb)
+                goto done;
 
-			start_addr = ctx->addr;
-			break;
-		case VMI_TM_PROCESS_DTB:
-			if (!vmi->arch_interface)
-				goto done;
+            start_addr = ctx->addr;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            if (!vmi->arch_interface)
+                goto done;
 
-			dtb = ctx->dtb;
-			start_addr = ctx->addr;
-			break;
-		default:
-			errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
-			goto done;
+            dtb = ctx->dtb;
+            start_addr = ctx->addr;
+            break;
+        default:
+            errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
+            goto done;
     }
 
 
@@ -250,22 +250,22 @@ vmi_read_addr(
     }
 
     switch (vmi->page_mode) {
-		case VMI_PM_AARCH64:// intentional fall-through
-		case VMI_PM_IA32E:
-			ret = vmi_read(vmi, ctx, 8, value, NULL);
-			break;
-		case VMI_PM_AARCH32:// intentional fall-through
-		case VMI_PM_LEGACY: // intentional fall-through
-		case VMI_PM_PAE: {
-			uint32_t tmp = 0;
-			ret = vmi_read(vmi, ctx, 4, &tmp, NULL);
-			*value = 0;
-			*value = (addr_t) tmp;
-			break;
-		}
-		default:
-			dbprint(VMI_DEBUG_READ, "--%s: unknown page mode, can't read addr as width is unknown", __FUNCTION__);
-			break;
+        case VMI_PM_AARCH64:// intentional fall-through
+        case VMI_PM_IA32E:
+            ret = vmi_read(vmi, ctx, 8, value, NULL);
+            break;
+        case VMI_PM_AARCH32:// intentional fall-through
+        case VMI_PM_LEGACY: // intentional fall-through
+        case VMI_PM_PAE: {
+            uint32_t tmp = 0;
+            ret = vmi_read(vmi, ctx, 4, &tmp, NULL);
+            *value = 0;
+            *value = (addr_t) tmp;
+            break;
+        }
+        default:
+            dbprint(VMI_DEBUG_READ, "--%s: unknown page mode, can't read addr as width is unknown", __FUNCTION__);
+            break;
     }
 
     return ret;
@@ -301,37 +301,37 @@ vmi_read_str(
     }
 
     switch (ctx->translate_mechanism) {
-		case VMI_TM_NONE:
-			addr = ctx->addr;
-			break;
-		case VMI_TM_KERNEL_SYMBOL:
-			if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
-				return NULL;
+        case VMI_TM_NONE:
+            addr = ctx->addr;
+            break;
+        case VMI_TM_KERNEL_SYMBOL:
+            if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
+                return NULL;
 
-			dtb = vmi->kpgd;
-			if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &addr) )
-				return NULL;
-			break;
-		case VMI_TM_PROCESS_PID:
-			if ( !ctx->pid )
-				dtb = vmi->kpgd;
-			else if ( ctx->pid > 0) {
-				if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
-					return NULL;
-			}
+            dtb = vmi->kpgd;
+            if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &addr) )
+                return NULL;
+            break;
+        case VMI_TM_PROCESS_PID:
+            if ( !ctx->pid )
+                dtb = vmi->kpgd;
+            else if ( ctx->pid > 0) {
+                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                    return NULL;
+            }
 
-			if (!dtb)
-				return NULL;
+            if (!dtb)
+                return NULL;
 
-			addr = ctx->addr;
-			break;
-		case VMI_TM_PROCESS_DTB:
-			dtb = ctx->dtb;
-			addr = ctx->addr;
-			break;
-		default:
-			errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
-			return NULL;
+            addr = ctx->addr;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            addr = ctx->addr;
+            break;
+        default:
+            errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
+            return NULL;
     }
 
     while (read_more) {
@@ -446,24 +446,24 @@ vmi_read_addr_pa(
     }
 
     switch (vmi->page_mode) {
-		case VMI_PM_AARCH64:// intentional fall-through
-		case VMI_PM_IA32E:
-			ret = vmi_read_pa(vmi, paddr, 8, value, NULL);
-			break;
-		case VMI_PM_AARCH32:// intentional fall-through
-		case VMI_PM_LEGACY: // intentional fall-through
-		case VMI_PM_PAE: {
-			uint32_t tmp = 0;
-			ret = vmi_read_pa(vmi, paddr, 4, &tmp, NULL);
-			*value = 0;
-			*value = (addr_t) tmp;
-			break;
-		}
-		default:
-			dbprint(VMI_DEBUG_READ,
-					"--%s: unknown page mode, can't read addr as width is unknown",
-					__FUNCTION__);
-			break;
+        case VMI_PM_AARCH64:// intentional fall-through
+        case VMI_PM_IA32E:
+            ret = vmi_read_pa(vmi, paddr, 8, value, NULL);
+            break;
+        case VMI_PM_AARCH32:// intentional fall-through
+        case VMI_PM_LEGACY: // intentional fall-through
+        case VMI_PM_PAE: {
+            uint32_t tmp = 0;
+            ret = vmi_read_pa(vmi, paddr, 4, &tmp, NULL);
+            *value = 0;
+            *value = (addr_t) tmp;
+            break;
+        }
+        default:
+            dbprint(VMI_DEBUG_READ,
+                    "--%s: unknown page mode, can't read addr as width is unknown",
+                    __FUNCTION__);
+            break;
     }
 
     return ret;
@@ -540,24 +540,24 @@ vmi_read_addr_va(
     }
 
     switch (vmi->page_mode) {
-		case VMI_PM_AARCH64:// intentional fall-through
-		case VMI_PM_IA32E:
-			ret = vmi_read_va(vmi, vaddr, pid, 8, value, NULL);
-			break;
-		case VMI_PM_AARCH32:// intentional fall-through
-		case VMI_PM_LEGACY: // intentional fall-through
-		case VMI_PM_PAE: {
-			uint32_t tmp = 0;
-			ret = vmi_read_va(vmi, vaddr, pid, 4, &tmp, NULL);
-			*value = 0;
-			*value = (addr_t) tmp;
-			break;
-		}
-		default:
-			dbprint(VMI_DEBUG_READ,
-					"--%s: unknown page mode, can't read addr as width is unknown",
-					__FUNCTION__);
-			break;
+        case VMI_PM_AARCH64:// intentional fall-through
+        case VMI_PM_IA32E:
+            ret = vmi_read_va(vmi, vaddr, pid, 8, value, NULL);
+            break;
+        case VMI_PM_AARCH32:// intentional fall-through
+        case VMI_PM_LEGACY: // intentional fall-through
+        case VMI_PM_PAE: {
+            uint32_t tmp = 0;
+            ret = vmi_read_va(vmi, vaddr, pid, 4, &tmp, NULL);
+            *value = 0;
+            *value = (addr_t) tmp;
+            break;
+        }
+        default:
+            dbprint(VMI_DEBUG_READ,
+                    "--%s: unknown page mode, can't read addr as width is unknown",
+                    __FUNCTION__);
+            break;
     }
 
     return ret;
@@ -643,24 +643,24 @@ vmi_read_addr_ksym(
     }
 
     switch (vmi->page_mode) {
-		case VMI_PM_AARCH64:// intentional fall-through
-		case VMI_PM_IA32E:
-			ret = vmi_read_ksym(vmi, sym, 8, value, NULL);
-			break;
-		case VMI_PM_AARCH32:// intentional fall-through
-		case VMI_PM_LEGACY: // intentional fall-through
-		case VMI_PM_PAE: {
-			uint32_t tmp = 0;
-			ret = vmi_read_ksym(vmi, sym, 4, &tmp, NULL);
-			*value = 0;
-			*value = (addr_t) tmp;
-			break;
-		}
-		default:
-			dbprint(VMI_DEBUG_READ,
-					"--%s: unknown page mode, can't read addr as width is unknown",
-					__FUNCTION__);
-			break;
+        case VMI_PM_AARCH64:// intentional fall-through
+        case VMI_PM_IA32E:
+            ret = vmi_read_ksym(vmi, sym, 8, value, NULL);
+            break;
+        case VMI_PM_AARCH32:// intentional fall-through
+        case VMI_PM_LEGACY: // intentional fall-through
+        case VMI_PM_PAE: {
+            uint32_t tmp = 0;
+            ret = vmi_read_ksym(vmi, sym, 4, &tmp, NULL);
+            *value = 0;
+            *value = (addr_t) tmp;
+            break;
+        }
+        default:
+            dbprint(VMI_DEBUG_READ,
+                    "--%s: unknown page mode, can't read addr as width is unknown",
+                    __FUNCTION__);
+            break;
     }
 
     return ret;
