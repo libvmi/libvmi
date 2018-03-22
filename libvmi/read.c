@@ -50,6 +50,11 @@ vmi_read(
     addr_t dtb = 0;
     size_t buf_offset = 0;
 
+    if (NULL == vmi) {
+        dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read\n", __FUNCTION__);
+        goto done;
+    }
+
     if (NULL == ctx) {
         dbprint(VMI_DEBUG_READ, "--%s: ctx passed as NULL, returning without read\n", __FUNCTION__);
         goto done;
@@ -239,6 +244,11 @@ vmi_read_addr(
 {
     status_t ret = VMI_FAILURE;
 
+	if (!vmi) {
+		dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL", __FUNCTION__);
+		return VMI_FAILURE;
+	}
+
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:
@@ -278,6 +288,17 @@ vmi_read_str(
     int read_more = 1;
 
     rtnval = NULL;
+
+	if (!vmi) {
+		dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
+			__FUNCTION__);
+		return NULL;
+	}
+	if (!ctx) {
+		dbprint(VMI_DEBUG_READ, "--%s: ctx passed as NULL, returning without read",
+			__FUNCTION__);
+		return NULL;
+	}
 
     switch (ctx->translate_mechanism) {
         case VMI_TM_NONE:
@@ -360,6 +381,12 @@ vmi_read_unicode_str(
     vmi_instance_t vmi,
     const access_context_t *ctx)
 {
+	if (!vmi) 
+	{
+		dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
+			__FUNCTION__);
+		return NULL;
+	}
     if (vmi->os_interface && vmi->os_interface->os_read_unicode_struct)
         return vmi->os_interface->os_read_unicode_struct(vmi, ctx);
 
@@ -411,6 +438,12 @@ vmi_read_addr_pa(
     addr_t *value)
 {
     status_t ret = VMI_FAILURE;
+
+	if (!vmi) {
+		dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
+			__FUNCTION__);
+		return VMI_FAILURE;
+	}
 
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
@@ -499,6 +532,12 @@ vmi_read_addr_va(
     addr_t *value)
 {
     status_t ret = VMI_FAILURE;
+
+	if (!vmi) {
+		dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
+			__FUNCTION__);
+		return VMI_FAILURE;
+	}
 
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
@@ -596,6 +635,12 @@ vmi_read_addr_ksym(
     addr_t *value)
 {
     status_t ret = VMI_FAILURE;
+
+	if (!vmi) {
+		dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
+			__FUNCTION__);
+		return VMI_FAILURE;
+	}
 
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
