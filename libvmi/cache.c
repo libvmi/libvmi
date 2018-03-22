@@ -663,23 +663,33 @@ v2p_cache_flush(
 }
 
 // Below are wrapper functions for external API access to the cache
-void
+status_t 
 vmi_pidcache_add(
     vmi_instance_t vmi,
     vmi_pid_t pid,
     addr_t dtb)
 {
-    return pid_cache_set(vmi, pid, dtb);
+	if (!vmi)
+		return VMI_FAILURE;
+
+    pid_cache_set(vmi, pid, dtb);
+
+	return VMI_SUCCESS;
 }
 
-void
+status_t
 vmi_pidcache_flush(
     vmi_instance_t vmi)
 {
-    return pid_cache_flush(vmi);
+	if (!vmi)
+		return VMI_FAILURE;
+
+    pid_cache_flush(vmi);
+
+	return VMI_SUCCESS;
 }
 
-void
+status_t
 vmi_symcache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
@@ -687,17 +697,27 @@ vmi_symcache_add(
     char *sym,
     addr_t va)
 {
-    return sym_cache_set(vmi, base_addr, pid, sym, va);
+	if (!vmi)
+		return VMI_FAILURE;
+	
+    sym_cache_set(vmi, base_addr, pid, sym, va);
+
+	return VMI_SUCCESS;
 }
 
-void
+status_t
 vmi_symcache_flush(
     vmi_instance_t vmi)
 {
-    return sym_cache_flush(vmi);
+	if (!vmi)
+		return VMI_FAILURE;
+	
+    sym_cache_flush(vmi);
+
+	return VMI_SUCCESS;
 }
 
-void
+status_t
 vmi_rvacache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
@@ -705,30 +725,50 @@ vmi_rvacache_add(
     addr_t rva,
     char *sym)
 {
-    return rva_cache_set(vmi, base_addr, pid, rva, sym);
+	if (!vmi)
+		return VMI_FAILURE;
+	
+    rva_cache_set(vmi, base_addr, pid, rva, sym);
+
+	return VMI_SUCCESS;
 }
 
-void
+status_t
 vmi_rvacache_flush(
     vmi_instance_t vmi)
 {
-    return rva_cache_flush(vmi);
+	if (!vmi)
+		return VMI_FAILURE;
+	
+    rva_cache_flush(vmi);
+
+	return VMI_SUCCESS;
 }
 
-void
+status_t
 vmi_v2pcache_add(
     vmi_instance_t vmi,
     addr_t va,
     addr_t dtb,
     addr_t pa)
 {
-    return v2p_cache_set(vmi, va, dtb, pa);
+	if (!vmi)
+		return VMI_FAILURE;
+	
+    v2p_cache_set(vmi, va, dtb, pa);
+
+	return VMI_SUCCESS;
 }
 
-void
+status_t
 vmi_v2pcache_flush(
     vmi_instance_t vmi,
     addr_t dtb)
 {
-    return v2p_cache_flush(vmi, dtb);
+	if (!vmi)
+		return VMI_FAILURE;
+	
+    v2p_cache_flush(vmi, dtb);
+
+	return VMI_SUCCESS;
 }
