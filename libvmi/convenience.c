@@ -203,7 +203,7 @@ fail:
     return VMI_FAILURE;
 }
 
-status_t 
+status_t
 vmi_free_unicode_str(
     unicode_string_t *p_us)
 {

@@ -663,7 +663,7 @@ v2p_cache_flush(
 }
 
 // Below are wrapper functions for external API access to the cache
-status_t 
+status_t
 vmi_pidcache_add(
     vmi_instance_t vmi,
     vmi_pid_t pid,
@@ -699,7 +699,7 @@ vmi_symcache_add(
 {
 	if (!vmi)
 		return VMI_FAILURE;
-	
+
     sym_cache_set(vmi, base_addr, pid, sym, va);
 
 	return VMI_SUCCESS;
@@ -711,7 +711,7 @@ vmi_symcache_flush(
 {
 	if (!vmi)
 		return VMI_FAILURE;
-	
+
     sym_cache_flush(vmi);
 
 	return VMI_SUCCESS;
@@ -727,7 +727,7 @@ vmi_rvacache_add(
 {
 	if (!vmi)
 		return VMI_FAILURE;
-	
+
     rva_cache_set(vmi, base_addr, pid, rva, sym);
 
 	return VMI_SUCCESS;
@@ -739,7 +739,7 @@ vmi_rvacache_flush(
 {
 	if (!vmi)
 		return VMI_FAILURE;
-	
+
     rva_cache_flush(vmi);
 
 	return VMI_SUCCESS;
@@ -754,7 +754,7 @@ vmi_v2pcache_add(
 {
 	if (!vmi)
 		return VMI_FAILURE;
-	
+
     v2p_cache_set(vmi, va, dtb, pa);
 
 	return VMI_SUCCESS;
@@ -767,7 +767,7 @@ vmi_v2pcache_flush(
 {
 	if (!vmi)
 		return VMI_FAILURE;
-	
+
     v2p_cache_flush(vmi, dtb);
 
 	return VMI_SUCCESS;

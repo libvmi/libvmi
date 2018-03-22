@@ -630,7 +630,7 @@ vmi_event_t *vmi_get_reg_event(vmi_instance_t vmi, reg_t reg)
 {
 	if (!vmi)
 		return NULL;
-	
+
     return g_hash_table_lookup(vmi->reg_events, &reg);
 }
 
@@ -638,7 +638,7 @@ vmi_event_t *vmi_get_mem_event(vmi_instance_t vmi, addr_t gfn, vmi_mem_access_t 
 {
 	if (!vmi)
 		return NULL;
-	
+
     vmi_event_t *ret = g_hash_table_lookup(vmi->mem_events_generic, &access);
     if ( ret )
         return ret;
@@ -646,16 +646,16 @@ vmi_event_t *vmi_get_mem_event(vmi_instance_t vmi, addr_t gfn, vmi_mem_access_t 
     return g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
 }
 
-status_t 
+status_t
 vmi_set_mem_event(
-	vmi_instance_t vmi, 
+	vmi_instance_t vmi,
 	addr_t gfn,
-	vmi_mem_access_t access, 
+	vmi_mem_access_t access,
 	uint16_t slat_id)
 {
 	if (!vmi)
 		return VMI_FAILURE;
-	
+
     if ( VMI_MEMACCESS_N != access ) {
         bool handler_found = 0;
         GHashTableIter i;
@@ -685,10 +685,10 @@ vmi_set_mem_event(
     return VMI_FAILURE;
 }
 
-status_t 
+status_t
 vmi_swap_events(
-	vmi_instance_t vmi, 
-	vmi_event_t* swap_from, 
+	vmi_instance_t vmi,
+	vmi_event_t* swap_from,
 	vmi_event_t *swap_to,
 	vmi_event_free_t free_routine)
 {
@@ -739,9 +739,9 @@ vmi_swap_events(
     return VMI_FAILURE;
 }
 
-status_t 
+status_t
 vmi_register_event(
-	vmi_instance_t vmi, 
+	vmi_instance_t vmi,
 	vmi_event_t* event)
 {
     status_t rc = VMI_FAILURE;
@@ -815,7 +815,7 @@ vmi_register_event(
 }
 
 status_t vmi_clear_event(
-	vmi_instance_t vmi, 
+	vmi_instance_t vmi,
 	vmi_event_t* event,
 	vmi_event_free_t free_routine)
 {
@@ -893,12 +893,12 @@ status_t vmi_clear_event(
     return rc;
 }
 
-status_t 
+status_t
 vmi_step_event(
-	vmi_instance_t vmi, 
+	vmi_instance_t vmi,
 	vmi_event_t *event,
-	uint32_t vcpu_id, 
-	uint64_t steps, 
+	uint32_t vcpu_id,
+	uint64_t steps,
 	event_callback_t cb)
 {
     status_t rc = VMI_FAILURE;
@@ -958,7 +958,7 @@ int vmi_are_events_pending(vmi_instance_t vmi)
 {
 	if (!vmi)
 		return -1;
-	
+
     if (!(vmi->init_flags & VMI_INIT_EVENTS))
         return -1;
 
@@ -970,7 +970,7 @@ status_t vmi_events_listen(vmi_instance_t vmi, uint32_t timeout)
 {
 	if (!vmi)
 		return VMI_FAILURE;
-	
+
     if (!(vmi->init_flags & VMI_INIT_EVENTS))
         return VMI_FAILURE;
 
@@ -996,9 +996,9 @@ vmi_event_t *vmi_get_singlestep_event(vmi_instance_t vmi, uint32_t vcpu)
     return g_hash_table_lookup(vmi->ss_events, &vcpu);
 }
 
-status_t 
+status_t
 vmi_stop_single_step_vcpu(
-	vmi_instance_t vmi, 
+	vmi_instance_t vmi,
 	vmi_event_t* event,
 	uint32_t vcpu)
 {
