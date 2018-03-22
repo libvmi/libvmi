@@ -1321,8 +1321,9 @@ status_t vmi_convert_str_encoding(
  * Convenience function to free a unicode_string_t struct.
  *
  * @param[in] p_us Pointer to a unicode_string_t struct
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-void vmi_free_unicode_str(
+status_t vmi_free_unicode_str(
     unicode_string_t *p_us);
 
 /**
