@@ -381,8 +381,7 @@ vmi_read_unicode_str(
     vmi_instance_t vmi,
     const access_context_t *ctx)
 {
-    if (!vmi)
-    {
+    if (!vmi) {
         dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
                 __FUNCTION__);
         return NULL;
