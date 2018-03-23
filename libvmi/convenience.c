@@ -159,7 +159,7 @@ vmi_convert_str_encoding(
         goto fail;
     }   // if
 
-	// init success
+    // init success
 
     iconv_val = iconv(cd, &incurr, &inlen, &outcurr, &outlen);
     if ((size_t) - 1 == iconv_val) {
@@ -183,7 +183,7 @@ vmi_convert_str_encoding(
         goto fail;
     }   // if failure
 
-	// conversion success
+    // conversion success
     out->length = (size_t) (outcurr - outstart);
     (void) iconv_close(cd);
     return VMI_SUCCESS;
@@ -192,7 +192,7 @@ fail:
     if (out->contents) {
         free(out->contents);
     }
-	// make failure really obvious
+    // make failure really obvious
     memset(out, 0, sizeof(*out));
 
     if ((iconv_t) (-1) != cd) { // init succeeded
