@@ -2103,7 +2103,7 @@ status_t vmi_pause_vm(
  * @param[in] vmi LibVMI instance
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-void vmi_resume_vm(
+status_t vmi_resume_vm(
     vmi_instance_t vmi);
 
 /**
