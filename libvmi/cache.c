@@ -663,33 +663,29 @@ v2p_cache_flush(
 }
 
 // Below are wrapper functions for external API access to the cache
-status_t
+void
 vmi_pidcache_add(
     vmi_instance_t vmi,
     vmi_pid_t pid,
     addr_t dtb)
 {
     if (!vmi)
-        return VMI_FAILURE;
+        return;
 
-    pid_cache_set(vmi, pid, dtb);
-
-    return VMI_SUCCESS;
+    return pid_cache_set(vmi, pid, dtb);
 }
 
-status_t
+void
 vmi_pidcache_flush(
     vmi_instance_t vmi)
 {
     if (!vmi)
-        return VMI_FAILURE;
+        return;
 
-    pid_cache_flush(vmi);
-
-    return VMI_SUCCESS;
+    return pid_cache_flush(vmi);
 }
 
-status_t
+void
 vmi_symcache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
@@ -698,26 +694,22 @@ vmi_symcache_add(
     addr_t va)
 {
     if (!vmi)
-        return VMI_FAILURE;
+        return;
 
-    sym_cache_set(vmi, base_addr, pid, sym, va);
-
-    return VMI_SUCCESS;
+    return sym_cache_set(vmi, base_addr, pid, sym, va);
 }
 
-status_t
+void
 vmi_symcache_flush(
     vmi_instance_t vmi)
 {
     if (!vmi)
-        return VMI_FAILURE;
+        return;
 
-    sym_cache_flush(vmi);
-
-    return VMI_SUCCESS;
+    return sym_cache_flush(vmi);
 }
 
-status_t
+void
 vmi_rvacache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
@@ -726,26 +718,22 @@ vmi_rvacache_add(
     char *sym)
 {
     if (!vmi)
-        return VMI_FAILURE;
+        return;
 
-    rva_cache_set(vmi, base_addr, pid, rva, sym);
-
-    return VMI_SUCCESS;
+    return rva_cache_set(vmi, base_addr, pid, rva, sym);
 }
 
-status_t
+void
 vmi_rvacache_flush(
     vmi_instance_t vmi)
 {
     if (!vmi)
-        return VMI_FAILURE;
+        return;
 
-    rva_cache_flush(vmi);
-
-    return VMI_SUCCESS;
+    return rva_cache_flush(vmi);
 }
 
-status_t
+void
 vmi_v2pcache_add(
     vmi_instance_t vmi,
     addr_t va,
@@ -753,22 +741,18 @@ vmi_v2pcache_add(
     addr_t pa)
 {
     if (!vmi)
-        return VMI_FAILURE;
+        return;
 
-    v2p_cache_set(vmi, va, dtb, pa);
-
-    return VMI_SUCCESS;
+    return v2p_cache_set(vmi, va, dtb, pa);
 }
 
-status_t
+void
 vmi_v2pcache_flush(
     vmi_instance_t vmi,
     addr_t dtb)
 {
     if (!vmi)
-        return VMI_FAILURE;
+        return;
 
-    v2p_cache_flush(vmi, dtb);
-
-    return VMI_SUCCESS;
+    return v2p_cache_flush(vmi, dtb);
 }

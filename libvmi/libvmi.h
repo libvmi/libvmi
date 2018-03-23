@@ -1323,7 +1323,7 @@ status_t vmi_convert_str_encoding(
  * @param[in] p_us Pointer to a unicode_string_t struct
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_free_unicode_str(
+void vmi_free_unicode_str(
     unicode_string_t *p_us);
 
 /**
@@ -2103,7 +2103,7 @@ status_t vmi_pause_vm(
  * @param[in] vmi LibVMI instance
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_resume_vm(
+void vmi_resume_vm(
     vmi_instance_t vmi);
 
 /**
@@ -2115,7 +2115,7 @@ status_t vmi_resume_vm(
  * @param[in] dtb The process address space to flush, or ~0ull for all.
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_v2pcache_flush(
+void vmi_v2pcache_flush(
     vmi_instance_t vmi,
     addr_t dtb);
 
@@ -2129,7 +2129,7 @@ status_t vmi_v2pcache_flush(
  * @param[in] pa Physical address
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_v2pcache_add(
+void vmi_v2pcache_add(
     vmi_instance_t vmi,
     addr_t va,
     addr_t dtb,
@@ -2143,7 +2143,7 @@ status_t vmi_v2pcache_add(
  * @param[in] vmi LibVMI instance
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_symcache_flush(
+void vmi_symcache_flush(
     vmi_instance_t vmi);
 
 /**
@@ -2157,7 +2157,7 @@ status_t vmi_symcache_flush(
  * @param[in] va Virtual address
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_symcache_add(
+void vmi_symcache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
@@ -2172,7 +2172,7 @@ status_t vmi_symcache_add(
  * @param[in] vmi LibVMI instance
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_rvacache_flush(
+void vmi_rvacache_flush(
     vmi_instance_t vmi);
 
 /**
@@ -2186,7 +2186,7 @@ status_t vmi_rvacache_flush(
  * @param[in] sym Symbol
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_rvacache_add(
+void vmi_rvacache_add(
     vmi_instance_t vmi,
     addr_t base_addr,
     vmi_pid_t pid,
@@ -2201,7 +2201,7 @@ status_t vmi_rvacache_add(
  * @param[in] vmi LibVMI instance
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_pidcache_flush(
+void vmi_pidcache_flush(
     vmi_instance_t vmi);
 
 /**
@@ -2213,7 +2213,7 @@ status_t vmi_pidcache_flush(
  * @param[in] dtb Directory table base
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_pidcache_add(
+void vmi_pidcache_add(
     vmi_instance_t vmi,
     vmi_pid_t pid,
     addr_t dtb);
