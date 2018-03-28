@@ -5,13 +5,13 @@
  #include "hmp.h"
  #include "qemu/thread.h"
 +#include "memory-access.h"
- 
+
  /* for pic/irq_info */
  #if defined(TARGET_SPARC)
 @@ -1273,6 +1274,13 @@
      monitor_printf(mon, "\n");
  }
- 
+
 +static int do_physical_memory_access(Monitor *mon, const QDict *qdict, QObject **ret_data)
 +{
 +    const char *path = qdict_get_str(qdict, "path");
@@ -26,7 +26,7 @@
 +++ qemu-1.2.0/qmp-commands.hx  2012-09-26 16:01:30.000000000 -0700
 @@ -468,6 +468,60 @@
  EQMP
- 
+
      {
 +        .name       = "pmemaccess",
 +        .args_type  = "path:s",
@@ -120,8 +120,8 @@
 +#include <signal.h>
 +#include <stdint.h>
 +
-+struct request{
-+    uint8_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
++struct request {
++    uint64_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
 +    uint64_t address;  // address to read from OR write to
 +    uint64_t length;   // number of bytes to read OR write
 +};

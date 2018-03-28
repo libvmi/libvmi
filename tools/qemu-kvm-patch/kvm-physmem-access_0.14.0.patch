@@ -7,13 +7,13 @@ Index: qemu-kvm-0.14.0/monitor.c
  #endif
  #include "ui/qemu-spice.h"
 +#include "memory-access.h"
- 
+
  //#define DEBUG
  //#define DEBUG_COMPLETION
 @@ -1645,6 +1646,13 @@ exit:
      return ret;
  }
- 
+
 +static int do_physical_memory_access(Monitor *mon, const QDict *qdict, QObject **ret_data)
 +{
 +    const char *path = qdict_get_str(qdict, "path");
@@ -30,7 +30,7 @@ Index: qemu-kvm-0.14.0/qmp-commands.hx
 +++ qemu-kvm-0.14.0/qmp-commands.hx
 @@ -430,6 +430,33 @@ Example:
  EQMP
- 
+
      {
 +        .name       = "pmemaccess",
 +        .args_type  = "path:s",
@@ -69,7 +69,7 @@ Index: qemu-kvm-0.14.0/Makefile.target
 @@ -195,7 +195,7 @@ endif #CONFIG_BSD_USER
  # System emulator target
  ifdef CONFIG_SOFTMMU
- 
+
 -obj-y = arch_init.o cpus.o monitor.o pci.o machine.o gdbstub.o vl.o balloon.o
 +obj-y = arch_init.o cpus.o monitor.o pci.o machine.o gdbstub.o vl.o balloon.o memory-access.o
  # virtio has to be here due to weird dependency between PCI and virtio-net.
@@ -102,8 +102,8 @@ Index: qemu-kvm-0.14.0/memory-access.c
 +#include <signal.h>
 +#include <stdint.h>
 +
-+struct request{
-+    uint8_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
++struct request {
++    uint64_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
 +    uint64_t address;  // address to read from OR write to
 +    uint64_t length;   // number of bytes to read OR write
 +};

@@ -108,7 +108,7 @@ index 0000000..e4fc87a
 +#ifndef LIBVMI_REQUEST_H
 +#define LIBVMI_REQUEST_H
 +
-+struct request{
++struct request {
 +    uint64_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
 +    uint64_t address;  // address to read from OR write to
 +    uint64_t length;   // number of bytes to read OR write
@@ -406,7 +406,7 @@ index a0d3b5d..f4bc922 100644
 +++ b/qapi-schema.json
 @@ -1679,6 +1679,34 @@
    'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
- 
+
  ##
 +# @pmemaccess:
 +#

@@ -41,8 +41,8 @@ index 0000000..801299e
 +#include <signal.h>
 +#include <stdint.h>
 +
-+struct request{
-+    uint8_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
++struct request {
++    uint64_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
 +    uint64_t address;  // address to read from OR write to
 +    uint64_t length;   // number of bytes to read OR write
 +};
@@ -236,7 +236,7 @@ index 0000000..7c686ff
 --- /dev/null
 +++ b/memory-snapshot.c
 @@ -0,0 +1,123 @@
-+/* 
++/*
 + * Shared Memory Snapshot via POSIX shared memory
 + *
 + * Copyright (C) 2013
@@ -268,7 +268,7 @@ index 0000000..7c686ff
 +#include <sys/mman.h>
 +#include <sys/stat.h>        /* For mode constants */
 +#include <fcntl.h>           /* For O_* constants */
-+                     
++
 +#include <sys/prctl.h>
 +
 +#endif /* CONFIG_LINUX */
@@ -286,7 +286,7 @@ index 0000000..7c686ff
 +    int64_t size = psize;
 +    uint32_t l;
 +    uint8_t buf[1024];
-+    
++
 +    int shm_fd;
 +    int shm_flags = O_CREAT | O_RDWR;
 +    int perms = 0777;
@@ -298,7 +298,7 @@ index 0000000..7c686ff
 +    }
 +
 +    if( ftruncate( shm_fd, size ) == -1 ) {
-+        error_set(errp, QERR_IO_ERROR); 
++        error_set(errp, QERR_IO_ERROR);
 +        psize = 0;
 +        goto exit;
 +    }
@@ -331,7 +331,7 @@ index 0000000..7c686ff
 +
 +    // munmap the shm_buffer
 +    if( munmap( shm_buffer, psize ) == -1 ) {
-+        error_set(errp, QERR_IO_ERROR); 
++        error_set(errp, QERR_IO_ERROR);
 +        psize = 0;
 +        goto exit;
 +    }
@@ -365,7 +365,7 @@ index 0000000..36e2a0a
 --- /dev/null
 +++ b/memory-snapshot.h
 @@ -0,0 +1,13 @@
-+/* 
++/*
 + * Shared Memory Snapshot via POSIX shared memory
 + *
 + * Copyright (C) 2013
@@ -387,13 +387,13 @@ index 5dc0aa9..4120d5f 100644
  #include "hmp.h"
  #include "qemu/thread.h"
 +#include "memory-access.h"
- 
+
  /* for pic/irq_info */
  #if defined(TARGET_SPARC)
 @@ -1258,6 +1259,13 @@ static void do_print(Monitor *mon, const QDict *qdict)
      monitor_printf(mon, "\n");
  }
- 
+
 +static int do_physical_memory_access(Monitor *mon, const QDict *qdict, QObject **ret_data)
 +{
 +    const char *path = qdict_get_str(qdict, "path");
@@ -446,7 +446,7 @@ index cf47e3f..bc157de 100644
 +++ b/qmp-commands.hx
 @@ -610,6 +610,84 @@ Example:
  EQMP
- 
+
      {
 +        .name       = "snapshot-create",
 +        .args_type  = "filename:s",
@@ -458,7 +458,7 @@ index cf47e3f..bc157de 100644
 +snapshot-create
 +----------
 +
-+Mount guest physical memory image at 'path'. 
++Mount guest physical memory image at 'path'.
 +Returns json-int indicating the size of the snapshot.
 +
 +Arguments:
@@ -484,7 +484,7 @@ index cf47e3f..bc157de 100644
 +snapshot-destroy
 +----------
 +
-+Mount guest physical memory image at 'path'. 
++Mount guest physical memory image at 'path'.
 +
 +Arguments:
 +
