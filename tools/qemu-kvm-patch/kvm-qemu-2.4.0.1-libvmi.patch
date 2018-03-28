@@ -17,7 +17,7 @@ index d3b7932..91d5b0b 100644
 +++ b/hmp-commands.hx
 @@ -805,6 +805,20 @@ save to disk physical memory dump starting at @var{addr} of size @var{size}.
  ETEXI
- 
+
      {
 +        .name       = "pmemaccess",
 +        .args_type  = "path:s",
@@ -43,7 +43,7 @@ index dcc66f1..b0d30eb 100644
 @@ -905,6 +905,15 @@ void hmp_pmemsave(Monitor *mon, const QDict *qdict)
      hmp_handle_error(mon, &err);
  }
- 
+
 +void hmp_pmemaccess(Monitor *mon, const QDict *qdict)
 +{
 +    const char *path = qdict_get_str(qdict, "path");
@@ -79,7 +79,7 @@ index 0000000..7155fa8
 + *
 + * Copyright (C) 2011 Sandia National Laboratories
 + * Original Author: Bryan D. Payne (bdpayne@acm.org)
-+ * 
++ *
 + * Refurbished for modern QEMU by Valerio Aimale (valerio@aimale.com), in 2015
 + */
 +
@@ -100,8 +100,8 @@ index 0000000..7155fa8
 +#include <signal.h>
 +#include <stdint.h>
 +
-+struct request{
-+    uint8_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
++struct request {
++    uint64_t type;      // 0 quit, 1 read, 2 write, ... rest reserved
 +    uint64_t address;  // address to read from OR write to
 +    uint64_t length;   // number of bytes to read OR write
 +};
@@ -332,7 +332,7 @@ index 4342a08..2d2d03e 100644
 +++ b/qapi-schema.json
 @@ -1389,6 +1389,34 @@
    'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
- 
+
  ##
 +# @pmemaccess:
 +#
@@ -345,18 +345,18 @@ index 4342a08..2d2d03e 100644
 +# Since: 2.4.0.1
 +#
 +# Notes: Derived from previously existing patches. When command
-+# succeeds connect to the open socket. Write a binary structure to 
++# succeeds connect to the open socket. Write a binary structure to
 +# the socket as:
-+# 
++#
 +# struct request {
-+#     uint8_t type;   // 0 quit, 1 read, 2 write, ... rest reserved
++#     uint64_t type;   // 0 quit, 1 read, 2 write, ... rest reserved
 +#     uint64_t address;   // address to read from OR write to
 +#     uint64_t length;    // number of bytes to read OR write
 +# };
-+# 
++#
 +# If it is a read operation, Qemu will return lenght+1 bytes. Read lenght+1
 +# bytes. the last byte will be a 1 for success, or a 0 for failure.
-+#  
++#
 +##
 +{ 'command': 'pmemaccess',
 +  'data': {'path': 'str'} }
@@ -371,7 +371,7 @@ index ba630b1..d29c143 100644
 +++ b/qmp-commands.hx
 @@ -467,6 +467,29 @@ Example:
  EQMP
- 
+
      {
 +        .name       = "pmemaccess",
 +        .args_type  = "path:s",
