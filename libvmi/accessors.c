@@ -661,8 +661,8 @@ vmi_translate_uv2p(
 {
     status_t ret = VMI_FAILURE;
     addr_t dtb = 0;
-    
-    if (!vmi || !paddr) {
+
+    if (!vmi || !paddr) {
         return VMI_FAILURE;
     }
 
