@@ -1,30 +1,30 @@
 /* The LibVMI Library is an introspection library that simplifies access to
-* memory in a target virtual machine or in a file containing a dump of
-* a system's physical memory.  LibVMI is based on the XenAccess Library.
-*
-* Copyright 2011 Sandia Corporation. Under the terms of Contract
-* DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
-* retains certain rights in this software.
-*
-* Author: Nasser Salim (njsalim@sandia.gov)
-* Author: Steven Maresca (steven.maresca@zentific.com)
-* Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
-*
-* This file is part of LibVMI.
-*
-* LibVMI is free software: you can redistribute it and/or modify it under
-* the terms of the GNU Lesser General Public License as published by the
-* Free Software Foundation, either version 3 of the License, or (at your
-* option) any later version.
-*
-* LibVMI is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
-* License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * memory in a target virtual machine or in a file containing a dump of
+ * a system's physical memory.  LibVMI is based on the XenAccess Library.
+ *
+ * Copyright 2011 Sandia Corporation. Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
+ * retains certain rights in this software.
+ *
+ * Author: Nasser Salim (njsalim@sandia.gov)
+ * Author: Steven Maresca (steven.maresca@zentific.com)
+ * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
+ *
+ * This file is part of LibVMI.
+ *
+ * LibVMI is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * LibVMI is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #define _GNU_SOURCE
 #include <glib.h>
@@ -43,7 +43,7 @@ vmi_mem_access_t combine_mem_access(vmi_mem_access_t base, vmi_mem_access_t add)
     if (base == VMI_MEMACCESS_N)
         return add;
 
-// Can't combine rights with X_ON_WRITE
+    // Can't combine rights with X_ON_WRITE
     if (add == VMI_MEMACCESS_W2X || add == VMI_MEMACCESS_RWX2N)
         return VMI_MEMACCESS_INVALID;
     if (base == VMI_MEMACCESS_W2X || base == VMI_MEMACCESS_RWX2N)
@@ -270,7 +270,7 @@ event_response_t step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep
 
             --(vmi->step_vcpus[wrap->vcpu_id]);
             if (!vmi->step_vcpus[wrap->vcpu_id]) {
-// No more events on this vcpu need registering
+                // No more events on this vcpu need registering
                 vmi_clear_event(vmi, singlestep_event, step_event_free);
             }
 
@@ -330,7 +330,7 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
         return VMI_FAILURE;
     }
 
-// Page already has an event registered
+    // Page already has an event registered
     if ( g_hash_table_lookup(vmi->mem_events_on_gfn, &event->mem_event.gfn) ) {
         dbprint(VMI_DEBUG_EVENTS,
                 "An event is already registered on this page: %"PRIu64"\n",
@@ -705,13 +705,13 @@ vmi_swap_events(
         }
 
         /*
-        * We can't swap events when in an event callback rigt away
-        * because there may be more events in the queue already
-        * that were triggered by the event we would be clearing now.
-        * The driver needs to process this list when it can safely.
-        * The user may request a callback when the struct can be safely
-        * freed.
-        */
+         * We can't swap events when in an event callback rigt away
+         * because there may be more events in the queue already
+         * that were triggered by the event we would be clearing now.
+         * The driver needs to process this list when it can safely.
+         * The user may request a callback when the struct can be safely
+         * freed.
+         */
         if ( vmi->event_callback ) {
             if (!g_slist_find_custom(vmi->swap_events, &swap_from, swap_search_from)) {
 
@@ -721,7 +721,7 @@ vmi_swap_events(
                 wrapper->free_routine = free_routine;
 
                 /* We need to use append here to ensure the swaps
-                * are processed in the order the user issued them. */
+                 * are processed in the order the user issued them. */
                 vmi->swap_events = g_slist_append(vmi->swap_events, wrapper);
 
                 return VMI_SUCCESS;
@@ -764,11 +764,11 @@ vmi_register_event(
     }
     if (event->version < VMI_EVENTS_VERSION) {
         /*
-        * Note: backwards-compatibility can be implemented by defining an internal
-        *  header for the older ABI and handling the calls according to the version
-        *  that was requested.
-        *  This is left as a TODO for when it becomes necessary.
-        */
+         * Note: backwards-compatibility can be implemented by defining an internal
+         *  header for the older ABI and handling the calls according to the version
+         *  that was requested.
+         *  This is left as a TODO for when it becomes necessary.
+         */
         dbprint(VMI_DEBUG_EVENTS, "The caller requires an older version of LibVMI!\n");
         return VMI_FAILURE;
     }
@@ -828,17 +828,17 @@ status_t vmi_clear_event(
         return VMI_FAILURE;
 
     /*
-    * We can't clear events when in an event callback rigt away
-    * because there may be more events in the queue already
-    * that were triggered by the event we would be clearing now.
-    * The driver needs to process this list when it can safely.
-    * The user may request a callback when the struct can be safely
-    * freed.
-    */
+     * We can't clear events when in an event callback rigt away
+     * because there may be more events in the queue already
+     * that were triggered by the event we would be clearing now.
+     * The driver needs to process this list when it can safely.
+     * The user may request a callback when the struct can be safely
+     * freed.
+     */
     if ( vmi->event_callback ) {
 
         /* If this event was requested to be swapped from calling
-        * vmi_clear_event will cause issues for the new event. */
+         * vmi_clear_event will cause issues for the new event. */
         if (g_slist_find_custom(vmi->swap_events, &event, swap_search_from)) {
             dbprint(VMI_DEBUG_EVENTS, "Event was already queued for swapping.\n");
             return VMI_FAILURE;
@@ -852,7 +852,7 @@ status_t vmi_clear_event(
         }
 
         /* Event was already requested to be cleared and we haven't
-        * got around to actually do it yet. */
+         * got around to actually do it yet. */
         dbprint(VMI_DEBUG_EVENTS, "Event was already queued for clearing.\n");
         return VMI_FAILURE;
     }
@@ -917,7 +917,7 @@ vmi_step_event(
             dbprint(VMI_DEBUG_EVENTS, "Can't step event, user-defined single-step is already enabled on vCPU %u\n", event->vcpu_id);
             goto done;
         } else {
-// No need to register new singlestep event, its already in place
+            // No need to register new singlestep event, its already in place
             need_new_ss = 0;
         }
     }
@@ -928,7 +928,7 @@ vmi_step_event(
     }
 
     if (need_new_ss) {
-// setup single step event to re-register the event
+        // setup single step event to re-register the event
         vmi_event_t *single_event = g_malloc0(sizeof(vmi_event_t));
         SETUP_SINGLESTEP_EVENT(single_event, 0, step_and_reg_events, 1);
         SET_VCPU_SINGLESTEP(single_event->ss_event, vcpu_id);
@@ -939,7 +939,7 @@ vmi_step_event(
         }
     }
 
-// save the event into the queue using the wrapper
+    // save the event into the queue using the wrapper
     step_and_reg_event_wrapper_t *wrap = g_malloc0(sizeof(step_and_reg_event_wrapper_t));
     wrap->event = event;
     wrap->vcpu_id = vcpu_id;
@@ -1025,10 +1025,10 @@ status_t vmi_shutdown_single_step(vmi_instance_t vmi)
 
     if (VMI_SUCCESS == driver_shutdown_single_step(vmi)) {
         /* Safe to destroy here because the driver has disabled single-step
-        *  for all VCPUs. Library user still manages event allocation at this
-        *  stage.
-        * Recreate hash table for possible future use.
-        */
+         *  for all VCPUs. Library user still manages event allocation at this
+         *  stage.
+         * Recreate hash table for possible future use.
+         */
         g_hash_table_destroy(vmi->ss_events);
         vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);
         return VMI_SUCCESS;

@@ -1,28 +1,28 @@
 /* The LibVMI Library is an introspection library that simplifies access to
-* memory in a target virtual machine or in a file containing a dump of
-* a system's physical memory.  LibVMI is based on the XenAccess Library.
-*
-* Copyright 2011 Sandia Corporation. Under the terms of Contract
-* DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
-* retains certain rights in this software.
-*
-* Author: Bryan D. Payne (bdpayne@acm.org)
-*
-* This file is part of LibVMI.
-*
-* LibVMI is free software: you can redistribute it and/or modify it under
-* the terms of the GNU Lesser General Public License as published by the
-* Free Software Foundation, either version 3 of the License, or (at your
-* option) any later version.
-*
-* LibVMI is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
-* License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * memory in a target virtual machine or in a file containing a dump of
+ * a system's physical memory.  LibVMI is based on the XenAccess Library.
+ *
+ * Copyright 2011 Sandia Corporation. Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
+ * retains certain rights in this software.
+ *
+ * Author: Bryan D. Payne (bdpayne@acm.org)
+ *
+ * This file is part of LibVMI.
+ *
+ * LibVMI is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * LibVMI is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <string.h>
 #include <stdio.h>
@@ -85,7 +85,7 @@ open_config_file(
 
     /* check current directory */
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        location = g_malloc0(snprintf(NULL, 0, "%s/libvmi.conf", cwd) + 1);
+        location = g_malloc0(snprintf(NULL,0,"%s/libvmi.conf", cwd)+1);
         if ( !location )
             return NULL;
 
@@ -103,7 +103,7 @@ open_config_file(
     /* next check home directory of sudo user */
     if ((sudo_user = getenv("SUDO_USER")) != NULL) {
         if ((pw_entry = getpwnam(sudo_user)) != NULL) {
-            location = g_malloc0(snprintf(NULL, 0, "%s/etc/libvmi.conf", pw_entry->pw_dir) + 1);
+            location = g_malloc0(snprintf(NULL,0,"%s/etc/libvmi.conf", pw_entry->pw_dir)+1);
             if ( !location )
                 return NULL;
 
@@ -121,7 +121,7 @@ open_config_file(
     }
 
     /* next check home directory for current user */
-    location = g_malloc0(snprintf(NULL, 0, "%s/etc/libvmi.conf", getenv("HOME")) + 1);
+    location = g_malloc0(snprintf(NULL,0,"%s/etc/libvmi.conf", getenv("HOME"))+1);
     if ( !location )
         return NULL;
 
@@ -137,7 +137,7 @@ open_config_file(
 
     /* finally check in /etc */
     dbprint(VMI_DEBUG_CORE, "--looking for config file at /etc/libvmi.conf\n");
-    location = g_malloc0(strlen("/etc/libvmi.conf") + 1);
+    location = g_malloc0(strlen("/etc/libvmi.conf")+1);
     if ( !location )
         return NULL;
 
@@ -293,8 +293,8 @@ static inline status_t
 init_page_offset(
     vmi_instance_t vmi)
 {
-//TODO need to actually determine these values instead of just guessing
-//TODO need a better way to handle the page size issue
+    //TODO need to actually determine these values instead of just guessing
+    //TODO need a better way to handle the page size issue
     /* assume 4k pages for now, update when 2M page is found */
     vmi->page_shift = 12;
     vmi->page_size = 1 << vmi->page_shift;
@@ -370,7 +370,7 @@ set_id_and_name(
     }
 
     /* resolve and set name from id */
-    if (VMI_FAILURE == driver_check_id(vmi, id)) {
+    if (VMI_FAILURE == driver_check_id(vmi,id)) {
         errprint("Invalid id.\n");
         return VMI_FAILURE;
     }
@@ -391,9 +391,9 @@ set_id_and_name(
     dbprint(VMI_DEBUG_CORE, "--failed to get domain name from id!\n");
 
 #if !defined(HAVE_XS_H) && !defined(HAVE_XENSTORE_H)
-// Only under Xen this is OK without Xenstore
+    // Only under Xen this is OK without Xenstore
     if (vmi->mode == VMI_XEN) {
-// create placeholder for image_type
+        // create placeholder for image_type
         char *idstring = g_malloc0(snprintf(NULL, 0, "domid-%"PRIu64, id) + 1);
         if ( idstring ) {
             sprintf(idstring, "domid-%"PRIu64, id);
@@ -673,10 +673,10 @@ os_t vmi_init_os(
     }
 
     /*
-    * Initialize paging if it hasn't been done yet. For VMI_FILE mode it
-    * will be called from the OS init function as it requires OS-specific
-    * heuristics.
-    */
+     * Initialize paging if it hasn't been done yet. For VMI_FILE mode it
+     * will be called from the OS init function as it requires OS-specific
+     * heuristics.
+     */
     if ( VMI_FILE != vmi->mode && VMI_PM_UNKNOWN == vmi->page_mode &&
             VMI_PM_UNKNOWN == vmi_init_paging(vmi, 0) ) {
         vmi->os_type = VMI_OS_UNKNOWN;
@@ -757,9 +757,9 @@ vmi_init_complete(
         return VMI_FAILURE;
 
     /*
-    * For file-mode initialization OS specific heuristics are required,
-    * which are being called in vmi_init_os.
-    */
+     * For file-mode initialization OS specific heuristics are required,
+     * which are being called in vmi_init_os.
+     */
     if ( VMI_FILE != mode && VMI_PM_UNKNOWN == vmi_init_paging(_vmi, 0) ) {
         if ( error )
             *error = VMI_INIT_ERROR_PAGING;

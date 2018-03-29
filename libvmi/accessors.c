@@ -1,28 +1,28 @@
 /* The LibVMI Library is an introspection library that simplifies access to
-* memory in a target virtual machine or in a file containing a dump of
-* a system's physical memory.  LibVMI is based on the XenAccess Library.
-*
-* Copyright 2011 Sandia Corporation. Under the terms of Contract
-* DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
-* retains certain rights in this software.
-*
-* Author: Bryan D. Payne (bdpayne@acm.org)
-*
-* This file is part of LibVMI.
-*
-* LibVMI is free software: you can redistribute it and/or modify it under
-* the terms of the GNU Lesser General Public License as published by the
-* Free Software Foundation, either version 3 of the License, or (at your
-* option) any later version.
-*
-* LibVMI is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
-* License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * memory in a target virtual machine or in a file containing a dump of
+ * a system's physical memory.  LibVMI is based on the XenAccess Library.
+ *
+ * Copyright 2011 Sandia Corporation. Under the terms of Contract
+ * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
+ * retains certain rights in this software.
+ *
+ * Author: Bryan D. Payne (bdpayne@acm.org)
+ *
+ * This file is part of LibVMI.
+ *
+ * LibVMI is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * LibVMI is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "private.h"
 #include "driver/driver_wrapper.h"
@@ -152,7 +152,7 @@ vmi_get_kernel_struct_offset(
     const char* member,
     addr_t *addr)
 {
-    if (!vmi)
+    if (!vmi || !addr)
         return 0;
 
     return vmi->os_interface->os_get_kernel_struct_offset(vmi, symbol, member, addr);
@@ -326,7 +326,7 @@ vmi_translate_ksym2v(
     status_t status = VMI_FAILURE;
     addr_t address = 0;
 
-    if (!vmi)
+    if (!vmi || !symbol || !vaddr)
         return VMI_FAILURE;
 
     status = sym_cache_get(vmi, 0, 0, symbol, &address);
@@ -359,7 +359,7 @@ vmi_translate_sym2v(
     addr_t address = 0;
     addr_t dtb = 0;
 
-    if (!vmi || !ctx)
+    if (!vmi || !ctx || !symbol || !vaddr)
         return VMI_FAILURE;
 
     switch (ctx->translate_mechanism) {
@@ -478,7 +478,7 @@ vmi_pid_to_dtb(
     status_t ret = VMI_FAILURE;
     addr_t _dtb = 0;
 
-    if (!vmi)
+    if (!vmi || !dtb)
         return VMI_FAILURE;
 
     if (!vmi->os_interface)
@@ -512,7 +512,7 @@ vmi_dtb_to_pid(
     status_t ret = VMI_FAILURE;
     vmi_pid_t _pid = -1;
 
-    if (!vmi)
+    if (!vmi || !pid)
         return VMI_FAILURE;
 
     if (vmi->os_interface && vmi->os_interface->os_pgd_to_pid)
@@ -557,11 +557,11 @@ vmi_pagetable_lookup(
 }
 
 /*
-* Return a status when page_info is not needed, but also use the cache,
-* which vmi_pagetable_lookup_extended() does not do.
-*
-* TODO: Should this eventually replace vmi_pagetable_lookup() in the API?
-*/
+ * Return a status when page_info is not needed, but also use the cache,
+ * which vmi_pagetable_lookup_extended() does not do.
+ *
+ * TODO: Should this eventually replace vmi_pagetable_lookup() in the API?
+ */
 status_t vmi_pagetable_lookup_cache(
     vmi_instance_t vmi,
     addr_t dtb,
@@ -641,7 +641,7 @@ vmi_translate_kv2p(
     addr_t virt_address,
     addr_t *paddr)
 {
-    if (!vmi)
+    if (!vmi || !paddr)
         return VMI_FAILURE;
 
     if (!vmi->kpgd) {
@@ -662,7 +662,7 @@ vmi_translate_uv2p(
     status_t ret = VMI_FAILURE;
     addr_t dtb = 0;
 
-    if (!vmi)
+    if (!vmi || !paddr)
         return VMI_FAILURE;
 
     if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, pid, &dtb) || !dtb ) {
