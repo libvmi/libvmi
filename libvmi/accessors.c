@@ -662,8 +662,9 @@ vmi_translate_uv2p(
     status_t ret = VMI_FAILURE;
     addr_t dtb = 0;
 
-    if (!vmi || !paddr)
+    if (!vmi || !paddr) {
         return VMI_FAILURE;
+    }
 
     if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, pid, &dtb) || !dtb ) {
         dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because dtb not found\n");
