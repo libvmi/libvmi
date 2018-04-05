@@ -44,6 +44,12 @@ vmi_write(
     addr_t offset = 0;
     size_t buf_offset = 0;
 
+    if (NULL == vmi) {
+        dbprint(VMI_DEBUG_WRITE, "--%s: vmi passed as NULL, returning without write\n",
+                __FUNCTION__);
+        goto done;
+    }
+
     if (NULL == buf) {
         dbprint(VMI_DEBUG_WRITE, "--%s: buf passed as NULL, returning without write\n",
                 __FUNCTION__);
@@ -230,6 +236,12 @@ vmi_write_addr(
     const access_context_t *ctx,
     addr_t * value)
 {
+    if (!vmi) {
+        dbprint(VMI_DEBUG_WRITE, "--%s: vmi passed as NULL, returning without write\n",
+                __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
         case VMI_PM_IA32E:

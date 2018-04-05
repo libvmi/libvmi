@@ -630,6 +630,9 @@ os_t vmi_init_os(
     void *config,
     vmi_init_error_t *error)
 {
+    if (!vmi)
+        return VMI_OS_UNKNOWN;
+
     vmi->os_type = VMI_OS_UNKNOWN;
     GHashTable *_config = NULL;
 

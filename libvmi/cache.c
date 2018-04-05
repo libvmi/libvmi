@@ -669,6 +669,9 @@ vmi_pidcache_add(
     vmi_pid_t pid,
     addr_t dtb)
 {
+    if (!vmi)
+        return;
+
     return pid_cache_set(vmi, pid, dtb);
 }
 
@@ -676,6 +679,9 @@ void
 vmi_pidcache_flush(
     vmi_instance_t vmi)
 {
+    if (!vmi)
+        return;
+
     return pid_cache_flush(vmi);
 }
 
@@ -687,6 +693,9 @@ vmi_symcache_add(
     char *sym,
     addr_t va)
 {
+    if (!vmi)
+        return;
+
     return sym_cache_set(vmi, base_addr, pid, sym, va);
 }
 
@@ -694,6 +703,9 @@ void
 vmi_symcache_flush(
     vmi_instance_t vmi)
 {
+    if (!vmi)
+        return;
+
     return sym_cache_flush(vmi);
 }
 
@@ -705,6 +717,9 @@ vmi_rvacache_add(
     addr_t rva,
     char *sym)
 {
+    if (!vmi)
+        return;
+
     return rva_cache_set(vmi, base_addr, pid, rva, sym);
 }
 
@@ -712,6 +727,9 @@ void
 vmi_rvacache_flush(
     vmi_instance_t vmi)
 {
+    if (!vmi)
+        return;
+
     return rva_cache_flush(vmi);
 }
 
@@ -722,6 +740,9 @@ vmi_v2pcache_add(
     addr_t dtb,
     addr_t pa)
 {
+    if (!vmi)
+        return;
+
     return v2p_cache_set(vmi, va, dtb, pa);
 }
 
@@ -730,5 +751,8 @@ vmi_v2pcache_flush(
     vmi_instance_t vmi,
     addr_t dtb)
 {
+    if (!vmi)
+        return;
+
     return v2p_cache_flush(vmi, dtb);
 }
