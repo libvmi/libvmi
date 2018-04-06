@@ -775,3 +775,14 @@ class Libvmi(object):
 
     def pidcache_add(self, pid, dtb):
         lib.vmi_pidcache_add(self.vmi, pid, dtb)
+
+    # events
+    def register_event(self, event):
+        event.set_vmi_instance(self)
+        cffi_event = event.to_cffi()
+        status = lib.vmi_register_event(self.vmi, cffi_event)
+        check(status)
+
+    def listen(self, timeout):
+        status = lib.vmi_events_listen(self.vmi, timeout)
+        check(status)
