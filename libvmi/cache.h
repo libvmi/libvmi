@@ -68,6 +68,8 @@ void v2p_cache_flush(vmi_instance_t vmi, addr_t dtb);
 status_t v2p_cache_get(vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa);
 status_t v2p_cache_del(vmi_instance_t vmi, addr_t va, addr_t dtb);
 
+void page_cache_flush(vmi_instance_t vmi);
+
 #else
 
 #define pid_cache_init(...)     NOOP

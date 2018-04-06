@@ -37,6 +37,7 @@
 
 #include "private.h"
 #include "glib_compat.h"
+#include "driver/memory_cache.h"
 
 // This function borrowed from cityhash-1.0.3
 uint64_t hash128to64(
@@ -662,6 +663,13 @@ v2p_cache_flush(
     dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache flushed\n");
 }
 
+void
+page_cache_flush(
+    vmi_instance_t vmi)
+{
+    memory_cache_flush(vmi);
+}
+
 // Below are wrapper functions for external API access to the cache
 void
 vmi_pidcache_add(
@@ -755,4 +763,11 @@ vmi_v2pcache_flush(
         return;
 
     return v2p_cache_flush(vmi, dtb);
+}
+
+void
+vmi_pagecache_flush(
+    vmi_instance_t vmi)
+{
+    return page_cache_flush(vmi);
 }

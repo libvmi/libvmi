@@ -2219,6 +2219,16 @@ void vmi_pidcache_add(
     addr_t dtb);
 
 /**
+ * Removes all entries from LibVMI's internal page cache.
+ * This is generally only useful if you believe that an entry in
+ * the cache is incorrect, or out of date.
+ *
+ * @param[in] vmi LibVMI instance
+ */
+void vmi_pagecache_flush(
+    vmi_instance_t vmi);
+
+/**
  * Returns the path of the Linux system map file for the given vmi instance
  *
  * @param[in] vmi LibVMI instance
