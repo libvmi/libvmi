@@ -87,7 +87,6 @@ tools/linux-offset-finder/.tmp_versions/
 tools/linux-offset-finder/findoffsets.ko
 tools/linux-offset-finder/findoffsets.mod.c
 tools/linux-offset-finder/modules.order
-tools/pyvmi/build/
 *.o
 *.lo
 .dirstamp

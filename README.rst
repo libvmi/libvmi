@@ -17,13 +17,13 @@ others are well tested and worth exploring as well.  LibVMI can provide access
 to physical memory for any operating system, and access to virtual memory and
 kernel symbols from Windows and Linux.
 
-If you would like higher level semantic information, then we suggest using
-LibVMI with PyVMI (python wrapper, included with LibVMI) and Volatility.
-Volatility (https://github.com/volatilityfoundation/volatility/) is a forensic
-memory analysis framework supporting both Linux and Windows systems that can aid
-significantly in performing useful memory analysis tasks.  PyVMI includes a
-Volatility address space plugin that enables you to use Volatility on a live
-virtual machine.
+If you would like higher level semantic information, then we suggest using the
+LibVMI Python bindings and Volatility.  Volatility
+(https://github.com/volatilityfoundation/volatility/) is a forensic memory
+analysis framework supporting both Linux and Windows systems that can aid
+significantly in performing useful memory analysis tasks.  The LibVMI Python
+bindings includes a Volatility address space plugin that enables you to use
+Volatility on a live virtual machine.
 
 This file contains very basic instructions to get you up and running.  If you
 want more details about installation, or programming with LibVMI, then see
@@ -101,17 +101,13 @@ related online documentation:
 http://libvmi.com/docs/gcode-install.html
 
 
-Python Interface
+Python bindings
 ----------------
-LibVMI is written in C.  If you would rather work with Python, then look at
-the tools/pyvmi/ directory after installing LibVMI.  PyVMI provides a
-feature complete python interface to LibVMI with a relatively small
-performance overhead.
+LibVMI is written in C.  If you would rather work with Python, then look at the
+``libvmi/python``` repository. They provide an almost feature complete python
+interface to LibVMI with a relatively small performance overhead.
 
-PyVMI is currently being reworked and thus the version
-in the master branch is unstable. Please use PyVMI from the latest release
-while the rework is completed.
-
+https://github.com/libvmi/python
 
 Xen Support
 -----------
