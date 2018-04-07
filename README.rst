@@ -1,5 +1,6 @@
 LibVMI: Simplified Virtual Machine Introspection
 ================================================
+
 LibVMI is a virtual machine introspection library.  This means that it helps
 you access the memory of a running virtual machine.  LibVMI provides primitives
 for accessing this memory using physical or virtual addresses and kernel
@@ -29,6 +30,10 @@ This file contains very basic instructions to get you up and running.  If you
 want more details about installation, or programming with LibVMI, then see
 the documentation included in the doc/ subdirectory of LibVMI, or view the
 documentation online at http://www.libvmi.com.
+
+.. image:: https://badges.gitter.im/Join%20Chat.svg
+   :alt: Join the chat at https://gitter.im/libvmi/libvmi
+   :target: https://gitter.im/libvmi/libvmi?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
 .. image:: https://travis-ci.org/libvmi/libvmi.svg?branch=master
     :target: https://travis-ci.org/libvmi/libvmi
