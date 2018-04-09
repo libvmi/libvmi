@@ -13,7 +13,7 @@ Rekall will find the right GUID, download the PDBs and extract the right offsets
 ## Requirements
 
 - `LibVMI` C library
-- `libvmi` Python bindings
+- [`libvmi` Python bindings](https://github.com/libvmi/python)
 - `cabextract`
 
 ## Installing Rekall from source
