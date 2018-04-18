@@ -898,14 +898,9 @@ init_from_rekall_profile(vmi_instance_t vmi)
                 // or 0xC0000102 ("IA32_KERNEL_GS_BASE" here named MSR_SHADOW_GS_BASE)
 
                 const reg_t kpcr_registers_to_try[]       = {  GS_BASE,   SHADOW_GS,   MSR_SHADOW_GS_BASE,   FS_BASE  };
-<<<<<<< HEAD
 #ifdef VMI_DEBUG
                 const char *kpcr_registers_to_try_names[] = { "GS_BASE", "SHADOW_GS", "MSR_SHADOW_GS_BASE", "FS_BASE" };
 #endif
-=======
-                const char *kpcr_registers_to_try_names[] = { "GS_BASE", "SHADOW_GS", "MSR_SHADOW_GS_BASE", "FS_BASE" };
-
->>>>>>> README: add link to python bindings in windows offset finder
                 dbprint(VMI_DEBUG_MISC, "** (vmi->page_mode == VMI_PM_IA32E) Entering KPCR register selection loop...\n");
                 {
                     size_t i = 0;
