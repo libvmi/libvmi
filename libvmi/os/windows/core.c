@@ -662,7 +662,7 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
 }
 
 static status_t
-init_from_rekall_profile(vmi_instance_t vmi)
+init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 {
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
@@ -674,26 +674,22 @@ init_from_rekall_profile(vmi_instance_t vmi)
     addr_t kisystemcall64shadow=0, kisystemcall32shadow=0;
     addr_t ntbaseaddress=0, ntbaseaddress_chk=0;
 
-    // try to find the kernel if we are not connecting to a file and the kernel pa/va were not already specified.
-    if (vmi->mode != VMI_FILE && ! ( windows->ntoskrnl && windows->ntoskrnl_va ) ) {
-
-        switch ( vmi->page_mode ) {
-            case VMI_PM_IA32E:
-                if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, GS_BASE, 0))
-                    goto done;
-                break;
-            case VMI_PM_LEGACY: /* Fall-through */
-            case VMI_PM_PAE:
-                if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, FS_BASE, 0))
-                    goto done;
-                break;
-            default:
-                goto done;
-        };
+    if (kpcr_register_to_use) {
+        dbprint(VMI_DEBUG_MISC, "** Trying kpcr_register_to_use to get KPCR.\n");
+        if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, kpcr_register_to_use, 0)) {
+            dbprint(VMI_DEBUG_MISC, "** driver_get_vcpureg(..) failed.\n");
+            goto done;
+        }
 
         if (VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiInitialPCR", NULL, &kpcr_rva)) {
-            if ( kpcr <= kpcr_rva || (vmi->page_mode == VMI_PM_IA32E && kpcr < 0xffff800000000000) ) {
-                dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, can't init from Rekall profile.\n");
+            if ( kpcr < kpcr_rva ) { // Zero offset seems ok. Maybe negative will work too? ;)
+                dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, (kpcr < kpcr_rva) (KiInitialPCR) can't init from Rekall profile. Kpcr=0x%" PRIx64 "kpcr_rva=0x%" PRIx64 "\n", kpcr, kpcr_rva);
+                goto done;
+            }
+
+            if (vmi->page_mode == VMI_PM_IA32E && kpcr < 0xffff800000000000) { // We are in 64bit user mode, this is not KPCR
+                dbprint(VMI_DEBUG_MISC, "**Error while init from Rekall profile. Getting KPCR from user mode or just after syscall before 'swapgs'.\n");
+                dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, can't init from Rekall profile. Kpcr=0x%" PRIx64 ", kpcr_rva=0x%" PRIx64 "\n", kpcr, kpcr_rva);
                 goto done;
             }
 
@@ -713,7 +709,6 @@ init_from_rekall_profile(vmi_instance_t vmi)
                 errprint("Error reading MSR_CSTAR\n");
                 goto done;
             }
-
 
             if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiSystemCall32Shadow", NULL, &kisystemcall32shadow)) {
                 errprint("Error retrieving rva of KiSystemCall32Shadow\n");
@@ -881,6 +876,69 @@ init_from_rekall_profile(vmi_instance_t vmi)
 done:
     return ret;
 
+}
+
+static status_t
+init_from_rekall_profile(vmi_instance_t vmi)
+{
+    status_t ret = VMI_FAILURE;
+    windows_instance_t windows = vmi->os_data;
+
+    // try to find the kernel if we are not connecting to a file and the kernel pa/va were not already specified.
+    if ( vmi->mode != VMI_FILE && ! ( windows->ntoskrnl && windows->ntoskrnl_va ) ) {
+        switch ( vmi->page_mode ) {
+            case VMI_PM_IA32E: {
+                // MSR_SHADOW_GS_BASE - Model Specific Register (MSR) 0xC0000102 which the kernel initialises with the address of the processor’s KPCR.
+                // (Intel’s label for this MSR is IA32_KERNEL_GS_BASE.)
+                // Actually name seems wrong, since 'shadow' is part of currently loaded GS register that is unreachable for user. It can be and loaded by 'swapgs' instruction.
+                // In case we are in user mode, IA32_KERNEL_GS_BASE handles kernel GS_BASE with KPCR
+                // CS.L bit has no effect on KPCR and its location
+                //
+                // So in 64 bit Windows KPCR must be in MSR register 0xC0000101 ("GS shadow" here named GS_BASE)
+                // or 0xC0000102 ("IA32_KERNEL_GS_BASE" here named MSR_SHADOW_GS_BASE)
+
+                const reg_t kpcr_registers_to_try[]       = {  GS_BASE,   SHADOW_GS,   MSR_SHADOW_GS_BASE,   FS_BASE  };
+#ifdef VMI_DEBUG
+                const char *kpcr_registers_to_try_names[] = { "GS_BASE", "SHADOW_GS", "MSR_SHADOW_GS_BASE", "FS_BASE" };
+#endif
+                dbprint(VMI_DEBUG_MISC, "** (vmi->page_mode == VMI_PM_IA32E) Entering KPCR register selection loop...\n");
+                {
+                    size_t i = 0;
+                    for (i = 0; i < sizeof(kpcr_registers_to_try); ++i) {
+                        dbprint(VMI_DEBUG_MISC, "** (vmi->page_mode == VMI_PM_IA32E) => Using kpcr_register_to_use=%s.\n", kpcr_registers_to_try_names[i]);
+
+                        ret = init_from_rekall_profile_real(vmi, kpcr_registers_to_try[i]);
+                        if ( VMI_FAILURE != ret )
+                            goto done;
+
+                        dbprint(VMI_DEBUG_MISC, "** Trying %s failed.\n", kpcr_registers_to_try_names[i]);
+                    }
+                }
+
+                dbprint(VMI_DEBUG_MISC, "** KPCR register selection loop ended.\n");
+                goto done;
+            }
+
+            case VMI_PM_LEGACY: /* Fall-through */
+            case VMI_PM_PAE:
+                dbprint(VMI_DEBUG_MISC, "** vmi->page_mode in {VMI_PM_LEGACY, VMI_PM_PAE} => Trying FS_BASE.\n");
+                ret = init_from_rekall_profile_real(vmi, FS_BASE);
+                goto done;
+
+            default:
+                dbprint(VMI_DEBUG_MISC, "** vmi->page_mode is unhandled, no KPCR init.\n");
+                goto done;
+        };
+    } else {
+        dbprint(VMI_DEBUG_MISC, "** Not retrieving KPCR via 'switch', setting kpcr_register_to_use to unused = 0 .\n");
+
+        reg_t unused = 0;
+        ret = init_from_rekall_profile_real(vmi, unused);
+        goto done;
+    }
+
+done:
+    return ret;
 }
 
 static status_t
