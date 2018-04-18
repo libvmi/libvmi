@@ -688,7 +688,7 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
             }
 
             if (vmi->page_mode == VMI_PM_IA32E && kpcr < 0xffff800000000000) { // We are in 64bit user mode, this is not KPCR
-                dbprint(VMI_DEBUG_MISC, "**Error while init from Rekall profile. Getting KPCR from user mode or just after syscall before 'swapgs'.");
+                dbprint(VMI_DEBUG_MISC, "**Error while init from Rekall profile. Getting KPCR from user mode or just after syscall before 'swapgs'.\n");
                 dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, can't init from Rekall profile. Kpcr=0x%" PRIx64 ", kpcr_rva=0x%" PRIx64 "\n", kpcr, kpcr_rva);
                 goto done;
             }
@@ -898,8 +898,9 @@ init_from_rekall_profile(vmi_instance_t vmi)
                 // or 0xC0000102 ("IA32_KERNEL_GS_BASE" here named MSR_SHADOW_GS_BASE)
 
                 const reg_t kpcr_registers_to_try[]       = {  GS_BASE,   SHADOW_GS,   MSR_SHADOW_GS_BASE,   FS_BASE  };
+#ifdef VMI_DEBUG
                 const char *kpcr_registers_to_try_names[] = { "GS_BASE", "SHADOW_GS", "MSR_SHADOW_GS_BASE", "FS_BASE" };
-
+#endif
                 dbprint(VMI_DEBUG_MISC, "** (vmi->page_mode == VMI_PM_IA32E) Entering KPCR register selection loop...\n");
                 {
                     size_t i = 0;
