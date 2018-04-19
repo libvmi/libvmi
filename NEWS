@@ -2,18 +2,18 @@ Release 0.12
     New Features:
         Support for ARM on Xen, and ARM raw memory dumps
         KVM shared memory shapshot and direct memory access support
-        Rekall profiles for Windows target config
+        Support for Rekall profiles
         Support for 64-bit linux raw memory dumps
         Ability to disable selected OS support at compile time
         Compile-time cache configuration
+        FreeBSD guest support
     API enhancements:
-        Added vmi_step_mem_event for single stepping over mem events
-        Added vmi_read and vmi_write functions
-        Added vmi_init_paging to re-init paging mode via API
-        Allow VMI_PARTIAL init mode for live VMs
+        Stabilize event API and ABI
+        Sanitize LibVMI init functions
+        NULL-checking of inputs
     Code refactoring:
         Significant refactoring in driver and arch modules
-        Windows code cleanup (for Win8 support)
+        Windows code cleanup (for Win8/10 support)
         Fixed some code duplications in read/write modules
     Bug Fixes:
         Fixed bug in byte-level mem events
