@@ -253,6 +253,24 @@ static status_t init_task_kaslr_test(vmi_instance_t vmi, addr_t page_vaddr)
     return ret;
 }
 
+status_t get_kaslr_offset_ia32e(vmi_instance_t vmi)
+{
+    addr_t va, pa;
+    addr_t kernel_text_start = 0xffffffff81000000;
+    addr_t kernel_text_end = kernel_text_start + (1024*1024*1024);
+
+    linux_instance_t linux_instance = vmi->os_data;
+    for (va = kernel_text_start; va < kernel_text_end; va += 0x200000) {
+        if ( vmi_translate_kv2p(vmi, va, &pa) == VMI_SUCCESS ) {
+            linux_instance->kaslr_offset = va - kernel_text_start;
+            vmi->init_task += linux_instance->kaslr_offset;
+            dbprint(VMI_DEBUG_MISC, "**calculated KASLR offset: 0x%"PRIx64"\n", linux_instance->kaslr_offset);
+            return VMI_SUCCESS;
+        }
+    }
+    return VMI_FAILURE;
+}
+
 status_t init_kaslr(vmi_instance_t vmi)
 {
     /*
@@ -267,6 +285,11 @@ status_t init_kaslr(vmi_instance_t vmi)
 
     if ( VMI_SUCCESS == vmi_read_32(vmi, &ctx, &test) )
         return VMI_SUCCESS;
+
+    if ( vmi->page_mode == VMI_PM_IA32E ) {
+        if ( VMI_SUCCESS == get_kaslr_offset_ia32e(vmi) )
+            return VMI_SUCCESS;
+    }
 
     status_t ret = VMI_FAILURE;
     linux_instance_t linux_instance = vmi->os_data;
