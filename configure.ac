@@ -5,6 +5,8 @@ dnl --------------------------------
 AC_INIT([libvmi], [0.12.0])
 AM_INIT_AUTOMAKE([subdir-objects])
 
+LT_INIT
+
 AC_CONFIG_SRCDIR(libvmi/core.c)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS(config.h)
@@ -174,7 +176,6 @@ dnl -----------------------------------------------
 
 AC_PROG_CC
 AM_PROG_CC_C_O
-AM_PROG_LIBTOOL
 AM_SANITY_CHECK
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
