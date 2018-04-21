@@ -97,7 +97,9 @@ int xen_is_pv(
     vmi_instance_t vmi);
 status_t xen_test(
     uint64_t domainid,
-    const char *name);
+    const char *name,
+    uint64_t init_flags,
+    void* init_data);
 status_t xen_pause_vm(
     vmi_instance_t vmi);
 status_t xen_resume_vm(

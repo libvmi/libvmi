@@ -45,29 +45,29 @@
 
 status_t driver_init_mode(const char *name,
                           uint64_t domainid,
-                          uint64_t UNUSED(init_flags),
-                          void* UNUSED(init_data),
+                          uint64_t init_flags,
+                          void* init_data,
                           vmi_mode_t *mode)
 {
     unsigned long count = 0;
 
     /* see what systems are accessable */
 #if ENABLE_XEN == 1
-    if (VMI_SUCCESS == xen_test(domainid, name)) {
+    if (VMI_SUCCESS == xen_test(domainid, name, init_flags, init_data)) {
         dbprint(VMI_DEBUG_DRIVER, "--found Xen\n");
         *mode = VMI_XEN;
         count++;
     }
 #endif
 #if ENABLE_KVM == 1
-    if (VMI_SUCCESS == kvm_test(domainid, name)) {
+    if (VMI_SUCCESS == kvm_test(domainid, name, init_flags, init_data)) {
         dbprint(VMI_DEBUG_DRIVER, "--found KVM\n");
         *mode = VMI_KVM;
         count++;
     }
 #endif
 #if ENABLE_FILE == 1
-    if (VMI_SUCCESS == file_test(domainid, name)) {
+    if (VMI_SUCCESS == file_test(domainid, name, init_flags, init_data)) {
         dbprint(VMI_DEBUG_DRIVER, "--found file\n");
         *mode = VMI_FILE;
         count++;

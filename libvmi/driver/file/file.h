@@ -60,7 +60,9 @@ int file_is_pv(
     vmi_instance_t vmi);
 status_t file_test(
     uint64_t id,
-    const char *name);
+    const char *name,
+    uint64_t init_flags,
+    void* init_data);
 status_t file_pause_vm(
     vmi_instance_t vmi);
 status_t file_resume_vm(
