@@ -662,34 +662,39 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
 }
 
 static status_t
-init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
+init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr, reg_t rip)
 {
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
     dbprint(VMI_DEBUG_MISC, "**Trying to init from Rekall profile\n");
 
-    reg_t kpcr = 0;
+    reg_t current_rip = 0;
     addr_t kpcr_rva = 0, int0_rva = 0;
     reg_t lstar=0, cstar=0;
     addr_t kisystemcall64shadow=0, kisystemcall32shadow=0;
     addr_t ntbaseaddress=0, ntbaseaddress_chk=0;
 
-    if (kpcr_register_to_use) {
-        dbprint(VMI_DEBUG_MISC, "** Trying kpcr_register_to_use to get KPCR.\n");
-        if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, kpcr_register_to_use, 0)) {
-            dbprint(VMI_DEBUG_MISC, "** driver_get_vcpureg(..) failed.\n");
-            goto done;
+    if (kpcr) {
+        if (VMI_FAILURE == driver_get_vcpureg(vmi, &current_rip, RIP, 0))
+        {
+            dbprint(VMI_DEBUG_MISC, "** driver_get_vcpureg(.RIP.) failed.\n");
+            current_rip = 0;
         }
+
 
         if (VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiInitialPCR", NULL, &kpcr_rva)) {
             if ( kpcr < kpcr_rva ) { // Zero offset seems ok. Maybe negative will work too? ;)
                 dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, (kpcr < kpcr_rva) (KiInitialPCR) can't init from Rekall profile. Kpcr=0x%" PRIx64 "kpcr_rva=0x%" PRIx64 "\n", kpcr, kpcr_rva);
+                dbprint(VMI_DEBUG_MISC, "**vCPU0 When retrieved all registers was RIP=0x%" PRIx64 "\n", rip);
+                dbprint(VMI_DEBUG_MISC, "**vCPU0 Current                          RIP=0x%" PRIx64 "\n", current_rip);
                 goto done;
             }
 
             if (vmi->page_mode == VMI_PM_IA32E && kpcr < 0xffff800000000000) { // We are in 64bit user mode, this is not KPCR
                 dbprint(VMI_DEBUG_MISC, "**Error while init from Rekall profile. Getting KPCR from user mode or just after syscall before 'swapgs'.\n");
                 dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, can't init from Rekall profile. Kpcr=0x%" PRIx64 ", kpcr_rva=0x%" PRIx64 "\n", kpcr, kpcr_rva);
+                dbprint(VMI_DEBUG_MISC, "**vCPU0 When retrieved all registers was RIP=0x%" PRIx64 "\n", rip);
+                dbprint(VMI_DEBUG_MISC, "**vCPU0 Current                          RIP=0x%" PRIx64 "\n", current_rip);
                 goto done;
             }
 
@@ -884,6 +889,12 @@ init_from_rekall_profile(vmi_instance_t vmi)
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
 
+    registers_t regs;
+    if (VMI_FAILURE == driver_get_vcpuregs(vmi, &regs, 0)) {
+        dbprint(VMI_DEBUG_MISC, "** driver_get_vcpuregs(...) failed.\n");
+        goto done;
+    }
+
     // try to find the kernel if we are not connecting to a file and the kernel pa/va were not already specified.
     if ( vmi->mode != VMI_FILE && ! ( windows->ntoskrnl && windows->ntoskrnl_va ) ) {
         switch ( vmi->page_mode ) {
@@ -897,17 +908,17 @@ init_from_rekall_profile(vmi_instance_t vmi)
                 // So in 64 bit Windows KPCR must be in MSR register 0xC0000101 ("GS shadow" here named GS_BASE)
                 // or 0xC0000102 ("IA32_KERNEL_GS_BASE" here named MSR_SHADOW_GS_BASE)
 
-                const reg_t kpcr_registers_to_try[]       = {  GS_BASE,   SHADOW_GS,   MSR_SHADOW_GS_BASE,   FS_BASE  };
+                const uint64_t kpcr_register_values_to_try[] = {  regs.x86.gs_base,  regs.x86.shadow_gs,  regs.x86.fs_base };
 #ifdef VMI_DEBUG
-                const char *kpcr_registers_to_try_names[] = { "GS_BASE", "SHADOW_GS", "MSR_SHADOW_GS_BASE", "FS_BASE" };
+                const char *kpcr_registers_to_try_names[]    = { "GS_BASE",         "SHADOW_GS",         "FS_BASE"         };
 #endif
                 dbprint(VMI_DEBUG_MISC, "** (vmi->page_mode == VMI_PM_IA32E) Entering KPCR register selection loop...\n");
                 {
                     size_t i = 0;
-                    for (i = 0; i < sizeof(kpcr_registers_to_try); ++i) {
+                    for (size_t i = 0; i < sizeof(kpcr_register_values_to_try) / sizeof(kpcr_register_values_to_try[0]); ++i) {
                         dbprint(VMI_DEBUG_MISC, "** (vmi->page_mode == VMI_PM_IA32E) => Using kpcr_register_to_use=%s.\n", kpcr_registers_to_try_names[i]);
 
-                        ret = init_from_rekall_profile_real(vmi, kpcr_registers_to_try[i]);
+                        ret = init_from_rekall_profile_real(vmi, kpcr_register_values_to_try[i], regs.x86.rip);
                         if ( VMI_FAILURE != ret )
                             goto done;
 
@@ -922,7 +933,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
             case VMI_PM_LEGACY: /* Fall-through */
             case VMI_PM_PAE:
                 dbprint(VMI_DEBUG_MISC, "** vmi->page_mode in {VMI_PM_LEGACY, VMI_PM_PAE} => Trying FS_BASE.\n");
-                ret = init_from_rekall_profile_real(vmi, FS_BASE);
+                ret = init_from_rekall_profile_real(vmi, regs.x86.fs_base, regs.x86.rip);
                 goto done;
 
             default:
@@ -932,8 +943,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
     } else {
         dbprint(VMI_DEBUG_MISC, "** Not retrieving KPCR via 'switch', setting kpcr_register_to_use to unused = 0 .\n");
 
-        reg_t unused = 0;
-        ret = init_from_rekall_profile_real(vmi, unused);
+        ret = init_from_rekall_profile_real(vmi, 0, regs.x86.rip);
         goto done;
     }
 
