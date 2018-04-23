@@ -946,6 +946,7 @@ xen_get_vcpuregs_hvm(
     regs->x86.dr7 = hvm_cpu->dr7;
     regs->x86.fs_base = hvm_cpu->fs_base;
     regs->x86.gs_base = hvm_cpu->gs_base;
+    regs->x86.shadow_gs = hvm_cpu->shadow_gs;
     regs->x86.cs_arbytes = hvm_cpu->cs_arbytes;
     regs->x86.sysenter_cs = hvm_cpu->sysenter_cs;
     regs->x86.sysenter_esp = hvm_cpu->sysenter_esp;
