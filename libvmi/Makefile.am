@@ -123,7 +123,8 @@ lib_LTLIBRARIES= libvmi.la
 libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
 libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS)
 libvmi_la_CFLAGS+= -Wall -Wextra
-libvmi_la_LDFLAGS= -release $(RELEASE) $(GLIB_LIBS) -no-undefined
+libvmi_la_LDFLAGS= $(GLIB_LIBS) -no-undefined
+libvmi_la_LDFLAGS+= -version-info $(VERSION)
 
 if CONFIGFILE
 libvmi_la_LIBADD= config/libconfig.la

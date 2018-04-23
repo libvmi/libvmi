@@ -1,8 +1,9 @@
 Source: libvmi
 Priority: optional
-Maintainer: Bryan D. Payne <bdpayne@acm.org>
+Maintainer: Tamas K Lengyel <tamas@tklengyel.com>
 Build-Depends: debhelper (>= 8.0.0),
  build-essential,
+ libvirt-dev,
  libtool,
  automake,
  autotools-dev,
@@ -10,22 +11,23 @@ Build-Depends: debhelper (>= 8.0.0),
  flex,
  bison,
  libglib2.0-dev,
- check,
  libjson-c-dev
-Standards-Version: 3.9.3
+Standards-Version: 3.9.8
 Section: libs
-Homepage: https://github.com/bdpayne/libvmi
+Homepage: https://github.com/libvmi/libvmi
 
 Package: libvmi-dev
 Section: libdevel
 Architecture: any
-Depends: libvmi0 (= ${binary:Version})
+Multi-Arch: same
+Depends: libvmi (= ${binary:Version})
 Description: Virtual machine introspection library development files
  Development files, header files, etc for use with LibVMI.
 
-Package: libvmi0
+Package: libvmi
 Section: libs
 Architecture: any
+Multi-Arch: same
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Virtual machine introspection library
  LibVMI is a virtual machine introspection library. This means that it helps

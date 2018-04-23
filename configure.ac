@@ -2,8 +2,10 @@ dnl --------------------------------
 dnl Initialization macros.
 dnl --------------------------------
 
-AC_INIT([libvmi], [0.11.0])
+AC_INIT([libvmi], [0.12.0])
 AM_INIT_AUTOMAKE([subdir-objects])
+
+LT_INIT
 
 AC_CONFIG_SRCDIR(libvmi/core.c)
 AC_CONFIG_MACRO_DIR([m4])
@@ -13,9 +15,9 @@ AC_CANONICAL_HOST
 
 LIBRARY_NAME=libvmi
 MAJOR_VERSION=0
-MINOR_VERSION=11
+MINOR_VERSION=12
 MICRO_VERSION=0
-VERSION=$MAJOR_VERSION.$MINOR_VERSION.$MICRO_VERSION
+VERSION=$MAJOR_VERSION:$MINOR_VERSION:$MICRO_VERSION
 RELEASE=$MAJOR_VERSION.$MINOR_VERSION
 
 AC_SUBST(LIBRARY_NAME)
@@ -174,7 +176,6 @@ dnl -----------------------------------------------
 
 AC_PROG_CC
 AM_PROG_CC_C_O
-AM_PROG_LIBTOOL
 AM_SANITY_CHECK
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
