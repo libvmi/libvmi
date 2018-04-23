@@ -1956,7 +1956,9 @@ kvm_is_pv(
 status_t
 kvm_test(
     uint64_t domainid,
-    const char *name)
+    const char *name,
+    uint64_t UNUSED(init_flags),
+    void* UNUSED(init_data))
 {
     struct vmi_instance _vmi = {0};
     vmi_instance_t vmi = &_vmi;

@@ -438,7 +438,7 @@ vmi_get_access_mode(
     vmi_instance_t vmi,
     void *domain,
     uint64_t init_flags,
-    void* UNUSED(init_data),
+    void* init_data,
     vmi_mode_t *mode)
 {
     if ( vmi ) {
@@ -458,7 +458,7 @@ vmi_get_access_mode(
             (name && id != VMI_INVALID_DOMID) )
         return VMI_FAILURE;
 
-    return driver_init_mode(name, id, mode);
+    return driver_init_mode(name, id, init_flags, init_data, mode);
 }
 
 static inline status_t driver_sanity_check(vmi_mode_t mode)

@@ -83,7 +83,9 @@ int kvm_is_pv(
     vmi_instance_t vmi);
 status_t kvm_test(
     uint64_t domainid,
-    const char *name);
+    const char *name,
+    uint64_t init_flags,
+    void* init_data);
 status_t kvm_pause_vm(
     vmi_instance_t vmi);
 status_t kvm_resume_vm(

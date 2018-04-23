@@ -298,7 +298,9 @@ file_is_pv(
 status_t
 file_test(
     uint64_t UNUSED(id),
-    const char *name)
+    const char *name,
+    uint64_t UNUSED(init_flags),
+    void* UNUSED(init_data))
 {
     status_t ret = VMI_FAILURE;
     FILE *f = NULL;
