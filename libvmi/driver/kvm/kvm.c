@@ -1762,6 +1762,36 @@ kvm_get_vcpureg(
         case LDTR_SEL:
             *value = parse_seg_reg_value("LDT", regs, SEGMENT_SELECTOR);
             break;
+        case CS_LIMIT:
+            *value = parse_seg_reg_value("CS", regs, SEGMENT_LIMIT);
+            break;
+        case DS_LIMIT:
+            *value = parse_seg_reg_value("DS", regs, SEGMENT_LIMIT);
+            break;
+        case ES_LIMIT:
+            *value = parse_seg_reg_value("ES", regs, SEGMENT_LIMIT);
+            break;
+        case FS_LIMIT:
+            *value = parse_seg_reg_value("FS", regs, SEGMENT_LIMIT);
+            break;
+        case GS_LIMIT:
+            *value = parse_seg_reg_value("GS", regs, SEGMENT_LIMIT);
+            break;
+        case SS_LIMIT:
+            *value = parse_seg_reg_value("SS", regs, SEGMENT_LIMIT);
+            break;
+        case TR_LIMIT:
+            *value = parse_seg_reg_value("TR", regs, SEGMENT_LIMIT);
+            break;
+        case LDTR_LIMIT:
+            *value = parse_seg_reg_value("LDTR", regs, SEGMENT_LIMIT);
+            break;
+        case IDTR_LIMIT:
+            *value = parse_seg_reg_value("IDTR", regs, SEGMENT_LIMIT);
+            break;
+        case GDTR_LIMIT:
+            *value = parse_seg_reg_value("GDTR", regs, SEGMENT_LIMIT);
+            break;
         case CS_BASE:
             *value = parse_seg_reg_value("CS", regs, SEGMENT_BASE);
             break;
