@@ -95,6 +95,9 @@ static status_t sanity_check(xen_instance_t *xen)
 
         default:
         /* Things start to be a bit saner from 4.6 */
+        case 11:
+            if ( !w->xc_monitor_emul_unimplemented )
+                break;
         /* Fall-through */
         case 10:
             if ( !w->xc_monitor_descriptor_access )
@@ -209,6 +212,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_monitor_guest_request = dlsym(wrapper->handle, "xc_monitor_guest_request");
     wrapper->xc_monitor_privileged_call = dlsym(wrapper->handle, "xc_monitor_privileged_call");
     wrapper->xc_monitor_descriptor_access = dlsym(wrapper->handle, "xc_monitor_descriptor_access");
+    wrapper->xc_monitor_emul_unimplemented = dlsym(wrapper->handle, "xc_monitor_emul_unimplemented");
     wrapper->xc_altp2m_get_domain_state = dlsym ( wrapper->handle, "xc_altp2m_get_domain_state" );
     wrapper->xc_altp2m_set_domain_state = dlsym ( wrapper->handle, "xc_altp2m_set_domain_state" );
     wrapper->xc_altp2m_set_vcpu_enable_notify = dlsym ( wrapper->handle, "xc_altp2m_set_vcpu_enable_notify" );

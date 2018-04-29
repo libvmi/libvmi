@@ -33,7 +33,7 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
-#define VMI_EVENTS_VERSION 0x00000004
+#define VMI_EVENTS_VERSION 0x00000005
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,15 +54,16 @@ extern "C" {
 typedef uint16_t vmi_event_type_t;
 
 #define VMI_EVENT_INVALID           0
-#define VMI_EVENT_MEMORY            1 /**< Read/write/execute on a region of memory */
-#define VMI_EVENT_REGISTER          2 /**< Read/write of a specific register */
-#define VMI_EVENT_SINGLESTEP        3 /**< Instructions being executed on a set of VCPUs */
-#define VMI_EVENT_INTERRUPT         4 /**< Interrupts being delivered */
-#define VMI_EVENT_GUEST_REQUEST     5 /**< Guest-requested event */
-#define VMI_EVENT_CPUID             6 /**< CPUID event */
-#define VMI_EVENT_DEBUG_EXCEPTION   7 /**< Debug exception event */
-#define VMI_EVENT_PRIVILEGED_CALL   8 /**< Privileged call (ie. SMC on ARM) */
-#define VMI_EVENT_DESCRIPTOR_ACCESS 9 /**< A descriptor table register was accessed */
+#define VMI_EVENT_MEMORY            1   /**< Read/write/execute on a region of memory */
+#define VMI_EVENT_REGISTER          2   /**< Read/write of a specific register */
+#define VMI_EVENT_SINGLESTEP        3   /**< Instructions being executed on a set of VCPUs */
+#define VMI_EVENT_INTERRUPT         4   /**< Interrupts being delivered */
+#define VMI_EVENT_GUEST_REQUEST     5   /**< Guest-requested event */
+#define VMI_EVENT_CPUID             6   /**< CPUID event */
+#define VMI_EVENT_DEBUG_EXCEPTION   7   /**< Debug exception event */
+#define VMI_EVENT_PRIVILEGED_CALL   8   /**< Privileged call (ie. SMC on ARM) */
+#define VMI_EVENT_DESCRIPTOR_ACCESS 9   /**< A descriptor table register was accessed */
+#define VMI_EVENT_FAILED_EMULATION  10  /**< Emulation failed when requested by VMI_EVENT_RESPONSE_EMULATE */
 
 /**
  * Max number of vcpus we can set single step on at one time for a domain
@@ -202,28 +203,26 @@ typedef struct {
      */
     reg_t value;
 
-    union {
-        /**
-         * OUT
-         *
-         * Previous value of register (only for CR0/CR3/CR4)
-         */
-        reg_t previous;
+    /**
+     * OUT
+     *
+     * Previous value of register (only for CR0/CR3/CR4/MSR)
+     */
+    reg_t previous;
 
-        /**
-         * CONST IN/OUT
-         *
-         * MSR register operations only
-         *
-         * CONST IN: Starting from Xen 4.8 the user can use this field to specify an
-         *  MSR index to subscribe to when the MSR is not formally defined by LibVMI.
-         *
-         * OUT: holds the specific MSR for which the event occurred
-         *  when the user registered with MSR_ALL.
-         * Unused for other register event types.
-         */
-        uint32_t msr;
-    };
+    /**
+     * CONST IN/OUT
+     *
+     * MSR register operations only
+     *
+     * CONST IN: Starting from Xen 4.8 the user can use this field to specify an
+     *  MSR index to subscribe to when the MSR is not formally defined by LibVMI.
+     *
+     * OUT: holds the specific MSR for which the event occurred
+     *  when the user registered with MSR_ALL.
+     * Unused for other register event types.
+     */
+    uint32_t msr;
 } reg_event_t;
 
 typedef struct {

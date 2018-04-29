@@ -507,6 +507,19 @@ driver_set_desc_access_event(
 }
 
 static inline status_t
+driver_set_failed_emulation_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+    if (vmi->driver.initialized && vmi->driver.set_failed_emulation_event_ptr)
+        return vmi->driver.set_failed_emulation_event_ptr(vmi, enabled);
+    else {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_failed_emulation_event function not implemented.\n");
+        return VMI_FAILURE;
+    }
+}
+
+static inline status_t
 driver_slat_get_domain_state (
     vmi_instance_t vmi,
     bool *state )
