@@ -24,7 +24,7 @@
 #include <config.h>
 #include <xen/io/ring.h>
 
-#define MAX_SUPPORTED_VM_EVENT_INTERFACE_VERSION 0x00000002
+#define MAX_SUPPORTED_VM_EVENT_INTERFACE_VERSION 0x00000003
 
 #ifndef HVM_PARAM_MONITOR_RING_PFN
 #define HVM_PARAM_MONITOR_RING_PFN 28
@@ -125,6 +125,7 @@ typedef enum {
 #define VM_EVENT_REASON_PRIVILEGED_CALL         11
 #define VM_EVENT_REASON_INTERRUPT               12
 #define VM_EVENT_REASON_DESCRIPTOR_ACCESS       13
+#define VM_EVENT_REASON_EMUL_UNIMPLEMENTED      14
 
 #define VM_EVENT_X86_CR0    0
 #define VM_EVENT_X86_CR3    1
@@ -254,9 +255,15 @@ struct vm_event_debug {
     uint8_t _pad[3];
 };
 
-struct vm_event_mov_to_msr {
+struct vm_event_mov_to_msr_46 {
     uint64_t msr;
     uint64_t value;
+};
+
+struct vm_event_mov_to_msr_411 {
+    uint64_t msr;
+    uint64_t new_value;
+    uint64_t old_value;
 };
 
 #define VM_EVENT_DESC_IDTR           1
@@ -316,7 +323,7 @@ typedef struct vm_event_st_46 {
     union {
         struct vm_event_mem_access            mem_access;
         struct vm_event_write_ctrlreg         write_ctrlreg;
-        struct vm_event_mov_to_msr            mov_to_msr;
+        struct vm_event_mov_to_msr_46         mov_to_msr;
         struct vm_event_singlestep            singlestep;
         struct vm_event_debug                 software_breakpoint;
     } u;
@@ -341,7 +348,16 @@ typedef struct vm_event_st_48 {
     union {
         struct vm_event_mem_access            mem_access;
         struct vm_event_write_ctrlreg         write_ctrlreg;
-        struct vm_event_mov_to_msr            mov_to_msr;
+        /*
+         * The event structure is still ABI compatible regardless of this change in 4.11 below
+         * because mov_to_msr is in union with other structures that are still larger,
+         * so the union u size didn't change.
+         * Otherwise we would need to create a new vm_event_st.
+         */
+        union {
+            struct vm_event_mov_to_msr_46     mov_to_msr_46;
+            struct vm_event_mov_to_msr_411    mov_to_msr_411;
+        };
         struct vm_event_desc_access           desc_access;
         struct vm_event_singlestep            singlestep;
         struct vm_event_debug                 software_breakpoint;

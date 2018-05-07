@@ -153,6 +153,9 @@ typedef struct driver_interface {
     status_t (*set_desc_access_event_ptr)(
         vmi_instance_t,
         bool enabled);
+    status_t (*set_failed_emulation_event_ptr)(
+        vmi_instance_t,
+        bool enabled);
     status_t (*slat_get_domain_state_ptr)(
         vmi_instance_t vmi,
         bool *state);

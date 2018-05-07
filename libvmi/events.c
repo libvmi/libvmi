@@ -460,6 +460,19 @@ status_t register_desc_access_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
+status_t register_failed_emulation_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( !vmi->failed_emulation_event ) {
+        rc = driver_set_failed_emulation_event(vmi, 1);
+        if ( VMI_SUCCESS == rc )
+            vmi->failed_emulation_event = event;
+    };
+
+    return rc;
+}
+
 status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 {
 
@@ -805,6 +818,9 @@ vmi_register_event(
             break;
         case VMI_EVENT_DESCRIPTOR_ACCESS:
             rc = register_desc_access_event(vmi, event);
+            break;
+        case VMI_EVENT_FAILED_EMULATION:
+            rc = register_failed_emulation_event(vmi, event);
             break;
         default:
             dbprint(VMI_DEBUG_EVENTS, "Unknown event type: %d\n", event->type);

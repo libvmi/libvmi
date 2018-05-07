@@ -297,8 +297,16 @@ status_t process_register(vmi_instance_t vmi,
 
     switch ( reg ) {
         case MSR_ALL:
-            event->reg_event.msr = req->u.mov_to_msr.msr;
-            event->reg_event.value = req->u.mov_to_msr.value;
+            if ( req->version > 0x00000002 ) {
+                struct vm_event_mov_to_msr_411 *mov_to_msr = &req->u.mov_to_msr_411;
+                event->reg_event.msr = mov_to_msr->msr;
+                event->reg_event.value = mov_to_msr->new_value;
+                event->reg_event.previous = mov_to_msr->old_value;
+            } else {
+                struct vm_event_mov_to_msr_46 *mov_to_msr = &req->u.mov_to_msr_46;
+                event->reg_event.msr = mov_to_msr->msr;
+                event->reg_event.value = mov_to_msr->value;
+            }
             break;
         case CR0:
         case CR3:
@@ -589,6 +597,29 @@ status_t process_desc_access_event(vmi_instance_t vmi,
     return VMI_SUCCESS;
 }
 
+status_t process_unimplemented_emul(vmi_instance_t vmi,
+                                    vm_event_48_request_t *req,
+                                    vm_event_48_request_t *rsp)
+{
+    vmi_event_t * event = vmi->failed_emulation_event;
+
+    if ( !event ) {
+        errprint("%s error: no unimplemented emulation event handler is registered in LibVMI\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
+    event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
+    event->vcpu_id = req->vcpu_id;
+
+    vmi->event_callback = 1;
+    process_response ( event->callback(vmi, event),
+                       event, rsp );
+    vmi->event_callback = 0;
+
+    return VMI_SUCCESS;
+}
+
 static inline
 status_t process_requests(vmi_instance_t vmi, vm_event_48_request_t *req,
                           vm_event_48_response_t *rsp)
@@ -602,8 +633,9 @@ status_t process_requests(vmi_instance_t vmi, vm_event_48_request_t *req,
 
         get_request(&xe->vm_event, req);
 
-        if ( req->version != 0x00000002 ) {
-            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that doesn't match what we expected (0x00000002)!\n");
+        if ( req->version > 0x00000003 ) {
+            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is newer then what we understand (0x%x > 0x%x)!\n",
+                     req->version, 0x00000003);
             return VMI_FAILURE;
         }
 
@@ -689,6 +721,11 @@ status_t process_requests(vmi_instance_t vmi, vm_event_48_request_t *req,
             case VM_EVENT_REASON_DESCRIPTOR_ACCESS:
                 dbprint(VMI_DEBUG_XEN, "--Caught descriptor access event!\n");
                 vrc = process_desc_access_event(vmi, req, rsp);
+                break;
+
+            case VM_EVENT_REASON_EMUL_UNIMPLEMENTED:
+                dbprint(VMI_DEBUG_XEN, "--Caught unimplemented emulation event!\n");
+                vrc = process_unimplemented_emul(vmi, req, rsp);
                 break;
 
             default:
@@ -1149,6 +1186,29 @@ status_t xen_set_desc_access_event_410(vmi_instance_t vmi, bool enabled)
     return VMI_SUCCESS;
 }
 
+status_t xen_set_failed_emulation_event_411(vmi_instance_t vmi, bool enabled)
+{
+    int rc;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 11 )
+        return VMI_FAILURE;
+
+    if ( !enabled && !vmi->cpuid_event )
+        return VMI_SUCCESS;
+
+    rc = xen->libxcw.xc_monitor_emul_unimplemented(xen_get_xchandle(vmi),
+            xen_get_domainid(vmi),
+            enabled);
+
+    if ( rc < 0 ) {
+        errprint("Error %i setting failed emulation event monitor\n", rc);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
 int xen_are_events_pending_48(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
@@ -1356,6 +1416,7 @@ status_t xen_init_events_48(
     vmi->driver.set_debug_event_ptr = &xen_set_debug_event_48;
     vmi->driver.set_privcall_event_ptr = xen_set_privcall_event_48;
     vmi->driver.set_desc_access_event_ptr = xen_set_desc_access_event_410;
+    vmi->driver.set_failed_emulation_event_ptr = xen_set_failed_emulation_event_411;
 
     // Allocate memory
     xe = g_malloc0(sizeof(xen_events_t));

@@ -246,6 +246,10 @@ typedef struct {
     int (*xc_monitor_descriptor_access)
     (xc_interface *xch, domid_t domain_id, bool enable);
 
+    /* Xen 4.11+ */
+    int (*xc_monitor_emul_unimplemented)
+    (xc_interface *xch, domid_t domain_id, bool enable);
+
 } libxc_wrapper_t;
 
 status_t create_libxc_wrapper(struct xen_instance *xen);
