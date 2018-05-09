@@ -33,6 +33,8 @@
 #ifndef LIBVMI_SLAT_H
 #define LIBVMI_SLAT_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
