@@ -226,6 +226,9 @@ linux_pgd_to_pid(
     linux_instance = vmi->os_data;
     pid_offset = linux_instance->pid_offset;
 
+    /* set the PCID of the CR3 registers to get the kernel space page table of the process due to meltdown patch (https://en.wikipedia.org/wiki/Kernel_page-table_isolation) */
+    pgd &= ~0x1fff;
+
     /* first we the address of the task_struct with this PGD */
     ts_addr = linux_get_taskstruct_addr_from_pgd(vmi, pgd);
     if (!ts_addr) {
