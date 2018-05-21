@@ -103,6 +103,8 @@ static status_t sanity_check(xen_instance_t *xen)
             if ( !w->xc_monitor_descriptor_access )
                 break;
         /* Fall-through */
+        case 9:
+        /* Fall-through */
         case 8:
             if ( !w->xc_monitor_debug_exceptions || !w->xc_monitor_cpuid ||
                     !w->xc_monitor_mov_to_msr2 || !w->xc_monitor_privileged_call)
