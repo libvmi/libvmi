@@ -2,7 +2,6 @@ Source: libvmi
 Priority: optional
 Maintainer: Tamas K Lengyel <tamas@tklengyel.com>
 Build-Depends: debhelper (>= 8.0.0),
- build-essential,
  libvirt-dev,
  libtool,
  automake,
