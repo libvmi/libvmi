@@ -17,12 +17,12 @@ Package: libvmi-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: libvmi (= ${binary:Version}),
+Depends: libvmi0 (= ${binary:Version}),
  ${misc:Depends}
 Description: Virtual machine introspection library development files
  Development files, header files, etc for use with LibVMI.
 
-Package: libvmi
+Package: libvmi0
 Section: libs
 Architecture: any
 Multi-Arch: same
