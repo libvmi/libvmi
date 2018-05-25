@@ -49,54 +49,38 @@ The following libraries are used in building this code:
 
 - ``libtool`` Generic library support script
 
-- ``check`` Unit test framework for C (optional)
-
 - ``yacc`` OR ``bison`` (optional, for reading the configuration file)
 
 - ``lex`` OR ``flex`` (optional, for reading the configuration file)
 
 - ``glib`` (``>= 2.22``)
 
-Installing the dependencies on Ubuntu::
+- ``libvirt`` (``>= 0.8.7``)
 
-    $ sudo apt-get install autotools-dev automake check flex bison libglib2.0-dev
-
-Xen support
-~~~~~~~~~~~
-
-- ``libxc`` (from Xen, the Xen Control library, required for Xen support)
-
-- ``libxenstore`` (Optional, from Xen, access to the xenstore, required for Xen support)
-
-Note: If you are installing a packaged version of Xen, you will likely
-need to install something like 'xen-devel' to obtain the files needed
-from libxc and libxenstore in the dependencies listed above.
+- ``libjson-c``
 
 Installing the dependencies on Ubuntu::
 
-    $ sudo apt-get install libxc1 libxenstore3.0 libxen-dev
+    $ sudo apt-get install autotools-dev automake flex bison libglib2.0-dev libvirt-dev libjson-c-dev libyajl-dev
 
-KVM support
-~~~~~~~~~~~
+Building
+--------
+LibVMI uses the standard GNU build system.  To compile this library, simply
+follow the steps below:
 
-- ``libvirt`` (from Red Hat, access to KVM guests, 0.8.7 or newer required for KVM
-  support, MUST BE BUILT WITH QMP SUPPORT -- THIS REQUIRES yajl)
+.. code::
 
-- qemu-kvm patch (option 1 for KVM memory access, optional for KVM support,
-  still buggy but faster than alternative option, see Note 2)
+   ./autogen.sh
+   ./configure
+   make
 
-- ``gdb`` enabled KVM VM (option 2 for KVM memory access, optional for KVM
-  support, more stable than option 1 but slower, see Note 2)
+The example code will work without installing LibVMI.  However, you may
+choose to install the library into the prefix specified to 'configure' by:
 
-- ``json-c`` ``JSON`` C library to parse QEMU QMP output
+make install
 
-Note: If you want KVM support then you will need to build your own
-version of QEMU-KVM or enable GDB support for your VM.  See the
-section on KVM support (below) for additional information.
-
-Installing the dependencies on Ubuntu::
-
-    $ sudo apt-get install libvirt-dev libjson-c-dev
+The default installation prefix is ``/usr/local``.  You may need to run
+``ldconfig`` after performing a ``make install``.
 
 Installation and Configuration
 ------------------------------
@@ -105,50 +89,32 @@ related online documentation:
 
 http://libvmi.com/docs/gcode-install.html
 
+Xen support
+~~~~~~~~~~~
 
-Python bindings
-----------------
-LibVMI is written in C.  If you would rather work with Python, then look at the
-``libvmi/python``` repository. They provide an almost feature complete python
-interface to LibVMI with a relatively small performance overhead.
-
-https://github.com/libvmi/python
-
-Xen Support
------------
-If you would like LibVMI to work on Xen domains, you must simply ensure
-that you have Xen installed along with any Xen development packages.
-LibVMI should effectively just work on any recent version of Xen.
-
+LibVMI provides support for Xen out-of-the-box. If you install Xen from source,
+make sure the Xen libraries compiled from source are in your LD_LIBRARY_PATH. You don't
+have to recompile LibVMI if you update Xen as LibVMI is able to detect what version of Xen
+you have dynamically at runtime.
 
 XenServer Support
 -----------
 Compiling LibVMI on a XenServer dom0 can be challenging as there are no
 development headers and tools present. The recommended way to compile
 is in a separate CentOS installation using the Xen development packages
-matching what XenServer runs on. Make sure to remove the libvirt packages
-from CentOS (yum remove libvirt*) as to avoid the KVM driver getting
-activated in LibVMI. The compiled LibVMI library and tools can then be
-transferred to the XenServer dom0 and run natively.
+matching what XenServer runs on. The compiled LibVMI library and tools
+can then be transferred to the XenServer dom0 and run natively.
 
+KVM support
+~~~~~~~~~~~
+LibVMI will have KVM support if libvirt is available during compile time. Ensure that your
+libvirt installation supports QMP commands, most prepackaged versions do not support this
+by default so you may need to install libvirt from source yourself.  To enable QMP support
+when installing from source, ensure that you have libyajl-dev (or the equivalent from your
+linux distro) installed, then run the configure script from libvirt.  Ensure that the
+configure script reports that it found yajl.  Then run make && make install.
 
-KVM Support
------------
-If you would like LibVMI to work on KVM VM's, you must do some additional
-setup.  This is because KVM doesn't have much built-in capability for
-introspection.  For KVM support you need to do the following:
-
-- Ensure that you have libvirt version 0.8.7 or newer
-
-- Ensure that your libvirt installation supports QMP commands, most
-  prepackaged versions do not support this by default so you may need
-  to install libvirt from source yourself.  To enable QMP support
-  when installing from source, ensure that you have libyajl-dev (or
-  the equivalent from your linux distro) installed, then run the
-  configure script from libvirt.  Ensure that the configure script
-  reports that it found yajl.  Then run make && make install.
-
-- Choose a memory access technique:
+Currently there is no native VMI support in KVM, so you have two options for adding it:
 
   1) Patch QEMU-KVM with the provided patch.  This technique will
      provide the fastest memory access, but is buggy and may cause
@@ -182,18 +148,22 @@ introspection.  For KVM support you need to do the following:
 
        under the <domain> level of the XML.
 
-- You only need one memory access technique.  LibVMI will first look
-  for the QEMU-KVM patch and use that if it is installed.  Otherwise
-  it will fall back to using GDB.  So if you want to use GDB, you
-  should both enable GDB and ensure that QEMU-KVM does not have the
-  LibVMI patch.
+You only need one memory access technique.  LibVMI will first look for the QEMU-KVM patch and
+use that if it is installed.  Otherwise it will fall back to using GDB.  So if you want to
+use GDB, you should both enable GDB and ensure that QEMU-KVM does not have the LibVMI patch.
 
+Python bindings
+----------------
+LibVMI is written in C.  If you would rather work with Python, then look at the
+``libvmi/python``` repository. They provide an almost feature complete python
+interface to LibVMI with a relatively small performance overhead.
+
+https://github.com/libvmi/python
 
 File / Snapshot Support
 -----------------------
 If you would like LibVMI to work on physical memory snapshots saved to
 a file, then you don't need any special setup.
-
 
 Shm-snapshot Support
 ------------------------------
@@ -201,19 +171,12 @@ Shm-snapshot Support
 fast and coherent memory access, except the creation of shm-snapshot can take
 0.2 ~ 1.4 seconds (KVM) when the memory size of guest VM expands from 512MB to
 3GB.
-Shm-snapshot supports both KVM and Xen. However,shm-snapshot for Xen is
-currently created by LibVMI, hence unreal. Moreover,it takes more time (about 3
-seconds in 1GB guest memory settings) to create Xen "shm-snapshot" because we
-have to probe unmmapable memory page holes one by one.
-Shm-snapshot is shiped with direct guest memory access, a non-copy access technique
-that can drastically reduce the latency of guest memory access. For KVM, we support
-both vmi_get_dgpma() and vmi_get_dgvma(); for Xen, however, due to the unreal
-shm-snapshot, we only support vmi_get_dgpma() now.
+Shm-snapshot supports only KVM. Shm-snapshot is shiped with direct guest memory
+access, a non-copy access technique that can drastically reduce the latency of
+guest memory access. For KVM, we support both vmi_get_dgpma() and vmi_get_dgvma();
 
 If you would like LibVMI to work on a shm-snapshot, then you need to do the
 following:
-
-(P.S: If you use Xen, just to start on step 3)
 
 1. ensure that your libvirt installation supports QMP commands.
 
@@ -250,8 +213,7 @@ following:
     void* buf = NULL;
     int size = vmi_get_dgpma(vmi, 0x1000, &buf, 100);
     process_anything(buf, size);
-  For vmi_read_va(), the replacement is very similar, but only capable for
-  KVM at present.
+  For vmi_read_va(), the replacement is very similar
 
 Rekall profiles
 ------------------------------
@@ -263,16 +225,12 @@ However, Rekall profiles have to be created for each kernel version, and therefo
 update is made to the kernel, the profile has to be re-generated, thus it's a bit less stable
 as the standard LibVMI configuration entries.
 
-Rekall is available at https://github.com/google/rekall. You will also need to install libjson-c-dev
-from your distribution's repository or compile it from source that can be found at
-https://github.com/json-c/json-c.
+Rekall is available at https://github.com/google/rekall.
 
-To create a Rekall profile for Windows you need to determine the PDB filename and GUID of the
-kernel. This can be done either by running the win-guid example shipped with LibVMI, or by
-accessing the kernel executable on disk (normally found in Windows' System32 folder as ntoskrnl.exe).
-
-If you need to examine an on-disk version of the kernel (or any other PE executable), you can run
-the following the Rekall command:
+To create a Rekall profile for Windows you can use the rekall_offset_finder.py script that ships
+with LibVMI. See https://github.com/libvmi/libvmi/blob/master/tools/windows-offset-finder for more
+details. If you need to examine an on-disk version of the kernel (or any other PE executable), you
+can run the following the Rekall command:
 
 .. code::
 
@@ -286,39 +244,19 @@ Once the PDB filename and GUID is known, creating the Rekall profile is done in 
     rekall fetch_pdb <PDB filename> <GUID>
     rekall parse_pdb <PDB filename> > rekall-profile.json
 
-The PDB filename should not have the .pdb extension in the above commands. The Rekall profile can be
-used directly in the LibVMI config via an additional rekall_profile entry pointing to this file with
-an absolute path. There is no need to specify any of the offsets normally required as those offsets
-will be available via the profile itself.
+The PDB filename should not have the .pdb extension in the above commands.
 
+To create a Rekall profile for Linux follow the instructions at https://github.com/google/rekall/tree/master/tools/linux
 
-Building
---------
-LibVMI uses the standard GNU build system.  To compile this library, simply
-follow the steps below:
-
-.. code::
-
-   ./autogen.sh
-   ./configure
-   make
-
-The example code will work without installing LibVMI.  However, you may
-choose to install the library into the prefix specified to 'configure' by:
-
-make install
-
-The default installation prefix is /usr/local.  You may need to run
-'ldconfig' after performing a 'make install'.
-
+The Rekall profile can be used directly in the LibVMI config via an additional rekall_profile entry
+pointing to this file with an absolute path. There is no need to specify any of the offsets normally
+required as those offsets will be available via the profile itself.
 
 Debugging
 ---------
-To enable LibVMI debug output, modify the libvmi/debug.h header file
+To enable LibVMI debug output, modify the ``libvmi/debug.h`` header file
 and recompile libvmi.
-
 
 Community
 ---------
 The LibVMI forums are available at https://groups.google.com/forum/#!forum/vmitools
-
