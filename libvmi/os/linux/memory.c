@@ -128,6 +128,10 @@ linux_get_taskstruct_addr_from_pgd(
                 task_pgd == pgd)
             return next_process;
 
+        task_pgd &= ~0x1fff;
+        if (task_pgd == pgd)
+            return next_process;
+
         vmi_read_addr_va(vmi, next_process + tasks_offset, 0, &next_process);
         next_process -= tasks_offset;
 
