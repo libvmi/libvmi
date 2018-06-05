@@ -117,6 +117,9 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
                     case VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID:
                         rsp->altp2m_idx = event->slat_id;
                         break;
+                    case VMI_EVENT_RESPONSE_EMULATE_NOWRITE:
+                        rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
+                        break;
                     case VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA:
                         if ( event->emul_read ) {
                             rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
