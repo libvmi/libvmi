@@ -150,7 +150,11 @@ void process_response ( event_response_t response, vmi_event_t* event, vm_event_
                         }
                         break;
                     case VMI_EVENT_RESPONSE_SET_REGISTERS:
+#if defined(I386) || defined(X86_64)
                         memcpy(&rsp->data.regs.x86, event->x86_regs, sizeof(struct regs_x86));
+#elif defined(ARM32) || defined(ARM64)
+                        memcpy(&rsp->data.regs.arm, event->arm_regs, sizeof(struct regs_arm));
+#endif
                         break;
                 };
 
@@ -332,7 +336,11 @@ status_t process_register(vmi_instance_t vmi,
 
     event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
     event->vcpu_id = req->vcpu_id;
+#if defined(I386) || defined(X86_64)
     event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
+#elif defined(ARM32) || defined(ARM64)
+    event->arm_regs = (arm_registers_t *)&req->data.regs.arm;
+#endif
 
     vmi->event_callback = 1;
     process_response ( event->callback(vmi, event), event, rsp );
@@ -455,7 +463,11 @@ static status_t process_guest_requested_event(vmi_instance_t vmi,
         return VMI_FAILURE;
     }
 
+#if defined(I386) || defined(X86_64)
     event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
+#elif defined(ARM32) || defined(ARM64)
+    event->arm_regs = (arm_registers_t *)&req->data.regs.arm;
+#endif
     event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
     event->vcpu_id = req->vcpu_id;
 
@@ -562,11 +574,29 @@ status_t process_privcall_event(vmi_instance_t vmi,
     event->arm_regs = (arm_registers_t *)&req->data.regs.arm;
     event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
     event->vcpu_id = req->vcpu_id;
+    event->interrupt_event.offset = req->data.regs.arm.pc & VMI_BIT_MASK(0,11);
+    event->interrupt_event.gla = req->data.regs.arm.pc;
+
+    if ( VMI_FAILURE == vmi_translate_kv2p(vmi, req->data.regs.arm.pc, &event->interrupt_event.gfn) ) {
+        errprint("%s: cannot translate pc to physical address\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    event->interrupt_event.gfn = event->interrupt_event.gfn >> 12;
 
     vmi->event_callback = 1;
     process_response ( event->callback(vmi, event),
                        event, rsp );
     vmi->event_callback = 0;
+
+    /*
+     * SMC instructions are currently not re-injected. In the future, we might encounter a scenario,
+     * in which SMC re-injections become necessary as SMC invocations are possible from inside the guest.
+     */
+
+    if ( event->interrupt_event.reinject ) {
+        errprint("%s SMC traps cannot yet be re-injected\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
 
     return VMI_SUCCESS;
 }
@@ -1146,23 +1176,45 @@ status_t xen_set_cpuid_event_48(vmi_instance_t vmi, bool enabled)
 status_t xen_set_privcall_event_48(vmi_instance_t vmi, bool enabled)
 {
     int rc;
+    xc_interface * xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+    xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
 
     if ( xen->major_version != 4 || xen->minor_version < 8 )
         return VMI_FAILURE;
 
-    if ( !enabled && !vmi->cpuid_event )
+    if ( !vmi->privcall_event )
         return VMI_SUCCESS;
 
-    rc = xen->libxcw.xc_monitor_privileged_call(xen_get_xchandle(vmi),
-            xen_get_domainid(vmi),
-            enabled);
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    if ( !(xe->vm_event.monitor_capabilities & (1u << XEN_DOMCTL_MONITOR_EVENT_PRIVILEGED_CALL)) ) {
+        errprint("%s error: no system support for event type\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    if ( enabled == xe->vm_event.monitor_privcall_on ) {
+        errprint("%s error: nothing to change\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    rc = xen->libxcw.xc_monitor_privileged_call(xch, dom, enabled);
 
     if ( rc < 0 ) {
         errprint("Error %i setting privcall event monitor\n", rc);
         return VMI_FAILURE;
     }
 
+    xe->vm_event.monitor_privcall_on = enabled;
     return VMI_SUCCESS;
 }
 
@@ -1335,11 +1387,15 @@ void xen_events_destroy_48(vmi_instance_t vmi)
     (void)xen_shutdown_single_step_48(vmi);
     (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
     (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xen->max_gpfn);
+#if defined(I386) || defined(X86_64)
     (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0, false, false, false);
     (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
     (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
     (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
     (void)xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
+#elif defined(ARM32) || defined(ARM64)
+    (void)xen->libxcw.xc_monitor_privileged_call(xch, dom, false);
+#endif
     (void)xen_set_guest_requested_event_48(vmi, 0);
     (void)xen_set_cpuid_event_48(vmi, 0);
     (void)xen_set_debug_event_48(vmi, 0);
