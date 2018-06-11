@@ -338,6 +338,15 @@ typedef struct {
 } interrupt_event_t;
 
 typedef struct {
+    int8_t reinject;
+
+    /* OUT */
+    addr_t gla;         /**< (Global Linear Address) == PC of the trapped instruction */
+    addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
+    addr_t offset;      /**< Offset in bytes (relative to GFN) */
+} privcall_event_t;
+
+typedef struct {
     /* CONST IN */
     uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
     uint8_t enable;     /**< Set to true to immediately turn vCPU to singlestep. */
@@ -593,6 +602,14 @@ struct vmi_event {
             (_event)->version = VMI_EVENTS_VERSION; \
             (_event)->type = VMI_EVENT_INTERRUPT; \
             (_event)->interrupt_event.intr = INT3; \
+            (_event)->interrupt_event.reinject = _reinject; \
+            (_event)->callback = _callback; \
+        } while(0)
+
+#define SETUP_PRIVCALL_EVENT(_event, _reinject, _callback) \
+        do { \
+            (_event)->version = VMI_EVENTS_VERSION; \
+            (_event)->type = VMI_EVENT_PRIVILEGED_CALL; \
             (_event)->interrupt_event.reinject = _reinject; \
             (_event)->callback = _callback; \
         } while(0)

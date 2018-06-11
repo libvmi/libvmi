@@ -94,6 +94,7 @@ typedef struct {
     bool monitor_cr4_on;
     bool monitor_xcr0_on;
     bool monitor_msr_on;
+    bool monitor_privcall_on;
 } xen_vm_event_t;
 
 /* Conversion matrix from LibVMI flags to Xen vm_event flags */

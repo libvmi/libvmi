@@ -492,7 +492,12 @@ xen_init_vmi(
     if ( VMI_FAILURE == ret )
         goto _bail;
 
-    if (vmi->vm_type == HVM && (vmi->init_flags & VMI_INIT_EVENTS)) {
+#if defined(I386) || defined(X86_64)
+    if ( vmi->vm_type == HVM && (vmi->init_flags & VMI_INIT_EVENTS) )
+#elif defined(ARM32) || defined(ARM64)
+    if ( vmi->init_flags & VMI_INIT_EVENTS )
+#endif
+    {
         ret = xen_init_events(vmi, init_flags, init_data);
 
         if ( VMI_FAILURE == ret )
@@ -513,8 +518,14 @@ xen_destroy(
 
     if (!xen) return;
 
-    if (vmi->vm_type == HVM && (vmi->init_flags & VMI_INIT_EVENTS))
+#if defined(I386) || defined(X86_64)
+    if ( vmi->vm_type == HVM && (vmi->init_flags & VMI_INIT_EVENTS) )
+#elif defined(ARM32) || defined(ARM64)
+    if ( vmi->init_flags & VMI_INIT_EVENTS )
+#endif
+	{
         xen_events_destroy(vmi);
+	}
 
     xc_interface *xchandle = xen_get_xchandle(vmi);
     if ( xchandle )
@@ -2256,7 +2267,11 @@ int
 xen_is_pv(
     vmi_instance_t vmi)
 {
+#if defined(I386) || defined (X86_64)
     return !(vmi->vm_type == HVM);
+#elif defined(ARM32) || defined(ARM64)
+	return 0;
+#endif
 }
 
 status_t

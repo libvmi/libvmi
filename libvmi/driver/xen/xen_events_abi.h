@@ -150,6 +150,7 @@ typedef enum {
 #define XEN_DOMCTL_MONITOR_EVENT_GUEST_REQUEST         4
 #define XEN_DOMCTL_MONITOR_EVENT_DEBUG_EXCEPTION       5
 #define XEN_DOMCTL_MONITOR_EVENT_CPUID                 6
+#define XEN_DOMCTL_MONITOR_EVENT_PRIVILEGED_CALL       7
 
 typedef struct mem_event_st_42 {
     uint32_t flags;
