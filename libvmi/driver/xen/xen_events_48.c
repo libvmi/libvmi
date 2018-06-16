@@ -574,14 +574,14 @@ status_t process_privcall_event(vmi_instance_t vmi,
     event->arm_regs = (arm_registers_t *)&req->data.regs.arm;
     event->slat_id = (req->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ? req->altp2m_idx : 0;
     event->vcpu_id = req->vcpu_id;
-    event->interrupt_event.offset = req->data.regs.arm.pc & VMI_BIT_MASK(0,11);
-    event->interrupt_event.gla = req->data.regs.arm.pc;
+    event->privcall_event.offset = req->data.regs.arm.pc & VMI_BIT_MASK(0,11);
+    event->privcall_event.gla = req->data.regs.arm.pc;
 
-    if ( VMI_FAILURE == vmi_translate_kv2p(vmi, req->data.regs.arm.pc, &event->interrupt_event.gfn) ) {
+    if ( VMI_FAILURE == vmi_translate_kv2p(vmi, req->data.regs.arm.pc, &event->privcall_event.gfn) ) {
         errprint("%s: cannot translate pc to physical address\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    event->interrupt_event.gfn = event->interrupt_event.gfn >> 12;
+    event->privcall_event.gfn = event->privcall_event.gfn >> 12;
 
     vmi->event_callback = 1;
     process_response ( event->callback(vmi, event),
@@ -592,11 +592,6 @@ status_t process_privcall_event(vmi_instance_t vmi,
      * SMC instructions are currently not re-injected. In the future, we might encounter a scenario,
      * in which SMC re-injections become necessary as SMC invocations are possible from inside the guest.
      */
-
-    if ( event->interrupt_event.reinject ) {
-        errprint("%s SMC traps cannot yet be re-injected\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
 
     return VMI_SUCCESS;
 }
@@ -1184,9 +1179,6 @@ status_t xen_set_privcall_event_48(vmi_instance_t vmi, bool enabled)
     if ( xen->major_version != 4 || xen->minor_version < 8 )
         return VMI_FAILURE;
 
-    if ( !vmi->privcall_event )
-        return VMI_SUCCESS;
-
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -1393,12 +1385,12 @@ void xen_events_destroy_48(vmi_instance_t vmi)
     (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
     (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
     (void)xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
+    (void)xen_set_cpuid_event_48(vmi, 0);
+    (void)xen_set_debug_event_48(vmi, 0);
 #elif defined(ARM32) || defined(ARM64)
     (void)xen->libxcw.xc_monitor_privileged_call(xch, dom, false);
 #endif
     (void)xen_set_guest_requested_event_48(vmi, 0);
-    (void)xen_set_cpuid_event_48(vmi, 0);
-    (void)xen_set_debug_event_48(vmi, 0);
 
     size_t i;
     for (i=0; i<sizeof(msr_all)/sizeof(reg_t); i++) {

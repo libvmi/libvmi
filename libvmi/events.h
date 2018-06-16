@@ -338,8 +338,6 @@ typedef struct {
 } interrupt_event_t;
 
 typedef struct {
-    int8_t reinject;
-
     /* OUT */
     addr_t gla;         /**< (Global Linear Address) == PC of the trapped instruction */
     addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
@@ -501,6 +499,7 @@ struct vmi_event {
         mem_access_event_t mem_event;
         single_step_event_t ss_event;
         interrupt_event_t interrupt_event;
+        privcall_event_t privcall_event;
         cpuid_event_t cpuid_event;
         debug_event_t debug_event;
         descriptor_event_t descriptor_event;
@@ -606,11 +605,10 @@ struct vmi_event {
             (_event)->callback = _callback; \
         } while(0)
 
-#define SETUP_PRIVCALL_EVENT(_event, _reinject, _callback) \
+#define SETUP_PRIVCALL_EVENT(_event, _callback) \
         do { \
             (_event)->version = VMI_EVENTS_VERSION; \
             (_event)->type = VMI_EVENT_PRIVILEGED_CALL; \
-            (_event)->interrupt_event.reinject = _reinject; \
             (_event)->callback = _callback; \
         } while(0)
 
