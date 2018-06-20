@@ -719,7 +719,8 @@ get_kvmi_registers(
     msrs.entries[1].index = MSR_STAR;
 
     err = kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
-    if (!err)
+
+    if (err != 0)
         return false;
 
     /* mode should be 8 if VMI_PM_IA32E == vmi->page_mode */
