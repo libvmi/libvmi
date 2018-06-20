@@ -793,6 +793,10 @@ get_kvmi_registers(
         break;
     case MSR_EFER:
         *value = msrs.entries[0].data;
+        break;
+    case MSR_STAR:
+        *value = msrs.entries[1].data;
+        break;
     default:
         return false;
     }
