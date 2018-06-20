@@ -1113,6 +1113,79 @@ error_exit:
     return VMI_FAILURE;
 }
 
+#ifdef HAVE_LIBKVMI
+status_t
+kvm_get_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *registers,
+    unsigned long vcpu)
+{
+    struct kvm_regs regs;
+    struct kvm_sregs sregs;
+    struct {
+        struct kvm_msrs msrs;
+        struct kvm_msr_entry entries[6];
+    } msrs = { 0 };
+    int err;
+    unsigned int mode;
+    x86_registers_t *x86 = &registers->x86;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
+    msrs.entries[0].index = MSR_IA32_SYSENTER_CS;
+    msrs.entries[1].index = MSR_IA32_SYSENTER_ESP;
+    msrs.entries[2].index = MSR_IA32_SYSENTER_EIP;
+    msrs.entries[3].index = MSR_EFER;
+    msrs.entries[4].index = MSR_STAR;
+    msrs.entries[5].index = MSR_LSTAR;
+
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+
+    err = kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
+
+    if (err != 0)
+        return VMI_FAILURE;
+
+    x86->rax = regs.rax;
+    x86->rcx = regs.rcx;
+    x86->rdx = regs.rdx;
+    x86->rbx = regs.rbx;
+    x86->rsp = regs.rsp;
+    x86->rbp = regs.rbp;
+    x86->rsi = regs.rsi;
+    x86->rdi = regs.rdi;
+    x86->r8 = regs.r8;
+    x86->r9 = regs.r9;
+    x86->r10 = regs.r10;
+    x86->r11 = regs.r11;
+    x86->r12 = regs.r12;
+    x86->r13 = regs.r13;
+    x86->r14 = regs.r14;
+    x86->r15 = regs.r15;
+    x86->rflags = regs.rflags;
+    x86->dr7 = 0; // FIXME: where do I get this
+    x86->rip = regs.rip;
+    x86->cr0 = sregs.cr0;
+    x86->cr2 = sregs.cr2;
+    x86->cr3 = sregs.cr3;
+    x86->cr4 = sregs.cr4;
+    // Are these correct
+    x86->sysenter_cs = msrs.entries[0].data;
+    x86->sysenter_esp = msrs.entries[1].data;
+    x86->sysenter_eip = msrs.entries[2].data;
+    x86->msr_efer = msrs.entries[3].data;
+    x86->msr_star = msrs.entries[4].data;
+    x86->msr_lstar = msrs.entries[5].data;
+    x86->fs_base = 0; // FIXME: Where do I get these
+    x86->gs_base = 0;
+    x86->cs_arbytes = 0;
+    x86->_pad = 0;
+
+    return VMI_SUCCESS;
+}
+#endif
+
 status_t
 kvm_get_vcpureg(
     vmi_instance_t vmi,
