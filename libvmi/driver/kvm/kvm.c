@@ -77,7 +77,9 @@ enum segment_type {
     SEGMENT_ATTR
 };
 
-static int translate_msr_index(int index) {
+static uint32_t
+translate_msr_index(int index, int *err) {
+    *err = 0;
     switch (index) {
     case MSR_EFER:                  return 0xc0000080;
     case MSR_STAR:                  return 0xc0000081;
@@ -118,7 +120,9 @@ static int translate_msr_index(int index) {
     case MSR_IA32_SYSENTER_EIP:     return 0x00000176;
     case MSR_IA32_MISC_ENABLE:      return 0x000001a0;
     case MSR_HYPERVISOR:            return 0x40000000;
-    default: return -1;
+    default:
+        *err = 1;
+        return 0;
     }
 }
 
@@ -760,8 +764,8 @@ get_kvmi_registers(
         return false;
 
     msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
-    msrs.entries[0].index = translate_msr_index(MSR_EFER);
-    msrs.entries[1].index = translate_msr_index(MSR_STAR);
+    msrs.entries[0].index = translate_msr_index(MSR_EFER, &err);
+    msrs.entries[1].index = translate_msr_index(MSR_STAR, &err);
 
     err = kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
 
@@ -1177,12 +1181,12 @@ kvm_get_vcpuregs(
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
     msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
-    msrs.entries[0].index = translate_msr_index(MSR_IA32_SYSENTER_CS);
-    msrs.entries[1].index = translate_msr_index(MSR_IA32_SYSENTER_ESP);
-    msrs.entries[2].index = translate_msr_index(MSR_IA32_SYSENTER_EIP);
-    msrs.entries[3].index = translate_msr_index(MSR_EFER);
-    msrs.entries[4].index = translate_msr_index(MSR_STAR);
-    msrs.entries[5].index = translate_msr_index(MSR_LSTAR);
+    msrs.entries[0].index = translate_msr_index(MSR_IA32_SYSENTER_CS, &err);
+    msrs.entries[1].index = translate_msr_index(MSR_IA32_SYSENTER_ESP, &err);
+    msrs.entries[2].index = translate_msr_index(MSR_IA32_SYSENTER_EIP, &err);
+    msrs.entries[3].index = translate_msr_index(MSR_EFER, &err);
+    msrs.entries[4].index = translate_msr_index(MSR_STAR, &err);
+    msrs.entries[5].index = translate_msr_index(MSR_LSTAR, &err);
 
     if (!kvm->kvmi_dom)
         return VMI_FAILURE;
