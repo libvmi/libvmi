@@ -516,6 +516,23 @@ error_exit:
 }
 
 void *
+kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length) {
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    void *buffer;
+
+    if (!kvm->kvmi_dom)
+        return NULL;
+
+    buffer = g_malloc0(length);
+    if (kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
+        g_free(buffer);
+        return NULL;
+    }
+
+    return buffer;
+}
+
+void *
 kvm_get_memory_native(
     vmi_instance_t vmi,
     addr_t paddr,
@@ -628,6 +645,14 @@ status_t
 kvm_setup_live_mode(
     vmi_instance_t vmi)
 {
+    #ifdef HAVE_LIBKVMI
+
+    memory_cache_destroy(vmi);
+    memory_cache_init(vmi, kvm_get_memory_kvmi, kvm_release_memory, 1);
+    return VMI_SUCCESS;
+    
+    #else
+
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
     if (VMI_SUCCESS == test_using_kvm_patch(kvm)) {
@@ -662,6 +687,8 @@ kvm_setup_live_mode(
             free(status);
         return VMI_SUCCESS;
     }
+
+    #endif
 }
 
 //----------------------------------------------------------------------------
