@@ -1260,6 +1260,128 @@ kvm_get_vcpuregs(
 
     return VMI_SUCCESS;
 }
+
+status_t
+kvm_set_vcpureg(vmi_instance_t vmi,
+                uint64_t value,
+                reg_t reg,
+                unsigned long vcpu) {
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+    unsigned int mode = 0;
+    struct kvm_regs regs = {0};
+    struct kvm_sregs sregs = {0};
+    struct {
+        struct kvm_msrs msrs;
+        struct kvm_msr_entry entries[0];
+    } msrs = {0};
+    msrs.msrs.nmsrs = 0;
+
+    if (kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode) < 0) {
+        return VMI_FAILURE;
+    }
+
+    // This could use a macro or something
+    switch (reg) {
+    case RAX:
+        regs.rax = value;
+        break;
+    case RBX:
+        regs.rbx = value;
+        break;
+    case RCX:
+        regs.rcx = value;
+        break;
+    case RDX:
+        regs.rdx = value;
+        break;
+    case RSI:
+        regs.rsi = value;
+        break;
+    case RDI:
+        regs.rdi = value;
+        break;
+    case RSP:
+        regs.rsp = value;
+        break;
+    case RBP:
+        regs.rbp = value;
+        break;
+    case R8:
+        regs.r8 = value;
+        break;
+    case R9:
+        regs.r9 = value;
+        break;
+    case R10:
+        regs.r10 = value;
+        break;
+    case R11:
+        regs.r11 = value;
+        break;
+    case R12:
+        regs.r12 = value;
+        break;
+    case R13:
+        regs.r13 = value;
+        break;
+    case R14:
+        regs.r14 = value;
+        break;
+    case R15:
+        regs.r15 = value;
+        break;
+    case RIP:
+        regs.rip = value;
+        break;
+    case RFLAGS:
+        regs.rflags = value;
+        break;
+    default:
+        return VMI_FAILURE;
+    }
+
+    if (kvmi_set_registers(kvm->kvmi_dom, vcpu, &regs) < 0) {
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t kvm_set_vcpuregs(vmi_instance_t vmi,
+                          registers_t *registers,
+                          unsigned long vcpu) {
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+    struct x86_regs *x86 = &registers->x86;
+    struct kvm_regs regs = {
+        .rax = x86->rax,
+        .rbx = x86->rbx,
+        .rcx = x86->rcx,
+        .rdx = x86->rdx,
+        .rsi = x86->rsi,
+        .rdi = x86->rdi,
+        .rsp = x86->rsp,
+        .rbp = x86->rbp,
+        .r8  = x86->r8,
+        .r9  = x86->r9,
+        .r10 = x86->r10,
+        .r11 = x86->r11,
+        .r12 = x86->r12,
+        .r13 = x86->r13,
+        .r14 = x86->r14,
+        .r15 = x86->r15,
+        .rip = x86->rip,
+        .rflags = x86->rflags
+    };
+    if (kvmi_set_registers(kvm->kvmi_dom, vcpu, &regs) < 0) {
+        return VMI_FAILURE;
+    }
+    return VMI_SUCCESS;
+}
+
 #endif
 
 status_t

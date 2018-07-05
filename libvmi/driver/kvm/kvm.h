@@ -68,12 +68,6 @@ status_t kvm_get_vcpureg(
     uint64_t *value,
     reg_t reg,
     unsigned long vcpu);
-#ifdef HAVE_LIBKVMI
-status_t kvm_get_vcpuregs(
-    vmi_instance_t vmi,
-    registers_t *regs,
-    unsigned long vcpu);
-#endif
 addr_t kvm_pfn_to_mfn(
     vmi_instance_t vmi,
     addr_t pfn);
@@ -97,6 +91,22 @@ status_t kvm_pause_vm(
 status_t kvm_resume_vm(
     vmi_instance_t vmi);
 
+#ifdef HAVE_LIBKVMI
+status_t kvm_get_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *regs,
+    unsigned long vcpu);
+status_t kvm_set_vcpureg(
+    vmi_instance_t vmi,
+    uint64_t value,
+    reg_t reg,
+    unsigned long vcpu);
+status_t kvm_set_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *registers,
+    unsigned long vcpu);
+#endif
+
 static inline status_t
 driver_kvm_setup(vmi_instance_t vmi)
 {
@@ -116,6 +126,8 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.get_vcpureg_ptr = &kvm_get_vcpureg;
 #ifdef HAVE_LIBKVMI
     driver.get_vcpuregs_ptr = &kvm_get_vcpuregs;
+    driver.set_vcpureg_ptr = &kvm_set_vcpureg;
+    driver.set_vcpuregs_ptr = &kvm_set_vcpuregs;
 #endif
     driver.read_page_ptr = &kvm_read_page;
     driver.write_ptr = &kvm_write;
