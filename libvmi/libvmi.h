@@ -883,6 +883,10 @@ const char* vmi_translate_v2ksym(
  * is effectively what would be in the CR3 register while this process
  * is running.
  *
+ * Note: this function uses OS internal linked-lists to find a match but
+ * these lists are not guaranteed to be complete and accurate. Use of
+ * this function is discouraged when using events.
+ *
  * @param[in] vmi LibVMI instance
  * @param[in] pid Desired process id to lookup
  * @param[out] dtb The directory table base virtual address for a pid
@@ -897,6 +901,10 @@ status_t vmi_pid_to_dtb(
  * Given a dtb, this function returns the PID corresponding to the
  * virtual address of the directory table base.
  * This function does NOT implement caching as to avoid false mappings.
+ *
+ * Note: this function uses OS internal linked-lists to find a match but
+ * these lists are not guaranteed to be complete and accurate. Use of
+ * this function is discouraged when using events.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] dtb Desired dtb to lookup
