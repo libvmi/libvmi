@@ -763,6 +763,7 @@ init_kvmi(
          * stop the accepting thread first.
          */
         kvmi_uninit(kvm->kvmi);
+        kvm->kvmi = NULL;
         /* From this point, kvm->kvmi_dom won't be touched. */
         kvmi_domain_close(kvm->kvmi_dom);
         return false;
