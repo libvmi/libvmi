@@ -5,18 +5,39 @@
 
 # Method 1 - Using Rekall
 
-The [Rekall](https://github.com/google/rekall) framework already integrate an
-address space to work on top of [LibVMI](https://github.com/libvmi/libvmi).
+The [Rekall](https://github.com/google/rekall) framework can find the right GUID,
+download the PDBs and extract the right offsets for us, given a memory dump.
 
-Rekall will find the right GUID, download the PDBs and extract the right offsets for us.
 
 ## Requirements
 
 - `LibVMI` C library
-- [`libvmi` Python bindings](https://github.com/libvmi/python)
+- `python3-docopt`
+- `python3-libvirt`
+- [`libvmi` Python bindings](https://github.com/libvmi/python) (optional)
 - `cabextract`
 
-## Installing Rekall from source
+## Usage
+
+The `rekall_offset_finder` script can extract the offsets in multiple ways.
+
+Given a libvirt domain, it will take a temporary memory dump,
+and extract the offsets:
+~~~
+(venv) ./rekall_offset_finder.py windows7
+~~~
+
+You can also specify your own memory dump:
+~~~
+(venv) ./rekall_offset_finder.py windows7 ~/tmp/win7.raw
+~~~
+
+Look at the help to see the possible options. `./rekall_offset_finder.py -h`
+
+### VMI address space
+
+Rekall can work directly on top of LibVMI, and extract the offsets by reading
+and parsing the physical memory of a VM.
 
 At the time of this writing, there is no release of Rekall available which integrates
 the new address space. Therefore you must install Rekall from source:
@@ -30,25 +51,23 @@ the new address space. Therefore you must install Rekall from source:
     (venv) pip install --editable rekall/rekall-agent
     (venv) pip install --editable rekall
 
-## Usage
+The `url` argument should be of the form `vmi://(xen|kvm)?/domain`
 
-The script `rekall_offset_finder.py` takes one argument, the `URL`, indicating how
-Rekall should access the domain.
 Examples:
 
-    (venv) ./rekall_offset_finder.py vmi:///windows_7
+    (venv) ./rekall_offset_finder.py windows7 vmi:///windows7
 
 You can specify the hypervisor if you want
 
-    (venv) ./rekall_offset_finder.py vmi://kvm/windows_7
-    (venv) ./rekall_offset_finder.py vmi://xen/windows_7
+    (venv) ./rekall_offset_finder.py windows7 vmi://kvm/windows7
+    (venv) ./rekall_offset_finder.py windows7 vmi://xen/windows7
 
 
 Running the script should extract the offset and display a config entry to copy paste.
 Example run:
 
 
-    (venv) ./rekall_offset_finder.py vmi://kvm/win7x64
+    (venv) ./rekall_offset_finder.py win7x64 vmi://kvm/win7x64
     LibVMI Version 0.11.0
     LibVMI Driver Mode 1
     --completed driver init.
@@ -77,7 +96,7 @@ is more complete.
 
 Note: In the case of `Xen`, you must run the script as `root`:
 
-    sudo venv/bin/python rekall_offset_finder.py vmi://xen/windows_7
+    sudo venv/bin/python rekall_offset_finder.py windows7 vmi://xen/windows7
 
 # Method 2 - Custom scripts
 
