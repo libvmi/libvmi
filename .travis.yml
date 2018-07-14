@@ -96,6 +96,7 @@ matrix:
     - env:
         - TEST="Coverity"
       compiler: gcc
+      sudo: required
       addons:
         apt:
             sources:
