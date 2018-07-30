@@ -44,17 +44,18 @@ int main (int argc, char **argv)
     status_t status;
 
     /* this is the VM or file that we are looking at */
-    if (argc != 2) {
-        printf("Usage: %s <vmname>\n", argv[0]);
+    if (argc != 3) {
+        printf("Usage: %s <vmname> <socket>\n", argv[0]);
         return 1;
     } // if
 
     char *name = argv[1];
+    char *path = argv[2];
 
     /* initialize the libvmi library */
     if (VMI_FAILURE ==
-            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, NULL,
-                              VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
+        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, (void *)path,
+                          VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }

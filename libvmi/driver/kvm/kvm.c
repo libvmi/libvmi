@@ -988,11 +988,13 @@ kvm_init_vmi(
 
     // get major int number
     int minor = json_object_get_int(minor_obj);
+
     // QEMU should be < 2.8.0
-    if (major >= 2 && minor >= 8) {
-        dbprint(VMI_DEBUG_KVM, "--Fail: incompatibility between libvmi and QEMU request definition detected\n");
-        goto out_error;
-    }
+    /* if (major >= 2 && minor >= 8) { */
+    /*     dbprint(VMI_DEBUG_KVM, "--Fail: incompatibility between libvmi and QEMU request definition detected (major %d, minor %d)\n", major, minor); */
+    /*     goto out_error; */
+    /* } */
+    
     goto success;
 out_error:
     free(qemu_version_obj);
