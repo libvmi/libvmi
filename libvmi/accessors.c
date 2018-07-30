@@ -33,8 +33,10 @@
 uint8_t vmi_get_address_width(
     vmi_instance_t vmi)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return 0;
+#endif
 
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:
@@ -53,7 +55,11 @@ os_t
 vmi_get_ostype(
     vmi_instance_t vmi)
 {
-    return (NULL == vmi) ? VMI_OS_UNKNOWN : vmi->os_type;
+    return
+#ifdef ENABLE_SAFETY_CHECKS
+        (NULL == vmi) ? VMI_OS_UNKNOWN :
+#endif
+        vmi->os_type;
 }
 
 win_ver_t
@@ -66,6 +72,7 @@ vmi_get_winver(
 #else
     windows_instance_t windows_instance = NULL;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_OS_WINDOWS_NONE;
 
@@ -75,6 +82,7 @@ vmi_get_winver(
     if (!vmi->os_data) {
         return VMI_OS_WINDOWS_NONE;
     }
+#endif
 
     windows_instance = vmi->os_data;
 
@@ -90,8 +98,11 @@ const char *
 vmi_get_winver_str(
     vmi_instance_t vmi)
 {
+
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return "VMI_OS_WINDOWS_NONE";
+#endif
 
     win_ver_t ver = vmi_get_winver(vmi);
 
@@ -136,11 +147,13 @@ vmi_get_offset(
     const char *offset_name,
     addr_t *offset)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
 
     if ( !vmi->os_interface || !vmi->os_interface->os_get_offset )
         return VMI_FAILURE;
+#endif
 
     return vmi->os_interface->os_get_offset(vmi, offset_name, offset);
 }
@@ -152,8 +165,11 @@ vmi_get_kernel_struct_offset(
     const char* member,
     addr_t *addr)
 {
+
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !addr)
         return 0;
+#endif
 
     return vmi->os_interface->os_get_kernel_struct_offset(vmi, symbol, member, addr);
 }
@@ -162,8 +178,10 @@ uint64_t
 vmi_get_memsize(
     vmi_instance_t vmi)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return 0;
+#endif
 
     if ( VMI_FAILURE == driver_get_memsize(vmi, &vmi->allocated_ram_size, &vmi->max_physical_address) )
         return 0;
@@ -175,8 +193,10 @@ addr_t
 vmi_get_max_physical_address(
     vmi_instance_t vmi)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return 0;
+#endif
 
     if ( VMI_FAILURE == driver_get_memsize(vmi, &vmi->allocated_ram_size, &vmi->max_physical_address) )
         return 0;
@@ -188,8 +208,10 @@ unsigned int
 vmi_get_num_vcpus(
     vmi_instance_t vmi)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return 0;
+#endif
 
     return vmi->num_vcpus;
 }
@@ -201,8 +223,10 @@ vmi_get_vcpureg(
     reg_t reg,
     unsigned long vcpu)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
+#endif
 
     return driver_get_vcpureg(vmi, value, reg, vcpu);
 }
@@ -213,8 +237,10 @@ vmi_get_vcpuregs(
     registers_t *regs,
     unsigned long vcpu)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !regs)
         return VMI_FAILURE;
+#endif
 
     return driver_get_vcpuregs(vmi, regs, vcpu);
 }
@@ -226,8 +252,10 @@ vmi_set_vcpureg(
     reg_t reg,
     unsigned long vcpu)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
+#endif
 
     return driver_set_vcpureg(vmi, value, reg, vcpu);
 }
@@ -238,8 +266,10 @@ vmi_set_vcpuregs(
     registers_t *regs,
     unsigned long vcpu)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !regs)
         return VMI_FAILURE;
+#endif
 
     return driver_set_vcpuregs(vmi, regs, vcpu);
 }
@@ -248,8 +278,10 @@ status_t
 vmi_pause_vm(
     vmi_instance_t vmi)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
+#endif
 
     return driver_pause_vm(vmi);
 }
@@ -258,8 +290,10 @@ status_t
 vmi_resume_vm(
     vmi_instance_t vmi)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
+#endif
 
     return driver_resume_vm(vmi);
 }
@@ -271,8 +305,10 @@ vmi_get_name(
     /* memory for name is allocated at the driver level */
     char *name = NULL;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return NULL;
+#endif
 
     if (VMI_FAILURE == driver_get_name(vmi, &name)) {
         return NULL;
@@ -285,8 +321,10 @@ const char *
 vmi_get_rekall_path(
     vmi_instance_t vmi)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return NULL;
+#endif
 
     switch (vmi_get_ostype(vmi)) {
         case VMI_OS_LINUX:
@@ -304,8 +342,10 @@ vmi_get_vmid(
 {
     uint64_t domid = VMI_INVALID_DOMID;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return 0;
+#endif
 
     if (VMI_INVALID_DOMID == (domid = driver_get_id(vmi))) {
         char *name = vmi_get_name(vmi);
@@ -326,8 +366,10 @@ vmi_translate_ksym2v(
     status_t status = VMI_FAILURE;
     addr_t address = 0;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !symbol || !vaddr)
         return VMI_FAILURE;
+#endif
 
     status = sym_cache_get(vmi, 0, 0, symbol, &address);
 
@@ -359,8 +401,10 @@ vmi_translate_sym2v(
     addr_t address = 0;
     addr_t dtb = 0;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !ctx || !symbol || !vaddr)
         return VMI_FAILURE;
+#endif
 
     switch (ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
@@ -400,8 +444,10 @@ vmi_translate_v2sym(
     char *ret = NULL;
     addr_t dtb = 0;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !ctx)
         return NULL;
+#endif
 
     switch (ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
@@ -439,8 +485,10 @@ vmi_translate_v2ksym(
     char *ret = NULL;
     addr_t dtb = 0;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !ctx)
         return NULL;
+#endif
 
     switch (ctx->translate_mechanism) {
         case VMI_TM_PROCESS_PID:
@@ -478,11 +526,13 @@ vmi_pid_to_dtb(
     status_t ret = VMI_FAILURE;
     addr_t _dtb = 0;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !dtb)
         return VMI_FAILURE;
 
     if (!vmi->os_interface)
         return VMI_FAILURE;
+#endif
 
     if ( !pid ) {
         *dtb = vmi->kpgd;
@@ -512,8 +562,10 @@ vmi_dtb_to_pid(
     status_t ret = VMI_FAILURE;
     vmi_pid_t _pid = -1;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !pid)
         return VMI_FAILURE;
+#endif
 
     if (vmi->os_interface && vmi->os_interface->os_pgd_to_pid)
         ret = vmi->os_interface->os_pgd_to_pid(vmi, dtb, &_pid);
@@ -524,23 +576,27 @@ vmi_dtb_to_pid(
 
 void* vmi_read_page (vmi_instance_t vmi, addr_t frame_num)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return NULL;
+#endif
 
     return driver_read_page(vmi, frame_num);
 }
 
 GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return NULL;
 
-    if (vmi->arch_interface && vmi->arch_interface->get_va_pages) {
-        return vmi->arch_interface->get_va_pages(vmi, dtb);
-    } else {
+    if (!vmi->arch_interface || !vmi->arch_interface->get_va_pages) {
         dbprint(VMI_DEBUG_PTLOOKUP, "Invalid or not supported paging mode during get_va_pages\n");
         return NULL;
     }
+#endif
+
+    return vmi->arch_interface->get_va_pages(vmi, dtb);
 }
 
 status_t
@@ -550,8 +606,10 @@ vmi_pagetable_lookup(
     addr_t vaddr,
     addr_t *paddr)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !paddr)
         return VMI_FAILURE;
+#endif
 
     return vmi_pagetable_lookup_cache(vmi, dtb, vaddr, paddr);
 }
@@ -573,7 +631,10 @@ status_t vmi_pagetable_lookup_cache(
                          .dtb = dtb
                        };
 
-    if (!vmi || !paddr) return ret;
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !paddr)
+        return ret;
+#endif
 
     *paddr = 0;
 
@@ -615,7 +676,10 @@ status_t vmi_pagetable_lookup_extended(
 {
     status_t ret = VMI_FAILURE;
 
-    if (!vmi || !info) return ret;
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !info)
+        return ret;
+#endif
 
     memset(info, 0, sizeof(page_info_t));
     info->vaddr = vaddr;
@@ -641,6 +705,7 @@ vmi_translate_kv2p(
     addr_t virt_address,
     addr_t *paddr)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !paddr)
         return VMI_FAILURE;
 
@@ -648,6 +713,7 @@ vmi_translate_kv2p(
         dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because the kernel page global directory is unknown\n");
         return VMI_FAILURE;
     }
+#endif
 
     return vmi_pagetable_lookup(vmi, vmi->kpgd, virt_address, paddr);
 }
@@ -662,9 +728,11 @@ vmi_translate_uv2p(
     status_t ret = VMI_FAILURE;
     addr_t dtb = 0;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !paddr) {
         return VMI_FAILURE;
     }
+#endif
 
     if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, pid, &dtb) || !dtb ) {
         dbprint(VMI_DEBUG_PTLOOKUP, "--early bail on v2p lookup because dtb not found\n");
@@ -697,17 +765,16 @@ vmi_get_linux_sysmap(
 {
     linux_instance_t linux_instance = NULL;
 
-    if (!vmi) {
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
         return NULL;
-    }
 
-    if (VMI_OS_LINUX != vmi->os_type) {
+    if (VMI_OS_LINUX != vmi->os_type)
         return NULL;
-    }
 
-    if (!vmi->os_data) {
+    if (!vmi->os_data)
         return NULL;
-    }
+#endif
 
     linux_instance = vmi->os_data;
 
@@ -721,17 +788,16 @@ vmi_get_freebsd_sysmap(
 {
     freebsd_instance_t freebsd_instance = NULL;
 
-    if (!vmi) {
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
         return NULL;
-    }
 
-    if (VMI_OS_FREEBSD != vmi->os_type) {
+    if (VMI_OS_FREEBSD != vmi->os_type)
         return NULL;
-    }
 
-    if (!vmi->os_data) {
+    if (!vmi->os_data)
         return NULL;
-    }
+#endif
 
     freebsd_instance = vmi->os_data;
 

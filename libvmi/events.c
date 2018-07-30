@@ -666,8 +666,10 @@ vmi_set_mem_event(
     vmi_mem_access_t access,
     uint16_t slat_id)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
+#endif
 
     if ( VMI_MEMACCESS_N != access ) {
         bool handler_found = 0;
@@ -705,11 +707,13 @@ vmi_swap_events(
     vmi_event_t *swap_to,
     vmi_event_free_t free_routine)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !swap_from || !swap_to) {
         dbprint(VMI_DEBUG_EVENTS, "NULL pointer passed to %s.\n",
                 __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     if (swap_from->type == swap_to->type && swap_from->type == VMI_EVENT_MEMORY) {
         if (!g_hash_table_lookup(vmi->mem_events_on_gfn, &swap_from->mem_event.gfn)) {
@@ -759,6 +763,7 @@ vmi_register_event(
 {
     status_t rc = VMI_FAILURE;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         dbprint(VMI_DEBUG_EVENTS, "LibVMI wasn't initialized!\n");
         return VMI_FAILURE;
@@ -789,6 +794,7 @@ vmi_register_event(
         dbprint(VMI_DEBUG_EVENTS, "No event callback function specified!\n");
         return VMI_FAILURE;
     }
+#endif
 
     switch (event->type) {
 
@@ -837,11 +843,16 @@ status_t vmi_clear_event(
 {
     status_t rc = VMI_FAILURE;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
 
     if (!(vmi->init_flags & VMI_INIT_EVENTS))
         return VMI_FAILURE;
+
+    if (!event)
+        return VMI_FAILURE;
+#endif
 
     /*
      * We can't clear events when in an event callback rigt away
@@ -872,9 +883,6 @@ status_t vmi_clear_event(
         dbprint(VMI_DEBUG_EVENTS, "Event was already queued for clearing.\n");
         return VMI_FAILURE;
     }
-
-    if (!event)
-        return VMI_FAILURE;
 
     switch (event->type) {
         case VMI_EVENT_SINGLESTEP:
@@ -920,6 +928,7 @@ vmi_step_event(
     status_t rc = VMI_FAILURE;
     bool need_new_ss = 1;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         return VMI_FAILURE;
     }
@@ -927,6 +936,7 @@ vmi_step_event(
         dbprint(VMI_DEBUG_EVENTS, "The vCPU ID specified does not exist!\n");
         goto done;
     }
+#endif
 
     if (NULL != vmi_get_singlestep_event(vmi, vcpu_id)) {
         if (!vmi->step_vcpus[vcpu_id]) {
@@ -972,11 +982,13 @@ done:
 
 int vmi_are_events_pending(vmi_instance_t vmi)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return -1;
 
     if (!(vmi->init_flags & VMI_INIT_EVENTS))
         return -1;
+#endif
 
     return driver_are_events_pending(vmi);
 }
@@ -984,22 +996,26 @@ int vmi_are_events_pending(vmi_instance_t vmi)
 
 status_t vmi_events_listen(vmi_instance_t vmi, uint32_t timeout)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
 
     if (!(vmi->init_flags & VMI_INIT_EVENTS))
         return VMI_FAILURE;
+#endif
 
     return driver_events_listen(vmi, timeout);
 }
 
 status_t vmi_event_listener_required(vmi_instance_t vmi, bool required)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
 
     if (!(vmi->init_flags & VMI_INIT_EVENTS))
         return VMI_FAILURE;
+#endif
 
     return driver_set_access_listener_required(vmi, required);
 }
@@ -1018,11 +1034,14 @@ vmi_stop_single_step_vcpu(
     vmi_event_t* event,
     uint32_t vcpu)
 {
+#ifdef ENABLE_SAFETY_CHECKS
+
     if (!vmi || !event)
         return VMI_FAILURE;
 
     if (!(vmi->init_flags & VMI_INIT_EVENTS))
         return VMI_FAILURE;
+#endif
 
     UNSET_VCPU_SINGLESTEP(event->ss_event, vcpu);
     g_hash_table_remove(vmi->ss_events, &vcpu);
@@ -1032,12 +1051,13 @@ vmi_stop_single_step_vcpu(
 
 status_t vmi_shutdown_single_step(vmi_instance_t vmi)
 {
-
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
 
     if (!(vmi->init_flags & VMI_INIT_EVENTS))
         return VMI_FAILURE;
+#endif
 
     if (VMI_SUCCESS == driver_shutdown_single_step(vmi)) {
         /* Safe to destroy here because the driver has disabled single-step
@@ -1048,9 +1068,9 @@ status_t vmi_shutdown_single_step(vmi_instance_t vmi)
         g_hash_table_destroy(vmi->ss_events);
         vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, NULL);
         return VMI_SUCCESS;
-    } else {
-        return VMI_FAILURE;
     }
+
+    return VMI_FAILURE;
 }
 
 uint32_t vmi_events_version()

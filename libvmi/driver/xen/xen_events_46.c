@@ -153,8 +153,10 @@ status_t process_interrupt_event(vmi_instance_t vmi,
     gint lookup         = intr;
     vmi_event_t * event = g_hash_table_lookup(vmi->interrupt_events, &lookup);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !event )
         return VMI_FAILURE;
+#endif
 
     event->interrupt_event.gfn = req->u.software_breakpoint.gfn;
     event->interrupt_event.offset = req->data.regs.x86.rip & VMI_BIT_MASK(0,11);
@@ -264,8 +266,10 @@ status_t process_register(vmi_instance_t vmi,
     gint lookup = reg;
     vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &lookup);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !event )
         return VMI_FAILURE;
+#endif
 
     switch ( reg ) {
         case MSR_ALL:
@@ -386,10 +390,12 @@ status_t process_single_step_event(vmi_instance_t vmi,
     gint lookup = req->vcpu_id;
     vmi_event_t * event = g_hash_table_lookup(vmi->ss_events, &lookup);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {
         errprint("%s error: no singlestep handler is registered in LibVMI\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     event->ss_event.gfn = req->u.singlestep.gfn;
     event->ss_event.offset = req->data.regs.x86.rip & VMI_BIT_MASK(0,11);
@@ -410,10 +416,12 @@ static status_t process_guest_requested_event(vmi_instance_t vmi,
 {
     vmi_event_t *event = vmi->guest_requested_event;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {
         errprint("%s error: no guest requested event handler is registered in LibVMI\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     vmi->guest_requested_event->x86_regs = (x86_registers_t *)&req->data.regs.x86;
     vmi->guest_requested_event->vcpu_id = req->vcpu_id;
@@ -536,6 +544,7 @@ static status_t xen_set_int3_access(vmi_instance_t vmi, bool enable)
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -553,6 +562,7 @@ static status_t xen_set_int3_access(vmi_instance_t vmi, bool enable)
 
     if ( enable == xe->vm_event.monitor_intr_on )
         return VMI_FAILURE;
+#endif
 
     if ( xen->libxcw.xc_monitor_software_breakpoint(xch, dom, enable) )
         return VMI_FAILURE;
@@ -571,6 +581,7 @@ status_t xen_set_reg_access_46(vmi_instance_t vmi, reg_event_t *event)
     xen_instance_t * xen = xen_get_instance(vmi);
     bool sync = !event->async;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         goto done;
@@ -580,6 +591,7 @@ status_t xen_set_reg_access_46(vmi_instance_t vmi, reg_event_t *event)
         errprint("%s error: invalid domid\n", __FUNCTION__);
         goto done;
     }
+#endif
 
     switch ( event->reg ) {
         case CR0:
@@ -692,21 +704,19 @@ status_t xen_set_mem_access_46(vmi_instance_t vmi, addr_t gpfn,
     xenmem_access_t access;
     xen_instance_t *xen = xen_get_instance(vmi);
     xc_interface * xch = xen_get_xchandle(vmi);
-    xen_events_t * xe = xen_get_events(vmi);
     domid_t dom = xen_get_domainid(vmi);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-    if ( !xe ) {
-        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
     if ( dom == (domid_t)VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
+
     if ( VMI_FAILURE == convert_vmi_flags_to_xenmem(page_access_flag, &access) )
         return VMI_FAILURE;
 
@@ -835,7 +845,7 @@ status_t xen_set_guest_requested_event_46(vmi_instance_t vmi, bool enabled)
     int rc;
     xen_instance_t *xen = xen_get_instance(vmi);
 
-    if ( xen->major_version != 4 || xen->minor_version < 5 )
+    if ( xen->major_version != 4 || xen->minor_version < 6 )
         return VMI_FAILURE;
 
     if ( !enabled && !vmi->guest_requested_event )
@@ -857,10 +867,12 @@ int xen_are_events_pending_46(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xe ) {
         errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return -1;
     }
+#endif
 
     return RING_HAS_UNCONSUMED_REQUESTS(&xe->vm_event.back_ring_46);
 
@@ -871,25 +883,17 @@ status_t xen_events_listen_46(vmi_instance_t vmi, uint32_t timeout)
     vm_event_46_request_t req;
     vm_event_46_response_t rsp;
     xen_instance_t *xen = xen_get_instance(vmi);
-    xc_interface * xch = xen_get_xchandle(vmi);
     xen_events_t * xe = xen_get_events(vmi);
-    domid_t dom = xen_get_domainid(vmi);
 
     int rc = -1;
     status_t vrc = VMI_SUCCESS;
 
-    if ( !xch ) {
-        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xe ) {
         errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
-        errprint("%s error: invalid domid\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
+#endif
 
     if (!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
@@ -946,6 +950,7 @@ void xen_events_destroy_46(vmi_instance_t vmi)
     xen_events_t * xe = xen_get_events(vmi);
     domid_t dom = xen_get_domainid(vmi);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return;
@@ -958,7 +963,7 @@ void xen_events_destroy_46(vmi_instance_t vmi)
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return;
     }
-
+#endif
 
     xc_dominfo_t info = {0};
     rc = xen->libxcw.xc_domain_getinfo(xch, dom, 1, &info);
@@ -1016,6 +1021,7 @@ status_t xen_init_events_46(
     domid_t dom = xen_get_domainid(vmi);
     int rc;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -1025,6 +1031,7 @@ status_t xen_init_events_46(
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     // Wire up the functions
     vmi->driver.events_listen_ptr = &xen_events_listen_46;

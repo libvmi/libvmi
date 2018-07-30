@@ -44,6 +44,7 @@ vmi_write(
     addr_t offset = 0;
     size_t buf_offset = 0;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (NULL == vmi) {
         dbprint(VMI_DEBUG_WRITE, "--%s: vmi passed as NULL, returning without write\n",
                 __FUNCTION__);
@@ -61,14 +62,17 @@ vmi_write(
                 __FUNCTION__);
         goto done;
     }
+#endif
 
     switch (ctx->translate_mechanism) {
         case VMI_TM_NONE:
             start_addr = ctx->addr;
             break;
         case VMI_TM_KERNEL_SYMBOL:
+#ifdef ENABLE_SAFETY_CHECKS
             if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
                 goto done;
+#endif
 
             dtb = vmi->kpgd;
             if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &start_addr) )
@@ -76,8 +80,10 @@ vmi_write(
 
             break;
         case VMI_TM_PROCESS_PID:
+#ifdef ENABLE_SAFETY_CHECKS
             if (!vmi->arch_interface || !vmi->os_interface)
                 goto done;
+#endif
 
             if (!ctx->pid)
                 dtb = vmi->kpgd;
@@ -92,8 +98,10 @@ vmi_write(
             start_addr = ctx->addr;
             break;
         case VMI_TM_PROCESS_DTB:
+#ifdef ENABLE_SAFETY_CHECKS
             if (!vmi->arch_interface)
                 goto done;
+#endif
 
             dtb = ctx->dtb;
             start_addr = ctx->addr;
@@ -236,11 +244,13 @@ vmi_write_addr(
     const access_context_t *ctx,
     addr_t * value)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         dbprint(VMI_DEBUG_WRITE, "--%s: vmi passed as NULL, returning without write\n",
                 __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
