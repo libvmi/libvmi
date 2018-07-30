@@ -274,3 +274,27 @@ matrix:
       script:
         - ./configure --disable-rekall-profiles
         - make
+
+#
+# disable safety checks
+#
+    - env:
+        - TEST="disable safety checks"
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      install:
+        - ./autogen.sh
+      script:
+        - ./configure --disable-safety-checks
+        - make
