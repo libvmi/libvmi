@@ -74,11 +74,6 @@ addr_t kvm_pfn_to_mfn(
 void *kvm_read_page(
     vmi_instance_t vmi,
     addr_t page);
-status_t kvm_write(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void *buf,
-    uint32_t length);
 int kvm_is_pv(
     vmi_instance_t vmi);
 status_t kvm_test(
@@ -90,8 +85,6 @@ status_t kvm_pause_vm(
     vmi_instance_t vmi);
 status_t kvm_resume_vm(
     vmi_instance_t vmi);
-
-#ifdef HAVE_LIBKVMI
 status_t kvm_get_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
@@ -105,7 +98,6 @@ status_t kvm_set_vcpuregs(
     vmi_instance_t vmi,
     registers_t *registers,
     unsigned long vcpu);
-#endif
 
 static inline status_t
 driver_kvm_setup(vmi_instance_t vmi)
@@ -124,13 +116,10 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.set_name_ptr = &kvm_set_name;
     driver.get_memsize_ptr = &kvm_get_memsize;
     driver.get_vcpureg_ptr = &kvm_get_vcpureg;
-#ifdef HAVE_LIBKVMI
     driver.get_vcpuregs_ptr = &kvm_get_vcpuregs;
     driver.set_vcpureg_ptr = &kvm_set_vcpureg;
     driver.set_vcpuregs_ptr = &kvm_set_vcpuregs;
-#endif
     driver.read_page_ptr = &kvm_read_page;
-    driver.write_ptr = &kvm_write;
     driver.is_pv_ptr = &kvm_is_pv;
     driver.pause_vm_ptr = &kvm_pause_vm;
     driver.resume_vm_ptr = &kvm_resume_vm;
