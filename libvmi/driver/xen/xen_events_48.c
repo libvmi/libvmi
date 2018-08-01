@@ -767,6 +767,14 @@ status_t process_requests(vmi_instance_t vmi, vm_event_48_request_t *req,
          */
         put_response(&xe->vm_event, rsp);
         dbprint(VMI_DEBUG_XEN, "--Finished handling event.\n");
+
+        if (vmi->num_vcpus >= 7) {
+            xen_instance_t *xen = xen_get_instance(vmi);
+            if ( xen->libxcw.xc_evtchn_notify(xe->vm_event.xce_handle, xe->vm_event.port) ) {
+                errprint("Error resuming domain.\n");
+                return VMI_FAILURE;
+            }
+        }
     }
 
     return vrc;
@@ -1331,10 +1339,12 @@ status_t xen_events_listen_48(vmi_instance_t vmi, uint32_t timeout)
     /*
      * We only resume the domain once all requests are processed from the ring
      */
-    rc = xen->libxcw.xc_evtchn_notify(xe->vm_event.xce_handle, xe->vm_event.port);
-    if ( rc ) {
-        errprint("Error resuming domain.\n");
-        return VMI_FAILURE;
+    if (vmi->num_vcpus < 7) {
+        rc = xen->libxcw.xc_evtchn_notify(xe->vm_event.xce_handle, xe->vm_event.port);
+        if ( rc ) {
+            errprint("Error resuming domain.\n");
+            return VMI_FAILURE;
+        }
     }
 
     return vrc;
