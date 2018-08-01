@@ -163,6 +163,7 @@ status_t process_interrupt_event(vmi_instance_t vmi, interrupts_t intr,
     xen_instance_t *xen         = xen_get_instance(vmi);
 
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -171,6 +172,7 @@ status_t process_interrupt_event(vmi_instance_t vmi, interrupts_t intr,
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     if (event) {
         event->interrupt_event.gfn = gfn;
@@ -326,21 +328,6 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
                      uint64_t gfn, uint64_t offset, bool gla_valid, uint64_t gla,
                      uint32_t vcpu_id, uint32_t *rsp_flags)
 {
-
-    xc_interface * xch;
-    unsigned long dom;
-    xch = xen_get_xchandle(vmi);
-    dom = xen_get_domainid(vmi);
-
-    if ( !xch ) {
-        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-    if ( dom == VMI_INVALID_DOMID ) {
-        errprint("%s error: invalid domid\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-
     vmi_event_t *event;
     vmi_mem_access_t out_access = VMI_MEMACCESS_INVALID;
     if (access_r) out_access |= VMI_MEMACCESS_R;
@@ -404,20 +391,6 @@ status_t process_mem(vmi_instance_t vmi, bool access_r, bool access_w, bool acce
 static
 status_t process_single_step_event(vmi_instance_t vmi, uint64_t gfn, uint64_t gla, uint32_t vcpu_id, uint32_t *rsp_flags)
 {
-    xc_interface * xch;
-    unsigned long dom;
-    xch = xen_get_xchandle(vmi);
-    dom = xen_get_domainid(vmi);
-
-    if ( !xch ) {
-        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-    if ( dom == VMI_INVALID_DOMID ) {
-        errprint("%s error: invalid domid\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-
     vmi_event_t * event = g_hash_table_lookup(vmi->ss_events, &vcpu_id);
 
     if (event) {
@@ -443,6 +416,7 @@ static status_t xen_set_int3_access(vmi_instance_t vmi, bool enabled)
     unsigned long dom = xen_get_domainid(vmi);
     int param = HVMPME_mode_disabled;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -452,6 +426,7 @@ static status_t xen_set_int3_access(vmi_instance_t vmi, bool enabled)
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     if ( enabled ) {
         param = HVMPME_mode_sync;
@@ -471,6 +446,7 @@ status_t xen_set_reg_access_legacy(vmi_instance_t vmi, reg_event_t *event)
     int value = HVMPME_mode_disabled;
     int hvm_param;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -479,6 +455,7 @@ status_t xen_set_reg_access_legacy(vmi_instance_t vmi, reg_event_t *event)
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     switch (event->in_access) {
         case VMI_REGACCESS_N:
@@ -537,22 +514,19 @@ xen_set_mem_access_legacy(vmi_instance_t vmi, addr_t gpfn,
 {
     int rc;
     xc_interface * xch = xen_get_xchandle(vmi);
-    xen_events_t * xe = xen_get_events(vmi);
     unsigned long dom = xen_get_domainid(vmi);
     xen_instance_t * xen = xen_get_instance(vmi);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-    if ( !xe ) {
-        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
     if ( dom == VMI_INVALID_DOMID ) {
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     /*
      * Convert betwen vmi_mem_access_t and mem_access_t
@@ -677,10 +651,12 @@ int xen_are_events_pending_42(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xe ) {
         errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return -1;
     }
+#endif
 
     return RING_HAS_UNCONSUMED_REQUESTS(&xe->mem_event.back_ring_42);
 
@@ -690,38 +666,25 @@ int xen_are_events_pending_45(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xe ) {
         errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return -1;
     }
+#endif
 
     return RING_HAS_UNCONSUMED_REQUESTS(&xe->mem_event.back_ring_45);
 }
 
 status_t xen_events_listen_42(vmi_instance_t vmi, uint32_t timeout)
 {
-    xc_interface * xch = xen_get_xchandle(vmi);
     xen_events_t * xe = xen_get_events(vmi);
-    unsigned long dom = xen_get_domainid(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
     mem_event_42_request_t req;
     mem_event_42_response_t rsp;
 
     int rc = -1;
     status_t vrc = VMI_SUCCESS;
-
-    if ( !xch ) {
-        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-    if ( !xe ) {
-        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-    if ( dom == VMI_INVALID_DOMID ) {
-        errprint("%s error: invalid domid\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
 
     if (!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
@@ -933,9 +896,7 @@ process_requests_45(vmi_instance_t vmi, mem_event_45_request_t *req, mem_event_4
 
 status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
 {
-    xc_interface * xch = xen_get_xchandle(vmi);
     xen_events_t *xe = xen_get_events(vmi);
-    unsigned long dom = xen_get_domainid(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
 
     mem_event_45_request_t req;
@@ -943,19 +904,6 @@ status_t xen_events_listen_45(vmi_instance_t vmi, uint32_t timeout)
 
     int rc = -1;
     status_t vrc = VMI_SUCCESS;
-
-    if ( !xch ) {
-        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-    if ( !xe ) {
-        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-    if ( dom == VMI_INVALID_DOMID ) {
-        errprint("%s error: invalid domid\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
 
     if (!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
@@ -1007,6 +955,7 @@ void xen_events_destroy_legacy(vmi_instance_t vmi)
     xe = xen_get_events(vmi);
     xen = xen_get_instance(vmi);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return;
@@ -1019,6 +968,7 @@ void xen_events_destroy_legacy(vmi_instance_t vmi)
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return;
     }
+#endif
 
     vmi_pause_vm(vmi);
 
@@ -1127,6 +1077,7 @@ status_t xen_init_events_legacy(
     xch = xen_get_xchandle(vmi);
     dom = xen_get_domainid(vmi);
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -1135,6 +1086,7 @@ status_t xen_init_events_legacy(
         errprint("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     // Allocate memory
     xe = calloc(1, sizeof(xen_events_t));

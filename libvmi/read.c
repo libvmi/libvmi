@@ -50,6 +50,7 @@ vmi_read(
     addr_t dtb = 0;
     size_t buf_offset = 0;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (NULL == vmi) {
         dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read\n", __FUNCTION__);
         goto done;
@@ -64,22 +65,26 @@ vmi_read(
         dbprint(VMI_DEBUG_READ, "--%s: buf passed as NULL, returning without read\n", __FUNCTION__);
         goto done;
     }
+#endif
 
     switch (ctx->translate_mechanism) {
         case VMI_TM_NONE:
             start_addr = ctx->addr;
             break;
         case VMI_TM_KERNEL_SYMBOL:
+#ifdef ENABLE_SAFETY_CHECKS
             if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
                 goto done;
-
+#endif
             dtb = vmi->kpgd;
             if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &start_addr) )
                 goto done;
             break;
         case VMI_TM_PROCESS_PID:
+#ifdef ENABLE_SAFETY_CHECKS
             if (!vmi->arch_interface || !vmi->os_interface)
                 goto done;
+#endif
 
             if ( !ctx->pid )
                 dtb = vmi->kpgd;
@@ -94,8 +99,10 @@ vmi_read(
             start_addr = ctx->addr;
             break;
         case VMI_TM_PROCESS_DTB:
+#ifdef ENABLE_SAFETY_CHECKS
             if (!vmi->arch_interface)
                 goto done;
+#endif
 
             dtb = ctx->dtb;
             start_addr = ctx->addr;
@@ -244,10 +251,12 @@ vmi_read_addr(
 {
     status_t ret = VMI_FAILURE;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL", __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
@@ -289,6 +298,7 @@ vmi_read_str(
 
     rtnval = NULL;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
                 __FUNCTION__);
@@ -299,6 +309,7 @@ vmi_read_str(
                 __FUNCTION__);
         return NULL;
     }
+#endif
 
     switch (ctx->translate_mechanism) {
         case VMI_TM_NONE:
@@ -381,15 +392,17 @@ vmi_read_unicode_str(
     vmi_instance_t vmi,
     const access_context_t *ctx)
 {
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
                 __FUNCTION__);
         return NULL;
     }
-    if (vmi->os_interface && vmi->os_interface->os_read_unicode_struct)
-        return vmi->os_interface->os_read_unicode_struct(vmi, ctx);
+    if (!vmi->os_interface || !vmi->os_interface->os_read_unicode_struct)
+        return NULL;
+#endif
 
-    return NULL;
+    return vmi->os_interface->os_read_unicode_struct(vmi, ctx);
 }
 
 ///////////////////////////////////////////////////////////
@@ -438,11 +451,13 @@ vmi_read_addr_pa(
 {
     status_t ret = VMI_FAILURE;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
                 __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
@@ -532,11 +547,13 @@ vmi_read_addr_va(
 {
     status_t ret = VMI_FAILURE;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
                 __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through
@@ -635,11 +652,13 @@ vmi_read_addr_ksym(
 {
     status_t ret = VMI_FAILURE;
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
                 __FUNCTION__);
         return VMI_FAILURE;
     }
+#endif
 
     switch (vmi->page_mode) {
         case VMI_PM_AARCH64:// intentional fall-through

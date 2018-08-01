@@ -70,105 +70,111 @@ dnl Check package options
 dnl -----------------------------------------------
 AC_ARG_ENABLE([xen],
       [AS_HELP_STRING([--disable-xen],
-         [Support memory introspection with live Xen domains (default is yes)])],
+         [Disable support for memory introspection with live Xen domains @<:@no@:>@])],
       [enable_xen=$enableval],
       [enable_xen=yes])
 AM_CONDITIONAL([WITH_XEN], [test x"$enable_xen" = xyes])
 
 AC_ARG_WITH([xenstore],
       [AS_HELP_STRING([--without-xenstore],
-         [Build LibVMI without Xenstore])],
+         [Build LibVMI without Xenstore @<:@no@:>@])],
       [with_xenstore=$withval],
       [with_xenstore=yes])
 AM_CONDITIONAL([XENSTORE], [test x"$with_xenstore" = xyes])
 
 AC_ARG_ENABLE([kvm],
       [AS_HELP_STRING([--disable-kvm],
-         [Support memory introspection with live KVM VMs (default is yes)])],
+         [Disable support for memory introspection with live KVM VMs @<:@no@:>@])],
       [enable_kvm=$enableval],
       [enable_kvm=yes])
 AM_CONDITIONAL([WITH_KVM], [test x"$enable_kvm" = xyes])
 
 AC_ARG_ENABLE([shm_snapshot],
       [AS_HELP_STRING([--disable-shm-snapshot],
-         [Support shm-snapshot with KVM VMs (Xen is pending) (default is no)])],
+         [Disable support for shm-snapshot with KVM VMs (Xen is pending) @<:@yes@:>@])],
       [enable_shm_snapshot=$enableval],
       [enable_shm_snapshot=no])
 AM_CONDITIONAL([SHM], [test x"$enable_shm_snapshot" = xyes])
 
 AC_ARG_ENABLE([file],
       [AS_HELP_STRING([--disable-file],
-         [Support memory introspection with physical memory dumps in a file (default is yes)])],
+         [Disable support for memory introspection with physical memory dumps in a file @<:@no@:>@])],
       [enable_file=$enableval],
       [enable_file=yes])
 AM_CONDITIONAL([WITH_FILE], [test x"$enable_file" = xyes])
 
 AC_ARG_ENABLE([windows],
       [AS_HELP_STRING([--disable-windows],
-         [Support introspecting Windows (XP - 8)])],
+         [Disable support for introspecting Windows (XP - 10) @<:@no@:>@])],
       [enable_windows=$enableval],
       [enable_windows=yes])
 AM_CONDITIONAL([WINDOWS], [test x"$enable_windows" = xyes])
 
 AC_ARG_ENABLE([linux],
       [AS_HELP_STRING([--disable-linux],
-         [Support introspecting Linux])],
+         [Disable support for introspecting Linux @<:@no@:>@])],
       [enable_linux=$enableval],
       [enable_linux=yes])
 AM_CONDITIONAL([LINUX], [test x"$enable_linux" = xyes])
 
 AC_ARG_ENABLE([freebsd],
       [AS_HELP_STRING([--disable-freebsd],
-         [Support introspecting FreeBSD])],
+         [Disable support for introspecting FreeBSD @<:@no@:>@])],
       [enable_freebsd=$enableval],
       [enable_freebsd=yes])
 AM_CONDITIONAL([FREEBSD], [test x"$enable_freebsd" = xyes])
 
 AC_ARG_ENABLE([vmifs],
       [AS_HELP_STRING([--disable-vmifs],
-         [Build VMIFS tool: maps memory to a file through FUSE])],
+         [Disable building VMIFS tool: maps memory to a file through FUSE @<:@no@:>@])],
       [enable_vmifs=$enableval],
       [enable_vmifs=yes])
 AM_CONDITIONAL([VMIFS], [test x"$enable_vmifs" = xyes])
 
 AC_ARG_ENABLE([address_cache],
       [AS_HELP_STRING([--disable-address-cache],
-         [Cache addresses (v2p, pid, etc)])],
+         [Disable caching addresses (v2p, pid, etc) @<:@no@:>@])],
       [enable_address_cache=$enableval],
       [enable_address_cache=yes])
 AM_CONDITIONAL([ENABLE_ADDRESS_CACHE], [test x"$enable_address_cache" = "xyes"])
 
 AC_ARG_ENABLE([page_cache],
       [AS_HELP_STRING([--disable-page-cache],
-         [Cache pages])],
+         [Disable caching pages @<:@no@:>@])],
       [enable_page_cache=$enableval],
       [enable_page_cache=512])
 
 AC_ARG_ENABLE([examples],
       [AS_HELP_STRING([--disable-examples],
-         [Build LibVMI examples (default is yes)])],
+         [Disable building LibVMI examples @<:@yes@:>@])],
       [enable_examples=$enableval],
       [enable_examples=yes])
 
 AC_ARG_ENABLE([debug],
-  [AS_HELP_STRING([--enable-debug],
-    [Enable strict compiler checks @<:@no@:>@])],
-  [debug="$enableval"],
-  [debug="no"])
+      [AS_HELP_STRING([--enable-debug],
+         [Enable strict compiler checks @<:@no@:>@])],
+      [debug="$enableval"],
+      [debug="no"])
 AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
 
 AC_ARG_ENABLE([rekall_profiles],
-  [AS_HELP_STRING([--enable-rekall-profiles],
-    [Enable using Rekall's JSON profiles])],
-  [rekall="$enableval"],
-  [rekall="yes"])
+      [AS_HELP_STRING([--disable-rekall-profiles],
+         [Disable using Rekall's JSON profiles @<:@no@:>@])],
+      [rekall="$enableval"],
+      [rekall="yes"])
 
 AC_ARG_ENABLE([config-file],
-  [AS_HELP_STRING([--disable-config-file],
-    [Disable using LibVMI config files @<:@no@:>@])],
-  [configfile="$enableval"],
-  [configfile="yes"])
+      [AS_HELP_STRING([--disable-config-file],
+         [Disable using LibVMI config files @<:@no@:>@])],
+      [configfile="$enableval"],
+      [configfile="yes"])
 AM_CONDITIONAL([CONFIGFILE], [test x$configfile = xyes])
+
+AC_ARG_ENABLE([safety-checks],
+      [AS_HELP_STRING([--disable-safety-checks],
+         [Disable API safety checks @<:@no@:>@])],
+      [enable_safety_checks=$enableval],
+      [enable_safety_checks=yes])
 
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
@@ -324,7 +330,7 @@ missing='no'
 [fi]
 AM_CONDITIONAL([REKALL_PROFILES], [test x"$rekall" = xyes])
 
-[if test "$enable_address_cache" = "yes"]
+[if test x"$enable_address_cache" = "xyes"]
 [then]
         AC_DEFINE([ENABLE_ADDRESS_CACHE], [1], [Enable or disable the address cache (v2p, pid, etc)])
 [fi]
@@ -333,6 +339,11 @@ AM_CONDITIONAL([REKALL_PROFILES], [test x"$rekall" = xyes])
 [then]
         AC_DEFINE([ENABLE_PAGE_CACHE], [1], [Enable or disable the page cache])
         AC_DEFINE_UNQUOTED([MAX_PAGE_CACHE_SIZE], [$enable_page_cache], [Max number of pages held in page cache])
+[fi]
+
+[if test x"$enable_safety_checks" = "xyes"]
+[then]
+        AC_DEFINE([ENABLE_SAFETY_CHECKS], [1], [Enable API safety checks])
 [fi]
 
 dnl -----------------------------------------------
