@@ -129,6 +129,23 @@ kvm_release_memory(
         free(memory);
 }
 
+status_t
+kvm_put_memory(vmi_instance_t vmi,
+                    addr_t paddr,
+                    uint32_t length,
+                    void *buf)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+
+    if (kvmi_write_physical(kvm->kvmi_dom, paddr, buf, length) < 0)
+        return VMI_FAILURE;
+
+    return VMI_SUCCESS;
+}
+
 /**
  * Setup KVM live (i.e. KVM patch or KVM native) mode.
  * If KVM patch has been setup before, resume it.
@@ -786,6 +803,16 @@ kvm_read_page(
     addr_t paddr = page << vmi->page_shift;
 
     return memory_cache_insert(vmi, paddr);
+}
+
+status_t
+kvm_write(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void *buf,
+    uint32_t length)
+{
+    return kvm_put_memory(vmi, paddr, length, buf);
 }
 
 int

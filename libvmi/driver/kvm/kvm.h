@@ -53,6 +53,11 @@ void kvm_set_id(
 status_t kvm_check_id(
     vmi_instance_t vmi,
     uint64_t domainid);
+status_t kvm_write(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    void *buf,
+    uint32_t length);
 status_t kvm_get_name(
     vmi_instance_t vmi,
     char **name);
@@ -114,6 +119,7 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.check_id_ptr = &kvm_check_id;
     driver.get_name_ptr = &kvm_get_name;
     driver.set_name_ptr = &kvm_set_name;
+    driver.write_ptr = &kvm_write;
     driver.get_memsize_ptr = &kvm_get_memsize;
     driver.get_vcpureg_ptr = &kvm_get_vcpureg;
     driver.get_vcpuregs_ptr = &kvm_get_vcpuregs;
