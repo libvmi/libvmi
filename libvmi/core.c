@@ -78,81 +78,53 @@ open_config_file(
 )
 {
     FILE *f = NULL;
-    char *location;
+    gchar *location;
     char *sudo_user = NULL;
     struct passwd *pw_entry = NULL;
     char cwd[1024] = { 0 };
 
     /* check current directory */
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        location = g_malloc0(snprintf(NULL,0,"%s/libvmi.conf", cwd)+1);
-        if ( !location )
-            return NULL;
-
-        sprintf(location, "%s/libvmi.conf", cwd);
+        location = g_strconcat(cwd, "/libvmi.conf", NULL);
         dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
 
         f = fopen(location, "r");
-
-        if (f) {
-            goto success;
-        }
         g_free(location);
+
+        if (f)
+            return f;
     }
 
     /* next check home directory of sudo user */
-    if ((sudo_user = getenv("SUDO_USER")) != NULL) {
-        if ((pw_entry = getpwnam(sudo_user)) != NULL) {
-            location = g_malloc0(snprintf(NULL,0,"%s/etc/libvmi.conf", pw_entry->pw_dir)+1);
-            if ( !location )
-                return NULL;
+    if ((sudo_user = getenv("SUDO_USER")) != NULL && (pw_entry = getpwnam(sudo_user)) != NULL) {
+        location = g_strconcat(pw_entry->pw_dir, "/etc/libvmi.conf", NULL);
+        dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
 
-            sprintf(location, "%s/etc/libvmi.conf",
-                    pw_entry->pw_dir);
-            dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
+        f = fopen(location, "r");
+        g_free(location);
 
-            f = fopen(location, "r");
-
-            if (f) {
-                goto success;
-            }
-            g_free(location);
-        }
+        if (f)
+            return f;
     }
 
     /* next check home directory for current user */
-    location = g_malloc0(snprintf(NULL,0,"%s/etc/libvmi.conf", getenv("HOME"))+1);
-    if ( !location )
-        return NULL;
-
-    sprintf(location, "%s/etc/libvmi.conf", getenv("HOME"));
+    location = g_strconcat(getenv("HOME"), "/etc/libvmi.conf", NULL);
     dbprint(VMI_DEBUG_CORE, "--looking for config file at %s\n", location);
 
     f = fopen(location, "r");
-
-    if (f) {
-        goto success;
-    }
     g_free(location);
+
+    if (f)
+        return f;
 
     /* finally check in /etc */
     dbprint(VMI_DEBUG_CORE, "--looking for config file at /etc/libvmi.conf\n");
-    location = g_malloc0(strlen("/etc/libvmi.conf")+1);
-    if ( !location )
-        return NULL;
+    f = fopen("/etc/libvmi.conf", "r");
 
-    sprintf(location, "/etc/libvmi.conf");
-    f = fopen(location, "r");
-    if (f) {
-        goto success;
-    }
-    g_free(location);
+    if (f)
+        return f;
 
     return NULL;
-success:
-    dbprint(VMI_DEBUG_CORE, "**Using config file at %s\n", location);
-    free(location);
-    return f;
 }
 
 static status_t
