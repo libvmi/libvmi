@@ -178,15 +178,12 @@ status_t read_config_string(vmi_instance_t vmi,
         return VMI_FAILURE;
     }
 
-    int length = snprintf(NULL, 0, "%s %s", vmi->image_type, config) + 1;
-    char *config_str = g_malloc0(length);
+    gchar *config_str = g_strconcat(vmi->image_type, " ", config, NULL);
 
-    sprintf(config_str, "%s %s", vmi->image_type, config);
-
-    config_file = fmemopen(config_str, length, "r");
+    config_file = fmemopen(config_str, strlen(config_str), "r");
     ret = read_config_file(vmi, config_file, _config, error);
 
-    free(config_str);
+    g_free(config_str);
 
     return ret;
 }
