@@ -2,8 +2,8 @@ dist:   trusty
 language: c
 sudo: false
 env:
-  global:
-    - secure: "IizhTUvAKYbz1Kf4EST9UwxRVXjNlsQtIOshTjY0zoTOXT4W5A2r7sbQJu/FwTqTPbz6FDVz1kGQvXUq19Wj4wbgBJUtWgpC4SnRJ0HTTRIsxTg0dceip2m3eLHWR9wATEsun0dnqfwY78P9QxCsIAWlxnOANifhTLxV9HhuYc4="
+    global:
+        - secure: "$COVERITY_SCAN_TOKEN"
 
 matrix:
     include:
@@ -112,14 +112,46 @@ matrix:
                 - libfuse-dev
         coverity_scan:
             project:
-                name: "libvmi/libvmi"
+                name: "$COVERITY_PROJECT"
                 description: "Build submitted via Travis CI"
-            notification_email: tamas.k.lengyel@gmail.com
+            notification_email: $COVERITY_EMAIL
             build_command_prepend: "./autogen.sh; ./configure; make clean"
             build_command:   "make"
-            branch_pattern: master
+            branch_pattern: $COVERITY_BRANCH
       script:
       - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
+#
+# SonarCloud
+#
+    - env:
+        - TEST="SonarCloud"
+      compiler: clang
+      sudo: required
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+        sonarcloud:
+            organization: "libvmi"
+            token:
+                secure: "$SONAR_SCAN_TOKEN"
+      install:
+        - ./autogen.sh
+      script:
+        - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
+        - ./configure
+        - build-wrapper-linux-x86-64 --out-dir bw-output make -j2
+        - sonar-scanner
 
 #
 # clang --analyze test
