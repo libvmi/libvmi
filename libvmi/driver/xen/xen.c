@@ -194,7 +194,6 @@ uint64_t xen_get_domainid_from_name(
     unsigned int size = 0, i = 0;
     xs_transaction_t xth = XBT_NULL;
     uint64_t domainid = VMI_INVALID_DOMID;
-    char *tmp;
 
     struct xs_handle *xsh = xen->libxsw.xs_open(0);
 
@@ -205,11 +204,9 @@ uint64_t xen_get_domainid_from_name(
     for (i = 0; i < size; ++i) {
         /* read in name */
         char *idStr = domains[i];
-
-        tmp = g_malloc0(snprintf(NULL, 0, "/local/domain/%s/name", idStr)+1);
-        sprintf(tmp, "/local/domain/%s/name", idStr);
+        char *tmp = g_strconcat("/local/domain/", idStr, "/name", NULL);
         char *nameCandidate = xen->libxsw.xs_read(xsh, xth, tmp, NULL);
-        free(tmp);
+        g_free(tmp);
 
         // if name matches, then return number
         if (nameCandidate != NULL &&
@@ -264,10 +261,11 @@ status_t xen_get_name_from_domainid(
     if (!xsh)
         goto _bail;
 
-    char *tmp = g_malloc0(snprintf(NULL, 0, "/local/domain/%"PRIu64"/name", domainid)+1);
-    sprintf(tmp, "/local/domain/%"PRIu64"/name", domainid);
-    char *nameCandidate = xen->libxsw.xs_read(xsh, xth, tmp, NULL);
-    free(tmp);
+    gchar *tmp = g_strdup_printf("%"PRIu64, domainid);
+    gchar *tmp2 = g_strconcat("/local/domain/", tmp, "/name", NULL);
+    char *nameCandidate = xen->libxsw.xs_read(xsh, xth, tmp2, NULL);
+    g_free(tmp);
+    g_free(tmp2);
 
     if (nameCandidate != NULL) {
         *name = nameCandidate;
@@ -571,14 +569,11 @@ xen_get_domainname(
         goto _bail;
     }
 
-    char *tmp = g_malloc0(snprintf(NULL,
-                                   0,
-                                   "/local/domain/%"PRIu64"/name",
-                                   xen->domainid)
-                          +1);
-    sprintf(tmp, "/local/domain/%"PRIu64"/name", xen->domainid);
-    *name = xen->libxsw.xs_read(xen->xshandle, xth, tmp, NULL);
-    free(tmp);
+    gchar *tmp = g_strdup_printf("%"PRIu64, xen->domainid);
+    gchar *tmp2 = g_strconcat("/local/domain/", tmp, "/name", NULL);
+    *name = xen->libxsw.xs_read(xen->xshandle, xth, tmp2, NULL);
+    g_free(tmp);
+    g_free(tmp2);
 
     if (*name == NULL) {
         errprint("Couldn't get name of domain %"PRIu64" from Xenstore\n", xen->domainid);
