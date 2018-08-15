@@ -122,6 +122,38 @@ matrix:
       - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 #
+# SonarCloud
+#
+    - env:
+        - TEST="SonarCloud"
+      compiler: clang
+      sudo: required
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - bison
+                - flex
+                - check
+                - libjson-c-dev
+                - autoconf-archive
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+        sonarcloud:
+            organization: "libvmi"
+            token:
+                secure: "$SONAR_SCAN_TOKEN"
+      install:
+        - ./autogen.sh
+      script:
+        - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
+        - ./configure
+        - build-wrapper-linux-x86-64 --out-dir bw-output make -j2
+        - sonar-scanner
+
+#
 # clang --analyze test
 #
     - env:
