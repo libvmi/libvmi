@@ -85,9 +85,8 @@ static status_t sanity_check(xen_instance_t *xen)
         case 5:
             if ( !w->xc_domain_maximum_gpfn || !w->xc_set_mem_access ||
                     !w->xc_get_mem_access || !w->xc_mem_access_enable2 ||
-                    !w->xc_mem_access_disable || !w->xc_mem_access_disable ||
-                    !w->xc_hvm_param_set || !w->xc_hvm_param_get ||
-                    !w->xc_domain_cacheflush)
+                    !w->xc_mem_access_disable || !w->xc_hvm_param_set ||
+                    !w->xc_hvm_param_get || !w->xc_domain_cacheflush)
                 break;
 
             ret = VMI_SUCCESS;

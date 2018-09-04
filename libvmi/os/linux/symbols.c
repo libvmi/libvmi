@@ -151,6 +151,13 @@ char* linux_system_map_address_to_symbol(
     int size = 0;
     linux_instance_t linux_instance = vmi->os_data;
 
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!linux_instance) {
+        errprint("VMI_ERROR: OS instance not initialized\n");
+        goto done;
+    }
+#endif
+
     address -= linux_instance->kaslr_offset;
 
     switch (ctx->translate_mechanism) {
@@ -165,11 +172,6 @@ char* linux_system_map_address_to_symbol(
         default:
             goto err;
     };
-
-    if (linux_instance == NULL) {
-        errprint("VMI_ERROR: OS instance not initialized\n");
-        goto done;
-    }
 
     if ((NULL == linux_instance->sysmap) || (strlen(linux_instance->sysmap) == 0)) {
         errprint("VMI_WARNING: No linux sysmap configured\n");
