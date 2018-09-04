@@ -63,6 +63,45 @@ status_t vmi_slat_set_domain_state (
     vmi_instance_t vmi,
     bool state);
 
+status_t vmi_slat_init(
+    vmi_instance_t vmi,
+    uint64_t *init_memsize);
+
+status_t vmi_slat_deinit(
+    vmi_instance_t vmi,
+    uint64_t init_memsize);
+
+/**
+* Create a new physical page
+*
+* @param[in] vmi LibVMI instance
+* @param[out] new page address
+* @return VMI_SUCCESS or VMI_FAILURE
+*/
+status_t vmi_slat_create_physical_page (
+    vmi_instance_t vmi,
+    uint64_t *page_addr);
+
+/**
+* Destroy a new physical page
+*
+* @param[in] vmi LibVMI instance
+* @param[int] the page address
+* @return VMI_SUCCESS or VMI_FAILURE
+*/
+status_t vmi_slat_destroy_physical_page (
+    vmi_instance_t vmi,
+    uint64_t *page_addr);
+
+/**
+* Get the maximum guest page frame number (gpfn)
+*
+* @param[in] vmi LibVMI instance
+* @return the maximum gpfn value
+*/
+uint64_t vmi_slat_get_max_gpfn (
+    vmi_instance_t vmi);
+
 /**
 * Creates a new slat slat_id
 *

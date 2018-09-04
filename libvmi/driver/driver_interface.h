@@ -179,6 +179,20 @@ typedef struct driver_interface {
     status_t (*set_access_required_ptr)(
         vmi_instance_t vmi,
         bool required);
+    status_t (*slat_create_physical_page)(
+        vmi_instance_t vmi,
+        uint64_t *page_addr);
+    status_t (*slat_destroy_physical_page)(
+        vmi_instance_t vmi,
+        uint64_t *page_addr);
+    uint64_t (*slat_get_max_gpfn)(
+        vmi_instance_t vmi);
+    status_t (*slat_init)(
+        vmi_instance_t vmi,
+        uint64_t *init_memsize);
+    status_t (*slat_deinit)(
+        vmi_instance_t vmi,
+        uint64_t init_memsize);
 
     /* Driver-specific data storage. */
     void* driver_data;

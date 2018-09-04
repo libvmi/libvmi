@@ -628,6 +628,22 @@ driver_slat_create (
 }
 
 static inline status_t
+driver_slat_init (
+    vmi_instance_t vmi,
+    uint64_t *init_memsize)
+{
+    return vmi->driver.slat_init (vmi, init_memsize);
+}
+
+static inline status_t
+driver_slat_deinit (
+    vmi_instance_t vmi,
+    uint64_t init_memsize)
+{
+    return vmi->driver.slat_deinit (vmi, init_memsize);
+}
+
+static inline status_t
 driver_slat_destroy (
     vmi_instance_t vmi,
     uint16_t slat_idx )
@@ -672,6 +688,29 @@ driver_slat_change_gfn (
 #endif
 
     return vmi->driver.slat_change_gfn_ptr (vmi, slat_idx, old_gfn, new_gfn);
+}
+
+static inline status_t
+driver_slat_create_physical_page (
+    vmi_instance_t vmi,
+    uint64_t *page_addr)
+{
+   return vmi->driver.slat_create_physical_page(vmi, page_addr); 
+}
+
+static inline status_t
+driver_slat_destroy_physical_page (
+    vmi_instance_t vmi,
+    uint64_t *page_addr)
+{
+   return vmi->driver.slat_destroy_physical_page(vmi, page_addr); 
+}
+
+static inline uint64_t
+driver_slat_get_max_gpfn (
+    vmi_instance_t vmi)
+{
+    return vmi->driver.slat_get_max_gpfn(vmi);
 }
 
 static inline status_t
