@@ -91,7 +91,7 @@ status_t vmi_slat_create_physical_page (
 */
 status_t vmi_slat_destroy_physical_page (
     vmi_instance_t vmi,
-    uint64_t page_addr);
+    uint64_t *page_addr);
 
 /**
 * Get the maximum guest page frame number (gpfn)

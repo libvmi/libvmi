@@ -184,7 +184,7 @@ typedef struct driver_interface {
         uint64_t *page_addr);
     status_t (*slat_destroy_physical_page)(
         vmi_instance_t vmi,
-        uint64_t page_addr);
+        uint64_t *page_addr);
     uint64_t (*slat_get_max_gpfn)(
         vmi_instance_t vmi);
     status_t (*slat_init)(

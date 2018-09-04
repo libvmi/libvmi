@@ -31,27 +31,28 @@ status_t xen_altp2m_init (vmi_instance_t vmi, uint64_t *init_memsize)
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t domain_id = xen_get_domainid(vmi);
 
-    rc = xen->libxcw.xc_domain_setmaxmem(xch, domain_id, ~0);
-    if (rc < 0)
-        return VMI_FAILURE;
-
     xc_dominfo_t info = { 0 };
     if ( 1 == xen->libxcw.xc_domain_getinfo(xch, domain_id, 1, &info) && info.domid == domain_id)
         *init_memsize = info.max_memkb;
     else
         *init_memsize = 0;
 
+    rc = xen->libxcw.xc_domain_setmaxmem(xch, domain_id, ~0);
+    if (rc < 0)
+        return VMI_FAILURE;
+
     return VMI_SUCCESS;
 }
 
 status_t xen_altp2m_deinit (vmi_instance_t vmi, uint64_t init_memsize)
 {
-    int rc;
     xen_instance_t *xen = xen_get_instance(vmi);
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t domain_id = xen_get_domainid(vmi);
 
     xen->libxcw.xc_domain_setmaxmem(xch, domain_id, init_memsize);
+
+    return VMI_SUCCESS;
 }
 
 status_t xen_altp2m_get_domain_state (vmi_instance_t vmi, bool *state)
@@ -120,13 +121,13 @@ status_t xen_altp2m_create_physical_page(vmi_instance_t vmi, uint64_t *page_addr
     return VMI_SUCCESS;
 }
 
-status_t xen_altp2m_destroy_physical_page(vmi_instance_t vmi, uint64_t page_addr)
+status_t xen_altp2m_destroy_physical_page(vmi_instance_t vmi, uint64_t *page_addr)
 {
     xen_instance_t *xen = xen_get_instance(vmi);
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t domain_id = xen_get_domainid(vmi);
 
-    xen->libxcw.xc_domain_decrease_reservation_exact(xch, domain_id, 1, 0, &page_addr);
+    xen->libxcw.xc_domain_decrease_reservation_exact(xch, domain_id, 1, 0, page_addr);
 
     return VMI_SUCCESS;
 }

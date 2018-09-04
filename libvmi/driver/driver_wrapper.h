@@ -701,7 +701,7 @@ driver_slat_create_physical_page (
 static inline status_t
 driver_slat_destroy_physical_page (
     vmi_instance_t vmi,
-    uint64_t page_addr)
+    uint64_t *page_addr)
 {
    return vmi->driver.slat_destroy_physical_page(vmi, page_addr); 
 }

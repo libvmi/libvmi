@@ -42,7 +42,7 @@ status_t xen_altp2m_change_gfn (vmi_instance_t vmi,
                                 addr_t old_gfn,
                                 addr_t new_gfn);
 status_t xen_altp2m_create_physical_page (vmi_instance_t vmi, uint64_t *page_addr);
-status_t xen_altp2m_destroy_physical_page (vmi_instance_t vmi, uint64_t page_addr);
+status_t xen_altp2m_destroy_physical_page (vmi_instance_t vmi, uint64_t *page_addr);
 uint64_t xen_altp2m_get_max_gpfn (vmi_instance_t);
 status_t xen_altp2m_init (vmi_instance_t vmi, uint64_t *init_memsize);
 status_t xen_altp2m_deinit (vmi_instance_t vmi, uint64_t init_memsize);
@@ -61,6 +61,7 @@ xen_init_altp2m (
         vmi->driver.slat_switch_ptr = &xen_altp2m_switch_p2m;
         vmi->driver.slat_change_gfn_ptr = &xen_altp2m_change_gfn;
         vmi->driver.slat_create_physical_page = &xen_altp2m_create_physical_page;
+        vmi->driver.slat_destroy_physical_page = &xen_altp2m_destroy_physical_page;
         vmi->driver.slat_get_max_gpfn = &xen_altp2m_get_max_gpfn;
         vmi->driver.slat_init = &xen_altp2m_init;
         vmi->driver.slat_deinit = &xen_altp2m_deinit;
