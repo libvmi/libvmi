@@ -596,12 +596,12 @@ struct vmi_event {
 /**
  * Convenience macro to setup a interrupt event
  */
-#define SETUP_INTERRUPT_EVENT(_event, _reinject, _callback) \
+#define SETUP_INTERRUPT_EVENT(_event, _callback) \
         do { \
             (_event)->version = VMI_EVENTS_VERSION; \
             (_event)->type = VMI_EVENT_INTERRUPT; \
             (_event)->interrupt_event.intr = INT3; \
-            (_event)->interrupt_event.reinject = _reinject; \
+            (_event)->interrupt_event.reinject = -1; \
             (_event)->callback = _callback; \
         } while(0)
 
