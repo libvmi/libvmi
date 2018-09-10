@@ -281,6 +281,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
                     continue;
 
                 info->vaddr = canonical_addr((pml4e_index << 39) | (pdpte_index << 30));
+                info->dtb = dtb;
                 info->paddr = get_gigpage_ia32e(info->vaddr, pdpte_value);
                 info->size = VMI_PS_1GB;
                 info->x86_ia32e.pml4e_location = pml4e_location;
@@ -310,6 +311,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
 
                         info->vaddr = canonical_addr((pml4e_index << 39) | (pdpte_index << 30) |
                                                      (pgde_index << 21));
+                        info->dtb = dtb;
                         info->paddr = get_2megpage_ia32e(info->vaddr, pgd_value);
                         info->size = VMI_PS_2MB;
                         info->x86_ia32e.pml4e_location = pml4e_location;
@@ -337,6 +339,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
 
                             info->vaddr = canonical_addr((pml4e_index << 39) | (pdpte_index << 30) |
                                                          (pgde_index << 21) | (pte_index << 12));
+                            info->dtb = dtb;
                             info->paddr = get_paddr_ia32e(info->vaddr, pte_value);
                             info->size = VMI_PS_4KB;
                             info->x86_ia32e.pml4e_location = pml4e_location;

@@ -412,6 +412,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
                     continue;
 
                 p->vaddr = pgd_base_vaddr;
+                p->dtb = dtb;
                 p->paddr = get_large_paddr_nopae(p->vaddr, pgd_base_vaddr);
                 p->size = VMI_PS_4MB;
                 p->x86_legacy.pgd_location = pgd_location;
@@ -435,6 +436,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
                         continue;
 
                     p->vaddr = pgd_base_vaddr + pte_index * VMI_PS_4KB;
+                    p->dtb = dtb;
                     p->paddr = get_paddr_nopae(p->vaddr, pte_entry);
                     p->size = VMI_PS_4KB;
                     p->x86_legacy.pgd_location = pgd_location;
@@ -506,6 +508,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
                         continue;
 
                     p->vaddr = pd_base_va;
+                    p->dtb = dtb;
                     p->paddr = get_large_paddr_pae(p->vaddr, pd_entry);
                     p->size = VMI_PS_2MB;
                     p->x86_pae.pdpe_location = pdpi_location;
@@ -531,6 +534,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
                             continue;
 
                         p->vaddr = pd_base_va + pt_index * VMI_PS_4KB;
+                        p->dtb = dtb;
                         p->paddr = get_paddr_pae(p->vaddr, pte_entry);
                         p->size = VMI_PS_4KB;
                         p->x86_pae.pdpe_location = pdpi_location;
