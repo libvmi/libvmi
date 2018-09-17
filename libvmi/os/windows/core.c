@@ -904,7 +904,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
                 dbprint(VMI_DEBUG_MISC, "** (vmi->page_mode == VMI_PM_IA32E) Entering KPCR register selection loop...\n");
                 {
                     size_t i = 0;
-                    for (i = 0; i < sizeof(kpcr_registers_to_try); ++i) {
+                    for (i = 0; i < sizeof(kpcr_registers_to_try)/sizeof(kpcr_registers_to_try[0]); ++i) {
                         dbprint(VMI_DEBUG_MISC, "** (vmi->page_mode == VMI_PM_IA32E) => Using kpcr_register_to_use=%s.\n", kpcr_registers_to_try_names[i]);
 
                         ret = init_from_rekall_profile_real(vmi, kpcr_registers_to_try[i]);
