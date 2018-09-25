@@ -481,8 +481,8 @@ xen_init_vmi(
     /* For Xen PV domains, where xc_domain_maximum_gpfn() returns a number
      * more like nr_pages, which is usually less than max_pages or the
      * calculated number of pages based on memkb, just fake it to be sane. */
-    if ((xen->max_gpfn << 12) < (xen->info.max_memkb * 1024)) {
-        xen->max_gpfn = (xen->info.max_memkb * 1024) >> 12;
+    if ( vmi->vm_type >= PV32 && (xen->max_gpfn << XC_PAGE_SHIFT) < (xen->info.max_memkb * 1024)) {
+        xen->max_gpfn = (xen->info.max_memkb * 1024) >> XC_PAGE_SHIFT;
     }
 
     ret = xen_setup_live_mode(vmi);
@@ -599,22 +599,32 @@ xen_get_memsize(
     uint64_t *allocated_ram_size,
     addr_t *max_physical_address)
 {
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    /* refresh memory informations */
+    xen->libxcw.xc_domain_getinfo(xen->xchandle, xen->domainid, 1, &xen->info);
+
+    if ( xen->major_version == 4 && xen->minor_version < 6 )
+        xen->max_gpfn = (uint64_t)xen->libxcw.xc_domain_maximum_gpfn(xen->xchandle, xen->domainid);
+    else
+        xen->libxcw.xc_domain_maximum_gpfn2(xen->xchandle, xen->domainid, (xen_pfn_t*)&xen->max_gpfn);
+
     // note: may also available through xen_get_instance(vmi)->info.max_memkb
     // or xenstore /local/domain/%d/memory/target
-    uint64_t pages = xen_get_instance(vmi)->info.nr_pages + xen_get_instance(vmi)->info.nr_shared_pages;
+    uint64_t pages = xen->info.nr_pages + xen->info.nr_shared_pages;
 
-    if (pages == 0) {
+    if ( !pages || !xen->max_gpfn )
         return VMI_FAILURE;
+
+    /* For Xen PV domains, where xc_domain_maximum_gpfn() returns a number
+     * more like nr_pages, which is usually less than max_pages or the
+     * calculated number of pages based on memkb, just fake it to be sane. */
+    if ( vmi->vm_type >= PV32 && (xen->max_gpfn << XC_PAGE_SHIFT) < (xen->info.max_memkb * 1024)) {
+        xen->max_gpfn = (xen->info.max_memkb * 1024) >> XC_PAGE_SHIFT;
     }
 
     *allocated_ram_size = XC_PAGE_SIZE * pages;
-
-    addr_t max_gpfn = xen_get_instance(vmi)->max_gpfn;
-    if (max_gpfn == 0) {
-        return VMI_FAILURE;
-    }
-
-    *max_physical_address = max_gpfn * XC_PAGE_SIZE;
+    *max_physical_address = xen->max_gpfn << XC_PAGE_SHIFT;
 
     return VMI_SUCCESS;
 }
