@@ -332,9 +332,10 @@ typedef uint64_t reg_t;
 #define MSR_HYPERVISOR              152
 
 /**
- * Special generic case for specifying arbitrary MSRs not formally listed above.
+ * Special generic case for specifying arbitrary MSRs
  */
-#define MSR_UNDEFINED               153
+#define MSR_ANY                     153
+#define MSR_UNDEFINED MSR_ANY       /* deprecated */
 
 /**
  * Special generic case for handling MSRs, given their understandably

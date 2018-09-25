@@ -299,28 +299,38 @@ status_t process_register(vmi_instance_t vmi,
     gint lookup = reg;
     vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &lookup);
 
-#ifdef ENABLE_SAFETY_CHECKS
-    if ( !event )
-        return VMI_FAILURE;
-#endif
-
     switch ( reg ) {
-        case MSR_ALL:
+        case MSR_ALL: {
+            reg_t msr = 0, value = 0, previous = 0;
             if ( req->version > 0x00000002 ) {
                 struct vm_event_mov_to_msr_411 *mov_to_msr = &req->u.mov_to_msr_411;
-                event->reg_event.msr = mov_to_msr->msr;
-                event->reg_event.value = mov_to_msr->new_value;
-                event->reg_event.previous = mov_to_msr->old_value;
+                msr = mov_to_msr->msr;
+                value = mov_to_msr->new_value;
+                previous = mov_to_msr->old_value;
             } else {
                 struct vm_event_mov_to_msr_46 *mov_to_msr = &req->u.mov_to_msr_46;
-                event->reg_event.msr = mov_to_msr->msr;
-                event->reg_event.value = mov_to_msr->value;
+                msr = mov_to_msr->msr;
+                value = mov_to_msr->value;
             }
+
+            /* Check if it's a MSR_ANY event */
+            lookup = msr;
+            if ( !event && !(event = g_hash_table_lookup(vmi->msr_events, &lookup)) )
+                return VMI_FAILURE;
+
+            event->reg_event.msr = msr;
+            event->reg_event.value = value;
+            event->reg_event.previous = previous;
             break;
+        }
         case CR0:
         case CR3:
         case CR4:
         case XCR0:
+#ifdef ENABLE_SAFETY_CHECKS
+            if ( !event )
+                return VMI_FAILURE;
+#endif
             /*
              * event->reg_event.equal allows for setting a reg event for
              *  a specific VALUE of the register
@@ -832,12 +842,17 @@ status_t xen_set_reg_access_48(vmi_instance_t vmi, reg_event_t *event)
             }
             break;
 
+        case MSR_ANY: /* fall-through */
         case MSR_ALL:
             if ( !(xe->vm_event.monitor_capabilities & (1u << XEN_DOMCTL_MONITOR_EVENT_MOV_TO_MSR)) ) {
                 errprint("%s error: no system support for event type\n", __FUNCTION__);
                 goto done;
             }
             break;
+        case MSR_FLAGS ... MSR_TSC_AUX:
+        case MSR_STAR ... MSR_HYPERVISOR:
+            errprint("%s error: use MSR_ANY type for specific MSR event registration\n", __FUNCTION__);
+            goto done;
         default:
             errprint("%s error: no system support for event type\n", __FUNCTION__);
             goto done;
@@ -917,14 +932,7 @@ status_t xen_set_reg_access_48(vmi_instance_t vmi, reg_event_t *event)
 
             xe->vm_event.monitor_msr_on = enable;
             break;
-        case MSR_FLAGS ... MSR_TSC_AUX:
-        case MSR_STAR ... MSR_HYPERVISOR:
-            if ( xen->libxcw.xc_monitor_mov_to_msr2(xch, dom, msr_index[event->reg], enable) ) {
-                dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" FAILED\n", event->msr);
-                goto done;
-            }
-            break;
-        case MSR_UNDEFINED:
+        case MSR_ANY:
             if ( !event->msr )
                 goto done;
 

@@ -218,7 +218,7 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
 
     status_t rc = VMI_FAILURE;
 
-    if ( MSR_UNDEFINED == event->reg_event.reg && event->reg_event.msr ) {
+    if ( MSR_ANY == event->reg_event.reg && event->reg_event.msr ) {
         return register_msr_event(vmi, event);
     }
 
