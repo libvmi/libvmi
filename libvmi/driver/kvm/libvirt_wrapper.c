@@ -31,8 +31,10 @@ static inline status_t sanity_check(kvm_instance_t *kvm)
     if ( !w->virConnectOpenAuth || !w->virConnectGetLibVersion || !w->virConnectAuthPtrDefault ||
             !w->virConnectClose || !w->virDomainGetName || !w->virDomainGetID ||
             !w->virDomainLookupByID || !w->virDomainLookupByName || !w->virDomainGetInfo ||
-            !w->virDomainFree || !w->virDomainSuspend || !w->virDomainResume )
+            !w->virDomainFree || !w->virDomainSuspend || !w->virDomainResume ) {
+        dbprint(VMI_DEBUG_KVM, "--failed to find the required functions in libvirt\n");
         return VMI_FAILURE;
+    }
 
     return VMI_SUCCESS;
 }
@@ -43,8 +45,10 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
 
     wrapper->handle = dlopen ("libvirt.so", RTLD_NOW | RTLD_GLOBAL);
 
-    if ( !wrapper->handle )
+    if ( !wrapper->handle ) {
+        dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libvirt\n");
         return VMI_FAILURE;
+    }
 
     wrapper->virConnectOpenAuth = dlsym(wrapper->handle, "virConnectOpenAuth");
     wrapper->virConnectGetLibVersion = dlsym(wrapper->handle, "virConnectGetLibVersion");
