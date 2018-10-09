@@ -46,8 +46,13 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
     wrapper->handle = dlopen ("libvirt.so", RTLD_NOW | RTLD_GLOBAL);
 
     if ( !wrapper->handle ) {
-        dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libvirt\n");
-        return VMI_FAILURE;
+        // fallback to libvirt.so.0
+        wrapper->handle = dlopen ("libvirt.so.0", RTLD_NOW | RTLD_GLOBAL);
+
+        if ( !wrapper->handle ) {
+            dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libvirt\n");
+            return VMI_FAILURE;
+        }
     }
 
     wrapper->virConnectOpenAuth = dlsym(wrapper->handle, "virConnectOpenAuth");
