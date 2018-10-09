@@ -28,7 +28,6 @@ static status_t sanity_check(xen_instance_t *xen)
 {
     status_t ret = VMI_FAILURE;
     libxc_wrapper_t *w = &xen->libxcw;
-    int version;
 
     if ( !w->xc_interface_open || !w->xc_interface_close || !w->xc_version ||
             !w->xc_map_foreign_range || !w->xc_vcpu_getcontext || !w->xc_vcpu_setcontext ||
@@ -42,14 +41,6 @@ static status_t sanity_check(xen_instance_t *xen)
         errprint("Failed to open libxc interface.\n");
         return ret;
     }
-
-    /* get the Xen version */
-    version = w->xc_version(xen->xchandle, XENVER_version, NULL);
-    xen->major_version = version >> 16;
-    xen->minor_version = version & ((1 << 16) - 1);
-
-    dbprint(VMI_DEBUG_XEN, "**The running Xen version is %u.%u\n",
-            xen->major_version, xen->minor_version);
 
     if ( xen->major_version != 4 )
         goto done;
@@ -140,30 +131,23 @@ done:
 status_t create_libxc_wrapper(xen_instance_t *xen)
 {
     libxc_wrapper_t *wrapper = &xen->libxcw;
-    unsigned int minor_version_search = 50; // future proof search
 
     wrapper->handle = dlopen ("libxenctrl.so", RTLD_NOW | RTLD_GLOBAL);
 
     if ( !wrapper->handle ) {
-        unsigned int i;
-        for ( i = 0; i < minor_version_search && !wrapper->handle; i++ ) {
-            gchar *alternate = g_strdup_printf("libxenctrl.so.%u.%u", xen->major_version, xen->minor_version);
-            wrapper->handle = dlopen (alternate, RTLD_NOW | RTLD_GLOBAL);
-            g_free(alternate);
-        }
+        gchar *alternate = g_strdup_printf("libxenctrl.so.%u.%u", xen->major_version, xen->minor_version);
+        wrapper->handle = dlopen (alternate, RTLD_NOW | RTLD_GLOBAL);
+        g_free(alternate);
     }
 
     if ( !wrapper->handle ) {
-        unsigned int i;
-        for ( i = 0; i < minor_version_search && !wrapper->handle; i++ ) {
-            gchar *alternate = g_strdup_printf("libxenctrl-%u.%u.so", xen->major_version, xen->minor_version);
-            wrapper->handle = dlopen (alternate, RTLD_NOW | RTLD_GLOBAL);
-            g_free(alternate);
-        }
+        gchar *alternate = g_strdup_printf("libxenctrl-%u.%u.so", xen->major_version, xen->minor_version);
+        wrapper->handle = dlopen (alternate, RTLD_NOW | RTLD_GLOBAL);
+        g_free(alternate);
     }
 
     if ( !wrapper->handle ) {
-        dbprint(VMI_DEBUG_XEN, "Failed to find a suitable libxenctrl.so at any of the standard paths!\n");
+        fprintf(stderr, "Failed to find a suitable libxenctrl.so at any of the standard paths!\n");
         return VMI_FAILURE;
     }
 
