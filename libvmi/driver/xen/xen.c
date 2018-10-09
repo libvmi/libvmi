@@ -387,6 +387,65 @@ xen_setup_live_mode(
     return VMI_SUCCESS;
 }
 
+static inline status_t
+xen_get_version(
+    xen_instance_t *xen)
+{
+    status_t status = VMI_FAILURE;
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    FILE *fp = fopen("/sys/hypervisor/type", "r");
+    if ( !fp )
+        goto done;
+
+    if ((read = getline(&line, &len, fp)) == -1)
+        goto done;
+
+    if ( strncmp("xen", line, 3) )
+        goto done;
+
+    free(line);
+    fclose(fp);
+    line = NULL;
+    fp = NULL;
+
+    fp = fopen("/sys/hypervisor/version/major", "r");
+    if ( !fp )
+        goto done;
+
+    if ((read = getline(&line, &len, fp)) == -1)
+        goto done;
+
+    xen->major_version = atoi(line);
+
+    free(line);
+    fclose(fp);
+    line = NULL;
+    fp = NULL;
+
+    fp = fopen("/sys/hypervisor/version/minor", "r");
+    if ( !fp )
+        goto done;
+
+    if ((read = getline(&line, &len, fp)) == -1)
+        goto done;
+
+    xen->minor_version = atoi(line);
+    status = VMI_SUCCESS;
+
+    dbprint(VMI_DEBUG_XEN, "**The running Xen version is %u.%u\n",
+            xen->major_version, xen->minor_version);
+
+done:
+    if ( line )
+        free(line);
+    if ( fp )
+        fclose(fp);
+    return status;
+}
+
 status_t
 xen_init(
     vmi_instance_t vmi,
@@ -397,6 +456,11 @@ xen_init(
         return VMI_SUCCESS;
 
     xen_instance_t *xen = g_malloc0(sizeof(xen_instance_t));
+
+    if ( VMI_FAILURE == xen_get_version(xen) ) {
+        g_free(xen);
+        return VMI_FAILURE;
+    }
 
     if ( VMI_FAILURE == create_libxc_wrapper(xen) ) {
         dbprint(VMI_DEBUG_XEN, "Failed to find a suitable xenctrl.so!\n");

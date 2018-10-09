@@ -28,7 +28,6 @@ static status_t sanity_check(xen_instance_t *xen)
 {
     status_t ret = VMI_FAILURE;
     libxc_wrapper_t *w = &xen->libxcw;
-    int version;
 
     if ( !w->xc_interface_open || !w->xc_interface_close || !w->xc_version ||
             !w->xc_map_foreign_range || !w->xc_vcpu_getcontext || !w->xc_vcpu_setcontext ||
@@ -42,14 +41,6 @@ static status_t sanity_check(xen_instance_t *xen)
         errprint("Failed to open libxc interface.\n");
         return ret;
     }
-
-    /* get the Xen version */
-    version = w->xc_version(xen->xchandle, XENVER_version, NULL);
-    xen->major_version = version >> 16;
-    xen->minor_version = version & ((1 << 16) - 1);
-
-    dbprint(VMI_DEBUG_XEN, "**The running Xen version is %u.%u\n",
-            xen->major_version, xen->minor_version);
 
     if ( xen->major_version != 4 )
         goto done;
@@ -144,19 +135,20 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->handle = dlopen ("libxenctrl.so", RTLD_NOW | RTLD_GLOBAL);
 
     if ( !wrapper->handle ) {
-        gchar *tmp = g_strdup_printf("%u.%u", xen->major_version, xen->minor_version);
-        gchar *alternate = g_strconcat("libxenctrl.so.", tmp, NULL);
-
-        dbprint(VMI_DEBUG_XEN, "--libxc_wrapper looking for %s\n", alternate);
-
+        gchar *alternate = g_strdup_printf("libxenctrl.so.%u.%u", xen->major_version, xen->minor_version);
         wrapper->handle = dlopen (alternate, RTLD_NOW | RTLD_GLOBAL);
         g_free(alternate);
-        g_free(tmp);
+    }
 
-        if ( !wrapper->handle ) {
-            fprintf(stderr, "Failed to find a suitable libxenctrl.so at any of the standard paths!\n");
-            return VMI_FAILURE;
-        }
+    if ( !wrapper->handle ) {
+        gchar *alternate = g_strdup_printf("libxenctrl-%u.%u.so", xen->major_version, xen->minor_version);
+        wrapper->handle = dlopen (alternate, RTLD_NOW | RTLD_GLOBAL);
+        g_free(alternate);
+    }
+
+    if ( !wrapper->handle ) {
+        fprintf(stderr, "Failed to find a suitable libxenctrl.so at any of the standard paths!\n");
+        return VMI_FAILURE;
     }
 
     /* Basic */
