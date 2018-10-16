@@ -174,6 +174,16 @@ struct _KDDEBUGGER_DATA64 {
 } __attribute__ ((packed));
 typedef struct _KDDEBUGGER_DATA64 KDDEBUGGER_DATA64;
 
+enum kdbg_magic {
+    KDBG_WINDOWS_2000  = 0x0208U, /**< Magic value for Windows 2000 */
+    KDBG_WINDOWS_XP    = 0x0290U, /**< Magic value for Windows XP */
+    KDBG_WINDOWS_2003  = 0x0318U, /**< Magic value for Windows 2003 */
+    KDBG_WINDOWS_VISTA = 0x0328U, /**< Magic value for Windows Vista */
+    KDBG_WINDOWS_2008  = 0x0330U, /**< Magic value for Windows 2008 */
+    KDBG_WINDOWS_7     = 0x0340U, /**< Magic value for Windows 7 */
+    KDBG_WINDOWS_8     = 0x0360U, /**< Magic value for Windows 8 */
+};
+
 static status_t
 kdbg_symbol_resolve(
     vmi_instance_t vmi,
@@ -636,10 +646,10 @@ find_windows_version(
 {
 
     windows_instance_t windows = NULL;
+    uint16_t kdbg_size = 0;
 
-    if (vmi->os_data == NULL) {
+    if (vmi->os_data == NULL)
         return VMI_OS_WINDOWS_UNKNOWN;
-    }
 
     windows = vmi->os_data;
 
@@ -649,26 +659,30 @@ find_windows_version(
         return windows->version;
     }
 
-    win_ver_t version = VMI_OS_WINDOWS_UNKNOWN;
-    vmi_read_16_pa(vmi, kdbg + 0x14, (uint16_t*)&version);
+    if ( VMI_FAILURE == vmi_read_16_pa(vmi, kdbg + 0x14, &kdbg_size) )
+        return VMI_OS_WINDOWS_UNKNOWN;
 
     // Check if it's a version we know about.
-    // The known KDBG magic values are defined in win_ver_t
-    switch (version) {
-        case VMI_OS_WINDOWS_2000:
-        case VMI_OS_WINDOWS_XP:
-        case VMI_OS_WINDOWS_2003:
-        case VMI_OS_WINDOWS_VISTA:
-        case VMI_OS_WINDOWS_2008:
-        case VMI_OS_WINDOWS_7:
-        case VMI_OS_WINDOWS_8:
-            break;
+    switch (kdbg_size) {
+        case KDBG_WINDOWS_2000:
+            return VMI_OS_WINDOWS_2000;
+        case KDBG_WINDOWS_XP:
+            return VMI_OS_WINDOWS_XP;
+        case KDBG_WINDOWS_2003:
+            return VMI_OS_WINDOWS_2003;
+        case KDBG_WINDOWS_VISTA:
+            return VMI_OS_WINDOWS_VISTA;
+        case KDBG_WINDOWS_2008:
+            return VMI_OS_WINDOWS_2008;
+        case KDBG_WINDOWS_7:
+            return VMI_OS_WINDOWS_7;
+        case KDBG_WINDOWS_8:
+            return VMI_OS_WINDOWS_8;
         default:
-            version = VMI_OS_WINDOWS_UNKNOWN;
             break;
     }
 
-    return version;
+    return VMI_OS_WINDOWS_UNKNOWN;
 }
 
 status_t find_kdbg_address(
