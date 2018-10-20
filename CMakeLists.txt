@@ -40,8 +40,16 @@ option(BUILD_EXAMPLES "Build the examples" ON)
 #-----------------------------------------------------------------------------
 #                               SOURCES
 #-----------------------------------------------------------------------------
+configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
+include_directories(${PROJECT_BINARY_DIR})
+# include <libvmi/libvmi.h>
+include_directories(${PROJECT_SOURCE_DIR})
+# include "private.h"
 include_directories(libvmi)
 add_subdirectory(libvmi)
+if (BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif (BUILD_EXAMPLES)
 #-----------------------------------------------------------------------------
 #                               BUILD SUMMARY
 #-----------------------------------------------------------------------------
