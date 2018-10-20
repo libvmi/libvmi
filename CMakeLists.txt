@@ -21,6 +21,7 @@ include_directories (${GLIB_INCLUDE_DIRS})
 
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
+find_package(JSON-C REQUIRED)
 #-----------------------------------------------------------------------------
 #                           BUILD TYPES & FLAGS
 #-----------------------------------------------------------------------------
@@ -33,8 +34,13 @@ if(CMAKE_BUILD_TYPE MATCHES "RELEASE")
     set(CMAKE_EXE_LINKER_FLAGS "-s")
 endif()
 #-----------------------------------------------------------------------------
+#                             BUILD OPTIONS
+#-----------------------------------------------------------------------------
+option(BUILD_EXAMPLES "Build the examples" ON)
+#-----------------------------------------------------------------------------
 #                               SOURCES
 #-----------------------------------------------------------------------------
+include_directories(libvmi)
 add_subdirectory(libvmi)
 #-----------------------------------------------------------------------------
 #                               BUILD SUMMARY

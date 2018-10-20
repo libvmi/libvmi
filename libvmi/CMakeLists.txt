@@ -9,7 +9,6 @@ set(file_driver_src
 )
 
 add_library(file_driver SHARED ${file_driver_src})
-target_include_directories(file_driver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(kvm_driver_src
     driver/kvm/kvm.c
@@ -17,7 +16,7 @@ set(kvm_driver_src
 )
 
 add_library(kvm_driver SHARED ${kvm_driver_src})
-target_include_directories(kvm_driver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(kvm_driver ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
 
 # set(xen_driver_src
 #     driver/xen/altp2m.c
@@ -90,9 +89,10 @@ add_library(vmi SHARED
     ${freebsd_src}
     ${libvmi_src}
 )
-target_include_directories(vmi PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(vmi
+    ${GLIB_LDFLAGS}
+    m
     file_driver
     kvm_driver
 )

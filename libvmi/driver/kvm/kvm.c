@@ -355,7 +355,7 @@ exec_memory_access_success(
  * note:
  * "kvm_patch" here means the feature in pmemaccess patch (kvm-physmem-access_x.x.x.patch);
  */
-inline status_t
+static status_t
 test_using_kvm_patch(
     kvm_instance_t *kvm)
 {
