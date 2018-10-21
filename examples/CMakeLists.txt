@@ -1,3 +1,6 @@
+# include <libvmi/libvmi.h>
+include_directories(${PROJECT_SOURCE_DIR})
+
 add_executable(map-addr map-addr.c)
 target_link_libraries(map-addr vmi)
 
