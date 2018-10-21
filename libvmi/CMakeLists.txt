@@ -7,6 +7,7 @@ if (DRIVER_FILE)
     )
 
     add_library(file_driver SHARED ${file_driver_src})
+    target_include_directories(file_driver PRIVATE ${GLIB_INCLUDE_DIRS})
 endif (DRIVER_FILE)
 
 if (DRIVER_KVM)
@@ -16,6 +17,7 @@ if (DRIVER_KVM)
     )
 
     add_library(kvm_driver SHARED ${kvm_driver_src})
+    target_include_directories(kvm_driver PRIVATE ${GLIB_INCLUDE_DIRS})
     # CMAKE_DL_LIBS -> dlopen* lib
     target_link_libraries(kvm_driver ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
 endif (DRIVER_KVM)
@@ -41,6 +43,7 @@ if (DRIVER_XEN)
     )
 
     add_library(xen_driver SHARED ${xen_driver_src})
+    target_include_directories(xen_driver PRIVATE ${GLIB_INCLUDE_DIRS})
 endif (DRIVER_XEN)
 
 if (OS_WINDOWS)
@@ -54,6 +57,7 @@ if (OS_WINDOWS)
     )
 
     add_library(windows SHARED ${windows_src})
+    target_include_directories(windows PRIVATE ${GLIB_INCLUDE_DIRS})
 endif (OS_WINDOWS)
 
 if (OS_LINUX)
@@ -64,6 +68,7 @@ if (OS_LINUX)
     )
 
     add_library(linux SHARED ${linux_src})
+    target_include_directories(linux PRIVATE ${GLIB_INCLUDE_DIRS})
 endif (OS_LINUX)
 
 if (OS_FREEBSD)
@@ -74,6 +79,7 @@ if (OS_FREEBSD)
     )
 
     add_library(freebsd SHARED ${freebsd_src})
+    target_include_directories(freebsd PRIVATE ${GLIB_INCLUDE_DIRS})
 endif (OS_FREEBSD)
 
 set(libvmi_src
@@ -102,6 +108,9 @@ set(libvmi_src
 add_library(vmi SHARED
     ${libvmi_src}
 )
+# one of our public header exposes glib
+# vmi_get_va_pages returns a GList*
+target_include_directories(vmi PUBLIC ${GLIB_INCLUDE_DIRS})
 target_link_libraries(vmi ${GLIB_LDFLAGS} m)
 
 if (OS_WINDOWS)

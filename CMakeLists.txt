@@ -17,7 +17,6 @@ project(LibVMI C)
 #-----------------------------------------------------------------------------
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLIB REQUIRED glib-2.0)
-include_directories (${GLIB_INCLUDE_DIRS})
 
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
