@@ -36,6 +36,10 @@ endif()
 #-----------------------------------------------------------------------------
 #                             BUILD OPTIONS
 #-----------------------------------------------------------------------------
+option(DRIVER_XEN "Build Xen driver" ON)
+option(DRIVER_KVM "Build KVM driver" ON)
+option(DRIVER_FILE "Build file driver" ON)
+
 option(OS_WINDOWS "Build Windows introspection" ON)
 option(OS_LINUX "Build Linux introspection" ON)
 option(OS_FREEBSD "Build FreeBSD introspection" ON)

@@ -1,40 +1,47 @@
 
 # add_subdirectory(config)
 
-set(file_driver_src
-    driver/file/file.c
-)
+if (DRIVER_FILE)
+    set(file_driver_src
+        driver/file/file.c
+    )
 
-add_library(file_driver SHARED ${file_driver_src})
+    add_library(file_driver SHARED ${file_driver_src})
+endif (DRIVER_FILE)
 
-set(kvm_driver_src
-    driver/kvm/kvm.c
-    driver/kvm/libvirt_wrapper.c
-)
+if (DRIVER_KVM)
+    set(kvm_driver_src
+        driver/kvm/kvm.c
+        driver/kvm/libvirt_wrapper.c
+    )
 
-add_library(kvm_driver SHARED ${kvm_driver_src})
-target_link_libraries(kvm_driver ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+    add_library(kvm_driver SHARED ${kvm_driver_src})
+    # CMAKE_DL_LIBS -> dlopen* lib
+    target_link_libraries(kvm_driver ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+endif (DRIVER_KVM)
 
-# set(xen_driver_src
-#     driver/xen/altp2m.c
-#     driver/xen/altp2m_private.h
-#     driver/xen/xen.h
-#     driver/xen/xen_private.h
-#     driver/xen/xen.c
-#     driver/xen/xen_events.c
-#     driver/xen/xen_events.h
-#     driver/xen/xen_events_private.h
-#     driver/xen/xen_events_46.c
-#     driver/xen/xen_events_48.c
-#     driver/xen/xen_events_legacy.c
-#     driver/xen/libxc_wrapper.c
-#     driver/xen/libxc_wrapper.h
-#     driver/xen/libxs_wrapper.c
-#     driver/xen/libxs_wrapper.h
-# )
-# 
-# add_library(xen_driver SHARED ${xen_driver_src})
-# target_include_directories(xen_driver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+if (DRIVER_XEN)
+    set(xen_driver_src
+        driver/xen/altp2m.c
+        driver/xen/altp2m_private.h
+        driver/xen/xen.h
+        driver/xen/xen_private.h
+        driver/xen/xen.c
+        driver/xen/xen_events.c
+        driver/xen/xen_events.h
+        driver/xen/xen_events_private.h
+        driver/xen/xen_events_46.c
+        driver/xen/xen_events_48.c
+        driver/xen/xen_events_legacy.c
+        driver/xen/libxc_wrapper.c
+        driver/xen/libxc_wrapper.h
+        driver/xen/libxs_wrapper.c
+        driver/xen/libxs_wrapper.h
+    )
+
+    add_library(xen_driver SHARED ${xen_driver_src})
+endif (DRIVER_XEN)
 
 if (OS_WINDOWS)
     set(windows_src
@@ -95,6 +102,7 @@ set(libvmi_src
 add_library(vmi SHARED
     ${libvmi_src}
 )
+target_link_libraries(vmi ${GLIB_LDFLAGS} m)
 
 if (OS_WINDOWS)
     target_link_libraries(vmi windows)
@@ -108,9 +116,14 @@ if (OS_FREEBSD)
     target_link_libraries(vmi freebsd)
 endif (OS_FREEBSD)
 
-target_link_libraries(vmi
-    ${GLIB_LDFLAGS}
-    m
-    file_driver
-    kvm_driver
-)
+if (DRIVER_FILE)
+    target_link_libraries(vmi file_driver)
+endif (DRIVER_FILE)
+
+if (DRIVER_KVM)
+    target_link_libraries(vmi kvm_driver)
+endif (DRIVER_KVM)
+
+if (DRIVER_XEN)
+    target_link_libraries(vmi xen_driver)
+endif (DRIVER_XEN)
