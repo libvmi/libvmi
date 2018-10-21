@@ -36,6 +36,9 @@ endif()
 #-----------------------------------------------------------------------------
 #                             BUILD OPTIONS
 #-----------------------------------------------------------------------------
+option(OS_WINDOWS "Build Windows introspection" ON)
+option(OS_LINUX "Build Linux introspection" ON)
+option(OS_FREEBSD "Build FreeBSD introspection" ON)
 option(BUILD_EXAMPLES "Build the examples" ON)
 #-----------------------------------------------------------------------------
 #                               SOURCES
