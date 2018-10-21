@@ -82,6 +82,16 @@ if (ENABLE_FREEBSD)
     target_include_directories(freebsd PRIVATE ${GLIB_INCLUDE_DIRS})
 endif (ENABLE_FREEBSD)
 
+if (ENABLE_ADDRESS_CACHE)
+    add_library(cache SHARED cache.c)
+    target_include_directories(cache PRIVATE ${GLIB_INCLUDE_DIRS})
+endif (ENABLE_ADDRESS_CACHE)
+
+if (ENABLE_SHM_SNAPSHOT)
+    add_library(shm SHARED shm.c)
+    target_include_directories(shm PRIVATE ${GLIB_INCLUDE_DIRS})
+endif (ENABLE_SHM_SNAPSHOT)
+
 set(libvmi_src
     accessors.c
     convenience.c
@@ -94,7 +104,6 @@ set(libvmi_src
     strmatch.c
     write.c
     memory.c
-    shm.c
     arch/arch_interface.c
     arch/intel.c
     arch/amd64.c
@@ -136,3 +145,11 @@ endif (ENABLE_KVM)
 if (ENABLE_XEN)
     target_link_libraries(vmi xen_driver)
 endif (ENABLE_XEN)
+
+if (ENABLE_ADDRESS_CACHE)
+    target_link_libraries(vmi cache)
+endif (ENABLE_ADDRESS_CACHE)
+
+if (ENABLE_SHM_SNAPSHOT)
+    target_link_libraries(vmi shm)
+endif (ENABLE_SHM_SNAPSHOT)

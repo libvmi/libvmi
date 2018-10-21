@@ -43,6 +43,8 @@ option(ENABLE_WINDOWS "Build Windows introspection" ON)
 option(ENABLE_LINUX "Build Linux introspection" ON)
 option(ENABLE_FREEBSD "Build FreeBSD introspection" ON)
 
+option(ENABLE_SHM_SNAPSHOT "Enable shm snapshot" ON)
+option(ENABLE_ADDRESS_CACHE "Enable address cache" ON)
 option(ENABLE_SAFETY_CHECKS "Enable API safety checks" ON)
 option(BUILD_EXAMPLES "Build the examples" ON)
 #-----------------------------------------------------------------------------
