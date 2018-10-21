@@ -8,7 +8,7 @@
 #cmakedefine01 ENABLE_ADDRESS_CACHE
 
 /* Enable libvmi.conf */
-#define ENABLE_CONFIGFILE 1
+#cmakedefine01 ENABLE_CONFIGFILE
 
 /* Define to 1 to enable file support. */
 #cmakedefine01 ENABLE_FILE

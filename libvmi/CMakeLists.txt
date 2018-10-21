@@ -1,3 +1,5 @@
+add_subdirectory(config)
+
 if (ENABLE_FILE)
     set(file_driver_src
         driver/file/file.c
@@ -159,3 +161,7 @@ endif (ENABLE_SHM_SNAPSHOT)
 if (REKALL_PROFILES)
     target_link_libraries(vmi rekall)
 endif (REKALL_PROFILES)
+
+if (ENABLE_CONFIGFILE)
+    target_link_libraries(vmi config)
+endif ()
