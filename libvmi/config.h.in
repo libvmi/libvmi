@@ -1,8 +1,3 @@
-#ifndef CONFIG_H
-#define CONFIG_H
-/* config.h.  Generated from config.h.in by configure.  */
-/* config.h.in.  Generated from configure.ac by autoheader.  */
-
 /* Define for the ARM32 architecture. */
 /* #undef ARM32 */
 
@@ -146,7 +141,7 @@
 
 /* Defined to 1 when working JSON-C library was found to parse Rekall
    profiles. */
-#define REKALL_PROFILES 1
+#cmakedefine01 REKALL_PROFILES
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -160,4 +155,3 @@
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */
 /* #undef YYTEXT_POINTER */
-#endif // CONFIG_H

@@ -1,6 +1,3 @@
-
-# add_subdirectory(config)
-
 if (ENABLE_FILE)
     set(file_driver_src
         driver/file/file.c
@@ -92,6 +89,11 @@ if (ENABLE_SHM_SNAPSHOT)
     target_include_directories(shm PRIVATE ${GLIB_INCLUDE_DIRS})
 endif (ENABLE_SHM_SNAPSHOT)
 
+if (REKALL_PROFILES)
+    add_library(rekall SHARED rekall.c)
+    target_include_directories(rekall PRIVATE ${GLIB_INCLUDE_DIRS})
+endif (REKALL_PROFILES)
+
 set(libvmi_src
     accessors.c
     convenience.c
@@ -153,3 +155,7 @@ endif (ENABLE_ADDRESS_CACHE)
 if (ENABLE_SHM_SNAPSHOT)
     target_link_libraries(vmi shm)
 endif (ENABLE_SHM_SNAPSHOT)
+
+if (REKALL_PROFILES)
+    target_link_libraries(vmi rekall)
+endif (REKALL_PROFILES)
