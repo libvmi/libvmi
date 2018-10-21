@@ -23,7 +23,7 @@
 #cmakedefine01 ENABLE_LINUX
 
 /* Enable or disable the page cache */
-#define ENABLE_PAGE_CACHE 1
+#cmakedefine01 ENABLE_PAGE_CACHE
 
 /* Enable API safety checks */
 #cmakedefine01 ENABLE_SAFETY_CHECKS
