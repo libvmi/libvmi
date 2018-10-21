@@ -1,41 +1,6 @@
 add_subdirectory(config)
 add_subdirectory(driver)
-
-if (ENABLE_WINDOWS)
-    set(windows_src
-        os/windows/core.c
-        os/windows/kdbg.c
-        os/windows/memory.c
-        os/windows/peparse.c
-        os/windows/process.c
-        os/windows/unicode.c
-    )
-
-    add_library(windows SHARED ${windows_src})
-    target_include_directories(windows PRIVATE ${GLIB_INCLUDE_DIRS})
-endif ()
-
-if (ENABLE_LINUX)
-    set(linux_src
-        os/linux/core.c
-        os/linux/memory.c
-        os/linux/symbols.c
-    )
-
-    add_library(linux SHARED ${linux_src})
-    target_include_directories(linux PRIVATE ${GLIB_INCLUDE_DIRS})
-endif ()
-
-if (ENABLE_FREEBSD)
-    set(freebsd_src
-        os/freebsd/core.c
-        os/freebsd/memory.c
-        os/freebsd/symbols.c
-    )
-
-    add_library(freebsd SHARED ${freebsd_src})
-    target_include_directories(freebsd PRIVATE ${GLIB_INCLUDE_DIRS})
-endif ()
+add_subdirectory(os)
 
 if (ENABLE_ADDRESS_CACHE)
     add_library(cache SHARED cache.c)
@@ -82,16 +47,16 @@ add_library(vmi SHARED
 target_include_directories(vmi PUBLIC ${GLIB_INCLUDE_DIRS})
 target_link_libraries(vmi ${GLIB_LDFLAGS} m)
 
-if (ENABLE_WINDOWS)
-    target_link_libraries(vmi windows)
+if (ENABLE_FREEBSD)
+    target_link_libraries(vmi freebsd)
 endif ()
 
 if (ENABLE_LINUX)
     target_link_libraries(vmi linux)
 endif ()
 
-if (ENABLE_FREEBSD)
-    target_link_libraries(vmi freebsd)
+if (ENABLE_WINDOWS)
+    target_link_libraries(vmi windows)
 endif ()
 
 if (ENABLE_FILE)
