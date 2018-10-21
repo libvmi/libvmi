@@ -1,16 +1,16 @@
 
 # add_subdirectory(config)
 
-if (DRIVER_FILE)
+if (ENABLE_FILE)
     set(file_driver_src
         driver/file/file.c
     )
 
     add_library(file_driver SHARED ${file_driver_src})
     target_include_directories(file_driver PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (DRIVER_FILE)
+endif (ENABLE_FILE)
 
-if (DRIVER_KVM)
+if (ENABLE_KVM)
     set(kvm_driver_src
         driver/kvm/kvm.c
         driver/kvm/libvirt_wrapper.c
@@ -20,10 +20,10 @@ if (DRIVER_KVM)
     target_include_directories(kvm_driver PRIVATE ${GLIB_INCLUDE_DIRS})
     # CMAKE_DL_LIBS -> dlopen* lib
     target_link_libraries(kvm_driver ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
-endif (DRIVER_KVM)
+endif (ENABLE_KVM)
 
 
-if (DRIVER_XEN)
+if (ENABLE_XEN)
     set(xen_driver_src
         driver/xen/altp2m.c
         driver/xen/altp2m_private.h
@@ -44,7 +44,7 @@ if (DRIVER_XEN)
 
     add_library(xen_driver SHARED ${xen_driver_src})
     target_include_directories(xen_driver PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (DRIVER_XEN)
+endif (ENABLE_XEN)
 
 if (ENABLE_WINDOWS)
     set(windows_src
@@ -125,14 +125,14 @@ if (ENABLE_FREEBSD)
     target_link_libraries(vmi freebsd)
 endif (ENABLE_FREEBSD)
 
-if (DRIVER_FILE)
+if (ENABLE_FILE)
     target_link_libraries(vmi file_driver)
-endif (DRIVER_FILE)
+endif (ENABLE_FILE)
 
-if (DRIVER_KVM)
+if (ENABLE_KVM)
     target_link_libraries(vmi kvm_driver)
-endif (DRIVER_KVM)
+endif (ENABLE_KVM)
 
-if (DRIVER_XEN)
+if (ENABLE_XEN)
     target_link_libraries(vmi xen_driver)
-endif (DRIVER_XEN)
+endif (ENABLE_XEN)

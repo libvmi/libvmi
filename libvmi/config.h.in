@@ -16,13 +16,13 @@
 #define ENABLE_CONFIGFILE 1
 
 /* Define to 1 to enable file support. */
-#define ENABLE_FILE 1
+#cmakedefine01 ENABLE_FILE
 
 /* Define to 1 to FreeBSD support. */
 #cmakedefine01 ENABLE_FREEBSD
 
 /* Define to 1 to enable KVM support. */
-#define ENABLE_KVM 1
+#cmakedefine01 ENABLE_KVM
 
 /* Define to 1 to Linux support. */
 #cmakedefine01 ENABLE_LINUX
@@ -43,7 +43,7 @@
 #cmakedefine01 ENABLE_WINDOWS
 
 /* Define to 1 to enable Xen support. */
-#define ENABLE_XEN 1
+#cmakedefine01 ENABLE_XEN
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
