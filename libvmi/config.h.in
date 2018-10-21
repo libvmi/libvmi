@@ -31,7 +31,7 @@
 #define ENABLE_PAGE_CACHE 1
 
 /* Enable API safety checks */
-#define ENABLE_SAFETY_CHECKS 1
+#cmakedefine01 ENABLE_SAFETY_CHECKS
 
 /* Define to 1 to enable shm-snapshot support. */
 /* #undef ENABLE_SHM_SNAPSHOT */
