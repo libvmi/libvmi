@@ -64,4 +64,3 @@ message(STATUS " ↳ C Flags      → ${CMAKE_C_FLAGS}")
 message(STATUS " ↳ Sanitizers   → ${COMPILER_SANITIZER}")
 message(STATUS " ↳ Prefix       → ${CMAKE_INSTALL_PREFIX}")
 message(STATUS " ↳ Build        → ${CMAKE_BUILD_TYPE}")
-
