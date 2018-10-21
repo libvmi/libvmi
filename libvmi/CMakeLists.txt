@@ -46,7 +46,7 @@ if (DRIVER_XEN)
     target_include_directories(xen_driver PRIVATE ${GLIB_INCLUDE_DIRS})
 endif (DRIVER_XEN)
 
-if (OS_WINDOWS)
+if (ENABLE_WINDOWS)
     set(windows_src
         os/windows/core.c
         os/windows/kdbg.c
@@ -58,9 +58,9 @@ if (OS_WINDOWS)
 
     add_library(windows SHARED ${windows_src})
     target_include_directories(windows PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (OS_WINDOWS)
+endif (ENABLE_WINDOWS)
 
-if (OS_LINUX)
+if (ENABLE_LINUX)
     set(linux_src
         os/linux/core.c
         os/linux/memory.c
@@ -69,9 +69,9 @@ if (OS_LINUX)
 
     add_library(linux SHARED ${linux_src})
     target_include_directories(linux PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (OS_LINUX)
+endif (ENABLE_LINUX)
 
-if (OS_FREEBSD)
+if (ENABLE_FREEBSD)
     set(freebsd_src
         os/freebsd/core.c
         os/freebsd/memory.c
@@ -80,7 +80,7 @@ if (OS_FREEBSD)
 
     add_library(freebsd SHARED ${freebsd_src})
     target_include_directories(freebsd PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (OS_FREEBSD)
+endif (ENABLE_FREEBSD)
 
 set(libvmi_src
     accessors.c
@@ -113,17 +113,17 @@ add_library(vmi SHARED
 target_include_directories(vmi PUBLIC ${GLIB_INCLUDE_DIRS})
 target_link_libraries(vmi ${GLIB_LDFLAGS} m)
 
-if (OS_WINDOWS)
+if (ENABLE_WINDOWS)
     target_link_libraries(vmi windows)
-endif (OS_WINDOWS)
+endif (ENABLE_WINDOWS)
 
-if (OS_LINUX)
+if (ENABLE_LINUX)
     target_link_libraries(vmi linux)
-endif (OS_LINUX)
+endif (ENABLE_LINUX)
 
-if (OS_FREEBSD)
+if (ENABLE_FREEBSD)
     target_link_libraries(vmi freebsd)
-endif (OS_FREEBSD)
+endif (ENABLE_FREEBSD)
 
 if (DRIVER_FILE)
     target_link_libraries(vmi file_driver)

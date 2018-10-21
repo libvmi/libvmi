@@ -1,3 +1,5 @@
+#ifndef CONFIG_H
+#define CONFIG_H
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
@@ -17,13 +19,13 @@
 #define ENABLE_FILE 1
 
 /* Define to 1 to FreeBSD support. */
-#define ENABLE_FREEBSD 1
+#cmakedefine01 ENABLE_FREEBSD
 
 /* Define to 1 to enable KVM support. */
 #define ENABLE_KVM 1
 
 /* Define to 1 to Linux support. */
-#define ENABLE_LINUX 1
+#cmakedefine01 ENABLE_LINUX
 
 /* Enable or disable the page cache */
 #define ENABLE_PAGE_CACHE 1
@@ -38,7 +40,7 @@
 #define ENABLE_VMIFS 0
 
 /* Define to 1 to Windows support. */
-#define ENABLE_WINDOWS 1
+#cmakedefine01 ENABLE_WINDOWS
 
 /* Define to 1 to enable Xen support. */
 #define ENABLE_XEN 1
@@ -158,3 +160,4 @@
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */
 /* #undef YYTEXT_POINTER */
+#endif // CONFIG_H
