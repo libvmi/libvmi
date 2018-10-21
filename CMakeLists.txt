@@ -49,6 +49,7 @@ option(BUILD_EXAMPLES "Build the examples" ON)
 #                               SOURCES
 #-----------------------------------------------------------------------------
 configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
+add_definitions(-DHAVE_CONFIG_H)
 include_directories(${PROJECT_BINARY_DIR})
 # include <libvmi/libvmi.h>
 include_directories(${PROJECT_SOURCE_DIR})
