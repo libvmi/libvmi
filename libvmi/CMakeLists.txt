@@ -1,49 +1,5 @@
 add_subdirectory(config)
-
-if (ENABLE_FILE)
-    set(file_driver_src
-        driver/file/file.c
-    )
-
-    add_library(file_driver SHARED ${file_driver_src})
-    target_include_directories(file_driver PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (ENABLE_FILE)
-
-if (ENABLE_KVM)
-    set(kvm_driver_src
-        driver/kvm/kvm.c
-        driver/kvm/libvirt_wrapper.c
-    )
-
-    add_library(kvm_driver SHARED ${kvm_driver_src})
-    target_include_directories(kvm_driver PRIVATE ${GLIB_INCLUDE_DIRS})
-    # CMAKE_DL_LIBS -> dlopen* lib
-    target_link_libraries(kvm_driver ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
-endif (ENABLE_KVM)
-
-
-if (ENABLE_XEN)
-    set(xen_driver_src
-        driver/xen/altp2m.c
-        driver/xen/altp2m_private.h
-        driver/xen/xen.h
-        driver/xen/xen_private.h
-        driver/xen/xen.c
-        driver/xen/xen_events.c
-        driver/xen/xen_events.h
-        driver/xen/xen_events_private.h
-        driver/xen/xen_events_46.c
-        driver/xen/xen_events_48.c
-        driver/xen/xen_events_legacy.c
-        driver/xen/libxc_wrapper.c
-        driver/xen/libxc_wrapper.h
-        driver/xen/libxs_wrapper.c
-        driver/xen/libxs_wrapper.h
-    )
-
-    add_library(xen_driver SHARED ${xen_driver_src})
-    target_include_directories(xen_driver PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (ENABLE_XEN)
+add_subdirectory(driver)
 
 if (ENABLE_WINDOWS)
     set(windows_src
@@ -57,7 +13,7 @@ if (ENABLE_WINDOWS)
 
     add_library(windows SHARED ${windows_src})
     target_include_directories(windows PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (ENABLE_WINDOWS)
+endif ()
 
 if (ENABLE_LINUX)
     set(linux_src
@@ -68,7 +24,7 @@ if (ENABLE_LINUX)
 
     add_library(linux SHARED ${linux_src})
     target_include_directories(linux PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (ENABLE_LINUX)
+endif ()
 
 if (ENABLE_FREEBSD)
     set(freebsd_src
@@ -79,22 +35,22 @@ if (ENABLE_FREEBSD)
 
     add_library(freebsd SHARED ${freebsd_src})
     target_include_directories(freebsd PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (ENABLE_FREEBSD)
+endif ()
 
 if (ENABLE_ADDRESS_CACHE)
     add_library(cache SHARED cache.c)
     target_include_directories(cache PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (ENABLE_ADDRESS_CACHE)
+endif ()
 
 if (ENABLE_SHM_SNAPSHOT)
     add_library(shm SHARED shm.c)
     target_include_directories(shm PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (ENABLE_SHM_SNAPSHOT)
+endif ()
 
 if (REKALL_PROFILES)
     add_library(rekall SHARED rekall.c)
     target_include_directories(rekall PRIVATE ${GLIB_INCLUDE_DIRS})
-endif (REKALL_PROFILES)
+endif ()
 
 set(libvmi_src
     accessors.c
@@ -128,39 +84,39 @@ target_link_libraries(vmi ${GLIB_LDFLAGS} m)
 
 if (ENABLE_WINDOWS)
     target_link_libraries(vmi windows)
-endif (ENABLE_WINDOWS)
+endif ()
 
 if (ENABLE_LINUX)
     target_link_libraries(vmi linux)
-endif (ENABLE_LINUX)
+endif ()
 
 if (ENABLE_FREEBSD)
     target_link_libraries(vmi freebsd)
-endif (ENABLE_FREEBSD)
+endif ()
 
 if (ENABLE_FILE)
     target_link_libraries(vmi file_driver)
-endif (ENABLE_FILE)
+endif ()
 
 if (ENABLE_KVM)
     target_link_libraries(vmi kvm_driver)
-endif (ENABLE_KVM)
+endif ()
 
 if (ENABLE_XEN)
     target_link_libraries(vmi xen_driver)
-endif (ENABLE_XEN)
+endif ()
 
 if (ENABLE_ADDRESS_CACHE)
     target_link_libraries(vmi cache)
-endif (ENABLE_ADDRESS_CACHE)
+endif ()
 
 if (ENABLE_SHM_SNAPSHOT)
     target_link_libraries(vmi shm)
-endif (ENABLE_SHM_SNAPSHOT)
+endif ()
 
 if (REKALL_PROFILES)
     target_link_libraries(vmi rekall)
-endif (REKALL_PROFILES)
+endif ()
 
 if (ENABLE_CONFIGFILE)
     target_link_libraries(vmi config)
