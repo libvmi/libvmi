@@ -65,7 +65,7 @@
 /* #undef HAVE_LIBRT */
 
 /* Define to 1 if you have <qemu/libvmi_request.h>. */
-#define HAVE_LIBVMI_REQUEST 1
+#cmakedefine01 HAVE_LIBVMI_REQUEST
 
 /* Define to 1 to enable Xenstore support. */
 #define HAVE_LIBXENSTORE 1
