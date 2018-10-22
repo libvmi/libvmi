@@ -789,11 +789,11 @@ vmi_get_library_arch()
 {
 #ifdef I386
     return VMI_ARCH_X86;
-#elif X86_64
+#elif defined(X86_64)
     return VMI_ARCH_X86_64;
-#elif ARM32
+#elif defined(ARM32)
     return VMI_ARCH_ARM32;
-#elif ARM64
+#elif defined(ARM64)
     return VMI_ARCH_ARM64;
 #endif
 

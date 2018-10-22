@@ -1,8 +1,14 @@
 /* Define for the ARM32 architecture. */
-/* #undef ARM32 */
+#cmakedefine ARM32
 
 /* Define for the ARM64 architecture. */
-/* #undef ARM64 */
+#cmakedefine ARM64
+
+/* Define for the i386 architecture. */
+#cmakedefine I386
+
+/* Define for the AMD x86-64 architecture. */
+#cmakedefine X86_64
 
 /* Enable or disable the address cache (v2p, pid, etc) */
 #cmakedefine01 ENABLE_ADDRESS_CACHE
@@ -85,10 +91,3 @@
 
 /* Version number of package */
 #define VERSION "0.13.0"
-
-/* Define for the AMD x86-64 architecture. */
-#define X86_64 1
-
-/* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
-   `char[]'. */
-/* #undef YYTEXT_POINTER */
