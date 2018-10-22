@@ -29,9 +29,9 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -O0")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Werror -O2")
 
 # strip binary in release mode
-if(CMAKE_BUILD_TYPE MATCHES "RELEASE")
+if (CMAKE_BUILD_TYPE MATCHES "RELEASE")
     set(CMAKE_EXE_LINKER_FLAGS "-s")
-endif()
+endif ()
 #-----------------------------------------------------------------------------
 #                             BUILD OPTIONS
 #-----------------------------------------------------------------------------
@@ -43,6 +43,7 @@ option(ENABLE_WINDOWS "Build Windows introspection" ON)
 option(ENABLE_LINUX "Build Linux introspection" ON)
 option(ENABLE_FREEBSD "Build FreeBSD introspection" ON)
 
+option(ENABLE_VMIFS "Enable vmifs: maps memory to a file through FUSE" OFF)
 option(ENABLE_CONFIGFILE "Enable config file" ON)
 option(ENABLE_SHM_SNAPSHOT "Enable shm snapshot" ON)
 option(ENABLE_ADDRESS_CACHE "Enable address cache" ON)
@@ -60,6 +61,7 @@ include_directories(${PROJECT_BINARY_DIR})
 # include "private.h"
 include_directories(libvmi)
 add_subdirectory(libvmi)
+add_subdirectory(tools)
 if (BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif (BUILD_EXAMPLES)

@@ -32,7 +32,7 @@
 #cmakedefine01 ENABLE_SHM_SNAPSHOT
 
 /* Define to 1 to build VMIFS. */
-#define ENABLE_VMIFS 0
+#cmakedefine01 ENABLE_VMIFS
 
 /* Define to 1 to Windows support. */
 #cmakedefine01 ENABLE_WINDOWS
