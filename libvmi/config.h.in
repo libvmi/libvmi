@@ -50,6 +50,9 @@
 #cmakedefine01 HAVE_LIBVMI_REQUEST
 
 /* Define to 1 to enable Xenstore support. */
+#cmakedefine01 ENABLE_XENSTORE
+
+/* Define to 1 if we have Xenstore support. */
 #define HAVE_LIBXENSTORE 1
 
 /* xen headers define xenmem_access_t */
