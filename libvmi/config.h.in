@@ -62,7 +62,7 @@
 #define HAVE_XS_H 1
 
 /* Max number of pages held in page cache */
-#define MAX_PAGE_CACHE_SIZE 512
+#cmakedefine MAX_PAGE_CACHE_SIZE ${MAX_PAGE_CACHE_SIZE}
 
 /* Name of package */
 #define PACKAGE "libvmi"

@@ -53,6 +53,9 @@ option(ENABLE_PAGE_CACHE "Enable page cache" ON)
 option(REKALL_PROFILES "Use Rekall's JSON profiles" ON)
 option(ENABLE_SAFETY_CHECKS "Enable API safety checks" ON)
 option(BUILD_EXAMPLES "Build the examples" ON)
+
+# default values
+set(MAX_PAGE_CACHE_SIZE "512")
 #-----------------------------------------------------------------------------
 #                               SOURCES
 #-----------------------------------------------------------------------------
