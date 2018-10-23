@@ -4,8 +4,8 @@
 
 # define HAVE_XXX
 include(CheckIncludeFile)
-check_include_file(xenstore.h XENSTORE_H)
-check_include_file(xs.h XS_H)
+check_include_file(xenstore.h HAVE_XENSTORE_H)
+check_include_file(xs.h HAVE_XS_H)
 
 find_path(Xenstore_INCLUDE_DIR
     NAMES xenstore.h xs.h)

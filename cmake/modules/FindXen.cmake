@@ -4,8 +4,8 @@
 
 # define HAVE_XXX
 include(CheckIncludeFile)
-check_include_file(xenctrl.h XENCTRL_H)
-check_include_file(xen/io/ring.h XEN_IO_RING_H)
+check_include_file(xenctrl.h HAVE_XENCTRL_H)
+check_include_file(xen/io/ring.h HAVE_XEN_IO_RING_H)
 
 include(CheckTypeSize)
 set(CMAKE_EXTRA_INCLUDE_FILES xenctrl.h xen/hvm/save.h)
