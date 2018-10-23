@@ -22,6 +22,7 @@ find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
 find_package(LibvmiRequest)
 find_package(Xen)
+find_package(Xenstore)
 include(DetectArchitecture)
 #-----------------------------------------------------------------------------
 #                           BUILD TYPES & FLAGS

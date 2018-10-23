@@ -1,4 +1,7 @@
 find_package(Xen REQUIRED)
+if (ENABLE_XENSTORE)
+    find_package(Xenstore REQUIRED)
+endif ()
 
 set(xen_driver_src
     altp2m.c

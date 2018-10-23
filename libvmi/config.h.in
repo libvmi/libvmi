@@ -59,16 +59,16 @@
 #cmakedefine01 HAVE_XEN_IO_RING_H
 
 /* Define to 1 if we have Xenstore support. */
-#define HAVE_LIBXENSTORE 1
+#cmakedefine01 HAVE_LIBXENSTORE
+
+/* Define to 1 if you have the <xenstore.h> header file. */
+#cmakedefine01 HAVE_XENSTORE_H
+
+/* Define to 1 if you have the <xs.h> header file. */
+#cmakedefine01 HAVE_XS_H
 
 /* xen headers define xenmem_access_t */
 #define HAVE_XENMEM_ACCESS_T 1
-
-/* Define to 1 if you have the <xenstore.h> header file. */
-#define HAVE_XENSTORE_H 1
-
-/* Define to 1 if you have the <xs.h> header file. */
-#define HAVE_XS_H 1
 
 /* Max number of pages held in page cache */
 #cmakedefine MAX_PAGE_CACHE_SIZE ${MAX_PAGE_CACHE_SIZE}
