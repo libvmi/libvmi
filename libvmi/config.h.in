@@ -52,6 +52,12 @@
 /* Define to 1 to enable Xenstore support. */
 #cmakedefine01 ENABLE_XENSTORE
 
+/* Define to 1 if you have the <xenctrl.h> header file. */
+#cmakedefine01 HAVE_XENCTRL_H
+
+/* Define to 1 if you have the <xen/io/ring.h> header file. */
+#cmakedefine01 HAVE_XEN_IO_RING_H
+
 /* Define to 1 if we have Xenstore support. */
 #define HAVE_LIBXENSTORE 1
 

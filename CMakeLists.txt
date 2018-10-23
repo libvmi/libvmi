@@ -21,6 +21,7 @@ pkg_search_module(GLIB REQUIRED glib-2.0)
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
 find_package(LibvmiRequest)
+find_package(Xen)
 include(DetectArchitecture)
 #-----------------------------------------------------------------------------
 #                           BUILD TYPES & FLAGS
@@ -60,12 +61,13 @@ set(MAX_PAGE_CACHE_SIZE "512")
 #                               SOURCES
 #-----------------------------------------------------------------------------
 configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
-add_definitions(-DHAVE_CONFIG_H)
 # include "config.h"
 include_directories(${PROJECT_BINARY_DIR})
+add_definitions(-DHAVE_CONFIG_H)
 # include "private.h"
 include_directories(libvmi)
 add_subdirectory(libvmi)
+
 add_subdirectory(tools)
 if (BUILD_EXAMPLES)
     add_subdirectory(examples)

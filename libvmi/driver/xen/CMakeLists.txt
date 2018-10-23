@@ -1,3 +1,5 @@
+find_package(Xen REQUIRED)
+
 set(xen_driver_src
     altp2m.c
     altp2m_private.h
