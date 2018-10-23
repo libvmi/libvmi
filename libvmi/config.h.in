@@ -67,8 +67,11 @@
 /* Define to 1 if you have the <xs.h> header file. */
 #cmakedefine01 HAVE_XS_H
 
+/* xen headers define hvmmem_access_t */
+#cmakedefine01 HVMMEM_ACCESS_T
+
 /* xen headers define xenmem_access_t */
-#define HAVE_XENMEM_ACCESS_T 1
+#cmakedefine01 HAVE_XENMEM_ACCESS_T
 
 /* Max number of pages held in page cache */
 #cmakedefine MAX_PAGE_CACHE_SIZE ${MAX_PAGE_CACHE_SIZE}

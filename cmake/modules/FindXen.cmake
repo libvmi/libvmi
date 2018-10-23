@@ -2,6 +2,17 @@
 # Xen_FOUND
 # Xen_INCLUDE_DIRS
 
+# define HAVE_XXX
+include(CheckIncludeFile)
+check_include_file(xenctrl.h XENCTRL_H)
+check_include_file(xen/io/ring.h XEN_IO_RING_H)
+
+include(CheckTypeSize)
+set(CMAKE_EXTRA_INCLUDE_FILES xenctrl.h xen/hvm/save.h)
+check_type_size("hvmmem_access_t" HVMMEM_ACCESS_T)
+set(CMAKE_EXTRA_INCLUDE_FILES xenctrl.h xen/memory.h)
+check_type_size("xenmem_access_t" XENMEM_ACCESS_T)
+
 find_path(Xen_INCLUDE_DIR
     NAMES xenctrl.h xen/io/ring.h)
 
@@ -12,8 +23,6 @@ find_package_handle_standard_args(Xen
     Xen_INCLUDE_DIR)
 
 if (Xen_FOUND)
-    set(HAVE_XENCTRL_H ON)
-    set(HAVE_XEN_IO_RING_H ON)
     set(Xen_INCLUDE_DIRS ${Xen_INCLUDE_DIR})
 endif ()
 
