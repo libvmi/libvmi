@@ -20,7 +20,7 @@ pkg_search_module(GLIB REQUIRED glib-2.0)
 
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
-find_package(LIBVMI_REQUEST)
+find_package(LibvmiRequest)
 include(DetectArchitecture)
 #-----------------------------------------------------------------------------
 #                           BUILD TYPES & FLAGS
