@@ -3,12 +3,6 @@ cmake_minimum_required(VERSION 3.0)
 # set cmake module path, to search in cmake/modules first
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 #-----------------------------------------------------------------------------
-#                               MODULES
-#-----------------------------------------------------------------------------
-# include(static_analysis)
-# include(doxygen)
-# include(ccache)
-#-----------------------------------------------------------------------------
 #                           GENERAL CONFIGURATION
 #-----------------------------------------------------------------------------
 project(LibVMI VERSION 0.13.0 LANGUAGES C)
@@ -24,6 +18,7 @@ find_package(LibvmiRequest)
 find_package(Xen)
 find_package(Xenstore)
 include(DetectArchitecture)
+include(StaticAnalysis)
 #-----------------------------------------------------------------------------
 #                           BUILD TYPES & FLAGS
 #-----------------------------------------------------------------------------
