@@ -13,8 +13,10 @@ if (ENABLE_SHM_SNAPSHOT)
 endif ()
 
 if (REKALL_PROFILES)
+    find_package(JSON-C REQUIRED)
     add_library(rekall SHARED rekall.c)
-    target_include_directories(rekall PRIVATE ${GLIB_INCLUDE_DIRS})
+    target_include_directories(rekall PRIVATE ${GLIB_INCLUDE_DIRS} ${JSON-C_INCLUDE_DIRS})
+    target_link_libraries(rekall ${JSON-C_LIBRARIES})
 endif ()
 
 set(libvmi_src

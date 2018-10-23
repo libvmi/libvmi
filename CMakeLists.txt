@@ -20,7 +20,6 @@ pkg_search_module(GLIB REQUIRED glib-2.0)
 
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
-find_package(JSON-C REQUIRED)
 find_package(LIBVMI_REQUEST)
 include(DetectArchitecture)
 #-----------------------------------------------------------------------------

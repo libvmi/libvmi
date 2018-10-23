@@ -1,10 +1,12 @@
+find_package(JSON-C REQUIRED)
+
 set(kvm_driver_src
     kvm.c
     libvirt_wrapper.c
 )
 
 add_library(kvm_driver SHARED ${kvm_driver_src})
-target_include_directories(kvm_driver PRIVATE ${GLIB_INCLUDE_DIRS})
+target_include_directories(kvm_driver PRIVATE ${GLIB_INCLUDE_DIRS} ${JSON-C_INCLUDE_DIRS})
 # CMAKE_DL_LIBS -> dlopen* lib
 target_link_libraries(kvm_driver ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
 
