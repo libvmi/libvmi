@@ -73,6 +73,7 @@ add_subdirectory(tools)
 if (BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif (BUILD_EXAMPLES)
+add_subdirectory(doc)
 #-----------------------------------------------------------------------------
 #                               BUILD SUMMARY
 #-----------------------------------------------------------------------------
