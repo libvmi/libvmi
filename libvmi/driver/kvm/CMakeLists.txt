@@ -1,4 +1,5 @@
 find_package(JSON-C REQUIRED)
+find_package(Libvirt REQUIRED)
 
 set(kvm_driver_src
     kvm.c
