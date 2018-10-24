@@ -23,8 +23,7 @@
  */
 
 #include <stdlib.h>
-#include <check.h>
-#include "../libvmi/libvmi.h"
+#include <libvmi/libvmi.h>
 #include "check_tests.h"
 
 

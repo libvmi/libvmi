@@ -49,6 +49,7 @@ option(ENABLE_ADDRESS_CACHE "Enable address cache" ON)
 option(ENABLE_PAGE_CACHE "Enable page cache" ON)
 option(REKALL_PROFILES "Use Rekall's JSON profiles" ON)
 option(ENABLE_SAFETY_CHECKS "Enable API safety checks" ON)
+option(ENABLE_TESTING "Build libvmi test suite" ON)
 option(BUILD_EXAMPLES "Build the examples" ON)
 
 # default values
@@ -63,8 +64,13 @@ add_definitions(-DHAVE_CONFIG_H)
 # include "private.h"
 include_directories(libvmi)
 add_subdirectory(libvmi)
-
 add_subdirectory(tools)
+if (ENABLE_TESTING)
+    # this command should always be called in the root CMakeLists.txt
+    enable_testing()
+    add_subdirectory(tests)
+endif ()
+
 if (BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif (BUILD_EXAMPLES)

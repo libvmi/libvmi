@@ -22,14 +22,14 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <check.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <pwd.h>
 #include <unistd.h>
 #include <glib.h>
-#include "../libvmi/libvmi.h"
+
+#include <libvmi/libvmi.h>
 #include "check_tests.h"
 
 /* test init_complete for Windows from Rekall sysmap */

@@ -22,7 +22,6 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <check.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "check_tests.h"
