@@ -117,23 +117,28 @@ typedef enum os {
 } os_t;
 
 /**
- * Windows version enumeration. The values of the enum
- * represent the size of KDBG structure up to Windows 8.
- * At Windows 10 the KDBG based scan is no longer supported
- * and thus at that point the value itself has no magic value.
+ * Windows version enumeration.
  */
 typedef enum win_ver {
 
     VMI_OS_WINDOWS_NONE,    /**< Not Windows */
+
     VMI_OS_WINDOWS_UNKNOWN, /**< Is Windows, not sure which */
 
-    VMI_OS_WINDOWS_2000     = 0x0208U, /**< Magic value for Windows 2000 */
-    VMI_OS_WINDOWS_XP       = 0x0290U, /**< Magic value for Windows XP */
-    VMI_OS_WINDOWS_2003     = 0x0318U, /**< Magic value for Windows 2003 */
-    VMI_OS_WINDOWS_VISTA    = 0x0328U, /**< Magic value for Windows Vista */
-    VMI_OS_WINDOWS_2008     = 0x0330U, /**< Magic value for Windows 2008 */
-    VMI_OS_WINDOWS_7        = 0x0340U, /**< Magic value for Windows 7 */
-    VMI_OS_WINDOWS_8        = 0x0360U, /**< Magic value for Windows 8 */
+    VMI_OS_WINDOWS_2000,
+
+    VMI_OS_WINDOWS_XP,
+
+    VMI_OS_WINDOWS_2003,
+
+    VMI_OS_WINDOWS_VISTA,
+
+    VMI_OS_WINDOWS_2008,
+
+    VMI_OS_WINDOWS_7,
+
+    VMI_OS_WINDOWS_8,
+
     VMI_OS_WINDOWS_10,
 } win_ver_t;
 
