@@ -2423,23 +2423,6 @@ xen_resume_vm(
 }
 
 status_t
-xen_set_domain_debug_control(
-    vmi_instance_t vmi,
-    unsigned long vcpu,
-    int enable)
-{
-    xen_instance_t *xen = xen_get_instance(vmi);
-    uint32_t op = (enable) ?
-                  XEN_DOMCTL_DEBUG_OP_SINGLE_STEP_ON : XEN_DOMCTL_DEBUG_OP_SINGLE_STEP_OFF;
-
-    int rc = xen->libxcw.xc_domain_debug_control(xen->xchandle,
-             xen->domainid,
-             op, vcpu);
-
-    return (rc == 0) ? VMI_SUCCESS : VMI_FAILURE;
-}
-
-status_t
 xen_set_access_required(
     vmi_instance_t vmi,
     bool required)

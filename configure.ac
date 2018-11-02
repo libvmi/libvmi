@@ -206,12 +206,6 @@ AC_SUBST([GLIB_LIBS])
         [],
         [#include <xenctrl.h> #include <xen/hvm/save.h>])
 
-    AC_CHECK_TYPE(
-        [xenmem_access_t],
-        [AC_DEFINE([HAVE_XENMEM_ACCESS_T], [1], [xen headers define xenmem_access_t])],
-        [],
-        [#include <xenctrl.h> #include <xen/memory.h>])
-
     AC_DEFINE([ENABLE_XEN], [1], [Define to 1 to enable Xen support.])
 
     [if test "$with_xenstore" = "yes"]

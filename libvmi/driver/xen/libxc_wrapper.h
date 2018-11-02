@@ -139,13 +139,6 @@ typedef struct {
     int (*xc_get_hvm_param)
     (xc_interface *handle, domid_t dom, int param, unsigned long *value);
 
-    /* Xen 4.1 - 4.4 */
-    int (*xc_hvm_set_mem_access)
-    (xc_interface *xch, domid_t dom, hvmmem_access_t memaccess, uint64_t first_pfn, uint64_t nr);
-
-    int (*xc_hvm_get_mem_access)
-    (xc_interface *xch, domid_t dom, uint64_t pfn, hvmmem_access_t* memaccess);
-
     /* Xen 4.5+ */
     int (*xc_set_mem_access)
     (xc_interface *xch, domid_t domain_id, xenmem_access_t access, uint64_t first_pfn, uint32_t nr);

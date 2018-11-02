@@ -63,17 +63,43 @@
 
 #include "xen_events_abi.h"
 
-typedef struct {
-    xc_evtchn* xce_handle;
-    int port;
-    uint32_t evtchn_port;
-    void *ring_page;
+/*
+ * We use the following structure to map all events to regardless
+ * of what ABI version Xen is at. This enables us to avoid having
+ * code-duplication for each ABI revision by mapping to this
+ * internal-only structure.
+ */
+typedef struct vm_event_compat {
+    uint32_t version;
+    uint32_t flags;
+    uint32_t reason;
+    uint32_t vcpu_id;
+    uint16_t altp2m_idx;
+
     union {
-        mem_event_42_back_ring_t back_ring_42;
-        mem_event_45_back_ring_t back_ring_45;
+        struct vm_event_mem_access            mem_access;
+        struct vm_event_write_ctrlreg         write_ctrlreg;
+        struct vm_event_mov_to_msr_411        mov_to_msr;
+        struct vm_event_desc_access           desc_access;
+        struct vm_event_singlestep            singlestep;
+        struct vm_event_debug                 software_breakpoint;
+        struct vm_event_debug                 debug_exception;
+        struct vm_event_cpuid                 cpuid;
+        struct vm_event_interrupt_x86         x86_interrupt;
     };
-    unsigned long long max_pages;
-} xen_mem_event_t;
+
+    union {
+        union {
+            struct regs_x86 x86;
+            struct regs_arm arm;
+        } regs;
+
+        union {
+            struct vm_event_emul_read_data read;
+            struct vm_event_emul_insn_data insn;
+        } emul;
+    } data;
+} vm_event_compat_t;
 
 typedef struct {
     xc_evtchn* xce_handle;
@@ -94,8 +120,11 @@ typedef struct {
     bool monitor_cr4_on;
     bool monitor_xcr0_on;
     bool monitor_msr_on;
-    bool monitor_privcall_on;
-} xen_vm_event_t;
+
+    status_t (*process_requests)(vmi_instance_t vmi);
+    status_t (*process_event[__VM_EVENT_REASON_MAX])(vmi_instance_t vmi, vm_event_compat_t *vmec);
+
+} xen_events_t;
 
 /* Conversion matrix from LibVMI flags to Xen vm_event flags */
 static const unsigned int event_response_conversion[] = {
@@ -109,13 +138,6 @@ static const unsigned int event_response_conversion[] = {
     [VMI_EVENT_RESPONSE_SET_EMUL_INSN] = VM_EVENT_FLAG_SET_EMUL_INSN_DATA,
     [VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT] = VM_EVENT_FLAG_GET_NEXT_INTERRUPT,
 };
-
-typedef struct xen_events {
-    union {
-        xen_mem_event_t mem_event;
-        xen_vm_event_t vm_event;
-    };
-} xen_events_t;
 
 static inline status_t
 vmi_flags_sanity_check(vmi_mem_access_t page_access_flag)
@@ -133,45 +155,6 @@ vmi_flags_sanity_check(vmi_mem_access_t page_access_flag)
         errprint("%s error: can't set requested memory access, unsupported by EPT.\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-
-    return VMI_SUCCESS;
-}
-
-static inline status_t
-convert_vmi_flags_to_hvmmem(vmi_mem_access_t page_access_flag, hvmmem_access_t *access)
-{
-    if ( VMI_FAILURE == vmi_flags_sanity_check(page_access_flag) )
-        return VMI_FAILURE;
-
-    switch ( page_access_flag ) {
-        case VMI_MEMACCESS_N:
-            *access = HVMMEM_access_rwx;
-            break;
-        case VMI_MEMACCESS_W:
-            *access = HVMMEM_access_rx;
-            break;
-        case VMI_MEMACCESS_X:
-            *access = HVMMEM_access_rw;
-            break;
-        case VMI_MEMACCESS_RW:
-            *access = HVMMEM_access_x;
-            break;
-        case VMI_MEMACCESS_WX:
-            *access = HVMMEM_access_r;
-            break;
-        case VMI_MEMACCESS_RWX:
-            *access = HVMMEM_access_n;
-            break;
-        case VMI_MEMACCESS_W2X:
-            *access = HVMMEM_access_rx2rw;
-            break;
-        case VMI_MEMACCESS_RWX2N:
-            *access = HVMMEM_access_n2rwx;
-            break;
-        default:
-            errprint("%s error: invalid memaccess setting requested\n", __FUNCTION__);
-            return VMI_FAILURE;
-    };
 
     return VMI_SUCCESS;
 }
@@ -216,8 +199,5 @@ convert_vmi_flags_to_xenmem(vmi_mem_access_t page_access_flag, xenmem_access_t *
 }
 
 typedef struct xen_instance xen_instance_t;
-
-status_t wait_for_event_or_timeout(xen_instance_t *xen, xc_evtchn *xce, unsigned long ms);
-int resume_domain(vmi_instance_t vmi);
 
 #endif

@@ -36,24 +36,6 @@
 #define X86_TRAP_DEBUG  1
 #define X86_TRAP_INT3   3
 
-#ifdef HAVE_XENMEM_ACCESS_T
-#include <xen/memory.h>
-
-typedef enum {
-    HVMMEM_access_n,
-    HVMMEM_access_r,
-    HVMMEM_access_w,
-    HVMMEM_access_rw,
-    HVMMEM_access_x,
-    HVMMEM_access_rx,
-    HVMMEM_access_wx,
-    HVMMEM_access_rwx,
-    HVMMEM_access_rx2rw,
-    HVMMEM_access_n2rwx,
-    HVMMEM_access_default
-} hvmmem_access_t;
-#endif
-
 #ifdef HAVE_HVMMEM_ACCESS_T
 typedef enum {
     XENMEM_access_n,
@@ -82,23 +64,6 @@ typedef enum {
 #define HVMPME_mode_sync       2
 #define HVMPME_onchangeonly    (1 << 2)
 
-#define MEM_EVENT_FLAG_VCPU_PAUSED     (1 << 0)
-#define MEM_EVENT_FLAG_DROP_PAGE       (1 << 1)
-#define MEM_EVENT_FLAG_EVICT_FAIL      (1 << 2)
-#define MEM_EVENT_FLAG_FOREIGN         (1 << 3)
-#define MEM_EVENT_FLAG_DUMMY           (1 << 4)
-#define MEM_EVENT_FLAG_EMULATE         (1 << 5)
-#define MEM_EVENT_FLAG_EMULATE_NOWRITE (1 << 6)
-
-#define MEM_EVENT_REASON_UNKNOWN     0
-#define MEM_EVENT_REASON_VIOLATION   1
-#define MEM_EVENT_REASON_CR0         2
-#define MEM_EVENT_REASON_CR3         3
-#define MEM_EVENT_REASON_CR4         4
-#define MEM_EVENT_REASON_INT3        5
-#define MEM_EVENT_REASON_SINGLESTEP  6
-#define MEM_EVENT_REASON_MSR         7
-
 #define VM_EVENT_FLAG_VCPU_PAUSED        (1 << 0)
 #define VM_EVENT_FLAG_FOREIGN            (1 << 1)
 #define VM_EVENT_FLAG_EMULATE            (1 << 2)
@@ -126,6 +91,7 @@ typedef enum {
 #define VM_EVENT_REASON_INTERRUPT               12
 #define VM_EVENT_REASON_DESCRIPTOR_ACCESS       13
 #define VM_EVENT_REASON_EMUL_UNIMPLEMENTED      14
+#define __VM_EVENT_REASON_MAX                   15
 
 #define VM_EVENT_X86_CR0    0
 #define VM_EVENT_X86_CR3    1
@@ -151,21 +117,6 @@ typedef enum {
 #define XEN_DOMCTL_MONITOR_EVENT_DEBUG_EXCEPTION       5
 #define XEN_DOMCTL_MONITOR_EVENT_CPUID                 6
 #define XEN_DOMCTL_MONITOR_EVENT_PRIVILEGED_CALL       7
-
-typedef struct mem_event_st_42 {
-    uint32_t flags;
-    uint32_t vcpu_id;
-    uint64_t gfn;
-    uint64_t offset;
-    uint64_t gla;
-    uint32_t p2mt;
-    uint16_t access_r:1;
-    uint16_t access_w:1;
-    uint16_t access_x:1;
-    uint16_t gla_valid:1;
-    uint16_t available:12;
-    uint16_t reason;
-} mem_event_42_request_t, mem_event_42_response_t;
 
 struct regs_x86 {
     uint64_t rax;
@@ -211,24 +162,6 @@ struct regs_arm {
     uint32_t cpsr;
     uint32_t _pad;
 };
-
-typedef struct mem_event_st_45 {
-    uint32_t flags;
-    uint32_t vcpu_id;
-    uint64_t gfn;
-    uint64_t offset;
-    uint64_t gla;
-    uint32_t p2mt;
-    uint16_t access_r:1;
-    uint16_t access_w:1;
-    uint16_t access_x:1;
-    uint16_t gla_valid:1;
-    uint16_t fault_with_gla:1;
-    uint16_t fault_in_gpt:1;
-    uint16_t available:10;
-    uint16_t reason;
-    struct regs_x86 x86_regs;
-} mem_event_45_request_t, mem_event_45_response_t;
 
 struct vm_event_mem_access {
     uint64_t gfn;
@@ -382,8 +315,6 @@ typedef struct vm_event_st_48 {
     } data;
 } vm_event_48_request_t, vm_event_48_response_t;
 
-DEFINE_RING_TYPES(mem_event_42, mem_event_42_request_t, mem_event_42_response_t);
-DEFINE_RING_TYPES(mem_event_45, mem_event_45_request_t, mem_event_45_response_t);
 DEFINE_RING_TYPES(vm_event_46, vm_event_46_request_t, vm_event_46_response_t);
 DEFINE_RING_TYPES(vm_event_48, vm_event_48_request_t, vm_event_48_response_t);
 

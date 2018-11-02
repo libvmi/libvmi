@@ -60,8 +60,7 @@ static status_t sanity_check(xen_instance_t *xen)
         case 4:
             if ( !w->xc_domain_maximum_gpfn || !w->xc_map_foreign_batch ||
                     !w->xc_mem_access_enable || !w->xc_mem_access_disable ||
-                    !w->xc_mem_access_resume || !w->xc_hvm_set_mem_access ||
-                    !w->xc_hvm_get_mem_access || !w->xc_domain_debug_control ||
+                    !w->xc_mem_access_resume || !w->xc_domain_debug_control ||
                     !w->xc_domain_set_access_required || !w->xc_hvm_inject_trap ||
                     !w->xc_domain_decrease_reservation_exact || !w->xc_domain_populate_physmap_exact ||
                     !w->xc_evtchn_open || !w->xc_evtchn_close || !w->xc_evtchn_fd ||
@@ -185,8 +184,6 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_evtchn_unmask = dlsym(wrapper->handle, "xc_evtchn_unmask");
     wrapper->xc_evtchn_unbind = dlsym(wrapper->handle, "xc_evtchn_unbind");
     wrapper->xc_evtchn_bind_interdomain = dlsym(wrapper->handle, "xc_evtchn_bind_interdomain");
-    wrapper->xc_hvm_set_mem_access = dlsym(wrapper->handle, "xc_hvm_set_mem_access");
-    wrapper->xc_hvm_get_mem_access = dlsym(wrapper->handle, "xc_hvm_get_mem_access");
     wrapper->xc_set_mem_access = dlsym(wrapper->handle, "xc_set_mem_access");
     wrapper->xc_get_mem_access = dlsym(wrapper->handle, "xc_get_mem_access");
     wrapper->xc_mem_access_enable = dlsym(wrapper->handle, "xc_mem_access_enable");
