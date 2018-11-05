@@ -42,3 +42,10 @@ target_link_libraries(vmi-module-list vmi)
 
 add_executable(vmi-win-guid win-guid.c)
 target_link_libraries(vmi-win-guid vmi)
+
+install(TARGETS
+    vmi-process-list
+    vmi-module-list
+    vmi-win-guid
+    vmi-dump-memory
+    DESTINATION bin)
