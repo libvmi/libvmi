@@ -38,10 +38,11 @@ TCase *peparse_tcase();
 TCase *cache_tcase();
 TCase *get_va_pages_tcase();
 
-const char *testvm = NULL;
-
 const char *get_testvm (void)
 {
+    const char *testvm = getenv("LIBVMI_CHECK_TESTVM");
+    if (NULL == testvm)
+        fprintf(stderr, "!! Please specify a VM in LIBVMI_CHECK_TESTVM env var\n");
     return testvm;
 }
 
@@ -49,13 +50,9 @@ int
 main (void)
 {
     /* get the vm name to test against */
-    //TODO allow a list of names in this variable
-    testvm = getenv("LIBVMI_CHECK_TESTVM");
-    if (NULL == testvm) {
-        printf("!! Check requires VM name to test against.\n");
-        printf("!! Store name in env variable 'LIBVMI_CHECK_TESTVM'.\n");
+    const char *testvm = get_testvm();
+    if (NULL == testvm)
         return 1;
-    }
 
     /* setup the test suite */
     int number_failed = 0;
