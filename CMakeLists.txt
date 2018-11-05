@@ -41,6 +41,8 @@ option(ENABLE_WINDOWS "Build Windows introspection" ON)
 option(ENABLE_LINUX "Build Linux introspection" ON)
 option(ENABLE_FREEBSD "Build FreeBSD introspection" ON)
 
+option(ENABLE_STATIC "Build libvmi static library" ON)
+
 option(ENABLE_XENSTORE "Build with Xenstore" ON)
 option(ENABLE_VMIFS "Enable vmifs: maps memory to a file through FUSE" OFF)
 option(ENABLE_CONFIGFILE "Enable config file" ON)

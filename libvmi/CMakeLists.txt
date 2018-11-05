@@ -48,14 +48,19 @@ set(libvmi_src
     os/os_interface.c
 )
 
-add_library(vmi SHARED
-    ${libvmi_src}
-)
+add_library(vmi OBJECT ${libvmi_src})
+set_property(TARGET vmi PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+add_library (vmi_shared SHARED $<TARGET_OBJECTS:vmi>)
+set_target_properties(vmi_shared PROPERTIES OUTPUT_NAME "vmi")
+if (ENABLE_STATIC)
+    add_library (vmi_static STATIC $<TARGET_OBJECTS:vmi>)
+    set_target_properties(vmi_static PROPERTIES OUTPUT_NAME "vmi")
+endif ()
 # one of our public header exposes glib
 # vmi_get_va_pages returns a GList*
 target_include_directories(vmi PUBLIC ${GLIB_INCLUDE_DIRS})
 target_link_libraries(vmi ${GLIB_LDFLAGS} m)
-
 
 if (ENABLE_FREEBSD)
     target_link_libraries(vmi freebsd)
@@ -107,5 +112,9 @@ if ("${LIB64}" STREQUAL "TRUE")
 else()
     set(LIBSUFFIX "")
 endif()
-install(TARGETS vmi DESTINATION lib${LIBSUFFIX})
+
+install(TARGETS vmi_shared DESTINATION lib${LIBSUFFIX})
+if (ENABLE_STATIC)
+    install(TARGETS vmi_static DESTINATION lib${LIBSUFFIX})
+endif ()
 install(FILES ${VMI_PUBLIC_HEADERS} DESTINATION include/libvmi)
