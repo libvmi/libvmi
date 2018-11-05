@@ -1,3 +1,9 @@
+set(VMI_PUBLIC_HEADERS
+    libvmi.h
+    libvmi_extra.h
+    slat.h
+    x86.h)
+
 add_subdirectory(config)
 add_subdirectory(driver)
 add_subdirectory(os)
@@ -10,6 +16,7 @@ endif ()
 if (ENABLE_SHM_SNAPSHOT)
     add_library(shm SHARED shm.c)
     target_include_directories(shm PRIVATE ${GLIB_INCLUDE_DIRS})
+    list(APPEND VMI_PUBLIC_HEADERS shm.h)
 endif ()
 
 if (REKALL_PROFILES)
@@ -49,6 +56,7 @@ add_library(vmi SHARED
 target_include_directories(vmi PUBLIC ${GLIB_INCLUDE_DIRS})
 target_link_libraries(vmi ${GLIB_LDFLAGS} m)
 
+
 if (ENABLE_FREEBSD)
     target_link_libraries(vmi freebsd)
 endif ()
@@ -59,6 +67,7 @@ endif ()
 
 if (ENABLE_WINDOWS)
     target_link_libraries(vmi windows)
+    list(APPEND VMI_PUBLIC_HEADERS peparse.h)
 endif ()
 
 if (ENABLE_FILE)
@@ -71,6 +80,7 @@ endif ()
 
 if (ENABLE_XEN)
     target_link_libraries(vmi xen_driver)
+    list(APPEND VMI_PUBLIC_HEADERS events.h)
 endif ()
 
 if (ENABLE_ADDRESS_CACHE)
@@ -88,3 +98,14 @@ endif ()
 if (ENABLE_CONFIGFILE)
     target_link_libraries(vmi config)
 endif ()
+
+# install
+get_property(LIB64 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS)
+
+if ("${LIB64}" STREQUAL "TRUE")
+    set(LIBSUFFIX 64)
+else()
+    set(LIBSUFFIX "")
+endif()
+install(TARGETS vmi DESTINATION lib${LIBSUFFIX})
+install(FILES ${VMI_PUBLIC_HEADERS} DESTINATION include/libvmi)
