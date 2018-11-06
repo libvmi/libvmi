@@ -4,7 +4,7 @@ Maintainer: Tamas K Lengyel <tamas@tklengyel.com>
 Build-Depends: debhelper (>= 10),
  libvirt-dev,
  libtool,
- automake,
+ cmake,
  flex,
  bison,
  libglib2.0-dev,
