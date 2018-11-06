@@ -8,4 +8,3 @@ set(windows_src
 )
 
 add_library(windows SHARED ${windows_src})
-target_include_directories(windows PRIVATE ${GLIB_INCLUDE_DIRS})

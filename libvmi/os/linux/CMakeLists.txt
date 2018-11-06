@@ -5,4 +5,3 @@ set(linux_src
 )
 
 add_library(linux SHARED ${linux_src})
-target_include_directories(linux PRIVATE ${GLIB_INCLUDE_DIRS})

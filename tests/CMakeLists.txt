@@ -4,38 +4,38 @@ include_directories(${Check_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR})
 
 # compile as static libraries since libcheck.a is also static
 add_library(test_accessor STATIC test_accessor.c)
-target_link_libraries(test_accessor vmi ${Check_LIBRARIES})
+target_link_libraries(test_accessor vmi_shared ${Check_LIBRARIES})
 
 add_library(test_cache STATIC test_cache.c)
-target_link_libraries(test_cache vmi ${Check_LIBRARIES})
+target_link_libraries(test_cache vmi_shared ${Check_LIBRARIES})
 
 add_library(test_getvapages STATIC test_getvapages.c)
-target_link_libraries(test_getvapages vmi ${Check_LIBRARIES})
+target_link_libraries(test_getvapages vmi_shared ${Check_LIBRARIES})
 
 add_library(test_init STATIC test_init.c)
-target_link_libraries(test_init vmi ${Check_LIBRARIES})
+target_link_libraries(test_init vmi_shared ${Check_LIBRARIES})
 
 add_library(test_peparse STATIC test_peparse.c)
-target_link_libraries(test_peparse vmi ${Check_LIBRARIES})
+target_link_libraries(test_peparse vmi_shared ${Check_LIBRARIES})
 
 add_library(test_print STATIC test_print.c)
-target_link_libraries(test_print vmi ${Check_LIBRARIES})
+target_link_libraries(test_print vmi_shared ${Check_LIBRARIES})
 
 add_library(test_read STATIC test_read.c)
-target_link_libraries(test_read vmi ${Check_LIBRARIES})
+target_link_libraries(test_read vmi_shared ${Check_LIBRARIES})
 
 add_library(test_translate STATIC test_translate.c)
-target_link_libraries(test_translate vmi ${Check_LIBRARIES})
+target_link_libraries(test_translate vmi_shared ${Check_LIBRARIES})
 
 add_library(test_util STATIC test_util.c)
-target_link_libraries(test_util vmi ${Check_LIBRARIES})
+target_link_libraries(test_util vmi_shared ${Check_LIBRARIES})
 
 add_library(test_write STATIC test_write.c)
-target_link_libraries(test_write vmi ${Check_LIBRARIES})
+target_link_libraries(test_write vmi_shared ${Check_LIBRARIES})
 
 add_executable(check_libvmi check_runner.c)
 # -lpthread is skipped from check.pc for no reason
-target_link_libraries(check_libvmi vmi ${Check_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(check_libvmi vmi_shared ${Check_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 # output in current directory
 set_target_properties(check_libvmi
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})

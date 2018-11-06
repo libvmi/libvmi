@@ -24,6 +24,5 @@ if (ENABLE_CONFIGFILE)
     target_include_directories(config PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR} # grammar.h
         ${CMAKE_CURRENT_SOURCE_DIR} # config_parser.h
-        ${GLIB_INCLUDE_DIRS}
     )
 endif ()

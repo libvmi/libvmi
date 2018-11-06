@@ -22,6 +22,5 @@ set(xen_driver_src
 )
 
 add_library(xen_driver SHARED ${xen_driver_src})
-target_include_directories(xen_driver PRIVATE ${GLIB_INCLUDE_DIRS})
 # CMAKE_DL_LIBS -> dlopen* lib
 target_link_libraries(xen_driver ${CMAKE_DL_LIBS})
