@@ -68,7 +68,7 @@
 #cmakedefine01 HAVE_XS_H
 
 /* xen headers define hvmmem_access_t */
-#cmakedefine01 HVMMEM_ACCESS_T
+#cmakedefine01 HAVE_HVMMEM_ACCESS_T
 
 /* xen headers define xenmem_access_t */
 #cmakedefine01 HAVE_XENMEM_ACCESS_T

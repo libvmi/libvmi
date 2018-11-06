@@ -36,7 +36,25 @@
 #define X86_TRAP_DEBUG  1
 #define X86_TRAP_INT3   3
 
-#ifdef HAVE_HVMMEM_ACCESS_T
+#if (HAVE_XENMEM_ACCESS_T == 1)
+#include <xen/memory.h>
+
+typedef enum {
+    HVMMEM_access_n,
+    HVMMEM_access_r,
+    HVMMEM_access_w,
+    HVMMEM_access_rw,
+    HVMMEM_access_x,
+    HVMMEM_access_rx,
+    HVMMEM_access_wx,
+    HVMMEM_access_rwx,
+    HVMMEM_access_rx2rw,
+    HVMMEM_access_n2rwx,
+    HVMMEM_access_default
+} hvmmem_access_t;
+#endif
+
+#if (HAVE_HVMMEM_ACCESS_T == 1)
 typedef enum {
     XENMEM_access_n,
     XENMEM_access_r,
