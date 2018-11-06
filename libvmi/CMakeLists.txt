@@ -53,6 +53,12 @@ set_property(TARGET vmi PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 add_library (vmi_shared SHARED $<TARGET_OBJECTS:vmi>)
 set_target_properties(vmi_shared PROPERTIES OUTPUT_NAME "vmi")
+# set soname
+set_target_properties(vmi_shared PROPERTIES
+    VERSION
+    ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+)
 if (ENABLE_STATIC)
     add_library (vmi_static STATIC $<TARGET_OBJECTS:vmi>)
     set_target_properties(vmi_static PROPERTIES OUTPUT_NAME "vmi")
