@@ -47,18 +47,17 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      install:
-        - ./autogen.sh
       script:
-        - ./configure
+        - mkdir build && cd build
+        - cmake ..
         - make
 
 #
@@ -72,18 +71,17 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      install:
-        - ./autogen.sh
       script:
-        - ./configure
+        - mkdir build && cd build
+        - cmake ..
         - make
 
 #
@@ -98,11 +96,11 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
@@ -111,7 +109,7 @@ matrix:
                 name: "$COVERITY_PROJECT"
                 description: "Build submitted via Travis CI"
             notification_email: $COVERITY_EMAIL
-            build_command_prepend: "./autogen.sh; ./configure; make clean"
+            build_command_prepend: "mkdir build; cd build; cmake .."
             build_command:   "make"
             branch_pattern: $COVERITY_BRANCH
       script:
@@ -129,11 +127,11 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
@@ -141,11 +139,10 @@ matrix:
             organization: "libvmi"
             token:
                 secure: "$SONAR_SCAN_TOKEN"
-      install:
-        - ./autogen.sh
       script:
         - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
-        - ./configure
+        - mkdir build && cd build
+        - cmake ..
         - build-wrapper-linux-x86-64 --out-dir bw-output make -j2
         - sonar-scanner
 
@@ -160,20 +157,23 @@ matrix:
                 - ubuntu-toolchain-r-test
                 - llvm-toolchain-xenial-7.0
             packages:
+                - cmake
+                - clang-5.0
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      install:
-        - ./autogen.sh
+      before_install:
+        - export PATH=$PATH:/usr/local/clang-5.0.0/bin
+        - export CC=clang-5.0
+        - export CXX=clang++-5.0
       script:
-        - scan-build --status-bugs --use-cc=clang-7.0 ./configure
-        - cd libvmi/config && make && cd ../..
-        - scan-build --status-bugs --use-cc=clang-7.0 make
+        - mkdir build && cd build
+        - cmake ..
+        - make static_analysis_test
 
 #
 # debug test
@@ -185,20 +185,19 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
       before_install:
         - sed -i 's/#endif/#ifdef VMI_DEBUG\n#undef VMI_DEBUG\n#endif\n#define VMI_DEBUG __VMI_DEBUG_ALL\n#endif/g' libvmi/debug.h
-      install:
-        - ./autogen.sh
       script:
-        - ./configure --enable-debug
+        - mkdir build && cd build
+        - cmake -DCMAKE_BUILD_TYPE=DEBUG ..
         - make
 
 
@@ -212,18 +211,17 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      install:
-        - ./autogen.sh
       script:
-        - ./configure --disable-address-cache --disable-page-cache
+        - mkdir build && cd build
+        - cmake -DENABLE_ADDRESS_CACHE=OFF -DENABLE_PAGE_CACHE=OFF ..
         - make
 
 #
@@ -236,18 +234,17 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      install:
-        - ./autogen.sh
       script:
-        - ./configure --without-xenstore
+        - mkdir build && cd build
+        - cmake -DENABLE_XENSTORE=OFF ..
         - make
 
 #
@@ -260,18 +257,17 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      install:
-        - ./autogen.sh
       script:
-        - ./configure --disable-config-file
+        - mkdir build && cd build
+        - cmake -DENABLE_CONFIGFILE=OFF ..
         - make
 
 #
@@ -284,18 +280,17 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      install:
-        - ./autogen.sh
       script:
-        - ./configure --disable-rekall-profiles
+        - mkdir build && cd build
+        - cmake -DREKALL_PROFILES=OFF ..
         - make
 
 #
@@ -308,16 +303,15 @@ matrix:
             sources:
                 - ubuntu-toolchain-r-test
             packages:
+                - cmake
                 - bison
                 - flex
                 - check
                 - libjson-c-dev
-                - autoconf-archive
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      install:
-        - ./autogen.sh
       script:
-        - ./configure --disable-safety-checks
+        - mkdir build && cd build
+        - cmake -DENABLE_SAFETY_CHECKS=OFF ..
         - make
