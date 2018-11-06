@@ -27,7 +27,7 @@ matrix:
       install:
         - sudo apt-get install astyle
       script:
-        - export ARTISTIC_STYLE_OPTIONS=".astylerc" && astyle `find . | egrep "\.c|\.h"` > astyle.out
+        - export ARTISTIC_STYLE_OPTIONS=".astylerc" && astyle `find . | egrep "\.c$|\.h$"` > astyle.out
         - TEST=$(cat astyle.out | grep Formatted | wc -l)
         - |
           if [[ $TEST -ne 0 ]]; then
