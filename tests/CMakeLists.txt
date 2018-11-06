@@ -1,5 +1,5 @@
 find_package(Check REQUIRED)
-include_directories(${Check_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR})
+include_directories(${Check_INCLUDE_DIRS})
 
 # compile as static libraries since libcheck.a is also static
 add_library(test_accessor STATIC test_accessor.c)

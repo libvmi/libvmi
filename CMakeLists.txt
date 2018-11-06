@@ -60,8 +60,8 @@ set(MAX_PAGE_CACHE_SIZE "512")
 #                               SOURCES
 #-----------------------------------------------------------------------------
 configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
-# include "config.h", "private.h" and <glib.h>
-include_directories(${PROJECT_BINARY_DIR} libvmi ${GLIB_INCLUDE_DIRS})
+# include <libvmi/libvmi.h> "config.h", "private.h" and <glib.h>
+include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} libvmi ${GLIB_INCLUDE_DIRS})
 add_definitions(-DHAVE_CONFIG_H)
 add_subdirectory(libvmi)
 add_subdirectory(tools)
