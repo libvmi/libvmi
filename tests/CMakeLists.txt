@@ -33,6 +33,7 @@ add_library(test_write STATIC test_write.c)
 target_link_libraries(test_write vmi_shared ${Check_LIBRARIES})
 
 add_executable(check_libvmi check_runner.c)
+target_compile_options(check_libvmi PRIVATE ${Check_CFLAGS})
 target_link_libraries(check_libvmi vmi_shared ${Check_LIBRARIES})
 # output in current directory
 set_target_properties(check_libvmi
