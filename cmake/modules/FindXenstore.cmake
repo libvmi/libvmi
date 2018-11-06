@@ -2,11 +2,6 @@
 # Xenstore_FOUND
 # Xenstore_INCLUDE_DIRS
 
-# define HAVE_XXX
-include(CheckIncludeFile)
-check_include_file(xenstore.h HAVE_XENSTORE_H)
-check_include_file(xs.h HAVE_XS_H)
-
 find_path(Xenstore_INCLUDE_DIR
     NAMES xenstore.h xs.h)
 
@@ -17,6 +12,8 @@ find_package_handle_standard_args(Xenstore
     Xenstore_INCLUDE_DIR)
 
 if (Xenstore_FOUND)
+    set(HAVE_XENSTORE_H ON)
+    set(HAVE_XS_H ON)
     set(HAVE_LIBXENSTORE ON)
     set(Xenstore_INCLUDE_DIRS ${Xenstore_INCLUDE_DIR})
 endif ()
