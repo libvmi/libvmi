@@ -40,8 +40,13 @@ target_link_libraries(vmi-dump-memory vmi)
 add_executable(vmi-module-list module-list.c)
 target_link_libraries(vmi-module-list vmi)
 
-add_executable(vmi-win-guid win-guid.c)
-target_link_libraries(vmi-win-guid vmi)
+if (ENABLE_WINDOWS)
+    add_executable(vmi-win-guid win-guid.c)
+    target_link_libraries(vmi-win-guid vmi)
+
+    add_executable(vmi-win-offsets win-offsets.c)
+    target_link_libraries(vmi-win-offsets vmi)
+endif ()
 
 install(TARGETS
     vmi-process-list
@@ -49,3 +54,10 @@ install(TARGETS
     vmi-win-guid
     vmi-dump-memory
     DESTINATION bin)
+
+if (ENABLE_WINDOWS)
+    install(TARGETS
+        vmi-win-guid
+        vmi-win-offsets
+        DESTINATION bin)
+endif ()
