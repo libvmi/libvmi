@@ -1,5 +1,4 @@
 find_package(Check REQUIRED)
-find_package (Threads REQUIRED)
 include_directories(${Check_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR})
 
 # compile as static libraries since libcheck.a is also static
@@ -34,8 +33,7 @@ add_library(test_write STATIC test_write.c)
 target_link_libraries(test_write vmi_shared ${Check_LIBRARIES})
 
 add_executable(check_libvmi check_runner.c)
-# -lpthread is skipped from check.pc for no reason
-target_link_libraries(check_libvmi vmi_shared ${Check_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(check_libvmi vmi_shared ${Check_LIBRARIES})
 # output in current directory
 set_target_properties(check_libvmi
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
