@@ -1373,11 +1373,40 @@ status_t init_events_48(vmi_instance_t vmi)
  */
 
 static
+status_t unmask_event(xen_instance_t *xen, xen_events_t *xe)
+{
+    int rc, port = xen->libxcw.xc_evtchn_pending(xe->xce_handle);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( -1 == port ) {
+        errprint("Failed to read port from event channel\n");
+        return VMI_FAILURE;
+    }
+
+    if ( port != xe->port ) {
+        errprint("Event received for invalid port %i, Expected port is %i\n",
+                 port, xe->port);
+        return VMI_FAILURE;
+    }
+#endif
+
+    rc = xen->libxcw.xc_evtchn_unmask(xe->xce_handle, port);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( rc ) {
+        errprint("Failed to unmask event channel port\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return VMI_SUCCESS;
+}
+
+static
 status_t wait_for_event_or_timeout(vmi_instance_t vmi, unsigned long ms)
 {
     xen_instance_t *xen = xen_get_instance(vmi);
     xen_events_t *xe = xen_get_events(vmi);
-    xc_evtchn *xce = xe->xce_handle;
 
     switch ( poll(&xe->fd, 1, ms) ) {
         case -1:
@@ -1388,30 +1417,8 @@ status_t wait_for_event_or_timeout(vmi_instance_t vmi, unsigned long ms)
             return VMI_FAILURE;
         case 0:
             return VMI_SUCCESS;
-        default: {
-            int port = xe->port;
-
-#ifdef ENABLE_SAFETY_CHECKS
-            port = xen->libxcw.xc_evtchn_pending(xce);
-            if ( -1 == port ) {
-                errprint("Failed to read port from event channel\n");
-                return VMI_FAILURE;
-            }
-
-            if ( port != xe->port ) {
-                errprint("Event received for invalid port %i, Expected port is %i\n",
-                         port, xe->port);
-                return VMI_FAILURE;
-            }
-#endif
-
-            if ( xen->libxcw.xc_evtchn_unmask(xce, port) ) {
-                errprint("Failed to unmask event channel port\n");
-                return VMI_FAILURE;
-            }
-
-            return VMI_SUCCESS;
-        }
+        default:
+            return unmask_event(xen, xe);
     };
 
     return VMI_FAILURE;
@@ -1436,10 +1443,15 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     }
 #endif
 
-    if (!vmi->shutting_down && timeout > 0) {
-        dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
-        if ( VMI_FAILURE == wait_for_event_or_timeout(vmi, timeout) ) {
-            errprint("Error while waiting for event.\n");
+    if (!vmi->shutting_down) {
+        if ( timeout ) {
+            dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
+            if ( VMI_FAILURE == wait_for_event_or_timeout(vmi, timeout) ) {
+                errprint("Error while waiting for event.\n");
+                return VMI_FAILURE;
+            }
+        } else if ( VMI_FAILURE == unmask_event(xen, xe) ) {
+            errprint("Error while unmasking event.\n");
             return VMI_FAILURE;
         }
     }
