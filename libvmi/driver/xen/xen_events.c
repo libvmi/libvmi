@@ -1373,14 +1373,13 @@ status_t init_events_48(vmi_instance_t vmi)
  */
 
 static
-status_t wait_for_event_or_timeout(xen_instance_t *xen, xc_evtchn *xce, unsigned long ms)
+status_t wait_for_event_or_timeout(vmi_instance_t vmi, unsigned long ms)
 {
-    struct pollfd fd = {
-        .fd = xen->libxcw.xc_evtchn_fd(xce),
-        .events = POLLIN | POLLERR
-    };
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xen_events_t *xe = xen_get_events(vmi);
+    xc_evtchn *xce = xe->xce_handle;
 
-    switch ( poll(&fd, 1, ms) ) {
+    switch ( poll(&xe->fd, 1, ms) ) {
         case -1:
             if (errno == EINTR)
                 return VMI_SUCCESS;
@@ -1390,11 +1389,21 @@ status_t wait_for_event_or_timeout(xen_instance_t *xen, xc_evtchn *xce, unsigned
         case 0:
             return VMI_SUCCESS;
         default: {
-            int port = xen->libxcw.xc_evtchn_pending(xce);
+            int port = xe->port;
+
+#ifdef ENABLE_SAFETY_CHECKS
+            port = xen->libxcw.xc_evtchn_pending(xce);
             if ( -1 == port ) {
                 errprint("Failed to read port from event channel\n");
                 return VMI_FAILURE;
             }
+
+            if ( port != xe->port ) {
+                errprint("Event received for invalid port %i, Expected port is %i\n",
+                         port, xe->port);
+                return VMI_FAILURE;
+            }
+#endif
 
             if ( xen->libxcw.xc_evtchn_unmask(xce, port) ) {
                 errprint("Failed to unmask event channel port\n");
@@ -1429,7 +1438,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 
     if (!vmi->shutting_down && timeout > 0) {
         dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
-        if ( VMI_FAILURE == wait_for_event_or_timeout(xen, xe->xce_handle, timeout) ) {
+        if ( VMI_FAILURE == wait_for_event_or_timeout(vmi, timeout) ) {
             errprint("Error while waiting for event.\n");
             return VMI_FAILURE;
         }
@@ -1544,6 +1553,10 @@ status_t xen_init_events(
             goto err;
         }
     }
+
+    // Setup poll
+    xe->fd.fd = xen->libxcw.xc_evtchn_fd(xe->xce_handle);
+    xe->fd.events = POLLIN | POLLERR;
 
     // Bind event notification
     rc = xen->libxcw.xc_evtchn_bind_interdomain(xe->xce_handle, dom, xe->evtchn_port);

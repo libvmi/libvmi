@@ -104,6 +104,7 @@ typedef struct vm_event_compat {
 typedef struct {
     xc_evtchn* xce_handle;
     int port;
+    struct pollfd fd;
     uint32_t evtchn_port;
     void *ring_page;
     union {
