@@ -1452,6 +1452,7 @@ xen_set_vcpuregs_hvm(
     cpu->r13 = regs->x86.r13;
     cpu->r14 = regs->x86.r14;
     cpu->r15 = regs->x86.r15;
+    cpu->rip = regs->x86.rip;
     cpu->rflags = regs->x86.rflags;
     cpu->cr0 = regs->x86.cr0;
     cpu->cr2 = regs->x86.cr2;
