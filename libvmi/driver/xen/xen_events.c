@@ -1117,14 +1117,16 @@ void ring_get_request_and_response_46(xen_events_t *xe,
 }
 
 static
-status_t process_requests_46(vmi_instance_t vmi)
+status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
 {
     vm_event_46_request_t *req;
     vm_event_46_response_t *rsp;
     vm_event_compat_t vmec;
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
+    int rc;
     status_t vrc = VMI_SUCCESS;
+    uint32_t processed = 0;
 
     while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_46) ) {
 
@@ -1168,8 +1170,12 @@ status_t process_requests_46(vmi_instance_t vmi)
                 break;
         };
 
-        if ( VMI_FAILURE == process_request(vmi, &vmec) )
-            vrc = VMI_FAILURE;
+        vrc = process_request(vmi, &vmec);
+
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( VMI_FAILURE == vrc )
+            break;
+#endif
 
         rsp->version = vmec.version;
         rsp->vcpu_id = vmec.vcpu_id;
@@ -1179,14 +1185,29 @@ status_t process_requests_46(vmi_instance_t vmi)
 
         memcpy(&rsp->data, &vmec.data, sizeof(rsp->data));
 
+        processed++;
         RING_PUSH_RESPONSES(&xe->back_ring_46);
 
-        if (vmi->num_vcpus >= 7 && xen->libxcw.xc_evtchn_notify(xe->xce_handle, xe->port) ) {
-            errprint("Error resuming domain.\n");
-            return VMI_FAILURE;
+        /*
+         * Send notification to Xen that response(s) were placed on the ring
+         *
+         * Note: it is more performant to send notification after each event if
+         * there are a lot of vCPUs assigned to the VM.
+         */
+        if (vmi->num_vcpus >= 7) {
+            rc = xen->libxcw.xc_evtchn_notify(xe->xce_handle, xe->port);
+
+#ifdef ENABLE_SAFETY_CHECKS
+            if ( rc ) {
+                errprint("Error sending event channel notification.\n");
+                vrc = VMI_FAILURE;
+                break;
+            }
+#endif
         }
     }
 
+    *requests_processed = processed;
     return vrc;
 }
 
@@ -1243,14 +1264,16 @@ void ring_get_request_and_response_48(xen_events_t *xe,
     back_ring->rsp_prod_pvt++;
 }
 
-status_t process_requests_48(vmi_instance_t vmi)
+status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
 {
     vm_event_48_request_t *req;
     vm_event_48_response_t *rsp;
     vm_event_compat_t vmec;
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
+    int rc;
     status_t vrc = VMI_SUCCESS;
+    uint32_t processed = 0;
 
     while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_48) ) {
 
@@ -1316,8 +1339,11 @@ status_t process_requests_48(vmi_instance_t vmi)
                 break;
         }
 
-        if ( VMI_FAILURE == process_request(vmi, &vmec) )
-            vrc = VMI_FAILURE;
+        vrc = process_request(vmi, &vmec);
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( VMI_FAILURE == vrc )
+            break;
+#endif
 
         rsp->version = vmec.version;
         rsp->vcpu_id = vmec.vcpu_id;
@@ -1327,14 +1353,28 @@ status_t process_requests_48(vmi_instance_t vmi)
 
         memcpy(&rsp->data, &vmec.data, sizeof(rsp->data));
 
+        processed++;
         RING_PUSH_RESPONSES(&xe->back_ring_48);
 
-        if (vmi->num_vcpus >= 7 && xen->libxcw.xc_evtchn_notify(xe->xce_handle, xe->port) ) {
-            errprint("Error resuming domain.\n");
-            return VMI_FAILURE;
+        /*
+         * Send notification to Xen that response(s) were placed on the ring
+         *
+         * Note: it is more performant to send notification after each event if
+         * there are a lot of vCPUs assigned to the VM.
+         */
+        if (vmi->num_vcpus >= 7) {
+            rc = xen->libxcw.xc_evtchn_notify(xe->xce_handle, xe->port);
+
+#ifdef ENABLE_SAFETY_CHECKS
+            if ( rc ) {
+                errprint("Error sending event channel notification.\n");
+                return VMI_FAILURE;
+            }
+#endif
         }
     }
 
+    *requests_processed = processed;
     return vrc;
 }
 
@@ -1403,9 +1443,8 @@ status_t unmask_event(xen_instance_t *xen, xen_events_t *xe)
 }
 
 static
-status_t wait_for_event_or_timeout(vmi_instance_t vmi, unsigned long ms)
+status_t wait_for_event_or_timeout(vmi_instance_t vmi, unsigned long ms, bool *needs_unmasking)
 {
-    xen_instance_t *xen = xen_get_instance(vmi);
     xen_events_t *xe = xen_get_events(vmi);
 
     switch ( poll(&xe->fd, 1, ms) ) {
@@ -1418,7 +1457,9 @@ status_t wait_for_event_or_timeout(vmi_instance_t vmi, unsigned long ms)
         case 0:
             return VMI_SUCCESS;
         default:
-            return unmask_event(xen, xe);
+            // Don't unmask port until finished with processing events found on the ring
+            *needs_unmasking = 1;
+            return VMI_SUCCESS;
     };
 
     return VMI_FAILURE;
@@ -1429,8 +1470,10 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
 
-    int rc = -1;
-    status_t vrc = VMI_SUCCESS;
+    int rc;
+    status_t vrc;
+    uint32_t requests_processed = 0;
+    bool needs_unmasking = 0;
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !xen ) {
@@ -1446,17 +1489,19 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     if (!vmi->shutting_down) {
         if ( timeout ) {
             dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
-            if ( VMI_FAILURE == wait_for_event_or_timeout(vmi, timeout) ) {
+            if ( VMI_FAILURE == wait_for_event_or_timeout(vmi, timeout, &needs_unmasking) ) {
                 errprint("Error while waiting for event.\n");
                 return VMI_FAILURE;
             }
-        } else if ( VMI_FAILURE == unmask_event(xen, xe) ) {
-            errprint("Error while unmasking event.\n");
-            return VMI_FAILURE;
-        }
+        } else
+            needs_unmasking = 1;
     }
 
-    vrc = xe->process_requests(vmi);
+    vrc = xe->process_requests(vmi, &requests_processed);
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( VMI_FAILURE == vrc )
+        return VMI_FAILURE;
+#endif
 
     /*
      * The only way to gracefully handle vmi_swap_events and vmi_clear_event requests
@@ -1468,7 +1513,11 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     if ( vmi->swap_events || (vmi->clear_events && g_hash_table_size(vmi->clear_events)) ) {
         vmi_pause_vm(vmi);
 
-        vrc = xe->process_requests(vmi);
+        vrc = xe->process_requests(vmi, &requests_processed);
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( VMI_FAILURE == vrc )
+            return VMI_FAILURE;
+#endif
 
         GSList *loop = vmi->swap_events;
         while (loop) {
@@ -1484,20 +1533,35 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     }
 
     /*
-     * Resume the domain once all requests are processed from the ring
+     * Unmask event channel port now that we have finished processing
+     * all requests that were on the ring.
+     */
+    if ( needs_unmasking ) {
+        vrc = unmask_event(xen, xe);
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( VMI_FAILURE == vrc )
+            return VMI_FAILURE;
+#endif
+    }
+
+    /*
+     * Send notification to Xen that response(s) were placed on the ring
      *
      * Note: it is more performant to send notification after each event if
      * there are a lot of vCPUs assigned to the VM.
      */
-    if (vmi->num_vcpus < 7) {
+    if (vmi->num_vcpus < 7 && requests_processed) {
         rc = xen->libxcw.xc_evtchn_notify(xe->xce_handle, xe->port);
+
+#ifdef ENABLE_SAFETY_CHECKS
         if ( rc ) {
             errprint("Error resuming domain.\n");
             return VMI_FAILURE;
         }
+#endif
     }
 
-    return vrc;
+    return VMI_SUCCESS;
 }
 
 status_t xen_init_events(

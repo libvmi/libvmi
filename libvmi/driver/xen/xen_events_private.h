@@ -122,7 +122,7 @@ typedef struct {
     bool monitor_xcr0_on;
     bool monitor_msr_on;
 
-    status_t (*process_requests)(vmi_instance_t vmi);
+    status_t (*process_requests)(vmi_instance_t vmi, uint32_t *requests_processed);
     status_t (*process_event[__VM_EVENT_REASON_MAX])(vmi_instance_t vmi, vm_event_compat_t *vmec);
 
 } xen_events_t;
