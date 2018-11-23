@@ -368,6 +368,8 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
 #elif defined(I386) || defined(X86_64)
     rc = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);
 #endif
+    /* fix for meltdown patches*/
+    vmi->kpgd &= ~0x1fff;
 
     /*
      * The driver failed to get us a pagetable.
