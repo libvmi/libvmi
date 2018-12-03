@@ -379,8 +379,12 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
             goto _exit;
 
     if ( VMI_FAILURE == init_kaslr(vmi) ) {
-        dbprint(VMI_DEBUG_MISC, "**failed to determine KASLR offset\n");
-        goto _exit;
+        /* fix for meltdown patches*/
+        vmi->kpgd &= ~0x1fff;
+        if ( VMI_FAILURE == init_kaslr(vmi) ) {
+            dbprint(VMI_DEBUG_MISC, "**failed to determine KASLR offset\n");
+            goto _exit;
+        }
     }
 
     dbprint(VMI_DEBUG_MISC, "**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
