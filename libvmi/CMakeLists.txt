@@ -122,3 +122,14 @@ if (ENABLE_STATIC)
     install(TARGETS vmi_static DESTINATION lib${LIBSUFFIX})
 endif ()
 install(FILES ${VMI_PUBLIC_HEADERS} DESTINATION include/libvmi)
+
+# expand ${VAR}
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libtool_template.in
+    ${CMAKE_CURRENT_BINARY_DIR}/libtool_template.gen)
+
+# expand $<EXPRESSION>
+file(GENERATE
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libvmi.la
+    INPUT ${CMAKE_CURRENT_BINARY_DIR}/libtool_template.gen)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libvmi.la DESTINATION lib${LIBSUFFIX})
