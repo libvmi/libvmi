@@ -587,13 +587,6 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                                 free(event->emul_insn);
                         }
                         break;
-                    case VMI_EVENT_RESPONSE_SET_REGISTERS:
-#if defined(I386) || defined(X86_64)
-                        memcpy(&rsp->data.regs.x86, event->x86_regs, sizeof(struct regs_x86));
-#elif defined(ARM32) || defined(ARM64)
-                        memcpy(&rsp->data.regs.arm, event->arm_regs, sizeof(struct regs_arm));
-#endif
-                        break;
                 };
 
                 rsp->flags |= event_response_conversion[er];
@@ -618,7 +611,7 @@ status_t process_software_breakpoint(vmi_instance_t vmi, vm_event_compat_t *vmec
     event->interrupt_event.offset = vmec->data.regs.x86.rip & VMI_BIT_MASK(0,11);
     event->interrupt_event.gla = vmec->data.regs.x86.rip;
 
-    event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+    event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
     event->vcpu_id = vmec->vcpu_id;
 
@@ -699,7 +692,7 @@ status_t process_interrupt(vmi_instance_t vmi, vm_event_compat_t *vmec)
     event->interrupt_event.offset = vmec->data.regs.x86.rip & VMI_BIT_MASK(0,11);
     event->interrupt_event.gla = vmec->data.regs.x86.rip;
 
-    event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+    event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
     event->vcpu_id = vmec->vcpu_id;
 
@@ -757,7 +750,7 @@ status_t process_register(vmi_instance_t vmi, vm_event_compat_t *vmec)
             break;
     }
 
-    event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+    event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
     event->vcpu_id = vmec->vcpu_id;
 
@@ -785,7 +778,7 @@ status_t process_singlestep(vmi_instance_t vmi, vm_event_compat_t *vmec)
     event->ss_event.offset = vmec->data.regs.x86.rip & VMI_BIT_MASK(0,11);
     event->ss_event.gla = vmec->data.regs.x86.rip;
 
-    event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+    event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
     event->vcpu_id = vmec->vcpu_id;
 
@@ -831,7 +824,7 @@ status_t process_mem(vmi_instance_t vmi, vm_event_compat_t *vmec)
         event = g_hash_table_lookup(vmi->mem_events_on_gfn, &vmec->mem_access.gfn);
 
         if (event && (event->mem_event.in_access & out_access) ) {
-            event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+            event->x86_regs = &vmec->data.regs.x86;
             event->slat_id = vmec->altp2m_idx;
 
             vmi->event_callback = 1;
@@ -849,7 +842,7 @@ status_t process_mem(vmi_instance_t vmi, vm_event_compat_t *vmec)
 
         ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
             if ( (*key) & out_access ) {
-                event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+                event->x86_regs = &vmec->data.regs.x86;
                 event->slat_id = vmec->altp2m_idx;
 
                 vmi->event_callback = 1;
@@ -894,7 +887,7 @@ status_t process_debug_exception(vmi_instance_t vmi, vm_event_compat_t *vmec)
     event->debug_event.type = vmec->debug_exception.type;
     event->debug_event.insn_length = vmec->debug_exception.insn_length;
 
-    event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+    event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
     event->vcpu_id = vmec->vcpu_id;
 
@@ -943,7 +936,7 @@ status_t process_cpuid(vmi_instance_t vmi, vm_event_compat_t *vmec)
     event->cpuid_event.leaf = vmec->cpuid.leaf;
     event->cpuid_event.subleaf = vmec->cpuid.subleaf;
 
-    event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+    event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
     event->vcpu_id = vmec->vcpu_id;
 
@@ -1011,7 +1004,7 @@ status_t process_guest_request(vmi_instance_t vmi, vm_event_compat_t *vmec)
 #endif
 
 #if defined(I386) || defined(X86_64)
-    event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+    event->x86_regs = &vmec->data.regs.x86;
 #elif defined(ARM32) || defined(ARM64)
     event->arm_regs = (arm_registers_t *)&vmec->data.regs.arm;
 #endif
@@ -1038,7 +1031,7 @@ status_t process_unimplemented_emul(vmi_instance_t vmi, vm_event_compat_t *vmec)
     }
 #endif
 
-    event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+    event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
     event->vcpu_id = vmec->vcpu_id;
 
@@ -1067,7 +1060,7 @@ status_t process_desc_access(vmi_instance_t vmi, vm_event_compat_t *vmec)
     event->descriptor_event.descriptor = vmec->desc_access.descriptor;
     event->descriptor_event.is_write = vmec->desc_access.is_write;
 
-    event->x86_regs = (x86_registers_t *)&vmec->data.regs.x86;
+    event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
     event->vcpu_id = vmec->vcpu_id;
 
@@ -1144,7 +1137,38 @@ status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
         vmec.altp2m_idx = req->altp2m_idx;
 
 #if defined(I386) || defined(X86_64)
-        memcpy(&vmec.data.regs.x86, &req->data.regs.x86, sizeof(vmec.data.regs.x86));
+        vmec.data.regs.x86.rax = req->data.regs.x86.rax;
+        vmec.data.regs.x86.rcx = req->data.regs.x86.rcx;
+        vmec.data.regs.x86.rdx = req->data.regs.x86.rdx;
+        vmec.data.regs.x86.rbx = req->data.regs.x86.rbx;
+        vmec.data.regs.x86.rsp = req->data.regs.x86.rsp;
+        vmec.data.regs.x86.rbp = req->data.regs.x86.rbp;
+        vmec.data.regs.x86.rsi = req->data.regs.x86.rsi;
+        vmec.data.regs.x86.rdi = req->data.regs.x86.rdi;
+        vmec.data.regs.x86.r8 = req->data.regs.x86.r8;
+        vmec.data.regs.x86.r9 = req->data.regs.x86.r9;
+        vmec.data.regs.x86.r10 = req->data.regs.x86.r10;
+        vmec.data.regs.x86.r11 = req->data.regs.x86.r11;
+        vmec.data.regs.x86.r12 = req->data.regs.x86.r12;
+        vmec.data.regs.x86.r13 = req->data.regs.x86.r13;
+        vmec.data.regs.x86.r14 = req->data.regs.x86.r14;
+        vmec.data.regs.x86.r15 = req->data.regs.x86.r15;
+        vmec.data.regs.x86.rflags = req->data.regs.x86.rflags;
+        vmec.data.regs.x86.dr7 = req->data.regs.x86.dr7;
+        vmec.data.regs.x86.rip = req->data.regs.x86.rip;
+        vmec.data.regs.x86.cr0 = req->data.regs.x86.cr0;
+        vmec.data.regs.x86.cr2 = req->data.regs.x86.cr2;
+        vmec.data.regs.x86.cr3 = req->data.regs.x86.cr3;
+        vmec.data.regs.x86.cr4 = req->data.regs.x86.cr4;
+        vmec.data.regs.x86.sysenter_cs = req->data.regs.x86.sysenter_cs;
+        vmec.data.regs.x86.sysenter_esp = req->data.regs.x86.sysenter_esp;
+        vmec.data.regs.x86.sysenter_eip = req->data.regs.x86.sysenter_eip;
+        vmec.data.regs.x86.msr_efer = req->data.regs.x86.msr_efer;
+        vmec.data.regs.x86.msr_star = req->data.regs.x86.msr_star;
+        vmec.data.regs.x86.msr_lstar = req->data.regs.x86.msr_lstar;
+        vmec.data.regs.x86.fs_base = req->data.regs.x86.fs_base;
+        vmec.data.regs.x86.gs_base = req->data.regs.x86.gs_base;
+        vmec.data.regs.x86.cs_arbytes = req->data.regs.x86.cs_arbytes;
 #endif
 
         switch ( vmec.reason ) {
@@ -1171,7 +1195,6 @@ status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
         };
 
         vrc = process_request(vmi, &vmec);
-
 #ifdef ENABLE_SAFETY_CHECKS
         if ( VMI_FAILURE == vrc )
             break;
@@ -1183,7 +1206,48 @@ status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
         rsp->reason = vmec.reason;
         rsp->altp2m_idx = vmec.altp2m_idx;
 
-        memcpy(&rsp->data, &vmec.data, sizeof(rsp->data));
+        if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_READ_DATA ) {
+            rsp->data.emul_read_data.size = vmec.data.emul.read.size;
+            memcpy(&rsp->data.emul_read_data.data, &vmec.data.emul.read.data, vmec.data.emul.read.size);
+        }
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_REGISTERS ) {
+#if defined(I386) || defined(X86_64)
+            rsp->data.regs.x86.rax = vmec.data.regs.x86.rax;
+            rsp->data.regs.x86.rcx = vmec.data.regs.x86.rcx;
+            rsp->data.regs.x86.rdx = vmec.data.regs.x86.rdx;
+            rsp->data.regs.x86.rbx = vmec.data.regs.x86.rbx;
+            rsp->data.regs.x86.rsp = vmec.data.regs.x86.rsp;
+            rsp->data.regs.x86.rbp = vmec.data.regs.x86.rbp;
+            rsp->data.regs.x86.rsi = vmec.data.regs.x86.rsi;
+            rsp->data.regs.x86.rdi = vmec.data.regs.x86.rdi;
+            rsp->data.regs.x86.r8 = vmec.data.regs.x86.r8;
+            rsp->data.regs.x86.r9 = vmec.data.regs.x86.r9;
+            rsp->data.regs.x86.r10 = vmec.data.regs.x86.r10;
+            rsp->data.regs.x86.r11 = vmec.data.regs.x86.r11;
+            rsp->data.regs.x86.r12 = vmec.data.regs.x86.r12;
+            rsp->data.regs.x86.r13 = vmec.data.regs.x86.r13;
+            rsp->data.regs.x86.r14 = vmec.data.regs.x86.r14;
+            rsp->data.regs.x86.r15 = vmec.data.regs.x86.r15;
+            rsp->data.regs.x86.rflags = vmec.data.regs.x86.rflags;
+            rsp->data.regs.x86.dr7 = vmec.data.regs.x86.dr7;
+            rsp->data.regs.x86.rip = vmec.data.regs.x86.rip;
+            rsp->data.regs.x86.cr0 = vmec.data.regs.x86.cr0;
+            rsp->data.regs.x86.cr2 = vmec.data.regs.x86.cr2;
+            rsp->data.regs.x86.cr3 = vmec.data.regs.x86.cr3;
+            rsp->data.regs.x86.cr4 = vmec.data.regs.x86.cr4;
+            rsp->data.regs.x86.sysenter_cs = vmec.data.regs.x86.sysenter_cs;
+            rsp->data.regs.x86.sysenter_esp = vmec.data.regs.x86.sysenter_esp;
+            rsp->data.regs.x86.sysenter_eip = vmec.data.regs.x86.sysenter_eip;
+            rsp->data.regs.x86.msr_efer = vmec.data.regs.x86.msr_efer;
+            rsp->data.regs.x86.msr_star = vmec.data.regs.x86.msr_star;
+            rsp->data.regs.x86.msr_lstar = vmec.data.regs.x86.msr_lstar;
+            rsp->data.regs.x86.fs_base = vmec.data.regs.x86.fs_base;
+            rsp->data.regs.x86.gs_base = vmec.data.regs.x86.gs_base;
+            rsp->data.regs.x86.cs_arbytes = vmec.data.regs.x86.cs_arbytes;
+            rsp->data.regs.x86._pad = 0;
+#endif
+        }
 
         processed++;
         RING_PUSH_RESPONSES(&xe->back_ring_46);
@@ -1291,10 +1355,41 @@ status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
         vmec.vcpu_id = req->vcpu_id;
         vmec.altp2m_idx = req->altp2m_idx;
 
-#if defined(I386) || defined(X86_64)
-        memcpy(&vmec.data.regs.x86, &req->data.regs.x86, sizeof(vmec.data.regs.x86));
-#elif defined(ARM32) || defined(ARM64)
+#if defined(ARM32) || defined(ARM64)
         memcpy(&vmec.data.regs.arm, &req->data.regs.arm, sizeof(vmec.data.regs.arm));
+#elif defined(I386) || defined(X86_64)
+        vmec.data.regs.x86.rax = req->data.regs.x86.rax;
+        vmec.data.regs.x86.rcx = req->data.regs.x86.rcx;
+        vmec.data.regs.x86.rdx = req->data.regs.x86.rdx;
+        vmec.data.regs.x86.rbx = req->data.regs.x86.rbx;
+        vmec.data.regs.x86.rsp = req->data.regs.x86.rsp;
+        vmec.data.regs.x86.rbp = req->data.regs.x86.rbp;
+        vmec.data.regs.x86.rsi = req->data.regs.x86.rsi;
+        vmec.data.regs.x86.rdi = req->data.regs.x86.rdi;
+        vmec.data.regs.x86.r8 = req->data.regs.x86.r8;
+        vmec.data.regs.x86.r9 = req->data.regs.x86.r9;
+        vmec.data.regs.x86.r10 = req->data.regs.x86.r10;
+        vmec.data.regs.x86.r11 = req->data.regs.x86.r11;
+        vmec.data.regs.x86.r12 = req->data.regs.x86.r12;
+        vmec.data.regs.x86.r13 = req->data.regs.x86.r13;
+        vmec.data.regs.x86.r14 = req->data.regs.x86.r14;
+        vmec.data.regs.x86.r15 = req->data.regs.x86.r15;
+        vmec.data.regs.x86.rflags = req->data.regs.x86.rflags;
+        vmec.data.regs.x86.dr7 = req->data.regs.x86.dr7;
+        vmec.data.regs.x86.rip = req->data.regs.x86.rip;
+        vmec.data.regs.x86.cr0 = req->data.regs.x86.cr0;
+        vmec.data.regs.x86.cr2 = req->data.regs.x86.cr2;
+        vmec.data.regs.x86.cr3 = req->data.regs.x86.cr3;
+        vmec.data.regs.x86.cr4 = req->data.regs.x86.cr4;
+        vmec.data.regs.x86.sysenter_cs = req->data.regs.x86.sysenter_cs;
+        vmec.data.regs.x86.sysenter_esp = req->data.regs.x86.sysenter_esp;
+        vmec.data.regs.x86.sysenter_eip = req->data.regs.x86.sysenter_eip;
+        vmec.data.regs.x86.msr_efer = req->data.regs.x86.msr_efer;
+        vmec.data.regs.x86.msr_star = req->data.regs.x86.msr_star;
+        vmec.data.regs.x86.msr_lstar = req->data.regs.x86.msr_lstar;
+        vmec.data.regs.x86.fs_base = req->data.regs.x86.fs_base;
+        vmec.data.regs.x86.gs_base = req->data.regs.x86.gs_base;
+        vmec.data.regs.x86.cs_arbytes = req->data.regs.x86.cs_arbytes;
 #endif
 
         switch ( vmec.reason ) {
@@ -1351,7 +1446,53 @@ status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
         rsp->reason = vmec.reason;
         rsp->altp2m_idx = vmec.altp2m_idx;
 
-        memcpy(&rsp->data, &vmec.data, sizeof(rsp->data));
+        if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_READ_DATA ) {
+            rsp->data.emul.read.size = vmec.data.emul.read.size;
+            memcpy(&rsp->data.emul.read.data, &vmec.data.emul.read.data, vmec.data.emul.read.size);
+        }
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_INSN_DATA )
+            memcpy(&rsp->data.emul.insn, &vmec.data.emul.insn, sizeof(rsp->data.emul.insn));
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_REGISTERS ) {
+#if defined(ARM32) || defined(ARM64)
+            memcpy(&rsp->data.regs.arm, &vmec.data.regs.arm, sizeof(rsp->data.regs.arm));
+#elif defined(I386) || defined(X86_64)
+            rsp->data.regs.x86.rax = vmec.data.regs.x86.rax;
+            rsp->data.regs.x86.rcx = vmec.data.regs.x86.rcx;
+            rsp->data.regs.x86.rdx = vmec.data.regs.x86.rdx;
+            rsp->data.regs.x86.rbx = vmec.data.regs.x86.rbx;
+            rsp->data.regs.x86.rsp = vmec.data.regs.x86.rsp;
+            rsp->data.regs.x86.rbp = vmec.data.regs.x86.rbp;
+            rsp->data.regs.x86.rsi = vmec.data.regs.x86.rsi;
+            rsp->data.regs.x86.rdi = vmec.data.regs.x86.rdi;
+            rsp->data.regs.x86.r8 = vmec.data.regs.x86.r8;
+            rsp->data.regs.x86.r9 = vmec.data.regs.x86.r9;
+            rsp->data.regs.x86.r10 = vmec.data.regs.x86.r10;
+            rsp->data.regs.x86.r11 = vmec.data.regs.x86.r11;
+            rsp->data.regs.x86.r12 = vmec.data.regs.x86.r12;
+            rsp->data.regs.x86.r13 = vmec.data.regs.x86.r13;
+            rsp->data.regs.x86.r14 = vmec.data.regs.x86.r14;
+            rsp->data.regs.x86.r15 = vmec.data.regs.x86.r15;
+            rsp->data.regs.x86.rflags = vmec.data.regs.x86.rflags;
+            rsp->data.regs.x86.dr7 = vmec.data.regs.x86.dr7;
+            rsp->data.regs.x86.rip = vmec.data.regs.x86.rip;
+            rsp->data.regs.x86.cr0 = vmec.data.regs.x86.cr0;
+            rsp->data.regs.x86.cr2 = vmec.data.regs.x86.cr2;
+            rsp->data.regs.x86.cr3 = vmec.data.regs.x86.cr3;
+            rsp->data.regs.x86.cr4 = vmec.data.regs.x86.cr4;
+            rsp->data.regs.x86.sysenter_cs = vmec.data.regs.x86.sysenter_cs;
+            rsp->data.regs.x86.sysenter_esp = vmec.data.regs.x86.sysenter_esp;
+            rsp->data.regs.x86.sysenter_eip = vmec.data.regs.x86.sysenter_eip;
+            rsp->data.regs.x86.msr_efer = vmec.data.regs.x86.msr_efer;
+            rsp->data.regs.x86.msr_star = vmec.data.regs.x86.msr_star;
+            rsp->data.regs.x86.msr_lstar = vmec.data.regs.x86.msr_lstar;
+            rsp->data.regs.x86.fs_base = vmec.data.regs.x86.fs_base;
+            rsp->data.regs.x86.gs_base = vmec.data.regs.x86.gs_base;
+            rsp->data.regs.x86.cs_arbytes = vmec.data.regs.x86.cs_arbytes;
+            rsp->data.regs.x86._pad = 0;
+#endif
+        }
 
         processed++;
         RING_PUSH_RESPONSES(&xe->back_ring_48);
@@ -1402,6 +1543,263 @@ status_t init_events_48(vmi_instance_t vmi)
     SHARED_RING_INIT((vm_event_48_sring_t *)xe->ring_page);
     BACK_RING_INIT(&xe->back_ring_48,
                    (vm_event_48_sring_t *)xe->ring_page,
+                   XC_PAGE_SIZE);
+
+    return VMI_SUCCESS;
+}
+
+/*
+ * Xen 4.12 ring functions
+ */
+
+static inline
+void ring_get_request_and_response_412(xen_events_t *xe,
+                                       vm_event_412_request_t **req,
+                                       vm_event_412_request_t **rsp)
+{
+    vm_event_412_back_ring_t *back_ring = &xe->back_ring_412;
+    RING_IDX req_cons = back_ring->req_cons;
+    RING_IDX rsp_prod = back_ring->rsp_prod_pvt;
+
+    *req = RING_GET_REQUEST(back_ring, req_cons);
+    *rsp = RING_GET_RESPONSE(back_ring, rsp_prod);
+
+    // Update ring positions
+    req_cons++;
+    back_ring->req_cons = req_cons;
+    back_ring->sring->req_event = req_cons + 1;
+    back_ring->rsp_prod_pvt++;
+}
+
+status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
+{
+    vm_event_412_request_t *req;
+    vm_event_412_response_t *rsp;
+    vm_event_compat_t vmec;
+    xen_events_t *xe = xen_get_events(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
+    int rc;
+    status_t vrc = VMI_SUCCESS;
+    uint32_t processed = 0;
+
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_412) ) {
+
+        ring_get_request_and_response_412(xe, &req, &rsp);
+
+        if ( req->version > 0x00000004 ) {
+            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is newer then what we understand (0x%x > 0x%x)!\n",
+                     req->version, 0x00000004);
+            return VMI_FAILURE;
+        }
+
+        vmec.version = req->version;
+        vmec.flags = req->flags;
+        vmec.reason = req->reason;
+        vmec.vcpu_id = req->vcpu_id;
+        vmec.altp2m_idx = req->altp2m_idx;
+
+#if defined(ARM32) || defined(ARM64)
+        memcpy(&vmec.data.regs.arm, &req->data.regs.arm, sizeof(vmec.data.regs.arm));
+#elif defined(I386) || defined(X86_64)
+        vmec.data.regs.x86.rax = req->data.regs.x86.rax;
+        vmec.data.regs.x86.rcx = req->data.regs.x86.rcx;
+        vmec.data.regs.x86.rdx = req->data.regs.x86.rdx;
+        vmec.data.regs.x86.rbx = req->data.regs.x86.rbx;
+        vmec.data.regs.x86.rsp = req->data.regs.x86.rsp;
+        vmec.data.regs.x86.rbp = req->data.regs.x86.rbp;
+        vmec.data.regs.x86.rsi = req->data.regs.x86.rsi;
+        vmec.data.regs.x86.rdi = req->data.regs.x86.rdi;
+        vmec.data.regs.x86.r8 = req->data.regs.x86.r8;
+        vmec.data.regs.x86.r9 = req->data.regs.x86.r9;
+        vmec.data.regs.x86.r10 = req->data.regs.x86.r10;
+        vmec.data.regs.x86.r11 = req->data.regs.x86.r11;
+        vmec.data.regs.x86.r12 = req->data.regs.x86.r12;
+        vmec.data.regs.x86.r13 = req->data.regs.x86.r13;
+        vmec.data.regs.x86.r14 = req->data.regs.x86.r14;
+        vmec.data.regs.x86.r15 = req->data.regs.x86.r15;
+        vmec.data.regs.x86.rflags = req->data.regs.x86.rflags;
+        vmec.data.regs.x86.dr7 = req->data.regs.x86.dr7;
+        vmec.data.regs.x86.rip = req->data.regs.x86.rip;
+        vmec.data.regs.x86.cr0 = req->data.regs.x86.cr0;
+        vmec.data.regs.x86.cr2 = req->data.regs.x86.cr2;
+        vmec.data.regs.x86.cr3 = req->data.regs.x86.cr3;
+        vmec.data.regs.x86.cr4 = req->data.regs.x86.cr4;
+        vmec.data.regs.x86.sysenter_cs = req->data.regs.x86.sysenter_cs;
+        vmec.data.regs.x86.sysenter_esp = req->data.regs.x86.sysenter_esp;
+        vmec.data.regs.x86.sysenter_eip = req->data.regs.x86.sysenter_eip;
+        vmec.data.regs.x86.msr_efer = req->data.regs.x86.msr_efer;
+        vmec.data.regs.x86.msr_star = req->data.regs.x86.msr_star;
+        vmec.data.regs.x86.msr_lstar = req->data.regs.x86.msr_lstar;
+        vmec.data.regs.x86.cs_arbytes = req->data.regs.x86.cs.ar;
+#endif
+
+        switch ( vmec.reason ) {
+            case VM_EVENT_REASON_MEM_ACCESS:
+                memcpy(&vmec.mem_access, &req->u.mem_access, sizeof(vmec.mem_access));
+                break;
+
+            case VM_EVENT_REASON_WRITE_CTRLREG:
+                memcpy(&vmec.write_ctrlreg, &req->u.write_ctrlreg, sizeof(vmec.write_ctrlreg));
+                break;
+
+            case VM_EVENT_REASON_MOV_TO_MSR:
+                memcpy(&vmec.mov_to_msr, &req->u.mov_to_msr, sizeof(vmec.mov_to_msr));
+                break;
+
+            case VM_EVENT_REASON_SINGLESTEP:
+                memcpy(&vmec.singlestep, &req->u.singlestep, sizeof(vmec.singlestep));
+                break;
+
+            case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
+                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                break;
+
+            case VM_EVENT_REASON_INTERRUPT:
+                memcpy(&vmec.x86_interrupt, &req->u.interrupt.x86, sizeof(vmec.x86_interrupt));
+                break;
+
+            case VM_EVENT_REASON_DEBUG_EXCEPTION:
+                memcpy(&vmec.debug_exception, &req->u.debug_exception, sizeof(vmec.debug_exception));
+                break;
+
+            case VM_EVENT_REASON_CPUID:
+                memcpy(&vmec.cpuid, &req->u.cpuid, sizeof(vmec.cpuid));
+                break;
+
+            case VM_EVENT_REASON_DESCRIPTOR_ACCESS:
+                memcpy(&vmec.desc_access, &req->u.desc_access, sizeof(vmec.desc_access));
+                break;
+        }
+
+        vrc = process_request(vmi, &vmec);
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( VMI_FAILURE == vrc )
+            break;
+#endif
+
+        rsp->version = vmec.version;
+        rsp->vcpu_id = vmec.vcpu_id;
+        rsp->flags = vmec.flags;
+        rsp->reason = vmec.reason;
+        rsp->altp2m_idx = vmec.altp2m_idx;
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_READ_DATA ) {
+            rsp->data.emul.read.size = vmec.data.emul.read.size;
+            memcpy(&rsp->data.emul.read.data, &vmec.data.emul.read.data, vmec.data.emul.read.size);
+        }
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_INSN_DATA )
+            memcpy(&rsp->data.emul.insn, &vmec.data.emul.insn, sizeof(rsp->data.emul.insn));
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_REGISTERS ) {
+#if defined(ARM32) || defined(ARM64)
+            memcpy(&rsp->data.regs.arm, &vmec.data.regs.arm, sizeof(rsp->data.regs.arm));
+#elif defined(I386) || defined(X86_64)
+            rsp->data.regs.x86.rax = vmec.data.regs.x86.rax;
+            rsp->data.regs.x86.rcx = vmec.data.regs.x86.rcx;
+            rsp->data.regs.x86.rdx = vmec.data.regs.x86.rdx;
+            rsp->data.regs.x86.rbx = vmec.data.regs.x86.rbx;
+            rsp->data.regs.x86.rsp = vmec.data.regs.x86.rsp;
+            rsp->data.regs.x86.rbp = vmec.data.regs.x86.rbp;
+            rsp->data.regs.x86.rsi = vmec.data.regs.x86.rsi;
+            rsp->data.regs.x86.rdi = vmec.data.regs.x86.rdi;
+            rsp->data.regs.x86.r8 = vmec.data.regs.x86.r8;
+            rsp->data.regs.x86.r9 = vmec.data.regs.x86.r9;
+            rsp->data.regs.x86.r10 = vmec.data.regs.x86.r10;
+            rsp->data.regs.x86.r11 = vmec.data.regs.x86.r11;
+            rsp->data.regs.x86.r12 = vmec.data.regs.x86.r12;
+            rsp->data.regs.x86.r13 = vmec.data.regs.x86.r13;
+            rsp->data.regs.x86.r14 = vmec.data.regs.x86.r14;
+            rsp->data.regs.x86.r15 = vmec.data.regs.x86.r15;
+            rsp->data.regs.x86.rflags = vmec.data.regs.x86.rflags;
+            rsp->data.regs.x86.dr7 = vmec.data.regs.x86.dr7;
+            rsp->data.regs.x86.rip = vmec.data.regs.x86.rip;
+            rsp->data.regs.x86.cr0 = vmec.data.regs.x86.cr0;
+            rsp->data.regs.x86.cr2 = vmec.data.regs.x86.cr2;
+            rsp->data.regs.x86.cr3 = vmec.data.regs.x86.cr3;
+            rsp->data.regs.x86.cr4 = vmec.data.regs.x86.cr4;
+            rsp->data.regs.x86.sysenter_cs = vmec.data.regs.x86.sysenter_cs;
+            rsp->data.regs.x86.sysenter_esp = vmec.data.regs.x86.sysenter_esp;
+            rsp->data.regs.x86.sysenter_eip = vmec.data.regs.x86.sysenter_eip;
+            rsp->data.regs.x86.msr_efer = vmec.data.regs.x86.msr_efer;
+            rsp->data.regs.x86.msr_star = vmec.data.regs.x86.msr_star;
+            rsp->data.regs.x86.msr_lstar = vmec.data.regs.x86.msr_lstar;
+            rsp->data.regs.x86.cs.ar = vmec.data.regs.x86.cs_arbytes;
+
+            // TODO: These registers are not currently getting exposed by LibVMI
+            rsp->data.regs.x86.cs.limit = req->data.regs.x86.cs.limit;
+            rsp->data.regs.x86.dr6 = req->data.regs.x86.dr6;
+            rsp->data.regs.x86.cs_base = req->data.regs.x86.cs_base;
+            rsp->data.regs.x86.ss_base = req->data.regs.x86.ss_base;
+            rsp->data.regs.x86.ds_base = req->data.regs.x86.ds_base;
+            rsp->data.regs.x86.es_base = req->data.regs.x86.es_base;
+            rsp->data.regs.x86.fs_base = req->data.regs.x86.fs_base;
+            rsp->data.regs.x86.gs_base = req->data.regs.x86.gs_base;
+            rsp->data.regs.x86.ss = req->data.regs.x86.ss;
+            rsp->data.regs.x86.ds = req->data.regs.x86.ds;
+            rsp->data.regs.x86.es = req->data.regs.x86.es;
+            rsp->data.regs.x86.fs = req->data.regs.x86.fs;
+            rsp->data.regs.x86.gs = req->data.regs.x86.gs;
+            rsp->data.regs.x86.shadow_gs = req->data.regs.x86.shadow_gs;
+            rsp->data.regs.x86.cs_sel = req->data.regs.x86.cs_sel;
+            rsp->data.regs.x86.ss_sel = req->data.regs.x86.ss_sel;
+            rsp->data.regs.x86.ds_sel = req->data.regs.x86.ds_sel;
+            rsp->data.regs.x86.es_sel = req->data.regs.x86.es_sel;
+            rsp->data.regs.x86.fs_sel = req->data.regs.x86.fs_sel;
+            rsp->data.regs.x86.gs_sel = req->data.regs.x86.gs_sel;
+            rsp->data.regs.x86._pad = 0;
+#endif
+        }
+
+        processed++;
+        RING_PUSH_RESPONSES(&xe->back_ring_412);
+
+        /*
+         * Send notification to Xen that response(s) were placed on the ring
+         *
+         * Note: it is more performant to send notification after each event if
+         * there are a lot of vCPUs assigned to the VM.
+         */
+        if (vmi->num_vcpus >= 7) {
+            rc = xen->libxcw.xc_evtchn_notify(xe->xce_handle, xe->port);
+
+#ifdef ENABLE_SAFETY_CHECKS
+            if ( rc ) {
+                errprint("Error sending event channel notification.\n");
+                return VMI_FAILURE;
+            }
+#endif
+        }
+    }
+
+    *requests_processed = processed;
+    return vrc;
+}
+
+int xen_are_events_pending_412(vmi_instance_t vmi)
+{
+    xen_events_t *xe = xen_get_events(vmi);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xe ) {
+        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
+        return -1;
+    }
+#endif
+
+    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_412);
+}
+
+status_t init_events_412(vmi_instance_t vmi)
+{
+    xen_events_t *xe = xen_get_events(vmi);
+
+    xe->process_requests = &process_requests_412;
+    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_412;
+
+    SHARED_RING_INIT((vm_event_412_sring_t *)xe->ring_page);
+    BACK_RING_INIT(&xe->back_ring_412,
+                   (vm_event_412_sring_t *)xe->ring_page,
                    XC_PAGE_SIZE);
 
     return VMI_SUCCESS;
@@ -1679,8 +2077,10 @@ status_t xen_init_events(
         case 6 ... 7:
             return init_events_46(vmi);
         case 8 ... 11: // fall-through
-        default:
             return init_events_48(vmi);
+        default:
+        case 12:
+            return init_events_412(vmi);
     };
 
 err:

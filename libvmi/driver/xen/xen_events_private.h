@@ -90,12 +90,12 @@ typedef struct vm_event_compat {
 
     union {
         union {
-            struct regs_x86 x86;
-            struct regs_arm arm;
+            x86_registers_t x86;
+            arm_registers_t arm;
         } regs;
 
         union {
-            struct vm_event_emul_read_data read;
+            struct vm_event_emul_read_data_412 read;
             struct vm_event_emul_insn_data insn;
         } emul;
     } data;
@@ -110,6 +110,7 @@ typedef struct {
     union {
         vm_event_46_back_ring_t back_ring_46;
         vm_event_48_back_ring_t back_ring_48;
+        vm_event_412_back_ring_t back_ring_412;
     };
     xen_pfn_t max_gpfn;
     uint32_t monitor_capabilities;
