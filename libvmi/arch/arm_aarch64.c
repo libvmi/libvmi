@@ -42,7 +42,6 @@ void get_zero_level_4kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t va
     info->arm_aarch64.zld_location = (dtb & VMI_BIT_MASK(12,47)) | (zero_level_4kb_table_index(vaddr) << 3);
     uint64_t zld_v;
     if (VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.zld_location, &zld_v)) {
-        printf("Got zld_v: 0x%lx\n", zld_v);
         info->arm_aarch64.zld_value = zld_v;
     }
 }
@@ -81,8 +80,6 @@ void get_first_level_64kb_descriptor(vmi_instance_t vmi, uint64_t dtb, uint64_t 
     if (VMI_SUCCESS == vmi_read_64_pa(vmi, info->arm_aarch64.fld_location, &fld_v)) {
         info->arm_aarch64.fld_value = fld_v;
     }
-
-    printf("64kb fld location: 0x%lx 0x%lx\n", info->arm_aarch64.fld_location, fld_v);
 }
 
 // 2nd Level Page Table Index (4kb Pages)
