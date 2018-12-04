@@ -1,5 +1,1 @@
-set(file_driver_src
-    file.c
-)
-
-add_library(file_driver SHARED ${file_driver_src})
+target_sources(vmi_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/file.c)

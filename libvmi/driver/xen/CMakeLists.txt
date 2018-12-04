@@ -1,26 +1,17 @@
-find_package(Xen REQUIRED)
-if (ENABLE_XENSTORE)
-    find_package(Xenstore REQUIRED)
-endif ()
-
-set(xen_driver_src
-    altp2m.c
-    altp2m_private.h
-    xen.h
-    xen_private.h
-    xen.c
-    xen_events.c
-    xen_events.h
-    xen_events_private.h
-    xen_events_46.c
-    xen_events_48.c
-    xen_events_legacy.c
-    libxc_wrapper.c
-    libxc_wrapper.h
-    libxs_wrapper.c
-    libxs_wrapper.h
+target_sources(vmi_shared PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/altp2m.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/altp2m_private.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/xen.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/xen_private.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/xen.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/xen_events.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/xen_events.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/xen_events_private.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/xen_events_46.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/xen_events_48.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/xen_events_legacy.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libxc_wrapper.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libxc_wrapper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/libxs_wrapper.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/libxs_wrapper.h
 )
-
-add_library(xen_driver SHARED ${xen_driver_src})
-# CMAKE_DL_LIBS -> dlopen* lib
-target_link_libraries(xen_driver ${CMAKE_DL_LIBS})

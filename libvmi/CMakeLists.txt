@@ -1,29 +1,3 @@
-set(VMI_PUBLIC_HEADERS
-    libvmi.h
-    libvmi_extra.h
-    slat.h
-    x86.h)
-
-add_subdirectory(config)
-add_subdirectory(driver)
-add_subdirectory(os)
-
-if (ENABLE_ADDRESS_CACHE)
-    add_library(cache SHARED cache.c)
-endif ()
-
-if (ENABLE_SHM_SNAPSHOT)
-    add_library(shm SHARED shm.c)
-    list(APPEND VMI_PUBLIC_HEADERS shm.h)
-endif ()
-
-if (REKALL_PROFILES)
-    find_package(JSON-C REQUIRED)
-    add_library(rekall SHARED rekall.c)
-    target_include_directories(rekall PRIVATE ${JSON-C_INCLUDE_DIRS})
-    target_link_libraries(rekall ${JSON-C_LIBRARIES})
-endif ()
-
 set(libvmi_src
     accessors.c
     convenience.c
@@ -50,9 +24,17 @@ add_library(vmi OBJECT ${libvmi_src})
 # force -fPIC
 set_property(TARGET vmi PROPERTY POSITION_INDEPENDENT_CODE ON)
 
+set(VMI_PUBLIC_HEADERS
+    libvmi.h
+    libvmi_extra.h
+    slat.h
+    x86.h)
+
+
+
 # create libvmi.so
 add_library (vmi_shared SHARED $<TARGET_OBJECTS:vmi>)
-target_link_libraries(vmi_shared ${GLIB_LDFLAGS} m)
+target_link_libraries(vmi_shared PUBLIC ${GLIB_LDFLAGS} m)
 set_target_properties(vmi_shared PROPERTIES OUTPUT_NAME "vmi")
 # set soname
 set_target_properties(vmi_shared PROPERTIES
@@ -66,46 +48,50 @@ if (ENABLE_STATIC)
     set_target_properties(vmi_static PROPERTIES OUTPUT_NAME "vmi")
 endif ()
 
-if (ENABLE_FREEBSD)
-    target_link_libraries(vmi_shared freebsd)
-endif ()
-
-if (ENABLE_LINUX)
-    target_link_libraries(vmi_shared linux)
-endif ()
-
-if (ENABLE_WINDOWS)
-    target_link_libraries(vmi_shared windows)
-    list(APPEND VMI_PUBLIC_HEADERS peparse.h)
-endif ()
-
-if (ENABLE_FILE)
-    target_link_libraries(vmi_shared file_driver)
-endif ()
+add_subdirectory(config)
+add_subdirectory(driver)
+add_subdirectory(os)
 
 if (ENABLE_KVM)
-    target_link_libraries(vmi_shared kvm_driver)
+    find_package(JSON-C REQUIRED)
+    find_package(Libvirt REQUIRED)
+    target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
+    # CMAKE_DL_LIBS -> dlopen* lib
+    target_link_libraries(vmi_shared PUBLIC ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+    if (ENABLE_SHM_SNAPSHOT)
+        # shm_open/shm_unlink are provided by -lrt
+        target_link_libraries(vmi_shared PUBLIC rt)
+    endif ()
 endif ()
 
 if (ENABLE_XEN)
-    target_link_libraries(vmi_shared xen_driver)
+    find_package(Xen REQUIRED)
     list(APPEND VMI_PUBLIC_HEADERS events.h)
+    if (ENABLE_XENSTORE)
+        find_package(Xenstore REQUIRED)
+    endif ()
+    # CMAKE_DL_LIBS -> dlopen* lib
+    target_link_libraries(vmi_shared PUBLIC ${CMAKE_DL_LIBS})
+endif ()
+
+if (ENABLE_WINDOWS)
+    list(APPEND VMI_PUBLIC_HEADERS peparse.h)
 endif ()
 
 if (ENABLE_ADDRESS_CACHE)
-    target_link_libraries(vmi_shared cache)
+    target_sources(vmi_shared PRIVATE cache.c)
 endif ()
 
 if (ENABLE_SHM_SNAPSHOT)
-    target_link_libraries(vmi_shared shm)
+    target_sources(vmi_shared PRIVATE shm.c)
+    list(APPEND VMI_PUBLIC_HEADERS shm.h)
 endif ()
 
 if (REKALL_PROFILES)
-    target_link_libraries(vmi_shared rekall)
-endif ()
-
-if (ENABLE_CONFIGFILE)
-    target_link_libraries(vmi_shared config)
+    find_package(JSON-C REQUIRED)
+    target_sources(vmi_shared PRIVATE rekall.c)
+    target_include_directories(vmi_shared PUBLIC ${JSON-C_INCLUDE_DIRS})
+    target_link_libraries(vmi_shared PUBLIC ${JSON-C_LIBRARIES})
 endif ()
 
 # install
