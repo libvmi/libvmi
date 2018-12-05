@@ -17,7 +17,7 @@ old_library='$<TARGET_FILE_NAME:vmi_static>'
 inherited_linker_flags=''
 
 # Libraries that this one depends upon.
-dependency_libs='$<TARGET_PROPERTY:vmi_shared,INTERFACE_LINK_LIBRARIES>'
+dependency_libs='${DEPENDENCY_LIBS}'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''

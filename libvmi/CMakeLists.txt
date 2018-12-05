@@ -30,12 +30,19 @@ set(VMI_PUBLIC_HEADERS
     slat.h
     x86.h)
 
+# list of external dependencies, used by libtool for the static library
+set(VMI_PUBLIC_DEPS "")
+
 # create libvmi.so
 add_library (vmi_shared SHARED $<TARGET_OBJECTS:vmi>)
 # performance.c uses math.h in implementation
 target_link_libraries(vmi_shared PRIVATE m)
+list(APPEND VMI_PUBLIC_DEPS m)
 # one libvmi_extra.h function returns a GSList*
 target_link_libraries(vmi_shared PUBLIC ${GLIB_LDFLAGS})
+# cleanup GLIB_LDFLAGS (remove -l prefix)
+string(REGEX REPLACE "-l" "" GLIB_LDFLAGS ${GLIB_LDFLAGS})
+list(APPEND VMI_PUBLIC_DEPS ${GLIB_LDFLAGS})
 set_target_properties(vmi_shared PROPERTIES OUTPUT_NAME "vmi")
 # set soname
 set_target_properties(vmi_shared PROPERTIES
@@ -59,9 +66,11 @@ if (ENABLE_KVM)
     target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
     # CMAKE_DL_LIBS -> dlopen* lib
     target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+    list(APPEND VMI_PUBLIC_DEPS ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
     if (ENABLE_SHM_SNAPSHOT)
         # shm_open/shm_unlink are provided by -lrt
         target_link_libraries(vmi_shared PRIVATE rt)
+        list(APPEND VMI_PUBLIC_DEPS rt)
     endif ()
 endif ()
 
@@ -73,6 +82,7 @@ if (ENABLE_XEN)
     endif ()
     # CMAKE_DL_LIBS -> dlopen* lib
     target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS})
+    list(APPEND VMI_PUBLIC_DEPS ${CMAKE_DL_LIBS})
 endif ()
 
 if (ENABLE_WINDOWS)
@@ -93,6 +103,7 @@ if (REKALL_PROFILES)
     target_sources(vmi_shared PRIVATE rekall.c)
     target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
     target_link_libraries(vmi_shared PRIVATE ${JSON-C_LIBRARIES})
+    list(APPEND VMI_PUBLIC_DEPS ${JSON-C_LIBRARIES})
 endif ()
 
 # install
@@ -110,6 +121,11 @@ if (ENABLE_STATIC)
 endif ()
 install(FILES ${VMI_PUBLIC_HEADERS} DESTINATION include/libvmi)
 
+list(REMOVE_DUPLICATES VMI_PUBLIC_DEPS)
+set (DEPENDENCY_LIBS "")
+foreach (PUB_LIB ${VMI_PUBLIC_DEPS})
+    set(DEPENDENCY_LIBS "${DEPENDENCY_LIBS} -l${PUB_LIB}")
+endforeach ()
 # expand ${VAR}
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libtool_template.in
     ${CMAKE_CURRENT_BINARY_DIR}/libtool_template.gen)
