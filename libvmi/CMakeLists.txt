@@ -30,11 +30,12 @@ set(VMI_PUBLIC_HEADERS
     slat.h
     x86.h)
 
-
-
 # create libvmi.so
 add_library (vmi_shared SHARED $<TARGET_OBJECTS:vmi>)
-target_link_libraries(vmi_shared PUBLIC ${GLIB_LDFLAGS} m)
+# performance.c uses math.h in implementation
+target_link_libraries(vmi_shared PRIVATE m)
+# one libvmi_extra.h function returns a GSList*
+target_link_libraries(vmi_shared PUBLIC ${GLIB_LDFLAGS})
 set_target_properties(vmi_shared PROPERTIES OUTPUT_NAME "vmi")
 # set soname
 set_target_properties(vmi_shared PROPERTIES
@@ -57,10 +58,10 @@ if (ENABLE_KVM)
     find_package(Libvirt REQUIRED)
     target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
     # CMAKE_DL_LIBS -> dlopen* lib
-    target_link_libraries(vmi_shared PUBLIC ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+    target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
     if (ENABLE_SHM_SNAPSHOT)
         # shm_open/shm_unlink are provided by -lrt
-        target_link_libraries(vmi_shared PUBLIC rt)
+        target_link_libraries(vmi_shared PRIVATE rt)
     endif ()
 endif ()
 
@@ -71,7 +72,7 @@ if (ENABLE_XEN)
         find_package(Xenstore REQUIRED)
     endif ()
     # CMAKE_DL_LIBS -> dlopen* lib
-    target_link_libraries(vmi_shared PUBLIC ${CMAKE_DL_LIBS})
+    target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS})
 endif ()
 
 if (ENABLE_WINDOWS)
@@ -90,8 +91,8 @@ endif ()
 if (REKALL_PROFILES)
     find_package(JSON-C REQUIRED)
     target_sources(vmi_shared PRIVATE rekall.c)
-    target_include_directories(vmi_shared PUBLIC ${JSON-C_INCLUDE_DIRS})
-    target_link_libraries(vmi_shared PUBLIC ${JSON-C_LIBRARIES})
+    target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
+    target_link_libraries(vmi_shared PRIVATE ${JSON-C_LIBRARIES})
 endif ()
 
 # install
