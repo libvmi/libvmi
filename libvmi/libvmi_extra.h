@@ -47,6 +47,20 @@ GSList* vmi_get_va_pages(
     vmi_instance_t vmi,
     addr_t dtb);
 
+/*
+ * Read libvmi.conf and parse it.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in,out] config Return GHashTable with parsed data
+ * @param[out] error Optional. If not NULL and the function returns VMI_FAILURE,
+ *                   this will specify the reason of failure.
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_config_file(
+    vmi_instance_t vmi,
+    GHashTable **config,
+    vmi_init_error_t *error);
+
 #pragma GCC visibility pop
 
 #ifdef __cplusplus

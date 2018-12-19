@@ -595,10 +595,10 @@ page_mode_t vmi_init_paging(
 
 status_t vmi_read_config_file(
     vmi_instance_t vmi,
-    void **config,
+    GHashTable **config,
     vmi_init_error_t *error)
 {
-    return read_config_file_entry(vmi, (GHashTable**)config, error);
+    return read_config_file_entry(vmi, config, error);
 }
 
 os_t vmi_init_os(
