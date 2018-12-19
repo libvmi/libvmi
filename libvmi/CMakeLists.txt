@@ -56,7 +56,38 @@ if (ENABLE_STATIC)
     set_target_properties(vmi_static PROPERTIES OUTPUT_NAME "vmi")
 endif ()
 
-add_subdirectory(config)
+# workaround CMake bug
+# target_sources doesn't work with generated files in subdirectories
+if (ENABLE_CONFIGFILE)
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
+        COMMAND ${FLEX_EXECUTABLE}
+            --outfile=${CMAKE_CURRENT_BINARY_DIR}/scanner.c
+            ${CMAKE_CURRENT_SOURCE_DIR}/config/lexicon.l
+        COMMENT "Generating scanner.c"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
+    )
+
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/parser.c
+        COMMAND ${BISON_EXECUTABLE}
+            --output=${CMAKE_CURRENT_BINARY_DIR}/parser.c
+            --defines=${CMAKE_CURRENT_BINARY_DIR}/grammar.h
+            ${CMAKE_CURRENT_SOURCE_DIR}/config/grammar.y
+        COMMENT "Generating parser.c"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
+    )
+
+    target_sources(vmi_shared PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
+        ${CMAKE_CURRENT_BINARY_DIR}/parser.c
+    )
+    target_include_directories(vmi_shared PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR} # grammar.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/config # config_parser.h
+    )
+endif ()
+
 add_subdirectory(driver)
 add_subdirectory(os)
 
