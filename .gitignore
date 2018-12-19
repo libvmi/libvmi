@@ -30,6 +30,7 @@ examples/msr-event-example
 examples/vmi-process-list
 examples/singlestep-event-example
 examples/vmi-win-guid
+examples/vmi-win-offsets
 examples/interrupt-event-example
 examples/shm-snapshot-process-list
 examples/step-event-example
