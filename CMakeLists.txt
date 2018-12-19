@@ -11,6 +11,8 @@ project(LibVMI VERSION 0.13.0 LANGUAGES C)
 #-----------------------------------------------------------------------------
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLIB REQUIRED glib-2.0)
+# cleanup GLIB_LDFLAGS (remove -l prefix)
+string(REGEX REPLACE "-l" "" GLIB_LDFLAGS ${GLIB_LDFLAGS})
 
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
