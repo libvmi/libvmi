@@ -89,6 +89,13 @@ AC_ARG_ENABLE([kvm],
       [enable_kvm=yes])
 AM_CONDITIONAL([WITH_KVM], [test x"$enable_kvm" = xyes])
 
+AC_ARG_ENABLE([bareflank],
+      [AS_HELP_STRING([--disable-bareflank],
+         [Support memory introspection with live Bareflank VMs (default is yes)])],
+      [enable_bareflank=$enableval],
+      [enable_bareflank=yes])
+AM_CONDITIONAL([WITH_BAREFLANK], [test x"$enable_bareflank" = xyes && test "$arch" = "x86_64"])
+
 AC_ARG_ENABLE([file],
       [AS_HELP_STRING([--disable-file],
          [Disable support for memory introspection with physical memory dumps in a file @<:@no@:>@])],
@@ -176,6 +183,7 @@ dnl -----------------------------------------------
 AC_PROG_CC
 AM_PROG_CC_C_O
 AM_SANITY_CHECK
+AM_PROG_AS
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16],[],[AC_MSG_ERROR(GLib 2.16 or newer not found. Install missing package and re-run)])
@@ -228,6 +236,16 @@ AC_SUBST([GLIB_LIBS])
 [if test "$enable_file" = "yes"]
 [then]
     AC_DEFINE([ENABLE_FILE], [1], [Define to 1 to enable file support.])
+[fi]
+
+[if test "$enable_bareflank" = "yes" && test "$arch" = "x86_64"]
+[then]
+    AC_CHECK_LIB(json-c, json_object_get_int64, [missing="no"], [missing="yes"])
+    [if test x"$missing" = "xno"]
+    [then]
+                AC_CHECK_HEADERS([json-c/json.h])
+                AC_DEFINE([ENABLE_BAREFLANK], [1], [Define to 1 to enable Bareflank support.])
+    [fi]
 [fi]
 
 [if test "$enable_windows" = "yes"]
@@ -377,6 +395,7 @@ Feature         | Option
 Xen Support     | --enable-xen=$enable_xen
 KVM Support     | --enable-kvm=$enable_kvm
 File Support    | --enable-file=$enable_file
+Bareflank       | --enable-bareflank=$enable_bareflank
 Rekall profiles | --enable-rekall-profiles=$rekall
 ----------------|---------------------------
 

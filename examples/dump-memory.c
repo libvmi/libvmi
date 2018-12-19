@@ -62,6 +62,12 @@ main(
     if (VMI_FAILURE == vmi_get_access_mode(vmi, (void*)name, VMI_INIT_DOMAINNAME, NULL, &mode) )
         goto error_exit;
 
+    if ( mode == VMI_BAREFLANK ) {
+        printf("It is not safe to run this example as-is with Bareflank.\n");
+        printf("To dump the memory please adjust this example to only access valid E820 ranges.\n");
+        goto error_exit;
+    }
+
     /* initialize the libvmi library */
     if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");

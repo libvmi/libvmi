@@ -448,6 +448,11 @@ static inline status_t driver_sanity_check(vmi_mode_t mode)
             return VMI_FAILURE;
 #endif
             break;
+        case VMI_BAREFLANK:
+#if ENABLE_BAREFLANK != 1
+            return VMI_FAILURE;
+#endif
+            break;
         default:
             return VMI_FAILURE;
     };
@@ -483,6 +488,14 @@ status_t vmi_init(
 
     _vmi->init_flags = init_flags;
 
+    /* setup the page offset size */
+    if (VMI_FAILURE == init_page_offset(_vmi)) {
+        if ( error )
+            *error = VMI_INIT_ERROR_DRIVER;
+
+        goto error_exit;
+    }
+
     /* driver-specific initilization */
     if (VMI_FAILURE == driver_init(_vmi, init_flags, init_data)) {
         if ( error )
@@ -491,14 +504,6 @@ status_t vmi_init(
         goto error_exit;
     }
     dbprint(VMI_DEBUG_CORE, "--completed driver init.\n");
-
-    /* setup the page offset size */
-    if (VMI_FAILURE == init_page_offset(_vmi)) {
-        if ( error )
-            *error = VMI_INIT_ERROR_DRIVER;
-
-        goto error_exit;
-    }
 
     /* resolve the id and name */
     if (VMI_FAILURE == set_id_and_name(_vmi, domain)) {

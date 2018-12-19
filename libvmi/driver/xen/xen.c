@@ -85,6 +85,7 @@ xen_get_memory(
 
 void
 xen_release_memory(
+    vmi_instance_t UNUSED(vmi),
     void *memory,
     size_t length)
 {
@@ -158,7 +159,7 @@ xen_put_memory(
         /* set variables for next loop */
         count -= write_len;
         buf_offset += write_len;
-        xen_release_memory(memory, vmi->page_size);
+        xen_release_memory(vmi, memory, vmi->page_size);
     }
 
     return VMI_SUCCESS;

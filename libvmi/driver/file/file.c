@@ -101,6 +101,7 @@ error_noprint:
 
 void
 file_release_memory(
+    vmi_instance_t UNUSED(vmi),
     void *memory,
     size_t UNUSED(length))
 {

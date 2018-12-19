@@ -43,6 +43,10 @@
 #include "driver/kvm/kvm.h"
 #endif
 
+#if ENABLE_BAREFLANK == 1
+#include "driver/bareflank/bareflank.h"
+#endif
+
 status_t driver_init_mode(const char *name,
                           uint64_t domainid,
                           uint64_t init_flags,
@@ -70,6 +74,13 @@ status_t driver_init_mode(const char *name,
     if (VMI_SUCCESS == file_test(domainid, name, init_flags, init_data)) {
         dbprint(VMI_DEBUG_DRIVER, "--found file\n");
         *mode = VMI_FILE;
+        count++;
+    }
+#endif
+#if ENABLE_BAREFLANK == 1
+    if (VMI_SUCCESS == bareflank_test(domainid, name)) {
+        dbprint(VMI_DEBUG_DRIVER, "--found Bareflank\n");
+        *mode = VMI_BAREFLANK;
         count++;
     }
 #endif
@@ -114,6 +125,11 @@ status_t driver_init(vmi_instance_t vmi,
 #if ENABLE_FILE == 1
         case VMI_FILE:
             rc = driver_file_setup(vmi);
+            break;
+#endif
+#if ENABLE_BAREFLANK == 1
+        case VMI_BAREFLANK:
+            rc = driver_bareflank_setup(vmi);
             break;
 #endif
         default:

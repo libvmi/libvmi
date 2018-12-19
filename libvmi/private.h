@@ -72,7 +72,7 @@ typedef enum vm_type {
  */
 struct vmi_instance {
 
-    vmi_mode_t mode;        /**< VMI_FILE, VMI_XEN, VMI_KVM */
+    vmi_mode_t mode;        /**< VMI_FILE, VMI_XEN, VMI_KVM, VMI_BAREFLANK */
 
     driver_interface_t driver; /**< The driver supporting the chosen mode */
 
@@ -186,7 +186,7 @@ struct vmi_instance {
 
     void *(*get_data_callback) (vmi_instance_t, addr_t, uint32_t); /**< memory_cache function */
 
-    void (*release_data_callback) (void *, size_t); /**< memory_cache function */
+    void (*release_data_callback) (vmi_instance_t, void *, size_t); /**< memory_cache function */
 };
 
 /** Event singlestep reregister wrapper */

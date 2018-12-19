@@ -62,6 +62,8 @@ typedef enum vmi_mode {
     VMI_KVM, /**< libvmi is monitoring a KVM VM */
 
     VMI_FILE, /**< libvmi is viewing a file on disk */
+
+    VMI_BAREFLANK /** <libvmi is monitoring a Bareflank VM */
 } vmi_mode_t;
 
 typedef enum vmi_config {

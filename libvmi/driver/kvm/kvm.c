@@ -415,7 +415,6 @@ destroy_domain_socket(
 
 //----------------------------------------------------------------------------
 // KVM-Specific Interface Functions (no direction mapping to driver_*)
-
 void *
 kvm_get_memory_patch(
     vmi_instance_t vmi,
@@ -516,6 +515,7 @@ error:
 
 void
 kvm_release_memory(
+    vmi_instance_t UNUSED(vmi),
     void *memory,
     size_t UNUSED(length))
 {

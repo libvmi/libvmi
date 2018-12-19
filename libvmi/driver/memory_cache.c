@@ -61,7 +61,7 @@ memory_cache_entry_free(
     memory_cache_entry_t entry = (memory_cache_entry_t) data;
 
     if (entry) {
-        entry->vmi->release_data_callback(entry->data, entry->length);
+        entry->vmi->release_data_callback(entry->vmi, entry->data, entry->length);
         free(entry);
     }
 }
@@ -91,7 +91,7 @@ validate_and_return_data(
     if (vmi->memory_cache_age &&
             (now - entry->last_updated > vmi->memory_cache_age)) {
         dbprint(VMI_DEBUG_MEMCACHE, "--MEMORY cache refresh 0x%"PRIx64"\n", entry->paddr);
-        vmi->release_data_callback(entry->data, entry->length);
+        vmi->release_data_callback(vmi, entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
         entry->last_updated = now;
 
@@ -151,7 +151,8 @@ memory_cache_init(
     void *(*get_data) (vmi_instance_t,
                        addr_t,
                        uint32_t),
-    void (*release_data) (void *,
+    void (*release_data) (vmi_instance_t,
+                          void *,
                           size_t),
     unsigned long age_limit)
 {
@@ -265,7 +266,8 @@ memory_cache_init(
     void *(*get_data) (vmi_instance_t,
                        addr_t,
                        uint32_t),
-    void (*release_data) (void *,
+    void (*release_data) (vmi_instance_t,
+                          void *,
                           size_t),
     unsigned long UNUSED(age_limit))
 {
@@ -281,8 +283,8 @@ memory_cache_insert(
     if (paddr == vmi->last_used_page_key && vmi->last_used_page) {
         return vmi->last_used_page;
     } else {
-        if (vmi->last_used_page_key && vmi->last_used_page) {
-            vmi->release_data_callback(vmi->last_used_page, vmi->page_size);
+        if (vmi->last_used_page) {
+            vmi->release_data_callback(vmi, vmi->last_used_page, vmi->page_size);
         }
         vmi->last_used_page = get_memory_data(vmi, paddr, vmi->page_size);
         vmi->last_used_page_key = paddr;
@@ -295,7 +297,7 @@ void memory_cache_remove(
     addr_t paddr)
 {
     if (paddr == vmi->last_used_page_key && vmi->last_used_page) {
-        vmi->release_data_callback(vmi->last_used_page, vmi->page_size);
+        vmi->release_data_callback(vmi, vmi->last_used_page, vmi->page_size);
     }
 }
 
@@ -303,8 +305,8 @@ void
 memory_cache_destroy(
     vmi_instance_t vmi)
 {
-    if (vmi->last_used_page_key && vmi->last_used_page) {
-        vmi->release_data_callback(vmi->last_used_page, vmi->page_size);
+    if (vmi->last_used_page) {
+        vmi->release_data_callback(vmi, vmi->last_used_page, vmi->page_size);
     }
     vmi->last_used_page_key = 0;
     vmi->last_used_page = NULL;
