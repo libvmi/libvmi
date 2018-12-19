@@ -180,13 +180,6 @@ event_response_t cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event)
     vmi_dtb_to_pid(vmi, event->reg_event.value, &pid);
     printf("PID %i with CR3=%"PRIx64" executing on vcpu %"PRIu32". Previous CR3=%"PRIx64"\n",
            pid, event->reg_event.value, event->vcpu_id, event->reg_event.previous);
-
-    msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
-    msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
-
-    if (vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
-        fprintf(stderr, "Could not install sysenter syscall handler.\n");
-    vmi_clear_event(vmi, &msr_syscall_sysenter_event, NULL);
     return 0;
 }
 
@@ -310,22 +303,19 @@ int main (int argc, char **argv)
      */
     cr3_event.reg_event.in_access = VMI_REGACCESS_W;
 
-    /* Optional (default = 0): Trigger on change
-     *  Causes events to be delivered by the hypervisor to this monitoring
-     *   program if and only if the register value differs from that previously
-     *   observed.
-     *  Usage: cr3_event.reg_event.onchange = 1;
-     *
-     * Optional (default = 0): Asynchronous event delivery
-     *  Causes events to be delivered by the hypervisor to this monitoring
-     *   program if and only if the register value differs from that previously
-     *   observed.
-     *  Usage: cr3_event.reg_event.async =1;
-     */
+    // Setup a default event for tracking memory at the syscall handler.
+    // But don't install it; that will be done by the cr3 handler.
+    memset(&msr_syscall_sysenter_event, 0, sizeof(vmi_event_t));
+    msr_syscall_sysenter_event.version = VMI_EVENTS_VERSION;
+    msr_syscall_sysenter_event.type = VMI_EVENT_MEMORY;
+    msr_syscall_sysenter_event.mem_event.gfn = phys_sysenter_ip >> 12;
+    msr_syscall_sysenter_event.mem_event.in_access = VMI_MEMACCESS_X;
+    msr_syscall_sysenter_event.callback=msr_syscall_sysenter_cb;
 
     if (pid == -1) {
         cr3_event.callback = cr3_all_tasks_callback;
         vmi_register_event(vmi, &cr3_event);
+        vmi_register_event(vmi, &msr_syscall_sysenter_event);
     } else {
         cr3_event.callback = cr3_one_task_callback;
         /* This acts as a filter: if the CR3 value at time of event == the CR3
@@ -336,12 +326,8 @@ int main (int argc, char **argv)
         vmi_register_event(vmi, &cr3_event);
     }
 
-    // Setup a default event for tracking memory at the syscall handler.
-    // But don't install it; that will be done by the cr3 handler.
-    memset(&msr_syscall_sysenter_event, 0, sizeof(vmi_event_t));
-    msr_syscall_sysenter_event.version = VMI_EVENTS_VERSION;
-    msr_syscall_sysenter_event.type = VMI_EVENT_MEMORY;
-    msr_syscall_sysenter_event.mem_event.gfn = phys_sysenter_ip >> 12;
+    if (vmi_register_event(vmi, &msr_syscall_sysenter_event) == VMI_FAILURE)
+        fprintf(stderr, "Could not install sysenter syscall handler.\n");
 
     memset(&kernel_sysenter_target_event, 0, sizeof(vmi_event_t));
     kernel_sysenter_target_event.version = VMI_EVENTS_VERSION;
