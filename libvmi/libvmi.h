@@ -742,6 +742,20 @@ page_mode_t vmi_init_paging(
     uint64_t flags);
 
 /*
+ * Read libvmi.conf and parse it.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in,out] config Return GHashTable with parsed data
+ * @param[out] error Optional. If not NULL and the function returns VMI_FAILURE,
+ *                   this will specify the reason of failure.
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_config_file(
+    vmi_instance_t vmi,
+    void **config,
+    vmi_init_error_t *error);
+
+/*
  * Initialize the OS specific functionality of LibVMI required for functions
  * such as vmi_*_ksym. If the user hasn't called vmi_init_paging yet, this
  * function will do that automatically.
