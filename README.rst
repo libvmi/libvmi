@@ -45,7 +45,7 @@ Dependencies
 ------------
 The following libraries are used in building this code:
 
-- ``autotools``
+- ``CMake``
 
 - ``libtool`` Generic library support script
 
@@ -61,26 +61,32 @@ The following libraries are used in building this code:
 
 Installing the dependencies on Ubuntu::
 
-    $ sudo apt-get install autotools-dev automake flex bison libglib2.0-dev libvirt-dev libjson-c-dev libyajl-dev
+    $ sudo apt-get install cmake flex bison libglib2.0-dev libvirt-dev libjson-c-dev libyajl-dev
 
 Building
 --------
-LibVMI uses the standard GNU build system.  To compile this library, simply
+LibVMI uses the [CMake](https://cmake.org/) build system.  To compile this library, simply
 follow the steps below:
 
 .. code::
 
-   ./autogen.sh
-   ./configure
+   mkdir build
+   cd build
+   cmake ..
    make
 
-The example code will work without installing LibVMI.  However, you may
-choose to install the library into the prefix specified to 'configure' by:
+The example code will work without installing LibVMI.
 
-make install
+You can specify a different install prefix with
+``cmake -DCMAKE_INSTALL_PREFIX=/usr ..``
 
 The default installation prefix is ``/usr/local``.  You may need to run
 ``ldconfig`` after performing a ``make install``.
+
+For a complete view of the build options, using ``ccmake`` tool is prefered if
+available.
+
+Otherwise, look at ``CMakeLists.txt`` ``option()`` commands.
 
 Installation and Configuration
 ------------------------------
