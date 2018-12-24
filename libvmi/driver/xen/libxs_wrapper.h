@@ -23,9 +23,9 @@
 #include <config.h>
 #include <dlfcn.h>
 
-#if (HAVE_XENSTORE_H == 1)
+#if HAVE_XENSTORE_H == 1
 #include <xenstore.h>
-#elif (HAVE_XS_H == 1)
+#elif HAVE_XS_H == 1
 #include <xs.h>
 #endif
 
@@ -33,7 +33,7 @@
 
 struct xen_instance;
 
-#if (HAVE_LIBXENSTORE == 0)
+#if HAVE_LIBXENSTORE == 0
 struct xs_handle;
 typedef struct xs_transaction xs_transaction_t;
 #endif

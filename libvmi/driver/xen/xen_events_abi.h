@@ -36,7 +36,7 @@
 #define X86_TRAP_DEBUG  1
 #define X86_TRAP_INT3   3
 
-#if (HAVE_XENMEM_ACCESS_T == 1)
+#if HAVE_XENMEM_ACCESS_T == 1
 #include <xen/memory.h>
 
 typedef enum {
@@ -54,7 +54,7 @@ typedef enum {
 } hvmmem_access_t;
 #endif
 
-#if (HAVE_HVMMEM_ACCESS_T == 1)
+#if HAVE_HVMMEM_ACCESS_T == 1
 typedef enum {
     XENMEM_access_n,
     XENMEM_access_r,
