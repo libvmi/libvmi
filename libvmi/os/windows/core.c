@@ -1017,6 +1017,8 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
         } else {
             real_kpgd_found = VMI_SUCCESS;
         }
+    } else {
+        real_kpgd_found = VMI_SUCCESS;
     }
 
     if (VMI_FAILURE == init_core(vmi))
