@@ -71,7 +71,7 @@ static status_t linux_filemode_32bit_init(vmi_instance_t vmi,
 static status_t linux_filemode_init(vmi_instance_t vmi)
 {
     status_t rc;
-    addr_t swapper_pg_dir = 0, init_level4_pgt = 0;
+    addr_t swapper_pg_dir = 0, kernel_pgt = 0;
     addr_t boundary = 0, phys_start = 0, virt_start = 0;
 
     switch (vmi->page_mode) {
@@ -157,29 +157,37 @@ static status_t linux_filemode_init(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
-    rc = linux_symbol_to_address(vmi, "init_level4_pgt", NULL, &init_level4_pgt);
-    if (rc == VMI_SUCCESS) {
+    /* Try 64-bit init */
+    rc = linux_symbol_to_address(vmi, "init_level4_pgt", NULL, &kernel_pgt);
+    if ( rc == VMI_FAILURE )
+        rc = linux_symbol_to_address(vmi, "init_top_pgt", NULL, &kernel_pgt);
 
-        dbprint(VMI_DEBUG_MISC, "--got vaddr for init_level4_pgt (0x%.16"PRIx64").\n",
-                init_level4_pgt);
+    if (rc == VMI_FAILURE)
+        return VMI_FAILURE;
 
-        init_level4_pgt = canonical_addr(init_level4_pgt);
+    dbprint(VMI_DEBUG_MISC, "--got vaddr for kernel pagetable (0x%.16"PRIx64").\n", kernel_pgt);
 
-        if (boundary) {
-            vmi->page_mode = VMI_PM_IA32E;
-            if (VMI_SUCCESS == arch_init(vmi)) {
-                addr_t test = 0;
+    kernel_pgt = canonical_addr(kernel_pgt);
 
-                if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, init_level4_pgt - boundary, virt_start, &test) &&
-                        test == phys_start) {
-                    vmi->kpgd = init_level4_pgt - boundary;
-                    return VMI_SUCCESS;
-                }
-            }
-        }
-    }
+    if (!boundary)
+        return VMI_FAILURE;
 
-    return VMI_FAILURE;
+    vmi->page_mode = VMI_PM_IA32E;
+
+    if (VMI_FAILURE == arch_init(vmi))
+        return VMI_FAILURE;
+
+    addr_t test = 0;
+
+    if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, kernel_pgt - boundary, virt_start, &test) )
+        return VMI_FAILURE;
+
+    if ( test != phys_start)
+        return VMI_FAILURE;
+
+    vmi->kpgd = kernel_pgt - boundary;
+
+    return VMI_SUCCESS;
 }
 
 static status_t init_from_rekall_profile(vmi_instance_t vmi)
