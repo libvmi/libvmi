@@ -662,6 +662,46 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
 }
 
 static status_t
+find_windows_version_from_rekall_profile(vmi_instance_t vmi)
+{
+    status_t ret = VMI_FAILURE;
+    windows_instance_t windows = vmi->os_data;
+    addr_t ntbuildnumber_rva;
+    uint16_t ntbuildnumber = 0;
+
+    // Let's do some sanity checking
+    if (!windows->ntoskrnl)
+        goto done;
+
+    if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
+        goto done;
+    }
+    if (VMI_FAILURE == vmi_read_16_pa(vmi, windows->ntoskrnl + ntbuildnumber_rva, &ntbuildnumber)) {
+        goto done;
+    }
+
+    // Let's see if we know the buildnumber
+    windows->version = ntbuild2version(ntbuildnumber);
+
+    if (VMI_OS_WINDOWS_UNKNOWN == windows->version) {
+
+        // Let's check the PE header if the buildnumber is unknown
+        windows->version = pe2version(vmi, windows->ntoskrnl);
+
+        if (VMI_OS_WINDOWS_NONE == windows->version) {
+            dbprint(VMI_DEBUG_MISC, "Failed to find a known version of Windows, "
+                    "the Rekall Profile may be incorrect for this VM or the version of Windows is not supported!\n");
+            goto done;
+        }
+    }
+
+    ret = VMI_SUCCESS;
+
+done:
+    return ret;
+}
+
+static status_t
 init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 {
     status_t ret = VMI_FAILURE;
@@ -822,32 +862,6 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 
     dbprint(VMI_DEBUG_MISC, "**KernBase VA=0x%"PRIx64"\n", windows->ntoskrnl_va);
 
-    addr_t ntbuildnumber_rva;
-    uint16_t ntbuildnumber = 0;
-
-    // Let's do some sanity checking
-    if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
-        goto done;
-    }
-    if (VMI_FAILURE == vmi_read_16_pa(vmi, windows->ntoskrnl + ntbuildnumber_rva, &ntbuildnumber)) {
-        goto done;
-    }
-
-    // Let's see if we know the buildnumber
-    windows->version = ntbuild2version(ntbuildnumber);
-
-    if (VMI_OS_WINDOWS_UNKNOWN == windows->version) {
-
-        // Let's check the PE header if the buildnumber is unknown
-        windows->version = pe2version(vmi, windows->ntoskrnl);
-
-        if (VMI_OS_WINDOWS_NONE == windows->version) {
-            dbprint(VMI_DEBUG_MISC, "Failed to find a known version of Windows, "
-                    "the Rekall Profile may be incorrect for this VM or the version of Windows is not supported!\n");
-            goto done;
-        }
-    }
-
     // The system map seems to be good, lets grab all the required offsets
     if (!windows->pdbase_offset) {
         if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
@@ -884,8 +898,13 @@ init_from_rekall_profile(vmi_instance_t vmi)
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
 
+    if ( windows->ntoskrnl && windows->ntoskrnl_va ) {
+        ret = VMI_SUCCESS;
+        goto done;
+    }
+
     // try to find the kernel if we are not connecting to a file and the kernel pa/va were not already specified.
-    if ( vmi->mode != VMI_FILE && ! ( windows->ntoskrnl && windows->ntoskrnl_va ) ) {
+    if ( vmi->mode != VMI_FILE ) {
         switch ( vmi->page_mode ) {
             case VMI_PM_IA32E: {
                 // MSR_SHADOW_GS_BASE - Model Specific Register (MSR) 0xC0000102 which the kernel initialises with the address of the processor’s KPCR.
@@ -938,6 +957,9 @@ init_from_rekall_profile(vmi_instance_t vmi)
     }
 
 done:
+    if (VMI_SUCCESS == ret)
+        ret = find_windows_version_from_rekall_profile(vmi);
+
     return ret;
 }
 
