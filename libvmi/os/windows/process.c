@@ -333,7 +333,8 @@ windows_find_eprocess_list_pid(
     if ( !vmi->os_data )
         return 0;
 
-    if ( VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head) )
+    list_head = ((windows_instance_t)vmi->os_data)->sysproc;
+    if ( !list_head )
         return 0;
 
     pid_offset = ((windows_instance_t)vmi->os_data)->pid_offset;
@@ -353,7 +354,8 @@ windows_find_eprocess_list_pgd(
     if ( !vmi->os_data )
         return 0;
 
-    if ( VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head) )
+    list_head = ((windows_instance_t)vmi->os_data)->sysproc;
+    if ( !list_head )
         return 0;
 
     pdbase_offset = ((windows_instance_t)vmi->os_data)->pdbase_offset;
