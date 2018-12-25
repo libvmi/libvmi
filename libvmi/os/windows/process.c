@@ -321,6 +321,26 @@ exit:
     return rtnval;
 }
 
+static
+addr_t
+find_eprocess(
+    vmi_instance_t vmi,
+    int offset,
+    size_t len,
+    void* value)
+{
+    addr_t eprocess = 0;
+    addr_t list_head = ((windows_instance_t)vmi->os_data)->sysproc;
+
+    if ( list_head )
+        eprocess = eprocess_list_search(vmi, list_head, offset, len, value);
+
+    if ( !eprocess && VMI_FAILURE == vmi_read_addr_ksym(vmi, "PsInitialSystemProcess", &list_head) )
+        return 0;
+
+    return eprocess_list_search(vmi, list_head, offset, len, value);
+}
+
 addr_t
 windows_find_eprocess_list_pid(
     vmi_instance_t vmi,
@@ -328,18 +348,13 @@ windows_find_eprocess_list_pid(
 {
     size_t len = sizeof(vmi_pid_t);
     int pid_offset = 0;
-    addr_t list_head = 0;
 
     if ( !vmi->os_data )
         return 0;
 
-    list_head = ((windows_instance_t)vmi->os_data)->sysproc;
-    if ( !list_head )
-        return 0;
-
     pid_offset = ((windows_instance_t)vmi->os_data)->pid_offset;
 
-    return eprocess_list_search(vmi, list_head, pid_offset, len, &pid);
+    return find_eprocess(vmi, pid_offset, len, &pid);
 }
 
 addr_t
@@ -349,13 +364,8 @@ windows_find_eprocess_list_pgd(
 {
     int pdbase_offset = 0;
     size_t len = 0;
-    addr_t list_head = 0;
 
     if ( !vmi->os_data )
-        return 0;
-
-    list_head = ((windows_instance_t)vmi->os_data)->sysproc;
-    if ( !list_head )
         return 0;
 
     pdbase_offset = ((windows_instance_t)vmi->os_data)->pdbase_offset;
@@ -365,6 +375,6 @@ windows_find_eprocess_list_pgd(
     else
         len = sizeof(addr_t);
 
-    return eprocess_list_search(vmi, list_head, pdbase_offset, len, &pgd);
+    return find_eprocess(vmi, pdbase_offset, len, &pgd);
 }
 
