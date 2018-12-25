@@ -562,10 +562,10 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                         if ( event->emul_read ) {
                             rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
 
-                            if ( event->emul_read->size < sizeof(rsp->data.emul.read.data) )
+                            if ( event->emul_read->size < sizeof(event->emul_read->data) )
                                 rsp->data.emul.read.size = event->emul_read->size;
                             else
-                                rsp->data.emul.read.size = sizeof(rsp->data.emul.read.data);
+                                rsp->data.emul.read.size = sizeof(event->emul_read->data);
 
                             memcpy(&rsp->data.emul.read.data,
                                    &event->emul_read->data,
