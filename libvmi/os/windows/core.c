@@ -507,7 +507,13 @@ status_t windows_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t 
         return VMI_FAILURE;
     }
 
-    if (strncmp(offset_name, "win_tasks", max_length) == 0) {
+    if (strncmp(offset_name, "win_ntoskrnl", max_length) == 0) {
+        *offset = windows->ntoskrnl;
+        return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "win_ntoskrnl_va", max_length) == 0) {
+        *offset = windows->ntoskrnl_va;
+        return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "win_tasks", max_length) == 0) {
         *offset = windows->tasks_offset;
         return VMI_SUCCESS;
     } else if (strncmp(offset_name, "win_pdbase", max_length) == 0) {
@@ -526,6 +532,18 @@ status_t windows_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t 
         }
 
         *offset = windows->pname_offset;
+        return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "win_kdvb", max_length) == 0) {
+        *offset = windows->kdbg_va;
+        return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "win_sysproc", max_length) == 0) {
+        *offset = windows->sysproc;
+        return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "win_kpcr", max_length) == 0) {
+        *offset = windows->kpcr_offset;
+        return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "win_kdbg", max_length) == 0) {
+        *offset = windows->kdbg_offset;
         return VMI_SUCCESS;
     }
 

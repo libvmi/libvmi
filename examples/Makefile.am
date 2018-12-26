@@ -16,7 +16,8 @@ LDADD = -lvmi -lm $(LIBS) $(GLIB_LIBS)
 bin_PROGRAMS = vmi-process-list \
                vmi-module-list \
                vmi-win-guid \
-               vmi-dump-memory
+               vmi-dump-memory \
+               vmi-win-offsets
 
 noinst_PROGRAMS = shm-snapshot-process-list \
                   map-symbol \
@@ -33,6 +34,7 @@ vmi_process_list_SOURCES = process-list.c
 vmi_module_list_SOURCES = module-list.c
 vmi_dump_memory_SOURCES = dump-memory.c
 vmi_win_guid_SOURCES = win-guid.c win-guid.h
+vmi_win_offsets_SOURCES = win-offsets.c
 
 shm_snapshot_process_list_SOURCES = shm-snapshot-process-list.c
 map_symbol_SOURCES = map-symbol.c
