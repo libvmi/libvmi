@@ -1815,12 +1815,12 @@ status_t unmask_event(xen_instance_t *xen, xen_events_t *xe)
 {
     int rc, port = xen->libxcw.xc_evtchn_pending(xe->xce_handle);
 
-#ifdef ENABLE_SAFETY_CHECKS
     if ( -1 == port ) {
-        errprint("Failed to read port from event channel\n");
+        dbprint(VMI_DEBUG_XEN, "No event channel port is pending.\n");
         return VMI_FAILURE;
     }
 
+#ifdef ENABLE_SAFETY_CHECKS
     if ( port != xe->port ) {
         errprint("Event received for invalid port %i, Expected port is %i\n",
                  port, xe->port);
@@ -1885,7 +1885,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 #endif
 
     if (!vmi->shutting_down) {
-        if ( timeout ) {
+        if ( !xe->external_poll ) {
             dbprint(VMI_DEBUG_XEN, "--Waiting for xen events...(%"PRIu32" ms)\n", timeout);
             if ( VMI_FAILURE == wait_for_event_or_timeout(vmi, timeout, &needs_unmasking) ) {
                 errprint("Error while waiting for event.\n");
@@ -2017,9 +2017,10 @@ status_t xen_init_events(
         goto err;
     }
 
-    if ( init_flags & VMI_INIT_XEN_EVTCHN )
+    if ( init_flags & VMI_INIT_XEN_EVTCHN ) {
         xe->xce_handle = init_data;
-    else {
+        xe->external_poll = 1;
+    } else {
         // Open event channel
         xe->xce_handle = xen->libxcw.xc_evtchn_open(NULL, 0);
         if ( !xe->xce_handle ) {

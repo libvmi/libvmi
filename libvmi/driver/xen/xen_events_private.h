@@ -106,6 +106,7 @@ typedef struct {
     int port;
     struct pollfd fd;
     uint32_t evtchn_port;
+    bool external_poll;
     void *ring_page;
     union {
         vm_event_46_back_ring_t back_ring_46;
