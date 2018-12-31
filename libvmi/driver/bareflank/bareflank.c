@@ -360,7 +360,7 @@ status_t
 bareflank_init(
     vmi_instance_t vmi,
     uint32_t UNUSED(init_flags),
-    void *UNUSED(init_data))
+    vmi_init_data_t* UNUSED(init_data))
 {
     bareflank_instance_t *bf = g_malloc0(sizeof(bareflank_instance_t));
     if ( !bf )
@@ -373,6 +373,7 @@ bareflank_init(
     }
 
     vmi->driver.driver_data = (void*)bf;
+    vmi->vm_type = NORMAL;
 
     dbprint(VMI_DEBUG_BAREFLANK, "Bareflank driver init finished\n");
 
@@ -382,7 +383,7 @@ bareflank_init(
 status_t bareflank_init_vmi(
     vmi_instance_t vmi,
     uint32_t UNUSED(init_flags),
-    void* UNUSED(init_data))
+    vmi_init_data_t* UNUSED(init_data))
 {
     bareflank_instance_t *bf = bareflank_get_instance(vmi);
 

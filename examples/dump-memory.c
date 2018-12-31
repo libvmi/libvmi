@@ -52,6 +52,8 @@ main(
     addr_t address = 0;
     addr_t size = 0;
     vmi_mode_t mode;
+    vmi_init_data_t *init_data = NULL;
+    memory_map_t *memmap = NULL;
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
@@ -62,14 +64,39 @@ main(
     if (VMI_FAILURE == vmi_get_access_mode(vmi, (void*)name, VMI_INIT_DOMAINNAME, NULL, &mode) )
         goto error_exit;
 
+    /*
+     * For bareflank we have to pass-in the actual memory map of the machine.
+     */
     if ( mode == VMI_BAREFLANK ) {
-        printf("It is not safe to run this example as-is with Bareflank.\n");
-        printf("To dump the memory please adjust this example to only access valid E820 ranges.\n");
+        printf("Using this example on Bareflank is not safe.\n");
+        printf("You have to adjust it to match your machine before running it.\n");
         goto error_exit;
+
+        /* The following is an example based on the e820 map described in
+         * notes/memory_map.txt. */
+        uint32_t e820_entries = 5;
+
+        memmap = malloc(sizeof(memory_map_t) + sizeof(addr_t) * 2 * e820_entries);
+        memmap->count = e820_entries;
+        memmap->range[0][0] = 0xfff;
+        memmap->range[0][1] = 0x57fff;
+        memmap->range[1][0] = 0x60000;
+        memmap->range[1][1] = 0x97fff;
+        memmap->range[2][0] = 0x100000;
+        memmap->range[2][1] = 0xdbfb8fff;
+        memmap->range[3][0] = 0xdcfff000;
+        memmap->range[3][1] = 0xdcffffff;
+        memmap->range[4][0] = 0x100000000;
+        memmap->range[4][1] = 0x21e5fffff;
+
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_MEMMAP;
+        init_data->entry[0].data = memmap;
     }
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
         goto error_exit;
     }
@@ -110,6 +137,10 @@ main(
 error_exit:
     if (f)
         fclose(f);
+    if (memmap)
+        free(memmap);
+    if (init_data)
+        free(init_data);
 
     free(filename);
 

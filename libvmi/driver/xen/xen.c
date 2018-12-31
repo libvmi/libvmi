@@ -451,7 +451,7 @@ status_t
 xen_init(
     vmi_instance_t vmi,
     uint32_t UNUSED(init_flags),
-    void *UNUSED(init_data))
+    vmi_init_data_t *UNUSED(init_data))
 {
     if ( xen_get_instance(vmi) )
         return VMI_SUCCESS;
@@ -495,7 +495,7 @@ status_t
 xen_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data)
+    vmi_init_data_t *init_data)
 {
     status_t ret = VMI_FAILURE;
     xen_instance_t *xen = xen_get_instance(vmi);

@@ -49,11 +49,9 @@ extern "C" {
 
 #define VMI_INIT_DOMAINNAME (1u << 0) /**< initialize using domain name */
 
-#define VMI_INIT_DOMAINID (1u << 1) /**< initialize using domain id */
+#define VMI_INIT_DOMAINID   (1u << 1) /**< initialize using domain id */
 
-#define VMI_INIT_EVENTS (1u << 2) /**< initialize events */
-
-#define VMI_INIT_XEN_EVTCHN (1u << 4) /**< use provided Xen file descriptor */
+#define VMI_INIT_EVENTS     (1u << 2) /**< initialize events */
 
 typedef enum vmi_mode {
 
@@ -190,6 +188,39 @@ typedef enum page_size {
 } page_size_t;
 
 #define VMI_INVALID_DOMID ~0ULL /**< invalid domain id */
+
+/**
+ * The types of initialization data that can be passed in
+ */
+typedef enum {
+    VMI_INIT_DATA_XEN_EVTCHN, /**< Xen file descriptor */
+
+    VMI_INIT_DATA_MEMMAP     /**< memory_map_t pointer */
+} vmi_init_data_type_t;
+
+/**
+ * Structures used to pass initialization data to LibVMI
+ */
+typedef struct {
+    uint64_t type; /**< type (VMI_INIT_DATA_*) */
+    void *data;    /**< the data being passed in */
+} vmi_init_data_entry_t;
+
+typedef struct {
+    uint64_t count;  /**< number of entries */
+    vmi_init_data_entry_t entry[]; /**< entry for each data being passed in */
+} vmi_init_data_t;
+
+/**
+ * Structure to define valid memory ranges within the target.
+ *
+ * On x86 this can be used to pass the E820 or EFI memory map
+ * to LibVMI so that accesses to invalid ranges can be skipped.
+ */
+typedef struct {
+    uint64_t count;
+    uint64_t range[][2]; /**< start and end address of valid memory ranges */
+} memory_map_t;
 
 typedef uint64_t reg_t;
 
@@ -680,7 +711,7 @@ status_t vmi_init(
     vmi_mode_t mode,
     void* domain,
     uint64_t init_flags,
-    void *init_data,
+    vmi_init_data_t *init_data,
     vmi_init_error_t *error);
 
 /**
@@ -716,7 +747,7 @@ status_t vmi_init_complete(
     vmi_instance_t *vmi,
     void *domain,
     uint64_t init_flags,
-    void *init_data,
+    vmi_init_data_t *init_data,
     vmi_config_t config_mode,
     void *config,
     vmi_init_error_t *error);
@@ -1868,7 +1899,7 @@ status_t vmi_get_access_mode(
     vmi_instance_t vmi,
     void *domain,
     uint64_t init_flags,
-    void* init_data,
+    vmi_init_data_t *init_data,
     vmi_mode_t *mode);
 
 /**

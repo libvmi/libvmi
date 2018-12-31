@@ -31,11 +31,11 @@
 status_t kvm_init(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 status_t kvm_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 void kvm_destroy(
     vmi_instance_t vmi);
 uint64_t kvm_get_id_from_name(
@@ -85,7 +85,7 @@ status_t kvm_test(
     uint64_t domainid,
     const char *name,
     uint64_t init_flags,
-    void* init_data);
+    vmi_init_data_t* init_data);
 status_t kvm_pause_vm(
     vmi_instance_t vmi);
 status_t kvm_resume_vm(

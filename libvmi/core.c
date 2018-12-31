@@ -407,7 +407,7 @@ vmi_get_access_mode(
     vmi_instance_t vmi,
     void *domain,
     uint64_t init_flags,
-    void* init_data,
+    vmi_init_data_t *init_data,
     vmi_mode_t *mode)
 {
     if ( vmi ) {
@@ -465,7 +465,7 @@ status_t vmi_init(
     vmi_mode_t mode,
     void* domain,
     uint64_t init_flags,
-    void *init_data,
+    vmi_init_data_t *init_data,
     vmi_init_error_t *error)
 {
     if ( VMI_FAILURE == driver_sanity_check(mode) ) {
@@ -487,6 +487,21 @@ status_t vmi_init(
     dbprint(VMI_DEBUG_CORE, "LibVMI Driver Mode %d\n", _vmi->mode);
 
     _vmi->init_flags = init_flags;
+
+    if ( init_data && init_data->count ) {
+        uint64_t i;
+        for (i=0; i < init_data->count; i++) {
+            switch (init_data->entry[i].type) {
+                case VMI_INIT_DATA_MEMMAP:
+                    _vmi->memmap = (memory_map_t*)g_memdup(init_data->entry[i].data, sizeof(memory_map_t));
+                    if ( !_vmi->memmap )
+                        goto error_exit;
+                    break;
+                default:
+                    break;
+            };
+        }
+    }
 
     /* setup the page offset size */
     if (VMI_FAILURE == init_page_offset(_vmi)) {
@@ -700,7 +715,7 @@ vmi_init_complete(
     vmi_instance_t *vmi,
     void *domain,
     uint64_t init_flags,
-    void *init_data,
+    vmi_init_data_t *init_data,
     vmi_config_t config_mode,
     void *config,
     vmi_init_error_t *error)
@@ -764,7 +779,8 @@ vmi_destroy(
     memory_cache_destroy(vmi);
     if (vmi->image_type)
         free(vmi->image_type);
-    free(vmi);
+    g_free(vmi->memmap);
+    g_free(vmi);
     return VMI_SUCCESS;
 }
 

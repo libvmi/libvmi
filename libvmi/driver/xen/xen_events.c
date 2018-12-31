@@ -1969,8 +1969,8 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 
 status_t xen_init_events(
     vmi_instance_t vmi,
-    uint32_t init_flags,
-    void *init_data)
+    uint32_t UNUSED(init_flags),
+    vmi_init_data_t *init_data)
 {
     xen_events_t * xe = NULL;
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -2022,10 +2022,19 @@ status_t xen_init_events(
         goto err;
     }
 
-    if ( init_flags & VMI_INIT_XEN_EVTCHN ) {
-        xe->xce_handle = init_data;
-        xe->external_poll = 1;
-    } else {
+    if ( init_data && init_data->count ) {
+        uint64_t i;
+        for (i=0; i < init_data->count; i++) {
+            if ( init_data->entry[i].type != VMI_INIT_DATA_XEN_EVTCHN )
+                continue;
+
+            xe->xce_handle = init_data->entry[i].data;
+            xe->external_poll = 1;
+            break;
+        }
+    }
+
+    if ( !xe->xce_handle ) {
         // Open event channel
         xe->xce_handle = xen->libxcw.xc_evtchn_open(NULL, 0);
         if ( !xe->xce_handle ) {

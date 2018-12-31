@@ -118,12 +118,27 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
     //
     // TODO: perform other reasonable checks
 
-    if ((vmi->vm_type == HVM || vmi->vm_type == NORMAL) && (paddr + length > vmi->max_physical_address)) {
-        errprint("--requesting PA [0x%"PRIx64"] beyond max physical address [0x%"PRIx64"]\n",
-                 paddr + length, vmi->max_physical_address);
-        errprint("\tpaddr: %"PRIx64", length %"PRIx32", vmi->max_physical_address %"PRIx64"\n", paddr, length,
-                 vmi->max_physical_address);
-        return 0;
+    if (vmi->vm_type == HVM || vmi->vm_type == NORMAL) {
+        if ( !vmi->memmap ) {
+            if ( paddr + length > vmi->max_physical_address ) {
+                goto err_exit;
+            }
+        } else {
+            // If we have a memory map we can check that the access is within a valid range
+            unsigned int i;
+            memory_map_t *memmap = vmi->memmap;
+            bool range_found = 0;
+
+            for (i=0; i < memmap->count; i++) {
+                if ( paddr >= memmap->range[i][0] && paddr + length <= memmap->range[i][1] ) {
+                    range_found = 1;
+                    break;
+                }
+            }
+
+            if ( !range_found )
+                goto err_exit;
+        }
     }
 
     memory_cache_entry_t entry =
@@ -141,6 +156,11 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
     entry->data = get_memory_data(vmi, paddr, length);
 
     return entry;
+
+err_exit:
+    dbprint(VMI_DEBUG_MEMCACHE, "--requested PA [0x%"PRIx64"-0x%"PRIx64"] is outside valid physical memory\n",
+            paddr, paddr + length);
+    return NULL;
 }
 
 //---------------------------------------------------------

@@ -112,6 +112,8 @@ struct vmi_instance {
 
     arch_interface_t arch_interface; /**< architecture specific functions */
 
+    memory_map_t *memmap;   /**< memory map of available addresses */
+
     uint64_t allocated_ram_size; /**< total size of target's allocated memory */
 
     addr_t max_physical_address; /**< maximum valid physical memory address + 1 */

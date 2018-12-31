@@ -29,11 +29,11 @@ status_t bareflank_test(
 status_t bareflank_init(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 status_t bareflank_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 void bareflank_destroy(
     vmi_instance_t vmi);
 void *bareflank_read_page(
