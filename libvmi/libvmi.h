@@ -669,11 +669,10 @@ typedef struct vmi_instance *vmi_instance_t;
  *                   on init_flags.
  * @param[in] init_flags Init flags to specify the domain input (name or id) and
  *                       to initialize further LibVMI features, such as events.
+ *                       See VMI_INIT_* declarations above.
  * @param[in] init_data In case initialization requires additional information
  *                      for a given hypervisor, it can be provided via this
- *                      input. A subsequent call to vmi_destroy will release
- *                      any handles provided here, and so the calling application
- *                      cannot continue to use them after calling vmi_destroy.
+ *                      input.
  * @param[out] error Optional. If not NULL and the function returns VMI_FAILURE,
  *                   this will specify the stage at which initialization failed.
  * @return VMI_SUCCESS or VMI_FAILURE
@@ -704,11 +703,10 @@ status_t vmi_init(
  *                   by setting either VMI_INIT_DOMAINNAME or VMI_INIT_DOMAINID
  *                   on init_flags.
  * @param[in] init_flags Additional flags to initialize
+ *                       See VMI_INIT_* declarations above.
  * @param[in] init_data In case initialization requires additional information
  *                      for a given hypervisor, it can be provided via this
- *                      input. A subsequent call to vmi_destroy will release
- *                      any handles provided here, and so the calling application
- *                      cannot continue to use them after calling vmi_destroy.
+ *                      input.
  * @param[in] config_mode The type of OS configuration that is provided.
  * @param[in] config Configuration is passed directly to LibVMI (ie. in a string
  *                   or in a GHashTable) or NULL of global config file is used.

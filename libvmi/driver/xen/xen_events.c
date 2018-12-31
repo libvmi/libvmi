@@ -2180,7 +2180,7 @@ void xen_events_destroy(vmi_instance_t vmi)
             errprint("%s error: couldn't unbind event port.\n", __FUNCTION__);
 
     // Close event channel
-    if ( xe->xce_handle )
+    if ( xe->xce_handle && !xe->external_poll )
         if ( xen->libxcw.xc_evtchn_close(xe->xce_handle) )
             errprint("%s error: couldn't close event channel.\n", __FUNCTION__);
 
