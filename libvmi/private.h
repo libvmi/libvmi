@@ -177,10 +177,6 @@ struct vmi_instance {
 
     GHashTable *ss_events; /**< single step event to functions mapping (key: vcpu_id) */
 
-    GSList *step_events; /**< events to be re-registered after single-stepping them */
-
-    uint32_t step_vcpus[MAX_SINGLESTEP_VCPUS]; /**< counter of events on vcpus for which we have internal singlestep enabled */
-
     gboolean event_callback; /**< flag indicating that libvmi is currently issuing an event callback */
 
     GHashTable *clear_events; /**< table to save vmi_clear_event requests when event_callback is set */

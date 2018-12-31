@@ -26,7 +26,6 @@ noinst_PROGRAMS = shm-snapshot-process-list \
                   msr-event-example \
                   singlestep-event-example \
                   interrupt-event-example \
-                  step-event-example \
                   va-pages \
                   xen-emulate-response
 
@@ -43,6 +42,5 @@ event_example_SOURCES = event-example.c
 msr_event_example_SOURCES = msr-event-example.c
 singlestep_event_example_SOURCES = singlestep-event-example.c
 interrupt_event_example_SOURCES = interrupt-event-example.c
-step_event_example_SOURCES = step-event-example.c
 va_pages_SOURCES = va-pages.c
 xen_emulate_response_SOURCES = xen-emulate-response.c

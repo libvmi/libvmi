@@ -138,16 +138,6 @@ void events_destroy(vmi_instance_t vmi)
         vmi->msr_events = NULL;
     }
 
-    if (vmi->step_events) {
-        GSList *loop = vmi->step_events;
-        while (loop) {
-            g_free(loop->data);
-            loop = loop->next;
-        }
-        g_slist_free(vmi->step_events);
-        vmi->step_events = NULL;
-    }
-
     if (vmi->ss_events) {
         dbprint(VMI_DEBUG_EVENTS, "Destroying singlestep events\n");
         g_hash_table_destroy(vmi->ss_events);
@@ -235,62 +225,6 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
     }
 
     return rc;
-}
-
-event_response_t step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep_event)
-{
-
-    /* We copy the list here as the user may add to it in the callback. */
-    GSList *reg_list = NULL, *loop = NULL;
-    for (loop = vmi->step_events; loop; loop = loop->next) {
-        reg_list = g_slist_prepend(reg_list, loop->data);
-    }
-
-    /* Clean the existing list preemptively. */
-    g_slist_free(vmi->step_events);
-    vmi->step_events = NULL;
-
-    GSList *reg_list_head = reg_list;
-    GSList *remain = NULL;
-
-    while (reg_list) {
-        step_and_reg_event_wrapper_t *wrap =
-            (step_and_reg_event_wrapper_t *) reg_list->data;
-
-        if (wrap->vcpu_id == singlestep_event->vcpu_id) {
-            wrap->steps--;
-        }
-
-        if (0 == wrap->steps) {
-            if (wrap->cb) {
-                wrap->cb(vmi, wrap->event);
-            } else {
-                vmi_register_event(vmi, wrap->event);
-            }
-
-            --(vmi->step_vcpus[wrap->vcpu_id]);
-            if (!vmi->step_vcpus[wrap->vcpu_id]) {
-                // No more events on this vcpu need registering
-                vmi_clear_event(vmi, singlestep_event, step_event_free);
-            }
-
-            free(wrap);
-        } else {
-            remain = g_slist_prepend(remain, wrap);
-        }
-
-        reg_list = reg_list->next;
-    }
-
-    g_slist_free(reg_list_head);
-
-    /* Concat the remainder of this list with whatever the user set. */
-    if (vmi->step_events)
-        vmi->step_events = g_slist_concat(remain, vmi->step_events);
-    else
-        vmi->step_events = remain;
-
-    return 0;
 }
 
 static status_t register_mem_event_generic(vmi_instance_t vmi, vmi_event_t *event)
@@ -917,69 +851,6 @@ status_t vmi_clear_event(
     return rc;
 }
 
-status_t
-vmi_step_event(
-    vmi_instance_t vmi,
-    vmi_event_t *event,
-    uint32_t vcpu_id,
-    uint64_t steps,
-    event_callback_t cb)
-{
-    status_t rc = VMI_FAILURE;
-    bool need_new_ss = 1;
-
-#ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi) {
-        return VMI_FAILURE;
-    }
-    if (vcpu_id > vmi->num_vcpus) {
-        dbprint(VMI_DEBUG_EVENTS, "The vCPU ID specified does not exist!\n");
-        goto done;
-    }
-#endif
-
-    if (NULL != vmi_get_singlestep_event(vmi, vcpu_id)) {
-        if (!vmi->step_vcpus[vcpu_id]) {
-            dbprint(VMI_DEBUG_EVENTS, "Can't step event, user-defined single-step is already enabled on vCPU %u\n", event->vcpu_id);
-            goto done;
-        } else {
-            // No need to register new singlestep event, its already in place
-            need_new_ss = 0;
-        }
-    }
-
-    if (0 == steps) {
-        dbprint(VMI_DEBUG_EVENTS, "Minimum number of steps is 1!\n");
-        goto done;
-    }
-
-    if (need_new_ss) {
-        // setup single step event to re-register the event
-        vmi_event_t *single_event = g_malloc0(sizeof(vmi_event_t));
-        SETUP_SINGLESTEP_EVENT(single_event, 0, step_and_reg_events, 1);
-        SET_VCPU_SINGLESTEP(single_event->ss_event, vcpu_id);
-
-        if (VMI_FAILURE == register_singlestep_event(vmi, single_event)) {
-            free(single_event);
-            goto done;
-        }
-    }
-
-    // save the event into the queue using the wrapper
-    step_and_reg_event_wrapper_t *wrap = g_malloc0(sizeof(step_and_reg_event_wrapper_t));
-    wrap->event = event;
-    wrap->vcpu_id = vcpu_id;
-    wrap->steps = steps;
-    wrap->cb = cb;
-    vmi->step_events = g_slist_prepend(vmi->step_events, wrap);
-    vmi->step_vcpus[vcpu_id]++;
-
-    rc = VMI_SUCCESS;
-
-done:
-    return rc;
-}
-
 int vmi_are_events_pending(vmi_instance_t vmi)
 {
 #ifdef ENABLE_SAFETY_CHECKS
@@ -1035,7 +906,6 @@ vmi_stop_single_step_vcpu(
     uint32_t vcpu)
 {
 #ifdef ENABLE_SAFETY_CHECKS
-
     if (!vmi || !event)
         return VMI_FAILURE;
 
