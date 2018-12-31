@@ -375,7 +375,7 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
     rc = driver_get_vcpureg(vmi, &vmi->kpgd, TTBR1, 0);
 #elif defined(I386) || defined(X86_64)
     rc = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);
-    vmi->kpgd &= ~0xfffull; // mask PCID bits
+    vmi->kpgd &= ~0x1fffull; // mask PCID and meltdown bits
 #endif
 
     /*
@@ -386,14 +386,9 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
     if ( VMI_FAILURE == rc && VMI_FAILURE == linux_filemode_init(vmi) )
         goto _exit;
 
-    /*
-     * With bareflank always mask Meltdown bits
-     */
-    if ( VMI_BAREFLANK == vmi->mode )
-        vmi->kpgd &= ~0x1000ull;
-
     if ( VMI_FAILURE == init_kaslr(vmi) ) {
-        vmi->kpgd &= ~0x1000ull;
+        // try without masking Meltdown bit
+        vmi->kpgd |= 0x1000ull;
         if ( VMI_FAILURE == init_kaslr(vmi) ) {
             dbprint(VMI_DEBUG_MISC, "**failed to determine KASLR offset\n");
             goto _exit;

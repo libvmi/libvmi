@@ -213,7 +213,7 @@ memory_cache_insert(
 
         entry = create_new_entry(vmi, paddr, vmi->page_size);
         if (!entry) {
-            errprint("create_new_entry failed\n");
+            dbprint(VMI_DEBUG_MEMCACHE, "create_new_entry failed\n");
             return 0;
         }
 
