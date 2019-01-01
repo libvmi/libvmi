@@ -44,7 +44,6 @@
 #include "libvmi_extra.h"
 #include "cache.h"
 #include "events.h"
-#include "shm.h"
 #include "slat.h"
 #include "rekall.h"
 #include "debug.h"

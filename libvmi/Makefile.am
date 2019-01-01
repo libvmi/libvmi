@@ -47,11 +47,6 @@ if REKALL_PROFILES
 c_sources  += rekall.c
 endif
 
-if SHM
-h_public    += shm.h
-c_sources   += shm.c
-endif
-
 drivers =
 if WITH_FILE
 drivers     += driver/file/file.h \
