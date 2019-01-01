@@ -1909,13 +1909,16 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
      * are on the ring we can remove/swap the events.
      */
     if ( vmi->swap_events || (vmi->clear_events && g_hash_table_size(vmi->clear_events)) ) {
+        uint32_t requests_processed_extra = 0;
         vmi_pause_vm(vmi);
 
-        vrc = xe->process_requests(vmi, &requests_processed);
+        vrc = xe->process_requests(vmi, &requests_processed_extra);
 #ifdef ENABLE_SAFETY_CHECKS
         if ( VMI_FAILURE == vrc )
             return VMI_FAILURE;
 #endif
+
+        requests_processed += requests_processed_extra;
 
         GSList *loop = vmi->swap_events;
         while (loop) {
