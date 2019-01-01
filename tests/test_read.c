@@ -30,11 +30,20 @@
 char *get_sym (vmi_instance_t vmi)
 {
     char *sym = NULL;
-    if (VMI_OS_LINUX == vmi_get_ostype(vmi)) {
-        sym = "init_task";
-    } else if (VMI_OS_WINDOWS == vmi_get_ostype(vmi)) {
-        sym = "PsInitialSystemProcess";
-    }
+    os_t os = vmi_get_ostype(vmi);
+    switch (os) {
+        case VMI_OS_LINUX:
+            sym = "init_task";
+            break;
+        case VMI_OS_WINDOWS:
+            sym = "PsInitialSystemProcess";
+            break;
+        case VMI_OS_FREEBSD:
+            sym = "allproc";
+            break;
+        default:
+            break;
+    };
     return sym;
 }
 
