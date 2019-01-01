@@ -1,12 +1,13 @@
 LibVMI FreeBSD Support
 Author: Micah Bushouse <mbushou@ncsu.edu>
 Document: version 1.0, 2017-12-20
+Document: version 1.1, 2019-01-01
 
 --
 
 Initial support for monitoring FreeBSD guests.
 
-Tested with FreeBSD 10.4 and 11.1 on x86_64 Xen. See examples/process-list.c
+Tested with FreeBSD 10.4, 11.1 and 12 on x86_64 Xen. See examples/process-list.c
 for a working example.
 
 Known limitations:
@@ -47,7 +48,8 @@ Move the generated system map onto dom0.
 
 Collect the offsets for libvmi.conf.  This requires the kernel.debug file
 mentioned above and libdwarf's pahole utility.  The following was performed on
-Linux after copying over the FreeBSD debug kernel.
+Linux after copying over the FreeBSD debug kernel.  You might need a newer
+version of pahole for this, version 1.12 has been verified to be working.
 
 Relevant FreeBSD kernel source files:
 struct proc:
@@ -100,6 +102,16 @@ $ printf "%x\n" 40
 
 Construct the libvmi.conf entry for the FreeBSD guest.  As of this writing,
 these conf entries work:
+
+freebsd-12 {
+    ostype = "FreeBSD";
+    sysmap = "/path/to/systemmap/freebsd-12.system.map";
+    freebsd_name = 0x3e4;
+    freebsd_pid = 0xbc;
+    freebsd_vmspace = 0x200;
+    freebsd_pmap = 0x130;
+    freebsd_pgd = 0x30;
+}
 
 freebsd11.1 {
     ostype = "FreeBSD";
