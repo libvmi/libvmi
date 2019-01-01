@@ -89,13 +89,6 @@ AC_ARG_ENABLE([kvm],
       [enable_kvm=yes])
 AM_CONDITIONAL([WITH_KVM], [test x"$enable_kvm" = xyes])
 
-AC_ARG_ENABLE([shm_snapshot],
-      [AS_HELP_STRING([--disable-shm-snapshot],
-         [Disable support for shm-snapshot with KVM VMs (Xen is pending) @<:@yes@:>@])],
-      [enable_shm_snapshot=$enableval],
-      [enable_shm_snapshot=no])
-AM_CONDITIONAL([SHM], [test x"$enable_shm_snapshot" = xyes])
-
 AC_ARG_ENABLE([file],
       [AS_HELP_STRING([--disable-file],
          [Disable support for memory introspection with physical memory dumps in a file @<:@no@:>@])],
@@ -230,13 +223,6 @@ AC_SUBST([GLIB_LIBS])
                      [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
     AC_CHECK_HEADER(json-c/json.h, [],
                      [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
-[fi]
-
-[if test "$enable_shm_snapshot" = "yes"]
-[then]
-    AC_CHECK_LIB(rt, shm_open, [],
-        [AC_MSG_ERROR(No shm_open in rt. Install missing package or re-run with --disable-shm-snapshot)])
-    AC_DEFINE([ENABLE_SHM_SNAPSHOT], [1], [Define to 1 to enable shm-snapshot support.])
 [fi]
 
 [if test "$enable_file" = "yes"]
@@ -391,7 +377,6 @@ Feature         | Option
 Xen Support     | --enable-xen=$enable_xen
 KVM Support     | --enable-kvm=$enable_kvm
 File Support    | --enable-file=$enable_file
-Shm-snapshot    | --enable-shm-snapshot=$enable_shm_snapshot
 Rekall profiles | --enable-rekall-profiles=$rekall
 ----------------|---------------------------
 
