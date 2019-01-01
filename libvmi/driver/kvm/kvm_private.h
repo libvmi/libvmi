@@ -34,10 +34,6 @@
 #include "private.h"
 #include "libvirt_wrapper.h"
 
-#if ENABLE_SHM_SNAPSHOT == 1
-#include "driver/kvm/kvm_shm.h"
-#endif
-
 typedef struct kvm_instance {
     virConnectPtr conn;
     virDomainPtr dom;
@@ -46,13 +42,6 @@ typedef struct kvm_instance {
     char *ds_path;
     int socket_fd;
     libvirt_wrapper_t libvirt;
-#if ENABLE_SHM_SNAPSHOT == 1
-    char *shm_snapshot_path;  /** shared memory snapshot device path in /dev/shm directory */
-    int   shm_snapshot_fd;    /** file description of the shared memory snapshot device */
-    void *shm_snapshot_map;   /** mapped shared memory region */
-    char *shm_snapshot_cpu_regs;  /** string of dumped CPU registers */
-    v2m_table_t shm_snapshot_v2m_tables; /** V2m tables of all pids */
-#endif /* ENABLE_SHM_SNAPSHOT */
 } kvm_instance_t;
 
 static inline kvm_instance_t *

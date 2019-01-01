@@ -64,9 +64,6 @@ drivers     += driver/kvm/kvm.h \
                driver/kvm/kvm.c \
                driver/kvm/libvirt_wrapper.c \
                driver/kvm/libvirt_wrapper.h
-if SHM
-drivers     += driver/kvm/kvm_shm.h
-endif
 endif
 
 if WITH_XEN
