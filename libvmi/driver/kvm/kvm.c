@@ -353,9 +353,7 @@ exec_memory_access_success(
 
 /**
  * note:
- * 1. "kvm_patch" here means the feature in pmemaccess patch (kvm-physmem-access_x.x.x.patch);
- * 2. In fact, the shm-snapshot patch (kvm-physmem-access-physmem-snapshot_1.6.0.patch)
- *      includes pmemaccess patch.
+ * "kvm_patch" here means the feature in pmemaccess patch (kvm-physmem-access_x.x.x.patch);
  */
 inline status_t
 test_using_kvm_patch(
