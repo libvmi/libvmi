@@ -309,69 +309,6 @@ driver_resume_vm(
 }
 
 static inline status_t
-driver_shm_snapshot_vm(
-    vmi_instance_t vmi)
-{
-#ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi->driver.initialized || !vmi->driver.create_shm_snapshot_ptr) {
-        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_shm_snapshot_vm function not implemented.\n");
-        return VMI_FAILURE;
-    }
-#endif
-
-    return vmi->driver.create_shm_snapshot_ptr(vmi);
-}
-
-static inline status_t
-driver_destroy_shm_snapshot_vm(
-    vmi_instance_t vmi)
-{
-#ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi->driver.initialized || !vmi->driver.destroy_shm_snapshot_ptr) {
-        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_destroy_shm_snapshot_vm function not implemented.\n");
-        return VMI_FAILURE;
-    }
-#endif
-
-    return vmi->driver.destroy_shm_snapshot_ptr(vmi);
-}
-
-static inline size_t
-driver_get_dgpma(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void **medial_addr_ptr,
-    size_t count)
-{
-#ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi->driver.initialized || !vmi->driver.get_dgpma_ptr) {
-        dbprint(VMI_DEBUG_DRIVER, "WARNING: get_dgpma_ptr function not implemented.\n");
-        return 0;
-    }
-#endif
-
-    return vmi->driver.get_dgpma_ptr(vmi, paddr, medial_addr_ptr, count);
-}
-
-static inline size_t
-driver_get_dgvma(
-    vmi_instance_t vmi,
-    addr_t vaddr,
-    pid_t pid,
-    void** medial_addr_ptr,
-    size_t count)
-{
-#ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi->driver.initialized || !vmi->driver.get_dgvma_ptr) {
-        dbprint(VMI_DEBUG_DRIVER, "WARNING: get_dgvma_ptr function not implemented.\n");
-        return 0;
-    }
-#endif
-
-    return vmi->driver.get_dgvma_ptr(vmi, vaddr, pid, medial_addr_ptr, count);
-}
-
-static inline status_t
 driver_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout)
