@@ -537,18 +537,6 @@ status_t vmi_init(
             _vmi->allocated_ram_size,
             _vmi->max_physical_address);
 
-    if ( init_flags & VMI_INIT_SHM ) {
-#if ENABLE_SHM_SNAPSHOT == 1
-        v2m_cache_init(_vmi);
-#else
-        if ( error )
-            *error = VMI_INIT_ERROR_SHM;
-
-        errprint("LibVMI wasn't compiled with SHM support!\n");
-        goto error_exit;
-#endif
-    }
-
     if ( init_flags & VMI_INIT_EVENTS ) {
         status = events_init(_vmi);
         if ( error && VMI_FAILURE == status )
@@ -767,10 +755,6 @@ vmi_destroy(
     sym_cache_destroy(vmi);
     rva_cache_destroy(vmi);
     v2p_cache_destroy(vmi);
-
-#if ENABLE_SHM_SNAPSHOT == 1
-    v2m_cache_destroy(vmi);
-#endif
 
     memory_cache_destroy(vmi);
     if (vmi->image_type)
