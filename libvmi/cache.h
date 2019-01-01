@@ -100,24 +100,4 @@ status_t v2p_cache_del(vmi_instance_t vmi, addr_t va, addr_t dtb);
 
 #endif
 
-#if ENABLE_SHM_SNAPSHOT == 1 && ENABLE_ADDRESS_CACHE == 1
-
-void v2m_cache_init(vmi_instance_t vmi);
-void v2m_cache_destroy(vmi_instance_t vmi);
-void v2m_cache_set(vmi_instance_t vmi, addr_t va, pid_t pid, addr_t ma, uint64_t length);
-void v2m_cache_flush(vmi_instance_t vmi);
-status_t v2m_cache_get(vmi_instance_t vmi, addr_t va, pid_t pid, addr_t *ma, uint64_t *length);
-status_t v2m_cache_del(vmi_instance_t vmi, addr_t va, pid_t pid);
-
-#else
-
-#define v2m_cache_init(...)     NOOP
-#define v2m_cache_destroy(...)  NOOP
-#define v2m_cache_set(...)      NOOP
-#define v2m_cache_flush(...)    NOOP
-#define v2m_cache_get(...) VMI_FAILURE
-#define v2m_cache_del(...) VMI_FAILURE
-
-#endif
-
 #endif /* CACHE_H */
