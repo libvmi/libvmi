@@ -98,21 +98,6 @@ typedef struct driver_interface {
         vmi_instance_t);
     status_t (*resume_vm_ptr) (
         vmi_instance_t);
-    status_t (*create_shm_snapshot_ptr) (
-        vmi_instance_t);
-    status_t (*destroy_shm_snapshot_ptr) (
-        vmi_instance_t);
-    size_t (*get_dgpma_ptr) (
-        vmi_instance_t,
-        addr_t,
-        void **,
-        size_t);
-    size_t (*get_dgvma_ptr) (
-        vmi_instance_t,
-        addr_t,
-        pid_t,
-        void**,
-        size_t);
     status_t (*events_listen_ptr)(
         vmi_instance_t,
         uint32_t);
