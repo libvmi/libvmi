@@ -4,9 +4,6 @@ target_link_libraries(map-addr vmi_shared)
 add_executable(map-symbol map-symbol.c)
 target_link_libraries(map-symbol vmi_shared)
 
-add_executable(shm-snapshot-process-list shm-snapshot-process-list.c)
-target_link_libraries(shm-snapshot-process-list vmi_shared)
-
 add_executable(va-pages va-pages.c)
 target_link_libraries(va-pages vmi_shared)
 
