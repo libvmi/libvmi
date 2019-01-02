@@ -98,11 +98,6 @@ if (ENABLE_KVM)
     # CMAKE_DL_LIBS -> dlopen* lib
     target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
     list(APPEND VMI_PUBLIC_DEPS ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
-    if (ENABLE_SHM_SNAPSHOT)
-        # shm_open/shm_unlink are provided by -lrt
-        target_link_libraries(vmi_shared PRIVATE rt)
-        list(APPEND VMI_PUBLIC_DEPS rt)
-    endif ()
 endif ()
 
 if (ENABLE_XEN)
@@ -122,11 +117,6 @@ endif ()
 
 if (ENABLE_ADDRESS_CACHE)
     target_sources(vmi_shared PRIVATE cache.c)
-endif ()
-
-if (ENABLE_SHM_SNAPSHOT)
-    target_sources(vmi_shared PRIVATE shm.c)
-    list(APPEND VMI_PUBLIC_HEADERS shm.h)
 endif ()
 
 if (REKALL_PROFILES)
