@@ -53,8 +53,6 @@ extern "C" {
 
 #define VMI_INIT_EVENTS (1u << 2) /**< initialize events */
 
-#define VMI_INIT_SHM (1u << 3) /**< initialize SHM mode */
-
 #define VMI_INIT_XEN_EVTCHN (1u << 4) /**< use provided Xen file descriptor */
 
 typedef enum vmi_mode {
@@ -97,8 +95,6 @@ typedef enum vmi_init_error {
     VMI_INIT_ERROR_OS, /**< Failed to determine or initialize OS functions */
 
     VMI_INIT_ERROR_EVENTS, /**< Failed to initialize events */
-
-    VMI_INIT_ERROR_SHM, /**< Failed to initialize SHM */
 
     VMI_INIT_ERROR_NO_CONFIG, /**< No configuration was found for OS initialization */
 

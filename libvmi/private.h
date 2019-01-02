@@ -44,7 +44,6 @@
 #include "libvmi_extra.h"
 #include "cache.h"
 #include "events.h"
-#include "shm.h"
 #include "slat.h"
 #include "rekall.h"
 #include "debug.h"
@@ -77,7 +76,7 @@ struct vmi_instance {
 
     driver_interface_t driver; /**< The driver supporting the chosen mode */
 
-    uint32_t init_flags;    /**< init flags (events, shm, etc.) */
+    uint32_t init_flags;    /**< init flags (events, etc.) */
 
     char *image_type;       /**< image type that we are accessing */
 
@@ -132,10 +131,6 @@ struct vmi_instance {
     GHashTable *rva_cache;  /**< hash table to hold the rva cache data */
 
     GHashTable *v2p_cache;  /**< hash table to hold the v2p cache data */
-
-#if ENABLE_SHM_SNAPSHOT == 1
-    GHashTable *v2m_cache;  /**< hash table to hold the v2m cache data */
-#endif
 
 #if ENABLE_PAGE_CACHE == 1
     GHashTable *memory_cache;  /**< hash table for memory cache */

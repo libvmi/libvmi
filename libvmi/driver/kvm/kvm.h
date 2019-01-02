@@ -91,22 +91,6 @@ status_t kvm_pause_vm(
 status_t kvm_resume_vm(
     vmi_instance_t vmi);
 
-status_t kvm_create_shm_snapshot(
-    vmi_instance_t vmi);
-status_t kvm_destroy_shm_snapshot(
-    vmi_instance_t vmi);
-size_t kvm_get_dgpma(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void** medial_addr_ptr,
-    size_t count);
-size_t kvm_get_dgvma(
-    vmi_instance_t vmi,
-    addr_t vaddr,
-    pid_t pid,
-    void** medial_addr_ptr,
-    size_t count);
-
 static inline status_t
 driver_kvm_setup(vmi_instance_t vmi)
 {
@@ -129,12 +113,6 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.is_pv_ptr = &kvm_is_pv;
     driver.pause_vm_ptr = &kvm_pause_vm;
     driver.resume_vm_ptr = &kvm_resume_vm;
-#ifdef ENABLE_SHM_SNAPSHOT
-    driver.create_shm_snapshot_ptr = &kvm_create_shm_snapshot;
-    driver.destroy_shm_snapshot_ptr = &kvm_destroy_shm_snapshot;
-    driver.get_dgpma_ptr = &kvm_get_dgpma;
-    driver.get_dgvma_ptr = &kvm_get_dgvma;
-#endif
     vmi->driver = driver;
     return VMI_SUCCESS;
 }

@@ -19,8 +19,7 @@ bin_PROGRAMS = vmi-process-list \
                vmi-dump-memory \
                vmi-win-offsets
 
-noinst_PROGRAMS = shm-snapshot-process-list \
-                  map-symbol \
+noinst_PROGRAMS = map-symbol \
                   map-addr \
                   event-example \
                   msr-event-example \
@@ -36,7 +35,6 @@ vmi_dump_memory_SOURCES = dump-memory.c
 vmi_win_guid_SOURCES = win-guid.c win-guid.h
 vmi_win_offsets_SOURCES = win-offsets.c
 
-shm_snapshot_process_list_SOURCES = shm-snapshot-process-list.c
 map_symbol_SOURCES = map-symbol.c
 map_addr_SOURCES = map-addr.c
 event_example_SOURCES = event-example.c

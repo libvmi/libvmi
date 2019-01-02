@@ -47,11 +47,6 @@ if REKALL_PROFILES
 c_sources  += rekall.c
 endif
 
-if SHM
-h_public    += shm.h
-c_sources   += shm.c
-endif
-
 drivers =
 if WITH_FILE
 drivers     += driver/file/file.h \
@@ -64,9 +59,6 @@ drivers     += driver/kvm/kvm.h \
                driver/kvm/kvm.c \
                driver/kvm/libvirt_wrapper.c \
                driver/kvm/libvirt_wrapper.h
-if SHM
-drivers     += driver/kvm/kvm_shm.h
-endif
 endif
 
 if WITH_XEN

@@ -32,7 +32,6 @@ examples/singlestep-event-example
 examples/vmi-win-guid
 examples/vmi-win-offsets
 examples/interrupt-event-example
-examples/shm-snapshot-process-list
 examples/step-event-example
 examples/va-pages
 examples/xen-emulate-response

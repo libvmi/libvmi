@@ -69,15 +69,6 @@ typedef struct xen_instance {
 
     uint64_t max_gpfn;    /**< result of xc_domain_maximum_gpfn/2() */
 
-#if ENABLE_SHM_SNAPSHOT == 1
-    char *shm_snapshot_path;  /** reserved for shared memory snapshot device path in /dev/shm directory */
-
-    int   shm_snapshot_fd;    /** reserved for file description of the shared memory snapshot device */
-
-    void *shm_snapshot_map;   /** reserved mapped shared memory region. It's currently malloc() regions */
-
-    void *shm_snapshot_cpu_regs;  /** structure of dumped CPU registers */
-#endif
 } xen_instance_t;
 
 static inline
