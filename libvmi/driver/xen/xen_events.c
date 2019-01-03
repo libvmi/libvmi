@@ -1630,6 +1630,8 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
         vmec.data.regs.x86.msr_efer = req->data.regs.x86.msr_efer;
         vmec.data.regs.x86.msr_star = req->data.regs.x86.msr_star;
         vmec.data.regs.x86.msr_lstar = req->data.regs.x86.msr_lstar;
+        vmec.data.regs.x86.fs_base = req->data.regs.x86.fs_base;
+        vmec.data.regs.x86.gs_base = req->data.regs.x86.gs_base;
         vmec.data.regs.x86.cs_arbytes = req->data.regs.x86.cs.ar;
 #endif
 
@@ -1724,6 +1726,8 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
             rsp->data.regs.x86.msr_efer = vmec.data.regs.x86.msr_efer;
             rsp->data.regs.x86.msr_star = vmec.data.regs.x86.msr_star;
             rsp->data.regs.x86.msr_lstar = vmec.data.regs.x86.msr_lstar;
+            rsp->data.regs.x86.fs_base = vmec.data.regs.x86.fs_base;
+            rsp->data.regs.x86.gs_base = vmec.data.regs.x86.gs_base;
             rsp->data.regs.x86.cs.ar = vmec.data.regs.x86.cs_arbytes;
 
             // TODO: These registers are not currently getting exposed by LibVMI
@@ -1733,8 +1737,6 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
             rsp->data.regs.x86.ss_base = req->data.regs.x86.ss_base;
             rsp->data.regs.x86.ds_base = req->data.regs.x86.ds_base;
             rsp->data.regs.x86.es_base = req->data.regs.x86.es_base;
-            rsp->data.regs.x86.fs_base = req->data.regs.x86.fs_base;
-            rsp->data.regs.x86.gs_base = req->data.regs.x86.gs_base;
             rsp->data.regs.x86.ss = req->data.regs.x86.ss;
             rsp->data.regs.x86.ds = req->data.regs.x86.ds;
             rsp->data.regs.x86.es = req->data.regs.x86.es;
