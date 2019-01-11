@@ -24,10 +24,6 @@ matrix:
     - env:
         - TEST="astyle"
       sudo: required
-      before_install:
-        - sudo add-apt-repository "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted universe multiverse" -y
-        - sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 3B4FE6ACC0B21F32
-        - sudo apt-get update -qq
       install:
         - sudo apt-get install astyle
       script:
