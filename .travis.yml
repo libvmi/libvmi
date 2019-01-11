@@ -172,10 +172,6 @@ matrix:
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      before_install:
-        - export PATH=$PATH:/usr/local/clang-7.0.0/bin
-        - export CC=clang-7.0
-        - export CXX=clang++-7.0
       install:
         - ./autogen.sh
       script:
