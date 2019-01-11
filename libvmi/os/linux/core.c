@@ -197,32 +197,32 @@ static status_t init_from_rekall_profile(vmi_instance_t vmi)
     linux_instance_t linux_instance = vmi->os_data;
 
     if (!linux_instance->tasks_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "task_struct", "tasks", &linux_instance->tasks_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(linux_instance), "task_struct", "tasks", &linux_instance->tasks_offset)) {
             goto done;
         }
     }
     if (!linux_instance->mm_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "task_struct", "mm", &linux_instance->mm_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(linux_instance), "task_struct", "mm", &linux_instance->mm_offset)) {
             goto done;
         }
     }
     if (!linux_instance->pid_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "task_struct", "pid", &linux_instance->pid_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(linux_instance), "task_struct", "pid", &linux_instance->pid_offset)) {
             goto done;
         }
     }
     if (!linux_instance->name_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "task_struct", "comm", &linux_instance->name_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(linux_instance), "task_struct", "comm", &linux_instance->name_offset)) {
             goto done;
         }
     }
     if (!linux_instance->pgd_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "mm_struct", "pgd", &linux_instance->pgd_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(linux_instance), "mm_struct", "pgd", &linux_instance->pgd_offset)) {
             goto done;
         }
     }
     if (!vmi->init_task) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(linux_instance->rekall_profile, "init_task", NULL, &vmi->init_task)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(linux_instance), "init_task", NULL, &vmi->init_task)) {
             goto done;
         }
     }
@@ -357,7 +357,7 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
 
     g_hash_table_foreach(config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
 
-    if (linux_instance->rekall_profile)
+    if (REKALL_PROFILE(linux_instance))
         rc = init_from_rekall_profile(vmi);
     else if ( !vmi->init_task )
         rc = linux_symbol_to_address(vmi, "init_task", NULL, &vmi->init_task);
@@ -435,7 +435,13 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
     }
 
     if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
-        linux_instance->rekall_profile = strdup((char *)value);
+        linux_instance->rekall_profile = g_strdup((char *)value);
+#ifdef REKALL_PROFILES
+        json_object *root = json_object_from_file(linux_instance->rekall_profile);
+        if (!root)
+            errprint("Rekall profile couldn't be opened!\n");
+        linux_instance->rekall_profile_json = root;
+#endif
         goto _done;
     }
 
@@ -494,7 +500,7 @@ _done:
 status_t linux_get_kernel_struct_offset(vmi_instance_t vmi, const char* symbol, const char* member, addr_t *addr)
 {
     linux_instance_t linux_instance = vmi->os_data;
-    return rekall_profile_symbol_to_rva(linux_instance->rekall_profile,symbol,member,addr);
+    return rekall_profile_symbol_to_rva(REKALL_PROFILE(linux_instance), symbol, member, addr);
 }
 
 status_t linux_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *offset)
@@ -537,7 +543,10 @@ status_t linux_teardown(vmi_instance_t vmi)
     }
 
     free(linux_instance->sysmap);
-    free(linux_instance->rekall_profile);
+    g_free(linux_instance->rekall_profile);
+#ifdef REKALL_PROFILES
+    json_object_put(linux_instance->rekall_profile_json);
+#endif
     free(vmi->os_data);
 
     vmi->os_data = NULL;

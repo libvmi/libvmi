@@ -26,19 +26,13 @@
 
 status_t
 rekall_profile_symbol_to_rva(
-    const char *rekall_profile,
+    json_object *root,
     const char *symbol,
     const char *subsymbol,
     addr_t *rva)
 {
     status_t ret = VMI_FAILURE;
-    if (!rekall_profile || !symbol) {
-        return ret;
-    }
-
-    json_object *root = json_object_from_file(rekall_profile);
-    if (!root) {
-        errprint("Rekall profile couldn't be opened!\n");
+    if (!root || !symbol) {
         return ret;
     }
 
@@ -102,6 +96,5 @@ rekall_profile_symbol_to_rva(
     }
 
 exit:
-    json_object_put(root);
     return ret;
 }
