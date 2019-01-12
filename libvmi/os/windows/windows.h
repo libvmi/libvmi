@@ -47,7 +47,10 @@ struct windows_instance {
 
     win_ver_t version; /**< version of Windows */
 
-    char *rekall_profile; /**< Rekall profile path for domain's running kernel */
+    char *rekall_profile; /**< Rekall profile for domain's running kernel */
+#ifdef REKALL_PROFILES
+    json_object *rekall_profile_json; /**< Rekall profile json object */
+#endif
 };
 typedef struct windows_instance *windows_instance_t;
 

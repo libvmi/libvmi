@@ -223,7 +223,7 @@ freebsd_symbol_to_address(
         goto done;
     }
 
-    if (!freebsd_instance->sysmap && !freebsd_instance->rekall_profile) {
+    if (!freebsd_instance->sysmap && !REKALL_PROFILE(freebsd_instance)) {
         errprint("VMI_WARNING: No freebsd sysmap and Rekall profile configured\n");
         goto done;
     }
@@ -231,7 +231,7 @@ freebsd_symbol_to_address(
     if (freebsd_instance->sysmap)
         ret = freebsd_system_map_symbol_to_address(vmi, symbol, address);
     else
-        ret = rekall_profile_symbol_to_rva(freebsd_instance->rekall_profile,
+        ret = rekall_profile_symbol_to_rva(REKALL_PROFILE(freebsd_instance),
                                            symbol, NULL, address);
 
 done:

@@ -136,8 +136,8 @@ status_t check_pdbase_offset(vmi_instance_t vmi)
     windows_instance_t windows = vmi->os_data;
 
     if (!windows->pdbase_offset) {
-        if (windows->rekall_profile) {
-            if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
+        if (REKALL_PROFILE(windows)) {
+            if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
                 goto done;
             }
         } else {
@@ -494,7 +494,7 @@ error_exit:
 status_t windows_get_kernel_struct_offset(vmi_instance_t vmi, const char* symbol, const char* member, addr_t *addr)
 {
     windows_instance_t windows = vmi->os_data;
-    return rekall_profile_symbol_to_rva(windows->rekall_profile,symbol,member,addr);
+    return rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), symbol, member, addr);
 }
 
 status_t windows_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *offset)
@@ -614,12 +614,28 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
 
     /* Deprecated way of using Rekall profiles */
     if (strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
+        g_free(windows_instance->rekall_profile);
         windows_instance->rekall_profile = g_strdup((char *)value);
+#ifdef REKALL_PROFILES
+        json_object *root = json_object_from_file(windows_instance->rekall_profile);
+        if (!root)
+            errprint("Rekall profile couldn't be opened!\n");
+        json_object_put(windows_instance->rekall_profile_json);
+        windows_instance->rekall_profile_json = root;
+#endif
         goto _done;
     }
 
     if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
+        g_free(windows_instance->rekall_profile);
         windows_instance->rekall_profile = g_strdup((char *)value);
+#ifdef REKALL_PROFILES
+        json_object *root = json_object_from_file(windows_instance->rekall_profile);
+        if (!root)
+            errprint("Rekall profile couldn't be opened!\n");
+        json_object_put(windows_instance->rekall_profile_json);
+        windows_instance->rekall_profile_json = root;
+#endif
         goto _done;
     }
 
@@ -647,13 +663,13 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
 
     /* The kernel base and the pdbase offset should have already been found
      * and vmi->kpgd should be holding a CR3 value */
-    if ( !windows->rekall_profile || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
+    if ( !REKALL_PROFILE(windows) || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
         return ret;
 
     dbprint(VMI_DEBUG_MISC, "**Getting kernel page directory from Rekall profile\n");
 
     if ( !windows->sysproc ) {
-        ret = rekall_profile_symbol_to_rva(windows->rekall_profile, "PsInitialSystemProcess", NULL, &sysproc_pointer_rva);
+        ret = rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "PsInitialSystemProcess", NULL, &sysproc_pointer_rva);
         if ( VMI_FAILURE == ret )
             return ret;
 
@@ -691,7 +707,7 @@ find_windows_version_from_rekall_profile(vmi_instance_t vmi)
     if (!windows->ntoskrnl)
         goto done;
 
-    if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
+    if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
         goto done;
     }
     if (VMI_FAILURE == vmi_read_16_pa(vmi, windows->ntoskrnl + ntbuildnumber_rva, &ntbuildnumber)) {
@@ -739,7 +755,7 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
             goto done;
         }
 
-        if (VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiInitialPCR", NULL, &kpcr_rva)) {
+        if (VMI_SUCCESS == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiInitialPCR", NULL, &kpcr_rva)) {
             if ( kpcr < kpcr_rva ) { // Zero offset seems ok. Maybe negative will work too? ;)
                 dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, (kpcr < kpcr_rva) (KiInitialPCR) can't init from Rekall profile. Kpcr=0x%" PRIx64 "kpcr_rva=0x%" PRIx64 "\n", kpcr, kpcr_rva);
                 goto done;
@@ -756,7 +772,7 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
             if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
                 goto done;
             //Get kernel base address using cstar/lstar and KiSystemCall32Shadow / KiSystemCall64Shadow
-        } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) ) {
+        } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) ) {
 
             if (VMI_FAILURE == vmi_get_vcpureg(vmi, &lstar, MSR_LSTAR, 0)) {
                 errprint("Error reading MSR_LSTAR\n");
@@ -768,7 +784,7 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
                 goto done;
             }
 
-            if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiSystemCall32Shadow", NULL, &kisystemcall32shadow)) {
+            if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiSystemCall32Shadow", NULL, &kisystemcall32shadow)) {
                 errprint("Error retrieving rva of KiSystemCall32Shadow\n");
                 goto done;
 
@@ -789,7 +805,7 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
             if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
                 goto done;
 
-        } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(windows->rekall_profile, "KiDivideErrorFault", NULL, &int0_rva) ) {
+        } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiDivideErrorFault", NULL, &int0_rva) ) {
             reg_t idt = 0;
             uint32_t int0_high = 0;
             uint16_t int0_low = 0, int0_middle = 0;
@@ -816,9 +832,9 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
             // [1] http://moyix.blogspot.de/2008/04/finding-kernel-global-variables-in.html
             addr_t kdvb = 0, kdvb_offset = 0, kernbase_offset = 0;
 
-            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_KPCR", "KdVersionBlock", &kdvb_offset) )
+            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_KPCR", "KdVersionBlock", &kdvb_offset) )
                 goto done;
-            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
+            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
                 goto done;
             if ( VMI_FAILURE == vmi_read_addr_va(vmi, kpcr+kdvb_offset, 0, &kdvb) )
                 goto done;
@@ -851,9 +867,9 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 
         // get KdVersionBlock/"_DBGKD_GET_VERSION64"->KernBase
         addr_t kdvb = 0, kernbase_offset = 0;
-        if ( VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "KdVersionBlock", NULL, &kdvb) )
+        if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KdVersionBlock", NULL, &kdvb) )
             goto done;
-        if ( VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
+        if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
             goto done;
 
         dbprint(VMI_DEBUG_MISC, "**KdVersionBlock RVA 0x%lx. KernBase RVA: 0x%lx\n", kdvb, kernbase_offset);
@@ -882,22 +898,22 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 
     // The system map seems to be good, lets grab all the required offsets
     if (!windows->pdbase_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
             goto done;
         }
     }
     if (!windows->tasks_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_EPROCESS", "ActiveProcessLinks", &windows->tasks_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_EPROCESS", "ActiveProcessLinks", &windows->tasks_offset)) {
             goto done;
         }
     }
     if (!windows->pid_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_EPROCESS", "UniqueProcessId", &windows->pid_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_EPROCESS", "UniqueProcessId", &windows->pid_offset)) {
             goto done;
         }
     }
     if (!windows->pname_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(windows->rekall_profile, "_EPROCESS", "ImageFileName", &windows->pname_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_EPROCESS", "ImageFileName", &windows->pname_offset)) {
             goto done;
         }
     }
@@ -987,7 +1003,7 @@ init_core(vmi_instance_t vmi)
     windows_instance_t windows = vmi->os_data;
     status_t ret = VMI_FAILURE;
 
-    if (windows->rekall_profile)
+    if (REKALL_PROFILE(windows))
         ret = init_from_rekall_profile(vmi);
 
     /* Fall be here too if the Rekall profile based init fails */
@@ -1121,6 +1137,9 @@ status_t windows_teardown(vmi_instance_t vmi)
     }
 
     g_free(windows->rekall_profile);
+#ifdef REKALL_PROFILES
+    json_object_put(windows->rekall_profile_json);
+#endif
     g_free(vmi->os_data);
     vmi->os_data = NULL;
 

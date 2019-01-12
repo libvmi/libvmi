@@ -151,9 +151,7 @@ int main(int argc, char **argv)
            "win_kdvb:0x%lx\n"
            "win_sysproc:0x%lx\n"
            "win_kpcr:0x%lx\n"
-           "win_kdbg:0x%lx\n"
-           "rekall_profile:\"%s\"\n"
-           "ostype:\"Windows\"\n",
+           "win_kdbg:0x%lx\n",
            ntoskrnl,
            ntoskrnl_va,
            tasks,
@@ -163,8 +161,7 @@ int main(int argc, char **argv)
            kdvb,
            sysproc,
            kpcr,
-           kdbg,
-           rekall_profile);
+           kdbg);
 
     /* cleanup any memory associated with the LibVMI instance */
 done:

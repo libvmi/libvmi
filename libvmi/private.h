@@ -40,6 +40,9 @@
 #include <ctype.h>
 #include <time.h>
 #include <inttypes.h>
+#ifdef REKALL_PROFILES
+#include <json-c/json.h>
+#endif /* REKALL_PROFILES */
 #include "libvmi.h"
 #include "libvmi_extra.h"
 #include "cache.h"
@@ -368,5 +371,11 @@ addr_t get_ntoskrnl_base(
 win_ver_t find_windows_version(
     vmi_instance_t vmi,
     addr_t kdbg);
+
+#ifdef REKALL_PROFILES
+#define REKALL_PROFILE(instance) (instance)->rekall_profile_json
+#else
+#define REKALL_PROFILE(instance) NULL
+#endif /* REKALL_PROFILES */
 
 #endif /* PRIVATE_H */

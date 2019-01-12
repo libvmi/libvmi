@@ -26,6 +26,9 @@ struct linux_instance {
     char *sysmap; /**< system map file for domain's running kernel */
 
     char *rekall_profile; /**< Rekall profile for domain's running kernel */
+#ifdef REKALL_PROFILES
+    json_object *rekall_profile_json; /**< Rekall profile json object */
+#endif
 
     addr_t tasks_offset; /**< task_struct->tasks */
 
@@ -46,7 +49,7 @@ status_t linux_init(vmi_instance_t instance, GHashTable *config);
 status_t linux_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *offset);
 
 status_t linux_get_kernel_struct_offset(vmi_instance_t vmi,
-                                        const char*  symbol, const char* member, addr_t *addr);
+                                        const char* symbol, const char* member, addr_t *addr);
 
 status_t linux_symbol_to_address(vmi_instance_t instance,
                                  const char *symbol, addr_t *__unused, addr_t *address);

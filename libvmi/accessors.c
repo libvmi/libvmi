@@ -328,9 +328,11 @@ vmi_get_rekall_path(
 
     switch (vmi_get_ostype(vmi)) {
         case VMI_OS_LINUX:
-            return (const char*)((linux_instance_t)vmi->os_data)->rekall_profile;
+            return ((linux_instance_t)vmi->os_data)->rekall_profile;
         case VMI_OS_WINDOWS:
-            return (const char*)((windows_instance_t)vmi->os_data)->rekall_profile;
+            return ((windows_instance_t)vmi->os_data)->rekall_profile;
+        case VMI_OS_FREEBSD:
+            return ((freebsd_instance_t)vmi->os_data)->rekall_profile;
         default:
             return NULL;
     }
