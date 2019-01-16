@@ -1,0 +1,67 @@
+The E820 map and it's modern equivalent the EFI memory map describes to the
+operating system the valid memory ranges the hardware has available. Accessing
+memory outside those ranges is not safe. These memory maps don't restrict the
+OS from accessing non-safe ranges, it's only informational.
+
+One can gather the available memory ranges on Linux by checking the dmesg
+output:
+
+# dmesg | grep -i e820
+[    0.000000] BIOS-e820: [mem 0x0000000000000000-0x0000000000057fff] usable
+[    0.000000] BIOS-e820: [mem 0x0000000000058000-0x0000000000058fff] reserved
+[    0.000000] BIOS-e820: [mem 0x0000000000059000-0x0000000000097fff] usable
+[    0.000000] BIOS-e820: [mem 0x0000000000098000-0x00000000000bffff] reserved
+[    0.000000] BIOS-e820: [mem 0x0000000000100000-0x00000000dbfb8fff] usable
+[    0.000000] BIOS-e820: [mem 0x00000000dbfb9000-0x00000000dbfb9fff] ACPI NVS
+[    0.000000] BIOS-e820: [mem 0x00000000dbfba000-0x00000000dbfccfff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000dbfcd000-0x00000000dc0b8fff] ACPI NVS
+[    0.000000] BIOS-e820: [mem 0x00000000dc0b9000-0x00000000dc0e8fff] ACPI data
+[    0.000000] BIOS-e820: [mem 0x00000000dc0e9000-0x00000000dca1efff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000dca1f000-0x00000000dcbfefff] type 20
+[    0.000000] BIOS-e820: [mem 0x00000000dcbff000-0x00000000dcffefff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000dcfff000-0x00000000dcffffff] usable
+[    0.000000] BIOS-e820: [mem 0x00000000dd000000-0x00000000df9fffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000f8000000-0x00000000fbffffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000fe101000-0x00000000fe112fff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000fec00000-0x00000000fec00fff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000fed10000-0x00000000fed13fff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000fed18000-0x00000000fed19fff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000fed1c000-0x00000000fed1ffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000fee00000-0x00000000fee00fff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000ffc00000-0x00000000ffffffff] reserved
+[    0.000000] BIOS-e820: [mem 0x0000000100000000-0x000000021e5fffff] usable
+[    0.000000] e820: update [mem 0x00000000-0x00000fff] usable ==> reserved
+[    0.000000] e820: remove [mem 0x000a0000-0x000fffff] usable
+[    0.000000] e820: update [mem 0xdd800000-0xffffffff] usable ==> reserved
+[    0.052776] PCI: MMCONFIG at [mem 0xf8000000-0xfbffffff] reserved in E820
+[    0.177659] e820: reserve RAM buffer [mem 0x00058000-0x0005ffff]
+[    0.177660] e820: reserve RAM buffer [mem 0x00098000-0x0009ffff]
+[    0.177662] e820: reserve RAM buffer [mem 0xdbfb9000-0xdbffffff]
+[    0.177663] e820: reserve RAM buffer [mem 0xdd000000-0xdfffffff]
+[    0.177664] e820: reserve RAM buffer [mem 0x21e600000-0x21fffffff]
+
+For a Xen VM the memory map can be found via the Xen dmesg output.
+
+When SeaBIOS is used:
+
+# xl dmesg
+(d17) e820 map has 6 items:
+(d17)   0: 0000000000000000 - 000000000009fc00 = 1 RAM
+(d17)   1: 000000000009fc00 - 00000000000a0000 = 2 RESERVED
+(d17)   2: 00000000000f0000 - 0000000000100000 = 2 RESERVED
+(d17)   3: 0000000000100000 - 000000007dfff000 = 1 RAM
+(d17)   4: 000000007dfff000 - 000000007e000000 = 2 RESERVED
+(d17)   5: 00000000fc000000 - 0000000100000000 = 2 RESERVED
+
+When OVMF is used:
+
+(d20) BIOS map:
+(d20)  ffe00000-ffffffff: Main BIOS
+(d20) E820 table:
+(d20)  [00]: 00000000:00000000 - 00000000:000a0000: RAM
+(d20)  HOLE: 00000000:000a0000 - 00000000:000f0000
+(d20)  [01]: 00000000:000f0000 - 00000000:00100000: RESERVED
+(d20)  [02]: 00000000:00100000 - 00000000:f0000000: RAM
+(d20)  HOLE: 00000000:f0000000 - 00000000:fc000000
+(d20)  [03]: 00000000:fc000000 - 00000001:00000000: RESERVED
+(d20)  [04]: 00000001:00000000 - 00000001:0c675000: RAM

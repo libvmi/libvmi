@@ -34,11 +34,11 @@ typedef struct driver_interface {
     status_t (*init_ptr) (
         vmi_instance_t,
         uint32_t init_flags,
-        void *init_data);
+        vmi_init_data_t *init_data);
     status_t (*init_vmi_ptr) (
         vmi_instance_t,
         uint32_t init_flags,
-        void *init_data);
+        vmi_init_data_t *init_data);
     void (*destroy_ptr) (
         vmi_instance_t);
     uint64_t (*get_id_from_name_ptr) (
@@ -177,18 +177,18 @@ status_t driver_init_mode(
     const char *name,
     uint64_t domainid,
     uint64_t init_flags,
-    void* init_data,
+    vmi_init_data_t *init_data,
     vmi_mode_t *mode);
 
 status_t driver_init(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 
 status_t driver_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 
 #endif /* DRIVER_INTERFACE_H */
 

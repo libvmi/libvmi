@@ -61,7 +61,7 @@ memory_cache_entry_free(
     memory_cache_entry_t entry = (memory_cache_entry_t) data;
 
     if (entry) {
-        entry->vmi->release_data_callback(entry->data, entry->length);
+        entry->vmi->release_data_callback(entry->vmi, entry->data, entry->length);
         free(entry);
     }
 }
@@ -91,7 +91,7 @@ validate_and_return_data(
     if (vmi->memory_cache_age &&
             (now - entry->last_updated > vmi->memory_cache_age)) {
         dbprint(VMI_DEBUG_MEMCACHE, "--MEMORY cache refresh 0x%"PRIx64"\n", entry->paddr);
-        vmi->release_data_callback(entry->data, entry->length);
+        vmi->release_data_callback(vmi, entry->data, entry->length);
         entry->data = get_memory_data(vmi, entry->paddr, entry->length);
         entry->last_updated = now;
 
@@ -118,12 +118,27 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
     //
     // TODO: perform other reasonable checks
 
-    if ((vmi->vm_type == HVM || vmi->vm_type == NORMAL) && (paddr + length > vmi->max_physical_address)) {
-        errprint("--requesting PA [0x%"PRIx64"] beyond max physical address [0x%"PRIx64"]\n",
-                 paddr + length, vmi->max_physical_address);
-        errprint("\tpaddr: %"PRIx64", length %"PRIx32", vmi->max_physical_address %"PRIx64"\n", paddr, length,
-                 vmi->max_physical_address);
-        return 0;
+    if (vmi->vm_type == HVM || vmi->vm_type == NORMAL) {
+        if ( !vmi->memmap ) {
+            if ( paddr + length > vmi->max_physical_address ) {
+                goto err_exit;
+            }
+        } else {
+            // If we have a memory map we can check that the access is within a valid range
+            unsigned int i;
+            memory_map_t *memmap = vmi->memmap;
+            bool range_found = 0;
+
+            for (i=0; i < memmap->count; i++) {
+                if ( paddr >= memmap->range[i][0] && paddr + length <= memmap->range[i][1] ) {
+                    range_found = 1;
+                    break;
+                }
+            }
+
+            if ( !range_found )
+                goto err_exit;
+        }
     }
 
     memory_cache_entry_t entry =
@@ -141,6 +156,11 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
     entry->data = get_memory_data(vmi, paddr, length);
 
     return entry;
+
+err_exit:
+    dbprint(VMI_DEBUG_MEMCACHE, "--requested PA [0x%"PRIx64"-0x%"PRIx64"] is outside valid physical memory\n",
+            paddr, paddr + length);
+    return NULL;
 }
 
 //---------------------------------------------------------
@@ -151,7 +171,8 @@ memory_cache_init(
     void *(*get_data) (vmi_instance_t,
                        addr_t,
                        uint32_t),
-    void (*release_data) (void *,
+    void (*release_data) (vmi_instance_t,
+                          void *,
                           size_t),
     unsigned long age_limit)
 {
@@ -192,7 +213,7 @@ memory_cache_insert(
 
         entry = create_new_entry(vmi, paddr, vmi->page_size);
         if (!entry) {
-            errprint("create_new_entry failed\n");
+            dbprint(VMI_DEBUG_MEMCACHE, "create_new_entry failed\n");
             return 0;
         }
 
@@ -265,7 +286,8 @@ memory_cache_init(
     void *(*get_data) (vmi_instance_t,
                        addr_t,
                        uint32_t),
-    void (*release_data) (void *,
+    void (*release_data) (vmi_instance_t,
+                          void *,
                           size_t),
     unsigned long UNUSED(age_limit))
 {
@@ -281,8 +303,8 @@ memory_cache_insert(
     if (paddr == vmi->last_used_page_key && vmi->last_used_page) {
         return vmi->last_used_page;
     } else {
-        if (vmi->last_used_page_key && vmi->last_used_page) {
-            vmi->release_data_callback(vmi->last_used_page, vmi->page_size);
+        if (vmi->last_used_page) {
+            vmi->release_data_callback(vmi, vmi->last_used_page, vmi->page_size);
         }
         vmi->last_used_page = get_memory_data(vmi, paddr, vmi->page_size);
         vmi->last_used_page_key = paddr;
@@ -295,7 +317,7 @@ void memory_cache_remove(
     addr_t paddr)
 {
     if (paddr == vmi->last_used_page_key && vmi->last_used_page) {
-        vmi->release_data_callback(vmi->last_used_page, vmi->page_size);
+        vmi->release_data_callback(vmi, vmi->last_used_page, vmi->page_size);
     }
 }
 
@@ -303,8 +325,8 @@ void
 memory_cache_destroy(
     vmi_instance_t vmi)
 {
-    if (vmi->last_used_page_key && vmi->last_used_page) {
-        vmi->release_data_callback(vmi->last_used_page, vmi->page_size);
+    if (vmi->last_used_page) {
+        vmi->release_data_callback(vmi, vmi->last_used_page, vmi->page_size);
     }
     vmi->last_used_page_key = 0;
     vmi->last_used_page = NULL;

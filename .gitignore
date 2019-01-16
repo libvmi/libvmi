@@ -80,9 +80,8 @@ tools/vmifs/.libs/
 tools/vmifs/Makefile
 tools/vmifs/Makefile.in
 tools/vmifs/vmifs
-tools/linux-offset-finder/.findoffsets.ko.cmd
-tools/linux-offset-finder/.findoffsets.mod.o.cmd
-tools/linux-offset-finder/.findoffsets.o.cmd
+tools/linux-offset-finder/*.cmd
+tools/linux-offset-finder/*.mk
 tools/linux-offset-finder/.tmp_versions/
 tools/linux-offset-finder/findoffsets.ko
 tools/linux-offset-finder/findoffsets.mod.c

@@ -35,11 +35,11 @@
 status_t xen_init(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 status_t xen_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 void xen_destroy(
     vmi_instance_t vmi);
 uint64_t xen_get_domainid_from_name(

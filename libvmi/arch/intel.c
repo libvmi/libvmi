@@ -389,14 +389,12 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
 
     GSList *ret = NULL;
 
-    uint32_t *pgd_page = malloc(VMI_PS_4KB);
+    uint32_t *pgd_page = g_malloc0(VMI_PS_4KB);
+    uint32_t *pt_page = g_malloc0(entry_size * PTRS_PER_NOPAE_PGD);
 
     if ( VMI_FAILURE == vmi_read_pa(vmi, dtb, VMI_PS_4KB, pgd_page, NULL)) {
-        free(pgd_page);
-        return ret;
+        goto done;
     }
-
-    uint32_t *pt_page = malloc(entry_size * PTRS_PER_NOPAE_PGD);
 
     uint32_t pgd_index;
     for (pgd_index = 0; pgd_index < PTRS_PER_NOPAE_PGD; pgd_index++, pgd_location += entry_size) {
@@ -409,7 +407,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
             if (PAGE_SIZE(pgd_entry) && (VMI_FILE == vmi->mode || vmi->x86.pse)) {
                 page_info_t *p = g_malloc0(sizeof(page_info_t));
                 if ( !p )
-                    continue;
+                    goto done;
 
                 p->vaddr = pgd_base_vaddr;
                 p->dtb = dtb;
@@ -424,7 +422,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
             uint32_t pte_location = ptba_base_nopae(pgd_entry);
 
             if (VMI_FAILURE == vmi_read_pa(vmi, pte_location, VMI_PS_4KB, pt_page, NULL))
-                continue;
+                goto done;
 
             uint32_t pte_index;
             for (pte_index = 0; pte_index < PTRS_PER_NOPAE_PTE; pte_index++, pte_location += entry_size) {
@@ -433,7 +431,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
                 if (ENTRY_PRESENT(vmi->os_type, pte_entry)) {
                     page_info_t *p = g_malloc0(sizeof(page_info_t));
                     if ( !p )
-                        continue;
+                        goto done;
 
                     p->vaddr = pgd_base_vaddr + pte_index * VMI_PS_4KB;
                     p->dtb = dtb;
@@ -449,8 +447,9 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
         }
     }
 
-    free(pt_page);
-    free(pgd_page);
+done:
+    g_free(pt_page);
+    g_free(pgd_page);
 
     return ret;
 }
@@ -492,7 +491,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
         uint64_t pde_location = pdba_base_pae(pdp_entry);
 
         if (VMI_FAILURE == vmi_read_pa(vmi, pde_location, VMI_PS_4KB, page_directory, NULL))
-            continue;
+            goto done;
 
         uint32_t pd_index = 0;
         for (pd_index = 0; pd_index < PTRS_PER_PAE_PGD; pd_index++, pde_location += entry_size) {
@@ -505,7 +504,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
                 if (PAGE_SIZE(pd_entry)) {
                     page_info_t *p = g_malloc0(sizeof(page_info_t));
                     if ( !p )
-                        continue;
+                        goto done;
 
                     p->vaddr = pd_base_va;
                     p->dtb = dtb;
@@ -522,7 +521,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
                 uint64_t pte_location = ptba_base_pae(pd_entry);
 
                 if (VMI_FAILURE == vmi_read_pa(vmi, pte_location, VMI_PS_4KB, page_table, NULL))
-                    continue;
+                    goto done;
 
                 uint32_t pt_index;
                 for (pt_index = 0; pt_index < PTRS_PER_PAE_PTE; pt_index++, pte_location += entry_size) {
@@ -531,7 +530,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
                     if (ENTRY_PRESENT(vmi->os_type, pte_entry)) {
                         page_info_t *p = g_malloc0(sizeof(page_info_t));
                         if ( !p )
-                            continue;
+                            goto done;
 
                         p->vaddr = pd_base_va + pt_index * VMI_PS_4KB;
                         p->dtb = dtb;

@@ -2,13 +2,9 @@
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * Copyright 2011 Sandia Corporation. Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
- * retains certain rights in this software.
- *
- * Author: Bryan D. Payne (bdpayne@acm.org)
- *
  * This file is part of LibVMI.
+ *
+ * Author: Tamas K Lengyel <lengyelt@ainfosec.com>
  *
  * LibVMI is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
@@ -24,30 +20,26 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MEMORY_CACHE_H
-#define MEMORY_CACHE_H
+#ifndef BAREFLANK_PRIVATE_H
+#define BAREFLANK_PRIVATE_H
 
-#include "private.h"
+#define BF_PAGE_SIZE 4096
 
-void memory_cache_init(
-    vmi_instance_t vmi,
-    void *(*get_data) (vmi_instance_t,
-                       addr_t,
-                       uint32_t),
-    void (*release_data) (vmi_instance_t,
-                          void *,
-                          size_t),
-    unsigned long age_limit);
+typedef struct bareflank_instance {
+    void *buffer_space;
+    GHashTable *remaps;
+} bareflank_instance_t;
 
-void *memory_cache_insert(
-    vmi_instance_t vmi,
-    addr_t paddr);
+extern int bareflank_cpuid(uint64_t *rbx, uint64_t *rcx, uint64_t *rdx, void *__placeholder);
+extern bool hcall_get_registers(void *buffer, size_t size);
+extern bool hcall_v2p(uint64_t va, uint64_t *pa);
+extern bool hcall_map_pa(uint64_t va, uint64_t pa);
 
-void memory_cache_remove(
-    vmi_instance_t vmi,
-    addr_t paddr);
+static inline
+bareflank_instance_t *bareflank_get_instance(
+    vmi_instance_t vmi)
+{
+    return ((bareflank_instance_t *) vmi->driver.driver_data);
+}
 
-void memory_cache_destroy(
-    vmi_instance_t vmi);
-
-#endif
+#endif /* BAREFLANK_PRIVATE_H */

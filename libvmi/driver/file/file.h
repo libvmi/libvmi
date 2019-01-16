@@ -26,11 +26,11 @@
 status_t file_init(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 status_t file_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 void file_destroy(
     vmi_instance_t vmi);
 status_t file_get_name(
@@ -62,7 +62,7 @@ status_t file_test(
     uint64_t id,
     const char *name,
     uint64_t init_flags,
-    void* init_data);
+    vmi_init_data_t *init_data);
 status_t file_pause_vm(
     vmi_instance_t vmi);
 status_t file_resume_vm(

@@ -85,6 +85,7 @@ xen_get_memory(
 
 void
 xen_release_memory(
+    vmi_instance_t UNUSED(vmi),
     void *memory,
     size_t length)
 {
@@ -158,7 +159,7 @@ xen_put_memory(
         /* set variables for next loop */
         count -= write_len;
         buf_offset += write_len;
-        xen_release_memory(memory, vmi->page_size);
+        xen_release_memory(vmi, memory, vmi->page_size);
     }
 
     return VMI_SUCCESS;
@@ -450,7 +451,7 @@ status_t
 xen_init(
     vmi_instance_t vmi,
     uint32_t UNUSED(init_flags),
-    void *UNUSED(init_data))
+    vmi_init_data_t *UNUSED(init_data))
 {
     if ( xen_get_instance(vmi) )
         return VMI_SUCCESS;
@@ -494,7 +495,7 @@ status_t
 xen_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data)
+    vmi_init_data_t *init_data)
 {
     status_t ret = VMI_FAILURE;
     xen_instance_t *xen = xen_get_instance(vmi);

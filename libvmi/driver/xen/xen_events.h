@@ -59,7 +59,7 @@
 status_t xen_init_events(
     vmi_instance_t vmi,
     uint32_t init_flags,
-    void *init_data);
+    vmi_init_data_t *init_data);
 
 void xen_events_destroy(vmi_instance_t vmi);
 

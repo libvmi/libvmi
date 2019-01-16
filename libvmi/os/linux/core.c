@@ -272,7 +272,7 @@ status_t get_kaslr_offset_ia32e(vmi_instance_t vmi)
         if ( vmi_translate_kv2p(vmi, va, &pa) == VMI_SUCCESS ) {
             linux_instance->kaslr_offset = va - kernel_text_start;
             vmi->init_task += linux_instance->kaslr_offset;
-            dbprint(VMI_DEBUG_MISC, "**calculated KASLR offset: 0x%"PRIx64"\n", linux_instance->kaslr_offset);
+            dbprint(VMI_DEBUG_MISC, "**calculated KASLR offset in 64-bit mode: 0x%"PRIx64"\n", linux_instance->kaslr_offset);
             return VMI_SUCCESS;
         }
     }
@@ -375,6 +375,7 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
     rc = driver_get_vcpureg(vmi, &vmi->kpgd, TTBR1, 0);
 #elif defined(I386) || defined(X86_64)
     rc = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);
+    vmi->kpgd &= ~0x1fffull; // mask PCID and meltdown bits
 #endif
 
     /*
@@ -382,13 +383,12 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
      * As a fall-back, try to init using heuristics.
      * This path is taken in FILE mode as well.
      */
-    if (VMI_FAILURE == rc)
-        if (VMI_FAILURE == linux_filemode_init(vmi))
-            goto _exit;
+    if ( VMI_FAILURE == rc && VMI_FAILURE == linux_filemode_init(vmi) )
+        goto _exit;
 
     if ( VMI_FAILURE == init_kaslr(vmi) ) {
-        /* fix for meltdown patches*/
-        vmi->kpgd &= ~0x1fff;
+        // try without masking Meltdown bit
+        vmi->kpgd |= 0x1000ull;
         if ( VMI_FAILURE == init_kaslr(vmi) ) {
             dbprint(VMI_DEBUG_MISC, "**failed to determine KASLR offset\n");
             goto _exit;
@@ -396,6 +396,7 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
     }
 
     dbprint(VMI_DEBUG_MISC, "**set vmi->kpgd (0x%.16"PRIx64").\n", vmi->kpgd);
+    dbprint(VMI_DEBUG_MISC, "**set vmi->init_task (0x%.16"PRIx64").\n", vmi->init_task);
 
     os_interface = g_malloc(sizeof(struct os_interface));
     if ( !os_interface )
