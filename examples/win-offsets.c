@@ -118,6 +118,7 @@ int main(int argc, char **argv)
     addr_t sysproc = 0;
     addr_t kpcr = 0;
     addr_t kdbg = 0;
+    addr_t kpgd = 0;
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_ntoskrnl", &ntoskrnl))
         printf("Failed to read field \"ntoskrnl\"\n");
@@ -149,6 +150,9 @@ int main(int argc, char **argv)
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_kdbg", &kdbg))
         printf("Failed to read field \"kdbg\"\n");
 
+    if (VMI_FAILURE == vmi_get_offset(vmi, "kpgd", &kpgd))
+        printf("Failed to read field \"kpgd\"\n");
+
     printf("win_ntoskrnl:0x%lx\n"
            "win_ntoskrnl_va:0x%lx\n"
            "win_tasks:0x%lx\n"
@@ -158,7 +162,8 @@ int main(int argc, char **argv)
            "win_kdvb:0x%lx\n"
            "win_sysproc:0x%lx\n"
            "win_kpcr:0x%lx\n"
-           "win_kdbg:0x%lx\n",
+           "win_kdbg:0x%lx\n"
+           "kpgd:0x%lx\n",
            ntoskrnl,
            ntoskrnl_va,
            tasks,
@@ -168,7 +173,13 @@ int main(int argc, char **argv)
            kdvb,
            sysproc,
            kpcr,
-           kdbg);
+           kdbg,
+           kpgd);
+
+    if (!ntoskrnl || !ntoskrnl_va || !sysproc || !pdbase || !kpgd) {
+        printf("Failed to get most essential fields\n");
+        goto done;
+    }
 
     rc = 0;
 
