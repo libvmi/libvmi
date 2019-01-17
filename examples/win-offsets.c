@@ -36,9 +36,10 @@
 
 int main(int argc, char **argv)
 {
-
+    GHashTable* config = NULL;
     vmi_instance_t vmi = NULL;
     vmi_mode_t mode;
+    int rc = 1;
 
     /* this is the VM that we are looking at */
     if (argc != 5) {
@@ -80,7 +81,13 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    GHashTable* config = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+    /* pause the vm for consistent memory access */
+    if (vmi_pause_vm(vmi) != VMI_SUCCESS) {
+        printf("Failed to pause VM\n");
+        goto done;
+    } // if
+
+    config = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
     if (!config) {
         printf("Failed to create GHashTable!\n");
         goto done;
@@ -163,10 +170,17 @@ int main(int argc, char **argv)
            kpcr,
            kdbg);
 
+    rc = 0;
+
     /* cleanup any memory associated with the LibVMI instance */
 done:
-    g_hash_table_destroy(config);
+    /* resume the vm */
+    vmi_resume_vm(vmi);
+
     vmi_destroy(vmi);
 
-    return 0;
+    if (config)
+        g_hash_table_destroy(config);
+
+    return rc;
 }
