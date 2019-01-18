@@ -268,6 +268,7 @@ int vmi_parse_config (const char *target_name)
 }
 
 %token<str>    NUM
+%token<str>    KPGD
 %token<str>    LINUX_TASKS
 %token<str>    LINUX_MM
 %token<str>    LINUX_PID
@@ -330,6 +331,8 @@ assignment:
         |
         ostype_assignment
         |
+        kpgd_assignment
+        |
         linux_tasks_assignment
         |
         linux_mm_assignment
@@ -373,6 +376,17 @@ assignment:
         freebsd_pmap_assignment
         |
         freebsd_pgd_assignment
+        ;
+
+kpgd_assignment:
+        KPGD EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
         ;
 
 linux_tasks_assignment:

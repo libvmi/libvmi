@@ -476,6 +476,11 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
+    if (strncmp(key, "kpgd", CONFIG_STR_LENGTH) == 0) {
+        vmi->kpgd = *(addr_t*)value;
+        goto _done;
+    }
+
     if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0 || strncmp(key, "os_type", CONFIG_STR_LENGTH) == 0) {
         goto _done;
     }
@@ -528,6 +533,9 @@ status_t linux_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *o
         return VMI_SUCCESS;
     } else if (strncmp(offset_name, "linux_pgd", max_length) == 0) {
         *offset = linux_instance->pgd_offset;
+        return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "kpgd", max_length) == 0) {
+        *offset = vmi->kpgd;
         return VMI_SUCCESS;
     }
 

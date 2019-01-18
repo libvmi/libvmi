@@ -545,6 +545,9 @@ status_t windows_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t 
     } else if (strncmp(offset_name, "win_kdbg", max_length) == 0) {
         *offset = windows->kdbg_offset;
         return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "kpgd", max_length) == 0) {
+        *offset = vmi->kpgd;
+        return VMI_SUCCESS;
     }
 
     warnprint("Invalid offset name in windows_get_offset (%s).\n",
@@ -608,6 +611,11 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
+    if (strncmp(key, "kpgd", CONFIG_STR_LENGTH) == 0) {
+        vmi->kpgd = *(addr_t *)value;
+        goto _done;
+    }
+
     if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0 || strncmp(key, "os_type", CONFIG_STR_LENGTH) == 0) {
         goto _done;
     }
@@ -665,6 +673,9 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
      * and vmi->kpgd should be holding a CR3 value */
     if ( !REKALL_PROFILE(windows) || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
         return ret;
+
+    if ( vmi->kpgd && windows->sysproc )
+        return VMI_SUCCESS;
 
     dbprint(VMI_DEBUG_MISC, "**Getting kernel page directory from Rekall profile\n");
 
@@ -1066,12 +1077,14 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
      * so first we try to get it via the driver (fastest way).
      * If the driver gets us a dtb, it will be used _only_ during the init phase,
      * and will be replaced by the real kpgd later. */
-    if (VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
-        if (VMI_FAILURE == get_kpgd_method2(vmi)) {
-            errprint("Could not get kpgd, will not be able to determine page mode\n");
-            goto done;
-        } else {
-            real_kpgd_found = VMI_SUCCESS;
+    if ( !vmi->kpgd ) {
+        if ( VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
+            if (VMI_FAILURE == get_kpgd_method2(vmi)) {
+                errprint("Could not get kpgd, will not be able to determine page mode\n");
+                goto done;
+            } else {
+                real_kpgd_found = VMI_SUCCESS;
+            }
         }
     }
 
