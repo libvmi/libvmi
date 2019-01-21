@@ -257,7 +257,7 @@ event_response_t step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep
         step_and_reg_event_wrapper_t *wrap =
             (step_and_reg_event_wrapper_t *) reg_list->data;
 
-        if (wrap->vcpu_id == singlestep_event->vcpu_id) {
+        if (singlestep_event && wrap->vcpu_id == singlestep_event->vcpu_id) {
             wrap->steps--;
         }
 
@@ -272,6 +272,7 @@ event_response_t step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep
             if (!vmi->step_vcpus[wrap->vcpu_id]) {
                 // No more events on this vcpu need registering
                 vmi_clear_event(vmi, singlestep_event, step_event_free);
+                singlestep_event = NULL;
             }
 
             free(wrap);
