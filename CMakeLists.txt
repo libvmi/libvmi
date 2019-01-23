@@ -5,7 +5,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 #-----------------------------------------------------------------------------
 #                           GENERAL CONFIGURATION
 #-----------------------------------------------------------------------------
-project(LibVMI VERSION 0.13.0 LANGUAGES C)
+project(LibVMI VERSION 0.13.0 LANGUAGES C ASM)
 #-----------------------------------------------------------------------------
 #                              DEPENDENCIES
 #-----------------------------------------------------------------------------
@@ -37,6 +37,7 @@ endif ()
 #-----------------------------------------------------------------------------
 option(ENABLE_XEN "Build Xen driver" ON)
 option(ENABLE_KVM "Build KVM driver" ON)
+option(ENABLE_BAREFLANK "Build Bareflank driver" ON)
 option(ENABLE_FILE "Build file driver" ON)
 
 option(ENABLE_WINDOWS "Build Windows introspection" ON)
