@@ -1,4 +1,4 @@
-dist:   trusty
+dist:   xenial
 language: c
 sudo: false
 env:
@@ -24,10 +24,6 @@ matrix:
     - env:
         - TEST="astyle"
       sudo: required
-      before_install:
-        - sudo add-apt-repository "deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted universe multiverse" -y
-        - sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 3B4FE6ACC0B21F32
-        - sudo apt-get update -qq
       install:
         - sudo apt-get install astyle
       script:
@@ -162,9 +158,8 @@ matrix:
         apt:
             sources:
                 - ubuntu-toolchain-r-test
-                - llvm-toolchain-trusty-5.0
+                - llvm-toolchain-xenial-7.0
             packages:
-                - clang-5.0
                 - bison
                 - flex
                 - check
@@ -173,16 +168,12 @@ matrix:
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      before_install:
-        - export PATH=$PATH:/usr/local/clang-5.0.0/bin
-        - export CC=clang-5.0
-        - export CXX=clang++-5.0
       install:
         - ./autogen.sh
       script:
-        - scan-build --status-bugs --use-cc=clang-5.0 ./configure
+        - scan-build --status-bugs --use-cc=clang-7.0 ./configure
         - cd libvmi/config && make && cd ../..
-        - scan-build --status-bugs --use-cc=clang-5.0 make
+        - scan-build --status-bugs --use-cc=clang-7.0 make
 
 #
 # debug test
