@@ -158,7 +158,6 @@ matrix:
                 - llvm-toolchain-xenial-7.0
             packages:
                 - cmake
-                - clang-5.0
                 - bison
                 - flex
                 - check
@@ -166,10 +165,6 @@ matrix:
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
-      before_install:
-        - export PATH=$PATH:/usr/local/clang-5.0.0/bin
-        - export CC=clang-5.0
-        - export CXX=clang++-5.0
       script:
         - mkdir build && cd build
         - cmake ..
