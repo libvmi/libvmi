@@ -177,28 +177,10 @@ cb_kvmi_connect(
      * If kvmi_dom is not NULL it means this is a reconnection.
      * The previous connection was closed somehow.
      */
-    kvmi_domain_close(kvm->kvmi_dom);
+    kvmi_domain_close(kvm->kvmi_dom, true);
     kvm->kvmi_dom = dom;
     pthread_cond_signal(&kvm->kvm_start_cond);
     pthread_mutex_unlock(&kvm->kvm_connect_mutex);
-
-    return 0;
-}
-
-/*
- * This callback is not used unless some events are enabled
- * with the kvmi_control_events() command.
- */
-static int
-cb_new_event(
-    void *UNUSED(dom),
-    unsigned int seq,
-    unsigned int size,
-    void *UNUSED(ctx))
-{
-    dbprint(VMI_DEBUG_KVM, "--event seq:%u size:%u\n", seq, size);
-
-    /* return kvmi_reply_event(dom, seq, &rpl, sizeof(rpl)) */
 
     return 0;
 }
@@ -215,7 +197,7 @@ init_kvmi(
     kvm->kvmi_dom = NULL;
 
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
-    kvm->kvmi = kvmi_init_unix_socket(sock_path, cb_kvmi_connect, cb_new_event, kvm);
+    kvm->kvmi = kvmi_init_unix_socket(sock_path, cb_kvmi_connect, NULL, kvm);
     if (kvm->kvmi) {
         struct timeval now;
         if (gettimeofday(&now, NULL) == 0) {
@@ -235,7 +217,7 @@ init_kvmi(
         kvmi_uninit(kvm->kvmi);
         kvm->kvmi = NULL;
         /* From this point, kvm->kvmi_dom won't be touched. */
-        kvmi_domain_close(kvm->kvmi_dom);
+        kvmi_domain_close(kvm->kvmi_dom, true);
         return false;
     }
 
@@ -430,7 +412,7 @@ kvm_destroy(
 
     kvmi_uninit(kvm->kvmi); /* closes the accepting thread */
     kvm->kvmi = NULL;
-    kvmi_domain_close(kvm->kvmi_dom);
+    kvmi_domain_close(kvm->kvmi_dom, true);
     kvm->kvmi_dom = NULL;
 
     if (kvm->dom) {
