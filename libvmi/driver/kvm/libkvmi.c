@@ -25,7 +25,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <uuid/uuid.h>
 #include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -33,6 +32,7 @@
 #include <kvmi/libkvmi.h>
 #include <linux/kvm_para.h>
 #include <sys/stat.h>
+#include <stdarg.h>
 
 #define MIN( X, Y ) ( ( X ) < ( Y ) ? ( X ) : ( Y ) )
 
@@ -56,16 +56,24 @@ struct sockaddr_vm {
 #define VMADDR_CID_ANY -1U
 #endif
 
+#define MAX_QUEUED_EVENTS 16384 /* 16KiB */
+
 struct kvmi_dom {
-	int               fd;
-	int               mem_fd;
-	kvmi_new_event_cb event_cb;
-	void *            cb_ctx;
+	int                           fd;
+	bool                          disconnected;
+	int                           mem_fd;
+	void *                        cb_ctx;
+	struct kvmi_dom_event         *events;
+	struct kvmi_dom_event         *event_last;
+	unsigned int                  event_count;
+	pthread_mutex_t               event_lock;
+	pthread_mutex_t               lock;
+	struct kvmi_qemu2introspector hsk;
 };
 
 struct kvmi_ctx {
 	kvmi_new_guest_cb  accept_cb;
-	kvmi_new_event_cb  event_cb;
+	kvmi_handshake_cb  handshake_cb;
 	void *             cb_ctx;
 	pthread_t          th_id;
 	bool               th_started;
@@ -75,14 +83,49 @@ struct kvmi_ctx {
 	struct sockaddr_vm v_addr;
 };
 
-static long pagesize;
+static long        pagesize;
+static kvmi_log_cb log_cb;
+static void *      log_ctx;
 
-__attribute__(( constructor )) static void lib_init()
+__attribute__( ( constructor ) ) static void lib_init( void )
 {
 	pagesize = sysconf( _SC_PAGE_SIZE );
 }
 
-static bool setup_socket( struct kvmi_ctx *ctx, struct sockaddr *sa, size_t sa_size, int pf )
+static void kvmi_log_generic( kvmi_log_level level, const char *s, va_list va )
+{
+	char *buf = NULL;
+
+	if ( !log_cb )
+		return;
+
+	if ( vasprintf( &buf, s, va ) < 0 )
+		return;
+
+	log_cb( level, buf, log_ctx );
+
+	free( buf );
+}
+
+static void kvmi_log_error( const char *s, ... )
+{
+	va_list va;
+
+	va_start( va, s );
+	kvmi_log_generic( KVMI_LOG_LEVEL_ERROR, s, va );
+	va_end( va );
+}
+
+static void kvmi_log_warning( const char *s, ... )
+{
+	va_list va;
+
+	va_start( va, s );
+	kvmi_log_generic( KVMI_LOG_LEVEL_WARNING, s, va );
+	va_end( va );
+}
+
+static bool setup_socket( struct kvmi_ctx *ctx, const struct sockaddr *sa, size_t sa_size, int pf )
 {
 	ctx->fd = socket( pf, SOCK_STREAM, 0 );
 
@@ -143,20 +186,76 @@ static bool setup_vsock( struct kvmi_ctx *ctx, unsigned int port )
 	return setup_socket( ctx, sa, sizeof( ctx->v_addr ), PF_VSOCK );
 }
 
-static int do_read( int fd, void *buf, size_t size )
+bool kvmi_domain_is_connected( const void *d )
+{
+	const struct kvmi_dom *dom = d;
+
+	return !dom->disconnected;
+}
+
+static void check_if_disconnected( struct kvmi_dom *dom, int err )
+{
+	if ( dom->disconnected )
+		return;
+
+	dom->disconnected = ( err == ENOTCONN || err == EPIPE );
+}
+
+#define DEFAULT_WAIT_TIMEOUT 15000 /* 15s */
+
+static int do_wait( struct kvmi_dom *dom, bool write )
+{
+	short         event = write ? POLLOUT : POLLIN;
+	int           err;
+	struct pollfd pfd[1] = {};
+
+	pfd[0].fd     = dom->fd;
+	pfd[0].events = event;
+
+	do {
+		err = poll( pfd, 1, DEFAULT_WAIT_TIMEOUT );
+	} while ( err < 0 && errno == EINTR );
+
+	if ( err )
+		check_if_disconnected( dom, errno );
+	else {
+		errno = ETIMEDOUT;
+		return -1;
+	}
+
+	if ( pfd[0].revents & event )
+		return 0;
+
+	return -1;
+}
+
+static int do_read( struct kvmi_dom *dom, void *buf, size_t size )
 {
 	errno = 0;
 
 	for ( ;; ) {
 		ssize_t n;
 
+		if ( do_wait( dom, false ) < 0 )
+			return -1;
+
 		do {
-			n = recv( fd, buf, size, 0 );
+			n = recv( dom->fd, buf, size, 0 );
 		} while ( n < 0 && errno == EINTR );
 
-		/* error or connection closed */
-		if ( n <= 0 )
+		if ( !n ) {
+			errno = ENOTCONN;
+			dom->disconnected = true;
 			return -1;
+		}
+
+		if ( n < 0 ) {
+			if ( errno == EAGAIN || errno == EWOULDBLOCK )
+				/* go wait for the socket to become available again */
+				continue;
+			check_if_disconnected( dom, errno );
+			return -1;
+		}
 
 		buf = ( char * )buf + n;
 		size -= n;
@@ -167,62 +266,96 @@ static int do_read( int fd, void *buf, size_t size )
 	return 0;
 }
 
-static int do_write( int fd, const void *data, size_t size )
+static int do_write( struct kvmi_dom *dom, const void *buf, size_t size )
 {
-	ssize_t n;
-
 	errno = 0;
 
-	do {
-		n = send( fd, data, size, MSG_NOSIGNAL );
-	} while ( n < 0 && errno == EINTR );
+	for ( ;; ) {
+		ssize_t n;
 
-	if ( n != ( ssize_t )size ) {
-		errno = EIO;
-		return -1;
+		if ( do_wait( dom, true ) < 0 )
+			return -1;
+
+		do {
+			n = send( dom->fd, buf, size, MSG_NOSIGNAL );
+		} while ( n < 0 && errno == EINTR );
+
+		if ( n < 0 ) {
+			if ( errno == EAGAIN || errno == EWOULDBLOCK )
+				/* go wait for the socket to become available again */
+				continue;
+			check_if_disconnected( dom, errno );
+			return -1;
+		}
+
+		buf = ( char * )buf + n;
+		size -= n;
+		if ( !size )
+			break;
 	}
 
 	return 0;
 }
 
-static bool handshake( struct kvmi_dom *dom, unsigned char ( *uuid )[16] )
+static bool unsupported_version( struct kvmi_dom *dom )
 {
-	int       done = false;
-	unsigned *blk;
-	unsigned  sz;
+	unsigned int version;
 
-	/*
-	   Currently, we must read
-	        struct {
-	                unsigned sizeof_struct;
-	                uuid char[16];
-	        };
-	   and write back the same structure.
-	 */
-
-	if ( do_read( dom->fd, &sz, 4 ) == -1 )
-		return false;
-
-	if ( sz < 4 + 16 || sz > 1 * 1024 * 1024 )
-		return false;
-
-	blk = malloc( sz );
-	if ( !blk )
-		return false;
-
-	blk[0] = sz;
-
-	if ( do_read( dom->fd, blk + 1, sz - 4 ) == 0 && do_write( dom->fd, blk, sz ) == 0 ) {
-		unsigned version;
-
-		memcpy( uuid, blk + 1, 16 );
-
-		done = ( kvmi_get_version( dom, &version ) == 0 && version >= KVMI_VERSION );
+	if ( kvmi_get_version( dom, &version ) ) {
+		kvmi_log_error( "failed to retrieve the protocol version (invalid authentication token?)" );
+		return true;
 	}
 
-	free( blk );
+	if ( version < KVMI_VERSION ) {
+		kvmi_log_error( "invalid protocol version (received 0x%08x, expected at least 0x%08x)", version,
+		                KVMI_VERSION );
+		return true;
+	}
 
-	return done;
+	return false;
+}
+
+static bool handshake_done( struct kvmi_ctx *ctx, struct kvmi_dom *dom )
+{
+	struct kvmi_qemu2introspector *qemu = &dom->hsk;
+	struct kvmi_introspector2qemu  intro;
+	uint32_t                       sz;
+	char *                         ptr;
+
+	if ( do_read( dom, &sz, sizeof( sz ) ) )
+		return false;
+
+	if ( sz > 1 * 1024 * 1024 || sz < sizeof( qemu->struct_size ) )
+		return false;
+
+	qemu->struct_size = MIN( sz, sizeof( *qemu ) );
+	ptr               = ( char * )&qemu->struct_size + sizeof( qemu->struct_size );
+	sz                = qemu->struct_size - sizeof( qemu->struct_size );
+
+	if ( do_read( dom, ptr, sz ) )
+		return false;
+
+	qemu->name[sizeof( qemu->name ) - 1] = 0;
+
+	memset( &intro, 0, sizeof( intro ) );
+	intro.struct_size = sizeof( intro );
+	if ( ctx->handshake_cb && ctx->handshake_cb( qemu, &intro, ctx->cb_ctx ) )
+		return false;
+
+	return do_write( dom, &intro, sizeof( intro ) ) == 0;
+}
+
+static int set_nonblock( int fd )
+{
+	int flags = fcntl( fd, F_GETFL );
+
+	if ( flags == -1 )
+		return -1;
+
+	if ( fcntl( fd, F_SETFL, flags | O_NONBLOCK ) == -1 )
+		return -1;
+
+	return 0;
 }
 
 static void *accept_worker( void *_ctx )
@@ -231,7 +364,6 @@ static void *accept_worker( void *_ctx )
 
 	for ( ;; ) {
 		struct kvmi_dom *dom;
-		unsigned char    uuid[16];
 		int              ret;
 		int              fd;
 		struct pollfd    fds[2];
@@ -264,33 +396,48 @@ static void *accept_worker( void *_ctx )
 		if ( fd == -1 )
 			break;
 
+		if ( set_nonblock( fd ) ) {
+			shutdown( fd, SHUT_RDWR );
+			close( fd );
+			break;
+		}
+
 		dom = calloc( 1, sizeof( *dom ) );
 		if ( !dom )
 			break;
 
-		dom->fd = fd;
-		if ( !handshake( dom, &uuid ) ) {
-			kvmi_domain_close( dom );
+		dom->fd     = fd;
+		dom->mem_fd = -1;
+		pthread_mutex_init( &dom->event_lock, NULL );
+		pthread_mutex_init( &dom->lock, NULL );
+
+		if ( !handshake_done( ctx, dom ) ) {
+			kvmi_log_error( "the handshake has failed" );
+			kvmi_domain_close( dom, true );
+			continue;
+		}
+
+		if ( unsupported_version( dom ) ) {
+			kvmi_domain_close( dom, true );
 			continue;
 		}
 
 		dom->mem_fd = open( "/dev/kvmmem", O_RDWR );
+		if ( dom->mem_fd < 0 )
+			kvmi_log_warning( "memory mapping not supported" );
 
-		dom->event_cb = ctx->event_cb;
-		dom->cb_ctx   = ctx->cb_ctx;
+		dom->cb_ctx = ctx->cb_ctx;
 
-		errno = 0;
-
-		if ( ctx->accept_cb( dom, &uuid, ctx->cb_ctx ) != 0 ) {
-			kvmi_domain_close( dom );
-			break;
+		if ( ctx->accept_cb( dom, &dom->hsk.uuid, ctx->cb_ctx ) != 0 ) {
+			kvmi_domain_close( dom, true );
+			continue;
 		}
 	}
 
 	return NULL;
 }
 
-static struct kvmi_ctx *alloc_kvmi_ctx( kvmi_new_guest_cb accept_cb, kvmi_new_event_cb event_cb, void *cb_ctx )
+static struct kvmi_ctx *alloc_kvmi_ctx( kvmi_new_guest_cb accept_cb, kvmi_handshake_cb hsk_cb, void *cb_ctx )
 {
 	struct kvmi_ctx *ctx;
 
@@ -303,9 +450,9 @@ static struct kvmi_ctx *alloc_kvmi_ctx( kvmi_new_guest_cb accept_cb, kvmi_new_ev
 
 	ctx->fd = -1;
 
-	ctx->accept_cb = accept_cb;
-	ctx->event_cb  = event_cb;
-	ctx->cb_ctx    = cb_ctx;
+	ctx->accept_cb    = accept_cb;
+	ctx->handshake_cb = hsk_cb;
+	ctx->cb_ctx       = cb_ctx;
 
 	ctx->th_fds[0] = -1;
 	ctx->th_fds[1] = -1;
@@ -328,14 +475,14 @@ static bool start_listener( struct kvmi_ctx *ctx )
 	return true;
 }
 
-void *kvmi_init_unix_socket( const char *socket, kvmi_new_guest_cb accept_cb, kvmi_new_event_cb event_cb, void *cb_ctx )
+void *kvmi_init_unix_socket( const char *socket, kvmi_new_guest_cb accept_cb, kvmi_handshake_cb hsk_cb, void *cb_ctx )
 {
 	struct kvmi_ctx *ctx;
 	int              err;
 
 	errno = 0;
 
-	ctx = alloc_kvmi_ctx( accept_cb, event_cb, cb_ctx );
+	ctx = alloc_kvmi_ctx( accept_cb, hsk_cb, cb_ctx );
 	if ( !ctx )
 		return NULL;
 
@@ -353,14 +500,14 @@ out_err:
 	return NULL;
 }
 
-void *kvmi_init_vsock( unsigned int port, kvmi_new_guest_cb accept_cb, kvmi_new_event_cb event_cb, void *cb_ctx )
+void *kvmi_init_vsock( unsigned int port, kvmi_new_guest_cb accept_cb, kvmi_handshake_cb hsk_cb, void *cb_ctx )
 {
 	struct kvmi_ctx *ctx;
 	int              err;
 
 	errno = 0;
 
-	ctx = alloc_kvmi_ctx( accept_cb, event_cb, cb_ctx );
+	ctx = alloc_kvmi_ctx( accept_cb, hsk_cb, cb_ctx );
 	if ( !ctx )
 		return NULL;
 
@@ -405,29 +552,72 @@ void kvmi_uninit( void *_ctx )
 	free( ctx );
 }
 
-void kvmi_domain_close( void *d )
+/*
+ * This function is called by the child of a process that did kvm_init().
+ * All this does is close the file descriptor so that there's no longer
+ * a reference to it. The threads cannot be uninitialized because after
+ * fork they are in an undefined state (it's unspecified if they can be
+ * joined).
+ */
+void kvmi_close( void *_ctx )
 {
-	struct kvmi_dom *dom = d;
+	struct kvmi_ctx *ctx = _ctx;
 
-	if ( dom ) {
-		close( dom->fd );
-		free( dom );
+	if ( !ctx )
+		return;
+
+	if ( ctx->fd != -1 ) {
+		close( ctx->fd );
+		ctx->fd = -1;
 	}
 }
 
-int kvmi_connection_fd( void *d )
+void kvmi_domain_close( void *d, bool do_shutdown )
 {
 	struct kvmi_dom *dom = d;
+
+	if ( !dom )
+		return;
+
+	if ( dom->mem_fd != -1 )
+		close( dom->mem_fd );
+	if ( do_shutdown )
+		shutdown( dom->fd, SHUT_RDWR );
+	close( dom->fd );
+
+	for ( struct kvmi_dom_event *ev = dom->events; ev; ) {
+		struct kvmi_dom_event *next = ev->next;
+
+		free( ev );
+		ev = next;
+	}
+
+	pthread_mutex_destroy( &dom->event_lock );
+
+	pthread_mutex_destroy( &dom->lock );
+
+	free( dom );
+}
+
+int kvmi_connection_fd( const void *d )
+{
+	const struct kvmi_dom *dom = d;
 
 	return dom->fd;
 }
 
-void kvmi_set_event_cb( void *d, kvmi_new_event_cb cb, void *cb_ctx )
+void kvmi_domain_name( const void *d, char *buffer, size_t buffer_size )
 {
-	struct kvmi_dom *dom = d;
+	const struct kvmi_dom *dom = d;
 
-	dom->event_cb = cb;
-	dom->cb_ctx   = cb_ctx;
+	snprintf( buffer, buffer_size, "%s", dom->hsk.name );
+}
+
+int64_t kvmi_get_starttime( const void *d )
+{
+	const struct kvmi_dom *dom = d;
+
+	return dom->hsk.start_time;
 }
 
 /* The same sequence variable is used by all domains. */
@@ -439,7 +629,7 @@ static unsigned int new_seq( void )
 }
 
 /* We must send the whole request/reply with one write() call */
-static int send_msg( int fd, unsigned short msg_id, unsigned msg_seq, const void *data, size_t data_size )
+static int send_msg( struct kvmi_dom *dom, unsigned short msg_id, unsigned msg_seq, const void *data, size_t data_size )
 {
 	size_t               size      = sizeof( struct kvmi_msg_hdr ) + data_size;
 	unsigned char        buf[1024] = {};
@@ -460,7 +650,7 @@ static int send_msg( int fd, unsigned short msg_id, unsigned msg_seq, const void
 	if ( data_size )
 		memcpy( r + 1, data, data_size );
 
-	err = do_write( fd, r, size );
+	err = do_write( dom, r, size );
 
 	if ( r != ( struct kvmi_msg_hdr * )buf )
 		free( r );
@@ -473,13 +663,13 @@ static bool is_event( unsigned msg_id )
 	return ( msg_id == KVMI_EVENT );
 }
 
-static int consume_bytes( int fd, unsigned size )
+static int consume_bytes( struct kvmi_dom *dom, unsigned size )
 {
 	while ( size ) {
 		unsigned char buf[1024];
 		unsigned      chunk = ( size < sizeof( buf ) ) ? size : sizeof( buf );
 
-		if ( do_read( fd, buf, chunk ) )
+		if ( do_read( dom, buf, chunk ) )
 			return -1;
 
 		size -= chunk;
@@ -487,23 +677,92 @@ static int consume_bytes( int fd, unsigned size )
 	return 0;
 }
 
-static int read_event( struct kvmi_dom *dom, unsigned seq, unsigned size )
+static int kvmi_read_event_data( void *d, void *buf, unsigned int size )
 {
-	if ( dom->event_cb ) {
-		errno = 0;
-		return dom->event_cb( dom, seq, size, dom->cb_ctx );
+	struct kvmi_dom *dom = d;
+
+	return do_read( dom, buf, size );
+}
+
+static int kvmi_push_event( struct kvmi_dom *dom, unsigned int seq, unsigned int size )
+{
+	bool                   queued = true;
+	struct kvmi_dom_event *new_event;
+
+	if ( size > FIELD_SIZEOF( struct kvmi_dom_event, event ) ) {
+		errno = EINVAL;
+		return -1;
 	}
 
-	return consume_bytes( dom->fd, size );
+	new_event = calloc( 1, sizeof( *new_event ) );
+	if ( !new_event )
+		return -1;
+
+	if ( kvmi_read_event_data( dom, &new_event->event, size ) ) {
+		int _errno = errno;
+
+		free( new_event );
+		errno = _errno;
+		return -1;
+	}
+
+	new_event->seq  = seq;
+	new_event->next = NULL;
+
+	pthread_mutex_lock( &dom->event_lock );
+	/* Don't queue events ad infinitum */
+	if ( dom->event_count < MAX_QUEUED_EVENTS ) {
+		if ( dom->event_last )
+			dom->event_last->next = new_event;
+		else
+			dom->events = new_event;
+		dom->event_last = new_event;
+		dom->event_count++;
+	} else
+		queued = false;
+	pthread_mutex_unlock( &dom->event_lock );
+
+	if ( !queued ) {
+		free( new_event );
+		errno = ENOMEM;
+		return -1;
+	}
+
+	return 0;
+}
+
+/* The caller is responsible for free()-ing the event */
+int kvmi_pop_event( void *d, struct kvmi_dom_event **event )
+{
+	struct kvmi_dom *dom = d;
+
+	pthread_mutex_lock( &dom->event_lock );
+	*event = dom->events;
+	if ( *event ) {
+		dom->events = (*event)->next;
+
+		if ( --dom->event_count == 0 )
+			dom->event_last = NULL;
+
+		(*event)->next = NULL;
+	}
+	pthread_mutex_unlock( &dom->event_lock );
+
+	if ( *event == NULL ) {
+		errno = EAGAIN;
+		return -1;
+	}
+
+	return 0;
 }
 
 static int recv_reply_header( struct kvmi_dom *dom, const struct kvmi_msg_hdr *req, unsigned *size )
 {
 	struct kvmi_msg_hdr h;
 
-	while ( 0 == do_read( dom->fd, &h, sizeof( h ) ) ) {
+	while ( !do_read( dom, &h, sizeof( h ) ) ) {
 		if ( is_event( h.id ) ) {
-			if ( read_event( dom, h.seq, h.size ) )
+			if ( kvmi_push_event( dom, h.seq, h.size ) )
 				break;
 		} else if ( h.id != req->id || h.seq != req->seq ) {
 			errno = ENOMSG;
@@ -545,7 +804,7 @@ static int convert_kvm_error_to_errno( int err )
 	}
 }
 
-static int recv_error_code( int fd, unsigned *msg_size )
+static int recv_error_code( struct kvmi_dom *dom, unsigned *msg_size )
 {
 	struct kvmi_error_code ec;
 
@@ -554,7 +813,7 @@ static int recv_error_code( int fd, unsigned *msg_size )
 		return -1;
 	}
 
-	if ( do_read( fd, &ec, sizeof( ec ) ) )
+	if ( do_read( dom, &ec, sizeof( ec ) ) )
 		return -1;
 
 	if ( ec.err ) {
@@ -573,7 +832,7 @@ static int recv_reply( struct kvmi_dom *dom, const struct kvmi_msg_hdr *req, voi
 	if ( recv_reply_header( dom, req, &size ) )
 		return -1;
 
-	if ( recv_error_code( dom->fd, &size ) )
+	if ( recv_error_code( dom, &size ) )
 		return -1;
 
 	if ( size > dest_size ) {
@@ -589,18 +848,25 @@ static int recv_reply( struct kvmi_dom *dom, const struct kvmi_msg_hdr *req, voi
 	if ( !dest_size )
 		return 0;
 
-	return do_read( dom->fd, dest, dest_size );
+	return do_read( dom, dest, dest_size );
 }
 
 static int request( struct kvmi_dom *dom, unsigned short msg_id, const void *src, size_t src_size, void *dest,
                     size_t dest_size )
 {
+	int                 err;
 	struct kvmi_msg_hdr req = { .id = msg_id, .seq = new_seq() };
 
-	if ( send_msg( dom->fd, msg_id, req.seq, src, src_size ) )
-		return -1;
+	pthread_mutex_lock( &dom->lock );
 
-	return recv_reply( dom, &req, dest, dest_size );
+	err = send_msg( dom, msg_id, req.seq, src, src_size );
+
+	if ( !err )
+		err = recv_reply( dom, &req, dest, dest_size );
+
+	pthread_mutex_unlock( &dom->lock );
+
+	return err;
 }
 
 int kvmi_control_events( void *dom, unsigned short vcpu, unsigned int events )
@@ -610,18 +876,31 @@ int kvmi_control_events( void *dom, unsigned short vcpu, unsigned int events )
 	return request( dom, KVMI_CONTROL_EVENTS, &req, sizeof( req ), NULL, 0 );
 }
 
-int kvmi_control_cr( void *dom, unsigned int cr, bool enable )
+int kvmi_control_cr( void *dom, unsigned short vcpu, unsigned int cr, bool enable )
 {
-	struct kvmi_control_cr req = { .vcpu = 0, .cr = cr, .enable = enable };
+	struct kvmi_control_cr req = { .vcpu = vcpu, .cr = cr, .enable = enable };
 
 	return request( dom, KVMI_CONTROL_CR, &req, sizeof( req ), NULL, 0 );
 }
 
-int kvmi_control_msr( void *dom, unsigned int msr, bool enable )
+int kvmi_control_msr( void *dom, unsigned short vcpu, unsigned int msr, bool enable )
 {
-	struct kvmi_control_msr req = { .vcpu = 0, .msr = msr, .enable = enable };
+	struct kvmi_control_msr req = { .vcpu = vcpu, .msr = msr, .enable = enable };
 
 	return request( dom, KVMI_CONTROL_MSR, &req, sizeof( req ), NULL, 0 );
+}
+
+int kvmi_pause_all_vcpus( void *dom, unsigned int *count )
+{
+	struct kvmi_pause_all_vcpus_reply rpl;
+	int                               err;
+
+	err = request( dom, KVMI_PAUSE_ALL_VCPUS, NULL, 0, &rpl, sizeof( rpl ) );
+
+	if ( !err )
+		*count = rpl.vcpu_count;
+
+	return err;
 }
 
 int kvmi_get_page_access( void *dom, unsigned short vcpu, unsigned long long int gpa, unsigned char *access )
@@ -681,7 +960,7 @@ int kvmi_set_page_access( void *dom, unsigned short vcpu, unsigned long long int
 	return err;
 }
 
-int kvmi_get_vcpu_count( void *dom, unsigned short *count )
+int kvmi_get_vcpu_count( void *dom, unsigned int *count )
 {
 	struct kvmi_get_guest_info       req = { .vcpu = 0 };
 	struct kvmi_get_guest_info_reply rpl;
@@ -734,13 +1013,13 @@ static int request_varlen_response( void *d, unsigned short msg_id, const void *
 	struct kvmi_msg_hdr req = { .id = msg_id, .seq = new_seq() };
 	struct kvmi_dom *   dom = d;
 
-	if ( send_msg( dom->fd, msg_id, req.seq, src, src_size ) )
+	if ( send_msg( dom, msg_id, req.seq, src, src_size ) )
 		return -1;
 
 	if ( recv_reply_header( dom, &req, rpl_size ) )
 		return -1;
 
-	if ( recv_error_code( dom->fd, rpl_size ) )
+	if ( recv_error_code( dom, rpl_size ) )
 		return -1;
 
 	return 0;
@@ -753,19 +1032,23 @@ int kvmi_get_xsave( void *d, unsigned short vcpu, void *buffer, size_t buf_size 
 	int                   err = -1;
 	struct kvmi_dom *     dom = d;
 
+	pthread_mutex_lock( &dom->lock );
+
 	if ( request_varlen_response( dom, KVMI_GET_XSAVE, &req, sizeof( req ), &received ) )
 		goto out;
 
-	if ( do_read( dom->fd, buffer, MIN( buf_size, received ) ) )
+	if ( do_read( dom, buffer, MIN( buf_size, received ) ) )
 		goto out;
 
 	if ( received > buf_size )
-		consume_bytes( dom->fd, received - buf_size );
+		consume_bytes( dom, received - buf_size );
 	else
-		memset( buffer + received, 0, buf_size - received );
+		memset( ( char * )buffer + received, 0, buf_size - received );
 
 	err = 0;
 out:
+
+	pthread_mutex_unlock( &dom->lock );
 
 	return err;
 }
@@ -819,19 +1102,29 @@ void *kvmi_map_physical_page( void *d, unsigned long long int gpa )
 	if ( addr != MAP_FAILED ) {
 		struct kvmi_get_map_token_reply req;
 		struct kvmi_mem_map             map_req;
+		int                             retries = 0;
 		int                             err;
 
-		err = request( dom, KVMI_GET_MAP_TOKEN, NULL, 0, &req, sizeof( req ) );
+		do {
+			err = request( dom, KVMI_GET_MAP_TOKEN, NULL, 0, &req, sizeof( req ) );
 
-		if ( !err ) {
-			/* fill IOCTL arg */
-			memcpy( &map_req.token, &req.token, sizeof( struct kvmi_map_mem_token ) );
-			map_req.gpa = gpa;
-			map_req.gva = ( __u64 )addr;
+			if ( !err ) {
+				/* fill IOCTL arg */
+				memcpy( &map_req.token, &req.token, sizeof( struct kvmi_map_mem_token ) );
+				map_req.gpa = gpa;
+				map_req.gva = ( __u64 )addr;
 
-			/* do map IOCTL request */
-			err = ioctl( dom->mem_fd, KVM_INTRO_MEM_MAP, &map_req );
-		}
+				/* do map IOCTL request */
+				err = ioctl( dom->mem_fd, KVM_INTRO_MEM_MAP, &map_req );
+			}
+
+			if ( err && ( errno == EAGAIN || errno == EBUSY ) ) {
+				retries++;
+				if ( retries < 3 )
+					sleep( 1 );
+			} else
+				break;
+		} while ( retries < 3 );
 
 		if ( err ) {
 			int _errno = errno;
@@ -844,11 +1137,11 @@ void *kvmi_map_physical_page( void *d, unsigned long long int gpa )
 	return addr;
 }
 
-int kvmi_unmap_physical_page( void *d, void *addr )
+int kvmi_unmap_physical_page( const void *d, void *addr )
 {
-	struct kvmi_dom *dom = d;
-	int              _errno;
-	int              err;
+	const struct kvmi_dom *dom = d;
+	int                    _errno;
+	int                    err;
 
 	/* do unmap IOCTL request */
 	err    = ioctl( dom->mem_fd, KVM_INTRO_MEM_UNMAP, addr );
@@ -882,8 +1175,8 @@ static void *alloc_get_registers_req( unsigned short vcpu, struct kvm_msrs *msrs
 	return req;
 }
 
-static int process_get_registers_reply( int fd, size_t received, struct kvm_regs *regs, struct kvm_sregs *sregs,
-                                        struct kvm_msrs *msrs, unsigned int *mode )
+static int process_get_registers_reply( struct kvmi_dom *dom, size_t received, struct kvm_regs *regs,
+                                        struct kvm_sregs *sregs, struct kvm_msrs *msrs, unsigned int *mode )
 {
 	struct kvmi_get_registers_reply rpl;
 
@@ -892,10 +1185,10 @@ static int process_get_registers_reply( int fd, size_t received, struct kvm_regs
 		return -1;
 	}
 
-	if ( do_read( fd, &rpl, sizeof( rpl ) ) )
+	if ( do_read( dom, &rpl, sizeof( rpl ) ) )
 		return -1;
 
-	if ( do_read( fd, &msrs->entries, sizeof( struct kvm_msr_entry ) * msrs->nmsrs ) )
+	if ( do_read( dom, &msrs->entries, sizeof( struct kvm_msr_entry ) * msrs->nmsrs ) )
 		return -1;
 
 	memcpy( regs, &rpl.regs, sizeof( *regs ) );
@@ -919,12 +1212,17 @@ int kvmi_get_registers( void *d, unsigned short vcpu, struct kvm_regs *regs, str
 	if ( !req )
 		return -1;
 
+	pthread_mutex_lock( &dom->lock );
+
 	err = request_varlen_response( dom, KVMI_GET_REGISTERS, req, req_size, &received );
 
 	if ( !err )
-		err = process_get_registers_reply( dom->fd, received, regs, sregs, msrs, mode );
+		err = process_get_registers_reply( dom, received, regs, sregs, msrs, mode );
+
+	pthread_mutex_unlock( &dom->lock );
 
 	free( req );
+
 	return err;
 }
 
@@ -935,34 +1233,19 @@ int kvmi_set_registers( void *dom, unsigned short vcpu, const struct kvm_regs *r
 	return request( dom, KVMI_SET_REGISTERS, &req, sizeof( req ), NULL, 0 );
 }
 
-int kvmi_read_event_header( void *d, unsigned int *id, unsigned int *size, unsigned int *seq )
-{
-	struct kvmi_dom *   dom = d;
-	struct kvmi_msg_hdr h;
-
-	if ( do_read( dom->fd, &h, sizeof( h ) ) )
-		return -1;
-
-	*id   = h.id;
-	*seq  = h.seq;
-	*size = h.size;
-
-	return 0;
-}
-
-int kvmi_read_event_data( void *d, void *buf, unsigned int size )
-{
-	struct kvmi_dom *dom = d;
-
-	return do_read( dom->fd, buf, size );
-}
-
 /* We must send the whole reply with one send/write() call */
 int kvmi_reply_event( void *d, unsigned int msg_seq, const void *data, unsigned int data_size )
 {
+	int              ret;
 	struct kvmi_dom *dom = d;
 
-	return send_msg( dom->fd, KVMI_EVENT_REPLY, msg_seq, data, data_size );
+	pthread_mutex_lock( &dom->lock );
+
+	ret = send_msg( dom, KVMI_EVENT_REPLY, msg_seq, data, data_size );
+
+	pthread_mutex_unlock( &dom->lock );
+
+	return ret;
 }
 
 int kvmi_get_version( void *dom, unsigned int *version )
@@ -977,25 +1260,103 @@ int kvmi_get_version( void *dom, unsigned int *version )
 	return err;
 }
 
-int kvmi_read_event( void *dom, void *buf, unsigned int max_size, unsigned int *seq )
+int kvmi_control_vm_events( void *dom, unsigned int events )
+{
+	struct kvmi_control_vm_events req = { .events = events };
+
+	return request( dom, KVMI_CONTROL_VM_EVENTS, &req, sizeof( req ), NULL, 0 );
+}
+
+static int kvmi_read_event_header( struct kvmi_dom *dom, unsigned int *id, unsigned int *size, unsigned int *seq )
+{
+	struct kvmi_msg_hdr h;
+
+	if ( do_read( dom, &h, sizeof( h ) ) )
+		return -1;
+
+	*id   = h.id;
+	*seq  = h.seq;
+	*size = h.size;
+
+	return 0;
+}
+
+static int kvmi_read_event( struct kvmi_dom *dom )
 {
 	unsigned int msgid;
 	unsigned int msgsize;
+	unsigned int msgseq;
 
-	if ( kvmi_read_event_header( dom, &msgid, &msgsize, seq ) )
+	if ( kvmi_read_event_header( dom, &msgid, &msgsize, &msgseq ) )
 		return -1;
 
-	if ( msgid != KVMI_EVENT || msgsize > max_size ) {
+	if ( !is_event( msgid ) ) {
 		errno = EINVAL;
 		return -1;
 	}
 
-	return kvmi_read_event_data( dom, buf, msgsize );
+	return kvmi_push_event( dom, msgseq, msgsize );
 }
 
-int kvmi_pause_vcpu( void *dom, unsigned short vcpu )
+static int wait_for_data( struct kvmi_dom *dom, int ms )
 {
-	struct kvmi_pause_vcpu req = { .vcpu = vcpu };
+	struct pollfd fds = { .fd = dom->fd, .events = POLLIN };
+	int           err;
 
-	return request( dom, KVMI_PAUSE_VCPU, &req, sizeof( req ), NULL, 0 );
+	do {
+		err = poll( &fds, 1, ms );
+	} while ( err < 0 && errno == EINTR );
+
+	if ( !err ) {
+		/*
+		 * The man page does not specify if poll() sets errno to
+		 * ETIMEDOUT before returning 0
+		 */
+		errno = ETIMEDOUT;
+		return -1;
+	}
+
+	if ( err < 0 )
+		return err;
+
+	if ( fds.revents & POLLHUP ) {
+		errno = EPIPE;
+		return err;
+	}
+
+	return 0;
+}
+
+int kvmi_wait_event( void *d, int ms )
+{
+	bool             empty;
+	int              err;
+	struct kvmi_dom *dom = d;
+
+	/* Don't go waiting for events if one is already queued */
+	pthread_mutex_lock( &dom->event_lock );
+	empty = dom->events == NULL;
+	pthread_mutex_unlock( &dom->event_lock );
+
+	if ( !empty )
+		return 0;
+
+	err = wait_for_data( dom, ms );
+
+	if ( !err ) {
+		pthread_mutex_lock( &dom->lock );
+		/* maybe the event was queued */
+		err = wait_for_data( dom, 0 );
+		if ( !err )
+			err = kvmi_read_event( dom );
+		pthread_mutex_unlock( &dom->lock );
+	}
+
+	return err;
+}
+
+void kvmi_set_log_cb( kvmi_log_cb cb, void *ctx )
+{
+	log_cb  = cb;
+	log_ctx = ctx;
 }

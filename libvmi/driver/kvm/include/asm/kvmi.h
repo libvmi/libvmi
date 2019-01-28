@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef _ASM_X86_KVMI_H
-#define _ASM_X86_KVMI_H
+#ifndef _UAPI_ASM_X86_KVMI_H
+#define _UAPI_ASM_X86_KVMI_H
 
 /*
  * KVMI x86 specific structures and definitions
@@ -10,38 +10,57 @@
 #include <asm/kvm.h>
 #include <linux/types.h>
 
-#define KVMI_EVENT_CR          (1 << 1)	/* control register was modified */
-#define KVMI_EVENT_MSR         (1 << 2)	/* model specific reg. was modified */
-#define KVMI_EVENT_XSETBV      (1 << 3)	/* ext. control register was modified */
-#define KVMI_EVENT_BREAKPOINT  (1 << 4)	/* breakpoint was reached */
-#define KVMI_EVENT_HYPERCALL   (1 << 5)	/* user hypercall */
-#define KVMI_EVENT_PAGE_FAULT  (1 << 6)	/* hyp. page fault was encountered */
-#define KVMI_EVENT_TRAP        (1 << 7)	/* trap was injected */
-#define KVMI_EVENT_DESCRIPTOR  (1 << 8)	/* descriptor table access */
-#define KVMI_EVENT_CREATE_VCPU (1 << 9)
-#define KVMI_EVENT_PAUSE_VCPU  (1 << 10)
-
+#define KVMI_EVENT_UNHOOK	0
+#define KVMI_EVENT_CR		1	/* control register was modified */
+#define KVMI_EVENT_MSR		2	/* model specific reg. was modified */
+#define KVMI_EVENT_XSETBV	3	/* ext. control register was modified */
+#define KVMI_EVENT_BREAKPOINT	4	/* breakpoint was reached */
+#define KVMI_EVENT_HYPERCALL	5	/* user hypercall */
+#define KVMI_EVENT_PF		6	/* hyp. page fault was encountered */
+#define KVMI_EVENT_TRAP		7	/* trap was injected */
+#define KVMI_EVENT_DESCRIPTOR	8	/* descriptor table access */
+#define KVMI_EVENT_CREATE_VCPU	9
+#define KVMI_EVENT_PAUSE_VCPU	10
 /* TODO: find a way to split the events between common and arch dependent */
+#define KVMI_NUM_EVENTS		11	/* increment with each added event */
 
-#define KVMI_EVENT_ACTION_CONTINUE (1 << 0)
-#define KVMI_EVENT_ACTION_RETRY    (1 << 1)
-#define KVMI_EVENT_ACTION_CRASH    (1 << 2)
+#define KVMI_EVENT_UNHOOK_FLAG		(1 << KVMI_EVENT_UNHOOK)
+#define KVMI_EVENT_CR_FLAG		(1 << KVMI_EVENT_CR)
+#define KVMI_EVENT_MSR_FLAG		(1 << KVMI_EVENT_MSR)
+#define KVMI_EVENT_XSETBV_FLAG		(1 << KVMI_EVENT_XSETBV)
+#define KVMI_EVENT_BREAKPOINT_FLAG	(1 << KVMI_EVENT_BREAKPOINT)
+#define KVMI_EVENT_HYPERCALL_FLAG	(1 << KVMI_EVENT_HYPERCALL)
+#define KVMI_EVENT_PF_FLAG		(1 << KVMI_EVENT_PF)
+#define KVMI_EVENT_TRAP_FLAG		(1 << KVMI_EVENT_TRAP)
+#define KVMI_EVENT_DESCRIPTOR_FLAG	(1 << KVMI_EVENT_DESCRIPTOR)
+#define KVMI_EVENT_CREATE_VCPU_FLAG	(1 << KVMI_EVENT_CREATE_VCPU)
+#define KVMI_EVENT_PAUSE_VCPU_FLAG	(1 << KVMI_EVENT_PAUSE_VCPU)
 
-#define KVMI_KNOWN_EVENTS (KVMI_EVENT_CR | \
-			   KVMI_EVENT_MSR | \
-			   KVMI_EVENT_XSETBV | \
-			   KVMI_EVENT_BREAKPOINT | \
-			   KVMI_EVENT_HYPERCALL | \
-			   KVMI_EVENT_PAGE_FAULT | \
-			   KVMI_EVENT_TRAP | \
-			   KVMI_EVENT_CREATE_VCPU | \
-			   KVMI_EVENT_PAUSE_VCPU | \
-			   KVMI_EVENT_DESCRIPTOR)
+#define KVMI_EVENT_ACTION_CONTINUE	0
+#define KVMI_EVENT_ACTION_RETRY		1
+#define KVMI_EVENT_ACTION_CRASH		2
 
-#define KVMI_ALLOWED_EVENT(event_id, event_mask)                       \
-		((!(event_id)) || (                                    \
-			(event_id)                                     \
-				& ((event_mask) & KVMI_KNOWN_EVENTS)))
+#define KVMI_KNOWN_VCPU_EVENTS ( \
+	KVMI_EVENT_CR_FLAG | \
+	KVMI_EVENT_MSR_FLAG | \
+	KVMI_EVENT_XSETBV_FLAG | \
+	KVMI_EVENT_BREAKPOINT_FLAG | \
+	KVMI_EVENT_HYPERCALL_FLAG | \
+	KVMI_EVENT_PF_FLAG | \
+	KVMI_EVENT_TRAP_FLAG | \
+	KVMI_EVENT_DESCRIPTOR_FLAG | \
+	KVMI_EVENT_PAUSE_VCPU_FLAG)
+
+#define KVMI_KNOWN_VM_EVENTS ( \
+	KVMI_EVENT_CREATE_VCPU_FLAG | \
+	KVMI_EVENT_UNHOOK_FLAG)
+
+#define KVMI_KNOWN_EVENTS (KVMI_KNOWN_VCPU_EVENTS | KVMI_KNOWN_VM_EVENTS)
+
+#define KVMI_ALLOWED_VM_EVENT(event_id, event_mask) \
+		((1 << (event_id)) & ((event_mask) & KVMI_KNOWN_VM_EVENTS))
+#define KVMI_ALLOWED_VCPU_EVENT(event_id, event_mask) \
+		((1 << (event_id)) & ((event_mask) & KVMI_KNOWN_VCPU_EVENTS))
 
 #define KVMI_PAGE_ACCESS_R (1 << 0)
 #define KVMI_PAGE_ACCESS_W (1 << 1)
@@ -65,7 +84,7 @@ struct kvmi_event_breakpoint {
 	__u64 gpa;
 };
 
-struct kvmi_event_page_fault {
+struct kvmi_event_pf {
 	__u64 gva;
 	__u64 gpa;
 	__u32 mode;
@@ -118,6 +137,7 @@ struct kvmi_event {
 		__u64 lstar;
 		__u64 cstar;
 		__u64 pat;
+		__u64 shadow_gs;
 	} msrs;
 };
 
@@ -129,9 +149,10 @@ struct kvmi_event_msr_reply {
 	__u64 new_val;
 };
 
-struct kvmi_event_page_fault_reply {
-	__u8 trap_access;
-	__u8 padding[3];
+struct kvmi_event_pf_reply {
+	__u8 singlestep;
+	__u8 rep_complete;
+	__u16 padding;
 	__u32 ctx_size;
 	__u8 ctx_data[256];
 };
@@ -210,4 +231,4 @@ struct kvmi_get_xsave_reply {
 	__u32 region[0];
 };
 
-#endif /* _ASM_X86_KVMI_H */
+#endif /* _UAPI_ASM_X86_KVMI_H */
