@@ -86,7 +86,7 @@ typedef struct {
      unsigned int extent_order, xen_pfn_t *extent_start);
 
     int (*xc_hvm_inject_trap)
-    (xc_interface *xch, domid_t dom, int vcpu, uint32_t vector,
+    (xc_interface *xch, uint32_t dom, int vcpu, uint32_t vector,
      uint32_t type, uint32_t error_code, uint32_t insn_len, uint64_t cr2);
 
     int (*xc_domain_getinfolist)
@@ -123,125 +123,128 @@ typedef struct {
 
     /* Xen 4.1 - Xen 4.5 */
     int (*xc_domain_maximum_gpfn)
-    (xc_interface *xch, domid_t domid);
+    (xc_interface *xch, uint32_t domid);
 
     /* Xen 4.6+ */
     int (*xc_domain_maximum_gpfn2)
-    (xc_interface *xch, domid_t domid, xen_pfn_t *gpfns);
+    (xc_interface *xch, uint32_t domid, xen_pfn_t *gpfns);
 
     /* Xen 4.1 - Xen 4.4 */
     void* (*xc_map_foreign_batch)
     (xc_interface *xch, uint32_t dom, int prot, xen_pfn_t *arr, int num);
 
     int (*xc_set_hvm_param)
-    (xc_interface *handle, domid_t dom, int param, unsigned long value);
+    (xc_interface *handle, uint32_t dom, int param, unsigned long value);
 
     int (*xc_get_hvm_param)
-    (xc_interface *handle, domid_t dom, int param, unsigned long *value);
+    (xc_interface *handle, uint32_t dom, int param, unsigned long *value);
 
     /* Xen 4.5+ */
     int (*xc_set_mem_access)
-    (xc_interface *xch, domid_t domain_id, xenmem_access_t access, uint64_t first_pfn, uint32_t nr);
+    (xc_interface *xch, uint32_t domain_id, xenmem_access_t access, uint64_t first_pfn, uint32_t nr);
 
     int (*xc_get_mem_access)
-    (xc_interface *xch, domid_t domain_id, uint64_t pfn, xenmem_access_t *access);
+    (xc_interface *xch, uint32_t domain_id, uint64_t pfn, xenmem_access_t *access);
 
     int (*xc_hvm_param_set)
-    (xc_interface *handle, domid_t dom, uint32_t param, uint64_t value);
+    (xc_interface *handle, uint32_t dom, uint32_t param, uint64_t value);
 
     int (*xc_hvm_param_get)
-    (xc_interface *handle, domid_t dom, uint32_t param, uint64_t *value);
+    (xc_interface *handle, uint32_t dom, uint32_t param, uint64_t *value);
 
     /* Xen 4.1 - Xen 4.4 */
     int (*xc_mem_access_enable)
-    (xc_interface *xch, domid_t domain_id, uint32_t *port);
+    (xc_interface *xch, uint32_t domain_id, uint32_t *port);
 
     /* Xen 4.5 */
     void* (*xc_mem_access_enable2)
-    (xc_interface *xch, domid_t domain_id, uint32_t *port);
+    (xc_interface *xch, uint32_t domain_id, uint32_t *port);
 
     /* Xen 4.1+ */
     int (*xc_mem_access_disable)
-    (xc_interface *xch, domid_t domain_id);
+    (xc_interface *xch, uint32_t domain_id);
 
     int (*xc_mem_access_resume)
-    (xc_interface *xch, domid_t domain_id);
+    (xc_interface *xch, uint32_t domain_id);
 
     /* Xen 4.6+ */
     void* (*xc_monitor_enable)
-    (xc_interface *xch, domid_t domain_id, uint32_t *port);
+    (xc_interface *xch, uint32_t domain_id, uint32_t *port);
 
     int (*xc_monitor_disable)
-    (xc_interface *xch, domid_t domain_id);
+    (xc_interface *xch, uint32_t domain_id);
 
     int (*xc_monitor_resume)
-    (xc_interface *xch, domid_t domain_id);
+    (xc_interface *xch, uint32_t domain_id);
 
     int (*xc_monitor_get_capabilities)
-    (xc_interface *xch, domid_t domain_id, uint32_t *capabilities);
+    (xc_interface *xch, uint32_t domain_id, uint32_t *capabilities);
 
     int (*xc_monitor_write_ctrlreg)
-    (xc_interface *xch, domid_t domain_id, uint16_t index, bool enable, bool sync, bool onchangeonly);
+    (xc_interface *xch, uint32_t domain_id, uint16_t index, bool enable, bool sync, bool onchangeonly);
 
     int (*xc_monitor_mov_to_msr)
-    (xc_interface *xch, domid_t domain_id, bool enable, bool extended_capture);
+    (xc_interface *xch, uint32_t domain_id, bool enable, bool extended_capture);
 
     int (*xc_monitor_singlestep)
-    (xc_interface *xch, domid_t domain_id, bool enable);
+    (xc_interface *xch, uint32_t domain_id, bool enable);
 
     int (*xc_monitor_software_breakpoint)
-    (xc_interface *xch, domid_t domain_id, bool enable);
+    (xc_interface *xch, uint32_t domain_id, bool enable);
 
     int (*xc_monitor_guest_request)
-    (xc_interface *xch, domid_t domain_id, bool enable, bool sync);
+    (xc_interface *xch, uint32_t domain_id, bool enable, bool sync);
 
     int (*xc_altp2m_get_domain_state)
-    (xc_interface *xch, domid_t domain_id, bool *state );
+    (xc_interface *xch, uint32_t domain_id, bool *state );
 
     int (*xc_altp2m_set_domain_state)
-    (xc_interface *xch, domid_t domain_id, bool state );
+    (xc_interface *xch, uint32_t domain_id, bool state );
 
     int (*xc_altp2m_set_vcpu_enable_notify)
-    (xc_interface *xch, domid_t domain_id, uint32_t vcpuid, xen_pfn_t gfn );
+    (xc_interface *xch, uint32_t domain_id, uint32_t vcpuid, xen_pfn_t gfn );
 
     int (*xc_altp2m_create_view)
-    (xc_interface *xch, domid_t domain_id, xenmem_access_t default_access, uint16_t *view_id );
+    (xc_interface *xch, uint32_t domain_id, xenmem_access_t default_access, uint16_t *view_id );
 
     int (*xc_altp2m_destroy_view)
-    (xc_interface *xch, domid_t domain_id, uint16_t view_id );
+    (xc_interface *xch, uint32_t domain_id, uint16_t view_id );
 
     int (*xc_altp2m_switch_to_view)
-    (xc_interface *xch, domid_t domain_id, uint16_t view_id );
+    (xc_interface *xch, uint32_t domain_id, uint16_t view_id );
 
     int (*xc_altp2m_set_mem_access)
-    (xc_interface *xch, domid_t domain_id, uint16_t view_id, xen_pfn_t gfn, xenmem_access_t access);
+    (xc_interface *xch, uint32_t domain_id, uint16_t view_id, xen_pfn_t gfn, xenmem_access_t access);
 
     int (*xc_altp2m_change_gfn)
-    (xc_interface *xch, domid_t domain_id, uint16_t view_id, xen_pfn_t old_gfn, xen_pfn_t new_gfn );
+    (xc_interface *xch, uint32_t domain_id, uint16_t view_id, xen_pfn_t old_gfn, xen_pfn_t new_gfn );
 
     /* Xen 4.8+ */
     int (*xc_monitor_debug_exceptions)
-    (xc_interface *xch, domid_t domain_id, bool enable, bool sync);
+    (xc_interface *xch, uint32_t domain_id, bool enable, bool sync);
 
     int (*xc_monitor_cpuid)
-    (xc_interface *xch, domid_t domain_id, bool enable);
+    (xc_interface *xch, uint32_t domain_id, bool enable);
 
     int (*xc_monitor_mov_to_msr2)
-    (xc_interface *xch, domid_t domain_id, uint32_t msr, bool enable);
+    (xc_interface *xch, uint32_t domain_id, uint32_t msr, bool enable);
 
     int (*xc_domain_cacheflush)
     (xc_interface *xch, uint32_t domid, xen_pfn_t start_pfn, xen_pfn_t nr_pfns);
 
     int (*xc_monitor_privileged_call)
-    (xc_interface *xch, domid_t domain_id, bool enable);
+    (xc_interface *xch, uint32_t domain_id, bool enable);
 
     /* Xen 4.10+ */
     int (*xc_monitor_descriptor_access)
-    (xc_interface *xch, domid_t domain_id, bool enable);
+    (xc_interface *xch, uint32_t domain_id, bool enable);
+
+    int (*xc_monitor_write_ctrlreg2)
+    (xc_interface *xch, uint32_t domain_id, uint16_t index, bool enable, bool sync, uint64_t bitmask, bool onchangeonly);
 
     /* Xen 4.11+ */
     int (*xc_monitor_emul_unimplemented)
-    (xc_interface *xch, domid_t domain_id, bool enable);
+    (xc_interface *xch, uint32_t domain_id, bool enable);
 
 } libxc_wrapper_t;
 

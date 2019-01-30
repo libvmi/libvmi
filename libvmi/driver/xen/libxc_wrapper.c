@@ -89,7 +89,7 @@ static status_t sanity_check(xen_instance_t *xen)
                 break;
         /* Fall-through */
         case 10:
-            if ( !w->xc_monitor_descriptor_access )
+            if ( !w->xc_monitor_descriptor_access || !w->xc_monitor_write_ctrlreg2 )
                 break;
         /* Fall-through */
         case 9:
@@ -195,6 +195,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_monitor_resume = dlsym(wrapper->handle, "xc_monitor_resume");
     wrapper->xc_monitor_get_capabilities = dlsym(wrapper->handle, "xc_monitor_get_capabilities");
     wrapper->xc_monitor_write_ctrlreg = dlsym(wrapper->handle, "xc_monitor_write_ctrlreg");
+    wrapper->xc_monitor_write_ctrlreg2 = dlsym(wrapper->handle, "xc_monitor_write_ctrlreg");
     wrapper->xc_monitor_mov_to_msr = dlsym(wrapper->handle, "xc_monitor_mov_to_msr");
     wrapper->xc_monitor_mov_to_msr2 = dlsym(wrapper->handle, "xc_monitor_mov_to_msr");
     wrapper->xc_monitor_singlestep = dlsym(wrapper->handle, "xc_monitor_singlestep");

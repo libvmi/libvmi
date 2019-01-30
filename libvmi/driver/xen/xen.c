@@ -477,14 +477,6 @@ xen_init(
         g_free(xen);
         return VMI_FAILURE;
     }
-
-    xen->xshandle = xen->libxsw.xs_open(0);
-    if (!xen->xshandle) {
-        errprint("xs_domain_open failed\n");
-        xen->libxcw.xc_interface_close(xen->xchandle);
-        g_free(xen);
-        return VMI_FAILURE;
-    }
 #endif
 
     vmi->driver.driver_data = (void *)xen;

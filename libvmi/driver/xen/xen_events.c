@@ -73,7 +73,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
     bool enable;
     int rc;
     xc_interface * xch = xen_get_xchandle(vmi);
-    domid_t dom = xen_get_domainid(vmi);
+    uint32_t dom = xen_get_domainid(vmi);
     xen_events_t * xe = xen_get_events(vmi);
     xen_instance_t * xen = xen_get_instance(vmi);
     bool sync = !event->async;
@@ -138,8 +138,13 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->monitor_cr0_on )
                 goto done;
 
-            rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0,
-                    enable, sync, event->onchange);
+            if ( xen->minor_version < 10 )
+                rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0,
+                        enable, sync, event->onchange);
+            else
+                rc = xen->libxcw.xc_monitor_write_ctrlreg2(xch, dom, VM_EVENT_X86_CR0,
+                        enable, sync, 0, event->onchange);
+
             if ( rc )
                 goto done;
 
@@ -149,8 +154,13 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->monitor_cr3_on )
                 goto done;
 
-            rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3,
-                    enable, sync, event->onchange);
+            if ( xen->minor_version < 10 )
+                rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3,
+                        enable, sync, event->onchange);
+            else
+                rc = xen->libxcw.xc_monitor_write_ctrlreg2(xch, dom, VM_EVENT_X86_CR3,
+                        enable, sync, 0, event->onchange);
+
             if ( rc )
                 goto done;
 
@@ -160,8 +170,13 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->monitor_cr4_on )
                 goto done;
 
-            rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4,
-                    enable, sync, event->onchange);
+            if ( xen->minor_version < 10 )
+                rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4,
+                        enable, sync, event->onchange);
+            else
+                rc = xen->libxcw.xc_monitor_write_ctrlreg2(xch, dom, VM_EVENT_X86_CR4,
+                        enable, sync, 0, event->onchange);
+
             if ( rc )
                 goto done;
 
@@ -171,8 +186,13 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->monitor_xcr0_on )
                 goto done;
 
-            rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0,
-                    enable, sync, event->onchange);
+            if ( xen->minor_version < 10 )
+                rc = xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0,
+                        enable, sync, event->onchange);
+            else
+                rc = xen->libxcw.xc_monitor_write_ctrlreg2(xch, dom, VM_EVENT_X86_XCR0,
+                        enable, sync, 0, event->onchange);
+
             if ( rc )
                 goto done;
 
@@ -182,16 +202,28 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
             if ( enable == xe->monitor_msr_on )
                 goto done;
 
-            size_t i;
-            for (i=0; i<sizeof(msr_all)/sizeof(reg_t); i++) {
-                dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" to %i\n", msr_index[msr_all[i]], enable);
-                if ( xen->libxcw.xc_monitor_mov_to_msr2(xch, dom, msr_index[msr_all[i]], enable) )
-                    dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" FAILED\n", msr_index[msr_all[i]]);
+            if ( xen->minor_version < 8 ) {
+                if ( xen->libxcw.xc_monitor_mov_to_msr(xch, dom, enable, 1) ) {
+                    dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" FAILED\n", event->msr);
+                    goto done;
+                }
+            } else {
+                size_t i;
+                for (i=0; i<sizeof(msr_all)/sizeof(reg_t); i++) {
+                    dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" to %i\n", msr_index[msr_all[i]], enable);
+                    if ( xen->libxcw.xc_monitor_mov_to_msr2(xch, dom, msr_index[msr_all[i]], enable) )
+                        dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" FAILED\n", msr_index[msr_all[i]]);
+                }
             }
 
             xe->monitor_msr_on = enable;
             break;
         case MSR_ANY:
+            if ( xen->minor_version < 8 ) {
+                dbprint(VMI_DEBUG_XEN, "--Setting monitor using MSR_ANY is not supported on Xen prior to 4.8!\n");
+                goto done;
+            }
+
             if ( !event->msr )
                 goto done;
 
@@ -2106,9 +2138,13 @@ err:
 void xen_events_destroy(vmi_instance_t vmi)
 {
     int rc, resume = 0;
+    xen_events_t * xe = xen_get_events(vmi);
+
+    if ( !xe )
+        return;
+
     xc_interface * xch = xen_get_xchandle(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
-    xen_events_t * xe = xen_get_events(vmi);
     domid_t dom = xen_get_domainid(vmi);
 
 #ifdef ENABLE_SAFETY_CHECKS
@@ -2118,10 +2154,6 @@ void xen_events_destroy(vmi_instance_t vmi)
     }
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
-        return;
-    }
-    if ( !xe ) {
-        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
         return;
     }
     if ( dom == (domid_t)VMI_INVALID_DOMID ) {
@@ -2141,14 +2173,27 @@ void xen_events_destroy(vmi_instance_t vmi)
     (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
     (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xen->max_gpfn);
 #if defined(I386) || defined(X86_64)
-    if ( xe->monitor_cr0_on )
-        (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR0, false, false, false);
-    if ( xe->monitor_cr3_on )
-        (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR3, false, false, false);
-    if ( xe->monitor_cr4_on )
-        (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_CR4, false, false, false);
-    if ( xe->monitor_xcr0_on )
-        (void)xen->libxcw.xc_monitor_write_ctrlreg(xch, dom, VM_EVENT_X86_XCR0, false, false, false);
+    reg_event_t regevent = { .in_access = VMI_REGACCESS_N } ;
+    if ( xe->monitor_cr0_on ) {
+        regevent.reg = CR0;
+        xen_set_reg_access(vmi, &regevent);
+    }
+    if ( xe->monitor_cr3_on ) {
+        regevent.reg = CR3;
+        xen_set_reg_access(vmi, &regevent);
+    }
+    if ( xe->monitor_cr4_on ) {
+        regevent.reg = CR4;
+        xen_set_reg_access(vmi, &regevent);
+    }
+    if ( xe->monitor_xcr0_on ) {
+        regevent.reg = XCR0;
+        xen_set_reg_access(vmi, &regevent);
+    }
+    if ( xe->monitor_msr_on ) {
+        regevent.reg = MSR_ALL;
+        xen_set_reg_access(vmi, &regevent);
+    }
     if ( xe->monitor_intr_on )
         (void)xen->libxcw.xc_monitor_software_breakpoint(xch, dom, false);
     if ( xe->monitor_singlestep_on )
@@ -2161,10 +2206,6 @@ void xen_events_destroy(vmi_instance_t vmi)
         (void)driver_set_guest_requested_event(vmi, 0);
     if ( vmi->failed_emulation_event )
         (void)driver_set_failed_emulation_event(vmi, 0);
-    if ( xe->monitor_msr_on ) {
-        reg_event_t event = { .reg = MSR_ALL, .in_access = VMI_REGACCESS_N };
-        (void)driver_set_reg_access(vmi, &event);
-    }
 #elif defined(ARM32) || defined(ARM64)
     if ( vmi->privcall_event )
         (void)xen->libxcw.xc_monitor_privileged_call(xch, dom, false);
