@@ -49,6 +49,9 @@ status_t xen_get_name_from_domainid(
     vmi_instance_t vmi,
     uint64_t domainid,
     char **name);
+uint64_t xen_get_domainid_from_uuid(
+    vmi_instance_t vmi,
+    const char *uuid);
 uint64_t xen_get_domainid(
     vmi_instance_t vmi);
 void xen_set_domainid(
@@ -122,6 +125,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.destroy_ptr = &xen_destroy;
     driver.get_id_from_name_ptr = &xen_get_domainid_from_name;
     driver.get_name_from_id_ptr = &xen_get_name_from_domainid;
+    driver.get_id_from_uuid_ptr = &xen_get_domainid_from_uuid;
     driver.get_id_ptr = &xen_get_domainid;
     driver.set_id_ptr = &xen_set_domainid;
     driver.check_id_ptr = &xen_check_domainid;

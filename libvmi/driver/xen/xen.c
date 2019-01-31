@@ -280,6 +280,72 @@ _bail:
 }
 #endif
 
+#ifndef HAVE_LIBXENSTORE
+uint64_t xen_get_domainid_from_uuid(
+    vmi_instance_t UNUSED(vmi),
+    const char* UNUSED(uuid))
+{
+    return VMI_FAILURE;
+}
+#else
+uint64_t xen_get_domainid_from_uuid(
+    vmi_instance_t vmi,
+    const char* uuid)
+{
+    if (uuid == NULL) {
+        return VMI_INVALID_DOMID;
+    }
+
+    xen_instance_t *xen = xen_get_instance(vmi);
+    char **domains = NULL;
+    unsigned int size = 0, i = 0;
+    xs_transaction_t xth = XBT_NULL;
+    uint64_t domainid = VMI_INVALID_DOMID;
+
+    struct xs_handle *xsh = xen->libxsw.xs_open(0);
+
+    if (!xsh)
+        goto _bail;
+
+    domains = xen->libxsw.xs_directory(xsh, xth, "/local/domain", &size);
+    for (i = 0; i < size; ++i) {
+        /* read in ID */
+        char *idStr = domains[i];
+        char *tmp = g_strconcat("/local/domain/", idStr, "/vm", NULL);
+        char *path = xen->libxsw.xs_read(xsh, xth, tmp, NULL);
+
+        g_free(tmp);
+        if (path && path[0] != '\0') {
+            tmp = g_strconcat(path, "/uuid", NULL);
+
+            char *uuidCandidate = xen->libxsw.xs_read(xsh, xth, tmp, NULL);
+
+            /* if uuid matches, then return number */
+            if (uuidCandidate != NULL &&
+                    strncmp(uuid, uuidCandidate, 100) == 0) {
+                domainid = strtoull(idStr, NULL, 0);
+                free(uuidCandidate);
+                g_free(path);
+                g_free(tmp);
+                break;
+            }
+            /* free memory as we go */
+            g_free(path);
+            g_free(tmp);
+            if (uuidCandidate)
+                free(uuidCandidate);
+        }
+    }
+
+_bail:
+    if (domains)
+        free(domains);
+    if (xsh)
+        xen->libxsw.xs_close(xsh);
+    return domainid;
+}
+#endif
+
 uint64_t
 xen_get_domainid(
     vmi_instance_t vmi)

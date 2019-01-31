@@ -79,6 +79,21 @@ driver_get_name_from_id(
 }
 
 static inline uint64_t
+driver_get_id_from_uuid(
+    vmi_instance_t vmi,
+    const char *uuid)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.get_id_from_uuid_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_get_id_from_uuid function not implemented.\n");
+        return 0;
+    }
+#endif
+
+    return vmi->driver.get_id_from_uuid_ptr(vmi, uuid);
+}
+
+static inline uint64_t
 driver_get_id(
     vmi_instance_t vmi)
 {

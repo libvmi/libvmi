@@ -48,6 +48,9 @@ typedef struct driver_interface {
         vmi_instance_t,
         uint64_t,
         char **);
+    uint64_t (*get_id_from_uuid_ptr) (
+        vmi_instance_t vmi,
+        const char* uuid);
     uint64_t (*get_id_ptr) (
         vmi_instance_t);
     void (*set_id_ptr) (
