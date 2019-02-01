@@ -15,9 +15,12 @@ LDADD = -lvmi -lm $(LIBS) $(GLIB_LIBS)
 
 bin_PROGRAMS = vmi-process-list \
                vmi-module-list \
-               vmi-win-guid \
-               vmi-dump-memory \
-               vmi-win-offsets
+               vmi-dump-memory
+
+if WINDOWS
+bin_PROGRAMS += vmi-win-guid \
+                vmi-win-offsets
+endif
 
 noinst_PROGRAMS = map-symbol \
                   map-addr \
