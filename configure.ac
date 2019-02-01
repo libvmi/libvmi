@@ -356,6 +356,10 @@ AC_CONFIG_FILES(Makefile \
 examples_space='     '
 [if test "$enable_examples" = "yes"]
 [then]
+    AC_CHECK_LIB(json-c, json_object_get_int64, [],
+                     [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
+    AC_CHECK_HEADER(json-c/json.h, [],
+                     [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
     AC_CONFIG_FILES(examples/Makefile)
     examples_space='    '
     examples_dir='examples/'
