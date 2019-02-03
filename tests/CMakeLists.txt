@@ -56,3 +56,16 @@ target_link_libraries(check_libvmi test_write)
 # tests
 add_test(NAME test_libvmi
     COMMAND check_libvmi)
+
+# add "check" target, to keep autotools compatibility
+# Note: "check" is already used by CMake as a Utility target,
+# we cannot use it
+add_custom_target(
+    check_integration
+    COMMAND make test
+    COMMAND vmi-process-list $ENV{LIBVMI_CHECK_TESTVM}
+    COMMAND vmi-module-list $ENV{LIBVMI_CHECK_TESTVM}
+    DEPENDS check_libvmi vmi-process-list vmi-module-list
+    VERBATIM
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
