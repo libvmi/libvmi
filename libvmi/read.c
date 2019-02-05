@@ -405,6 +405,25 @@ vmi_read_unicode_str(
     return vmi->os_interface->os_read_unicode_struct(vmi, ctx);
 }
 
+unicode_string_t*
+vmi_read_unicode_str_pm(
+    vmi_instance_t vmi,
+    const access_context_t *ctx,
+    page_mode_t mode )
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
+                __FUNCTION__);
+        return NULL;
+    }
+    if (!vmi->os_interface || !vmi->os_interface->os_read_unicode_struct_pm)
+        return NULL;
+#endif
+
+    return vmi->os_interface->os_read_unicode_struct_pm(vmi, ctx, mode);
+}
+
 ///////////////////////////////////////////////////////////
 // Easy access to physical memory
 status_t

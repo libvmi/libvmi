@@ -86,4 +86,6 @@ status_t windows_kdbg_lookup(vmi_instance_t vmi, const char *symbol, addr_t *add
 
 unicode_string_t *windows_read_unicode_struct(vmi_instance_t vmi, const access_context_t *ctx);
 
+unicode_string_t *windows_read_unicode_struct_pm( vmi_instance_t vmi, const access_context_t *ctx, page_mode_t page_mode );
+
 #endif /* OS_WINDOWS_H_ */

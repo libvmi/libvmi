@@ -1066,6 +1066,7 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
     os_interface->os_v2sym = windows_rva_to_export;
     os_interface->os_v2ksym = NULL;
     os_interface->os_read_unicode_struct = windows_read_unicode_struct;
+    os_interface->os_read_unicode_struct_pm = windows_read_unicode_struct_pm;
     os_interface->os_teardown = windows_teardown;
 
     vmi->os_interface = os_interface;
