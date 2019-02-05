@@ -47,8 +47,8 @@ set_target_properties(vmi_shared PROPERTIES OUTPUT_NAME "vmi")
 # set soname
 set_target_properties(vmi_shared PROPERTIES
     VERSION
-    ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
+    0.${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+    SOVERSION 0
 )
 if (ENABLE_STATIC)
     # create libvmi.a
