@@ -45,7 +45,6 @@ endif ()
 install(TARGETS
     vmi-process-list
     vmi-module-list
-    vmi-win-guid
     vmi-dump-memory
     DESTINATION bin)
 
