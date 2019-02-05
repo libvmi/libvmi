@@ -1099,6 +1099,8 @@ unicode_string_t *vmi_read_unicode_str(
 
 /**
  * Reads a Unicode string from the given address using the specified page mode.
+ * This is needed for introspecting Windows-on-Windows (WoW) processes that
+ * are 32-bit code running on 64-bit OS.
  * If the guest is running Windows, a UNICODE_STRING struct is read.
  *  Linux is not yet supported. The returned value must be freed by the caller.
  *
