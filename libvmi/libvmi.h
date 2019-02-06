@@ -53,6 +53,8 @@ extern "C" {
 
 #define VMI_INIT_EVENTS     (1u << 2) /**< initialize events */
 
+#define VMI_INIT_DOMAINUUID (1u << 3) /**< initialize using domain uuid */
+
 typedef enum vmi_mode {
 
     VMI_XEN, /**< libvmi is monitoring a Xen VM */

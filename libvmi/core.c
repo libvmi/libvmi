@@ -295,19 +295,24 @@ set_id_and_name(
 {
     const char *name = NULL;
     uint64_t id = 0;
+    const char *uuid = 0;
+    unsigned int init_flags_count = 0;
 
-    if ( vmi->init_flags & VMI_INIT_DOMAINNAME )
+    if ( vmi->init_flags & VMI_INIT_DOMAINNAME ) {
         name = (const char*) domain;
-    if ( vmi->init_flags & VMI_INIT_DOMAINID )
+        init_flags_count++;
+    }
+    if ( vmi->init_flags & VMI_INIT_DOMAINID ) {
         id = *(uint64_t*) domain;
-
-    if ( name && id ) {
-        errprint("Specifying both name and id is not valid!\n");
-        return VMI_FAILURE;
+        init_flags_count++;
+    }
+    if ( vmi->init_flags & VMI_INIT_DOMAINUUID ) {
+        uuid = (const char*) domain;
+        init_flags_count++;
     }
 
-    if ( !name && !id ) {
-        errprint("Specifying either name or id is required!\n");
+    if ( init_flags_count != 1 ) {
+        errprint("Specifying none or more than one init params is not valid!\n");
         return VMI_FAILURE;
     }
 
@@ -336,6 +341,25 @@ set_id_and_name(
 
         errprint("Failed to get domain id from name.\n");
         return VMI_FAILURE;
+    }
+
+    /* resolve and set id and name from uuid */
+    if (uuid) {
+        if (VMI_INVALID_DOMID != (id = driver_get_id_from_uuid(vmi, uuid))) {
+            dbprint(VMI_DEBUG_CORE, "--got id from uuid (%s --> %"PRIu64")\n", uuid, id);
+            driver_set_id(vmi, id);
+
+            char *tmp_name = NULL;
+            if (VMI_SUCCESS == driver_get_name_from_id(vmi, id, &tmp_name) && tmp_name) {
+                dbprint(VMI_DEBUG_CORE, "--got name from id (%"PRIu64" --> %s)\n", id, tmp_name);
+                vmi->image_type = strndup(tmp_name, 100);
+                if ( vmi->image_type ) {
+                    driver_set_name(vmi, tmp_name);
+                    free(tmp_name);
+                    goto done;
+                }
+            }
+        }
     }
 
     /* resolve and set name from id */
