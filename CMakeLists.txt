@@ -6,6 +6,10 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 #                           GENERAL CONFIGURATION
 #-----------------------------------------------------------------------------
 project(LibVMI VERSION 0.13.0 LANGUAGES C ASM)
+set(VERSION "0.13.0")
+set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
+set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "Installation directory for headers")
+set(INSTALL_MAN_DIR "${CMAKE_INSTALL_PREFIX}/share/man" CACHE PATH "Installation directory for manual pages")
 #-----------------------------------------------------------------------------
 #                              DEPENDENCIES
 #-----------------------------------------------------------------------------
@@ -14,8 +18,8 @@ pkg_search_module(GLIB REQUIRED glib-2.0)
 # cleanup GLIB_LDFLAGS (remove -l prefix)
 string(REGEX REPLACE "-l" "" GLIB_LDFLAGS ${GLIB_LDFLAGS})
 
-find_package(FLEX REQUIRED)
-find_package(BISON REQUIRED)
+find_package(FLEX)
+find_package(BISON)
 find_package(LibvmiRequest)
 find_package(Xen)
 find_package(Xenstore)
@@ -61,6 +65,9 @@ set(MAX_PAGE_CACHE_SIZE "512")
 #-----------------------------------------------------------------------------
 #                               SOURCES
 #-----------------------------------------------------------------------------
+configure_file(libvmi.pc.in libvmi.pc)
+install(FILES libvmi.pc DESTINATION "${INSTALL_LIB_DIR}/pkgconfig")
+
 configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
 # include <libvmi/libvmi.h> "config.h", "private.h" and <glib.h>
 include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} libvmi ${GLIB_INCLUDE_DIRS})
