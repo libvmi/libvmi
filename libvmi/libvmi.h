@@ -806,7 +806,7 @@ status_t vmi_destroy(
  * @param[in] vmi LibVMI instance
  * @return The architecture of the library
  */
-vmi_arch_t vmi_get_library_arch();
+vmi_arch_t vmi_get_library_arch(void);
 
 /**
  * Get full path of associated rekall profile

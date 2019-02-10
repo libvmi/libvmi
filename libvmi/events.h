@@ -617,7 +617,7 @@ struct vmi_event {
  *
  * @return max supported events version
  */
-uint32_t vmi_events_version();
+uint32_t vmi_events_version(void);
 
 /**
  * Register to handle the event specified by the vmi_event object.
