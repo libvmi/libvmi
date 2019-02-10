@@ -52,7 +52,7 @@
 
 #define QMP_CMD_LENGTH 256
 
-#ifdef HAVE_LIBVMI_REQUEST
+#if HAVE_LIBVMI_REQUEST == 1
 # include <qemu/libvmi_request.h>
 #else
 
@@ -355,7 +355,7 @@ exec_memory_access_success(
  * note:
  * "kvm_patch" here means the feature in pmemaccess patch (kvm-physmem-access_x.x.x.patch);
  */
-inline status_t
+static status_t
 test_using_kvm_patch(
     kvm_instance_t *kvm)
 {
@@ -670,7 +670,7 @@ kvm_init_vmi(
     }
     vmi->num_vcpus = info.nrVirtCpu;
 
-#ifndef HAVE_LIBVMI_REQUEST
+#if HAVE_LIBVMI_REQUEST == 0
     struct json_object *qemu_version_obj = exec_info_version(kvm);
     dbprint(VMI_DEBUG_KVM, "--Checking QEMU version string...\n");
     // qemu_version JSON string :

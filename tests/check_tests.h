@@ -25,6 +25,8 @@
 #ifndef CHECK_TESTS_H
 #define CHECK_TESTS_H
 
+#include <check.h>
+
 /* vm name access */
 const char *get_testvm();
 

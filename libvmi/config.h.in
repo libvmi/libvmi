@@ -1,0 +1,105 @@
+/* Define for the ARM32 architecture. */
+#cmakedefine ARM32
+
+/* Define for the ARM64 architecture. */
+#cmakedefine ARM64
+
+/* Define for the i386 architecture. */
+#cmakedefine I386
+
+/* Define for the AMD x86-64 architecture. */
+#cmakedefine X86_64
+
+/* Enable or disable the address cache (v2p, pid, etc) */
+#cmakedefine01 ENABLE_ADDRESS_CACHE
+
+/* Enable libvmi.conf */
+#cmakedefine01 ENABLE_CONFIGFILE
+
+/* Define to 1 to enable file support. */
+#cmakedefine01 ENABLE_FILE
+
+/* Define to 1 to FreeBSD support. */
+#cmakedefine01 ENABLE_FREEBSD
+
+/* Define to 1 to enable KVM support. */
+#cmakedefine01 ENABLE_KVM
+
+/* Define to 1 to Linux support. */
+#cmakedefine01 ENABLE_LINUX
+
+/* Enable or disable the page cache */
+#cmakedefine01 ENABLE_PAGE_CACHE
+
+/* Enable API safety checks */
+#cmakedefine01 ENABLE_SAFETY_CHECKS
+
+/* #undef ENABLE_SHM_SNAPSHOT */
+#cmakedefine01 ENABLE_SHM_SNAPSHOT
+
+/* Define to 1 to build VMIFS. */
+#cmakedefine01 ENABLE_VMIFS
+
+/* Define to 1 to Windows support. */
+#cmakedefine01 ENABLE_WINDOWS
+
+/* Define to 1 to enable Xen support. */
+#cmakedefine01 ENABLE_XEN
+
+/* Define to 1 if you have <qemu/libvmi_request.h>. */
+#cmakedefine01 HAVE_LIBVMI_REQUEST
+
+/* Define to 1 to enable Xenstore support. */
+#cmakedefine01 ENABLE_XENSTORE
+
+/* Define to 1 if you have the <xenctrl.h> header file. */
+#cmakedefine01 HAVE_XENCTRL_H
+
+/* Define to 1 if you have the <xen/io/ring.h> header file. */
+#cmakedefine01 HAVE_XEN_IO_RING_H
+
+/* Define to 1 if we have Xenstore support. */
+#cmakedefine01 HAVE_LIBXENSTORE
+
+/* Define to 1 if you have the <xenstore.h> header file. */
+#cmakedefine01 HAVE_XENSTORE_H
+
+/* Define to 1 if you have the <xs.h> header file. */
+#cmakedefine01 HAVE_XS_H
+
+/* xen headers define hvmmem_access_t */
+#cmakedefine01 HAVE_HVMMEM_ACCESS_T
+
+/* xen headers define xenmem_access_t */
+#cmakedefine01 HAVE_XENMEM_ACCESS_T
+
+/* Max number of pages held in page cache */
+#cmakedefine MAX_PAGE_CACHE_SIZE ${MAX_PAGE_CACHE_SIZE}
+
+/* Name of package */
+#define PACKAGE "${PROJECT_NAME}"
+
+/* Define to the address where bug reports for this package should be sent. */
+#define PACKAGE_BUGREPORT ""
+
+/* Define to the full name of this package. */
+#define PACKAGE_NAME "${PROJECT_NAME}"
+
+/* Define to the full name and version of this package. */
+#define PACKAGE_STRING "${PROJECT_NAME} ${PROJECT_VERSION}"
+
+/* Define to the one symbol short name of this package. */
+#define PACKAGE_TARNAME "${PROJECT_NAME}"
+
+/* Define to the home page for this package. */
+#define PACKAGE_URL ""
+
+/* Define to the version of this package. */
+#define PACKAGE_VERSION "${PROJECT_VERSION}"
+
+/* Defined to 1 when working JSON-C library was found to parse Rekall
+   profiles. */
+#cmakedefine01 REKALL_PROFILES
+
+/* Version number of package */
+#define VERSION "${PROJECT_VERSION}"

@@ -20,10 +20,6 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <check.h>
-#include "../libvmi/libvmi.h"
-#include "../libvmi/libvmi_extra.h"
-#include "check_tests.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +28,11 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <glib.h>
+
+#include <libvmi/libvmi.h>
+#include <libvmi/libvmi_extra.h>
+
+#include "check_tests.h"
 
 /* In this test we force Windows to fully initialize using the KDBG scan
  * which uses get_va_pages internally. */

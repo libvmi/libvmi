@@ -20,11 +20,6 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <check.h>
-#include "../libvmi/libvmi.h"
-#include "../libvmi/peparse.h"
-#include "check_tests.h"
-
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -32,7 +27,11 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include <libvmi/libvmi.h>
+#include "../libvmi/peparse.h"
+
 #include "../examples/win-guid.h"
+#include "check_tests.h"
 
 #define PAGE_SIZE           0x1000
 #define MAX_HEADER_SIZE     1024
