@@ -32,9 +32,10 @@
 #include "private.h"
 
 unicode_string_t *
-windows_read_unicode_struct(
+windows_read_unicode_struct_pm(
     vmi_instance_t vmi,
-    const access_context_t *ctx)
+    const access_context_t *ctx,
+    page_mode_t page_mode )
 {
     access_context_t _ctx = *ctx;
     unicode_string_t *us = 0;   // return val
@@ -42,7 +43,7 @@ windows_read_unicode_struct(
     addr_t buffer_va = 0;
     uint16_t buffer_len = 0;
 
-    if (VMI_PM_IA32E == vmi->page_mode) {   // 64 bit guest
+    if (VMI_PM_IA32E == page_mode) {   // 64 bit guest
         win64_unicode_string_t us64 = { 0 };
         struct_size = sizeof(us64);
         // read the UNICODE_STRING struct
@@ -101,3 +102,7 @@ out_error:
     return 0;
 }
 
+unicode_string_t *windows_read_unicode_struct( vmi_instance_t vmi, const access_context_t *ctx )
+{
+    return windows_read_unicode_struct_pm( vmi, ctx, vmi->page_mode );
+}

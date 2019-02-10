@@ -1100,6 +1100,24 @@ unicode_string_t *vmi_read_unicode_str(
     const access_context_t *ctx);
 
 /**
+ * Reads a Unicode string from the given address using the specified page mode.
+ * This is needed for introspecting Windows-on-Windows (WoW) processes that
+ * are 32-bit code running on 64-bit OS.
+ * If the guest is running Windows, a UNICODE_STRING struct is read.
+ *  Linux is not yet supported. The returned value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[in] mode Memory page mode
+ * @return String read from memory or NULL on error; this function
+ *         will set the encoding field.
+ */
+unicode_string_t *vmi_read_unicode_str_pm(
+    vmi_instance_t vmi,
+    const access_context_t *ctx,
+    page_mode_t mode );
+
+/**
  * Reads count bytes from memory located at the kernel symbol sym
  * and stores the output in a buf.
  *

@@ -51,6 +51,9 @@ typedef char* (*os_address_to_symbol_kaslr_t)(vmi_instance_t vmi, addr_t address
 typedef unicode_string_t* (*os_read_unicode_struct_t)(vmi_instance_t vmi,
         const access_context_t *ctx);
 
+typedef unicode_string_t* (*os_read_unicode_struct_pm_t)(vmi_instance_t vmi,
+        const access_context_t *ctx, page_mode_t page_mode);
+
 typedef status_t (*os_teardown_t)(vmi_instance_t vmi);
 
 typedef struct os_interface {
@@ -63,6 +66,7 @@ typedef struct os_interface {
     os_address_to_symbol_t os_v2sym;
     os_address_to_symbol_kaslr_t os_v2ksym;
     os_read_unicode_struct_t os_read_unicode_struct;
+    os_read_unicode_struct_pm_t os_read_unicode_struct_pm;
     os_teardown_t os_teardown;
 } *os_interface_t;
 
