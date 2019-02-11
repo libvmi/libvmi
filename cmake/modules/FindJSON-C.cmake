@@ -12,7 +12,7 @@ find_path(JSON-C_INCLUDE_DIR json.h
 find_library(JSON-C_LIBRARY NAMES json-c libjson-c
 	HINTS ${PC_JSON-C_LIBDIR} ${PC_JSON-C_LIBRARY_DIRS})
 
-set(JSON-C_LIBRARIES ${JSON-C_LIBRARY})
+set(JSON-C_LIBRARIES ${PC_JSON-C_LIBRARIES})
 set(JSON-C_INCLUDE_DIRS ${JSON-C_INCLUDE_DIR})
 
 include(FindPackageHandleStandardArgs)
