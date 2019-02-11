@@ -65,8 +65,8 @@ set(MAX_PAGE_CACHE_SIZE "512")
 #-----------------------------------------------------------------------------
 #                               SOURCES
 #-----------------------------------------------------------------------------
-configure_file(libvmi.pc.in libvmi.pc)
-install(FILES libvmi.pc DESTINATION "${INSTALL_LIB_DIR}/pkgconfig")
+configure_file(libvmi.pc.in ${PROJECT_BINARY_DIR}/libvmi.pc)
+install(FILES ${PROJECT_BINARY_DIR}/libvmi.pc DESTINATION "${INSTALL_LIB_DIR}/pkgconfig")
 
 configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
 # include <libvmi/libvmi.h> "config.h", "private.h" and <glib.h>
