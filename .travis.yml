@@ -40,7 +40,7 @@ matrix:
 # gcc compile test
 #
     - env:
-        - TEST="gcc compile"
+        - TEST="gcc compile and install"
       compiler: gcc
       addons:
         apt:
@@ -57,8 +57,9 @@ matrix:
                 - libfuse-dev
       script:
         - mkdir build && cd build
-        - cmake ..
+        - cmake -DCMAKE_INSTALL_PREFIX=../install ..
         - make
+        - make install
 
 #
 # clang compile test
