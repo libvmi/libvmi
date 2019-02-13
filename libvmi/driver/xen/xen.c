@@ -775,6 +775,32 @@ xen_get_tsc_info(
 }
 
 #if defined(I386) || defined(X86_64)
+
+static status_t
+xen_get_vcpumtrr_hvm(
+    vmi_instance_t vmi,
+    mtrr_regs_t *hwMtrr,
+    unsigned long vcpu)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    struct hvm_hw_mtrr mtrr = {0};
+
+    if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
+            xen->domainid,
+            HVM_SAVE_CODE(MTRR),
+            vcpu,
+            &mtrr,
+            sizeof mtrr)) {
+        errprint("Failed to get context information (HVM domain).\n");
+        return VMI_FAILURE;
+    }
+
+    hwMtrr->msr_mtrr_cap = mtrr.msr_mtrr_cap;
+    hwMtrr->msr_pat_cr = mtrr.msr_pat_cr;
+
+    return VMI_SUCCESS;
+}
+
 static status_t
 xen_get_vcpureg_hvm(
     vmi_instance_t vmi,
@@ -2346,6 +2372,20 @@ xen_set_vcpureg_arm(
     return VMI_SUCCESS;
 }
 #endif
+
+status_t
+xen_get_vcpumtrr(
+    vmi_instance_t vmi,
+    mtrr_regs_t *hwMtrr,
+    unsigned long vcpu)
+{
+#if defined(I386) || defined (X86_64)
+    if (vmi->vm_type == HVM)
+        return xen_get_vcpumtrr_hvm(vmi, hwMtrr, vcpu);
+#endif
+
+    return VMI_FAILURE;
+}
 
 status_t
 xen_get_vcpureg(

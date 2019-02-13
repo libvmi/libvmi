@@ -483,6 +483,11 @@ typedef uint64_t reg_t;
 #define SPSR_EL1    SPSR_SVC
 #define TCR_EL1     TTBCR
 
+typedef struct x86_mtrr_regs {
+    uint64_t msr_pat_cr;
+    uint64_t msr_mtrr_cap;
+} mtrr_regs_t;
+
 /*
  * Commonly used x86 registers
  */
@@ -2116,6 +2121,21 @@ vmi_get_tsc_info(
     uint64_t *elapsed_nsec,
     uint32_t *gtsc_khz,
     uint32_t *incarnation);
+
+/**
+ * Gets the current value of VCPU mtrr registers.  This currently only
+ * supports x86 registers.  When LibVMI is accessing a raw
+ * memory file or KVM, this function will fail.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[out] hwMtrr The mtrr struct to be filled
+ * @param[in] vcpu The index of the VCPU to access, use 0 for single VCPU systems
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_get_vcpumtrr(
+    vmi_instance_t vmi,
+    mtrr_regs_t *hwMtrr,
+    unsigned long vcpu);
 
 /**
  * Gets the current value of a VCPU register.  This currently only
