@@ -686,6 +686,28 @@ xen_get_memsize(
     return VMI_SUCCESS;
 }
 
+status_t
+xen_get_tsc_info(
+    vmi_instance_t vmi,
+    uint32_t *tsc_mode,
+    uint64_t *elapsed_nsec,
+    uint32_t *gtsc_khz,
+    uint32_t *incarnation)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if (xen->libxcw.xc_domain_get_tsc_info(xen->xchandle,
+                                           xen->domainid,
+                                           tsc_mode,
+                                           elapsed_nsec,
+                                           gtsc_khz,
+                                           incarnation)) {
+        errprint("Failed to get tsc information (HVM domain).\n");
+        return VMI_FAILURE;
+    }
+    return VMI_SUCCESS;
+}
+
 #if defined(I386) || defined(X86_64)
 static status_t
 xen_get_vcpureg_hvm(

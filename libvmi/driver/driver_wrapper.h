@@ -169,6 +169,25 @@ driver_get_memsize(
 }
 
 static inline status_t
+driver_get_tsc_info(
+    vmi_instance_t vmi,
+    uint32_t *tsc_mode,
+    uint64_t *elapsed_nsec,
+    uint32_t *gtsc_khz,
+    uint32_t *incarnation)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.get_tsc_info_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_get_tsc_info function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.get_tsc_info_ptr(vmi, tsc_mode, elapsed_nsec, gtsc_khz,
+                                        incarnation);
+}
+
+static inline status_t
 driver_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,

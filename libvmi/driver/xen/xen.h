@@ -67,6 +67,12 @@ status_t xen_get_memsize(
     vmi_instance_t vmi,
     uint64_t *allocated_ram_size,
     addr_t *maximum_physical_address);
+status_t xen_get_tsc_info(
+    vmi_instance_t vmi,
+    uint32_t *tsc_mode,
+    uint64_t *elapsed_nsec,
+    uint32_t *gtsc_khz,
+    uint32_t *incarnation);
 status_t xen_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,
@@ -128,6 +134,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.get_name_ptr = &xen_get_domainname;
     driver.set_name_ptr = &xen_set_domainname;
     driver.get_memsize_ptr = &xen_get_memsize;
+    driver.get_tsc_info_ptr = &xen_get_tsc_info;
     driver.get_vcpureg_ptr = &xen_get_vcpureg;
     driver.get_vcpuregs_ptr = &xen_get_vcpuregs;
     driver.set_vcpureg_ptr = &xen_set_vcpureg;
