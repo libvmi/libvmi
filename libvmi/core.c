@@ -809,7 +809,7 @@ vmi_destroy(
 }
 
 vmi_arch_t
-vmi_get_library_arch()
+vmi_get_library_arch(void)
 {
 #ifdef I386
     return VMI_ARCH_X86;

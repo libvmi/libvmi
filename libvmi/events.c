@@ -1074,7 +1074,7 @@ status_t vmi_shutdown_single_step(vmi_instance_t vmi)
     return VMI_FAILURE;
 }
 
-uint32_t vmi_events_version()
+uint32_t vmi_events_version(void)
 {
     return VMI_EVENTS_VERSION;
 }
