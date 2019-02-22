@@ -168,6 +168,22 @@ driver_set_name(
 }
 
 static inline status_t
+driver_get_xsave_info(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    xsave_area_t *xsave_info)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.get_xsave_info_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_get_xsave_info function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.get_xsave_info_ptr(vmi, vcpu, xsave_info);
+}
+
+static inline status_t
 driver_get_memsize(
     vmi_instance_t vmi,
     uint64_t *allocated_ram_size,

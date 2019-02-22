@@ -572,6 +572,12 @@ typedef struct registers {
     };
 } registers_t;
 
+typedef struct xsave_area {
+    char fpu_sse[512];
+    uint64_t xstate_bv;         /* Updated by XRSTOR */
+    uint64_t xcomp_bv;          /* Updated by XRSTOR{C,S} */
+} xsave_area_t;
+
 /**
  * typedef for forward compatibility with 64-bit guests
  */
@@ -2059,6 +2065,20 @@ status_t vmi_get_kernel_struct_offset(
     const char* struct_name,
     const char* member,
     addr_t *addr);
+
+/**
+ * Gets the current value for a VCPU xsave info.When LibVMI is accessing a raw
+ * memory file or KVM, this function will fail.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vcpu The index of the VCPU to access, use 0 for single VCPU systems
+ * @param[out] xsave_info Returned value of the xsave_info
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_get_xsave_info(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    xsave_area_t *xsave_info);
 
 /**
  * Gets the memory size of the guest or file that LibVMI is currently
