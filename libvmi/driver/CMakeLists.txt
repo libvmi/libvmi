@@ -7,7 +7,9 @@ if (ENABLE_KVM)
 endif ()
 
 if (ENABLE_BAREFLANK)
-    add_subdirectory(bareflank)
+    if (NOT ARM32 AND NOT ARM64)
+        add_subdirectory(bareflank)
+    endif ()
 endif ()
 
 if (ENABLE_XEN)
