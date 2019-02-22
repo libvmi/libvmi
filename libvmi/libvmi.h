@@ -2069,6 +2069,26 @@ unsigned int vmi_get_num_vcpus (
     vmi_instance_t vmi);
 
 /**
+ * Gets the current value for tsc info.  This currently only
+ * supports x86 registers.  When LibVMI is accessing a raw
+ * memory file or KVM, this function will fail.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[out] tsc_mode The tsc_mode value to be filled
+ * @param[out] elapsed_nsec The elapsed time in nano sec to be filled
+ * @param[out] gtsc_khz The guest tsc frequency in kHz
+ * @param[out] incarnation The guest tsc incarnation (migration count)
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t
+vmi_get_tsc_info(
+    vmi_instance_t vmi,
+    uint32_t *tsc_mode,
+    uint64_t *elapsed_nsec,
+    uint32_t *gtsc_khz,
+    uint32_t *incarnation);
+
+/**
  * Gets the current value of a VCPU register.  This currently only
  * supports control registers.  When LibVMI is accessing a raw
  * memory file, this function will fail.
