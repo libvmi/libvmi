@@ -18,8 +18,6 @@ pkg_search_module(GLIB REQUIRED glib-2.0)
 # cleanup GLIB_LDFLAGS (remove -l prefix)
 string(REGEX REPLACE "-l" "" GLIB_LDFLAGS ${GLIB_LDFLAGS})
 
-find_package(FLEX)
-find_package(BISON)
 find_package(LibvmiRequest)
 find_package(Xen)
 find_package(Xenstore)

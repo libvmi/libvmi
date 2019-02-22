@@ -59,46 +59,73 @@ endif ()
 # workaround CMake bug
 # target_sources doesn't work with generated files in subdirectories
 if (ENABLE_CONFIGFILE)
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
-        COMMAND ${FLEX_EXECUTABLE}
-            --outfile=${CMAKE_CURRENT_BINARY_DIR}/scanner.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/config/lexicon.l
-        COMMENT "Generating scanner.c"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
-    )
+    find_package(FLEX)
+    find_package(BISON)
+    if (NOT FLEX_FOUND OR NOT BISON_FOUND)
+        set(ENABLE_CONFIGFILE OFF)
+        message(WARNING "Cannot find flex or bison: config file parsing will be
+        disabled")
+    else ()
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
+            COMMAND ${FLEX_EXECUTABLE}
+                --outfile=${CMAKE_CURRENT_BINARY_DIR}/scanner.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/config/lexicon.l
+            COMMENT "Generating scanner.c"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
+        )
 
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/parser.c
-        COMMAND ${BISON_EXECUTABLE}
-            --output=${CMAKE_CURRENT_BINARY_DIR}/parser.c
-            --defines=${CMAKE_CURRENT_BINARY_DIR}/grammar.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/config/grammar.y
-        COMMENT "Generating parser.c"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
-    )
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/parser.c
+            COMMAND ${BISON_EXECUTABLE}
+                --output=${CMAKE_CURRENT_BINARY_DIR}/parser.c
+                --defines=${CMAKE_CURRENT_BINARY_DIR}/grammar.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/config/grammar.y
+            COMMENT "Generating parser.c"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
+        )
 
-    target_sources(vmi_shared PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
-        ${CMAKE_CURRENT_BINARY_DIR}/parser.c
-    )
-    target_include_directories(vmi_shared PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR} # grammar.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/config # config_parser.h
-    )
+        target_sources(vmi_shared PRIVATE
+            ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
+            ${CMAKE_CURRENT_BINARY_DIR}/parser.c
+        )
+        target_include_directories(vmi_shared PRIVATE
+            ${CMAKE_CURRENT_BINARY_DIR} # grammar.h
+            ${CMAKE_CURRENT_SOURCE_DIR}/config # config_parser.h
+        )
+    endif ()
+endif ()
+
+if (ENABLE_KVM)
+    find_package(JSON-C)
+    find_package(Libvirt)
+    if (NOT JSON-C_FOUND OR NOT Libvirt_FOUND)
+        set(ENABLE_KVM OFF)
+        message(WARNING "Cannot find JSON or Libvirt: disabling KVM driver")
+    else ()
+        target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
+        # CMAKE_DL_LIBS -> dlopen* lib
+        target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+        list(APPEND VMI_PUBLIC_DEPS ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+    endif ()
+endif ()
+
+
+if (ENABLE_BAREFLANK)
+    find_package(JSON-C)
+    if (NOT JSON-C_FOUND)
+        set(ENABLE_BAREFLANK OFF)
+        message(WARNING "Cannot find JSON: disabling Bareflank driver")
+    else ()
+        target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
+        target_link_libraries(vmi_shared PRIVATE ${JSON-C_LIBRARIES})
+        list(APPEND VMI_PUBLIC_DEPS ${JSON-C_LIBRARIES})
+    endif ()
 endif ()
 
 add_subdirectory(driver)
 add_subdirectory(os)
 
-if (ENABLE_KVM)
-    find_package(JSON-C REQUIRED)
-    find_package(Libvirt REQUIRED)
-    target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
-    # CMAKE_DL_LIBS -> dlopen* lib
-    target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
-    list(APPEND VMI_PUBLIC_DEPS ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
-endif ()
 
 if (ENABLE_XEN)
     find_package(Xen REQUIRED)
@@ -120,11 +147,16 @@ if (ENABLE_ADDRESS_CACHE)
 endif ()
 
 if (REKALL_PROFILES)
-    find_package(JSON-C REQUIRED)
-    target_sources(vmi_shared PRIVATE rekall.c)
-    target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
-    target_link_libraries(vmi_shared PRIVATE ${JSON-C_LIBRARIES})
-    list(APPEND VMI_PUBLIC_DEPS ${JSON-C_LIBRARIES})
+    find_package(JSON-C)
+    if (NOT JSON-C_FOUND)
+        set(REKALL_PROFILES OFF)
+        message(WARNING "Cannot find JSON: disabling Rekall profiles")
+    else ()
+        target_sources(vmi_shared PRIVATE rekall.c)
+        target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
+        target_link_libraries(vmi_shared PRIVATE ${JSON-C_LIBRARIES})
+        list(APPEND VMI_PUBLIC_DEPS ${JSON-C_LIBRARIES})
+    endif ()
 endif ()
 
 # install
