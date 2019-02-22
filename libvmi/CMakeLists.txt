@@ -59,33 +59,41 @@ endif ()
 # workaround CMake bug
 # target_sources doesn't work with generated files in subdirectories
 if (ENABLE_CONFIGFILE)
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
-        COMMAND ${FLEX_EXECUTABLE}
-            --outfile=${CMAKE_CURRENT_BINARY_DIR}/scanner.c
-            ${CMAKE_CURRENT_SOURCE_DIR}/config/lexicon.l
-        COMMENT "Generating scanner.c"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
-    )
+    find_package(FLEX)
+    find_package(BISON)
+    if (NOT FLEX_FOUND OR NOT BISON_FOUND)
+        set(ENABLE_CONFIGFILE OFF)
+        message(WARNING "Cannot find flex or bison: config file parsing will be
+        disabled")
+    else ()
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
+            COMMAND ${FLEX_EXECUTABLE}
+                --outfile=${CMAKE_CURRENT_BINARY_DIR}/scanner.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/config/lexicon.l
+            COMMENT "Generating scanner.c"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
+        )
 
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/parser.c
-        COMMAND ${BISON_EXECUTABLE}
-            --output=${CMAKE_CURRENT_BINARY_DIR}/parser.c
-            --defines=${CMAKE_CURRENT_BINARY_DIR}/grammar.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/config/grammar.y
-        COMMENT "Generating parser.c"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
-    )
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/parser.c
+            COMMAND ${BISON_EXECUTABLE}
+                --output=${CMAKE_CURRENT_BINARY_DIR}/parser.c
+                --defines=${CMAKE_CURRENT_BINARY_DIR}/grammar.h
+                ${CMAKE_CURRENT_SOURCE_DIR}/config/grammar.y
+            COMMENT "Generating parser.c"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
+        )
 
-    target_sources(vmi_shared PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
-        ${CMAKE_CURRENT_BINARY_DIR}/parser.c
-    )
-    target_include_directories(vmi_shared PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR} # grammar.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/config # config_parser.h
-    )
+        target_sources(vmi_shared PRIVATE
+            ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
+            ${CMAKE_CURRENT_BINARY_DIR}/parser.c
+        )
+        target_include_directories(vmi_shared PRIVATE
+            ${CMAKE_CURRENT_BINARY_DIR} # grammar.h
+            ${CMAKE_CURRENT_SOURCE_DIR}/config # config_parser.h
+        )
+    endif ()
 endif ()
 
 if (ENABLE_KVM)
