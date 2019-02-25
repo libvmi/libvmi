@@ -114,6 +114,7 @@ if (ENABLE_KVM)
         set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
         message(WARNING "Cannot find JSON or Libvirt: disabling KVM driver")
     else ()
+        find_package(LibvmiRequest)
         target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
         # CMAKE_DL_LIBS -> dlopen* lib
         target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
