@@ -27,3 +27,9 @@ if (Xen_FOUND)
 endif ()
 
 mark_as_advanced(Xen_INCLUDE_DIR)
+
+set_package_properties(Xen PROPERTIES
+    DESCRIPTION "Headers for Xen development"
+    URL "https://xenproject.org"
+    PURPOSE "Dependency for Xen driver"
+    TYPE OPTIONAL)
