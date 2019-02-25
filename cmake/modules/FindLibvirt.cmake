@@ -22,3 +22,9 @@ if (Libvirt_FOUND)
 endif ()
 
 mark_as_advanced(LIBVIRT_INCLUDE_DIR LIBVIRT_LIBRARY)
+
+set_package_properties(Libvirt PROPERTIES
+    DESCRIPTION "API, daemon and tools to manage virtualization platforms"
+    URL "https://libvirt.org"
+    PURPOSE "Dependency for KVM driver"
+    TYPE OPTIONAL)
