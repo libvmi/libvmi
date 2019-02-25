@@ -60,7 +60,17 @@ endif ()
 # target_sources doesn't work with generated files in subdirectories
 if (ENABLE_CONFIGFILE)
     find_package(FLEX)
+    set_package_properties(FLEX PROPERTIES
+        DESCRIPTION "Scanner generator for lexing in C and C++"
+        URL "https://github.com/westes/flex"
+        TYPE OPTIONAL
+        PURPOSE "Lexing LibVMI configuration file")
     find_package(BISON)
+    set_package_properties(BISON PROPERTIES
+        DESCRIPTION "Parser generator"
+        URL "https://www.gnu.org/software/bison"
+        TYPE OPTIONAL
+        PURPOSE "Parsing LibVMI configuration file")
     if (NOT FLEX_FOUND OR NOT BISON_FOUND)
         set(ENABLE_CONFIGFILE OFF CACHE BOOL "Enable config file" FORCE)
         message(WARNING "Cannot find flex or bison: config file parsing will be
