@@ -76,6 +76,10 @@ status_t xen_get_tsc_info(
     uint64_t *elapsed_nsec,
     uint32_t *gtsc_khz,
     uint32_t *incarnation);
+status_t xen_get_vcpumtrr(
+    vmi_instance_t vmi,
+    mtrr_regs_t *hwMtrr,
+    unsigned long vcpu);
 status_t xen_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,
@@ -139,6 +143,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.set_name_ptr = &xen_set_domainname;
     driver.get_memsize_ptr = &xen_get_memsize;
     driver.get_tsc_info_ptr = &xen_get_tsc_info;
+    driver.get_vcpumtrr_ptr = &xen_get_vcpumtrr;
     driver.get_vcpureg_ptr = &xen_get_vcpureg;
     driver.get_vcpuregs_ptr = &xen_get_vcpuregs;
     driver.set_vcpureg_ptr = &xen_set_vcpureg;

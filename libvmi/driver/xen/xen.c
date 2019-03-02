@@ -775,6 +775,32 @@ xen_get_tsc_info(
 }
 
 #if defined(I386) || defined(X86_64)
+
+static status_t
+xen_get_vcpumtrr_hvm(
+    vmi_instance_t vmi,
+    mtrr_regs_t *hwMtrr,
+    unsigned long vcpu)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    struct hvm_hw_mtrr mtrr = {0};
+
+    if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
+            xen->domainid,
+            HVM_SAVE_CODE(MTRR),
+            vcpu,
+            &mtrr,
+            sizeof mtrr)) {
+        errprint("Failed to get context information (HVM domain).\n");
+        return VMI_FAILURE;
+    }
+
+    hwMtrr->msr_mtrr_cap = mtrr.msr_mtrr_cap;
+    hwMtrr->msr_pat_cr = mtrr.msr_pat_cr;
+
+    return VMI_SUCCESS;
+}
+
 static status_t
 xen_get_vcpureg_hvm(
     vmi_instance_t vmi,
@@ -1106,14 +1132,41 @@ xen_get_vcpuregs_hvm(
     regs->x86.cr4 = hvm_cpu->cr4;
     regs->x86.dr7 = hvm_cpu->dr7;
     regs->x86.fs_base = hvm_cpu->fs_base;
+    regs->x86.fs_limit = hvm_cpu->fs_limit;
+    regs->x86.fs_sel = hvm_cpu->fs_sel;
+    regs->x86.fs_arbytes = hvm_cpu->fs_arbytes;
     regs->x86.gs_base = hvm_cpu->gs_base;
+    regs->x86.gs_limit = hvm_cpu->gs_limit;
+    regs->x86.gs_sel = hvm_cpu->gs_sel;
+    regs->x86.gs_arbytes = hvm_cpu->gs_arbytes;
+    regs->x86.cs_base = hvm_cpu->cs_base;
+    regs->x86.cs_limit = hvm_cpu->cs_limit;
+    regs->x86.cs_sel = hvm_cpu->cs_sel;
     regs->x86.cs_arbytes = hvm_cpu->cs_arbytes;
+    regs->x86.ss_base = hvm_cpu->ss_base;
+    regs->x86.ss_limit = hvm_cpu->ss_limit;
+    regs->x86.ss_sel = hvm_cpu->ss_sel;
+    regs->x86.ss_arbytes = hvm_cpu->ss_arbytes;
+    regs->x86.ds_base = hvm_cpu->ds_base;
+    regs->x86.ds_limit = hvm_cpu->ds_limit;
+    regs->x86.ds_sel = hvm_cpu->ds_sel;
+    regs->x86.ds_arbytes = hvm_cpu->ds_arbytes;
+    regs->x86.es_base = hvm_cpu->es_base;
+    regs->x86.es_limit = hvm_cpu->es_limit;
+    regs->x86.es_sel = hvm_cpu->es_sel;
+    regs->x86.es_arbytes = hvm_cpu->es_arbytes;
+    regs->x86.shadow_gs = hvm_cpu->shadow_gs;
+    regs->x86.idtr_base = hvm_cpu->idtr_base;
+    regs->x86.idtr_limit = hvm_cpu->idtr_limit;
+    regs->x86.gdtr_base = hvm_cpu->gdtr_base;
+    regs->x86.gdtr_limit = hvm_cpu->gdtr_limit;
     regs->x86.sysenter_cs = hvm_cpu->sysenter_cs;
     regs->x86.sysenter_esp = hvm_cpu->sysenter_esp;
     regs->x86.sysenter_eip = hvm_cpu->sysenter_eip;
     regs->x86.msr_efer = hvm_cpu->msr_efer;
     regs->x86.msr_star = hvm_cpu->msr_star;
     regs->x86.msr_lstar = hvm_cpu->msr_lstar;
+    regs->x86.msr_cstar = hvm_cpu->msr_cstar;
 
     return VMI_SUCCESS;
 }
@@ -2319,6 +2372,20 @@ xen_set_vcpureg_arm(
     return VMI_SUCCESS;
 }
 #endif
+
+status_t
+xen_get_vcpumtrr(
+    vmi_instance_t vmi,
+    mtrr_regs_t *hwMtrr,
+    unsigned long vcpu)
+{
+#if defined(I386) || defined (X86_64)
+    if (vmi->vm_type == HVM)
+        return xen_get_vcpumtrr_hvm(vmi, hwMtrr, vcpu);
+#endif
+
+    return VMI_FAILURE;
+}
 
 status_t
 xen_get_vcpureg(

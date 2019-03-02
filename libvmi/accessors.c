@@ -232,6 +232,20 @@ vmi_get_tsc_info(
 }
 
 status_t
+vmi_get_vcpumtrr(
+    vmi_instance_t vmi,
+    mtrr_regs_t *hwMtrr,
+    unsigned long vcpu)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return VMI_FAILURE;
+#endif
+
+    return driver_get_vcpumtrr(vmi, hwMtrr, vcpu);
+}
+
+status_t
 vmi_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,

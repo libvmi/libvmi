@@ -75,6 +75,10 @@ typedef struct driver_interface {
         uint64_t *,
         uint32_t *,
         uint32_t *);
+    status_t (*get_vcpumtrr_ptr) (
+        vmi_instance_t,
+        mtrr_regs_t *,
+        unsigned long );
     status_t (*get_vcpureg_ptr) (
         vmi_instance_t,
         uint64_t *,

@@ -203,6 +203,22 @@ driver_get_tsc_info(
 }
 
 static inline status_t
+driver_get_vcpumtrr(
+    vmi_instance_t vmi,
+    mtrr_regs_t *hwMtrr,
+    unsigned long vcpu)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.get_vcpumtrr_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_get_vcpumtrr function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.get_vcpumtrr_ptr(vmi, hwMtrr, vcpu);
+}
+
+static inline status_t
 driver_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,
