@@ -586,6 +586,21 @@ driver_set_failed_emulation_event(
 }
 
 static inline status_t
+driver_set_watch_domain_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.set_domain_watch_event_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_watch_domain_event function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.set_domain_watch_event_ptr(vmi, enabled);
+}
+
+static inline status_t
 driver_slat_get_domain_state (
     vmi_instance_t vmi,
     bool *state )

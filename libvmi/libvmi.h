@@ -46,6 +46,7 @@ extern "C" {
 #include <sys/mman.h>
 #include <errno.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define VMI_INIT_DOMAINNAME (1u << 0) /**< initialize using domain name */
 
@@ -54,6 +55,8 @@ extern "C" {
 #define VMI_INIT_EVENTS     (1u << 2) /**< initialize events */
 
 #define VMI_INIT_DOMAINUUID (1u << 3) /**< initialize using domain uuid */
+
+#define VMI_INIT_DOMAINWATCH (1u << 4) /**< initialize using a domain watcher */
 
 typedef enum vmi_mode {
 

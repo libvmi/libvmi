@@ -32,6 +32,11 @@
 #include "driver/xen/xen_events.h"
 #endif
 
+#ifdef HAVE_LIBXENSTORE
+static const char RELEASE_TOKEN[] = "release";
+static const char INTRODUCE_TOKEN[] = "introduce";
+#endif
+
 struct hvm_hw_cpu_xsave_46 {
     uint64_t xfeature_mask;        /* Ignored */
     uint64_t xcr0;                 /* Updated by XSETBV */
@@ -69,6 +74,9 @@ status_t xen_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
     vmi_init_data_t *init_data);
+status_t xen_domainwatch_init(
+    vmi_instance_t vmi,
+    uint32_t init_flags);
 void xen_destroy(
     vmi_instance_t vmi);
 uint64_t xen_get_domainid_from_name(
@@ -165,6 +173,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.initialized = true;
     driver.init_ptr = &xen_init;
     driver.init_vmi_ptr = &xen_init_vmi;
+    driver.domainwatch_init_ptr = &xen_domainwatch_init;
     driver.destroy_ptr = &xen_destroy;
     driver.get_id_from_name_ptr = &xen_get_domainid_from_name;
     driver.get_name_from_id_ptr = &xen_get_name_from_domainid;

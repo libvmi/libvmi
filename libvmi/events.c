@@ -474,6 +474,19 @@ status_t register_failed_emulation_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
+status_t register_watch_domain_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( !vmi->watch_domain_event ) {
+        rc = driver_set_watch_domain_event(vmi, 1);
+        if ( VMI_SUCCESS == rc )
+            vmi->watch_domain_event = event;
+    };
+
+    return rc;
+}
+
 status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 {
 
@@ -769,7 +782,7 @@ vmi_register_event(
         dbprint(VMI_DEBUG_EVENTS, "LibVMI wasn't initialized!\n");
         return VMI_FAILURE;
     }
-    if (!(vmi->init_flags & VMI_INIT_EVENTS)) {
+    if (!(vmi->init_flags & (VMI_INIT_EVENTS | VMI_INIT_DOMAINWATCH))) {
         dbprint(VMI_DEBUG_EVENTS, "LibVMI wasn't initialized with events!\n");
         return VMI_FAILURE;
     }
@@ -828,6 +841,9 @@ vmi_register_event(
             break;
         case VMI_EVENT_FAILED_EMULATION:
             rc = register_failed_emulation_event(vmi, event);
+            break;
+        case VMI_EVENT_DOMAIN_WATCH:
+            rc = register_watch_domain_event(vmi, event);
             break;
         default:
             dbprint(VMI_DEBUG_EVENTS, "Unknown event type: %d\n", event->type);
@@ -1001,7 +1017,7 @@ status_t vmi_events_listen(vmi_instance_t vmi, uint32_t timeout)
     if (!vmi)
         return VMI_FAILURE;
 
-    if (!(vmi->init_flags & VMI_INIT_EVENTS))
+    if (!(vmi->init_flags & (VMI_INIT_EVENTS | VMI_INIT_DOMAINWATCH)))
         return VMI_FAILURE;
 #endif
 

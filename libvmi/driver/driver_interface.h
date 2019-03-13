@@ -39,6 +39,9 @@ typedef struct driver_interface {
         vmi_instance_t,
         uint32_t init_flags,
         vmi_init_data_t *init_data);
+    status_t (*domainwatch_init_ptr) (
+        vmi_instance_t vmi,
+        uint32_t init_flags);
     void (*destroy_ptr) (
         vmi_instance_t);
     uint64_t (*get_id_from_name_ptr) (
@@ -158,6 +161,9 @@ typedef struct driver_interface {
     status_t (*set_failed_emulation_event_ptr)(
         vmi_instance_t,
         bool enabled);
+    status_t (*set_domain_watch_event_ptr)(
+        vmi_instance_t,
+        bool enabled);
     status_t (*slat_get_domain_state_ptr)(
         vmi_instance_t vmi,
         bool *state);
@@ -206,6 +212,10 @@ status_t driver_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
     vmi_init_data_t *init_data);
+
+status_t driver_domainwatch_init(
+    vmi_instance_t vmi,
+    uint32_t init_flags);
 
 #endif /* DRIVER_INTERFACE_H */
 

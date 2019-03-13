@@ -513,6 +513,32 @@ done:
     return status;
 }
 
+#ifdef HAVE_LIBXENSTORE
+static int domains_compare(
+    const void *data1,
+    const void *data2)
+{
+    domid_t *d1 = (domid_t *)data1, *d2 = (domid_t *)data2;
+
+    if (*d1 == *d2)
+        return 0;
+
+    return ( *d1 < *d2 ) ? -1 : 1;
+}
+
+void key_destroy_func(
+    void *key)
+{
+    free(key);
+}
+
+void value_destroy_func(
+    void *value)
+{
+    free(value);
+}
+#endif
+
 status_t
 xen_init(
     vmi_instance_t vmi,
@@ -543,6 +569,7 @@ xen_init(
         g_free(xen);
         return VMI_FAILURE;
     }
+    xen->domains = g_tree_new_full ((GCompareDataFunc)domains_compare, NULL, key_destroy_func, value_destroy_func);
 #endif
 
     vmi->driver.driver_data = (void *)xen;
@@ -631,6 +658,13 @@ _bail:
     return ret;
 }
 
+status_t xen_domainwatch_init(
+    vmi_instance_t vmi,
+    uint32_t init_flags)
+{
+    return xen_domainwatch_init_events(vmi, init_flags);
+}
+
 void
 xen_destroy(
     vmi_instance_t vmi)
@@ -656,6 +690,8 @@ xen_destroy(
 
 #ifdef HAVE_LIBXENSTORE
     if (xen->xshandle) {
+        xen->libxsw.xs_unwatch(xen->xshandle, "@introduceDomain", INTRODUCE_TOKEN);
+        xen->libxsw.xs_unwatch(xen->xshandle, "@releaseDomain", RELEASE_TOKEN);
         xen->libxsw.xs_close(xen->xshandle);
     }
 
