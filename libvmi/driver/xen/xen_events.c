@@ -1114,7 +1114,9 @@ status_t process_request(vmi_instance_t vmi, vm_event_compat_t *vmec)
         return VMI_FAILURE;
 #endif
 
-    vmec->altp2m_idx = (vmec->flags & VM_EVENT_FLAG_ALTERNATE_P2M) ?: 0;
+    if ( !(vmec->flags & VM_EVENT_FLAG_ALTERNATE_P2M) )
+        vmec->altp2m_idx = 0;
+
     return xe->process_event[vmec->reason](vmi, vmec);
 }
 
