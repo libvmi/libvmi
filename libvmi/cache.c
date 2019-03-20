@@ -212,6 +212,7 @@ pid_cache_flush(
 
 //
 // Symbol --> Virtual address cache implementation
+//
 struct sym_cache_entry {
     char *sym;
     addr_t va;
@@ -225,10 +226,9 @@ sym_cache_entry_free(
     gpointer data)
 {
     sym_cache_entry_t entry = (sym_cache_entry_t) data;
-
     if (entry) {
-        free(entry->sym);
-        free(entry);
+        g_free(entry->sym);
+        g_free(entry);
     }
 }
 
@@ -245,7 +245,7 @@ sym_cache_entry_create(
     if ( !entry )
         return NULL;
 
-    entry->sym = strdup(sym);
+    entry->sym = g_strdup(sym);
     entry->va = va;
     entry->base_addr = base_addr;
     entry->pid = pid;
@@ -459,38 +459,39 @@ rva_cache_set(
     char *sym)
 {
     GHashTable *rva_table = NULL;
-    sym_cache_entry_t entry = sym_cache_entry_create(sym, rva, base_addr, dtb);
+    sym_cache_entry_t entry = NULL;
 
     gboolean new_table;
     key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)dtb);
     if ( !key ) {
-        g_free(entry);
-        return;
+	goto cleanup;
     }
 
+    entry = sym_cache_entry_create(sym, rva, base_addr, dtb);
+    if (!entry) {
+	goto cleanup;
+    }
+    
+    // Given the key from the base and dtb, locate the associated second-level hash table
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
         new_table = 1;
         rva_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
                                           sym_cache_entry_free);
-        if ( !g_hash_table_insert_compat(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table) ) {
-            g_free(key);
-            g_free(entry);
-            g_hash_table_destroy(rva_table);
-            return;
-        }
-    } else {
-        g_free(key);
-        g_free(entry);
-        return;
+	// Don't care whether value was previously in the table
+	(void) g_hash_table_insert_compat(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table);
     }
 
-    if ( g_hash_table_insert_compat(rva_table, GUINT_TO_POINTER(rva), entry) )
-        dbprint(VMI_DEBUG_RVACACHE, "--RVA cache set %s -- 0x%.16"PRIx64"\n", sym, rva);
-    else {
-        if ( new_table ) g_hash_table_destroy(rva_table);
-        g_free(key);
-        g_free(entry);
+    // Don't care whether value was previously in the table
+    (void) g_hash_table_insert_compat(rva_table, GUINT_TO_POINTER(rva), entry);
+    dbprint(VMI_DEBUG_RVACACHE, "--RVA cache set %s -- 0x%.16"PRIx64"\n", sym, rva);
+    return;
+
+cleanup:
+    if (new_table) {
+	g_hash_table_destroy(rva_table);
     }
+    g_free(entry);
+    g_free(key);
 }
 
 status_t
@@ -716,7 +717,7 @@ vmi_rvacache_add(
     addr_t rva,
     char *sym)
 {
-    if (!vmi)
+     if (!vmi)
         return;
 
     return rva_cache_set(vmi, base_addr, pid, rva, sym);
