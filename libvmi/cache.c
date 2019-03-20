@@ -38,6 +38,10 @@
 #include "private.h"
 #include "glib_compat.h"
 
+#ifdef __clang_analyzer__
+#define g_free free
+#endif
+
 // This function borrowed from cityhash-1.0.3
 uint64_t hash128to64(
     uint64_t low,
@@ -100,7 +104,7 @@ static void
 pid_cache_key_free(
     gpointer data)
 {
-    free(data);
+    g_free(data);
 }
 
 static void
@@ -108,7 +112,7 @@ pid_cache_entry_free(
     gpointer data)
 {
     pid_cache_entry_t entry = (pid_cache_entry_t) data;
-    free(entry);
+    g_free(entry);
 }
 
 static pid_cache_entry_t pid_cache_entry_create(
@@ -183,6 +187,7 @@ pid_cache_set(
 
     (void) g_hash_table_insert_compat(vmi->pid_cache, key, entry);
     dbprint(VMI_DEBUG_PIDCACHE, "--PID cache set %d -- 0x%.16"PRIx64"\n", pid, dtb);
+    return;
 
 cleanup:
     g_free(key);
@@ -342,6 +347,9 @@ sym_cache_set(
         new_symbol_table = TRUE;
 
         (void) g_hash_table_insert_compat(vmi->sym_cache, key, symbol_table);
+    } else {
+        g_free(key);
+        key = NULL;
     }
 
     entry = sym_cache_entry_create(sym, va, base_addr, pid);
@@ -489,6 +497,9 @@ rva_cache_set(
 
         // Don't care whether value was previously in the table
         (void) g_hash_table_insert_compat(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table);
+    } else {
+        g_free(key);
+        // No need to clear contents -- we're returning
     }
 
     // Don't care whether value was previously in the table
