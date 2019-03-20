@@ -28,6 +28,7 @@
 //  1) PID --> DTB
 //  2) Symbol --> Virtual address
 //  3) Virtual address --> physical address
+//  4) Virtual address --> symbol
 
 #define _GNU_SOURCE
 #include <glib.h>
@@ -80,7 +81,7 @@ void key_128_init(vmi_instance_t vmi, key_128_t key, uint64_t low, uint64_t high
 
 key_128_t key_128_build (vmi_instance_t vmi, uint64_t low, uint64_t high)
 {
-    key_128_t key = (key_128_t) g_malloc0(sizeof(struct key_128));
+    key_128_t key = (key_128_t) g_malloc(sizeof(struct key_128));
     if ( key )
         key_128_init(vmi, key, low, high);
     return key;
@@ -115,10 +116,11 @@ static pid_cache_entry_t pid_cache_entry_create(
     addr_t dtb)
 {
     pid_cache_entry_t entry =
-        (pid_cache_entry_t) g_malloc0(sizeof(struct pid_cache_entry));
+        (pid_cache_entry_t) g_malloc(sizeof(struct pid_cache_entry));
 
-    if ( !entry )
+    if ( !entry ) {
         return NULL;
+    }
 
     entry->pid = pid;
     entry->dtb = dtb;
@@ -166,25 +168,26 @@ pid_cache_set(
     vmi_pid_t pid,
     addr_t dtb)
 {
-    gint *key = (gint *) g_malloc0(sizeof(gint));
+    gint *key = (gint *) g_malloc(sizeof(gint));
 
-    if ( !key )
-        return;
+    if ( !key ) {
+        goto cleanup;
+    }
 
     *key = pid;
     pid_cache_entry_t entry = pid_cache_entry_create(pid, dtb);
 
     if ( !entry ) {
-        g_free(key);
-        return;
+        goto cleanup;
     }
 
-    if ( !g_hash_table_insert_compat(vmi->pid_cache, key, entry) ) {
-        g_free(key);
-        g_free(entry);
-    }
-
+    (void) g_hash_table_insert_compat(vmi->pid_cache, key, entry);
     dbprint(VMI_DEBUG_PIDCACHE, "--PID cache set %d -- 0x%.16"PRIx64"\n", pid, dtb);
+
+cleanup:
+    g_free(key);
+    g_free(entry);
+
 }
 
 status_t
@@ -240,16 +243,28 @@ sym_cache_entry_create(
     vmi_pid_t pid)
 {
     sym_cache_entry_t entry =
-        (sym_cache_entry_t) g_malloc0(sizeof(struct sym_cache_entry));
+        (sym_cache_entry_t) g_malloc(sizeof(struct sym_cache_entry));
 
-    if ( !entry )
-        return NULL;
+    if ( !entry ) {
+        goto cleanup;
+    }
 
     entry->sym = g_strdup(sym);
+    if ( !entry->sym ) {
+        goto cleanup;
+    }
+
     entry->va = va;
     entry->base_addr = base_addr;
     entry->pid = pid;
     return entry;
+
+cleanup:
+    if (entry) {
+        g_free(entry->sym);
+        g_free(entry);
+    }
+    return NULL;
 }
 
 void
@@ -310,58 +325,51 @@ sym_cache_set(
 {
     GHashTable *symbol_table = NULL;
     char* sym_dup = NULL;
-    bool new_symbol_table = 0;
+    gboolean new_symbol_table = FALSE;
 
     key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)pid);
-    if ( !key )
-        return;
+    if ( !key ) {
+        goto cleanup;
+    }
 
     symbol_table = g_hash_table_lookup(vmi->sym_cache, key);
     if ( !symbol_table ) {
-        new_symbol_table = 1;
-
         symbol_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
                                              sym_cache_entry_free);
         if ( !symbol_table ) {
-            g_free(key);
-            return;
+            goto cleanup;
         }
+        new_symbol_table = TRUE;
 
-        if ( !g_hash_table_insert_compat(vmi->sym_cache, key, symbol_table) ) {
-            g_hash_table_destroy(symbol_table);
-            g_free(key);
-            return;
-        }
+        (void) g_hash_table_insert_compat(vmi->sym_cache, key, symbol_table);
     }
 
     sym_cache_entry_t entry = sym_cache_entry_create(sym, va, base_addr, pid);
     if ( !entry ) {
-        g_free(key);
-        return;
+        goto cleanup;
     }
 
     sym_dup = g_strndup(sym, 100);
     if ( !sym_dup ) {
-        g_free(key);
-        g_free(entry);
-        return;
+        goto cleanup;
     }
 
-    if ( !g_hash_table_insert_compat(symbol_table, sym_dup, entry) ) {
-        if ( new_symbol_table )
-            g_hash_table_remove(vmi->sym_cache, key);
-
-        g_free(key);
-        g_free(entry);
-        g_free(sym_dup);
-        goto done;
-    }
-
-    if ( !new_symbol_table )
-        g_free(key);
-
-done:
+    (void) g_hash_table_insert_compat(symbol_table, sym_dup, entry);
     dbprint(VMI_DEBUG_SYMCACHE, "--SYM cache set %s -- 0x%.16"PRIx64"\n", sym, va);
+    return;
+
+cleanup:
+    g_free(sym_dup);
+    g_free(entry);
+
+    if ( new_symbol_table ) {
+        // destroys key and value
+        g_hash_table_remove(vmi->sym_cache, key);
+        key = NULL;
+        symbol_table = NULL;
+    }
+
+    g_free(key);
 }
 
 status_t
@@ -461,24 +469,24 @@ rva_cache_set(
     GHashTable *rva_table = NULL;
     sym_cache_entry_t entry = NULL;
 
-    gboolean new_table;
+    gboolean new_table = FALSE;
     key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)dtb);
     if ( !key ) {
-	goto cleanup;
+        goto cleanup;
     }
 
     entry = sym_cache_entry_create(sym, rva, base_addr, dtb);
     if (!entry) {
-	goto cleanup;
+        goto cleanup;
     }
-    
+
     // Given the key from the base and dtb, locate the associated second-level hash table
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
-        new_table = 1;
+        new_table = TRUE;
         rva_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
                                           sym_cache_entry_free);
-	// Don't care whether value was previously in the table
-	(void) g_hash_table_insert_compat(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table);
+        // Don't care whether value was previously in the table
+        (void) g_hash_table_insert_compat(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table);
     }
 
     // Don't care whether value was previously in the table
@@ -488,7 +496,7 @@ rva_cache_set(
 
 cleanup:
     if (new_table) {
-	g_hash_table_destroy(rva_table);
+        g_hash_table_destroy(rva_table);
     }
     g_free(entry);
     g_free(key);
@@ -583,47 +591,44 @@ v2p_cache_set(
         return;
 
     GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, &dtb);
-    bool new_process_space = 0;
+    gboolean new_process_space = FALSE;
+    addr_t * _va = NULL;
+    addr_t * _pa = NULL;
 
     if ( !v ) {
-        new_process_space = 1;
+        new_process_space = TRUE;
 
         v = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, g_free);
-        if ( !v )
-            return;
+        if ( !v ) {
+            goto cleanup;
+        }
 
         addr_t *_dtb = g_memdup(&dtb, sizeof(addr_t));
-        if ( !_dtb )
-            return;
-
-        if ( !g_hash_table_insert_compat(vmi->v2p_cache, _dtb, v) ) {
-            g_free(_dtb);
-            g_hash_table_destroy(v);
-            return;
+        if ( !_dtb ) {
+            goto cleanup;
         }
+        (void) g_hash_table_insert_compat(vmi->v2p_cache, _dtb, v);
     }
 
-    addr_t *_va = g_memdup(&va, sizeof(addr_t));
-    if ( !_va )
-        return;
-
-    addr_t *_pa = g_malloc0(sizeof(addr_t));
-    if ( !_pa ) {
-        g_free(_va);
-        return;
+    _va = g_memdup(&va, sizeof(addr_t));
+    if ( !_va ) {
+        goto cleanup;
     }
+    _pa = g_malloc(sizeof(addr_t));
+    if ( !_pa )
+        goto cleanup;
 
     *_pa = pa & ~VMI_BIT_MASK(0,11);
 
-    if ( g_hash_table_insert_compat(v, _va, _pa) ) {
-        dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache set 0x%.16"PRIx64" -- 0x%.16"PRIx64"\n",
-                va, pa);
-        return;
-    }
+    (void) g_hash_table_insert_compat(v, _va, _pa);
+    dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache set 0x%.16"PRIx64" -- 0x%.16"PRIx64"\n",
+            va, pa);
+    return;
 
-    if ( new_process_space )
+cleanup:
+    if ( new_process_space ) {
         g_hash_table_remove(vmi->v2p_cache, &dtb);
-
+    }
     g_free(_pa);
     g_free(_va);
 }
