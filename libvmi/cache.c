@@ -168,15 +168,15 @@ pid_cache_set(
     vmi_pid_t pid,
     addr_t dtb)
 {
-    gint *key = (gint *) g_malloc(sizeof(gint));
+    pid_cache_entry_t entry = NULL;
 
+    gint *key = (gint *) g_malloc(sizeof(gint));
     if ( !key ) {
         goto cleanup;
     }
-
     *key = pid;
-    pid_cache_entry_t entry = pid_cache_entry_create(pid, dtb);
 
+    entry = pid_cache_entry_create(pid, dtb);
     if ( !entry ) {
         goto cleanup;
     }
@@ -325,6 +325,7 @@ sym_cache_set(
     GHashTable *symbol_table = NULL;
     char* sym_dup = NULL;
     gboolean new_symbol_table = FALSE;
+    sym_cache_entry_t entry = NULL;
 
     key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)pid);
     if ( !key ) {
@@ -343,7 +344,7 @@ sym_cache_set(
         (void) g_hash_table_insert_compat(vmi->sym_cache, key, symbol_table);
     }
 
-    sym_cache_entry_t entry = sym_cache_entry_create(sym, va, base_addr, pid);
+    entry = sym_cache_entry_create(sym, va, base_addr, pid);
     if ( !entry ) {
         goto cleanup;
     }
@@ -468,7 +469,6 @@ rva_cache_set(
     GHashTable *rva_table = NULL;
     sym_cache_entry_t entry = NULL;
 
-    gboolean new_table = FALSE;
     key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)dtb);
     if ( !key ) {
         goto cleanup;
@@ -481,9 +481,12 @@ rva_cache_set(
 
     // Given the key from the base and dtb, locate the associated second-level hash table
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
-        new_table = TRUE;
         rva_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL,
                                           sym_cache_entry_free);
+        if (!rva_table) {
+            goto cleanup;
+        }
+
         // Don't care whether value was previously in the table
         (void) g_hash_table_insert_compat(vmi->rva_cache, GUINT_TO_POINTER(key), rva_table);
     }
@@ -494,9 +497,7 @@ rva_cache_set(
     return;
 
 cleanup:
-    if (new_table) {
-        g_hash_table_destroy(rva_table);
-    }
+    // There's no path to this point after successful creation of rva_table
     g_free(entry);
     g_free(key);
 }
@@ -721,7 +722,7 @@ vmi_rvacache_add(
     addr_t rva,
     char *sym)
 {
-     if (!vmi)
+    if (!vmi)
         return;
 
     return rva_cache_set(vmi, base_addr, pid, rva, sym);
