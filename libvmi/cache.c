@@ -187,7 +187,6 @@ pid_cache_set(
 cleanup:
     g_free(key);
     g_free(entry);
-
 }
 
 status_t
