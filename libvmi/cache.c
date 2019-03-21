@@ -35,6 +35,7 @@
 #include <time.h>
 #include <string.h>
 
+#include "libvmi.h"
 #include "private.h"
 #include "glib_compat.h"
 
@@ -733,10 +734,17 @@ vmi_rvacache_add(
     addr_t rva,
     char *sym)
 {
+    addr_t pgd = 0;
+
     if (!vmi)
         return;
 
-    return rva_cache_set(vmi, base_addr, pid, rva, sym);
+    if (VMI_SUCCESS != vmi_pid_to_dtb(vmi, pid, &pgd)) {
+        dbprint(VMI_DEBUG_SYMCACHE, "--SYM cache failed to find base for PID %u\n", pid);
+        return;
+    }
+
+    return rva_cache_set(vmi, base_addr, pgd, rva, sym);
 }
 
 void
