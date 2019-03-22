@@ -159,18 +159,9 @@ if (REKALL_PROFILES)
     endif ()
 endif ()
 
-# install
-get_property(LIB64 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS)
-
-if ("${LIB64}" STREQUAL "TRUE")
-    set(LIBSUFFIX 64)
-else()
-    set(LIBSUFFIX "")
-endif()
-
-install(TARGETS vmi_shared DESTINATION lib${LIBSUFFIX})
+install(TARGETS vmi_shared DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 if (ENABLE_STATIC)
-    install(TARGETS vmi_static DESTINATION lib${LIBSUFFIX})
+    install(TARGETS vmi_static DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 endif ()
 install(FILES ${VMI_PUBLIC_HEADERS} DESTINATION include/libvmi)
 
@@ -188,4 +179,5 @@ file(GENERATE
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libvmi.la
     INPUT ${CMAKE_CURRENT_BINARY_DIR}/libtool_template.gen)
 
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libvmi.la DESTINATION lib${LIBSUFFIX})
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libvmi.la DESTINATION
+    ${CMAKE_INSTALL_FULL_LIBDIR})
