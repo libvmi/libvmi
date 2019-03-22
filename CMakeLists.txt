@@ -7,9 +7,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 #-----------------------------------------------------------------------------
 project(LibVMI VERSION 0.13.0 LANGUAGES C ASM)
 set(VERSION "0.13.0")
-set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
-set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "Installation directory for headers")
-set(INSTALL_MAN_DIR "${CMAKE_INSTALL_PREFIX}/share/man" CACHE PATH "Installation directory for manual pages")
 #-----------------------------------------------------------------------------
 #                              DEPENDENCIES
 #-----------------------------------------------------------------------------
@@ -23,6 +20,7 @@ find_package(Xen)
 find_package(Xenstore)
 include(DetectArchitecture)
 include(StaticAnalysis)
+include(GNUInstallDirs)
 #-----------------------------------------------------------------------------
 #                           BUILD TYPES & FLAGS
 #-----------------------------------------------------------------------------
@@ -64,7 +62,8 @@ set(MAX_PAGE_CACHE_SIZE "512")
 #                               SOURCES
 #-----------------------------------------------------------------------------
 configure_file(libvmi.pc.in ${PROJECT_BINARY_DIR}/libvmi.pc)
-install(FILES ${PROJECT_BINARY_DIR}/libvmi.pc DESTINATION "${INSTALL_LIB_DIR}/pkgconfig")
+install(FILES ${PROJECT_BINARY_DIR}/libvmi.pc DESTINATION
+    "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig")
 
 configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
 # include <libvmi/libvmi.h> "config.h", "private.h" and <glib.h>
