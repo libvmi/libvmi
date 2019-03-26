@@ -53,7 +53,7 @@ option(ENABLE_ADDRESS_CACHE "Enable address cache" ON)
 option(ENABLE_PAGE_CACHE "Enable page cache" ON)
 option(REKALL_PROFILES "Use Rekall's JSON profiles" ON)
 option(ENABLE_SAFETY_CHECKS "Enable API safety checks" ON)
-option(ENABLE_TESTING "Build libvmi test suite" ON)
+option(ENABLE_TESTING "Build libvmi test suite" OFF)
 option(BUILD_EXAMPLES "Build the examples" ON)
 
 # default values
