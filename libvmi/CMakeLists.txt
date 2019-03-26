@@ -85,14 +85,22 @@ if (ENABLE_CONFIGFILE)
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
         )
 
-        target_sources(vmi_shared PRIVATE
+        # build specific target for scanner.c and parser.c
+        # to remove Werror flag, otherwise flex and bison's generated
+        # source file won't compile
+        add_library(config_parser SHARED
             ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
             ${CMAKE_CURRENT_BINARY_DIR}/parser.c
         )
-        target_include_directories(vmi_shared PRIVATE
+
+        target_include_directories(config_parser PRIVATE
             ${CMAKE_CURRENT_BINARY_DIR} # grammar.h
             ${CMAKE_CURRENT_SOURCE_DIR}/config # config_parser.h
         )
+        # remove Werror flag just for config_parser
+        set_target_properties(config_parser PROPERTIES COMPILE_FLAGS "-Wno-error")
+        # link with main libvmi library
+        target_link_libraries(vmi_shared PRIVATE config_parser)
     endif ()
 endif ()
 
