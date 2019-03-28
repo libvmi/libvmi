@@ -217,7 +217,7 @@ matrix:
                 - libfuse-dev
       script:
         - mkdir build && cd build
-        - cmake -DENABLE_ADDRESS_CACHE=OFF -DENABLE_PAGE_CACHE=OFF -DENABLE_TESTING=OFF ..
+        - cmake -DENABLE_ADDRESS_CACHE=OFF -DENABLE_PAGE_CACHE=OFF ..
         - make
 
 #
@@ -263,7 +263,7 @@ matrix:
                 - libfuse-dev
       script:
         - mkdir build && cd build
-        - cmake -DENABLE_CONFIGFILE=OFF -DENABLE_TESTING=OFF -DBUILD_EXAMPLES=OFF ..
+        - cmake -DENABLE_CONFIGFILE=OFF -DBUILD_EXAMPLES=OFF ..
         - make
 
 #
@@ -286,7 +286,7 @@ matrix:
                 - libfuse-dev
       script:
         - mkdir build && cd build
-        - cmake -DREKALL_PROFILES=OFF -DENABLE_TESTING=OFF -DBUILD_EXAMPLES=OFF ..
+        - cmake -DREKALL_PROFILES=OFF -DBUILD_EXAMPLES=OFF ..
         - make
 
 #
