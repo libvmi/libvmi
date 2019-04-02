@@ -32,6 +32,10 @@
 #include <libvmi/libvmi.h>
 #include "check_tests.h"
 
+// disabled because fails in jenkins
+//#define ENABLE_INIT3_TEST
+
+#ifdef REKALL_PROFILES
 /* test init_complete for Windows from Rekall sysmap */
 START_TEST (test_libvmi_init4)
 {
@@ -76,7 +80,9 @@ done:
     vmi_destroy(vmi);
 }
 END_TEST
+#endif
 
+#ifdef ENABLE_INIT3_TEST
 /* test init_complete with passed config */
 START_TEST (test_libvmi_init3)
 {
@@ -91,7 +97,7 @@ START_TEST (test_libvmi_init3)
     /* first check home directory of sudo user */
     if ((sudo_user = getenv("SUDO_USER")) != NULL) {
         if ((pw_entry = getpwnam(sudo_user)) != NULL) {
-            snprintf(location, 100, "%s/etc/libvmi.conf\0",
+            snprintf(location, sizeof(location), "%s/etc/libvmi.conf",
                      pw_entry->pw_dir);
             if ((f = fopen(location, "r")) != NULL) {
                 goto success;
@@ -100,13 +106,13 @@ START_TEST (test_libvmi_init3)
     }
 
     /* next check home directory for current user */
-    snprintf(location, 100, "%s/etc/libvmi.conf\0", getenv("HOME"));
+    snprintf(location, sizeof(location), "%s/etc/libvmi.conf", getenv("HOME"));
     if ((f = fopen(location, "r")) != NULL) {
         goto success;
     }
 
     /* finally check in /etc */
-    snprintf(location, 100, "/etc/libvmi.conf\0");
+    snprintf(location, sizeof(location), "/etc/libvmi.conf");
     if ((f = fopen(location, "r")) != NULL) {
         goto success;
     }
@@ -169,6 +175,7 @@ success:
     vmi_destroy(vmi);
 }
 END_TEST
+#endif
 
 /* test determine mode and init function */
 START_TEST (test_libvmi_init2)
@@ -207,8 +214,9 @@ TCase *init_tcase (void)
     TCase *tc_init = tcase_create("LibVMI Init");
     tcase_add_test(tc_init, test_libvmi_init1);
     tcase_add_test(tc_init, test_libvmi_init2);
-    // fail in jenkins
-    //tcase_add_test(tc_init, test_libvmi_init3);
+#ifdef ENABLE_INIT3_TEST
+    tcase_add_test(tc_init, test_libvmi_init3);
+#endif
 
 #ifdef REKALL_PROFILES
     tcase_add_test(tc_init, test_libvmi_init4);
