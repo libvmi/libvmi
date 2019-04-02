@@ -41,6 +41,9 @@ extern void BeginToken (char *t);
 
 %}
 
+%option noinput
+%option nounput
+
 %%
 kpgd                    { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return KPGD; }
 linux_tasks             { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_TASKS; }
