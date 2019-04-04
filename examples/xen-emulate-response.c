@@ -46,6 +46,7 @@ void print_event(vmi_event_t *event)
 
 event_response_t cb(vmi_instance_t vmi, vmi_event_t *event)
 {
+    vmi = vmi;
     print_event(event);
     return VMI_EVENT_RESPONSE_EMULATE;
 }
