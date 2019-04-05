@@ -26,7 +26,9 @@
 #include <string.h>
 #include <sys/types.h>
 #include <pwd.h>
-#include <libvmi/libvmi.h>
+#include "../libvmi/libvmi.h"
+#include "../libvmi/libvmi_extra.h"
+#include "../libvmi/cache.h"
 #include "check_tests.h"
 
 /* test cache */
@@ -39,6 +41,7 @@ START_TEST (test_libvmi_cache)
     v2p_cache_flush(vmi, ~0ull);
     v2p_cache_set(vmi, 0x400000, 0xabcde, 0x3b40a000);
 
+#if ENABLE_ADDRESS_CACHE == 1
     addr_t pa = 0;
     status_t ret = v2p_cache_get(vmi, 0x880000400000ull, 0xabcde, &pa);
     fail_if(ret == VMI_SUCCESS, "hit a wrong cache");
@@ -46,6 +49,7 @@ START_TEST (test_libvmi_cache)
     /* @awsaba 's complementary */
     ret = v2p_cache_get(vmi, 0x00000400000ull, 0xabcde, &pa);
     fail_if(ret == VMI_FAILURE, "cache entry not found");
+#endif
 
     v2p_cache_flush(vmi, ~0ull);
     vmi_destroy(vmi);

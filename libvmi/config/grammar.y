@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #include "config_parser.h"
+#include "private.h"
 
 #ifdef VMI_DEBUG
 #define YYERROR_VERBOSE 1
@@ -107,23 +108,6 @@ static char dumpChar(char c)
     return '@';
 }
 
-static char* dumpString (char *s)
-{
-    static char buf[101];
-    int i;
-    int n = strlen(s);
-
-    if (n > 100){
-        n = 100;
-    }
-
-    for (i = 0; i < n; ++i){
-        buf[i] = dumpChar(s[i]);
-    }
-    buf[i] = 0;
-    return buf;
-}
-
 void DumpRow (void)
 {
     if (nRow == 0){
@@ -149,7 +133,6 @@ void DumpRow (void)
 
 static int getNextLine (void)
 {
-    int i;
     char *p;
     nBuffer = 0;
     nTokenStart = -1;
@@ -176,7 +159,7 @@ static int getNextLine (void)
     return 0;
 }
 
-int GetNextChar (char *b, int maxBuffer)
+int GetNextChar (char *b, int UNUSED(maxBuffer))
 {
     int frc;
 
@@ -213,8 +196,8 @@ void BeginToken (char *t)
 
 #else /* !VMI_DEBUG */
 
-int GetNextChar (char *b, int maxBuffer) { return 0; }
-void BeginToken (char *t) {}
+int GetNextChar (char *UNUSED(b), int UNUSED(maxBuffer)) { return 0; }
+void BeginToken (char *UNUSED(t)) {}
 
 #endif /* VMI_DEBUG */
 

@@ -29,6 +29,7 @@
 
 #include <libvmi/libvmi.h>
 #include "../libvmi/peparse.h"
+#include "../libvmi/private.h"
 
 #include "../examples/win-guid.h"
 #include "check_tests.h"
@@ -68,12 +69,12 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_v, uint8_t *pe)
     return ret;
 }
 
-status_t check_os_version(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe)
+status_t check_os_version(uint8_t* pe)
 {
 
     status_t ret=VMI_SUCCESS;
-    uint16_t major_os_version;
-    uint16_t minor_os_version;
+    uint16_t major_os_version = 0;
+    uint16_t minor_os_version = 0;
 
     uint16_t optional_header_type = 0;
     struct optional_header_pe32 *oh32 = NULL;
@@ -138,10 +139,6 @@ status_t check_os_version(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe)
 status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe)
 {
 
-    uint16_t major_os_version;
-    uint16_t minor_os_version;
-    uint32_t size_of_image;
-
     struct pe_header *pe_header = NULL;
     uint16_t optional_header_type = 0;
     struct optional_header_pe32 *oh32 = NULL;
@@ -150,31 +147,10 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe)
     peparse_assign_headers(pe, NULL, &pe_header, &optional_header_type, NULL, &oh32, &oh32plus);
     addr_t debug_offset = peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_DEBUG, NULL, NULL, oh32, oh32plus);
 
-    if (optional_header_type == IMAGE_PE32_MAGIC) {
-
-        major_os_version=oh32->major_os_version;
-        minor_os_version=oh32->minor_os_version;
-        size_of_image=oh32->size_of_image;
-
-    } else if (optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
-
-        major_os_version=oh32plus->major_os_version;
-        minor_os_version=oh32plus->minor_os_version;
-        size_of_image=oh32plus->size_of_image;
-
-    }
-
     struct image_debug_directory debug_directory;
     vmi_read_va(vmi, kernel_base_v + debug_offset, 0, sizeof(struct image_debug_directory), (uint8_t *)&debug_directory, NULL);
 
     if (debug_directory.type == IMAGE_DEBUG_TYPE_MISC) {
-        /*printf("This operating system uses .dbg instead of .pdb\n");
-
-        if(major_os_version == 5 && minor_os_version == 0)
-        {
-            printf("GUID: %.8x%.8x\n",pe_header->time_date_stamp,size_of_image);
-        }*/
-
         return VMI_SUCCESS;
     } else if (debug_directory.type != IMAGE_DEBUG_TYPE_CODEVIEW) {
         printf("The header is not in CodeView format, unable to deal with that!\n");
@@ -207,7 +183,7 @@ status_t check_guid(vmi_instance_t vmi, addr_t kernel_base_v, uint8_t* pe)
     return VMI_SUCCESS;
 }
 
-status_t check_pe_sections(vmi_instance_t vmi, addr_t image_base_v, uint8_t *pe)
+status_t check_pe_sections(vmi_instance_t UNUSED(vmi), addr_t UNUSED(image_base_v), uint8_t *pe)
 {
 
     struct pe_header *pe_header = NULL;
@@ -270,7 +246,7 @@ START_TEST (test_peparse)
         if (VMI_SUCCESS == peparse_get_image(vmi, &ctx, MAX_HEADER_SIZE, pe)) {
             if (VMI_SUCCESS == is_WINDOWS_KERNEL(vmi, kernbase, pe)) {
 
-                if (VMI_FAILURE == check_os_version(vmi, kernbase, pe))
+                if (VMI_FAILURE == check_os_version(pe))
                     fail_unless(0, "Failed to determine Windows version");
 
                 if (VMI_FAILURE == check_guid(vmi, kernbase, pe))

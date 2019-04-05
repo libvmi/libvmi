@@ -75,7 +75,7 @@ if (ENABLE_TESTING)
     # this command should always be called in the root CMakeLists.txt
     enable_testing()
     add_subdirectory(tests)
-endif ()
+endif (ENABLE_TESTING)
 
 if (BUILD_EXAMPLES)
     add_subdirectory(examples)

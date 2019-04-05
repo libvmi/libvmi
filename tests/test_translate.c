@@ -32,7 +32,6 @@ START_TEST (test_libvmi_piddtb)
 {
     vmi_instance_t vmi = NULL;
     addr_t next_process = 0, list_head = 0;
-    vmi_pid_t pid = 0;
     addr_t tasks_offset = 0, pid_offset = 0, name_offset = 0;
     int failed = 1;
     os_t os;
@@ -74,12 +73,13 @@ START_TEST (test_libvmi_piddtb)
 
     list_head = next_process;
     while (1) {
+        vmi_pid_t pid = 0;
         addr_t tmp_next = 0;
         vmi_read_addr_va(vmi, next_process, 0, &tmp_next);
         if (list_head == tmp_next) {
             break;
         }
-        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, &pid);
+        vmi_read_32_va(vmi, next_process + pid_offset - tasks_offset, 0, (uint32_t*)&pid);
         if (VMI_OS_WINDOWS != os || pid > 0) {
             addr_t dtb = 0;
             vmi_pid_to_dtb(vmi, pid, &dtb);
@@ -109,7 +109,6 @@ START_TEST (test_libvmi_invalid_pid)
         .ksym = NULL,
     };
     uint8_t buffer[8];
-    size_t bytes_read = 0;
 
     vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
                       VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
