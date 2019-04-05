@@ -27,6 +27,10 @@
 #ifndef LIBVMI_DEBUG_H
 #define LIBVMI_DEBUG_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 /*
  * This enum holds the various debug print-outs that can be generated
  */
@@ -52,8 +56,5 @@ typedef enum {
 
     __VMI_DEBUG_ALL    = ~(0ULL)
 } vmi_debug_flag_t;
-
-/* uncomment this and recompile to enable debug output */
-//#define VMI_DEBUG __VMI_DEBUG_ALL
 
 #endif

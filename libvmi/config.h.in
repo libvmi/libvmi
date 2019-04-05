@@ -76,6 +76,9 @@
 /* Max number of pages held in page cache */
 #cmakedefine MAX_PAGE_CACHE_SIZE ${MAX_PAGE_CACHE_SIZE}
 
+/* Debug level */
+#cmakedefine VMI_DEBUG (${VMI_DEBUG})
+
 /* Name of package */
 #define PACKAGE "${PROJECT_NAME}"
 
