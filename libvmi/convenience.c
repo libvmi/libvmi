@@ -44,7 +44,7 @@ dbprint(
         va_list args;
 
         va_start(args, format);
-        vfprintf(stdout, format, args);
+        vfprintf(stderr, format, args);
         va_end(args);
     }
 }
