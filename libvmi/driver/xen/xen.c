@@ -774,6 +774,101 @@ xen_get_tsc_info(
     return VMI_SUCCESS;
 }
 
+void
+xen_get_xsave_info_46(
+    struct hvm_hw_cpu_xsave_46 *info,
+    xsave_area_t *xsave_info)
+{
+    xsave_info->xcomp_bv = 0;
+    memcpy(xsave_info->fpu_sse, info->save_area.fpu_sse.x, sizeof(xsave_info->fpu_sse));
+    xsave_info->xstate_bv = info->save_area.xsave_hdr.xstate_bv;
+}
+
+void
+xen_get_xsave_info_412(
+    struct hvm_hw_cpu_xsave_412 *info,
+    xsave_area_t *xsave_info)
+{
+    memcpy(xsave_info->fpu_sse, info->save_area.fpu_sse.x, sizeof(xsave_info->fpu_sse));
+    xsave_info->xcomp_bv = info->save_area.xsave_hdr.xcomp_bv;
+    xsave_info->xstate_bv = info->save_area.xsave_hdr.xstate_bv;
+}
+
+status_t
+xen_get_xsave_info(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    xsave_area_t *xsave_info)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    uint32_t size = 0;
+    uint8_t *buf = NULL;
+    status_t ret = VMI_SUCCESS;
+    uint32_t off = 0;
+    void *info = NULL;
+    struct hvm_save_descriptor *desc = NULL;
+
+    /* calling with no arguments --> return is the size of buffer required
+     *  for storing the HVM context
+     */
+    size = xen->libxcw.xc_domain_hvm_getcontext(xen->xchandle,xen->domainid, 0, 0);
+
+    if (size <= 0) {
+        errprint("Failed to fetch HVM context buffer size.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    buf = malloc(size);
+    if (buf == NULL) {
+        errprint("Failed to allocate HVM context buffer.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    if (xen->libxcw.xc_domain_hvm_getcontext(xen->xchandle,
+            xen->domainid, buf, size) < 0) {
+        errprint("Failed to fetch HVM context buffer.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    off = 0;
+    while (off < size) {
+        desc = (struct hvm_save_descriptor *)(buf + off);
+
+        off += sizeof (struct hvm_save_descriptor);
+
+        if (desc->typecode == CPU_XSAVE_CODE && desc->instance == vcpu) {
+            info = (struct hvm_hw_cpu_xsave *)(buf + off);
+            break;
+        }
+        off += desc->length;
+    }
+
+    if (info == NULL) {
+        errprint("Failed to locate HVM xsave context.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    switch (xen->minor_version) {
+        case 6 ... 11:
+            xen_get_xsave_info_46( (struct hvm_hw_cpu_xsave_46 *)info, xsave_info);
+            break;
+        default:
+        case 12:
+            xen_get_xsave_info_412( (struct hvm_hw_cpu_xsave_412 *)info, xsave_info);
+            break;
+    };
+
+_bail:
+
+    free(buf);
+
+    return ret;
+}
+
 #if defined(I386) || defined(X86_64)
 
 static status_t

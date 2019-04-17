@@ -32,6 +32,35 @@
 #include "driver/xen/xen_events.h"
 #endif
 
+struct hvm_hw_cpu_xsave_46 {
+    uint64_t xfeature_mask;        /* Ignored */
+    uint64_t xcr0;                 /* Updated by XSETBV */
+    uint64_t xcr0_accum;           /* Updated by XSETBV */
+    struct {
+        struct { char x[512]; } fpu_sse;
+
+        struct hvm_hw_cpu_xsave_hdr_46 {
+            uint64_t xstate_bv;         /* Updated by XRSTOR */
+            uint64_t reserved[7];
+        } xsave_hdr;                    /* The 64-byte header */
+    } save_area;
+};
+
+struct hvm_hw_cpu_xsave_412 {
+    uint64_t xfeature_mask;        /* Ignored */
+    uint64_t xcr0;                 /* Updated by XSETBV */
+    uint64_t xcr0_accum;           /* Updated by XSETBV */
+    struct {
+        struct { char x[512]; } fpu_sse;
+
+        struct hvm_hw_cpu_xsave_hdr_412 {
+            uint64_t xstate_bv;         /* Updated by XRSTOR */
+            uint64_t xcomp_bv;          /* Updated by XRSTOR{C,S} */
+            uint64_t reserved[6];
+        } xsave_hdr;                    /* The 64-byte header */
+    } save_area;
+};
+
 status_t xen_init(
     vmi_instance_t vmi,
     uint32_t init_flags,
@@ -76,6 +105,10 @@ status_t xen_get_tsc_info(
     uint64_t *elapsed_nsec,
     uint32_t *gtsc_khz,
     uint32_t *incarnation);
+status_t xen_get_xsave_info(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    xsave_area_t *xsave_info);
 status_t xen_get_vcpumtrr(
     vmi_instance_t vmi,
     mtrr_regs_t *hwMtrr,
@@ -141,6 +174,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.check_id_ptr = &xen_check_domainid;
     driver.get_name_ptr = &xen_get_domainname;
     driver.set_name_ptr = &xen_set_domainname;
+    driver.get_xsave_info_ptr = &xen_get_xsave_info;
     driver.get_memsize_ptr = &xen_get_memsize;
     driver.get_tsc_info_ptr = &xen_get_tsc_info;
     driver.get_vcpumtrr_ptr = &xen_get_vcpumtrr;

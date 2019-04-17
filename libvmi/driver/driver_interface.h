@@ -65,6 +65,10 @@ typedef struct driver_interface {
     void (*set_name_ptr) (
         vmi_instance_t,
         const char *);
+    status_t (*get_xsave_info_ptr) (
+        vmi_instance_t,
+        unsigned long,
+        xsave_area_t *);
     status_t (*get_memsize_ptr) (
         vmi_instance_t,
         uint64_t *,
