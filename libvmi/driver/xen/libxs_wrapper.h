@@ -53,6 +53,21 @@ typedef struct {
     void* (*xs_read)
     (struct xs_handle *h, xs_transaction_t t, const char *path, unsigned int *len);
 
+    bool (*xs_watch)
+    (struct xs_handle *h, const char *path, const char *token);
+
+    bool (*xs_unwatch)
+    (struct xs_handle *h, const char *path, const char *token);
+
+    char** (*xs_read_watch)
+    (struct xs_handle *h, unsigned int *num);
+
+    bool (*xs_is_domain_introduced)
+    (struct xs_handle *h, unsigned int domid);
+
+    int (*xs_fileno)
+    (struct xs_handle *h);
+
 } libxs_wrapper_t;
 
 status_t create_libxs_wrapper(struct xen_instance *xen);

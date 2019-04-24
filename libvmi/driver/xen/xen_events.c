@@ -564,6 +564,31 @@ status_t xen_set_failed_emulation_event(vmi_instance_t vmi, bool enabled)
     return VMI_SUCCESS;
 }
 
+status_t xen_set_domain_watch_event(vmi_instance_t vmi, bool enabled)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( !enabled && !vmi->watch_domain_event )
+        return VMI_SUCCESS;
+
+    if (!xen->libxsw.xs_watch(xen->xshandle, "@introduceDomain", INTRODUCE_TOKEN)) {
+        errprint("Error setting introduce domain event monitor\n");
+        xen->libxcw.xc_interface_close(xen->xchandle);
+        return VMI_FAILURE;
+    }
+
+    if (!xen->libxsw.xs_watch(xen->xshandle, "@releaseDomain", RELEASE_TOKEN)) {
+        errprint("Error setting release domain event monitor\n");
+        xen->libxsw.xs_unwatch(xen->xshandle, "@introduceDomain", INTRODUCE_TOKEN);
+        xen->libxcw.xc_interface_close(xen->xchandle);
+        return VMI_FAILURE;
+    }
+
+    if ( !enabled )
+        vmi->watch_domain_event = NULL;
+
+    return VMI_SUCCESS;
+}
 
 /*
  * Event processing functions
@@ -1102,6 +1127,93 @@ status_t process_desc_access(vmi_instance_t vmi, vm_event_compat_t *vmec)
     vmi->event_callback = 0;
 
     return VMI_SUCCESS;
+}
+
+static int check_domain_shutdown(
+    void *key,
+    void *value,
+    void *data)
+{
+    uint32_t *pd = key;
+    xen_check_domain_t *in = data;
+
+    if ( !key || !value || !data )
+        return 1;
+
+    if (!in->xen.libxsw.xs_is_domain_introduced(in->xen.xshandle, *pd)) {
+        in->domain = *pd;
+        in->found = true;
+        in->uuid = value;
+    }
+    return 1;
+}
+
+static
+status_t process_domain_watch(vmi_instance_t vmi, vm_event_compat_t* UNUSED(vmec))
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    unsigned int num;
+    char **vec = xen->libxsw.xs_read_watch(xen->xshandle, &num);
+    status_t ret = VMI_FAILURE;
+
+    if (vec && !strncmp(vec[XS_WATCH_TOKEN], INTRODUCE_TOKEN, sizeof(INTRODUCE_TOKEN))) {
+
+        int domid = 1, err = -1;
+        xc_dominfo_t dominfo;
+
+        while (( err = xen->libxcw.xc_domain_getinfo(xen->xchandle, domid, 1, &dominfo)) == 1) {
+            domid = dominfo.domid + 1;
+            if (xen->libxsw.xs_is_domain_introduced(xen->xshandle, dominfo.domid)) {
+                void *uuid = g_tree_lookup(xen->domains, &dominfo.domid);
+
+                if (!uuid) {
+                    //get uuid for the new domain
+                    char path[512];
+                    char *tmp;
+                    unsigned int size = 0;
+
+                    snprintf(path, sizeof( path ), "/local/domain/%d/vm", dominfo.domid);
+                    tmp = xen->libxsw.xs_read(xen->xshandle, XBT_NULL, path, &size);
+                    if (tmp && (strlen(tmp) > 4)) {
+                        uint32_t *domid = malloc(sizeof(uint32_t));
+                        char *uuid = strdup(tmp + 4);
+
+                        *domid = dominfo.domid;
+                        g_tree_insert(xen->domains, domid, uuid);
+                        vmi->watch_domain_event->watch_event.domain = *domid;
+                        vmi->watch_domain_event->watch_event.created = true;
+                        vmi->watch_domain_event->watch_event.uuid = uuid;
+                        vmi->watch_domain_event->callback(vmi, vmi->watch_domain_event);
+                        ret = VMI_SUCCESS;
+                    }
+                    free(tmp);
+                }
+            }
+        }
+        if (err == -1 && (errno == EACCES || errno == EPERM))
+            ret = VMI_FAILURE;
+    }
+
+    if (vec && !strncmp( vec[XS_WATCH_TOKEN], RELEASE_TOKEN, sizeof(RELEASE_TOKEN))) {
+        xen_check_domain_t data = {0};
+        data.xen = *xen;
+        do {
+            data.found = false;
+            g_tree_foreach (xen->domains, check_domain_shutdown, &data);
+            if (data.domain != 0) {
+                vmi->watch_domain_event->watch_event.domain = data.domain;
+                vmi->watch_domain_event->watch_event.created = false;
+                vmi->watch_domain_event->watch_event.uuid = data.uuid;
+                vmi->watch_domain_event->callback(vmi, vmi->watch_domain_event);
+                g_tree_remove (xen->domains, &data.domain);
+                data.domain = 0;
+                ret = VMI_SUCCESS;
+            }
+        } while (data.found);
+    }
+    free(vec);
+
+    return ret;
 }
 
 static
@@ -1881,7 +1993,7 @@ status_t wait_for_event_or_timeout(vmi_instance_t vmi, unsigned long ms, bool *n
 {
     xen_events_t *xe = xen_get_events(vmi);
 
-    switch ( poll(&xe->fd, 1, ms) ) {
+    switch ( poll(xe->fd, xe->fd_size, ms) ) {
         case -1:
             if (errno == EINTR)
                 return VMI_SUCCESS;
@@ -1905,7 +2017,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     xen_instance_t *xen = xen_get_instance(vmi);
 
     int rc;
-    status_t vrc;
+    status_t vrc = VMI_SUCCESS;
     uint32_t requests_processed = 0;
     bool needs_unmasking = 0;
 
@@ -1930,6 +2042,13 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
         } else
             needs_unmasking = 1;
     }
+
+    if ( (xe->fd[1].revents & POLLIN) && (vmi->init_flags & VMI_INIT_DOMAINWATCH) ) {
+        /* We have a domain watch event */
+        vrc = xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH](vmi, NULL);
+    }
+    if ( !(vmi->init_flags & VMI_INIT_EVENTS) )
+        return vrc;
 
     vrc = xe->process_requests(vmi, &requests_processed);
 #ifdef ENABLE_SAFETY_CHECKS
@@ -2001,9 +2120,47 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     return VMI_SUCCESS;
 }
 
+status_t xen_domainwatch_init_events(
+    vmi_instance_t vmi,
+    uint32_t init_flags)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xen_events_t * xe = NULL;
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xen ) {
+        errprint("%s error: invalid xen_instance_t handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    if ( !(init_flags && VMI_INIT_DOMAINWATCH) ) {
+        errprint("%s error: invalid init flags\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    xe = g_malloc0(sizeof(xen_events_t));
+    if ( !xe ) {
+        errprint("%s error: allocation for xen_events_t failed\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    xe->fd[1].fd = xen->libxsw.xs_fileno(xen->xshandle);
+    xe->fd[1].events = POLLIN | POLLERR;
+    xe->fd[0].fd = -1; //ignore this fd
+    *(uint16_t *)&xe->fd_size = 2;
+
+    xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
+    vmi->driver.events_listen_ptr = &xen_events_listen;
+    vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
+    xen->events = xe;
+
+    return VMI_SUCCESS;
+}
+
 status_t xen_init_events(
     vmi_instance_t vmi,
-    uint32_t UNUSED(init_flags),
+    uint32_t init_flags,
     vmi_init_data_t *init_data)
 {
     xen_events_t * xe = NULL;
@@ -2031,12 +2188,15 @@ status_t xen_init_events(
         errprint("%s error: version of Xen is not supported\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-
-    // Allocate memory
-    xe = g_malloc0(sizeof(xen_events_t));
-    if ( !xe ) {
-        errprint("%s error: allocation for xen_events_t failed\n", __FUNCTION__);
-        goto err;
+    if ( xen->events )
+        xe = xen->events;
+    else {
+        // Allocate memory
+        xe = g_malloc0(sizeof(xen_events_t));
+        if ( !xe ) {
+            errprint("%s error: allocation for xen_events_t failed\n", __FUNCTION__);
+            goto err;
+        }
     }
 
     // Enable monitor page
@@ -2078,8 +2238,13 @@ status_t xen_init_events(
     }
 
     // Setup poll
-    xe->fd.fd = xen->libxcw.xc_evtchn_fd(xe->xce_handle);
-    xe->fd.events = POLLIN | POLLERR;
+    xe->fd[0].fd = xen->libxcw.xc_evtchn_fd(xe->xce_handle);
+    xe->fd[0].events = POLLIN | POLLERR;
+
+    if (init_flags & VMI_INIT_DOMAINWATCH)
+        *(uint16_t *)&xe->fd_size = 2;
+    else
+        *(uint16_t *)&xe->fd_size = 1;
 
     // Bind event notification
     rc = xen->libxcw.xc_evtchn_bind_interdomain(xe->xce_handle, dom, xe->evtchn_port);
@@ -2102,6 +2267,8 @@ status_t xen_init_events(
     xe->process_event[VM_EVENT_REASON_INTERRUPT] = &process_interrupt;
     xe->process_event[VM_EVENT_REASON_DESCRIPTOR_ACCESS] = &process_desc_access;
     xe->process_event[VM_EVENT_REASON_EMUL_UNIMPLEMENTED] = &process_unimplemented_emul;
+    if ( !xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] )
+        xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
 
     vmi->driver.events_listen_ptr = &xen_events_listen;
     vmi->driver.set_reg_access_ptr = &xen_set_reg_access;
@@ -2116,8 +2283,11 @@ status_t xen_init_events(
     vmi->driver.set_privcall_event_ptr = &xen_set_privcall_event;
     vmi->driver.set_desc_access_event_ptr = &xen_set_desc_access_event;
     vmi->driver.set_failed_emulation_event_ptr = &xen_set_failed_emulation_event;
+    if ( !vmi->driver.set_domain_watch_event_ptr )
+        vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
 
     xen->libxcw.xc_monitor_get_capabilities(xch, dom, &xe->monitor_capabilities);
+
     xen->events = xe;
 
     dbprint(VMI_DEBUG_XEN, "--Xen common events interface initialized\n");

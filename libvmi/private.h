@@ -165,6 +165,8 @@ struct vmi_instance {
 
     vmi_event_t *failed_emulation_event; /**< Handler for failed emulation events */
 
+    vmi_event_t *watch_domain_event; /**< Handler for domain create/destroy events */
+
     GHashTable *interrupt_events; /**< interrupt event to function mapping (key: interrupt) */
 
     GHashTable *mem_events_on_gfn; /**< mem event to functions mapping (key: physical address) */

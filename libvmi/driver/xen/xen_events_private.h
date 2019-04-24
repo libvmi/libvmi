@@ -104,7 +104,13 @@ typedef struct vm_event_compat {
 typedef struct {
     xc_evtchn* xce_handle;
     int port;
-    struct pollfd fd;
+#ifdef HAVE_LIBXENSTORE
+    struct pollfd fd[2];
+#else
+    struct pollfd fd[1];
+#endif
+
+    const uint16_t fd_size;
     uint32_t evtchn_port;
     bool external_poll;
     void *ring_page;

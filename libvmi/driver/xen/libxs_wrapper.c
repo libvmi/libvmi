@@ -53,6 +53,11 @@ status_t create_libxs_wrapper(xen_instance_t *xen)
     wrapper->xs_close = dlsym(wrapper->handle, "xs_close");
     wrapper->xs_directory = dlsym(wrapper->handle, "xs_directory");
     wrapper->xs_read = dlsym(wrapper->handle, "xs_read");
+    wrapper->xs_fileno = dlsym(wrapper->handle, "xs_fileno");
+    wrapper->xs_is_domain_introduced = dlsym(wrapper->handle, "xs_is_domain_introduced");
+    wrapper->xs_read_watch = dlsym(wrapper->handle, "xs_read_watch");
+    wrapper->xs_watch = dlsym(wrapper->handle, "xs_watch");
+    wrapper->xs_unwatch = dlsym(wrapper->handle, "xs_unwatch");
 
     return sanity_check(xen);
 }

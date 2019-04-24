@@ -69,7 +69,18 @@ typedef struct xen_instance {
 
     uint64_t max_gpfn;    /**< result of xc_domain_maximum_gpfn/2() */
 
+    GTree *domains; /**< tree for running xen domains */
+
 } xen_instance_t;
+
+#ifdef HAVE_LIBXENSTORE
+typedef struct xen_check_domain {
+    xen_instance_t xen;
+    uint32_t domain;
+    char* uuid;
+    bool found;
+} xen_check_domain_t;
+#endif
 
 static inline
 xen_instance_t *xen_get_instance(

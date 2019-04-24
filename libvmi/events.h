@@ -64,6 +64,7 @@ typedef uint16_t vmi_event_type_t;
 #define VMI_EVENT_PRIVILEGED_CALL   8   /**< Privileged call (ie. SMC on ARM) */
 #define VMI_EVENT_DESCRIPTOR_ACCESS 9   /**< A descriptor table register was accessed */
 #define VMI_EVENT_FAILED_EMULATION  10  /**< Emulation failed when requested by VMI_EVENT_RESPONSE_EMULATE */
+#define VMI_EVENT_DOMAIN_WATCH      11  /**< Watch create/destroy events */
 
 /**
  * Max number of vcpus we can set single step on at one time for a domain
@@ -277,6 +278,12 @@ typedef struct {
     addr_t offset;
 
 } mem_access_event_t;
+
+typedef struct {
+    char* uuid; /**< Domain uuid */
+    uint32_t domain; /**< Domain id */
+    bool created; /**< created/deleted state */
+} watch_domain_event_t;
 
 /*
  * Xen allows for subscribing to interrupt events in two ways as of Xen 4.9.
@@ -503,6 +510,7 @@ struct vmi_event {
         cpuid_event_t cpuid_event;
         debug_event_t debug_event;
         descriptor_event_t descriptor_event;
+        watch_domain_event_t watch_event;
     };
 
     /*

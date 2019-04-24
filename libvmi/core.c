@@ -544,6 +544,20 @@ status_t vmi_init(
     }
     dbprint(VMI_DEBUG_CORE, "--completed driver init.\n");
 
+    if (init_flags & VMI_INIT_DOMAINWATCH) {
+        if ( VMI_FAILURE == driver_domainwatch_init(_vmi, init_flags) ) {
+            if ( error )
+                *error = VMI_INIT_ERROR_DRIVER;
+            goto error_exit;
+        }
+
+        if ( init_flags == VMI_INIT_DOMAINWATCH ) {
+            /* we have all we need to wait for domains. Return if there is nothing else */
+            *vmi = _vmi;
+            return VMI_SUCCESS;
+        }
+    }
+
     /* resolve the id and name */
     if (VMI_FAILURE == set_id_and_name(_vmi, domain)) {
         if ( error )

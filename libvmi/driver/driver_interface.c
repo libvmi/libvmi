@@ -152,3 +152,13 @@ status_t driver_init_vmi(vmi_instance_t vmi,
 
     return rc;
 }
+
+status_t driver_domainwatch_init(vmi_instance_t vmi,
+                                 uint32_t init_flags)
+{
+    status_t rc = VMI_FAILURE;
+    if (vmi->driver.domainwatch_init_ptr)
+        rc = vmi->driver.domainwatch_init_ptr(vmi, init_flags);
+
+    return rc;
+}
