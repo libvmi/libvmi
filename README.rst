@@ -210,8 +210,18 @@ required as those offsets will be available via the profile itself.
 
 Debugging
 ---------
-To enable LibVMI debug output, modify the ``libvmi/debug.h`` header file
-and recompile libvmi.
+To enable LibVMI debug output, look at the ``libvmi/debug.h`` header file,
+and set the CMake ``VMI_DEBUG`` option accordingly.
+
+Example to enable all debug output:
+.. code::
+
+    cmake -DVMI_DEBUG=__VMI_DEBUG_ALL ..
+
+Example to enable selective output (XEN and CORE)
+.. code::
+
+    cmake -DVMI_DEBUG='(VMI_DEBUG_XEN | VMI_DEBUG_CORE)' ..
 
 Community
 ---------
