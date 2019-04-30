@@ -2133,7 +2133,7 @@ status_t xen_domainwatch_init_events(
         return VMI_FAILURE;
     }
 
-    if ( !(init_flags && VMI_INIT_DOMAINWATCH) ) {
+    if ( !(init_flags & VMI_INIT_DOMAINWATCH) ) {
         errprint("%s error: invalid init flags\n", __FUNCTION__);
         return VMI_FAILURE;
     }
