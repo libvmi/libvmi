@@ -33,7 +33,7 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
-#define VMI_EVENTS_VERSION 0x00000005
+#define VMI_EVENTS_VERSION 0x00000006
 
 #ifdef __cplusplus
 extern "C" {

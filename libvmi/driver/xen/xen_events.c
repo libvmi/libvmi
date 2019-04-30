@@ -1260,7 +1260,7 @@ status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
 {
     vm_event_46_request_t *req;
     vm_event_46_response_t *rsp;
-    vm_event_compat_t vmec;
+    vm_event_compat_t vmec =  { 0 };
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
     int rc;
@@ -1478,7 +1478,7 @@ status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
 {
     vm_event_48_request_t *req;
     vm_event_48_response_t *rsp;
-    vm_event_compat_t vmec;
+    vm_event_compat_t vmec = { 0 };
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
     int rc;
@@ -1721,7 +1721,7 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
 {
     vm_event_412_request_t *req;
     vm_event_412_response_t *rsp;
-    vm_event_compat_t vmec;
+    vm_event_compat_t vmec = { 0 };
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
     int rc;
@@ -1764,6 +1764,7 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
         vmec.data.regs.x86.r14 = req->data.regs.x86.r14;
         vmec.data.regs.x86.r15 = req->data.regs.x86.r15;
         vmec.data.regs.x86.rflags = req->data.regs.x86.rflags;
+        vmec.data.regs.x86.dr6 = req->data.regs.x86.dr6;
         vmec.data.regs.x86.dr7 = req->data.regs.x86.dr7;
         vmec.data.regs.x86.rip = req->data.regs.x86.rip;
         vmec.data.regs.x86.cr0 = req->data.regs.x86.cr0;
@@ -1776,9 +1777,27 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
         vmec.data.regs.x86.msr_efer = req->data.regs.x86.msr_efer;
         vmec.data.regs.x86.msr_star = req->data.regs.x86.msr_star;
         vmec.data.regs.x86.msr_lstar = req->data.regs.x86.msr_lstar;
+        vmec.data.regs.x86.shadow_gs = req->data.regs.x86.shadow_gs;
         vmec.data.regs.x86.fs_base = req->data.regs.x86.fs_base;
+        vmec.data.regs.x86.fs_sel = req->data.regs.x86.fs_sel;
+        vmec.data.regs.x86.fs_limit = req->data.regs.x86.fs.limit;
+        vmec.data.regs.x86.fs_arbytes = req->data.regs.x86.fs.ar;
         vmec.data.regs.x86.gs_base = req->data.regs.x86.gs_base;
+        vmec.data.regs.x86.gs_sel = req->data.regs.x86.gs_sel;
+        vmec.data.regs.x86.gs_limit = req->data.regs.x86.gs.limit;
+        vmec.data.regs.x86.gs_arbytes = req->data.regs.x86.gs.ar;
+        vmec.data.regs.x86.cs_base = req->data.regs.x86.cs_base;
+        vmec.data.regs.x86.cs_sel = req->data.regs.x86.cs_sel;
+        vmec.data.regs.x86.cs_limit = req->data.regs.x86.cs.limit;
         vmec.data.regs.x86.cs_arbytes = req->data.regs.x86.cs.ar;
+        vmec.data.regs.x86.ds_base = req->data.regs.x86.ds_base;
+        vmec.data.regs.x86.ds_sel = req->data.regs.x86.ds_sel;
+        vmec.data.regs.x86.ds_limit = req->data.regs.x86.ds.limit;
+        vmec.data.regs.x86.ds_arbytes = req->data.regs.x86.ds.ar;
+        vmec.data.regs.x86.es_base = req->data.regs.x86.es_base;
+        vmec.data.regs.x86.es_sel = req->data.regs.x86.es_sel;
+        vmec.data.regs.x86.es_limit = req->data.regs.x86.es.limit;
+        vmec.data.regs.x86.es_arbytes = req->data.regs.x86.es.ar;
 #endif
 
         switch ( vmec.reason ) {
@@ -1860,6 +1879,7 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
             rsp->data.regs.x86.r14 = vmec.data.regs.x86.r14;
             rsp->data.regs.x86.r15 = vmec.data.regs.x86.r15;
             rsp->data.regs.x86.rflags = vmec.data.regs.x86.rflags;
+            rsp->data.regs.x86.dr6 = vmec.data.regs.x86.dr6;
             rsp->data.regs.x86.dr7 = vmec.data.regs.x86.dr7;
             rsp->data.regs.x86.rip = vmec.data.regs.x86.rip;
             rsp->data.regs.x86.cr0 = vmec.data.regs.x86.cr0;
@@ -1872,29 +1892,31 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
             rsp->data.regs.x86.msr_efer = vmec.data.regs.x86.msr_efer;
             rsp->data.regs.x86.msr_star = vmec.data.regs.x86.msr_star;
             rsp->data.regs.x86.msr_lstar = vmec.data.regs.x86.msr_lstar;
+            rsp->data.regs.x86.shadow_gs = vmec.data.regs.x86.shadow_gs;
             rsp->data.regs.x86.fs_base = vmec.data.regs.x86.fs_base;
+            rsp->data.regs.x86.fs_sel = vmec.data.regs.x86.fs_sel;
+            rsp->data.regs.x86.fs.ar = vmec.data.regs.x86.fs_arbytes;
+            rsp->data.regs.x86.fs.limit = vmec.data.regs.x86.fs_limit;
             rsp->data.regs.x86.gs_base = vmec.data.regs.x86.gs_base;
+            rsp->data.regs.x86.gs_sel = vmec.data.regs.x86.gs_sel;
+            rsp->data.regs.x86.gs.ar = vmec.data.regs.x86.gs_arbytes;
+            rsp->data.regs.x86.gs.limit = vmec.data.regs.x86.gs_limit;
+            rsp->data.regs.x86.cs_base = vmec.data.regs.x86.cs_base;
+            rsp->data.regs.x86.cs_sel = vmec.data.regs.x86.cs_sel;
             rsp->data.regs.x86.cs.ar = vmec.data.regs.x86.cs_arbytes;
-
-            // TODO: These registers are not currently getting exposed by LibVMI
-            rsp->data.regs.x86.cs.limit = req->data.regs.x86.cs.limit;
-            rsp->data.regs.x86.dr6 = req->data.regs.x86.dr6;
-            rsp->data.regs.x86.cs_base = req->data.regs.x86.cs_base;
-            rsp->data.regs.x86.ss_base = req->data.regs.x86.ss_base;
-            rsp->data.regs.x86.ds_base = req->data.regs.x86.ds_base;
-            rsp->data.regs.x86.es_base = req->data.regs.x86.es_base;
-            rsp->data.regs.x86.ss = req->data.regs.x86.ss;
-            rsp->data.regs.x86.ds = req->data.regs.x86.ds;
-            rsp->data.regs.x86.es = req->data.regs.x86.es;
-            rsp->data.regs.x86.fs = req->data.regs.x86.fs;
-            rsp->data.regs.x86.gs = req->data.regs.x86.gs;
-            rsp->data.regs.x86.shadow_gs = req->data.regs.x86.shadow_gs;
-            rsp->data.regs.x86.cs_sel = req->data.regs.x86.cs_sel;
-            rsp->data.regs.x86.ss_sel = req->data.regs.x86.ss_sel;
-            rsp->data.regs.x86.ds_sel = req->data.regs.x86.ds_sel;
-            rsp->data.regs.x86.es_sel = req->data.regs.x86.es_sel;
-            rsp->data.regs.x86.fs_sel = req->data.regs.x86.fs_sel;
-            rsp->data.regs.x86.gs_sel = req->data.regs.x86.gs_sel;
+            rsp->data.regs.x86.cs.limit = vmec.data.regs.x86.cs_limit;
+            rsp->data.regs.x86.ds_base = vmec.data.regs.x86.ds_base;
+            rsp->data.regs.x86.ds_sel = vmec.data.regs.x86.ds_sel;
+            rsp->data.regs.x86.ds.ar = vmec.data.regs.x86.ds_arbytes;
+            rsp->data.regs.x86.ds.limit = vmec.data.regs.x86.ds_limit;
+            rsp->data.regs.x86.es_base = vmec.data.regs.x86.es_base;
+            rsp->data.regs.x86.es_sel = vmec.data.regs.x86.es_sel;
+            rsp->data.regs.x86.es.ar = vmec.data.regs.x86.es_arbytes;
+            rsp->data.regs.x86.es.limit = vmec.data.regs.x86.es_limit;
+            rsp->data.regs.x86.ss_base = vmec.data.regs.x86.ss_base;
+            rsp->data.regs.x86.ss_sel = vmec.data.regs.x86.ss_sel;
+            rsp->data.regs.x86.ss.ar = vmec.data.regs.x86.ss_arbytes;
+            rsp->data.regs.x86.ss.limit = vmec.data.regs.x86.ss_limit;
             rsp->data.regs.x86._pad = 0;
 #endif
         }

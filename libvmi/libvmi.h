@@ -512,6 +512,7 @@ typedef struct x86_regs {
     uint64_t r14;
     uint64_t r15;
     uint64_t rflags;
+    uint64_t dr6;
     uint64_t dr7;
     uint64_t rip;
     uint64_t cr0;
