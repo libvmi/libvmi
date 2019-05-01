@@ -118,6 +118,7 @@ typedef struct {
         vm_event_46_back_ring_t back_ring_46;
         vm_event_48_back_ring_t back_ring_48;
         vm_event_412_back_ring_t back_ring_412;
+        vm_event_413_back_ring_t back_ring_413;
     };
     xen_pfn_t max_gpfn;
     uint32_t monitor_capabilities;
