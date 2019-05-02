@@ -35,6 +35,7 @@
 
 #define X86_TRAP_DEBUG  1
 #define X86_TRAP_INT3   3
+#define X86_TRAP_page_fault 14
 
 #if HAVE_XENMEM_ACCESS_T == 1
 #include <xen/memory.h>

@@ -230,6 +230,21 @@ vmi_get_num_vcpus(
 }
 
 status_t
+vmi_request_page_fault(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    uint64_t virtual_address,
+    uint32_t error_code)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return 0;
+#endif
+
+    return driver_request_page_fault(vmi, vcpu, virtual_address, error_code);
+}
+
+status_t
 vmi_get_tsc_info(
     vmi_instance_t vmi,
     uint32_t *tsc_mode,

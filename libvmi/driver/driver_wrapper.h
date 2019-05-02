@@ -200,6 +200,24 @@ driver_get_memsize(
 }
 
 static inline status_t
+driver_request_page_fault(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    uint64_t virtual_address,
+    uint32_t error_code)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.request_page_fault_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_request_page_fault function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.request_page_fault_ptr(vmi, vcpu, virtual_address,
+            error_code);
+}
+
+static inline status_t
 driver_get_tsc_info(
     vmi_instance_t vmi,
     uint32_t *tsc_mode,

@@ -2505,6 +2505,39 @@ xen_set_vcpureg_arm(
 #endif
 
 status_t
+xen_request_page_fault(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    uint64_t virtual_address,
+    uint32_t error_code)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+#if defined(I386) || defined(X86_64)
+    uint64_t value;
+
+    if (xen_get_vcpureg_hvm(vmi, &value, SS_ARBYTES, vcpu) == VMI_FAILURE)
+        return VMI_FAILURE;
+
+    if (((value >> 5) & 3) != 3) {
+        errprint("%s not in user mode\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+#endif
+    xen_instance_t *xen = xen_get_instance(vmi);
+    int rc = xen->libxcw.xc_hvm_inject_trap(xen->xchandle, xen->domainid,
+                                            vcpu, X86_TRAP_page_fault,
+                                            X86_TRAP_hw_exc,
+                                            error_code, 0, virtual_address);
+    if (rc < 0) {
+        errprint("%s error %d injecting page fault exception\n", __FUNCTION__, rc);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t
 xen_get_vcpumtrr(
     vmi_instance_t vmi,
     mtrr_regs_t *hwMtrr,
