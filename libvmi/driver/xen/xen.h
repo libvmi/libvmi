@@ -107,6 +107,11 @@ status_t xen_get_memsize(
     vmi_instance_t vmi,
     uint64_t *allocated_ram_size,
     addr_t *maximum_physical_address);
+status_t xen_request_page_fault(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    uint64_t virtual_address,
+    uint32_t error_code);
 status_t xen_get_tsc_info(
     vmi_instance_t vmi,
     uint32_t *tsc_mode,
@@ -185,6 +190,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.set_name_ptr = &xen_set_domainname;
     driver.get_xsave_info_ptr = &xen_get_xsave_info;
     driver.get_memsize_ptr = &xen_get_memsize;
+    driver.request_page_fault_ptr = &xen_request_page_fault;
     driver.get_tsc_info_ptr = &xen_get_tsc_info;
     driver.get_vcpumtrr_ptr = &xen_get_vcpumtrr;
     driver.get_vcpureg_ptr = &xen_get_vcpureg;

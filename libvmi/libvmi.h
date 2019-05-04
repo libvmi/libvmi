@@ -2127,6 +2127,23 @@ unsigned int vmi_get_num_vcpus (
     vmi_instance_t vmi);
 
 /**
+ * Injects a page fault trap. It is assumed that the guest is in user-mode and in the proper
+ * address space for the request to work.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vcpu The index of the VCPU to access, use 0 for single VCPU systems
+ * @param[in] virtual_address The cr2 address for requested page fault
+ * @param[in] error_code The error code for the requested page fault. ~0u means 'ignore'
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t
+vmi_request_page_fault(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    uint64_t virtual_address,
+    uint32_t error_code);
+
+/**
  * Gets the current value for tsc info.  This currently only
  * supports x86 registers.  When LibVMI is accessing a raw
  * memory file or KVM, this function will fail.
