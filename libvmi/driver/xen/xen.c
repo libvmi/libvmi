@@ -696,6 +696,7 @@ xen_destroy(
     }
 
     dlclose(xen->libxsw.handle);
+    g_tree_destroy(xen->domains);
 #endif
 
     g_free(xen->name);
