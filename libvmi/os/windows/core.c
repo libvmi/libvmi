@@ -1,4 +1,3 @@
-
 /* The LibVMI Library is an introspection library that simplifies access to
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
@@ -746,6 +745,128 @@ done:
     return ret;
 }
 
+static status_t kpcr_find1(vmi_instance_t vmi, windows_instance_t windows, reg_t kpcr_reg)
+{
+    dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find1\n");
+
+    addr_t kpcr_rva;
+    if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiInitialPCR", NULL, &kpcr_rva))
+        return VMI_FAILURE;
+
+    if ( kpcr_reg < kpcr_rva ) { // Zero offset seems ok. Maybe negative will work too? ;)
+        dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped,"
+                " (kpcr < kpcr_rva) (KiInitialPCR) can't init from Rekall profile. Kpcr=0x%" PRIx64 "kpcr_rva=0x%" PRIx64 "\n",
+                kpcr_reg, kpcr_rva);
+        return VMI_FAILURE;
+    }
+
+    if (vmi->page_mode == VMI_PM_IA32E && kpcr_reg < 0xffff800000000000) { // We are in 64bit user mode, this is not KPCR
+        dbprint(VMI_DEBUG_MISC, "**Error while init from Rekall profile. Getting KPCR from user mode or just after syscall before 'swapgs'.\n");
+        dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped,"
+                " can't init from Rekall profile. Kpcr=0x%" PRIx64 ", kpcr_rva=0x%" PRIx64 "\n",
+                kpcr_reg, kpcr_rva);
+        return VMI_FAILURE;
+    }
+
+    // If the Rekall profile has KiInitialPCR we have Win 7+
+    windows->ntoskrnl_va = kpcr_reg - kpcr_rva;
+
+    return VMI_SUCCESS;
+}
+
+static status_t kpcr_find2(vmi_instance_t vmi, windows_instance_t windows)
+{
+    dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find2\n");
+
+    addr_t kisystemcall64shadow, kisystemcall32shadow;
+    reg_t lstar, cstar;
+
+    if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) )
+        return VMI_FAILURE;
+
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &lstar, MSR_LSTAR, 0)) {
+        dbprint(VMI_DEBUG_MISC, "Error reading MSR_LSTAR\n");
+        return VMI_FAILURE;
+    }
+
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cstar, MSR_CSTAR, 0)) {
+        dbprint(VMI_DEBUG_MISC, "Error reading MSR_CSTAR\n");
+        return VMI_FAILURE;
+    }
+
+    if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiSystemCall32Shadow", NULL, &kisystemcall32shadow)) {
+        dbprint(VMI_DEBUG_MISC, "Error retrieving rva of KiSystemCall32Shadow\n");
+        return VMI_FAILURE;
+    }
+
+    addr_t ntbaseaddress = lstar - kisystemcall64shadow;
+    addr_t ntbaseaddress_chk = cstar - kisystemcall32shadow;
+
+    if (ntbaseaddress != ntbaseaddress_chk) {
+        dbprint(VMI_DEBUG_MISC, "Error calculating NT base address\n");
+        return VMI_FAILURE;
+    }
+
+    windows->ntoskrnl_va = ntbaseaddress;
+
+    if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
+        return VMI_FAILURE;
+
+    return VMI_SUCCESS;
+}
+
+static status_t kpcr_find3(vmi_instance_t vmi, windows_instance_t windows)
+{
+    dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find3\n");
+
+    addr_t int0_rva = 0;
+    reg_t idt = 0;
+    uint32_t int0_high = 0;
+    uint16_t int0_low = 0, int0_middle = 0;
+
+    if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiDivideErrorFault", NULL, &int0_rva) )
+        return VMI_FAILURE;
+
+    // Some Windows10+ rekall profiles don't have KiInitialPCR defined so we use the IDT route
+    // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
+    if ( VMI_FAILURE == driver_get_vcpureg(vmi, &idt, IDTR_BASE, 0) )
+        return VMI_FAILURE;
+    if ( VMI_FAILURE == vmi_read_16_va(vmi, idt, 0, &int0_low) )
+        return VMI_FAILURE;
+    if ( VMI_FAILURE == vmi_read_16_va(vmi, idt + 6, 0, &int0_middle))
+        return VMI_FAILURE;
+    if (VMI_PM_IA32E == vmi->page_mode && VMI_FAILURE == vmi_read_32_va(vmi, idt + 8, 0, &int0_high))
+        return VMI_FAILURE;
+
+    windows->ntoskrnl_va = (((uint64_t)int0_high << 32) | ((uint64_t)int0_middle << 16) | int0_low) - int0_rva;
+
+    return VMI_SUCCESS;
+}
+
+static status_t kpcr_find4(vmi_instance_t vmi, windows_instance_t windows, reg_t kpcr_reg)
+{
+    dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find4\n");
+
+    // If we are in live mode and still don't have the kernel base the KPCR has to be
+    // at this VA (XP/Vista) and the KPCR trick [1] is still valid.
+    // [1] http://moyix.blogspot.de/2008/04/finding-kernel-global-variables-in.html
+    if (kpcr_reg != 0x00000000ffdff000)
+        return VMI_FAILURE;
+
+    addr_t kdvb = 0, kdvb_offset = 0, kernbase_offset = 0;
+
+    if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_KPCR", "KdVersionBlock", &kdvb_offset) )
+        return VMI_FAILURE;
+    if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
+        return VMI_FAILURE;
+    if ( VMI_FAILURE == vmi_read_addr_va(vmi, kpcr_reg+kdvb_offset, 0, &kdvb) )
+        return VMI_FAILURE;
+    if ( VMI_FAILURE == vmi_read_addr_va(vmi, kdvb+kernbase_offset, 0, &windows->ntoskrnl_va) )
+        return VMI_FAILURE;
+
+    return VMI_SUCCESS;
+}
+
 static status_t
 init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 {
@@ -753,122 +874,31 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
     windows_instance_t windows = vmi->os_data;
     dbprint(VMI_DEBUG_MISC, "**Trying to init from Rekall profile\n");
 
-    reg_t kpcr = 0;
-    addr_t kpcr_rva = 0, int0_rva = 0;
-    reg_t lstar=0, cstar=0;
-    addr_t kisystemcall64shadow=0, kisystemcall32shadow=0;
-    addr_t ntbaseaddress=0, ntbaseaddress_chk=0;
-
     if (kpcr_register_to_use) {
+        reg_t kpcr_reg = 0;
         dbprint(VMI_DEBUG_MISC, "** Trying kpcr_register_to_use to get KPCR.\n");
-        if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr, kpcr_register_to_use, 0)) {
+        if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr_reg, kpcr_register_to_use, 0)) {
             dbprint(VMI_DEBUG_MISC, "** driver_get_vcpureg(..) failed.\n");
             goto done;
         }
 
-        if (VMI_SUCCESS == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiInitialPCR", NULL, &kpcr_rva)) {
-            if ( kpcr < kpcr_rva ) { // Zero offset seems ok. Maybe negative will work too? ;)
-                dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, (kpcr < kpcr_rva) (KiInitialPCR) can't init from Rekall profile. Kpcr=0x%" PRIx64 "kpcr_rva=0x%" PRIx64 "\n", kpcr, kpcr_rva);
-                goto done;
-            }
+        if ( VMI_SUCCESS == kpcr_find1(vmi, windows, kpcr_reg) ) {}
+        else if ( VMI_SUCCESS == kpcr_find2(vmi, windows) ) {}
+        else if ( VMI_SUCCESS == kpcr_find3(vmi, windows) ) {}
+        else if ( VMI_SUCCESS == kpcr_find4(vmi, windows, kpcr_reg) ) {}
+        else goto done;
 
-            if (vmi->page_mode == VMI_PM_IA32E && kpcr < 0xffff800000000000) { // We are in 64bit user mode, this is not KPCR
-                dbprint(VMI_DEBUG_MISC, "**Error while init from Rekall profile. Getting KPCR from user mode or just after syscall before 'swapgs'.\n");
-                dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped, can't init from Rekall profile. Kpcr=0x%" PRIx64 ", kpcr_rva=0x%" PRIx64 "\n", kpcr, kpcr_rva);
-                goto done;
-            }
-
-            // If the Rekall profile has KiInitialPCR we have Win 7+
-            windows->ntoskrnl_va = kpcr - kpcr_rva;
-            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
-                goto done;
-            //Get kernel base address using cstar/lstar and KiSystemCall32Shadow / KiSystemCall64Shadow
-        } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) ) {
-
-            if (VMI_FAILURE == vmi_get_vcpureg(vmi, &lstar, MSR_LSTAR, 0)) {
-                errprint("Error reading MSR_LSTAR\n");
-                goto done;
-            }
-
-            if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cstar, MSR_CSTAR, 0)) {
-                errprint("Error reading MSR_CSTAR\n");
-                goto done;
-            }
-
-            if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiSystemCall32Shadow", NULL, &kisystemcall32shadow)) {
-                errprint("Error retrieving rva of KiSystemCall32Shadow\n");
-                goto done;
-
-            }
-
-            ntbaseaddress = lstar - kisystemcall64shadow;
-            ntbaseaddress_chk = cstar - kisystemcall32shadow;
-
-
-            if (ntbaseaddress != ntbaseaddress_chk) {
-                errprint("Error calculating NT base address\n");
-                goto done;
-            }
-
-
-            windows->ntoskrnl_va = ntbaseaddress;
-
-            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
-                goto done;
-
-        } else if ( VMI_SUCCESS == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "KiDivideErrorFault", NULL, &int0_rva) ) {
-            reg_t idt = 0;
-            uint32_t int0_high = 0;
-            uint16_t int0_low = 0, int0_middle = 0;
-
-            // Some Windows10+ rekall profiles don't have KiInitialPCR defined so we use the IDT route
-            // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
-            if (VMI_FAILURE == driver_get_vcpureg(vmi, &idt, IDTR_BASE, 0))
-                goto done;
-            if (VMI_FAILURE == vmi_read_16_va(vmi, idt, 0, &int0_low))
-                goto done;
-            if (VMI_FAILURE == vmi_read_16_va(vmi, idt + 6, 0, &int0_middle))
-                goto done;
-            if (VMI_PM_IA32E == vmi->page_mode && VMI_FAILURE == vmi_read_32_va(vmi, idt + 8, 0, &int0_high))
-                goto done;
-
-            windows->ntoskrnl_va = (((uint64_t)int0_high << 32) | ((uint64_t)int0_middle << 16) | int0_low) - int0_rva;
-            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
-                goto done;
-        }
-
-        if (!windows->ntoskrnl && kpcr == 0x00000000ffdff000) {
-            // If we are in live mode and still don't have the kernel base the KPCR has to be
-            // at this VA (XP/Vista) and the KPCR trick [1] is still valid.
-            // [1] http://moyix.blogspot.de/2008/04/finding-kernel-global-variables-in.html
-            addr_t kdvb = 0, kdvb_offset = 0, kernbase_offset = 0;
-
-            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_KPCR", "KdVersionBlock", &kdvb_offset) )
-                goto done;
-            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
-                goto done;
-            if ( VMI_FAILURE == vmi_read_addr_va(vmi, kpcr+kdvb_offset, 0, &kdvb) )
-                goto done;
-            if ( VMI_FAILURE == vmi_read_addr_va(vmi, kdvb+kernbase_offset, 0, &windows->ntoskrnl_va) )
-                goto done;
-            if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
-                goto done;
-        }
-
-        if ( !windows->ntoskrnl )
-            goto done;
-
-        dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
-
-        /*
-         * If the CR3 value points to a pagetable that hasn't been setup yet
-         * we need to resort to finding a valid pagetable the old fashioned way.
-         */
-        if (windows->ntoskrnl_va && !windows->ntoskrnl) {
+        if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) || !windows->ntoskrnl ) {
+            /*
+             * If the CR3 value points to a pagetable that hasn't been setup yet
+             * we need to resort to finding a valid pagetable the old fashioned way.
+             */
             windows_find_cr3(vmi);
             if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
                 goto done;
         }
+
+        dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
     }
 
     // This could happen if we are in file mode or for Win XP
