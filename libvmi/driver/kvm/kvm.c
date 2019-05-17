@@ -408,7 +408,8 @@ destroy_domain_socket(
         req.type = 0;   // quit
         req.address = 0;
         req.length = 0;
-        (void)write(kvm->socket_fd, &req, sizeof(struct request));
+        if (write(kvm->socket_fd, &req, sizeof(struct request)) < 0)
+            dbprint(VMI_DEBUG_KVM, "--failed to write to socket (%s)\n", strerror(errno));
         close(kvm->socket_fd);
     }
 }
