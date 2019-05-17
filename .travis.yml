@@ -331,5 +331,5 @@ matrix:
                 - libfuse-dev
       script:
         - mkdir build && cd build
-        - cmake -DCMAKE_BUILD_TYPE=RELEASE ..
+        - cmake -DCMAKE_BUILD_TYPE=RELEASE -DBUILD_EXAMPLES=OFF ..
         - make
