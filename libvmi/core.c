@@ -291,7 +291,7 @@ set_image_type_for_file(
 static status_t
 set_id_and_name(
     vmi_instance_t vmi,
-    void *domain)
+    const void *domain)
 {
     const char *name = NULL;
     uint64_t id = 0;
@@ -429,7 +429,7 @@ vmi_get_page_mode(
 status_t
 vmi_get_access_mode(
     vmi_instance_t vmi,
-    void *domain,
+    const void *domain,
     uint64_t init_flags,
     vmi_init_data_t *init_data,
     vmi_mode_t *mode)
@@ -487,7 +487,7 @@ static inline status_t driver_sanity_check(vmi_mode_t mode)
 status_t vmi_init(
     vmi_instance_t *vmi,
     vmi_mode_t mode,
-    void* domain,
+    const void *domain,
     uint64_t init_flags,
     vmi_init_data_t *init_data,
     vmi_init_error_t *error)
@@ -751,7 +751,7 @@ error_exit:
 status_t
 vmi_init_complete(
     vmi_instance_t *vmi,
-    void *domain,
+    const void *domain,
     uint64_t init_flags,
     vmi_init_data_t *init_data,
     vmi_config_t config_mode,
