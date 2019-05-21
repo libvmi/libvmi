@@ -32,7 +32,7 @@ static void close_handler(int sig)
 }
 vmi_event_t watch_event = {0};
 
-event_response_t wait_for_domain(vmi_instance_t vmi, vmi_event_t *event)
+event_response_t wait_for_domain(__attribute__((unused)) vmi_instance_t vmi, vmi_event_t *event)
 {
 
     if ( event->watch_event.created )
