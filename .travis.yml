@@ -339,8 +339,8 @@ matrix:
                 - libvirt-dev
                 - libxen-dev
                 - libfuse-dev
+                - gcc-arm-linux-gnueabi
       script:
         - mkdir build && cd build
         - cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/arm-clang.cmake ..
         - make
-
