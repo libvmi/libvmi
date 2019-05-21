@@ -365,8 +365,29 @@ status_t
 kvm_init_vmi(
     vmi_instance_t vmi,
     uint32_t UNUSED(init_flags),
-    vmi_init_data_t* UNUSED(init_data))
+    vmi_init_data_t* init_data)
 {
+    vmi_init_data_entry_t init_entry;
+    char *socket_path = NULL;
+
+    // a socket path is required to init kvmi
+    if (!init_data) {
+        dbprint(VMI_DEBUG_KVM, "--kvmi need a socket path to be specified\n");
+        return VMI_FAILURE;
+    }
+    // check we have at least on entry
+    if (init_data->count < 1) {
+        dbprint(VMI_DEBUG_KVM, "--empty init data\n");
+        return VMI_FAILURE;
+    }
+    init_entry = init_data->entry[0];
+    // check init_data type
+    if (init_entry.type != VMI_INIT_DATA_KVMI_SOCKET) {
+        dbprint(VMI_DEBUG_KVM, "--wrong init data type\n");
+        return VMI_FAILURE;
+    }
+    socket_path = (char*) init_entry.data;
+
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     virDomainInfo info;
     virDomainPtr dom = kvm->libvirt.virDomainLookupByID(kvm->conn, kvm->id);
@@ -395,7 +416,7 @@ kvm_init_vmi(
     vmi->num_vcpus = info.nrVirtCpu;
 
     dbprint(VMI_DEBUG_KVM, "--Connecting to KVMI...\n");
-    if (!init_kvmi(kvm, (char *)init_data)) {
+    if (!init_kvmi(kvm,  socket_path)) {
         dbprint(VMI_DEBUG_KVM, "--KVMI failed\n");
         return VMI_FAILURE;
     }
