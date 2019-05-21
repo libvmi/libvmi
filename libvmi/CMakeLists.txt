@@ -88,7 +88,7 @@ if (ENABLE_CONFIGFILE)
         # build specific target for scanner.c and parser.c
         # to remove Werror flag, otherwise flex and bison's generated
         # source file won't compile
-        add_library(config_parser SHARED
+        add_library(config_parser STATIC
             ${CMAKE_CURRENT_BINARY_DIR}/scanner.c
             ${CMAKE_CURRENT_BINARY_DIR}/parser.c
         )
@@ -98,7 +98,8 @@ if (ENABLE_CONFIGFILE)
             ${CMAKE_CURRENT_SOURCE_DIR}/config # config_parser.h
         )
         # remove Werror flag just for config_parser
-        set_target_properties(config_parser PROPERTIES COMPILE_FLAGS "-Wno-error")
+        # compile with -fPIC to allow static linking
+        set_target_properties(config_parser PROPERTIES COMPILE_FLAGS "-Wno-error -fPIC")
         # link with main libvmi library
         target_link_libraries(vmi_shared PRIVATE config_parser)
     endif ()
