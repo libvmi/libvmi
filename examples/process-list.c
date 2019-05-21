@@ -42,6 +42,7 @@ int main (int argc, char **argv)
     vmi_pid_t pid = 0;
     unsigned long tasks_offset = 0, pid_offset = 0, name_offset = 0;
     status_t status;
+    vmi_init_data_t init_data;
 
     /* this is the VM or file that we are looking at */
     if (argc != 3) {
@@ -52,9 +53,14 @@ int main (int argc, char **argv)
     char *name = argv[1];
     char *path = argv[2];
 
+    // fill init_data
+    init_data.count = 1;
+    init_data.entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+    init_data.entry[0].data = strdup(path);
+
     /* initialize the libvmi library */
     if (VMI_FAILURE ==
-        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, (void *)path,
+        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, &init_data,
                           VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
