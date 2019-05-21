@@ -568,28 +568,10 @@ kvm_set_name(
 
 status_t
 kvm_get_memsize(
-    vmi_instance_t vmi,
-    uint64_t *allocated_ram_size,
-    addr_t *maximum_physical_address)
+    vmi_instance_t UNUSED(vmi),
+    uint64_t *UNUSED(allocated_ram_size),
+    addr_t *UNUSED(maximum_physical_address))
 {
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-    virDomainInfo info;
-
-    if (-1 == kvm->libvirt.virDomainGetInfo(kvm->dom, &info)) {
-        dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
-        goto error_exit;
-    }
-    *allocated_ram_size = info.maxMem * 1024; // convert KBytes to bytes
-    char *bufstr = exec_info_mtree(kvm_get_instance(vmi));
-    addr_t parsed_max = parse_mtree(bufstr);
-
-    if (parsed_max != 0)
-        *maximum_physical_address = (addr_t) parsed_max;
-    else
-        *maximum_physical_address = *allocated_ram_size;
-
-    return VMI_SUCCESS;
-error_exit:
     return VMI_FAILURE;
 }
 
