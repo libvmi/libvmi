@@ -311,3 +311,25 @@ matrix:
         - mkdir build && cd build
         - cmake -DENABLE_SAFETY_CHECKS=OFF ..
         - make
+
+#
+# release build
+#
+    - env:
+        - TEST="release build"
+      addons:
+        apt:
+            sources:
+                - ubuntu-toolchain-r-test
+            packages:
+                - cmake
+                - bison
+                - flex
+                - libjson-c-dev
+                - libvirt-dev
+                - libxen-dev
+                - libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_BUILD_TYPE=RELEASE ..
+        - make
