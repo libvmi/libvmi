@@ -46,6 +46,9 @@
 /* Define to 1 to enable Xen support. */
 #cmakedefine01 ENABLE_XEN
 
+/* Define to 1 to enable Bareflank support. */
+#cmakedefine01 ENABLE_BAREFLANK
+
 /* Define to 1 if you have <qemu/libvmi_request.h>. */
 #cmakedefine01 HAVE_LIBVMI_REQUEST
 
