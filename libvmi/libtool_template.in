@@ -11,7 +11,7 @@ dlname='$<TARGET_SONAME_FILE_NAME:vmi_shared>'
 library_names='$<TARGET_FILE_NAME:vmi_shared> $<TARGET_SONAME_FILE_NAME:vmi_shared> libvmi.so'
 
 # The name of the static archive.
-old_library='$<TARGET_FILE_NAME:vmi_static>'
+old_library='$<$<BOOL:${ENABLE_STATIC}>:$<TARGET_FILE_NAME:vmi_static>>'
 
 # Linker flags that cannot go in dependency_libs.
 inherited_linker_flags=''
