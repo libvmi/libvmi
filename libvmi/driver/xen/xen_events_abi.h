@@ -232,6 +232,61 @@ struct regs_x86_412 {
     uint32_t _pad;
 };
 
+struct regs_x86_413 {
+    uint64_t rax;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rbx;
+    uint64_t rsp;
+    uint64_t rbp;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t rflags;
+    uint64_t dr6;
+    uint64_t dr7;
+    uint64_t rip;
+    uint64_t cr0;
+    uint64_t cr2;
+    uint64_t cr3;
+    uint64_t cr4;
+    uint64_t sysenter_cs;
+    uint64_t sysenter_esp;
+    uint64_t sysenter_eip;
+    uint64_t msr_efer;
+    uint64_t msr_star;
+    uint64_t msr_lstar;
+    uint64_t gdtr_base;
+    uint32_t cs_base;
+    uint32_t ss_base;
+    uint32_t ds_base;
+    uint32_t es_base;
+    uint64_t fs_base;
+    uint64_t gs_base;
+    struct x86_selector_reg cs;
+    struct x86_selector_reg ss;
+    struct x86_selector_reg ds;
+    struct x86_selector_reg es;
+    struct x86_selector_reg fs;
+    struct x86_selector_reg gs;
+    uint64_t shadow_gs;
+    uint16_t gdtr_limit;
+    uint16_t cs_sel;
+    uint16_t ss_sel;
+    uint16_t ds_sel;
+    uint16_t es_sel;
+    uint16_t fs_sel;
+    uint16_t gs_sel;
+    uint16_t _pad;
+};
+
 struct regs_arm {
     uint64_t ttbr0;
     uint64_t ttbr1;
@@ -315,6 +370,11 @@ struct vm_event_emul_read_data_46 {
 struct vm_event_emul_read_data_412 {
     uint32_t size;
     uint8_t  data[sizeof(struct regs_x86_412) - sizeof(uint32_t)];
+};
+
+struct vm_event_emul_read_data_413 {
+    uint32_t size;
+    uint8_t  data[sizeof(struct regs_x86_413) - sizeof(uint32_t)];
 };
 
 struct vm_event_emul_insn_data {
@@ -433,8 +493,44 @@ typedef struct vm_event_st_412 {
     } data;
 } vm_event_412_request_t, vm_event_412_response_t;
 
+typedef struct vm_event_st_413 {
+    uint32_t version;
+    uint32_t flags;
+    uint32_t reason;
+    uint32_t vcpu_id;
+    uint16_t altp2m_idx;
+    uint16_t _pad[3];
+
+    union {
+        struct vm_event_mem_access            mem_access;
+        struct vm_event_write_ctrlreg         write_ctrlreg;
+        struct vm_event_mov_to_msr_411        mov_to_msr;
+        struct vm_event_desc_access           desc_access;
+        struct vm_event_singlestep            singlestep;
+        struct vm_event_debug                 software_breakpoint;
+        struct vm_event_debug                 debug_exception;
+        struct vm_event_cpuid                 cpuid;
+        union {
+            struct vm_event_interrupt_x86     x86;
+        } interrupt;
+    } u;
+
+    union {
+        union {
+            struct regs_x86_413 x86;
+            struct regs_arm arm;
+        } regs;
+
+        union {
+            struct vm_event_emul_read_data_413 read;
+            struct vm_event_emul_insn_data insn;
+        } emul;
+    } data;
+} vm_event_413_request_t, vm_event_413_response_t;
+
 DEFINE_RING_TYPES(vm_event_46, vm_event_46_request_t, vm_event_46_response_t);
 DEFINE_RING_TYPES(vm_event_48, vm_event_48_request_t, vm_event_48_response_t);
 DEFINE_RING_TYPES(vm_event_412, vm_event_412_request_t, vm_event_412_response_t);
+DEFINE_RING_TYPES(vm_event_413, vm_event_413_request_t, vm_event_413_response_t);
 
 #endif
