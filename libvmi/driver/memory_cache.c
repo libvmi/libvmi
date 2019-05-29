@@ -50,7 +50,7 @@ void *get_memory_data(
     return vmi->get_data_callback(vmi, paddr, length);
 }
 
-#if ENABLE_PAGE_CACHE == 1
+#ifdef ENABLE_PAGE_CACHE
 //---------------------------------------------------------
 // Internal implementation functions
 

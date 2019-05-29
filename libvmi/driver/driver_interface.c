@@ -31,19 +31,19 @@
 #include "private.h"
 #include "driver/driver_interface.h"
 
-#if ENABLE_FILE == 1
+#ifdef ENABLE_FILE
 #include "driver/file/file.h"
 #endif
 
-#if ENABLE_XEN == 1
+#ifdef ENABLE_XEN
 #include "driver/xen/xen.h"
 #endif
 
-#if ENABLE_KVM == 1
+#ifdef ENABLE_KVM
 #include "driver/kvm/kvm.h"
 #endif
 
-#if ENABLE_BAREFLANK == 1
+#ifdef ENABLE_BAREFLANK
 #include "driver/bareflank/bareflank.h"
 #endif
 
@@ -56,28 +56,28 @@ status_t driver_init_mode(const char *name,
     unsigned long count = 0;
 
     /* see what systems are accessable */
-#if ENABLE_XEN == 1
+#ifdef ENABLE_XEN
     if (VMI_SUCCESS == xen_test(domainid, name, init_flags, init_data)) {
         dbprint(VMI_DEBUG_DRIVER, "--found Xen\n");
         *mode = VMI_XEN;
         count++;
     }
 #endif
-#if ENABLE_KVM == 1
+#ifdef ENABLE_KVM
     if (VMI_SUCCESS == kvm_test(domainid, name, init_flags, init_data)) {
         dbprint(VMI_DEBUG_DRIVER, "--found KVM\n");
         *mode = VMI_KVM;
         count++;
     }
 #endif
-#if ENABLE_FILE == 1
+#ifdef ENABLE_FILE
     if (VMI_SUCCESS == file_test(domainid, name, init_flags, init_data)) {
         dbprint(VMI_DEBUG_DRIVER, "--found file\n");
         *mode = VMI_FILE;
         count++;
     }
 #endif
-#if ENABLE_BAREFLANK == 1
+#ifdef ENABLE_BAREFLANK
     if (VMI_SUCCESS == bareflank_test(domainid, name)) {
         dbprint(VMI_DEBUG_DRIVER, "--found Bareflank\n");
         *mode = VMI_BAREFLANK;
@@ -112,22 +112,22 @@ status_t driver_init(vmi_instance_t vmi,
     bzero(&vmi->driver, sizeof(driver_interface_t));
 
     switch (vmi->mode) {
-#if ENABLE_XEN == 1
+#ifdef ENABLE_XEN
         case VMI_XEN:
             rc = driver_xen_setup(vmi);
             break;
 #endif
-#if ENABLE_KVM == 1
+#ifdef ENABLE_KVM
         case VMI_KVM:
             rc = driver_kvm_setup(vmi);
             break;
 #endif
-#if ENABLE_FILE == 1
+#ifdef ENABLE_FILE
         case VMI_FILE:
             rc = driver_file_setup(vmi);
             break;
 #endif
-#if ENABLE_BAREFLANK == 1
+#ifdef ENABLE_BAREFLANK
         case VMI_BAREFLANK:
             rc = driver_bareflank_setup(vmi);
             break;
