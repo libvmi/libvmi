@@ -458,22 +458,22 @@ static inline status_t driver_sanity_check(vmi_mode_t mode)
 {
     switch ( mode ) {
         case VMI_XEN:
-#if ENABLE_XEN != 1
+#ifndef ENABLE_XEN
             return VMI_FAILURE;
 #endif
             break;
         case VMI_KVM:
-#if ENABLE_KVM != 1
+#ifndef ENABLE_KVM
             return VMI_FAILURE;
 #endif
             break;
         case VMI_FILE:
-#if ENABLE_FILE != 1
+#ifndef ENABLE_FILE
             return VMI_FAILURE;
 #endif
             break;
         case VMI_BAREFLANK:
-#if ENABLE_BAREFLANK != 1
+#ifndef ENABLE_BAREFLANK
             return VMI_FAILURE;
 #endif
             break;

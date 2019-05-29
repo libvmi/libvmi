@@ -52,7 +52,7 @@
 
 #define QMP_CMD_LENGTH 256
 
-#if HAVE_LIBVMI_REQUEST == 1
+#ifdef HAVE_LIBVMI_REQUEST
 # include <qemu/libvmi_request.h>
 #else
 
@@ -671,7 +671,7 @@ kvm_init_vmi(
     }
     vmi->num_vcpus = info.nrVirtCpu;
 
-#if HAVE_LIBVMI_REQUEST == 0
+#ifndef HAVE_LIBVMI_REQUEST
     struct json_object *qemu_version_obj = exec_info_version(kvm);
     dbprint(VMI_DEBUG_KVM, "--Checking QEMU version string...\n");
     // qemu_version JSON string :

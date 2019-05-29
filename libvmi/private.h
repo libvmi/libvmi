@@ -137,7 +137,7 @@ struct vmi_instance {
 
     GHashTable *v2p_cache;  /**< hash table to hold the v2p cache data */
 
-#if ENABLE_PAGE_CACHE == 1
+#ifdef ENABLE_PAGE_CACHE
     GHashTable *memory_cache;  /**< hash table for memory cache */
 
     GQueue *memory_cache_lru;  /**< queue holding the most recently used pages */
