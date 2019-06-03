@@ -516,7 +516,8 @@ done:
 #ifdef HAVE_LIBXENSTORE
 static int domains_compare(
     const void *data1,
-    const void *data2)
+    const void *data2,
+    __attribute__((unused)) void *user_data)
 {
     domid_t *d1 = (domid_t *)data1, *d2 = (domid_t *)data2;
 
