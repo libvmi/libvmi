@@ -109,6 +109,7 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa)
                 case 2:
                     return VMI_OS_WINDOWS_2003;
             };
+            break;
         case 6:
             switch (minor_os_version) {
                 case 0:
@@ -118,11 +119,13 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa)
                 case 2:
                     return VMI_OS_WINDOWS_8;
             };
+            break;
         case 10:
             switch (minor_os_version) {
                 case 0:
                     return VMI_OS_WINDOWS_10;
             };
+            break;
     };
 
     return VMI_OS_WINDOWS_NONE;
