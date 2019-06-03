@@ -60,10 +60,11 @@ uint64_t hash128to64(
     return b;
 }
 
-guint64 key_128_hash(gconstpointer key)
+guint key_128_hash(gconstpointer key)
 {
     const key_128_t cache_key = (const key_128_t) key;
-    return hash128to64(cache_key->low, cache_key->high);
+    const uint64_t hash64 = hash128to64(cache_key->low, cache_key->high);
+    return g_int64_hash(&hash64);
 }
 
 gboolean key_128_equals(gconstpointer key1, gconstpointer key2)
