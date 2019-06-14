@@ -328,6 +328,7 @@ get_kvmi_registers(
         *value = msrs.entries[1].data;
         break;
     default:
+        dbprint(VMI_DEBUG_KVM, "--Reading register %"PRIu64" not implemented\n", reg);
         return false;
     }
 
