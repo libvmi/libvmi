@@ -321,6 +321,12 @@ get_kvmi_registers(
     case CR4:
         *value = sregs.cr4;
         break;
+    case FS_BASE:
+        *value = sregs.fs.base;
+        break;
+    case GS_BASE:
+        *value = sregs.gs.base;
+        break;
     case MSR_EFER:
         *value = msrs.entries[0].data;
         break;
