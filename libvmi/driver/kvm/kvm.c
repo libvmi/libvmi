@@ -865,11 +865,18 @@ status_t
 kvm_pause_vm(
     vmi_instance_t vmi)
 {
+    unsigned int expect_pause_count = 0;
+
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    if (-1 == kvm->libvirt.virDomainSuspend(kvm->dom)) {
+    // pause vcpus
+    if (kvmi_pause_all_vcpus(kvm->kvmi_dom, &expect_pause_count)) {
+        dbprint(VMI_DEBUG_KVM, "--Failed to pause domain\n");
         return VMI_FAILURE;
     }
+
+    dbprint(VMI_DEBUG_KVM, "--We should received %u pause events\n", expect_pause_count);
+
     return VMI_SUCCESS;
 }
 
@@ -879,8 +886,45 @@ kvm_resume_vm(
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    if (-1 == kvm->libvirt.virDomainResume(kvm->dom)) {
-        return VMI_FAILURE;
+    // wait to receive pause events
+    unsigned int pause_events_count = 0;
+    while (pause_events_count < vmi->num_vcpus) {
+        struct kvmi_dom_event *ev = NULL;
+        struct kvmi_event_reply rpl = {0};
+        unsigned int ev_id = 0;
+
+        // wait
+        if (kvmi_wait_event(kvm->kvmi_dom, 30 * 1024)) {
+            dbprint(VMI_DEBUG, "--Failed to receive event\n");
+            return VMI_FAILURE;
+        }
+        // pop
+        if (kvmi_pop_event(kvm->kvmi_dom, &ev)) {
+            dbprint(VMI_DEBUG, "--Failed to pop event\n");
+            return VMI_FAILURE;
+        }
+        // handle event
+        ev_id = ev->event.common.event;
+        switch (ev_id) {
+            case KVMI_EVENT_PAUSE_VCPU:
+                dbprint(VMI_DEBUG_KVM, "--Received VCPU pause event\n");
+                pause_events_count++;
+                // reply continue
+                rpl.action = KVMI_EVENT_ACTION_CONTINUE;
+                rpl.event = ev->event.common.event;
+                if (kvmi_reply_event(kvm->kvmi_dom, ev->seq, &rpl, sizeof(rpl))) {
+                    dbprint(VMI_DEBUG_KVM, "--Fail to send continue reply");
+                    free(ev);
+                    return VMI_FAILURE;
+                }
+                free(ev);
+                break;
+            default:
+                dbprint(VMI_DEBUG_KVM, "--Pause: Unexpected event %u\n", ev_id);
+                free(ev);
+                return VMI_FAILURE;
+        }
     }
+
     return VMI_SUCCESS;
 }
