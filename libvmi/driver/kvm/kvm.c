@@ -396,7 +396,6 @@ kvm_init_vmi(
     socket_path = (char*) init_entry.data;
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    virDomainInfo info;
     virDomainPtr dom = kvm->libvirt.virDomainLookupByID(kvm->conn, kvm->id);
     if (NULL == dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
@@ -415,19 +414,19 @@ kvm_init_vmi(
     kvm->dom = dom;
     vmi->vm_type = NORMAL;
 
-    //get the VCPU count from virDomainInfo structure
-    if (-1 == kvm->libvirt.virDomainGetInfo(kvm->dom, &info)) {
-        dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
-        return VMI_FAILURE;
-    }
-    vmi->num_vcpus = info.nrVirtCpu;
-
     dbprint(VMI_DEBUG_KVM, "--Connecting to KVMI...\n");
     if (!init_kvmi(kvm,  socket_path)) {
         dbprint(VMI_DEBUG_KVM, "--KVMI failed\n");
         return VMI_FAILURE;
     }
     dbprint(VMI_DEBUG_KVM, "--KVMI connected\n");
+
+    // get VCPU count
+    if (kvmi_get_vcpu_count(kvm->kvmi_dom, &vmi->num_vcpus)) {
+        dbprint(VMI_DEBUG_KVM, "--Fail to get VCPU count: %s\n", strerror(errno));
+        return VMI_FAILURE;
+    }
+    dbprint(VMI_DEBUG_KVM, "--VCPU count: %d\n", vmi->num_vcpus);
 
     return kvm_setup_live_mode(vmi);
 }
