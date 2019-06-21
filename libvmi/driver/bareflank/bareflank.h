@@ -76,6 +76,10 @@ void bareflank_set_name(
 uint64_t bareflank_get_domainid_from_name(
     vmi_instance_t vmi,
     const char* name);
+status_t bareflank_get_name_from_domainid(
+    vmi_instance_t vmi,
+    uint64_t domainid,
+    char** name);
 status_t bareflank_pause_vm(
     vmi_instance_t vmi);
 status_t bareflank_resume_vm(
@@ -90,7 +94,7 @@ driver_bareflank_setup(vmi_instance_t vmi)
     driver.init_vmi_ptr = &bareflank_init_vmi;
     driver.destroy_ptr = &bareflank_destroy;
     driver.get_id_from_name_ptr = &bareflank_get_domainid_from_name;
-    //driver.get_name_from_id_ptr = &xen_get_name_from_domainid;
+    driver.get_name_from_id_ptr = &bareflank_get_name_from_domainid;
     //driver.get_id_ptr = &xen_get_domainid;
     driver.set_id_ptr = &bareflank_set_id;
     //driver.check_id_ptr = &xen_check_domainid;

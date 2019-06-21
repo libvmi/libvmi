@@ -50,7 +50,7 @@ static bool get_registers(vmi_instance_t vmi, uint64_t vcpu, json_object **jobj,
     if ( -1 == sched_setaffinity(0, sizeof(mask), &mask) )
         return 0;
 
-    status = hcall_get_registers(buffer, size);
+    status = hcall_get_registers(buffer, size, bareflank_get_instance(vmi)->domainid);
 
     CPU_SET(~0ul,&mask);
     sched_setaffinity(0, sizeof(mask), &mask);
@@ -193,7 +193,7 @@ bareflank_get_memory(
 
     dbprint(VMI_DEBUG_BAREFLANK, "Allocated remap memory at %p\n", space);
 
-    if ( hcall_v2p((uint64_t)space, &original_pa) ) {
+    if ( hcall_v2p((uint64_t)space, &original_pa, bareflank_get_instance(vmi)->domainid) ) {
         dbprint(VMI_DEBUG_BAREFLANK, "Failed to translate %p to physical address\n", space);
         free(space);
         return NULL;
@@ -201,7 +201,7 @@ bareflank_get_memory(
 
     dbprint(VMI_DEBUG_BAREFLANK, "Remap memory is at %p -> 0x%lx\n", space, original_pa);
 
-    if ( hcall_map_pa((uint64_t)space, pa) ) {
+    if ( hcall_map_pa((uint64_t)space, pa, bareflank_get_instance(vmi)->domainid) ) {
         dbprint(VMI_DEBUG_BAREFLANK, "Failed to remap at 0x%lx\n", original_pa);
         free(space);
         return NULL;
@@ -230,7 +230,7 @@ bareflank_release_memory(
     if ( pa ) {
         dbprint(VMI_DEBUG_BAREFLANK, "Bareflank release & remap %p -> 0x%lx\n", memory, *pa);
 
-        if ( hcall_map_pa((uint64_t)memory, *pa) )
+        if ( hcall_map_pa((uint64_t)memory, *pa, bareflank_get_instance(vmi)->domainid) )
             dbprint(VMI_DEBUG_BAREFLANK, "Bareflank remap failed\n");
 
         g_hash_table_remove(bf->remaps, memory);
@@ -295,24 +295,48 @@ bareflank_write(
 
 void
 bareflank_set_id(
-    vmi_instance_t UNUSED(vmi),
-    uint64_t UNUSED(domainid))
+    vmi_instance_t vmi,
+    uint64_t domainid)
 {
-    return;
+    bareflank_get_instance(vmi)->domainid = domainid;
 }
 
 void bareflank_set_name(
-    vmi_instance_t UNUSED(vmi),
-    const char* UNUSED(name))
+    vmi_instance_t vmi,
+    const char* name)
 {
-    return;
+    bareflank_get_instance(vmi)->name = strndup(name, 500);
+}
+
+status_t bareflank_get_name_from_domainid(
+    vmi_instance_t UNUSED(vmi),
+    uint64_t domainid,
+    char** name)
+{
+    /*
+     * TODO: The hypervisor needs to actually
+     * provide this information.
+     */
+    if (domainid == 0)
+        *name = "dom0";
+    else
+        *name = "domU";
+
+    return VMI_SUCCESS;
 }
 
 uint64_t bareflank_get_domainid_from_name(
     vmi_instance_t UNUSED(vmi),
-    const char* UNUSED(name))
+    const char* name)
 {
-    return 0;
+    /*
+     * TODO: The hypervisor needs to actually
+     * provide this information.
+     */
+    if (!strcmp(name, "dom0"))
+        return 0;
+    else
+        return 1;
 }
 
 status_t bareflank_get_memsize(
