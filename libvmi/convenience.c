@@ -44,7 +44,11 @@ dbprint(
         va_list args;
 
         va_start(args, format);
+#ifdef ENABLE_BAREFLANK
+        vfprintf(stdout, format, args);
+#else
         vfprintf(stderr, format, args);
+#endif
         va_end(args);
     }
 }
@@ -58,9 +62,17 @@ errprint(
 {
     va_list args;
 
+#ifdef ENABLE_BAREFLANK
+    fprintf(stdout, "VMI_ERROR: ");
+#else
     fprintf(stderr, "VMI_ERROR: ");
+#endif
     va_start(args, format);
+#ifdef ENABLE_BAREFLANK
+    vfprintf(stdout, format, args);
+#else
     vfprintf(stderr, format, args);
+#endif
     va_end(args);
 }
 
@@ -74,7 +86,11 @@ warnprint(
 
     fprintf(stderr, "VMI_WARNING: ");
     va_start(args, format);
+#ifdef ENABLE_BAREFLANK
+    vfprintf(stdout, format, args);
+#else
     vfprintf(stderr, format, args);
+#endif
     va_end(args);
 }
 
