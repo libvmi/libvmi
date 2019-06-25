@@ -865,17 +865,18 @@ status_t
 kvm_pause_vm(
     vmi_instance_t vmi)
 {
-    unsigned int expect_pause_count = 0;
-
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+    // already paused ?
+    if (kvm->expected_pause_count)
+        return VMI_SUCCESS;
 
     // pause vcpus
-    if (kvmi_pause_all_vcpus(kvm->kvmi_dom, &expect_pause_count)) {
+    if (kvmi_pause_all_vcpus(kvm->kvmi_dom, &kvm->expected_pause_count)) {
         dbprint(VMI_DEBUG_KVM, "--Failed to pause domain\n");
         return VMI_FAILURE;
     }
 
-    dbprint(VMI_DEBUG_KVM, "--We should received %u pause events\n", expect_pause_count);
+    dbprint(VMI_DEBUG_KVM, "--We should received %u pause events\n", kvm->expected_pause_count);
 
     return VMI_SUCCESS;
 }
@@ -885,10 +886,12 @@ kvm_resume_vm(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+    // already resumed ?
+    if (!kvm->expected_pause_count)
+        return VMI_SUCCESS;
 
     // wait to receive pause events
-    unsigned int pause_events_count = 0;
-    while (pause_events_count < vmi->num_vcpus) {
+    while (kvm->expected_pause_count) {
         struct kvmi_dom_event *ev = NULL;
         struct kvmi_event_reply rpl = {0};
         unsigned int ev_id = 0;
@@ -908,7 +911,7 @@ kvm_resume_vm(
         switch (ev_id) {
             case KVMI_EVENT_PAUSE_VCPU:
                 dbprint(VMI_DEBUG_KVM, "--Received VCPU pause event\n");
-                pause_events_count++;
+                kvm->expected_pause_count--;
                 // reply continue
                 rpl.action = KVMI_EVENT_ACTION_CONTINUE;
                 rpl.event = ev->event.common.event;

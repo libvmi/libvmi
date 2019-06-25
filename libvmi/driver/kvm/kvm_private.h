@@ -45,6 +45,7 @@ typedef struct kvm_instance {
     void *kvmi_dom;
     pthread_mutex_t kvm_connect_mutex;
     pthread_cond_t kvm_start_cond;
+    unsigned int expected_pause_count;
 } kvm_instance_t;
 
 static inline kvm_instance_t *
