@@ -957,3 +957,51 @@ kvm_resume_vm(
 
     return VMI_SUCCESS;
 }
+
+status_t kvm_set_reg_access(
+    vmi_instance_t vmi,
+    reg_event_t* event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !event)
+        return VMI_FAILURE;
+#endif
+    unsigned int event_flags = 0;
+    unsigned int kvmi_reg = 0;
+
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    switch (event->reg) {
+        case CR3:
+            event_flags |= KVMI_EVENT_CR_FLAG;
+            kvmi_reg = 3;
+            break;
+        default:
+            dbprint(VMI_DEBUG_KVM, "--Reg access: unhandled register %" PRIu64"\n", event->reg);
+            return VMI_FAILURE;
+    }
+
+    // enable event monitoring for all vcpus
+    for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
+        if (kvmi_control_events(kvm->kvmi_dom, i, event_flags)) {
+            dbprint(VMI_DEBUG_KVM, "--Reg access: kvmi_control_events failed\n");
+            goto error_exit;
+        }
+
+        if (event_flags & KVMI_EVENT_CR_FLAG)
+            if (kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, true)) {
+                dbprint(VMI_DEBUG_KVM, "--Reg access: kvmi_control_cr failed\n");
+                goto error_exit;
+            }
+    }
+
+    return VMI_SUCCESS;
+error_exit:
+    // disable monitoring
+    for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
+        kvmi_control_events(kvm->kvmi_dom, i, 0);
+        if (event_flags & KVMI_EVENT_CR_FLAG)
+            kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, false);
+    }
+    return VMI_FAILURE;
+}

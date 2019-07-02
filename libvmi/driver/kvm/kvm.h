@@ -95,6 +95,9 @@ status_t kvm_pause_vm(
     vmi_instance_t vmi);
 status_t kvm_resume_vm(
     vmi_instance_t vmi);
+status_t kvm_set_reg_access(
+    vmi_instance_t vmi,
+    reg_event_t* event);
 status_t kvm_get_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
@@ -135,6 +138,7 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.is_pv_ptr = &kvm_is_pv;
     driver.pause_vm_ptr = &kvm_pause_vm;
     driver.resume_vm_ptr = &kvm_resume_vm;
+    driver.set_reg_access_ptr= &kvm_set_reg_access;
     vmi->driver = driver;
     return VMI_SUCCESS;
 }
