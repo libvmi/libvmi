@@ -898,12 +898,12 @@ kvm_resume_vm(
 
         // wait
         if (kvmi_wait_event(kvm->kvmi_dom, 30 * 1024)) {
-            dbprint(VMI_DEBUG, "--Failed to receive event\n");
+            errprint("%s: Failed to receive event\n", __func__);
             return VMI_FAILURE;
         }
         // pop
         if (kvmi_pop_event(kvm->kvmi_dom, &ev)) {
-            dbprint(VMI_DEBUG, "--Failed to pop event\n");
+            errprint("%s: Failed to pop event\n", __func__);
             return VMI_FAILURE;
         }
         // handle event
@@ -916,14 +916,14 @@ kvm_resume_vm(
                 rpl.action = KVMI_EVENT_ACTION_CONTINUE;
                 rpl.event = ev->event.common.event;
                 if (kvmi_reply_event(kvm->kvmi_dom, ev->seq, &rpl, sizeof(rpl))) {
-                    dbprint(VMI_DEBUG_KVM, "--Fail to send continue reply");
+                    errprint("%s: Fail to send continue reply", __func__);
                     free(ev);
                     return VMI_FAILURE;
                 }
                 free(ev);
                 break;
             default:
-                dbprint(VMI_DEBUG_KVM, "--Pause: Unexpected event %u\n", ev_id);
+                errprint("%s: Unexpected event %u\n", __func__, ev_id);
                 free(ev);
                 return VMI_FAILURE;
         }
