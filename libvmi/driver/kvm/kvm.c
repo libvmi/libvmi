@@ -1038,9 +1038,17 @@ status_t kvm_set_reg_access(
 
     // check reg
     switch (event->reg) {
+        case CR0:
+            event_flags |= KVMI_EVENT_CR_FLAG;
+            kvmi_reg = 0;
+            break;
         case CR3:
             event_flags |= KVMI_EVENT_CR_FLAG;
             kvmi_reg = 3;
+            break;
+        case CR4:
+            event_flags |= KVMI_EVENT_CR_FLAG;
+            kvmi_reg = 4;
             break;
         default:
             errprint("%s: unhandled register %" PRIu64"\n", __func__, event->reg);
