@@ -872,7 +872,7 @@ kvm_pause_vm(
 
     // pause vcpus
     if (kvmi_pause_all_vcpus(kvm->kvmi_dom, &kvm->expected_pause_count)) {
-        dbprint(VMI_DEBUG_KVM, "--Failed to pause domain\n");
+        errprint("%s: Failed to pause domain\n", __func__);
         return VMI_FAILURE;
     }
 
