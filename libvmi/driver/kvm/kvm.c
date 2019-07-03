@@ -1054,6 +1054,10 @@ status_t kvm_set_reg_access(
             event_flags |= KVMI_EVENT_CR_FLAG;
             kvmi_reg = 4;
             break;
+        case MSR_STAR:
+            event_flags |= KVMI_EVENT_MSR_FLAG;
+            kvmi_reg = 0xc0000081;
+            break;
         default:
             errprint("%s: unhandled register %" PRIu64"\n", __func__, event->reg);
             return VMI_FAILURE;
@@ -1085,7 +1089,12 @@ status_t kvm_set_reg_access(
 
         if (event_flags & KVMI_EVENT_CR_FLAG)
             if (kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
-                errprint("%s: failed\n", __func__);
+                errprint("%s: kvmi_control_cr failed\n", __func__);
+                goto error_exit;
+            }
+        if (event_flags & KVMI_EVENT_MSR_FLAG)
+            if (kvmi_control_msr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
+                errprint("%s: kvmi_control_msr failed\n", __func__);
                 goto error_exit;
             }
     }
@@ -1100,6 +1109,8 @@ error_exit:
         kvmi_control_events(kvm->kvmi_dom, i, 0);
         if (event_flags & KVMI_EVENT_CR_FLAG)
             kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, false);
+        if (event_flags & KVMI_EVENT_MSR_FLAG)
+            kvmi_control_msr(kvm->kvmi_dom, i, kvmi_reg, false);
     }
     return VMI_FAILURE;
 }
