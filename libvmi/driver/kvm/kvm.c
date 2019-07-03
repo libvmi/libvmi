@@ -1043,7 +1043,7 @@ status_t kvm_set_reg_access(
             kvmi_reg = 3;
             break;
         default:
-            dbprint(VMI_DEBUG_KVM, "--Reg access: unhandled register %" PRIu64"\n", event->reg);
+            errprint("%s: unhandled register %" PRIu64"\n", __func__, event->reg);
             return VMI_FAILURE;
     }
 
@@ -1067,13 +1067,13 @@ status_t kvm_set_reg_access(
     // enable event monitoring for all vcpus
     for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
         if (kvmi_control_events(kvm->kvmi_dom, i, event_flags)) {
-            dbprint(VMI_DEBUG_KVM, "--Reg access: kvmi_control_events failed\n");
+            errprint("%s: kvmi_control_events failed\n", __func__);
             goto error_exit;
         }
 
         if (event_flags & KVMI_EVENT_CR_FLAG)
             if (kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
-                dbprint(VMI_DEBUG_KVM, "--Reg access: kvmi_control_cr failed\n");
+                errprint("%s: failed\n", __func__);
                 goto error_exit;
             }
     }
