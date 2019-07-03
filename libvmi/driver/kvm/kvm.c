@@ -897,7 +897,7 @@ kvm_resume_vm(
         unsigned int ev_id = 0;
 
         // wait
-        if (kvmi_wait_event(kvm->kvmi_dom, 30 * 1024)) {
+        if (kvmi_wait_event(kvm->kvmi_dom, 1000)) {
             errprint("%s: Failed to receive event\n", __func__);
             return VMI_FAILURE;
         }
