@@ -980,7 +980,7 @@ status_t kvm_events_listen(
         return VMI_FAILURE;
 #endif
     struct kvmi_dom_event *event = NULL;
-    unsigned int ev_id = 0;
+    unsigned int ev_reason = 0;
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
@@ -1003,16 +1003,16 @@ status_t kvm_events_listen(
         return VMI_FAILURE;
     }
 
-    ev_id = event->event.common.event;
     // handle event
-    switch (ev_id) {
-        case KVMI_EVENT_CR:
-            dbprint(VMI_DEBUG_KVM, "CR3 load\n");
-            break;
-        default:
-            dbprint(VMI_DEBUG_KVM, "Unexpected event %u\n", ev_id);
-            goto error_exit;
+    ev_reason = event->event.common.event;
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason] ) {
+        errprint("Undefined handler for %u event reason", ev_reason);
+        return VMI_FAILURE;
     }
+#endif
+    // call handler
+    kvm->process_event[ev_reason](vmi, event);
 
     // ack
     if (reply_continue(kvm->kvmi_dom, event) == VMI_FAILURE)

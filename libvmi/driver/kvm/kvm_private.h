@@ -33,6 +33,7 @@
 
 #include "private.h"
 #include "libvirt_wrapper.h"
+#include "driver/kvm/include/kvmi/libkvmi.h"
 
 typedef struct kvm_instance {
     virConnectPtr conn;
@@ -46,6 +47,8 @@ typedef struct kvm_instance {
     pthread_mutex_t kvm_connect_mutex;
     pthread_cond_t kvm_start_cond;
     unsigned int expected_pause_count;
+    // dispatcher to handle VM events in each process_xxx functions
+    status_t (*process_event[KVMI_NUM_EVENTS])(vmi_instance_t vmi, struct kvmi_dom_event *event);
 } kvm_instance_t;
 
 static inline kvm_instance_t *
