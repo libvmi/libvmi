@@ -1078,6 +1078,9 @@ status_t kvm_set_reg_access(
             }
     }
 
+    dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on register %" PRIu64"\n",
+            (enable ? "enabling" : "disabling"),
+            event->reg);
     return VMI_SUCCESS;
 error_exit:
     // disable monitoring
