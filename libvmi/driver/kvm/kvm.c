@@ -983,6 +983,10 @@ status_t kvm_events_listen(
     unsigned int ev_id = 0;
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom)
+        return VMI_FAILURE;
+#endif
 
     // wait next event
     if (kvmi_wait_event(kvm->kvmi_dom, timeout)) {
