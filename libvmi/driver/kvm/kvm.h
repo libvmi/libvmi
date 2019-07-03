@@ -95,6 +95,9 @@ status_t kvm_pause_vm(
     vmi_instance_t vmi);
 status_t kvm_resume_vm(
     vmi_instance_t vmi);
+status_t kvm_events_listen(
+    vmi_instance_t vmi,
+    uint32_t timeout);
 status_t kvm_set_reg_access(
     vmi_instance_t vmi,
     reg_event_t* event);
@@ -138,6 +141,7 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.is_pv_ptr = &kvm_is_pv;
     driver.pause_vm_ptr = &kvm_pause_vm;
     driver.resume_vm_ptr = &kvm_resume_vm;
+    driver.events_listen_ptr = &kvm_events_listen;
     driver.set_reg_access_ptr= &kvm_set_reg_access;
     vmi->driver = driver;
     return VMI_SUCCESS;

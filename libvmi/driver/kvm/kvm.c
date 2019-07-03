@@ -52,6 +52,9 @@
 #include <sys/time.h>
 #include "driver/kvm/include/kvmi/libkvmi.h"
 
+/*
+ * Helpers
+ */
 static uint32_t
 translate_msr_index(int index, int *err) {
     *err = 0;
@@ -99,6 +102,20 @@ translate_msr_index(int index, int *err) {
         *err = 1;
         return 0;
     }
+}
+
+static status_t
+reply_continue(void *dom, struct kvmi_dom_event *ev)
+{
+    struct kvmi_event_reply rpl = {0};
+
+    rpl.action = KVMI_EVENT_ACTION_CONTINUE;
+    rpl.event = ev->event.common.event;
+
+    if (kvmi_reply_event(dom, ev->seq, &rpl, sizeof(rpl)))
+        return VMI_FAILURE;
+
+    return VMI_SUCCESS;
 }
 
 void *
@@ -938,10 +955,7 @@ kvm_resume_vm(
             case KVMI_EVENT_PAUSE_VCPU:
                 dbprint(VMI_DEBUG_KVM, "--Received VCPU pause event\n");
                 kvm->expected_pause_count--;
-                // reply continue
-                rpl.action = KVMI_EVENT_ACTION_CONTINUE;
-                rpl.event = ev->event.common.event;
-                if (kvmi_reply_event(kvm->kvmi_dom, ev->seq, &rpl, sizeof(rpl))) {
+                if (reply_continue(kvm->kvmi_dom, ev) == VMI_FAILURE) {
                     errprint("%s: Fail to send continue reply", __func__);
                     free(ev);
                     return VMI_FAILURE;
@@ -957,6 +971,57 @@ kvm_resume_vm(
 
     return VMI_SUCCESS;
 }
+
+status_t kvm_events_listen(
+    vmi_instance_t vmi,
+    uint32_t timeout)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return VMI_FAILURE;
+#endif
+    struct kvmi_dom_event *event = NULL;
+    unsigned int ev_id = 0;
+
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    // wait next event
+    if (kvmi_wait_event(kvm->kvmi_dom, timeout)) {
+        if (errno == ETIMEDOUT) {
+            // no events !
+            return VMI_SUCCESS;
+        }
+        return VMI_FAILURE;
+    }
+
+    // pop event from queue
+    if (kvmi_pop_event(kvm->kvmi_dom, &event)) {
+        dbprint(VMI_DEBUG_KVM, "--Failed to pop event\n");
+        return VMI_FAILURE;
+    }
+
+    ev_id = event->event.common.event;
+    // handle event
+    switch (ev_id) {
+        case KVMI_EVENT_CR:
+            dbprint(VMI_DEBUG_KVM, "CR3 load\n");
+            break;
+        default:
+            dbprint(VMI_DEBUG_KVM, "Unexpected event %u\n", ev_id);
+            goto error_exit;
+    }
+
+    // ack
+    if (reply_continue(kvm->kvmi_dom, event) == VMI_FAILURE)
+        goto error_exit;
+
+    return VMI_SUCCESS;
+error_exit:
+    if (event)
+        free(event);
+    return VMI_FAILURE;
+}
+
 
 status_t kvm_set_reg_access(
     vmi_instance_t vmi,
