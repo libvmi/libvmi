@@ -1104,6 +1104,7 @@ kvm_resume_vm(
     return VMI_SUCCESS;
 }
 
+
 status_t kvm_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout)
@@ -1298,4 +1299,62 @@ error_exit:
         kvmi_control_events(kvm->kvmi_dom, i, 0);
     }
     return VMI_FAILURE;
+}
+
+
+status_t
+kvm_set_mem_access(
+        vmi_instance_t vmi,
+        addr_t gpfn,
+        vmi_mem_access_t page_access_flag,
+        uint16_t UNUSED(vmm_pagetable_id))
+{
+    unsigned char kvmi_access;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm)
+        errprint("%s: invalid kvm handle\n", __func__);
+#endif
+
+    // get previous access type
+    // only if not VMI_MEMACCESS_N and VMI_MEMACCESS_RWX,
+    // in which case we simply remove all permissions
+    if (page_access_flag != VMI_MEMACCESS_N && page_access_flag != VMI_MEMACCESS_RWX)
+        if (kvmi_get_page_access(kvm->kvmi_dom, 0, gpfn, &kvmi_access))
+            return VMI_FAILURE;
+
+    // check access type and convert to KVMI
+    switch (page_access_flag) {
+        case VMI_MEMACCESS_N:
+            kvmi_access = 0;
+            break;
+        case VMI_MEMACCESS_W:
+            kvmi_access &= ~KVMI_PAGE_ACCESS_W;
+            break;
+        case VMI_MEMACCESS_X:
+            kvmi_access &= ~KVMI_PAGE_ACCESS_X;
+            break;
+        case VMI_MEMACCESS_RW:
+            kvmi_access &= ~(KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W);
+            break;
+        case VMI_MEMACCESS_WX:
+            kvmi_access &= ~(KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X);
+            break;
+        case VMI_MEMACCESS_RWX:
+            kvmi_access = 0;
+            break;
+        default:
+            errprint("%s error: invalid memaccess setting requested\n", __func__);
+            return VMI_FAILURE;
+    }
+
+    for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
+        if (kvmi_set_page_access(kvm->kvmi_dom, i, (long long unsigned int*)&gpfn, &kvmi_access, 1)) {
+            errprint("%s error: unable to set page access on GPFN 0x%" PRIx64 "\n", __func__, gpfn);
+            return VMI_FAILURE;
+        }
+    }
+
+    dbprint(VMI_DEBUG_KVM, "--Done setting memaccess on GPFN: 0x%" PRIx64 "\n", gpfn);
+    return VMI_SUCCESS;
 }

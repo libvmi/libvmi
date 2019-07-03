@@ -105,6 +105,11 @@ status_t kvm_set_intr_access(
     vmi_instance_t vmi,
     interrupt_event_t* event,
     bool enabled);
+status_t kvm_set_mem_access(
+    vmi_instance_t vmi,
+    addr_t gpfn,
+    vmi_mem_access_t page_access_flag,
+    uint16_t vmm_pagetable_id);
 status_t kvm_get_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
@@ -148,6 +153,7 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.events_listen_ptr = &kvm_events_listen;
     driver.set_reg_access_ptr = &kvm_set_reg_access;
     driver.set_intr_access_ptr = &kvm_set_intr_access;
+    driver.set_mem_access_ptr = &kvm_set_mem_access;
     vmi->driver = driver;
     return VMI_SUCCESS;
 }
