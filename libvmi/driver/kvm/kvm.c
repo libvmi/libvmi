@@ -936,7 +936,6 @@ kvm_resume_vm(
     // wait to receive pause events
     while (kvm->expected_pause_count) {
         struct kvmi_dom_event *ev = NULL;
-        struct kvmi_event_reply rpl = {0};
         unsigned int ev_id = 0;
 
         // wait
@@ -1033,9 +1032,11 @@ status_t kvm_set_reg_access(
 #endif
     unsigned int event_flags = 0;
     unsigned int kvmi_reg = 0;
+    bool enable = false;
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
+    // check reg
     switch (event->reg) {
         case CR3:
             event_flags |= KVMI_EVENT_CR_FLAG;
@@ -1043,6 +1044,23 @@ status_t kvm_set_reg_access(
             break;
         default:
             dbprint(VMI_DEBUG_KVM, "--Reg access: unhandled register %" PRIu64"\n", event->reg);
+            return VMI_FAILURE;
+    }
+
+    // check access type
+    switch (event->in_access) {
+        case VMI_REGACCESS_N:
+            enable = false;
+            break;
+        case VMI_REGACCESS_W:
+            enable = true;
+            break;
+        case VMI_REGACCESS_R:
+        case VMI_REGACCESS_RW:
+            errprint("Register read events are unavailable in KVM.\n");
+            return VMI_FAILURE;
+        default:
+            errprint("Unknown register access mode: %d\n", event->in_access);
             return VMI_FAILURE;
     }
 
@@ -1054,7 +1072,7 @@ status_t kvm_set_reg_access(
         }
 
         if (event_flags & KVMI_EVENT_CR_FLAG)
-            if (kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, true)) {
+            if (kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
                 dbprint(VMI_DEBUG_KVM, "--Reg access: kvmi_control_cr failed\n");
                 goto error_exit;
             }
