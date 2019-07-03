@@ -118,6 +118,21 @@ reply_continue(void *dom, struct kvmi_dom_event *ev)
     return VMI_SUCCESS;
 }
 
+/*
+ * VM event handlers (process_xxx)
+ * called from kvm_events_listen
+ */
+static status_t
+process_register(vmi_instance_t vmi, struct kvmi_dom_event *event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !event)
+        return VMI_FAILURE;
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Received register event\n");
+    return VMI_SUCCESS;
+}
+
 void *
 kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length) {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
@@ -388,7 +403,7 @@ kvm_init(
 status_t
 kvm_init_vmi(
     vmi_instance_t vmi,
-    uint32_t UNUSED(init_flags),
+    uint32_t init_flags,
     vmi_init_data_t* init_data)
 {
     vmi_init_data_entry_t init_entry;
@@ -444,6 +459,12 @@ kvm_init_vmi(
         return VMI_FAILURE;
     }
     dbprint(VMI_DEBUG_KVM, "--VCPU count: %d\n", vmi->num_vcpus);
+
+    // check init_flags
+    if (init_flags & VMI_INIT_EVENTS) {
+        // fill event dispatcher
+        kvm->process_event[KVMI_EVENT_CR] = &process_register;
+    }
 
     return kvm_setup_live_mode(vmi);
 }
