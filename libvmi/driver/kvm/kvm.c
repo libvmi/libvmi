@@ -1035,6 +1035,10 @@ status_t kvm_set_reg_access(
     bool enable = false;
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom)
+        return VMI_FAILURE;
+#endif
 
     // check reg
     switch (event->reg) {
