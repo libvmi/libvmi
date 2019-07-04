@@ -1146,6 +1146,44 @@ kvm_set_intr_access(
     interrupt_event_t* event,
     bool enabled)
 {
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !event)
+        return VMI_FAILURE;
+#endif
+
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom)
+        return VMI_FAILURE;
+#endif
+    /* TODO: API
+     * There is no way to query the old event flag from the VCPU
+     * and unset KVMI_EVENT_BREAKPOINT_FLAG.
+     * So we might disable CR/MSR or other events here...
+     */
+    unsigned int event_flag = (enabled) ? KVMI_EVENT_BREAKPOINT_FLAG : 0;
+
+    switch (event->intr) {
+        case INT3:
+            for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
+                if (kvmi_control_events(kvm->kvmi_dom, vcpu, event_flag)) {
+                    errprint("%s: failed to set event on VCPU %u\n", __func__, vcpu);
+                    goto error_exit;
+                }
+            break;
+        default:
+            errprint("KVM driver does not support enabling events for interrupt: %"PRIu32"\n", event->intr);
+            return VMI_FAILURE;
+    }
+
+    dbprint(VMI_DEBUG_KVM, "--%s interrupt %"PRIu32" monitoring\n",
+            (enabled) ? "Enabled" : "Disabled", event->intr);
 
     return VMI_SUCCESS;
+error_exit:
+    // disable monitoring for all vcpus
+    for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
+        kvmi_control_events(kvm->kvmi_dom, i, 0);
+    }
+    return VMI_FAILURE;
 }
