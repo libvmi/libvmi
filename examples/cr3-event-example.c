@@ -51,6 +51,7 @@ int main (int argc, char **argv)
     vmi_instance_t vmi;
     status_t status;
     vmi_init_data_t init_data = {0};
+    vmi_mode_t mode;
 
     /* this is the VM or file that we are looking at */
     if (argc < 2) {
@@ -69,11 +70,14 @@ int main (int argc, char **argv)
         init_data.entry[0].data = strdup(path);
     }
 
-    /* initialize the libvmi library */
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, &init_data, &mode)) {
+        fprintf(stderr, "Failed to get access mode\n");
+        return 1;
+    }
+
     if (VMI_FAILURE ==
-        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, &init_data,
-                          VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
-        printf("Failed to init LibVMI library.\n");
+        vmi_init(&vmi, mode, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, &init_data, NULL)) {
+        fprintf(stderr, "Failed to init LibVMI library.\n");
         return 1;
     }
 
@@ -97,10 +101,6 @@ int main (int argc, char **argv)
     cr3_event.version = VMI_EVENTS_VERSION;
     cr3_event.type = VMI_EVENT_REGISTER;
     cr3_event.callback = cr3_callback;
-
-    /* Observe only write events to the given register.
-     *   NOTE: read events are unsupported at this time.
-     */
     cr3_event.reg_event.reg = CR3;
     cr3_event.reg_event.in_access = VMI_REGACCESS_W;
 
@@ -111,18 +111,15 @@ int main (int argc, char **argv)
     if (vmi_resume_vm(vmi) ==  VMI_FAILURE)
         goto error_exit;
 
+    printf("Waiting for events...\n");
     while (!interrupted) {
-        printf("listening...\n");
         status = vmi_events_listen(vmi, 500);
         if (status == VMI_FAILURE)
             printf("Failed to  listen on events\n");
     }
 
-    if (vmi_clear_event(vmi, &cr3_event, NULL) == VMI_FAILURE)
-        goto error_exit;
-
 error_exit:
-    fprintf(stderr, "Failure\n");
+    vmi_clear_event(vmi, &cr3_event, NULL);
 
     /* cleanup any memory associated with the LibVMI instance */
     vmi_destroy(vmi);

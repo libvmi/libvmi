@@ -1,8 +1,8 @@
 add_executable(map-addr map-addr.c)
 target_link_libraries(map-addr vmi_shared)
 
-add_executable(cr3-load cr3-load.c)
-target_link_libraries(cr3-load vmi_shared)
+add_executable(cr3-event-example cr3-event-example.c)
+target_link_libraries(cr3-event-example vmi_shared)
 
 add_executable(map-symbol map-symbol.c)
 target_link_libraries(map-symbol vmi_shared)
