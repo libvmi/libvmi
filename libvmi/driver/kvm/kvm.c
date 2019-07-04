@@ -133,6 +133,17 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *event)
     return VMI_SUCCESS;
 }
 
+static status_t
+process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !event)
+        return VMI_FAILURE;
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Received interrupt event\n");
+    return VMI_SUCCESS;
+}
+
 void *
 kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length) {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
@@ -464,6 +475,7 @@ kvm_init_vmi(
     if (init_flags & VMI_INIT_EVENTS) {
         // fill event dispatcher
         kvm->process_event[KVMI_EVENT_CR] = &process_register;
+        kvm->process_event[KVMI_EVENT_BREAKPOINT] = &process_interrupt;
     }
 
     return kvm_setup_live_mode(vmi);
