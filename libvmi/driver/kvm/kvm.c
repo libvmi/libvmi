@@ -256,6 +256,23 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     return VMI_SUCCESS;
 }
 
+static status_t
+process_pause_event(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !kvmi_event)
+        return VMI_FAILURE;
+#endif
+
+    // this shouldn't happen
+    // the pause event should have been poped by kvm_resume_vm
+    // report to the user
+    errprint("Unexpected PAUSE event while listening. Did you forget to resume the VM ?\n");
+
+    // always fail, so kvm_events_listen can fail too
+    return VMI_FAILURE;
+}
+
 void *
 kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length) {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
@@ -589,6 +606,7 @@ kvm_init_vmi(
         kvm->process_event[KVMI_EVENT_CR] = &process_register;
         kvm->process_event[KVMI_EVENT_BREAKPOINT] = &process_interrupt;
         kvm->process_event[KVMI_EVENT_PF] = &process_pagefault;
+        kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
     }
 
     return kvm_setup_live_mode(vmi);
@@ -1159,7 +1177,9 @@ status_t kvm_events_listen(
     }
 #endif
     // call handler
-    kvm->process_event[ev_reason](vmi, event);
+    if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
+        goto error_exit;
+
 
     // ack
     if (reply_continue(kvm->kvmi_dom, event) == VMI_FAILURE)
