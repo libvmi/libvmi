@@ -1369,6 +1369,9 @@ kvm_set_mem_access(
         case VMI_MEMACCESS_N:
             kvmi_access = 0;
             break;
+        case VMI_MEMACCESS_R:
+            kvmi_access &= ~KVMI_PAGE_ACCESS_R;
+            break;
         case VMI_MEMACCESS_W:
             kvmi_access &= ~KVMI_PAGE_ACCESS_W;
             break;
