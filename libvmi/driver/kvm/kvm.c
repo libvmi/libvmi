@@ -1309,11 +1309,19 @@ kvm_set_mem_access(
         vmi_mem_access_t page_access_flag,
         uint16_t UNUSED(vmm_pagetable_id))
 {
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
     unsigned char kvmi_access;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
-    if (!kvm)
+    if (!kvm || !kvm->kvmi_dom) {
         errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
 #endif
 
     // get previous access type
