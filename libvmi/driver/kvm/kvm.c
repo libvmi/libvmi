@@ -118,6 +118,75 @@ reply_continue(void *dom, struct kvmi_dom_event *ev)
     return VMI_SUCCESS;
 }
 
+static void
+fill_ev_common_kvmi_to_libvmi(
+        struct kvmi_dom_event *kvmi_event,
+        vmi_event_t *libvmi_event)
+{
+    //      standard regs
+    libvmi_event->x86_regs->rax = kvmi_event->event.common.regs.rax;
+    libvmi_event->x86_regs->rbx = kvmi_event->event.common.regs.rbx;
+    libvmi_event->x86_regs->rcx = kvmi_event->event.common.regs.rcx;
+    libvmi_event->x86_regs->rdx = kvmi_event->event.common.regs.rdx;
+    libvmi_event->x86_regs->rsi = kvmi_event->event.common.regs.rsi;
+    libvmi_event->x86_regs->rdi = kvmi_event->event.common.regs.rdi;
+    libvmi_event->x86_regs->rip = kvmi_event->event.common.regs.rip;
+    libvmi_event->x86_regs->rsp = kvmi_event->event.common.regs.rsp;
+    libvmi_event->x86_regs->rbp = kvmi_event->event.common.regs.rbp;
+    libvmi_event->x86_regs->rflags = kvmi_event->event.common.regs.rflags;
+    libvmi_event->x86_regs->r8 = kvmi_event->event.common.regs.r8;
+    libvmi_event->x86_regs->r9 = kvmi_event->event.common.regs.r9;
+    libvmi_event->x86_regs->r10 = kvmi_event->event.common.regs.r10;
+    libvmi_event->x86_regs->r11 = kvmi_event->event.common.regs.r11;
+    libvmi_event->x86_regs->r12 = kvmi_event->event.common.regs.r12;
+    libvmi_event->x86_regs->r13 = kvmi_event->event.common.regs.r13;
+    libvmi_event->x86_regs->r14 = kvmi_event->event.common.regs.r14;
+    libvmi_event->x86_regs->r15 = kvmi_event->event.common.regs.r15;
+    //      special regs
+    //          Control Registers
+    libvmi_event->x86_regs->cr0 = kvmi_event->event.common.sregs.cr0;
+    libvmi_event->x86_regs->cr2 = kvmi_event->event.common.sregs.cr2;
+    libvmi_event->x86_regs->cr3 = kvmi_event->event.common.sregs.cr3;
+    libvmi_event->x86_regs->cr4 = kvmi_event->event.common.sregs.cr4;
+    //          CS
+    libvmi_event->x86_regs->cs_base = kvmi_event->event.common.sregs.cs.base;
+    libvmi_event->x86_regs->cs_limit = kvmi_event->event.common.sregs.cs.limit;
+    libvmi_event->x86_regs->cs_sel = kvmi_event->event.common.sregs.cs.selector;
+    //          DS
+    libvmi_event->x86_regs->ds_base = kvmi_event->event.common.sregs.ds.base;
+    libvmi_event->x86_regs->ds_limit = kvmi_event->event.common.sregs.ds.limit;
+    libvmi_event->x86_regs->ds_sel = kvmi_event->event.common.sregs.ds.selector;
+    //          SS
+    libvmi_event->x86_regs->ss_base = kvmi_event->event.common.sregs.ss.base;
+    libvmi_event->x86_regs->ss_limit = kvmi_event->event.common.sregs.ss.limit;
+    libvmi_event->x86_regs->ss_sel = kvmi_event->event.common.sregs.ss.selector;
+    //          ES
+    libvmi_event->x86_regs->es_base = kvmi_event->event.common.sregs.es.base;
+    libvmi_event->x86_regs->es_limit = kvmi_event->event.common.sregs.es.limit;
+    libvmi_event->x86_regs->es_sel = kvmi_event->event.common.sregs.es.selector;
+    //          FS
+    libvmi_event->x86_regs->fs_base = kvmi_event->event.common.sregs.fs.base;
+    libvmi_event->x86_regs->fs_limit = kvmi_event->event.common.sregs.fs.limit;
+    libvmi_event->x86_regs->fs_sel = kvmi_event->event.common.sregs.fs.selector;
+    //          GS
+    libvmi_event->x86_regs->gs_base = kvmi_event->event.common.sregs.gs.base;
+    libvmi_event->x86_regs->gs_limit = kvmi_event->event.common.sregs.gs.limit;
+    libvmi_event->x86_regs->gs_sel = kvmi_event->event.common.sregs.gs.selector;
+    //      VCPU
+    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
+}
+
+static void
+call_event_callback(
+        vmi_instance_t vmi,
+        vmi_event_t *event)
+{
+    vmi->event_callback = 1;
+    // TODO: process callback event_response
+    event->callback(vmi, event);
+    vmi->event_callback = 0;
+}
+
 /*
  * VM event handlers (process_xxx)
  * called from kvm_events_listen
@@ -134,13 +203,44 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *event)
 }
 
 static status_t
-process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *event)
+process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 {
 #ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi || !event)
+    if (!vmi || !kvmi_event)
         return VMI_FAILURE;
 #endif
     dbprint(VMI_DEBUG_KVM, "--Received interrupt event\n");
+
+    // lookup vmi_event
+    gint key = INT3;
+    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->interrupt_events, &key);
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !libvmi_event ) {
+        errprint("%s error: no interrupt event handler is registered in LibVMI\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    // fill libvmi_event struct
+    x86_registers_t regs = {0};
+    libvmi_event->x86_regs = &regs;
+    fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+
+    //      interrupt_event
+    // TODO: hardcoded PAGE_SHIFT
+    libvmi_event->interrupt_event.gfn = kvmi_event->event.breakpoint.gpa >> 12;
+    // TODO: vector and type
+    // event->interrupt_event.vector =
+    // event->interrupt_event.type =
+    libvmi_event->interrupt_event.cr2 = kvmi_event->event.common.sregs.cr2;
+    libvmi_event->interrupt_event.offset = kvmi_event->event.common.regs.rip  & VMI_BIT_MASK(0,11);
+    libvmi_event->interrupt_event.gla = kvmi_event->event.common.regs.rip;
+    // default reinject behavior: invalid
+    libvmi_event->interrupt_event.reinject = -1;
+
+    // call user callback
+    call_event_callback(vmi, libvmi_event);
+
     return VMI_SUCCESS;
 }
 
