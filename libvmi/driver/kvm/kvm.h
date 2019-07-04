@@ -101,6 +101,10 @@ status_t kvm_events_listen(
 status_t kvm_set_reg_access(
     vmi_instance_t vmi,
     reg_event_t* event);
+status_t kvm_set_intr_access(
+    vmi_instance_t vmi,
+    interrupt_event_t* event,
+    bool enabled);
 status_t kvm_get_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
@@ -142,7 +146,8 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.pause_vm_ptr = &kvm_pause_vm;
     driver.resume_vm_ptr = &kvm_resume_vm;
     driver.events_listen_ptr = &kvm_events_listen;
-    driver.set_reg_access_ptr= &kvm_set_reg_access;
+    driver.set_reg_access_ptr = &kvm_set_reg_access;
+    driver.set_intr_access_ptr = &kvm_set_intr_access;
     vmi->driver = driver;
     return VMI_SUCCESS;
 }

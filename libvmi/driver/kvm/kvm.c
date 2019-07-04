@@ -1139,3 +1139,13 @@ error_exit:
     }
     return VMI_FAILURE;
 }
+
+status_t
+kvm_set_intr_access(
+    vmi_instance_t vmi,
+    interrupt_event_t* event,
+    bool enabled)
+{
+
+    return VMI_SUCCESS;
+}
