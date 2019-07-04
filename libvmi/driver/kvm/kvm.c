@@ -244,6 +244,18 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     return VMI_SUCCESS;
 }
 
+static status_t
+process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !kvmi_event)
+        return VMI_FAILURE;
+#endif
+
+    dbprint(VMI_DEBUG_KVM, "--Received pagefault event\n");
+    return VMI_SUCCESS;
+}
+
 void *
 kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length) {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
@@ -576,6 +588,7 @@ kvm_init_vmi(
         // fill event dispatcher
         kvm->process_event[KVMI_EVENT_CR] = &process_register;
         kvm->process_event[KVMI_EVENT_BREAKPOINT] = &process_interrupt;
+        kvm->process_event[KVMI_EVENT_PF] = &process_pagefault;
     }
 
     return kvm_setup_live_mode(vmi);
