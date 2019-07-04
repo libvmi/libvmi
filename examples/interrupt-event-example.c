@@ -70,6 +70,8 @@ static void close_handler(int sig)
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
+    vmi_init_data_t init_data = {0};
+    vmi_mode_t mode;
     struct sigaction act;
     act.sa_handler = close_handler;
     act.sa_flags = 0;
@@ -82,17 +84,31 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: interrupt_events_example <name of VM>\n");
+        fprintf(stderr, "Usage: %s <name of VM> [<socket path>]\n", argv[0]);
         exit(1);
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
 
-    // Initialize the libvmi library.
+    // kvmi socket ?
+    if (argc == 3) {
+        char *path = argv[2];
+
+        // fill init_data
+        init_data.count = 1;
+        init_data.entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data.entry[0].data = strdup(path);
+    }
+
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, &init_data, &mode)) {
+        fprintf(stderr, "Failed to get access mode\n");
+        return 1;
+    }
+
     if (VMI_FAILURE ==
-            vmi_init(&vmi, VMI_XEN, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, NULL, NULL)) {
-        printf("Failed to init LibVMI library.\n");
+            vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, &init_data, NULL)) {
+        fprintf(stderr, "Failed to init LibVMI library.\n");
         return 1;
     }
 
