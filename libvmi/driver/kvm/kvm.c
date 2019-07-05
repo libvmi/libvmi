@@ -1266,11 +1266,6 @@ status_t kvm_events_listen(
     if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
         goto error_exit;
 
-
-//    // ack
-//    if (reply_continue(kvm->kvmi_dom, event) == VMI_FAILURE)
-//        goto error_exit;
-
     return VMI_SUCCESS;
 error_exit:
     if (event)
