@@ -31,15 +31,24 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
-{
-    return 0;
-}
+static bool interrupted = false;
 
-static int interrupted = 0;
 static void close_handler(int sig)
 {
-    interrupted = sig;
+    interrupted = true;
+}
+
+event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    char str_access[4] = {'_', '_', '_', '\0'};
+    if (event->mem_event.out_access & VMI_MEMACCESS_R) str_access[0] = 'R';
+    if (event->mem_event.out_access & VMI_MEMACCESS_W) str_access[1] = 'W';
+    if (event->mem_event.out_access & VMI_MEMACCESS_X) str_access[2] = 'X';
+
+    printf("%s: at 0x%"PRIx64", on frame 0x%"PRIx64", permissions: %s\n",
+           __func__, event->x86_regs->rip, event->mem_event.gfn, str_access);
+
+    return VMI_EVENT_RESPONSE_NONE;
 }
 
 int main (int argc, char **argv)
