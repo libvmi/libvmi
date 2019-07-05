@@ -251,9 +251,68 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     if (!vmi || !kvmi_event)
         return VMI_FAILURE;
 #endif
-
     dbprint(VMI_DEBUG_KVM, "--Received pagefault event\n");
-    return VMI_SUCCESS;
+
+    // build out_access
+    vmi_mem_access_t out_access = VMI_MEMACCESS_INVALID;
+    if (kvmi_event->event.page_fault.mode & KVMI_PAGE_ACCESS_R) out_access |= VMI_MEMACCESS_R;
+    if (kvmi_event->event.page_fault.mode & KVMI_PAGE_ACCESS_W) out_access |= VMI_MEMACCESS_W;
+    if (kvmi_event->event.page_fault.mode & KVMI_PAGE_ACCESS_X) out_access |= VMI_MEMACCESS_X;
+
+    vmi_event_t *libvmi_event;
+    addr_t gfn = kvmi_event->event.page_fault.gpa >> 12;
+    // lookup vmi_event
+    //      standard ?
+    if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
+        // TODO: hardcoded page shift
+
+        libvmi_event = g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
+        if (libvmi_event && (libvmi_event->mem_event.in_access & out_access)) {
+            // fill libvmi_event struct
+            x86_registers_t regs = {0};
+            libvmi_event->x86_regs = &regs;
+            fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+            //      mem_event
+            libvmi_event->mem_event.out_access = out_access;
+            libvmi_event->mem_event.gla = kvmi_event->event.page_fault.gva;
+            libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
+
+            // call user callback
+            call_event_callback(vmi, libvmi_event);
+
+            return VMI_SUCCESS;
+        }
+    }
+    //  generic ?
+    if ( g_hash_table_size(vmi->mem_events_generic) ) {
+        GHashTableIter i;
+        vmi_mem_access_t *key = NULL;
+        bool cb_issued = 0;
+
+        ghashtable_foreach(vmi->mem_events_generic, i, &key, &libvmi_event) {
+            if ( (*key) & out_access ) {
+                // fill libvmi_event struct
+                x86_registers_t regs = {0};
+                libvmi_event->x86_regs = &regs;
+                fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+                //      mem_event
+                libvmi_event->mem_event.out_access = out_access;
+                libvmi_event->mem_event.gla = kvmi_event->event.page_fault.gva;
+                libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
+
+                // call user callback
+                call_event_callback(vmi, libvmi_event);
+
+                cb_issued = 1;
+            }
+        }
+        if ( cb_issued )
+            return VMI_SUCCESS;
+    }
+
+    errprint("Caught a memory event that had no handler registered in LibVMI @ GFN 0x%" PRIx64 " (0x%" PRIx64 "), access: %u\n",
+             gfn, kvmi_event->event.page_fault.gpa, out_access);
+    return VMI_FAILURE;
 }
 
 static status_t
