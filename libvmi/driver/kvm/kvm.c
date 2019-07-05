@@ -1348,6 +1348,7 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 #endif
+    static bool pf_enabled = false;
     unsigned char kvmi_access;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
@@ -1356,6 +1357,26 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 #endif
+    // enable PF events the first time we call this function
+    // this avoids enabling them at kvm_init_vmi, since we don't
+    // know if the app is going to use mem_events at all
+    if (!pf_enabled) {
+        bool pf_enabled_succeeded = true;
+        for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+            if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF_FLAG)) {
+                pf_enabled_succeeded = false;
+                errprint("%s: Fail to enable PF events on VCPU %u\n", vcpu);
+                break;
+            }
+        }
+        if (!pf_enabled_succeeded) {
+            // disable PF for all vcpu and fail
+            for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
+                kvmi_control_events(kvm->kvmi_dom, vcpu, 0);
+            return VMI_FAILURE;
+        }
+        pf_enabled = true;
+    }
 
     // get previous access type
     // only if not VMI_MEMACCESS_N and VMI_MEMACCESS_RWX,
