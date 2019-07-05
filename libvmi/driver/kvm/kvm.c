@@ -1349,7 +1349,7 @@ kvm_set_mem_access(
     }
 #endif
     static bool pf_enabled = false;
-    unsigned char kvmi_access;
+    unsigned char kvmi_access, kvmi_orig_access;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
     if (!kvm || !kvm->kvmi_dom) {
@@ -1365,7 +1365,7 @@ kvm_set_mem_access(
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
             if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF_FLAG)) {
                 pf_enabled_succeeded = false;
-                errprint("%s: Fail to enable PF events on VCPU %u\n", vcpu);
+                errprint("%s: Fail to enable PF events on VCPU %u\n", __func__, vcpu);
                 break;
             }
         }
@@ -1379,11 +1379,8 @@ kvm_set_mem_access(
     }
 
     // get previous access type
-    // only if not VMI_MEMACCESS_N and VMI_MEMACCESS_RWX,
-    // in which case we simply remove all permissions
-    if (page_access_flag != VMI_MEMACCESS_N && page_access_flag != VMI_MEMACCESS_RWX)
-        if (kvmi_get_page_access(kvm->kvmi_dom, 0, gpfn, &kvmi_access))
-            return VMI_FAILURE;
+    if (kvmi_get_page_access(kvm->kvmi_dom, 0, gpfn, &kvmi_orig_access))
+        return VMI_FAILURE;
 
     // check access type and convert to KVMI
     switch (page_access_flag) {
@@ -1391,19 +1388,19 @@ kvm_set_mem_access(
             kvmi_access = 0;
             break;
         case VMI_MEMACCESS_R:
-            kvmi_access &= ~KVMI_PAGE_ACCESS_R;
+            kvmi_access = kvmi_orig_access & ~KVMI_PAGE_ACCESS_R;
             break;
         case VMI_MEMACCESS_W:
-            kvmi_access &= ~KVMI_PAGE_ACCESS_W;
+            kvmi_access = kvmi_orig_access & ~KVMI_PAGE_ACCESS_W;
             break;
         case VMI_MEMACCESS_X:
-            kvmi_access &= ~KVMI_PAGE_ACCESS_X;
+            kvmi_access = kvmi_orig_access & ~KVMI_PAGE_ACCESS_X;
             break;
         case VMI_MEMACCESS_RW:
-            kvmi_access &= ~(KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W);
+            kvmi_access = kvmi_orig_access & ~(KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W);
             break;
         case VMI_MEMACCESS_WX:
-            kvmi_access &= ~(KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X);
+            kvmi_access = kvmi_orig_access & ~(KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X);
             break;
         case VMI_MEMACCESS_RWX:
             kvmi_access = 0;
@@ -1414,12 +1411,18 @@ kvm_set_mem_access(
     }
 
     // set page access
+    bool page_access_succeeded = true;
     long long unsigned int gpa = gpfn << 12;
-    for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
-        if (kvmi_set_page_access(kvm->kvmi_dom, i, &gpa, &kvmi_access, 1)) {
+    for (unsigned int vcpu=0; vcpu < vmi->num_vcpus; vcpu++) {
+        if (kvmi_set_page_access(kvm->kvmi_dom, vcpu, &gpa, &kvmi_access, 1)) {
+            page_access_succeeded = false;
             errprint("%s error: unable to set page access on GPFN 0x%" PRIx64 "\n", __func__, gpfn);
-            return VMI_FAILURE;
+            break;
         }
+    }
+    if (!page_access_succeeded) {
+        for (unsigned int vcpu=0; vcpu < vmi->num_vcpus; vcpu++)
+            kvmi_set_page_access(kvm->kvmi_dom, vcpu, &gpa, &kvmi_orig_access, 1);
     }
 
     dbprint(VMI_DEBUG_KVM, "--Done setting memaccess on GPFN: 0x%" PRIx64 "\n", gpfn);
