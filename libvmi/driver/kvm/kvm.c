@@ -176,16 +176,22 @@ fill_ev_common_kvmi_to_libvmi(
     libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
 }
 
-static void
+static status_t
 process_cb_response(
+        vmi_instance_t vmi,
         event_response_t response,
         vmi_event_t *libvmi_event,
         struct kvmi_dom_event *kvmi_event)
 {
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm or kvmi handles\n", __func__);
+        return VMI_FAILURE;
+    }
     if (!libvmi_event || !kvmi_event) {
         errprint("%s: invalid libvmi or kvmi event handles\n", __func__);
-        return;
+        return VMI_FAILURE;
     }
 #endif
     // loop over all possible responses
@@ -199,9 +205,13 @@ process_cb_response(
             }
         }
     }
+    // continue as default behavior for now
+    if (reply_continue(kvm->kvmi_dom, kvmi_event))
+        return VMI_FAILURE;
+    return VMI_SUCCESS;
 }
 
-static void
+static status_t
 call_event_callback(
         vmi_instance_t vmi,
         vmi_event_t *libvmi_event,
@@ -211,7 +221,7 @@ call_event_callback(
     vmi->event_callback = 1;
     response = libvmi_event->callback(vmi, libvmi_event);
     vmi->event_callback = 0;
-    process_cb_response(response, libvmi_event, kvmi_event);
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event);
 }
 
 /*
@@ -305,9 +315,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
             libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
 
             // call user callback
-            call_event_callback(vmi, libvmi_event, kvmi_event);
-
-            return VMI_SUCCESS;
+            return call_event_callback(vmi, libvmi_event, kvmi_event);
         }
     }
     //  generic ?
@@ -328,7 +336,8 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
                 libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
 
                 // call user callback
-                call_event_callback(vmi, libvmi_event, kvmi_event);
+                if (VMI_FAILURE == call_event_callback(vmi, libvmi_event, kvmi_event))
+                    return VMI_FAILURE;
 
                 cb_issued = 1;
             }
