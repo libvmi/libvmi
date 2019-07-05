@@ -177,14 +177,41 @@ fill_ev_common_kvmi_to_libvmi(
 }
 
 static void
+process_cb_response(
+        event_response_t response,
+        vmi_event_t *libvmi_event,
+        struct kvmi_dom_event *kvmi_event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!libvmi_event || !kvmi_event) {
+        errprint("%s: invalid libvmi or kvmi event handles\n", __func__);
+        return;
+    }
+#endif
+    // loop over all possible responses
+    for (uint32_t i = VMI_EVENT_RESPONSE_NONE+1; i <=__VMI_EVENT_RESPONSE_MAX; i++) {
+        event_response_t candidate = 1u << i;
+        if (response & candidate) {
+            switch (candidate) {
+                default:
+                    errprint("%s: KVM - unhandled event reponse %u\n", __func__, candidate);
+                    break;
+            }
+        }
+    }
+}
+
+static void
 call_event_callback(
         vmi_instance_t vmi,
-        vmi_event_t *event)
+        vmi_event_t *libvmi_event,
+        struct kvmi_dom_event *kvmi_event)
 {
+    event_response_t response;
     vmi->event_callback = 1;
-    // TODO: process callback event_response
-    event->callback(vmi, event);
+    response = libvmi_event->callback(vmi, libvmi_event);
     vmi->event_callback = 0;
+    process_cb_response(response, libvmi_event, kvmi_event);
 }
 
 /*
@@ -239,7 +266,7 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     libvmi_event->interrupt_event.reinject = -1;
 
     // call user callback
-    call_event_callback(vmi, libvmi_event);
+    call_event_callback(vmi, libvmi_event, kvmi_event);
 
     return VMI_SUCCESS;
 }
@@ -278,7 +305,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
             libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
 
             // call user callback
-            call_event_callback(vmi, libvmi_event);
+            call_event_callback(vmi, libvmi_event, kvmi_event);
 
             return VMI_SUCCESS;
         }
@@ -301,7 +328,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
                 libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
 
                 // call user callback
-                call_event_callback(vmi, libvmi_event);
+                call_event_callback(vmi, libvmi_event, kvmi_event);
 
                 cb_issued = 1;
             }
@@ -310,8 +337,8 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
             return VMI_SUCCESS;
     }
 
-    errprint("Caught a memory event that had no handler registered in LibVMI @ GFN 0x%" PRIx64 " (0x%" PRIx64 "), access: %u\n",
-             gfn, kvmi_event->event.page_fault.gpa, out_access);
+    errprint("%s: Caught a memory event that had no handler registered in LibVMI @ GFN 0x%" PRIx64 " (0x%" PRIx64 "), access: %u\n",
+             __func__, gfn, (addr_t)kvmi_event->event.page_fault.gpa, out_access);
     return VMI_FAILURE;
 }
 
@@ -1240,9 +1267,9 @@ status_t kvm_events_listen(
         goto error_exit;
 
 
-    // ack
-    if (reply_continue(kvm->kvmi_dom, event) == VMI_FAILURE)
-        goto error_exit;
+//    // ack
+//    if (reply_continue(kvm->kvmi_dom, event) == VMI_FAILURE)
+//        goto error_exit;
 
     return VMI_SUCCESS;
 error_exit:
