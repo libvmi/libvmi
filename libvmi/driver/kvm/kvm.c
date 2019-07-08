@@ -1431,6 +1431,9 @@ status_t kvm_set_reg_access(
                 kvmi_reg = msr_index[msr_all[i]];
                 if (kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, enable)) {
                     errprint("%s: failed to set MSR event for %s\n", __func__, msr_to_str[msr_all[i]]);
+                    // this call fails on MSR_HYPERVISOR
+                    // to avoid breaking MSR_ALL feature, we simply continue
+                    // and print an error message
                     continue;
                 }
             }
