@@ -30,4 +30,7 @@ extern const unsigned int msr_all_len;
 extern const uint32_t msr_index[];
 extern const unsigned int msr_index_len;
 
+extern const char* msr_to_str[];
+extern const unsigned int msr_to_str_len;
+
 #endif /* MSR_INDEX_H */

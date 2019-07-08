@@ -103,3 +103,55 @@ const uint32_t msr_index[] = {
     [MSR_HYPERVISOR]             = 0x40000000
 };
 const unsigned int msr_index_len = sizeof(msr_index) / sizeof(uint32_t);
+
+const char* msr_to_str[] = {
+    [MSR_EFER]                   = "MSR_EFER",
+    [MSR_STAR]                   = "MSR_STAR",
+    [MSR_LSTAR]                  = "MSR_LSTAR",
+    [MSR_CSTAR]                  = "MSR_CSTAR",
+    [MSR_SYSCALL_MASK]           = "MSR_SYSCALL_MASK",
+    [MSR_SHADOW_GS_BASE]         = "MSR_SHADOW_GS_BASE",
+    [MSR_TSC_AUX]                = "MSR_TSC_AUX",
+
+    [MSR_MTRRfix64K_00000]       = "MSR_MTRRfix64K_00000",
+    [MSR_MTRRfix16K_80000]       = "MSR_MTRRfix16K_80000",
+    [MSR_MTRRfix16K_A0000]       = "MSR_MTRRfix16K_A0000",
+    [MSR_MTRRfix4K_C0000]        = "MSR_MTRRfix4K_C0000",
+    [MSR_MTRRfix4K_C8000]        = "MSR_MTRRfix4K_C8000",
+    [MSR_MTRRfix4K_D0000]        = "MSR_MTRRfix4K_D0000",
+    [MSR_MTRRfix4K_D8000]        = "MSR_MTRRfix4K_D8000",
+    [MSR_MTRRfix4K_E0000]        = "MSR_MTRRfix4K_E0000",
+    [MSR_MTRRfix4K_E8000]        = "MSR_MTRRfix4K_E8000",
+    [MSR_MTRRfix4K_F0000]        = "MSR_MTRRfix4K_F0000",
+    [MSR_MTRRfix4K_F8000]        = "MSR_MTRRfix4K_F8000",
+    [MSR_MTRRdefType]            = "MSR_MTRRdefType",
+
+    [MSR_IA32_MC0_CTL]           = "MSR_IA32_MC0_CTL",
+    [MSR_IA32_MC0_STATUS]        = "MSR_IA32_MC0_STATUS",
+    [MSR_IA32_MC0_ADDR]          = "MSR_IA32_MC0_ADDR",
+    [MSR_IA32_MC0_MISC]          = "MSR_IA32_MC0_MISC",
+    [MSR_IA32_MC1_CTL]           = "MSR_IA32_MC1_CTL",
+    [MSR_IA32_MC0_CTL2]          = "MSR_IA32_MC0_CTL2",
+
+    [MSR_AMD_PATCHLEVEL]         = "MSR_AMD_PATCHLEVEL",
+
+    [MSR_AMD64_TSC_RATIO]        = "MSR_AMD64_TSC_RATIO",
+
+    [MSR_IA32_P5_MC_ADDR]        = "MSR_IA32_P5_MC_ADDR",
+    [MSR_IA32_P5_MC_TYPE]        = "MSR_IA32_P5_MC_TYPE",
+    [MSR_IA32_TSC]               = "MSR_IA32_TSC",
+    [MSR_IA32_PLATFORM_ID]       = "MSR_IA32_PLATFORM_ID",
+    [MSR_IA32_EBL_CR_POWERON]    = "MSR_IA32_EBL_CR_POWERON",
+    [MSR_IA32_EBC_FREQUENCY_ID]  = "MSR_IA32_EBC_FREQUENCY_ID",
+
+    [MSR_IA32_FEATURE_CONTROL]   = "MSR_IA32_FEATURE_CONTROL",
+
+    [MSR_IA32_SYSENTER_CS]       = "MSR_IA32_SYSENTER_CS",
+    [MSR_IA32_SYSENTER_ESP]      = "MSR_IA32_SYSENTER_ESP",
+    [MSR_IA32_SYSENTER_EIP]      = "MSR_IA32_SYSENTER_EIP",
+
+    [MSR_IA32_MISC_ENABLE]       = "MSR_IA32_MISC_ENABLE",
+
+    [MSR_HYPERVISOR]             = "MSR_HYPERVISOR"
+};
+const unsigned int msr_to_str_len = sizeof(msr_to_str) / sizeof(char*);
