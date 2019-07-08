@@ -1227,7 +1227,7 @@ kvm_pause_vm(
 
     // pause vcpus
     if (kvmi_pause_all_vcpus(kvm->kvmi_dom, &kvm->expected_pause_count)) {
-        errprint("%s: Failed to pause domain\n", __func__);
+        errprint("%s: Failed to pause domain: %s\n", __func__, strerror(errno));
         return VMI_FAILURE;
     }
 
@@ -1307,12 +1307,13 @@ status_t kvm_events_listen(
             // no events !
             return VMI_SUCCESS;
         }
+        errprint("%s: kvmi_wait_event failed: %s\n", __func__, strerror(errno));
         return VMI_FAILURE;
     }
 
     // pop event from queue
     if (kvmi_pop_event(kvm->kvmi_dom, &event)) {
-        dbprint(VMI_DEBUG_KVM, "--Failed to pop event\n");
+        errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
         return VMI_FAILURE;
     }
 
@@ -1402,18 +1403,19 @@ status_t kvm_set_reg_access(
         // enable event monitoring for all vcpus
         for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
             if (kvmi_control_events(kvm->kvmi_dom, i, event_flags)) {
-                errprint("%s: kvmi_control_events failed\n", __func__);
+                errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
                 goto error_exit;
             }
 
             if (event_flags & KVMI_EVENT_CR_FLAG)
                 if (kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
-                    errprint("%s: kvmi_control_cr failed\n", __func__);
+                    errprint("%s: kvmi_control_cr failed: %s\n", __func__, strerror(errno));
                     goto error_exit;
                 }
             if (event_flags & KVMI_EVENT_MSR_FLAG)
                 if (kvmi_control_msr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
-                    errprint("%s: failed to set MSR event for %s\n", __func__, msr_to_str[event->reg]);
+                    errprint("%s: failed to set MSR event for %s: %s\n", __func__,
+                             msr_to_str[event->reg], strerror(errno));
                     goto error_exit;
                 }
         }
@@ -1424,13 +1426,14 @@ status_t kvm_set_reg_access(
         // MSR_ALL
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
             if (kvmi_control_events(kvm->kvmi_dom, vcpu, event_flags)) {
-                errprint("%s: kvmi_control_events failed\n", __func__);
+                errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
                 goto error_exit;
             }
             for (size_t i=0; i<msr_all_len; i++) {
                 kvmi_reg = msr_index[msr_all[i]];
                 if (kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, enable)) {
-                    errprint("%s: failed to set MSR event for %s\n", __func__, msr_to_str[msr_all[i]]);
+                    errprint("%s: failed to set MSR event for %s: %s\n", __func__,
+                             msr_to_str[msr_all[i]], strerror(errno));
                     // this call fails on MSR_HYPERVISOR
                     // to avoid breaking MSR_ALL feature, we simply continue
                     // and print an error message
@@ -1481,7 +1484,7 @@ kvm_set_intr_access(
         case INT3:
             for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
                 if (kvmi_control_events(kvm->kvmi_dom, vcpu, event_flag)) {
-                    errprint("%s: failed to set event on VCPU %u\n", __func__, vcpu);
+                    errprint("%s: failed to set event on VCPU %u: %s\n", __func__, vcpu, strerror(errno));
                     goto error_exit;
                 }
             break;
@@ -1533,7 +1536,7 @@ kvm_set_mem_access(
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
             if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF_FLAG)) {
                 pf_enabled_succeeded = false;
-                errprint("%s: Fail to enable PF events on VCPU %u\n", __func__, vcpu);
+                errprint("%s: Fail to enable PF events on VCPU %u: %s\n", __func__, vcpu, strerror(errno));
                 break;
             }
         }
@@ -1547,8 +1550,10 @@ kvm_set_mem_access(
     }
 
     // get previous access type
-    if (kvmi_get_page_access(kvm->kvmi_dom, 0, gpfn, &kvmi_orig_access))
+    if (kvmi_get_page_access(kvm->kvmi_dom, 0, gpfn, &kvmi_orig_access)) {
+        errprint("%s: kvmi_get_page_access failed: %s\n", __func__, strerror(errno));
         return VMI_FAILURE;
+    }
 
     // check access type and convert to KVMI
     switch (page_access_flag) {
@@ -1584,7 +1589,8 @@ kvm_set_mem_access(
     for (unsigned int vcpu=0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvmi_set_page_access(kvm->kvmi_dom, vcpu, &gpa, &kvmi_access, 1)) {
             page_access_succeeded = false;
-            errprint("%s error: unable to set page access on GPFN 0x%" PRIx64 "\n", __func__, gpfn);
+            errprint("%s error: unable to set page access on GPFN 0x%" PRIx64 ": %s\n",
+                     __func__, gpfn, strerror(errno));
             break;
         }
     }
