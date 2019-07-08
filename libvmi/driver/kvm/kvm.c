@@ -249,7 +249,7 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         return VMI_FAILURE;
     }
 #endif
-    dbprint(VMI_DEBUG_KVM, "--Received MSR event, 0x%"PRIx32"\n", kvmi_event->event.msr.msr);
+    dbprint(VMI_DEBUG_KVM, "--Received MSR event on index 0x%"PRIx32"\n", kvmi_event->event.msr.msr);
 
     // lookup vmi event
     vmi_event_t *libvmi_event = NULL;
