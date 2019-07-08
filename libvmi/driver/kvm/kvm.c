@@ -1372,10 +1372,14 @@ status_t kvm_set_reg_access(
         case MSR_ALL:
             event_flags |= KVMI_EVENT_MSR_FLAG;
             break;
-        case MSR_STAR:
+        case MSR_ANY:
             event_flags |= KVMI_EVENT_MSR_FLAG;
-            kvmi_reg = 0xc0000081;
+            kvmi_reg = event->msr;
             break;
+        case MSR_FLAGS ... MSR_TSC_AUX:
+        case MSR_STAR ... MSR_HYPERVISOR:
+            errprint("%s error: use MSR_ANY type for specific MSR event registration\n", __FUNCTION__);
+            return VMI_FAILURE;
         default:
             errprint("%s: unhandled register %" PRIu64"\n", __func__, event->reg);
             return VMI_FAILURE;
@@ -1415,7 +1419,7 @@ status_t kvm_set_reg_access(
             if (event_flags & KVMI_EVENT_MSR_FLAG)
                 if (kvmi_control_msr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
                     errprint("%s: failed to set MSR event for %s: %s\n", __func__,
-                             msr_to_str[event->reg], strerror(errno));
+                             msr_to_str[kvmi_reg], strerror(errno));
                     goto error_exit;
                 }
         }
