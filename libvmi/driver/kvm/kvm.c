@@ -44,6 +44,7 @@
 #include <libvirt/virterror.h>
 
 #include "private.h"
+#include "msr-index.h"
 #include "driver/driver_wrapper.h"
 #include "driver/memory_cache.h"
 #include "driver/kvm/kvm.h"

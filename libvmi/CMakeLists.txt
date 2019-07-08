@@ -10,6 +10,7 @@ set(libvmi_src
     strmatch.c
     write.c
     memory.c
+    msr-index.c
     arch/arch_interface.c
     arch/intel.c
     arch/amd64.c
