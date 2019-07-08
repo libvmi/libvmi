@@ -236,7 +236,18 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *event)
     if (!vmi || !event)
         return VMI_FAILURE;
 #endif
-    dbprint(VMI_DEBUG_KVM, "--Received register event\n");
+    dbprint(VMI_DEBUG_KVM, "--Received CR event\n");
+    return VMI_SUCCESS;
+}
+
+static status_t
+process_msr(vmi_instance_t vmi, struct kvmi_dom_event *event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !event)
+        return VMI_FAILURE;
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Received MSR event\n");
     return VMI_SUCCESS;
 }
 
@@ -438,7 +449,7 @@ cb_kvmi_connect(
     unsigned char (*uuid)[16],
     void *ctx)
 {
-    kvm_instance_t *kvm = ctx; 
+    kvm_instance_t *kvm = ctx;
 
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
     /*
@@ -700,6 +711,7 @@ kvm_init_vmi(
     if (init_flags & VMI_INIT_EVENTS) {
         // fill event dispatcher
         kvm->process_event[KVMI_EVENT_CR] = &process_register;
+        kvm->process_event[KVMI_EVENT_MSR] = &process_msr;
         kvm->process_event[KVMI_EVENT_BREAKPOINT] = &process_interrupt;
         kvm->process_event[KVMI_EVENT_PF] = &process_pagefault;
         kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
@@ -1268,7 +1280,7 @@ status_t kvm_events_listen(
     ev_reason = event->event.common.event;
 #ifdef ENABLE_SAFETY_CHECKS
     if ( ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason] ) {
-        errprint("Undefined handler for %u event reason", ev_reason);
+        errprint("Undefined handler for %u event reason\n", ev_reason);
         return VMI_FAILURE;
     }
 #endif
@@ -1316,6 +1328,9 @@ status_t kvm_set_reg_access(
             event_flags |= KVMI_EVENT_CR_FLAG;
             kvmi_reg = 4;
             break;
+        case MSR_ALL:
+            event_flags |= KVMI_EVENT_MSR_FLAG;
+            break;
         case MSR_STAR:
             event_flags |= KVMI_EVENT_MSR_FLAG;
             kvmi_reg = 0xc0000081;
@@ -1342,28 +1357,47 @@ status_t kvm_set_reg_access(
             return VMI_FAILURE;
     }
 
-    // enable event monitoring for all vcpus
-    for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
-        if (kvmi_control_events(kvm->kvmi_dom, i, event_flags)) {
-            errprint("%s: kvmi_control_events failed\n", __func__);
-            goto error_exit;
-        }
+    // handle MSR_ALL here instead of the switch before
+    if (event->reg != MSR_ALL) {
+        // enable event monitoring for all vcpus
+        for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
+            if (kvmi_control_events(kvm->kvmi_dom, i, event_flags)) {
+                errprint("%s: kvmi_control_events failed\n", __func__);
+                goto error_exit;
+            }
 
-        if (event_flags & KVMI_EVENT_CR_FLAG)
-            if (kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
-                errprint("%s: kvmi_control_cr failed\n", __func__);
+            if (event_flags & KVMI_EVENT_CR_FLAG)
+                if (kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
+                    errprint("%s: kvmi_control_cr failed\n", __func__);
+                    goto error_exit;
+                }
+            if (event_flags & KVMI_EVENT_MSR_FLAG)
+                if (kvmi_control_msr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
+                    errprint("%s: failed to set MSR event for %s\n", __func__, msr_to_str[event->reg]);
+                    goto error_exit;
+                }
+        }
+        dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on register %" PRIu64"\n",
+                (enable ? "enabling" : "disabling"),
+                event->reg);
+    } else {
+        // MSR_ALL
+        for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+            if (kvmi_control_events(kvm->kvmi_dom, vcpu, event_flags)) {
+                errprint("%s: kvmi_control_events failed\n", __func__);
                 goto error_exit;
             }
-        if (event_flags & KVMI_EVENT_MSR_FLAG)
-            if (kvmi_control_msr(kvm->kvmi_dom, i, kvmi_reg, enable)) {
-                errprint("%s: kvmi_control_msr failed\n", __func__);
-                goto error_exit;
+            for (size_t i=0; i<msr_all_len; i++) {
+                kvmi_reg = msr_index[msr_all[i]];
+                if (kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, enable)) {
+                    errprint("%s: failed to set MSR event for %s\n", __func__, msr_to_str[msr_all[i]]);
+                    continue;
+                }
             }
+        }
+        dbprint(VMI_DEBUG_KVM, "--Set MSR events on all MSRs\n");
     }
 
-    dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on register %" PRIu64"\n",
-            (enable ? "enabling" : "disabling"),
-            event->reg);
     return VMI_SUCCESS;
 error_exit:
     // disable monitoring
