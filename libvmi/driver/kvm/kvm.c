@@ -241,14 +241,56 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *event)
 }
 
 static status_t
-process_msr(vmi_instance_t vmi, struct kvmi_dom_event *event)
+process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 {
 #ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi || !event)
+    if (!vmi || !kvmi_event) {
+        errprint("%s: Invalid vmi or kvmi event handles\n", __func__);
         return VMI_FAILURE;
+    }
 #endif
-    dbprint(VMI_DEBUG_KVM, "--Received MSR event\n");
-    return VMI_SUCCESS;
+    dbprint(VMI_DEBUG_KVM, "--Received MSR event, 0x%"PRIx32"\n", kvmi_event->event.msr.msr);
+
+    // lookup vmi event
+    vmi_event_t *libvmi_event = NULL;
+    if (g_hash_table_size(vmi->msr_events)) {
+        // test for MSR_ANY in msr_events
+        gint key = kvmi_event->event.msr.msr;
+        libvmi_event = g_hash_table_lookup(vmi->msr_events, &key);
+    }
+
+    if (!libvmi_event && g_hash_table_size(vmi->reg_events)) {
+        // test for MSR_xxx in reg_events
+        gint key = kvmi_event->event.msr.msr;
+        libvmi_event = g_hash_table_lookup(vmi->reg_events, &key);
+    }
+
+    if (!libvmi_event) {
+        // test for MSR_ALL in reg_events
+        gint key = MSR_ALL;
+        libvmi_event = g_hash_table_lookup(vmi->reg_events, &key);
+        if (libvmi_event) // fill msr field
+            libvmi_event->reg_event.msr = kvmi_event->event.msr.msr;
+    }
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!libvmi_event) {
+        errprint("%s error: no MSR event handler is registered in LibVMI\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    // fill libvmi_event struct
+    x86_registers_t regs = {0};
+    libvmi_event->x86_regs = &regs;
+    fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+
+    //      msr_event
+    libvmi_event->reg_event.value = kvmi_event->event.msr.new_value;
+    libvmi_event->reg_event.previous = kvmi_event->event.msr.old_value;
+
+    // call user callback
+    return call_event_callback(vmi, libvmi_event, kvmi_event);
 }
 
 static status_t
@@ -288,9 +330,7 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     libvmi_event->interrupt_event.reinject = -1;
 
     // call user callback
-    call_event_callback(vmi, libvmi_event, kvmi_event);
-
-    return VMI_SUCCESS;
+    return call_event_callback(vmi, libvmi_event, kvmi_event);
 }
 
 static status_t
