@@ -50,6 +50,7 @@ int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
     struct sigaction act;
+    vmi_init_data_t init_data = {0};
     act.sa_handler = close_handler;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
@@ -61,17 +62,27 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: msr_events_example <name of VM>\n");
+        fprintf(stderr, "Usage: msr_events_example <name of VM> [socket path]\n");
         exit(1);
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
 
+    // KVMi socket ?
+    if (argc == 3) {
+        char *path = argv[2];
+
+        // fill init_data
+        init_data.count = 1;
+        init_data.entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data.entry[0].data = strdup(path);
+    }
+
     /* initialize the libvmi library */
     if (VMI_FAILURE ==
             vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                              NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
+                              &init_data, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
