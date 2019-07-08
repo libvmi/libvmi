@@ -31,13 +31,11 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-vmi_event_t msr_event;
-
 event_response_t msr_write_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     vmi = vmi;
     printf("MSR write happened: MSR=%x Value=%lx\n", event->reg_event.msr, event->reg_event.value);
-    return 0;
+    return VMI_EVENT_RESPONSE_NONE;
 }
 
 static int interrupted = 0;
@@ -48,9 +46,11 @@ static void close_handler(int sig)
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi;
-    struct sigaction act;
+    vmi_instance_t vmi = {0};
+    vmi_event_t msr_event = {0};
+    struct sigaction act = {0};
     vmi_init_data_t init_data = {0};
+    vmi_mode_t mode = {0};
     act.sa_handler = close_handler;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
@@ -80,11 +80,16 @@ int main (int argc, char **argv)
     }
 
     /* initialize the libvmi library */
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
+                                           &init_data, &mode)) {
+        fprintf(stderr, "Failed to get access mode\n");
+        exit(1);
+    }
+
     if (VMI_FAILURE ==
-            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                              &init_data, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
-        printf("Failed to init LibVMI library.\n");
-        return 1;
+            vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, &init_data, NULL)) {
+        fprintf(stderr, "Failed to init LibVMI library.\n");
+        exit(1);
     }
 
     printf("LibVMI init succeeded!\n");
