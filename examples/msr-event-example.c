@@ -97,13 +97,22 @@ int main (int argc, char **argv)
     msr_event.reg_event.in_access = VMI_REGACCESS_W;
     msr_event.callback = msr_write_cb;
 
-    vmi_register_event(vmi, &msr_event);
+    if (VMI_FAILURE == vmi_register_event(vmi, &msr_event)) {
+        fprintf(stderr, "Failed to set MSR event\n");
+        goto error_exit;
+    }
 
     printf("Waiting for events...\n");
     while (!interrupted) {
-        vmi_events_listen(vmi,500);
+        if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
+            fprintf(stderr, "Failed to listen on VMI events\n");
+            goto error_exit;
+        }
     }
     printf("Finished with test.\n");
+
+error_exit:
+    vmi_clear_event(vmi, &msr_event, NULL);
 
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
