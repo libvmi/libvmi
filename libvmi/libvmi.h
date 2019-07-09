@@ -1202,6 +1202,26 @@ status_t vmi_read_va(
 );
 
 /**
+ * Provides host-valid pointers to guest's virtual memory. Be aware that
+ * not all virtual pages may be allocated and in such case, fake blocks
+ * of zero bytes will be mapped instead. Remember to call munmap()
+ * afterwards.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] pid Pid of the virtual address space
+ * @param[in] vaddr Virtual address to read from
+ * @param[in] count The number of bytes to read
+ * @param[out] block_ptr Pointer to the guest's memory valid on host
+ */
+status_t vmi_mmap_guest(
+    vmi_instance_t vmi,
+    vmi_pid_t pid,
+    addr_t vaddr,
+    size_t count,
+    void **block_ptr
+);
+
+/**
  * Reads count bytes from memory located at the physical address paddr
  * and stores the output in a buf.
  *

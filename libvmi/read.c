@@ -33,6 +33,95 @@
 
 ///////////////////////////////////////////////////////////
 // Classic read functions for access to memory
+
+
+// this is actually not so classic
+status_t
+vmi_mmap_guest(
+    vmi_instance_t vmi,
+    vmi_pid_t pid,
+    addr_t vaddr,
+    size_t count,
+    void **block_ptr)
+{
+    /* pid - the pid of the process on guest
+     * vaddr - the virtual address under which the memory block is visible on the virtual machine
+     * count - length of the block to be mapped in bytes
+     * block_ptr - output argument, a mmapped pointer to guest's memory, valid on host side */
+
+    status_t ret = VMI_FAILURE;
+    addr_t start_addr = 0;
+    addr_t paddr = 0;
+    addr_t pfn = 0;
+    addr_t dtb = 0;
+    size_t buf_offset = 0;
+    unsigned long *pfns = NULL;
+    unsigned int num_pfns;
+
+    if (count % vmi->page_size != 0) {
+        dbprint(VMI_DEBUG_XEN, "vmi_mmap_guest - count is not divisible by page size");
+        goto done;
+    }
+
+    num_pfns = count / vmi->page_size;
+    pfns = calloc(num_pfns, sizeof(unsigned long));
+
+    access_context_t ctx = {
+            .translate_mechanism = VMI_TM_PROCESS_PID,
+            .addr = vaddr,
+            .pid = pid
+    };
+
+    if (!ctx.pid) {
+        dtb = vmi->kpgd;
+    } else if (ctx.pid > 0) {
+        if (VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx.pid, &dtb)) {
+            goto done;
+        }
+    }
+
+    if (!dtb)
+        goto done;
+
+    start_addr = ctx.addr;
+    unsigned int i = 0;
+
+    while (count > 0) {
+        if (VMI_SUCCESS == vmi_pagetable_lookup_cache(vmi, dtb, start_addr + buf_offset, &paddr)) {
+            /* access the memory */
+            pfn = paddr >> vmi->page_shift;
+        } else {
+            pfn = vmi->zero_page_gpfn;
+        }
+
+        pfns[i] = pfn;
+        ++i;
+        count -= vmi->page_size;
+        buf_offset += vmi->page_size;
+    }
+
+    if (i == 0) {
+        goto done;
+    }
+
+    void *ptr = driver_mmap_guest(vmi, pfns, i);
+
+    if (MAP_FAILED == ptr || NULL == ptr) {
+        dbprint(VMI_DEBUG_XEN, "--failed to mmap guest memory");
+        goto done;
+    }
+
+    *block_ptr = ptr;
+    ret = VMI_SUCCESS;
+
+    done:
+    if (pfns) {
+        free(pfns);
+    }
+
+    return ret;
+}
+
 status_t
 vmi_read(
     vmi_instance_t vmi,
