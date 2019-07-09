@@ -182,7 +182,9 @@ process_cb_response(
         vmi_instance_t vmi,
         event_response_t response,
         vmi_event_t *libvmi_event,
-        struct kvmi_dom_event *kvmi_event)
+        struct kvmi_dom_event *kvmi_event,
+        void *rpl,
+        size_t rpl_size)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
@@ -190,8 +192,8 @@ process_cb_response(
         errprint("%s: invalid kvm or kvmi handles\n", __func__);
         return VMI_FAILURE;
     }
-    if (!libvmi_event || !kvmi_event) {
-        errprint("%s: invalid libvmi or kvmi event handles\n", __func__);
+    if (!libvmi_event || !kvmi_event || !rpl) {
+        errprint("%s: invalid libvmi/kvmi/rpl handles\n", __func__);
         return VMI_FAILURE;
     }
 #endif
@@ -206,23 +208,26 @@ process_cb_response(
             }
         }
     }
-    // continue as default behavior for now
-    if (reply_continue(kvm->kvmi_dom, kvmi_event))
+    struct kvmi_event_reply *_rpl = rpl;
+    _rpl->action = KVMI_EVENT_ACTION_CONTINUE;
+    _rpl->event = kvmi_event->event.common.event;
+
+    if (kvmi_reply_event(kvm->kvmi_dom, kvmi_event->seq, rpl, rpl_size))
         return VMI_FAILURE;
+
     return VMI_SUCCESS;
 }
 
-static status_t
+static event_response_t
 call_event_callback(
         vmi_instance_t vmi,
-        vmi_event_t *libvmi_event,
-        struct kvmi_dom_event *kvmi_event)
+        vmi_event_t *libvmi_event)
 {
     event_response_t response;
     vmi->event_callback = 1;
     response = libvmi_event->callback(vmi, libvmi_event);
     vmi->event_callback = 0;
-    return process_cb_response(vmi, response, libvmi_event, kvmi_event);
+    return response;
 }
 
 /*
@@ -292,7 +297,18 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     // libvmi_event->reg_event.out_access
 
     // call user callback
-    return call_event_callback(vmi, libvmi_event, kvmi_event);
+    event_response_t response = call_event_callback(vmi, libvmi_event);
+
+    // reply struct
+    struct {
+        struct kvmi_event_reply common;
+        struct kvmi_event_msr_reply msr;
+    } rpl = {0};
+
+    // TODO: how can the callback specifiy a new value for the MSR ?
+    // libvmi_event.reg_event.xxx
+
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
 static status_t
@@ -332,7 +348,12 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     libvmi_event->interrupt_event.reinject = -1;
 
     // call user callback
-    return call_event_callback(vmi, libvmi_event, kvmi_event);
+    event_response_t response = call_event_callback(vmi, libvmi_event);
+
+    // reply struct
+    struct kvmi_event_reply rpl = {0};
+
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
 static status_t
@@ -373,7 +394,15 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
             // libvmi_event->mem_event.gptw
 
             // call user callback
-            return call_event_callback(vmi, libvmi_event, kvmi_event);
+            event_response_t response = call_event_callback(vmi, libvmi_event);
+
+            // struct reply
+            struct {
+                struct kvmi_event_reply common;
+                struct kvmi_event_pf_reply pf;
+            } rpl = {0};
+
+            return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
         }
     }
     //  generic ?
@@ -399,7 +428,16 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 
 
                 // call user callback
-                if (VMI_FAILURE == call_event_callback(vmi, libvmi_event, kvmi_event))
+                event_response_t response = call_event_callback(vmi, libvmi_event);
+
+                // struct reply
+                struct {
+                    struct kvmi_event_reply common;
+                    struct kvmi_event_pf_reply pf;
+                } rpl = {0};
+
+                if (VMI_FAILURE ==
+                        process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl)))
                     return VMI_FAILURE;
 
                 cb_issued = 1;
