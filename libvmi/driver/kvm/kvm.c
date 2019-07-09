@@ -288,6 +288,8 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     //      msr_event
     libvmi_event->reg_event.value = kvmi_event->event.msr.new_value;
     libvmi_event->reg_event.previous = kvmi_event->event.msr.old_value;
+    // TODO
+    // libvmi_event->reg_event.out_access
 
     // call user callback
     return call_event_callback(vmi, libvmi_event, kvmi_event);
@@ -365,6 +367,9 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
             libvmi_event->mem_event.out_access = out_access;
             libvmi_event->mem_event.gla = kvmi_event->event.page_fault.gva;
             libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
+            // TODO
+            // libvmi_event->mem_event.valid
+            // libvmi_event->mem_event.gptw
 
             // call user callback
             return call_event_callback(vmi, libvmi_event, kvmi_event);
@@ -386,6 +391,10 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
                 libvmi_event->mem_event.out_access = out_access;
                 libvmi_event->mem_event.gla = kvmi_event->event.page_fault.gva;
                 libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
+                // TODO
+                // libvmi_event->mem_event.valid
+                // libvmi_event->mem_event.gptw
+
 
                 // call user callback
                 if (VMI_FAILURE == call_event_callback(vmi, libvmi_event, kvmi_event))
