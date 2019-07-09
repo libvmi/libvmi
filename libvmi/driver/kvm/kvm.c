@@ -364,6 +364,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
             libvmi_event->x86_regs = &regs;
             fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
             //      mem_event
+            libvmi_event->mem_event.gfn = gfn;
             libvmi_event->mem_event.out_access = out_access;
             libvmi_event->mem_event.gla = kvmi_event->event.page_fault.gva;
             libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
@@ -388,6 +389,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
                 libvmi_event->x86_regs = &regs;
                 fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
                 //      mem_event
+                libvmi_event->mem_event.gfn = gfn;
                 libvmi_event->mem_event.out_access = out_access;
                 libvmi_event->mem_event.gla = kvmi_event->event.page_fault.gva;
                 libvmi_event->mem_event.offset = kvmi_event->event.page_fault.gpa & VMI_BIT_MASK(0, 11);
