@@ -584,6 +584,7 @@ xen_init_vmi(
 {
     status_t ret = VMI_FAILURE;
     xen_instance_t *xen = xen_get_instance(vmi);
+    unsigned char *memory = NULL;
     int rc;
 
     /* setup the info struct */
@@ -634,6 +635,25 @@ xen_init_vmi(
     if ( vmi->vm_type >= PV32 && (xen->max_gpfn << XC_PAGE_SHIFT) < (xen->info.max_memkb * 1024)) {
         xen->max_gpfn = (xen->info.max_memkb * 1024) >> XC_PAGE_SHIFT;
     }
+
+    vmi->zero_page_gpfn = ++(xen->max_gpfn);
+
+    rc = xen->libxcw.xc_domain_populate_physmap_exact(xen->xchandle, xen->domainid, 1, 0, 0, &vmi->zero_page_gpfn);
+    if (rc < 0) {
+        errprint("Failed to populate physmap for additional page\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    memory = xen_get_memory_pfn(vmi, vmi->zero_page_gpfn, PROT_WRITE);
+    if (NULL == memory) {
+        errprint("Failed to xen_get_memory_pfn for additional page\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
+    memset(memory, 0, vmi->page_size);
+    xen_release_memory(vmi, memory, vmi->page_size);
 
     ret = xen_setup_live_mode(vmi);
 
@@ -2634,6 +2654,17 @@ xen_read_page(
     addr_t paddr = page << vmi->page_shift;
 
     return memory_cache_insert(vmi, paddr);
+}
+
+void *
+xen_mmap_guest(
+    vmi_instance_t vmi,
+    unsigned long *pfns,
+    unsigned int size)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    void *memory = xen->libxcw.xc_map_foreign_pages(xen->xchandle, xen->domainid, PROT_READ, pfns, size);
+    return memory;
 }
 
 status_t

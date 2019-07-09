@@ -154,6 +154,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_interface_open = dlsym(wrapper->handle, "xc_interface_open");
     wrapper->xc_interface_close = dlsym(wrapper->handle, "xc_interface_close");
     wrapper->xc_version = dlsym(wrapper->handle, "xc_version");
+    wrapper->xc_map_foreign_pages = dlsym(wrapper->handle, "xc_map_foreign_pages");
     wrapper->xc_map_foreign_range = dlsym(wrapper->handle, "xc_map_foreign_range");
     wrapper->xc_domain_get_tsc_info = dlsym(wrapper->handle, "xc_domain_get_tsc_info");
     wrapper->xc_vcpu_getcontext = dlsym(wrapper->handle, "xc_vcpu_getcontext");
