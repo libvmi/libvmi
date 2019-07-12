@@ -77,6 +77,14 @@ option(HARDENING "Enable hardening flags (with overhead)" OFF)
 
 # default values
 set(MAX_PAGE_CACHE_SIZE "512")
+
+# enable hardening if requested
+if (HARDENING)
+    # enable stack canaries, not all because the performance cost is too high
+    # -fstack-protector-strong appears since GCC 4.9
+    # we assume Debian Stretch at least, so GCC 6.3.0
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-strong")
+endif ()
 #-----------------------------------------------------------------------------
 #                               SOURCES
 #-----------------------------------------------------------------------------
