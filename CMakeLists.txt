@@ -72,6 +72,8 @@ option(ENABLE_TESTING "Build libvmi test suite" OFF)
 option(BUILD_EXAMPLES "Build the examples" ON)
 # See libvmi/debug.h for possible debug levels
 option(VMI_DEBUG "Debug output level" OFF)
+# hardening flags that causes overhead, disabled by default
+option(HARDENING "Enable hardening flags (with overhead)" OFF)
 
 # default values
 set(MAX_PAGE_CACHE_SIZE "512")
