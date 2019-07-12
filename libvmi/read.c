@@ -52,9 +52,9 @@ vmi_mmap_guest(
     pfns = calloc(num_pages, sizeof(unsigned long));
 
     access_context_t ctx = {
-            .translate_mechanism = VMI_TM_PROCESS_PID,
-            .addr = vaddr,
-            .pid = pid
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid
     };
 
     if (!ctx.pid) {
@@ -106,7 +106,7 @@ vmi_mmap_guest(
 
     ret = VMI_SUCCESS;
 
-    done:
+done:
     if (pfns) {
         free(pfns);
     }
