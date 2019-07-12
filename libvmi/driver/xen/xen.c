@@ -584,7 +584,6 @@ xen_init_vmi(
 {
     status_t ret = VMI_FAILURE;
     xen_instance_t *xen = xen_get_instance(vmi);
-    unsigned char *memory = NULL;
     int rc;
 
     /* setup the info struct */
