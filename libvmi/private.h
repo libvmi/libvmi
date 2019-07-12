@@ -194,8 +194,6 @@ struct vmi_instance {
     void *(*get_data_callback) (vmi_instance_t, addr_t, uint32_t); /**< memory_cache function */
 
     void (*release_data_callback) (vmi_instance_t, void *, size_t); /**< memory_cache function */
-
-    addr_t zero_page_gpfn;
 };
 
 /** Event singlestep reregister wrapper */

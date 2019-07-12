@@ -35,36 +35,21 @@
 // Classic read functions for access to memory
 
 
-// this is actually not so classic
 status_t
 vmi_mmap_guest(
     vmi_instance_t vmi,
     vmi_pid_t pid,
     addr_t vaddr,
-    size_t count,
-    void **block_ptr)
+    size_t num_pages,
+    void **access_ptrs)
 {
-    /* pid - the pid of the process on guest
-     * vaddr - the virtual address under which the memory block is visible on the virtual machine
-     * count - length of the block to be mapped in bytes
-     * block_ptr - output argument, a mmapped pointer to guest's memory, valid on host side */
-
     status_t ret = VMI_FAILURE;
-    addr_t start_addr = 0;
     addr_t paddr = 0;
-    addr_t pfn = 0;
     addr_t dtb = 0;
     size_t buf_offset = 0;
     unsigned long *pfns = NULL;
-    unsigned int num_pfns;
 
-    if (count % vmi->page_size != 0) {
-        dbprint(VMI_DEBUG_XEN, "vmi_mmap_guest - count is not divisible by page size");
-        goto done;
-    }
-
-    num_pfns = count / vmi->page_size;
-    pfns = calloc(num_pfns, sizeof(unsigned long));
+    pfns = calloc(num_pages, sizeof(unsigned long));
 
     access_context_t ctx = {
             .translate_mechanism = VMI_TM_PROCESS_PID,
@@ -83,35 +68,42 @@ vmi_mmap_guest(
     if (!dtb)
         goto done;
 
-    start_addr = ctx.addr;
-    unsigned int i = 0;
+    unsigned int pfn_ndx = 0;
 
-    while (count > 0) {
-        if (VMI_SUCCESS == vmi_pagetable_lookup_cache(vmi, dtb, start_addr + buf_offset, &paddr)) {
-            /* access the memory */
-            pfn = paddr >> vmi->page_shift;
+    for (unsigned int i = 0; i < num_pages; i++) {
+        if (VMI_SUCCESS == vmi_pagetable_lookup_cache(vmi, dtb, vaddr + buf_offset, &paddr)) {
+            pfns[pfn_ndx] = paddr >> vmi->page_shift;
+            // store relative offsets to the appropriate pages
+            access_ptrs[i] = (void *)((addr_t)pfn_ndx * vmi->page_size);
+            ++pfn_ndx;
         } else {
-            pfn = vmi->zero_page_gpfn;
+            // missing page, mapping failed
+            access_ptrs[i] = (void *)-1;
         }
 
-        pfns[i] = pfn;
-        ++i;
-        count -= vmi->page_size;
         buf_offset += vmi->page_size;
     }
 
-    if (i == 0) {
+    if (pfn_ndx == 0) {
         goto done;
     }
 
-    void *ptr = driver_mmap_guest(vmi, pfns, i);
+    void *base_ptr = (char *)driver_mmap_guest(vmi, pfns, pfn_ndx);
 
-    if (MAP_FAILED == ptr || NULL == ptr) {
+    if (MAP_FAILED == base_ptr || NULL == base_ptr) {
         dbprint(VMI_DEBUG_XEN, "--failed to mmap guest memory");
         goto done;
     }
 
-    *block_ptr = ptr;
+    for (unsigned int i = 0; i < num_pages; i++) {
+        if (access_ptrs[i] != (void *)-1) {
+            // add buffer base pointer to the relative offsets since now we know its value
+            access_ptrs[i] += (addr_t)base_ptr;
+        } else {
+            access_ptrs[i] = NULL;
+        }
+    }
+
     ret = VMI_SUCCESS;
 
     done:

@@ -636,25 +636,6 @@ xen_init_vmi(
         xen->max_gpfn = (xen->info.max_memkb * 1024) >> XC_PAGE_SHIFT;
     }
 
-    vmi->zero_page_gpfn = ++(xen->max_gpfn);
-
-    rc = xen->libxcw.xc_domain_populate_physmap_exact(xen->xchandle, xen->domainid, 1, 0, 0, &vmi->zero_page_gpfn);
-    if (rc < 0) {
-        errprint("Failed to populate physmap for additional page\n");
-        ret = VMI_FAILURE;
-        goto _bail;
-    }
-
-    memory = xen_get_memory_pfn(vmi, vmi->zero_page_gpfn, PROT_WRITE);
-    if (NULL == memory) {
-        errprint("Failed to xen_get_memory_pfn for additional page\n");
-        ret = VMI_FAILURE;
-        goto _bail;
-    }
-
-    memset(memory, 0, vmi->page_size);
-    xen_release_memory(vmi, memory, vmi->page_size);
-
     ret = xen_setup_live_mode(vmi);
 
     if ( VMI_FAILURE == ret )
