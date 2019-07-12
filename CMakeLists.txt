@@ -84,6 +84,10 @@ if (HARDENING)
     # -fstack-protector-strong appears since GCC 4.9
     # we assume Debian Stretch at least, so GCC 6.3.0
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-strong")
+    # enforce position independant code
+    set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+    # enforce pie
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
 endif ()
 #-----------------------------------------------------------------------------
 #                               SOURCES
