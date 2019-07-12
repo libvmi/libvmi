@@ -88,6 +88,10 @@ if (HARDENING)
     set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
     # enforce pie
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
+    # enforce fortify source
+    # we should use add_compile_definitions, but only available since
+    # CMake 3.12.0 (assuming 3.1)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2")
 endif ()
 #-----------------------------------------------------------------------------
 #                               SOURCES
