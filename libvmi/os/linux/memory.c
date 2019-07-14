@@ -31,13 +31,14 @@
 #include "os/linux/linux.h"
 #include "driver/driver_wrapper.h"
 
-/* finds the task struct for a given pid */
+/* finds the task struct for a given pid, with init_task pointing to actual task */
 static addr_t
 linux_get_taskstruct_addr_from_pid(
     vmi_instance_t vmi,
     vmi_pid_t pid)
 {
-    addr_t list_head = 0, next_process = 0;
+    addr_t list_head = 0, curr_entry = 0;
+    addr_t curr_proc = 0;
     vmi_pid_t task_pid = -1;
     linux_instance_t linux_instance = NULL;
     int pid_offset = 0;
@@ -54,25 +55,28 @@ linux_get_taskstruct_addr_from_pid(
     tasks_offset = linux_instance->tasks_offset;
 
     /* First we need a pointer to the initial entry in the tasks list.
-     * Note that this is task_struct->tasks, not the base addr
-     *  of task_struct: task_struct base = $entry - tasks_offset.
+     * In newer versions of Linux, the global "init_task" points to
+     * the actual task struct, not to the linked list entry.
      */
-    next_process = vmi->init_task;
-    list_head = next_process;
+    curr_proc = vmi->init_task;
+    vmi_read_addr_va(vmi, curr_proc + tasks_offset, 0, &curr_entry);
+
+    list_head = curr_entry;
 
     do {
-        vmi_read_32_va(vmi, next_process + pid_offset, 0, (uint32_t*)&task_pid);
+        vmi_read_32_va(vmi, curr_proc + pid_offset, 0, (uint32_t*)&task_pid);
 
         /* if pid matches, then we found what we want */
         if (task_pid == pid) {
-            return next_process;
+            return curr_proc;
         }
 
-        vmi_read_addr_va(vmi, next_process + tasks_offset, 0, &next_process);
-        next_process -= tasks_offset;
+        /* Advance in the linked list */
+        vmi_read_addr_va(vmi, curr_entry, 0, &curr_entry);
+        curr_proc = curr_entry - tasks_offset;
 
         /* if we are back at the list head, we are done */
-    } while (list_head != next_process);
+    } while (list_head != curr_entry);
 
     return 0;
 }
