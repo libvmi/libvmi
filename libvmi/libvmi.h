@@ -1208,10 +1208,9 @@ status_t vmi_read_va(
  * will be set to NULL. Remember to call munmap() on each array item afterwards.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] pid Pid of the virtual address space
- * @param[in] vaddr Virtual address to read from
- * @param[in] num_pages Number of guest pages to be mapped
- * @param[out] access_ptrs Array of size [num_pages] containing pointers to the respective guest's pages
+ * @param[in] ctx Access context
+ * @param[in] num_pages Number of guest pages to be mapped (starting from ctx.addr)
+ * @param[out] access_ptrs Output array of size [num_pages] containing pointers to the respective guest's pages
  */
 status_t vmi_mmap_guest(
     vmi_instance_t vmi,
