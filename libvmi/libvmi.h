@@ -1215,8 +1215,7 @@ status_t vmi_read_va(
  */
 status_t vmi_mmap_guest(
     vmi_instance_t vmi,
-    vmi_pid_t pid,
-    addr_t vaddr,
+    const access_context_t *ctx,
     size_t num_pages,
     void **access_ptrs
 );

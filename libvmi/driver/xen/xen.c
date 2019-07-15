@@ -2643,8 +2643,7 @@ xen_mmap_guest(
     unsigned int size)
 {
     xen_instance_t *xen = xen_get_instance(vmi);
-    void *memory = xen->libxcw.xc_map_foreign_pages(xen->xchandle, xen->domainid, PROT_READ, pfns, size);
-    return memory;
+    return xen->libxcw.xc_map_foreign_pages(xen->xchandle, xen->domainid, PROT_READ, pfns, size);
 }
 
 status_t

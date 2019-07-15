@@ -38,37 +38,61 @@
 status_t
 vmi_mmap_guest(
     vmi_instance_t vmi,
-    vmi_pid_t pid,
-    addr_t vaddr,
+    const access_context_t *ctx,
     size_t num_pages,
     void **access_ptrs)
 {
     status_t ret = VMI_FAILURE;
-    addr_t paddr = 0;
-    addr_t dtb = 0;
+    addr_t vaddr;
+    addr_t paddr;
+    addr_t dtb;
     size_t buf_offset = 0;
     unsigned long *pfns = NULL;
+    unsigned int pfn_ndx = 0;
 
-    pfns = calloc(num_pages, sizeof(unsigned long));
+    switch (ctx->translate_mechanism) {
+        case VMI_TM_KERNEL_SYMBOL:
+#ifdef ENABLE_SAFETY_CHECKS
+            if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
+                goto done;
+#endif
+            dtb = vmi->kpgd;
+            if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &vaddr) )
+                goto done;
+            break;
+        case VMI_TM_PROCESS_PID:
+#ifdef ENABLE_SAFETY_CHECKS
+            if (!vmi->arch_interface || !vmi->os_interface)
+                goto done;
+#endif
 
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_PROCESS_PID,
-        .addr = vaddr,
-        .pid = pid
-    };
+            if ( !ctx->pid )
+                dtb = vmi->kpgd;
+            else if (ctx->pid > 0) {
+                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                    goto done;
+            }
 
-    if (!ctx.pid) {
-        dtb = vmi->kpgd;
-    } else if (ctx.pid > 0) {
-        if (VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx.pid, &dtb)) {
+            if (!dtb)
+                goto done;
+
+            vaddr = ctx->addr;
+            break;
+        case VMI_TM_PROCESS_DTB:
+#ifdef ENABLE_SAFETY_CHECKS
+            if (!vmi->arch_interface)
+                goto done;
+#endif
+
+            dtb = ctx->dtb;
+            vaddr = ctx->addr;
+            break;
+        default:
+            errprint("%s error: translation mechanism is not defined or unsupported.\n", __FUNCTION__);
             goto done;
-        }
     }
 
-    if (!dtb)
-        goto done;
-
-    unsigned int pfn_ndx = 0;
+    pfns = calloc(num_pages, sizeof(unsigned long));
 
     for (unsigned int i = 0; i < num_pages; i++) {
         if (VMI_SUCCESS == vmi_pagetable_lookup_cache(vmi, dtb, vaddr + buf_offset, &paddr)) {
