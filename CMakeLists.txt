@@ -74,6 +74,7 @@ option(BUILD_EXAMPLES "Build the examples" ON)
 option(VMI_DEBUG "Debug output level" OFF)
 # hardening flags that causes overhead, disabled by default
 option(HARDENING "Enable hardening flags (with overhead)" OFF)
+option(ENV_DEBUG "Toggle the debug output via LIBVMI_DEBUG environment variable" OFF)
 
 # default values
 set(MAX_PAGE_CACHE_SIZE "512")
