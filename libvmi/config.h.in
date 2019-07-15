@@ -10,6 +10,9 @@
 /* Define for the AMD x86-64 architecture. */
 #cmakedefine X86_64
 
+/* Toggle debugging via environment variable LIBVMI_DEBUG */
+#cmakedefine ENV_DEBUG
+
 /* Enable or disable the address cache (v2p, pid, etc) */
 #cmakedefine ENABLE_ADDRESS_CACHE
 
