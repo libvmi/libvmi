@@ -31,6 +31,12 @@
 
 #include "private.h"
 
+#ifdef ENV_DEBUG
+# define ENV_DEBUG_COND getenv("LIBVMI_DEBUG")
+#else
+# define ENV_DEBUG_COND true
+#endif
+
 #ifndef VMI_DEBUG
 /* Nothing */
 #else
@@ -40,7 +46,7 @@ dbprint(
     char *format,
     ...)
 {
-    if (category & VMI_DEBUG) {
+    if ((category & VMI_DEBUG) && ENV_DEBUG_COND) {
         va_list args;
 
         va_start(args, format);
