@@ -43,9 +43,9 @@ vmi_mmap_guest(
     void **access_ptrs)
 {
     status_t ret = VMI_FAILURE;
+    addr_t dtb = 0;
     addr_t vaddr;
     addr_t paddr;
-    addr_t dtb;
     size_t buf_offset = 0;
     unsigned long *pfns = NULL;
     unsigned int pfn_ndx = 0;
