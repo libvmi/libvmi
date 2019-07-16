@@ -755,7 +755,7 @@ typedef struct vmi_instance *vmi_instance_t;
 status_t vmi_init(
     vmi_instance_t *vmi,
     vmi_mode_t mode,
-    void* domain,
+    const void *domain,
     uint64_t init_flags,
     vmi_init_data_t *init_data,
     vmi_init_error_t *error);
@@ -791,7 +791,7 @@ status_t vmi_init(
  */
 status_t vmi_init_complete(
     vmi_instance_t *vmi,
-    void *domain,
+    const void *domain,
     uint64_t init_flags,
     vmi_init_data_t *init_data,
     vmi_config_t config_mode,
@@ -1979,7 +1979,7 @@ uint64_t vmi_get_vmid(
  */
 status_t vmi_get_access_mode(
     vmi_instance_t vmi,
-    void *domain,
+    const void *domain,
     uint64_t init_flags,
     vmi_init_data_t *init_data,
     vmi_mode_t *mode);
