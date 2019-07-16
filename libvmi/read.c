@@ -33,6 +33,111 @@
 
 ///////////////////////////////////////////////////////////
 // Classic read functions for access to memory
+
+
+status_t
+vmi_mmap_guest(
+    vmi_instance_t vmi,
+    const access_context_t *ctx,
+    size_t num_pages,
+    void **access_ptrs)
+{
+    status_t ret = VMI_FAILURE;
+    addr_t dtb = 0;
+    addr_t vaddr;
+    addr_t paddr;
+    size_t buf_offset = 0;
+    unsigned long *pfns = NULL;
+    unsigned int pfn_ndx = 0;
+
+    switch (ctx->translate_mechanism) {
+        case VMI_TM_KERNEL_SYMBOL:
+#ifdef ENABLE_SAFETY_CHECKS
+            if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
+                goto done;
+#endif
+            dtb = vmi->kpgd;
+            if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &vaddr) )
+                goto done;
+            break;
+        case VMI_TM_PROCESS_PID:
+#ifdef ENABLE_SAFETY_CHECKS
+            if (!vmi->arch_interface || !vmi->os_interface)
+                goto done;
+#endif
+
+            if ( !ctx->pid )
+                dtb = vmi->kpgd;
+            else if (ctx->pid > 0) {
+                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                    goto done;
+            }
+
+            if (!dtb)
+                goto done;
+
+            vaddr = ctx->addr;
+            break;
+        case VMI_TM_PROCESS_DTB:
+#ifdef ENABLE_SAFETY_CHECKS
+            if (!vmi->arch_interface)
+                goto done;
+#endif
+
+            dtb = ctx->dtb;
+            vaddr = ctx->addr;
+            break;
+        default:
+            errprint("%s error: translation mechanism is not defined or unsupported.\n", __FUNCTION__);
+            goto done;
+    }
+
+    pfns = calloc(num_pages, sizeof(unsigned long));
+
+    for (unsigned int i = 0; i < num_pages; i++) {
+        if (VMI_SUCCESS == vmi_pagetable_lookup_cache(vmi, dtb, vaddr + buf_offset, &paddr)) {
+            pfns[pfn_ndx] = paddr >> vmi->page_shift;
+            // store relative offsets to the appropriate pages
+            access_ptrs[i] = (void *)((addr_t)pfn_ndx * vmi->page_size);
+            ++pfn_ndx;
+        } else {
+            // missing page, mapping failed
+            access_ptrs[i] = (void *)-1;
+        }
+
+        buf_offset += vmi->page_size;
+    }
+
+    if (pfn_ndx == 0) {
+        goto done;
+    }
+
+    void *base_ptr = (char *)driver_mmap_guest(vmi, pfns, pfn_ndx);
+
+    if (MAP_FAILED == base_ptr || NULL == base_ptr) {
+        dbprint(VMI_DEBUG_XEN, "--failed to mmap guest memory");
+        goto done;
+    }
+
+    for (unsigned int i = 0; i < num_pages; i++) {
+        if (access_ptrs[i] != (void *)-1) {
+            // add buffer base pointer to the relative offsets since now we know its value
+            access_ptrs[i] += (addr_t)base_ptr;
+        } else {
+            access_ptrs[i] = NULL;
+        }
+    }
+
+    ret = VMI_SUCCESS;
+
+done:
+    if (pfns) {
+        free(pfns);
+    }
+
+    return ret;
+}
+
 status_t
 vmi_read(
     vmi_instance_t vmi,

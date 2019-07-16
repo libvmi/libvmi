@@ -1202,6 +1202,24 @@ status_t vmi_read_va(
 );
 
 /**
+ * Maps num_pages of the guest's virtual memory into host, starting at the provided vaddr.
+ * Each page will have it's own pointer in access_ptrs output array. Be aware that
+ * not all virtual pages may be allocated and in such case, the corresponding array item
+ * will be set to NULL. Remember to call munmap() on each array item afterwards.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @param[in] num_pages Number of guest pages to be mapped (starting from ctx.addr)
+ * @param[out] access_ptrs Output array of size [num_pages] containing pointers to the respective guest's pages
+ */
+status_t vmi_mmap_guest(
+    vmi_instance_t vmi,
+    const access_context_t *ctx,
+    size_t num_pages,
+    void **access_ptrs
+);
+
+/**
  * Reads count bytes from memory located at the physical address paddr
  * and stores the output in a buf.
  *

@@ -46,6 +46,9 @@ typedef struct {
     void* (*xc_map_foreign_range)
     (xc_interface *xch, uint32_t domid, int size, int prot, unsigned long mfn );
 
+    void* (*xc_map_foreign_pages)
+    (xc_interface *xch, uint32_t dom, int prot, const xen_pfn_t *arr, int num );
+
     int (*xc_domain_get_tsc_info)
     (xc_interface *xch, uint32_t domid, uint32_t *tsc_mode, uint64_t *elapsed_nsec,
      uint32_t *gtsc_khz, uint32_t *incarnation);

@@ -2636,6 +2636,16 @@ xen_read_page(
     return memory_cache_insert(vmi, paddr);
 }
 
+void *
+xen_mmap_guest(
+    vmi_instance_t vmi,
+    unsigned long *pfns,
+    unsigned int size)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    return xen->libxcw.xc_map_foreign_pages(xen->xchandle, xen->domainid, PROT_READ, pfns, size);
+}
+
 status_t
 xen_write(
     vmi_instance_t vmi,
