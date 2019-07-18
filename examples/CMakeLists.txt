@@ -13,6 +13,9 @@ target_link_libraries(event-example vmi_shared)
 add_executable(interrupt-event-example interrupt-event-example.c)
 target_link_libraries(interrupt-event-example vmi_shared)
 
+add_executable(breakpoint-emulate-example breakpoint-emulate-example.c)
+target_link_libraries(breakpoint-emulate-example vmi_shared)
+
 add_executable(wait-for-domain-example wait-for-domain-example.c)
 target_link_libraries(wait-for-domain-example vmi_shared)
 
