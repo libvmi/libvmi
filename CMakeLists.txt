@@ -37,7 +37,7 @@ include(GNUInstallDirs)
 #-----------------------------------------------------------------------------
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -O0")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Werror -O2")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wno-cast-function-type -Werror -O2")
 
 # strip library in release mode
 set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "-s")
