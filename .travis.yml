@@ -1,6 +1,6 @@
-dist:   xenial
+dist:   bionic
 language: c
-sudo: false
+sudo: true
 env:
     global:
         - secure: "$COVERITY_SCAN_TOKEN"
@@ -23,12 +23,12 @@ matrix:
 #
     - env:
         - TEST="astyle"
-      sudo: required
       install:
-        - sudo apt-get install astyle
+        - sudo apt-get update
+        - sudo apt-get -q -y install astyle
       script:
-        - export ARTISTIC_STYLE_OPTIONS=".astylerc" && astyle `find . | egrep "\.c$|\.h$"` > astyle.out
-        - TEST=$(cat astyle.out | grep Formatted | wc -l)
+        - export ARTISTIC_STYLE_OPTIONS=".astylerc" && astyle -Q `find . | egrep "\.c$|\.h$"` > astyle.out
+        - TEST=$(cat astyle.out | wc -l)
         - |
           if [[ $TEST -ne 0 ]]; then
             git --no-pager diff
@@ -42,19 +42,9 @@ matrix:
     - env:
         - TEST="gcc compile and install"
       compiler: gcc
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DCMAKE_INSTALL_PREFIX=../install ..
@@ -67,19 +57,9 @@ matrix:
     - env:
         - TEST="clang compile"
       compiler: clang
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake ..
@@ -91,20 +71,7 @@ matrix:
     - env:
         - TEST="Coverity"
       compiler: gcc
-      sudo: required
       addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
         coverity_scan:
             project:
                 name: "$COVERITY_PROJECT"
@@ -113,6 +80,9 @@ matrix:
             build_command_prepend: "mkdir build; cd build; cmake .."
             build_command:   "make"
             branch_pattern: $COVERITY_BRANCH
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
       - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
@@ -122,24 +92,14 @@ matrix:
     - env:
         - TEST="SonarCloud"
       compiler: clang
-      sudo: required
       addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
         sonarcloud:
             organization: "libvmi"
             token:
                 secure: "$SONAR_SCAN_TOKEN"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
         - mkdir build && cd build
@@ -152,20 +112,9 @@ matrix:
 #
     - env:
         - TEST="clang --analyze"
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-                - llvm-toolchain-xenial-7.0
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake ..
@@ -176,21 +125,9 @@ matrix:
 #
     - env:
         - TEST="debug options enabled"
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
-      before_install:
-        - sed -i 's/#endif/#ifdef VMI_DEBUG\n#undef VMI_DEBUG\n#endif\n#define VMI_DEBUG __VMI_DEBUG_ALL\n#endif/g' libvmi/debug.h
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DCMAKE_BUILD_TYPE=DEBUG ..
@@ -202,19 +139,9 @@ matrix:
 #
     - env:
         - TEST="disable cache"
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DENABLE_ADDRESS_CACHE=OFF -DENABLE_PAGE_CACHE=OFF ..
@@ -225,19 +152,9 @@ matrix:
 #
     - env:
         - TEST="without xenstore"
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DENABLE_XENSTORE=OFF ..
@@ -248,19 +165,9 @@ matrix:
 #
     - env:
         - TEST="disable libvmi.conf"
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DENABLE_CONFIGFILE=OFF -DBUILD_EXAMPLES=OFF ..
@@ -271,19 +178,9 @@ matrix:
 #
     - env:
         - TEST="disable rekall profiles"
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DREKALL_PROFILES=OFF -DBUILD_EXAMPLES=OFF ..
@@ -294,19 +191,9 @@ matrix:
 #
     - env:
         - TEST="disable safety checks"
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DENABLE_SAFETY_CHECKS=OFF ..
@@ -317,18 +204,9 @@ matrix:
 #
     - env:
         - TEST="release build"
-      addons:
-        apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DCMAKE_BUILD_TYPE=RELEASE ..
