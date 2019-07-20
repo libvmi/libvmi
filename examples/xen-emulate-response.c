@@ -31,8 +31,16 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-void print_event(vmi_event_t *event)
+static int interrupted = 0;
+static void close_handler(int sig)
 {
+    interrupted = sig;
+}
+
+event_response_t cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    (void)vmi; // just to silence unused variable warning
+
     printf("PAGE ACCESS: %c%c%c for GFN %"PRIx64" (offset %06"PRIx64") gla %016"PRIx64" (vcpu %"PRIu32")\n",
            (event->mem_event.out_access & VMI_MEMACCESS_R) ? 'r' : '-',
            (event->mem_event.out_access & VMI_MEMACCESS_W) ? 'w' : '-',
@@ -42,35 +50,22 @@ void print_event(vmi_event_t *event)
            event->mem_event.gla,
            event->vcpu_id
           );
-}
-
-event_response_t cb(vmi_instance_t vmi, vmi_event_t *event)
-{
-    vmi = vmi;
-    print_event(event);
     return VMI_EVENT_RESPONSE_EMULATE;
-}
-
-static int interrupted = 0;
-static void close_handler(int sig)
-{
-    interrupted = sig;
 }
 
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi = NULL;
+    vmi_event_t event;
     status_t status = VMI_SUCCESS;
+    addr_t addr;
+    char *name = NULL;
     struct sigaction act;
 
     if (argc < 3) {
         fprintf(stderr, "Usage: xen-emulate-response <name of VM> <kernel virtual address trap in hex>\n");
         return 1;
     }
-
-    addr_t addr;
-
-    char *name = NULL;
 
     // Arg 1 is the VM name.
     name = argv[1];
@@ -95,14 +90,15 @@ int main (int argc, char **argv)
 
     printf("LibVMI init succeeded!\n");
 
-    vmi_event_t event;
     memset(&event, 0, sizeof(vmi_event_t));
     event.version = VMI_EVENTS_VERSION;
     event.type = VMI_EVENT_MEMORY;
-    vmi_translate_kv2p(vmi, addr, &event.mem_event.gfn);
     event.mem_event.gfn >>= 12;
     event.mem_event.in_access = VMI_MEMACCESS_X;
     event.callback = cb;
+
+    if ( VMI_FAILURE == vmi_translate_kv2p(vmi, addr, &event.mem_event.gfn) )
+        goto leave;
 
     if ( VMI_FAILURE == vmi_register_event(vmi, &event) )
         goto leave;
