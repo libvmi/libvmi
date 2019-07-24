@@ -39,6 +39,12 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -O0")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wno-cast-function-type -Werror -O2")
 
+# default hardening flags that have no performance hit
+set(HARDENING_LINKER_FLAGS "-Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now")
+# update default flags
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${HARDENING_LINKER_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${HARDENING_LINKER_FLAGS}")
+
 # strip library in release mode
 set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "-s")
 #-----------------------------------------------------------------------------
@@ -66,9 +72,27 @@ option(ENABLE_TESTING "Build libvmi test suite" OFF)
 option(BUILD_EXAMPLES "Build the examples" ON)
 # See libvmi/debug.h for possible debug levels
 option(VMI_DEBUG "Debug output level" OFF)
+# hardening flags that causes overhead, disabled by default
+option(HARDENING "Enable hardening flags (with overhead)" OFF)
 
 # default values
 set(MAX_PAGE_CACHE_SIZE "512")
+
+# enable hardening if requested
+if (HARDENING)
+    # enable stack canaries, not all because the performance cost is too high
+    # -fstack-protector-strong appears since GCC 4.9
+    # we assume Debian Stretch at least, so GCC 6.3.0
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-strong")
+    # enforce position independant code
+    set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+    # enforce pie
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
+    # enforce fortify source
+    # we should use add_compile_definitions, but only available since
+    # CMake 3.12.0 (assuming 3.1)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2")
+endif ()
 #-----------------------------------------------------------------------------
 #                               SOURCES
 #-----------------------------------------------------------------------------
