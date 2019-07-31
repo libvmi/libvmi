@@ -659,12 +659,14 @@ _bail:
     return ret;
 }
 
+#ifdef HAVE_LIBXENSTORE
 status_t xen_domainwatch_init(
     vmi_instance_t vmi,
     uint32_t init_flags)
 {
     return xen_domainwatch_init_events(vmi, init_flags);
 }
+#endif
 
 void
 xen_destroy(

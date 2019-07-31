@@ -564,6 +564,7 @@ status_t xen_set_failed_emulation_event(vmi_instance_t vmi, bool enabled)
     return VMI_SUCCESS;
 }
 
+#ifdef HAVE_LIBXENSTORE
 status_t xen_set_domain_watch_event(vmi_instance_t vmi, bool enabled)
 {
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -589,6 +590,7 @@ status_t xen_set_domain_watch_event(vmi_instance_t vmi, bool enabled)
 
     return VMI_SUCCESS;
 }
+#endif
 
 /*
  * Event processing functions
@@ -2428,6 +2430,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
     return VMI_SUCCESS;
 }
 
+#ifdef HAVE_LIBXENSTORE
 status_t xen_domainwatch_init_events(
     vmi_instance_t vmi,
     uint32_t init_flags)
@@ -2465,6 +2468,7 @@ status_t xen_domainwatch_init_events(
 
     return VMI_SUCCESS;
 }
+#endif
 
 status_t xen_init_events(
     vmi_instance_t vmi,
@@ -2591,8 +2595,10 @@ status_t xen_init_events(
     vmi->driver.set_privcall_event_ptr = &xen_set_privcall_event;
     vmi->driver.set_desc_access_event_ptr = &xen_set_desc_access_event;
     vmi->driver.set_failed_emulation_event_ptr = &xen_set_failed_emulation_event;
+#ifdef HAVE_LIBXENSTORE
     if ( !vmi->driver.set_domain_watch_event_ptr )
         vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
+#endif
 
     xen->libxcw.xc_monitor_get_capabilities(xch, dom, &xe->monitor_capabilities);
 
