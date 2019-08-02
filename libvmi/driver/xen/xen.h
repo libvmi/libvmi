@@ -182,9 +182,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.initialized = true;
     driver.init_ptr = &xen_init;
     driver.init_vmi_ptr = &xen_init_vmi;
-#ifdef HAVE_LIBXENSTORE
     driver.domainwatch_init_ptr = &xen_domainwatch_init;
-#endif
     driver.destroy_ptr = &xen_destroy;
     driver.get_id_from_name_ptr = &xen_get_domainid_from_name;
     driver.get_name_from_id_ptr = &xen_get_name_from_domainid;
