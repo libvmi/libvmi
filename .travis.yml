@@ -91,6 +91,8 @@ matrix:
 #
     - env:
         - TEST="SonarCloud"
+      dist: xenial
+      edge: true
       compiler: clang
       addons:
         sonarcloud:
