@@ -115,7 +115,7 @@ vmi_mmap_guest(
     void *base_ptr = (char *)driver_mmap_guest(vmi, pfns, pfn_ndx);
 
     if (MAP_FAILED == base_ptr || NULL == base_ptr) {
-        dbprint(VMI_DEBUG_XEN, "--failed to mmap guest memory");
+        dbprint(VMI_DEBUG_READ, "--failed to mmap guest memory");
         goto done;
     }
 

@@ -447,7 +447,7 @@ vmi_get_access_mode(
     if ( init_flags & VMI_INIT_DOMAINID )
         id = *(uint64_t*)domain;
 
-    if ( (!name && id == VMI_INIT_DOMAINID) ||
+    if ( (!name && id == VMI_INVALID_DOMID) ||
             (name && id != VMI_INVALID_DOMID) )
         return VMI_FAILURE;
 
