@@ -132,7 +132,7 @@ matrix:
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
-        - cmake -DCMAKE_BUILD_TYPE=DEBUG ..
+        - cmake -DCMAKE_BUILD_TYPE=DEBUG -DVMI_DEBUG=__VMI_DEBUG_ALL ..
         - make
 
 
