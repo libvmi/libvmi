@@ -91,6 +91,11 @@ if (HARDENING)
     # CMake 3.12.0 (assuming 3.1)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2")
 endif ()
+
+if (ENABLE_XEN AND ENABLE_XENSTORE)
+    find_package(Xenstore REQUIRED)
+endif ()
+
 #-----------------------------------------------------------------------------
 #                               SOURCES
 #-----------------------------------------------------------------------------
