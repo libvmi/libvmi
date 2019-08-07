@@ -2478,7 +2478,7 @@ status_t xen_domainwatch_init_events(
 
 status_t xen_init_events(
     vmi_instance_t vmi,
-    uint32_t UNUSED(init_flags),
+    uint32_t init_flags,
     vmi_init_data_t *init_data)
 {
     xen_events_t * xe = NULL;
@@ -2486,6 +2486,8 @@ status_t xen_init_events(
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t dom = xen_get_domainid(vmi);
     int rc;
+
+    (void)init_flags; // maybe unused
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !xen ) {
