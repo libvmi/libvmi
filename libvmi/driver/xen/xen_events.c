@@ -564,6 +564,7 @@ status_t xen_set_failed_emulation_event(vmi_instance_t vmi, bool enabled)
     return VMI_SUCCESS;
 }
 
+#ifdef HAVE_LIBXENSTORE
 status_t xen_set_domain_watch_event(vmi_instance_t vmi, bool enabled)
 {
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -589,6 +590,7 @@ status_t xen_set_domain_watch_event(vmi_instance_t vmi, bool enabled)
 
     return VMI_SUCCESS;
 }
+#endif
 
 /*
  * Event processing functions
@@ -1129,6 +1131,7 @@ status_t process_desc_access(vmi_instance_t vmi, vm_event_compat_t *vmec)
     return VMI_SUCCESS;
 }
 
+#ifdef HAVE_LIBXENSTORE
 static int check_domain_shutdown(
     void *key,
     void *value,
@@ -1215,6 +1218,7 @@ status_t process_domain_watch(vmi_instance_t vmi, vm_event_compat_t* UNUSED(vmec
 
     return ret;
 }
+#endif
 
 static
 status_t process_request(vmi_instance_t vmi, vm_event_compat_t *vmec)
@@ -2351,10 +2355,13 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
             needs_unmasking = 1;
     }
 
+#ifdef HAVE_LIBXENSTORE
     if ( (xe->fd[1].revents & POLLIN) && (vmi->init_flags & VMI_INIT_DOMAINWATCH) ) {
         /* We have a domain watch event */
         vrc = xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH](vmi, NULL);
     }
+#endif
+
     if ( !(vmi->init_flags & VMI_INIT_EVENTS) )
         return vrc;
 
@@ -2453,14 +2460,17 @@ status_t xen_domainwatch_init_events(
         return VMI_FAILURE;
     }
 
+#ifdef HAVE_LIBXENSTORE
     xe->fd[1].fd = xen->libxsw.xs_fileno(xen->xshandle);
     xe->fd[1].events = POLLIN | POLLERR;
     xe->fd[0].fd = -1; //ignore this fd
     *(uint16_t *)&xe->fd_size = 2;
 
     xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
-    vmi->driver.events_listen_ptr = &xen_events_listen;
     vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
+#endif
+
+    vmi->driver.events_listen_ptr = &xen_events_listen;
     xen->events = xe;
 
     return VMI_SUCCESS;
@@ -2468,7 +2478,7 @@ status_t xen_domainwatch_init_events(
 
 status_t xen_init_events(
     vmi_instance_t vmi,
-    uint32_t init_flags,
+    uint32_t UNUSED(init_flags),
     vmi_init_data_t *init_data)
 {
     xen_events_t * xe = NULL;
@@ -2549,10 +2559,12 @@ status_t xen_init_events(
     xe->fd[0].fd = xen->libxcw.xc_evtchn_fd(xe->xce_handle);
     xe->fd[0].events = POLLIN | POLLERR;
 
-    if (init_flags & VMI_INIT_DOMAINWATCH)
+    *(uint16_t *)&xe->fd_size = 1;
+
+#ifdef HAVE_LIBXENSTORE
+    if ( init_flags & VMI_INIT_DOMAINWATCH )
         *(uint16_t *)&xe->fd_size = 2;
-    else
-        *(uint16_t *)&xe->fd_size = 1;
+#endif
 
     // Bind event notification
     rc = xen->libxcw.xc_evtchn_bind_interdomain(xe->xce_handle, dom, xe->evtchn_port);
@@ -2575,8 +2587,6 @@ status_t xen_init_events(
     xe->process_event[VM_EVENT_REASON_INTERRUPT] = &process_interrupt;
     xe->process_event[VM_EVENT_REASON_DESCRIPTOR_ACCESS] = &process_desc_access;
     xe->process_event[VM_EVENT_REASON_EMUL_UNIMPLEMENTED] = &process_unimplemented_emul;
-    if ( !xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] )
-        xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
 
     vmi->driver.events_listen_ptr = &xen_events_listen;
     vmi->driver.set_reg_access_ptr = &xen_set_reg_access;
@@ -2591,10 +2601,15 @@ status_t xen_init_events(
     vmi->driver.set_privcall_event_ptr = &xen_set_privcall_event;
     vmi->driver.set_desc_access_event_ptr = &xen_set_desc_access_event;
     vmi->driver.set_failed_emulation_event_ptr = &xen_set_failed_emulation_event;
-    if ( !vmi->driver.set_domain_watch_event_ptr )
-        vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
 
     xen->libxcw.xc_monitor_get_capabilities(xch, dom, &xe->monitor_capabilities);
+
+#ifdef HAVE_LIBXENSTORE
+    if ( !xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] )
+        xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
+    if ( !vmi->driver.set_domain_watch_event_ptr )
+        vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
+#endif
 
     xen->events = xe;
 
