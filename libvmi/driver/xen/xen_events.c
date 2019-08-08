@@ -2662,6 +2662,44 @@ xen_slat_switch(
     return VMI_SUCCESS;
 }
 
+status_t
+xen_slat_change_gfn(
+    vmi_instance_t vmi,
+    uint16_t slat_idx,
+    addr_t old_gfn,
+    addr_t new_gfn)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xc_interface *xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xen ) {
+        errprint("%s: invalid xen_instance_t handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !xch ) {
+        errprint("%s: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
+        errprint("%s: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    if (xen->libxcw.xc_altp2m_change_gfn(xch, dom, slat_idx, old_gfn, new_gfn) < 0) {
+        errprint("%s: failed to change gfn 0x%"PRIx64" to 0x%"PRIx64" in view %u\n"
+                 , __FUNCTION__, old_gfn, new_gfn, slat_idx);
+        return VMI_FAILURE;
+    }
+
+    dbprint(VMI_DEBUG_XEN, "--Switched gfn 0x%"PRIx64" to 0x%"PRIx64" in view %u%u\n",
+            old_gfn, new_gfn, slat_idx);
+
+    return VMI_SUCCESS;
+}
+
 status_t xen_init_events(
     vmi_instance_t vmi,
     uint32_t init_flags,
@@ -2798,6 +2836,7 @@ status_t xen_init_events(
     vmi->driver.slat_create_ptr = &xen_slat_create;
     vmi->driver.slat_destroy_ptr = &xen_slat_destroy;
     vmi->driver.slat_switch_ptr = &xen_slat_switch;
+    vmi->driver.slat_change_gfn_ptr = &xen_slat_change_gfn;
 #ifdef HAVE_LIBXENSTORE
     if ( !xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] )
         xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
