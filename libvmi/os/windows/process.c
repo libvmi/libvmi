@@ -242,8 +242,8 @@ windows_find_eprocess(
     }
 
     if (!windows->pname_offset) {
-        if (REKALL_PROFILE(windows)) {
-            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(windows), "_EPROCESS", "ImageFileName", &windows->pname_offset) )
+        if (rekall_profile(vmi)) {
+            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_EPROCESS", "ImageFileName", &windows->pname_offset) )
                 return 0;
         } else {
             windows->pname_offset = find_pname_offset(vmi, check);

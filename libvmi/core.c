@@ -797,18 +797,25 @@ vmi_destroy(
         return VMI_FAILURE;
 
     vmi->shutting_down = TRUE;
+
     driver_destroy(vmi);
     events_destroy(vmi);
+
     if (vmi->os_interface) {
         os_destroy(vmi);
     }
-    if (vmi->os_data) {
-        free(vmi->os_data);
-    }
-    if (vmi->arch_interface) {
-        free(vmi->arch_interface);
-    }
+
+    free(vmi->os_data);
+    free(vmi->arch_interface);
     vmi->os_data = NULL;
+    vmi->arch_interface = NULL;
+
+#ifdef REKALL_PROFILES
+    g_free(vmi->rekall_profile);
+    if ( vmi->rekall_profile_json )
+        json_object_put(vmi->rekall_profile_json);
+#endif
+
     pid_cache_destroy(vmi);
     sym_cache_destroy(vmi);
     rva_cache_destroy(vmi);

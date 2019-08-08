@@ -233,7 +233,7 @@ linux_symbol_to_address(
         goto done;
     }
 
-    if (!linux_instance->sysmap && !REKALL_PROFILE(linux_instance)) {
+    if (!linux_instance->sysmap && !rekall_profile(vmi)) {
         errprint("VMI_WARNING: No linux sysmap and Rekall profile configured\n");
         goto done;
     }
@@ -242,7 +242,7 @@ linux_symbol_to_address(
         ret = linux_system_map_symbol_to_address(vmi, symbol, address);
     else
         ret = rekall_profile_symbol_to_rva(
-                  REKALL_PROFILE(linux_instance),
+                  rekall_profile(vmi),
                   symbol, NULL, address);
 
     if ( VMI_SUCCESS == ret )
