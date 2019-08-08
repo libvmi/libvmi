@@ -25,11 +25,6 @@
 struct freebsd_instance {
     char *sysmap; /**< system map file for domain's running kernel */
 
-    char *rekall_profile; /**< Rekall profile for domain's running kernel */
-#ifdef REKALL_PROFILES
-    json_object *rekall_profile_json; /**< Rekall profile json object */
-#endif
-
     addr_t pmap_offset; /**< task_struct->tasks */
 
     addr_t vmspace_offset; /**< task_struct->mm */

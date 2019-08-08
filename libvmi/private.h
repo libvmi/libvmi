@@ -151,6 +151,12 @@ struct vmi_instance {
     addr_t last_used_page_key; /**< the key (addr) of the last used page */
 #endif
 
+#ifdef REKALL_PROFILES
+    char *rekall_profile; /**< Rekall profile for domain's running kernel */
+
+    json_object *rekall_profile_json; /**< Rekall profile json object */
+#endif
+
     unsigned int num_vcpus; /**< number of VCPUs used by this instance */
 
     vmi_event_t *guest_requested_event; /**< Handler of guest-requested events */
@@ -377,9 +383,12 @@ win_ver_t find_windows_version(
     addr_t kdbg);
 
 #ifdef REKALL_PROFILES
-#define REKALL_PROFILE(instance) (instance)->rekall_profile_json
+static inline json_object* rekall_profile(vmi_instance_t vmi)
+{
+    return vmi->rekall_profile_json;
+}
 #else
-#define REKALL_PROFILE(instance) NULL
-#endif /* REKALL_PROFILES */
+#define rekall_profile(...) NULL
+#endif
 
 #endif /* PRIVATE_H */

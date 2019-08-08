@@ -39,32 +39,32 @@ static status_t init_from_rekall_profile(vmi_instance_t vmi)
     freebsd_instance_t freebsd_instance = vmi->os_data;
 
     if (!freebsd_instance->pmap_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(freebsd_instance), "vmspace", "vm_pmap", &freebsd_instance->pmap_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "vmspace", "vm_pmap", &freebsd_instance->pmap_offset)) {
             goto done;
         }
     }
     if (!freebsd_instance->vmspace_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(freebsd_instance), "proc", "p_vmspace", &freebsd_instance->vmspace_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "proc", "p_vmspace", &freebsd_instance->vmspace_offset)) {
             goto done;
         }
     }
     if (!freebsd_instance->pid_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(freebsd_instance), "proc", "p_pid", &freebsd_instance->pid_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "proc", "p_pid", &freebsd_instance->pid_offset)) {
             goto done;
         }
     }
     if (!freebsd_instance->name_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(freebsd_instance), "proc", "p_comm", &freebsd_instance->name_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "proc", "p_comm", &freebsd_instance->name_offset)) {
             goto done;
         }
     }
     if (!freebsd_instance->pgd_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(freebsd_instance), "pmap", "pm_cr3", &freebsd_instance->pgd_offset)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "pmap", "pm_cr3", &freebsd_instance->pgd_offset)) {
             goto done;
         }
     }
     if (!vmi->init_task) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(REKALL_PROFILE(freebsd_instance), "allproc", NULL, &vmi->init_task)) {
+        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "allproc", NULL, &vmi->init_task)) {
             goto done;
         }
     }
@@ -95,12 +95,10 @@ status_t freebsd_init(vmi_instance_t vmi, GHashTable *config)
     if ( !vmi->os_data )
         return VMI_FAILURE;
 
-    freebsd_instance_t freebsd_instance = vmi->os_data;
-
     g_hash_table_foreach(config, (GHFunc)freebsd_read_config_ghashtable_entries,
                          vmi);
 
-    if (REKALL_PROFILE(freebsd_instance))
+    if (rekall_profile(vmi))
         rc = init_from_rekall_profile(vmi);
     else
         rc = freebsd_symbol_to_address(vmi, "allproc", NULL, &vmi->init_task);
@@ -163,16 +161,16 @@ void freebsd_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
-    if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
-        freebsd_instance->rekall_profile = g_strdup((char *)value);
 #ifdef REKALL_PROFILES
-        json_object *root = json_object_from_file(freebsd_instance->rekall_profile);
+    if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
+        vmi->rekall_profile = g_strdup((char *)value);
+        json_object *root = json_object_from_file(vmi->rekall_profile);
         if (!root)
             errprint("Rekall profile couldn't be opened!\n");
-        freebsd_instance->rekall_profile_json = root;
-#endif
+        vmi->rekall_profile_json = root;
         goto _done;
     }
+#endif
 
     if (strncmp(key, "freebsd_pmap", CONFIG_STR_LENGTH) == 0) {
         freebsd_instance->pmap_offset = *(addr_t *)value;
@@ -274,10 +272,6 @@ status_t freebsd_teardown(vmi_instance_t vmi)
     }
 
     free(freebsd_instance->sysmap);
-    g_free(freebsd_instance->rekall_profile);
-#ifdef REKALL_PROFILES
-    json_object_put(freebsd_instance->rekall_profile_json);
-#endif
     free(vmi->os_data);
 
     vmi->os_data = NULL;
