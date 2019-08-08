@@ -208,3 +208,28 @@ endif
     examples_va_pages_CFLAGS = $(GLIB_CFLAGS)
     examples_va_pages_LDADD = $(GLIB_LIBS) libvmi/libvmi.la
 endif
+
+#############################################################
+
+if MAKE_TESTS
+    TESTS = tests/check_libvmi
+
+    check_PROGRAMS = tests/check_libvmi
+
+    tests_check_libvmi_SOURCES = \
+        tests/check_runner.c \
+        tests/check_tests.h \
+        tests/test_accessor.c \
+        tests/test_init.c \
+        tests/test_print.c \
+        tests/test_read.c \
+        tests/test_translate.c \
+        tests/test_util.c \
+        tests/test_write.c \
+        tests/test_peparse.c \
+        tests/test_cache.c \
+        tests/test_getvapages.c
+
+    tests_check_libvmi_CFLAGS = $(CHECK_CFLAGS) $(GLIB_CFLAGS)
+    tests_check_libvmi_LDADD = $(CHECK_LIBS) $(GLIB_LIBS) libvmi/libvmi.la
+endif

@@ -190,6 +190,10 @@ AM_SANITY_CHECK
 AM_PROG_AS
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
+AC_SUBST([CHECK_CFLAGS])
+AC_SUBST([CHECK_LIBS])
+AM_CONDITIONAL([MAKE_TESTS], [test x$have_check = xyes])
+
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16],[],[AC_MSG_ERROR(GLib 2.16 or newer not found. Install missing package and re-run)])
 AC_SUBST([GLIB_CFLAGS])
 AC_SUBST([GLIB_LIBS])
