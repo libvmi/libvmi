@@ -2485,6 +2485,42 @@ status_t xen_domainwatch_init_events(
 }
 
 status_t
+xen_slat_get_domain_state(
+    vmi_instance_t vmi,
+    bool *state)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xc_interface *xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xen ) {
+        errprint("%s: invalid xen_instance_t handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !xch ) {
+        errprint("%s: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
+        errprint("%s: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !state ) {
+        errprint("%s: invalid pointer to \"state\" parameter\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    if (xen->libxcw.xc_altp2m_get_domain_state(xch, dom, state) < 0) {
+        errprint("%s: failed to get alternate SLAT state\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t
 xen_slat_set_domain_state(
     vmi_instance_t vmi,
     bool state)
@@ -2495,21 +2531,22 @@ xen_slat_set_domain_state(
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !xen ) {
-        errprint("%s error: invalid xen_instance_t handle\n", __FUNCTION__);
+        errprint("%s: invalid xen_instance_t handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
     if ( !xch ) {
-        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        errprint("%s: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
     if ( dom == (domid_t)VMI_INVALID_DOMID ) {
-        errprint("%s error: invalid domid\n", __FUNCTION__);
+        errprint("%s: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
 #endif
 
     if (xen->libxcw.xc_altp2m_set_domain_state(xch, dom, state) < 0) {
-        errprint("%s error: failed to set alternate SLAT state\n", __FUNCTION__);
+        errprint("%s error: failed to %s alternate SLAT\n", __FUNCTION__,
+                 (state) ? "enable" : "disable");
         return VMI_FAILURE;
     }
 
@@ -2648,6 +2685,7 @@ status_t xen_init_events(
     xen->libxcw.xc_monitor_get_capabilities(xch, dom, &xe->monitor_capabilities);
 
     // SLAT
+    vmi->driver.slat_get_domain_state_ptr = &xen_slat_get_domain_state;
     vmi->driver.slat_set_domain_state_ptr = &xen_slat_set_domain_state;
 #ifdef HAVE_LIBXENSTORE
     if ( !xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] )
