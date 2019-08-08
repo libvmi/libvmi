@@ -2550,6 +2550,9 @@ xen_slat_set_domain_state(
         return VMI_FAILURE;
     }
 
+    dbprint(VMI_DEBUG_XEN, "--Xen alternate SLAT is %s\n",
+            (state) ? "enabled", "disabled");
+
     return VMI_SUCCESS;
 }
 
@@ -2586,6 +2589,8 @@ xen_slat_create(
         return VMI_FAILURE;
     }
 
+    dbprint(VMI_DEBUG_XEN, "--Xen alternate SLAT view %u created\n", *view);
+
     return VMI_SUCCESS;
 }
 
@@ -2617,6 +2622,8 @@ xen_slat_destroy(
         errprint("%s: failed to destroy view %u\n", __FUNCTION__, view);
         return VMI_FAILURE;
     }
+
+    dbprint(VMI_DEBUG_XEN, "--Xen alternate SLAT view %u destroyed\n", view);
 
     return VMI_SUCCESS;
 }
