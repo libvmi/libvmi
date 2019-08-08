@@ -812,7 +812,8 @@ xen_get_tsc_info(
     return VMI_SUCCESS;
 }
 
-void
+#if defined(I386) || defined(X86_64)
+static void
 xen_get_xsave_info_46(
     struct hvm_hw_cpu_xsave_46 *info,
     xsave_area_t *xsave_info)
@@ -822,7 +823,7 @@ xen_get_xsave_info_46(
     xsave_info->xstate_bv = info->save_area.xsave_hdr.xstate_bv;
 }
 
-void
+static void
 xen_get_xsave_info_412(
     struct hvm_hw_cpu_xsave_412 *info,
     xsave_area_t *xsave_info)
@@ -832,8 +833,8 @@ xen_get_xsave_info_412(
     xsave_info->xstate_bv = info->save_area.xsave_hdr.xstate_bv;
 }
 
-status_t
-xen_get_xsave_info(
+static status_t
+xen_get_xsave_info_hvm(
     vmi_instance_t vmi,
     unsigned long vcpu,
     xsave_area_t *xsave_info)
@@ -906,8 +907,6 @@ _bail:
 
     return ret;
 }
-
-#if defined(I386) || defined(X86_64)
 
 static status_t
 xen_get_vcpumtrr_hvm(
@@ -2535,6 +2534,20 @@ xen_get_vcpumtrr(
 #if defined(I386) || defined (X86_64)
     if (vmi->vm_type == HVM)
         return xen_get_vcpumtrr_hvm(vmi, hwMtrr, vcpu);
+#endif
+
+    return VMI_FAILURE;
+}
+
+status_t
+xen_get_xsave_info(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    xsave_area_t *xsave_info)
+{
+#if defined(I386) || defined (X86_64)
+    if (vmi->vm_type == HVM)
+        return xen_get_xsave_info_hvm(vmi, vcpu, xsave_info);
 #endif
 
     return VMI_FAILURE;

@@ -129,7 +129,6 @@ AC_ARG_ENABLE([vmifs],
          [Disable building VMIFS tool: maps memory to a file through FUSE @<:@no@:>@])],
       [enable_vmifs=$enableval],
       [enable_vmifs=yes])
-AM_CONDITIONAL([VMIFS], [test x"$enable_vmifs" = xyes])
 
 AC_ARG_ENABLE([address_cache],
       [AS_HELP_STRING([--disable-address-cache],
@@ -150,7 +149,6 @@ AC_ARG_ENABLE([rekall_profiles],
          [Disable using Rekall's JSON profiles @<:@no@:>@])],
       [rekall="$enableval"],
       [rekall="yes"])
-AM_CONDITIONAL([ENABLE_REKALL_PROFILES], [test x"$rekall" = "xyes"])
 
 AC_ARG_ENABLE([config-file],
       [AS_HELP_STRING([--disable-config-file],
@@ -287,6 +285,7 @@ vmifs_space='       '
         AC_SUBST([FUSE_LIBS])
     [fi]
 [fi]
+AM_CONDITIONAL([VMIFS], [test x"$enable_vmifs" = xyes])
 
 [if test "$configfile" = "yes"]
 [then]
@@ -322,14 +321,14 @@ missing='no'
     AC_CHECK_LIB(json-c, json_object_get_int64,, [missing="yes"])
     [if test x"$missing" = "xno"]
     [then]
-            AC_CHECK_HEADERS([json-c/json.h])
-            AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when working JSON-C library was found to parse Rekall profiles.])
+        AC_CHECK_HEADERS([json-c/json.h])
+        AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when working JSON-C library was found to parse Rekall profiles.])
     [else]
         rekall='Disabled, missing libjson-c-dev.'
         [echo "No working JSON-C library found (libjson-c-dev), Rekall system profiles won't be supported."]
     [fi]
 [fi]
-AM_CONDITIONAL([REKALL_PROFILES], [test x"$rekall" = xyes])
+AM_CONDITIONAL([ENABLE_REKALL_PROFILES], [test x"$rekall" = "xyes"])
 
 [if test x"$enable_address_cache" = "xyes"]
 [then]
