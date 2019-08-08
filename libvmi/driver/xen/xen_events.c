@@ -2553,6 +2553,42 @@ xen_slat_set_domain_state(
     return VMI_SUCCESS;
 }
 
+status_t
+xen_slat_create(
+    vmi_instance_t vmi,
+    uint16_t *view)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xc_interface *xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xen ) {
+        errprint("%s: invalid xen_instance_t handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !xch ) {
+        errprint("%s: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
+        errprint("%s: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !view ) {
+        errprint("%s: invalid pointer to \"view\" parameter\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    if (xen->libxcw.xc_altp2m_create_view(xch, dom, XENMEM_access_default, view) < 0) {
+        errprint("%s: failed to create SLAT view\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
 
 status_t xen_init_events(
     vmi_instance_t vmi,
@@ -2687,6 +2723,7 @@ status_t xen_init_events(
     // SLAT
     vmi->driver.slat_get_domain_state_ptr = &xen_slat_get_domain_state;
     vmi->driver.slat_set_domain_state_ptr = &xen_slat_set_domain_state;
+    vmi->driver.slat_create_ptr = &xen_slat_create;
 #ifdef HAVE_LIBXENSTORE
     if ( !xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] )
         xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
