@@ -2452,19 +2452,19 @@ status_t xen_domainwatch_init_events(
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !xen ) {
-        errprint("%s error: invalid xen_instance_t handle\n", __FUNCTION__);
+        errprint("%s: invalid xen_instance_t handle\n", __FUNCTION__);
         return VMI_FAILURE;
     }
 
     if ( !(init_flags & VMI_INIT_DOMAINWATCH) ) {
-        errprint("%s error: invalid init flags\n", __FUNCTION__);
+        errprint("%s: invalid init flags\n", __FUNCTION__);
         return VMI_FAILURE;
     }
 #endif
 
     xe = g_malloc0(sizeof(xen_events_t));
     if ( !xe ) {
-        errprint("%s error: allocation for xen_events_t failed\n", __FUNCTION__);
+        errprint("%s: allocation for xen_events_t failed\n", __FUNCTION__);
         return VMI_FAILURE;
     }
 
@@ -2483,6 +2483,39 @@ status_t xen_domainwatch_init_events(
 
     return VMI_SUCCESS;
 }
+
+status_t
+xen_slat_set_domain_state(
+    vmi_instance_t vmi,
+    bool state)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xc_interface *xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xen ) {
+        errprint("%s error: invalid xen_instance_t handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    if (xen->libxcw.xc_altp2m_set_domain_state(xch, dom, state) < 0) {
+        errprint("%s error: failed to set alternate SLAT state\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
 
 status_t xen_init_events(
     vmi_instance_t vmi,
@@ -2614,6 +2647,8 @@ status_t xen_init_events(
 
     xen->libxcw.xc_monitor_get_capabilities(xch, dom, &xe->monitor_capabilities);
 
+    // SLAT
+    vmi->driver.slat_set_domain_state_ptr = &xen_slat_set_domain_state;
 #ifdef HAVE_LIBXENSTORE
     if ( !xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] )
         xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
@@ -2634,7 +2669,7 @@ status_t xen_init_events(
             return init_events_412(vmi);
         default: /* fall-through */
         case 13:
-            return init_events_413(vmi);
+            return init_events_414(vmi);
     };
 
 err:
