@@ -40,14 +40,29 @@ matrix:
 # gcc compile test
 #
     - env:
-        - TEST="gcc compile and install"
+        - TEST="gcc compile and install (cmake)"
       compiler: gcc
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
-        - cmake -DCMAKE_INSTALL_PREFIX=../install ..
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install ..
+        - make
+        - make install
+
+#
+# gcc compile test
+#
+    - env:
+        - TEST="gcc compile and install (autotools)"
+      compiler: gcc
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install
         - make
         - make install
 
@@ -55,7 +70,7 @@ matrix:
 # clang compile test
 #
     - env:
-        - TEST="clang compile"
+        - TEST="clang compile (cmake)"
       compiler: clang
       install:
         - sudo apt-get update
@@ -63,6 +78,20 @@ matrix:
       script:
         - mkdir build && cd build
         - cmake ..
+        - make
+
+#
+# clang compile test
+#
+    - env:
+        - TEST="clang compile (autotools)"
+      compiler: clang
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure
         - make
 
 #
@@ -126,7 +155,7 @@ matrix:
 # debug test
 #
     - env:
-        - TEST="debug options enabled"
+        - TEST="debug options enabled (cmake)"
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
@@ -135,12 +164,25 @@ matrix:
         - cmake -DCMAKE_BUILD_TYPE=DEBUG -DVMI_DEBUG=__VMI_DEBUG_ALL ..
         - make
 
+#
+# debug test
+#
+    - env:
+        - TEST="debug options enabled (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL ./configure --enable-debug
+        - make
+
 
 #
 # disable cache
 #
     - env:
-        - TEST="disable cache"
+        - TEST="disable cache (cmake)"
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
@@ -150,10 +192,23 @@ matrix:
         - make
 
 #
+# disable cache
+#
+    - env:
+        - TEST="disable cache (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-address-cache --disable-page-cache
+        - make
+
+#
 # without xenstore
 #
     - env:
-        - TEST="without xenstore"
+        - TEST="without xenstore (cmake)"
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
@@ -163,16 +218,42 @@ matrix:
         - make
 
 #
+# without xenstore
+#
+    - env:
+        - TEST="without xenstore (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --without-xenstore
+        - make
+
+#
 # disable config file
 #
     - env:
-        - TEST="disable libvmi.conf"
+        - TEST="disable libvmi.conf (cmake)"
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DENABLE_CONFIGFILE=OFF -DBUILD_EXAMPLES=OFF ..
+        - make
+
+#
+# disable config file
+#
+    - env:
+        - TEST="disable libvmi.conf (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-configfile --disable-examples
         - make
 
 #
@@ -189,16 +270,42 @@ matrix:
         - make
 
 #
+# disable rekall profiles
+#
+    - env:
+        - TEST="disable rekall profiles (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-rekall-profiles --disable-examples
+        - make
+
+#
 # disable safety checks
 #
     - env:
-        - TEST="disable safety checks"
+        - TEST="disable safety checks (cmake)"
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - mkdir build && cd build
         - cmake -DENABLE_SAFETY_CHECKS=OFF ..
+        - make
+
+#
+# disable safety checks
+#
+    - env:
+        - TEST="disable safety checks (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-safety-checks
         - make
 
 #
