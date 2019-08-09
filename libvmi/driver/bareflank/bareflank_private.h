@@ -26,14 +26,16 @@
 #define BF_PAGE_SIZE 4096
 
 typedef struct bareflank_instance {
+    char *name;
+    uint64_t domainid;
     void *buffer_space;
     GHashTable *remaps;
 } bareflank_instance_t;
 
 extern int bareflank_cpuid(uint64_t *rbx, uint64_t *rcx, uint64_t *rdx, void *__placeholder);
-extern bool hcall_get_registers(void *buffer, size_t size);
-extern bool hcall_v2p(uint64_t va, uint64_t *pa);
-extern bool hcall_map_pa(uint64_t va, uint64_t pa);
+extern bool hcall_get_registers(void *buffer, size_t size, uint64_t domainid);
+extern bool hcall_v2p(uint64_t va, uint64_t *pa, uint64_t domainid);
+extern bool hcall_map_pa(uint64_t va, uint64_t pa, uint64_t domainid);
 
 static inline
 bareflank_instance_t *bareflank_get_instance(
