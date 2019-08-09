@@ -48,7 +48,7 @@ vmi_mmap_guest(
     addr_t paddr;
     size_t buf_offset = 0;
     unsigned long *pfns = NULL;
-    unsigned int pfn_ndx = 0;
+    unsigned int pfn_ndx = 0, i;
 
     switch (ctx->translate_mechanism) {
         case VMI_TM_KERNEL_SYMBOL:
@@ -94,7 +94,7 @@ vmi_mmap_guest(
 
     pfns = calloc(num_pages, sizeof(unsigned long));
 
-    for (unsigned int i = 0; i < num_pages; i++) {
+    for (i = 0; i < num_pages; i++) {
         if (VMI_SUCCESS == vmi_pagetable_lookup_cache(vmi, dtb, vaddr + buf_offset, &paddr)) {
             pfns[pfn_ndx] = paddr >> vmi->page_shift;
             // store relative offsets to the appropriate pages
@@ -119,7 +119,7 @@ vmi_mmap_guest(
         goto done;
     }
 
-    for (unsigned int i = 0; i < num_pages; i++) {
+    for (i = 0; i < num_pages; i++) {
         if (access_ptrs[i] != (void *)-1) {
             // add buffer base pointer to the relative offsets since now we know its value
             access_ptrs[i] += (addr_t)base_ptr;
