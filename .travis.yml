@@ -133,8 +133,8 @@ matrix:
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
-        - mkdir build && cd build
-        - cmake ..
+        - autoreconf -vif
+        - ./configure
         - build-wrapper-linux-x86-64 --out-dir bw-output make -j2
         - sonar-scanner
 
