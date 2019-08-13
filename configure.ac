@@ -350,7 +350,7 @@ dnl -----------------------------------------------
 dnl Generates Makefile's, configuration files and scripts
 dnl -----------------------------------------------
 
-AC_CONFIG_FILES(Makefile libvmi.pc)
+AC_CONFIG_FILES(Makefile libvmi.pc:libvmi.pc.autotools.in)
 AC_OUTPUT
 
 dnl -----------------------------------------------
