@@ -109,7 +109,7 @@ os          += libvmi/os/freebsd/freebsd.h \
                libvmi/os/freebsd/symbols.c
 endif
 
-library_includedir=$(includedir)
+library_includedir=$(includedir)/libvmi
 library_include_HEADERS = $(h_public)
 
 pkgconfigdir = $(libdir)/pkgconfig
