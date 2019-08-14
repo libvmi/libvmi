@@ -112,6 +112,9 @@ endif
 library_includedir=$(includedir)
 library_include_HEADERS = $(h_public)
 
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libvmi.pc
+
 AM_CFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS)
 AM_CPPFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS)
 AM_YFLAGS = -y -d
