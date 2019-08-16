@@ -1802,6 +1802,10 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
         vmec.data.regs.x86.es_sel = req->data.regs.x86.es_sel;
         vmec.data.regs.x86.es_limit = req->data.regs.x86.es.limit;
         vmec.data.regs.x86.es_arbytes = req->data.regs.x86.es.ar;
+        vmec.data.regs.x86.ss_base = req->data.regs.x86.ss_base;
+        vmec.data.regs.x86.ss_sel = req->data.regs.x86.ss_sel;
+        vmec.data.regs.x86.ss_limit = req->data.regs.x86.ss.limit;
+        vmec.data.regs.x86.ss_arbytes = req->data.regs.x86.ss.ar;
 #endif
 
         switch ( vmec.reason ) {
@@ -2085,6 +2089,10 @@ status_t process_requests_413(vmi_instance_t vmi, uint32_t *requests_processed)
         vmec.data.regs.x86.es_sel = req->data.regs.x86.es_sel;
         vmec.data.regs.x86.es_limit = req->data.regs.x86.es.limit;
         vmec.data.regs.x86.es_arbytes = req->data.regs.x86.es.ar;
+        vmec.data.regs.x86.ss_base = req->data.regs.x86.ss_base;
+        vmec.data.regs.x86.ss_sel = req->data.regs.x86.ss_sel;
+        vmec.data.regs.x86.ss_limit = req->data.regs.x86.ss.limit;
+        vmec.data.regs.x86.ss_arbytes = req->data.regs.x86.ss.ar;
 #endif
 
         switch ( vmec.reason ) {
