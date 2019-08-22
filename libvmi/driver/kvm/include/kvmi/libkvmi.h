@@ -122,6 +122,7 @@ int     kvmi_queue_registers( void *batch, unsigned short vcpu, const struct kvm
 int     kvmi_queue_reply_event( void *batch, unsigned int msg_seq, const void *data, size_t data_size );
 int     kvmi_queue_page_access( void *batch, unsigned long long int *gpa, unsigned char *access, unsigned short count );
 int     kvmi_queue_pause_vcpu( void *batch, unsigned short vcpu );
+int     kvmi_get_maximum_gfn( void *dom, unsigned long long *gfn );
 
 #ifdef __cplusplus
 }

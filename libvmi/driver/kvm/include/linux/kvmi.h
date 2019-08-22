@@ -44,6 +44,7 @@ enum {
 	KVMI_GET_PAGE_WRITE_BITMAP = 25,
 	KVMI_SET_PAGE_WRITE_BITMAP = 26,
 	KVMI_CONTROL_CMD_RESPONSE  = 27,
+	KVMI_GET_MAX_GFN	   = 29,
 
 	KVMI_NEXT_AVAILABLE_COMMAND,
 
@@ -275,6 +276,10 @@ struct kvmi_mem_map {
 	struct kvmi_map_mem_token token;
 	__u64 gpa;
 	__u64 gva;
+};
+
+struct kvmi_get_max_gfn_reply {
+	__u64 gfn;
 };
 
 /*

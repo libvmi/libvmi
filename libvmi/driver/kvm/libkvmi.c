@@ -2031,3 +2031,16 @@ void kvmi_set_log_cb( kvmi_log_cb cb, void *ctx )
 	log_cb  = cb;
 	log_ctx = ctx;
 }
+
+int kvmi_get_maximum_gfn( void *dom, unsigned long long *gfn )
+{
+	struct kvmi_get_max_gfn_reply rpl;
+	size_t received = sizeof( rpl );
+	int err;
+
+	err = request( dom, KVMI_GET_MAX_GFN, NULL, 0, &rpl, &received );
+	if ( !err )
+		*gfn = rpl.gfn;
+
+	return err;
+}
