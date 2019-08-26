@@ -65,7 +65,7 @@ option(ENABLE_FREEBSD "Build FreeBSD introspection" ON)
 option(ENABLE_STATIC "Build libvmi static library" ON)
 
 option(ENABLE_XENSTORE "Build with Xenstore" ON)
-option(ENABLE_VMIFS "Enable vmifs: maps memory to a file through FUSE" OFF)
+option(ENABLE_VMIFS "Enable vmifs: maps memory to a file through FUSE" ON)
 option(ENABLE_CONFIGFILE "Enable config file" ON)
 option(ENABLE_ADDRESS_CACHE "Enable address cache" ON)
 option(ENABLE_PAGE_CACHE "Enable page cache" ON)
