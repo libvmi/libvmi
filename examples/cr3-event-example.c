@@ -43,6 +43,8 @@ static void close_handler(int sig)
 
 event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event)
 {
+    (void)vmi;
+    (void)event;
     return 0;
 }
 

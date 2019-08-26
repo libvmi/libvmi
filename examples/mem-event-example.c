@@ -35,11 +35,14 @@ static bool interrupted = false;
 
 static void close_handler(int sig)
 {
+    (void)sig;
     interrupted = true;
 }
 
 event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
+    (void)vmi;
+
     char str_access[4] = {'_', '_', '_', '\0'};
     if (event->mem_event.out_access & VMI_MEMACCESS_R) str_access[0] = 'R';
     if (event->mem_event.out_access & VMI_MEMACCESS_W) str_access[1] = 'W';
