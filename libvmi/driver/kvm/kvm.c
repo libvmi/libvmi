@@ -56,55 +56,6 @@
 /*
  * Helpers
  */
-static uint32_t
-translate_msr_index(int index, int *err) {
-    *err = 0;
-    switch (index) {
-    case MSR_EFER:                  return 0xc0000080;
-    case MSR_STAR:                  return 0xc0000081;
-    case MSR_LSTAR:                 return 0xc0000082;
-    case MSR_CSTAR:                 return 0xc0000083;
-    case MSR_SYSCALL_MASK:          return 0xc0000084;
-    case MSR_SHADOW_GS_BASE:        return 0xc0000102;
-    case MSR_TSC_AUX:               return 0xc0000103;
-    case MSR_MTRRfix64K_00000:      return 0x00000250;
-    case MSR_MTRRfix16K_80000:      return 0x00000258;
-    case MSR_MTRRfix16K_A0000:      return 0x00000259;
-    case MSR_MTRRfix4K_C0000:       return 0x00000268;
-    case MSR_MTRRfix4K_C8000:       return 0x00000269;
-    case MSR_MTRRfix4K_D0000:       return 0x0000026a;
-    case MSR_MTRRfix4K_D8000:       return 0x0000026b;
-    case MSR_MTRRfix4K_E0000:       return 0x0000026c;
-    case MSR_MTRRfix4K_E8000:       return 0x0000026d;
-    case MSR_MTRRfix4K_F0000:       return 0x0000026e;
-    case MSR_MTRRfix4K_F8000:       return 0x0000026f;
-    case MSR_MTRRdefType:           return 0x000002ff;
-    case MSR_IA32_MC0_CTL:          return 0x00000400;
-    case MSR_IA32_MC0_STATUS:       return 0x00000401;
-    case MSR_IA32_MC0_ADDR:         return 0x00000402;
-    case MSR_IA32_MC0_MISC:         return 0x00000403;
-    case MSR_IA32_MC1_CTL:          return 0x00000404;
-    case MSR_IA32_MC0_CTL2:         return 0x00000280;
-    case MSR_AMD_PATCHLEVEL:        return 0x0000008b;
-    case MSR_AMD64_TSC_RATIO:       return 0xc0000104;
-    case MSR_IA32_P5_MC_ADDR:       return 0x00000000;
-    case MSR_IA32_P5_MC_TYPE:       return 0x00000001;
-    case MSR_IA32_TSC:              return 0x00000010;
-    case MSR_IA32_PLATFORM_ID:      return 0x00000017;
-    case MSR_IA32_EBL_CR_POWERON:   return 0x0000002a;
-    case MSR_IA32_EBC_FREQUENCY_ID: return 0x0000002c;
-    case MSR_IA32_FEATURE_CONTROL:  return 0x0000003a;
-    case MSR_IA32_SYSENTER_CS:      return 0x00000174;
-    case MSR_IA32_SYSENTER_ESP:     return 0x00000175;
-    case MSR_IA32_SYSENTER_EIP:     return 0x00000176;
-    case MSR_IA32_MISC_ENABLE:      return 0x000001a0;
-    case MSR_HYPERVISOR:            return 0x40000000;
-    default:
-        *err = 1;
-        return 0;
-    }
-}
-
 static status_t
 reply_continue(void *dom, struct kvmi_dom_event *ev)
 {
@@ -635,8 +586,8 @@ get_kvmi_registers(
         return false;
 
     msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
-    msrs.entries[0].index = translate_msr_index(MSR_EFER, &err);
-    msrs.entries[1].index = translate_msr_index(MSR_STAR, &err);
+    msrs.entries[0].index = msr_index[MSR_EFER];
+    msrs.entries[1].index = msr_index[MSR_STAR];
 
     err = kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
 
@@ -1042,12 +993,12 @@ kvm_get_vcpuregs(
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
     msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
-    msrs.entries[0].index = translate_msr_index(MSR_IA32_SYSENTER_CS, &err);
-    msrs.entries[1].index = translate_msr_index(MSR_IA32_SYSENTER_ESP, &err);
-    msrs.entries[2].index = translate_msr_index(MSR_IA32_SYSENTER_EIP, &err);
-    msrs.entries[3].index = translate_msr_index(MSR_EFER, &err);
-    msrs.entries[4].index = translate_msr_index(MSR_STAR, &err);
-    msrs.entries[5].index = translate_msr_index(MSR_LSTAR, &err);
+    msrs.entries[0].index = msr_index[MSR_IA32_SYSENTER_CS];
+    msrs.entries[1].index = msr_index[MSR_IA32_SYSENTER_ESP];
+    msrs.entries[2].index = msr_index[MSR_IA32_SYSENTER_EIP];
+    msrs.entries[3].index = msr_index[MSR_EFER];
+    msrs.entries[4].index = msr_index[MSR_STAR];
+    msrs.entries[5].index = msr_index[MSR_LSTAR];
 
     if (!kvm->kvmi_dom)
         return VMI_FAILURE;
