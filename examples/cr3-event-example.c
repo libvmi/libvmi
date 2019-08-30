@@ -117,7 +117,7 @@ int main (int argc, char **argv)
     while (!interrupted) {
         status = vmi_events_listen(vmi, 500);
         if (status == VMI_FAILURE)
-            printf("Failed to  listen on events\n");
+            printf("Failed to listen on events\n");
     }
 
 error_exit:
