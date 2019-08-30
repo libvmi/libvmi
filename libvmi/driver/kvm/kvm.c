@@ -355,7 +355,7 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 
     //      interrupt_event
     // TODO: hardcoded PAGE_SHIFT
-    libvmi_event->interrupt_event.gfn = kvmi_event->event.breakpoint.gpa >> 12;
+    libvmi_event->interrupt_event.gfn = kvmi_event->event.breakpoint.gpa >> vmi->page_shift;
     // TODO: vector and type
     // event->interrupt_event.vector =
     // event->interrupt_event.type =
@@ -393,7 +393,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     if (kvmi_event->event.page_fault.access & KVMI_PAGE_ACCESS_X) out_access |= VMI_MEMACCESS_X;
 
     vmi_event_t *libvmi_event;
-    addr_t gfn = kvmi_event->event.page_fault.gpa >> 12;
+    addr_t gfn = kvmi_event->event.page_fault.gpa >> vmi->page_shift;
     // lookup vmi_event
     //      standard ?
     if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
@@ -1660,7 +1660,7 @@ kvm_set_mem_access(
     }
 
     // set page access
-    long long unsigned int gpa = gpfn << 12;
+    long long unsigned int gpa = gpfn << vmi->page_shift;
     if (kvmi_set_page_access(kvm->kvmi_dom, &gpa, &kvmi_access, vmi->num_vcpus)) {
         errprint("%s: unable to set page access on GPFN 0x%" PRIx64 ": %s\n",
                  __func__, gpfn, strerror(errno));
