@@ -86,8 +86,9 @@ exit:
 static GSList * find_page_directories (vmi_instance_t vmi)
 {
     GSList * list = NULL;
+    addr_t candidate = 0;
 
-    for (addr_t candidate = 0x1000; candidate < vmi_get_max_physical_address (vmi); candidate += VMI_PS_4KB) {
+    for (candidate = 0x1000; candidate < vmi_get_max_physical_address (vmi); candidate += VMI_PS_4KB) {
 #if defined(X86_64)
         if (is_x86_64_pd (vmi, candidate)) {
             list = g_slist_prepend (list, (gpointer) candidate);
@@ -457,7 +458,7 @@ static status_t brute_force_find_kern_mem (vmi_instance_t vmi)
         /* Fast path for x64: only consider page directories for the KPGD. */
         GSList * loop = pds;
         while (loop) {
-            vmi->kpgd = (addr_t) loop->data;
+            vmi->kpgd = (addr_t) (gpointer) loop->data;
 
             if (VMI_SUCCESS == verify_linux_paging(vmi)) {
                 rc = VMI_SUCCESS;
