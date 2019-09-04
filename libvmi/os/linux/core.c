@@ -28,7 +28,6 @@
 #include "config/config_parser.h"
 #include "driver/driver_wrapper.h"
 #include "os/linux/linux.h"
-#include <glib.h>
 
 
 void linux_read_config_ghashtable_entries(char* key, gpointer value,
@@ -42,12 +41,12 @@ static status_t brute_force_find_kern_mem (vmi_instance_t vmi);
 
 static status_t verify_linux_paging (vmi_instance_t vmi);
 
-#if defined(X86_64)
 /* Is the given physical address an Intel x64 page directory structure? */
 static bool is_x86_64_pd (vmi_instance_t vmi, addr_t pa)
 {
     bool rc = false;
     status_t status = VMI_FAILURE;
+    size_t i = 0;
 
 #define PD_ENTRIES (VMI_PS_4KB / sizeof(uint64_t))
     uint64_t page[PD_ENTRIES];
@@ -55,9 +54,9 @@ static bool is_x86_64_pd (vmi_instance_t vmi, addr_t pa)
 
     status = vmi_read_pa (vmi, pa, sizeof(page), (void *)page, NULL);
     if (VMI_FAILURE == status)
-        return false;
+        goto exit;
 
-    for (size_t i = 0; i < PD_ENTRIES; ++i) {
+    for (i = 0; i < PD_ENTRIES; ++i) {
         if (0 == (page[i] & 1)) /* present bit is cleared, so skip */
             continue;
 
@@ -69,14 +68,13 @@ static bool is_x86_64_pd (vmi_instance_t vmi, addr_t pa)
             goto exit;
         }
 
-        /* ... the GFN looks reasonable */
+        /* ... the GFN looks reasonable, so the page passes thus far. */
         rc = true;
     }
 
 exit:
     return rc;
 }
-#endif
 
 
 /*
@@ -88,13 +86,19 @@ static GSList * find_page_directories (vmi_instance_t vmi)
     GSList * list = NULL;
     addr_t candidate = 0;
 
+    if (VMI_PM_IA32E != vmi_get_page_mode (vmi, 0))
+        goto exit;
+
     for (candidate = 0x1000; candidate < vmi_get_max_physical_address (vmi); candidate += VMI_PS_4KB) {
-#if defined(X86_64)
         if (is_x86_64_pd (vmi, candidate)) {
-            list = g_slist_prepend (list, (gpointer) candidate);
+            /* hold addr in dynamic storage: 32-bit libvmi could be analyzing 64 bit OS */
+            addr_t * addr = g_malloc(sizeof(addr_t));
+            *addr = candidate;
+            list = g_slist_prepend (list, (gpointer) addr);
         }
-#endif
     }
+
+exit:
     return list;
 }
 
@@ -306,8 +310,8 @@ done:
 static status_t init_task_kaslr_test(vmi_instance_t vmi, addr_t page_vaddr)
 {
     status_t ret = VMI_FAILURE;
-    uint32_t pid;
-    addr_t addr;
+    uint32_t pid = -1;
+    addr_t addr = ~0;
     addr_t init_task = page_vaddr + (vmi->init_task & VMI_BIT_MASK(0,11));
     linux_instance_t linux_instance = vmi->os_data;
     access_context_t ctx = {
@@ -330,17 +334,6 @@ static status_t init_task_kaslr_test(vmi_instance_t vmi, addr_t page_vaddr)
 
     if ( 0 != addr )
         return ret;
-
-#if 0
-    /* Verify that the next task is readable */
-    ctx.addr = init_task + linux_instance->tasks_offset;
-    if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &addr) )
-        return ret;
-
-    ctx.addr = addr;
-    if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &addr) )
-        return ret;
-#endif
 
     /* Check the name */
     ctx.addr = init_task + linux_instance->name_offset;
@@ -458,7 +451,7 @@ static status_t brute_force_find_kern_mem (vmi_instance_t vmi)
         /* Fast path for x64: only consider page directories for the KPGD. */
         GSList * loop = pds;
         while (loop) {
-            vmi->kpgd = (addr_t) (gpointer) loop->data;
+            vmi->kpgd = *(addr_t *) loop->data;
 
             if (VMI_SUCCESS == verify_linux_paging(vmi)) {
                 rc = VMI_SUCCESS;
@@ -466,7 +459,7 @@ static status_t brute_force_find_kern_mem (vmi_instance_t vmi)
             }
             loop = loop->next;
         }
-        g_slist_free (pds);
+        g_slist_free_full (pds, g_free);
         goto exit;
     }
 
