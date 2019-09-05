@@ -41,7 +41,11 @@ static status_t brute_force_find_kern_mem (vmi_instance_t vmi);
 
 static status_t verify_linux_paging (vmi_instance_t vmi);
 
-/* Is the given physical address an Intel x64 page directory structure? */
+/*
+ * Heuristic test to determine whether the memory at the given
+ * physical address looks like an Intel x64 page directory structure.
+ * Specifically we want PML4 directories.
+*/
 static bool is_x86_64_pd (vmi_instance_t vmi, addr_t pa)
 {
     bool rc = false;
@@ -49,33 +53,43 @@ static bool is_x86_64_pd (vmi_instance_t vmi, addr_t pa)
     size_t i = 0;
 
 #define PD_ENTRIES (VMI_PS_4KB / sizeof(uint64_t))
-    uint64_t page[PD_ENTRIES];
+    uint64_t pdes[PD_ENTRIES];
     addr_t maxframe = vmi_get_max_physical_address (vmi) >> 12;
 
-    status = vmi_read_pa (vmi, pa, sizeof(page), (void *)page, NULL);
+    status = vmi_read_pa (vmi, pa, sizeof(pdes), (void *)pdes, NULL);
     if (VMI_FAILURE == status)
         goto exit;
 
     for (i = 0; i < PD_ENTRIES; ++i) {
-        if (0 == (page[i] & 1)) /* present bit is cleared, so skip */
-            continue;
+        uint64_t pde = pdes[i];
 
-        /* present bit is 1, and ... */
-        addr_t gfn = page[i] >> 12;
-        if (0 == gfn || gfn > maxframe) {
-            /* ... this is not a valid GFN. Fail the page. */
+        if (VMI_GET_BIT (pde, 7) || VMI_GET_BIT (pde, 63) ) {
+            /* ... reserved bit 7 or XD3 bit is asserted so reject entire page immediately */
             rc = false;
             goto exit;
         }
 
-        /* ... the GFN looks reasonable, so the page passes thus far. */
+        /* Any test on the GFN requires that P=1 */
+        if (!(VMI_GET_BIT (pde, 0)))
+            continue;
+
+        /* P = 1, and ... */
+
+        addr_t gfn = pde >> 12;
+
+        if (0 == gfn || gfn > maxframe) {
+            /* ... this is not a valid GFN, so fail the whole page.  */
+            rc = false;
+            goto exit;
+        }
+
+        /* ... the page has a valid-looking PDE, so for now, it passes. */
         rc = true;
     }
 
 exit:
     return rc;
 }
-
 
 /*
  * Identifies page directories in memory. This saves multiple minutes
@@ -85,6 +99,7 @@ static GSList * find_page_directories (vmi_instance_t vmi)
 {
     GSList * list = NULL;
     addr_t candidate = 0;
+    int count = 0;
 
     if (VMI_PM_IA32E != vmi_get_page_mode (vmi, 0))
         goto exit;
@@ -95,10 +110,12 @@ static GSList * find_page_directories (vmi_instance_t vmi)
             addr_t * addr = g_malloc(sizeof(addr_t));
             *addr = candidate;
             list = g_slist_prepend (list, (gpointer) addr);
+            ++count;
         }
     }
 
 exit:
+    dbprint(VMI_DEBUG_MISC, "**found %d potential page directories\n", count);
     return list;
 }
 
@@ -335,6 +352,15 @@ static status_t init_task_kaslr_test(vmi_instance_t vmi, addr_t page_vaddr)
     if ( 0 != addr )
         return ret;
 
+    /* Verify that *(task->tasks) succeeds. */
+    ctx.addr = init_task + linux_instance->tasks_offset;
+    if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &addr) )
+        return ret;
+
+    ctx.addr = addr;
+    if ( VMI_FAILURE == vmi_read_addr(vmi, &ctx, &addr) )
+        return ret;
+
     /* Check the name */
     ctx.addr = init_task + linux_instance->name_offset;
     char* init_task_name = vmi_read_str(vmi, &ctx);
@@ -370,7 +396,7 @@ static status_t get_kaslr_offset_ia32e(vmi_instance_t vmi)
 static status_t init_kaslr(vmi_instance_t vmi)
 {
     /*
-     * Let's check if we can translate init_task first as is.
+     * First check whether init_task can be translated as-is.
      */
     uint32_t test;
     access_context_t ctx = {
@@ -431,7 +457,7 @@ static status_t verify_linux_paging (vmi_instance_t vmi)
     if (VMI_FAILURE == init_kaslr(vmi))
         return VMI_FAILURE;
 
-    return  init_task_kaslr_test (vmi, vmi->init_task & ~VMI_BIT_MASK(0,11));
+    return init_task_kaslr_test (vmi, vmi->init_task & ~VMI_BIT_MASK(0,11));
 }
 
 /*
@@ -460,10 +486,16 @@ static status_t brute_force_find_kern_mem (vmi_instance_t vmi)
             loop = loop->next;
         }
         g_slist_free_full (pds, g_free);
-        goto exit;
+
+        if (VMI_SUCCESS == rc)
+            goto exit;
+
+        /* On failure, fall-through to slowest path */
     }
 
     /* Case for non-x64 systems. Expect poor performance. */
+    warnprint("Looking for kernel PGD and KASLR with slowest available technique\n");
+
     for (vmi->kpgd = 0; vmi->kpgd < vmi_get_max_physical_address (vmi); vmi->kpgd += VMI_PS_4KB) {
         if (VMI_SUCCESS == verify_linux_paging(vmi)) {
             rc = VMI_SUCCESS;
