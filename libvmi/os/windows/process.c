@@ -31,12 +31,14 @@
 
 #include "private.h"
 
+#define WIN_MAX_PROCNAME 16 // TODO: verify that this is correct for all versions
+
 char *
 windows_get_eprocess_name(
     vmi_instance_t vmi,
     addr_t paddr)
 {
-    size_t name_length = 16;   //TODO verify that this is correct for all versions
+    size_t name_length = WIN_MAX_PROCNAME;
     windows_instance_t windows = vmi->os_data;
 
     if (windows == NULL) {
@@ -49,7 +51,7 @@ windows_get_eprocess_name(
     if ( !name )
         return NULL;
 
-    if ( VMI_FAILURE == vmi_read_pa(vmi, name_paddr, name_length, name, NULL)) {
+    if ( VMI_SUCCESS == vmi_read_pa(vmi, name_paddr, name_length, name, NULL)) {
         return name;
     } else {
         free(name);
@@ -197,7 +199,9 @@ find_process_by_name(
     addr_t offset = 0;
     uint32_t value = 0;
 
-    unsigned char block_buffer[VMI_PS_4KB];
+    /* Some compilers don't align this large buffer. Force alignment so
+     * the offsets match between physical mem and the buffer. */
+    unsigned char block_buffer[VMI_PS_4KB] __attribute__((aligned(VMI_PS_4KB)));
 
     if (NULL == check) {
         check = get_check_magic_func(vmi);
@@ -215,7 +219,7 @@ find_process_by_name(
 
                 char *procname = windows_get_eprocess_name(vmi, block_pa + offset);
                 if (procname) {
-                    if (strncmp(procname, name, 50) == 0) {
+                    if (strncmp(procname, name, WIN_MAX_PROCNAME) == 0) {
                         free(procname);
                         return block_pa + offset;
                     }
