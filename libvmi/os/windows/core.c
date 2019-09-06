@@ -917,6 +917,7 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
         dbprint(VMI_DEBUG_MISC, "**KernBase PA=0x%"PRIx64"\n", windows->ntoskrnl);
 
         if (windows->ntoskrnl && kdvb && kernbase_offset) {
+            /* This could fail because the address mode is unknown. */
             if ( VMI_FAILURE == vmi_read_addr_pa(vmi, windows->ntoskrnl + kdvb + kernbase_offset, &windows->ntoskrnl_va) )
                 goto done;
 
@@ -1046,10 +1047,20 @@ init_core(vmi_instance_t vmi)
     if (rekall_profile(vmi))
         ret = init_from_rekall_profile(vmi);
 
-    /* Fall be here too if the Rekall profile based init fails */
-    if ( VMI_FAILURE == ret )
-        ret = init_from_kdbg(vmi);
+    if ( VMI_SUCCESS == ret )
+        goto done;
 
+    /* Fall be here too if the Rekall profile based init
+     * fails. N.B. the Rekall profile init could fail against a file
+     * because the address mode is unknown, so another attempt is made. */
+    ret = init_from_kdbg(vmi);
+    if ( VMI_FAILURE == ret )
+        goto done;
+
+    dbprint(VMI_DEBUG_MISC, "** Retrying init from Rekall profile.\n");
+    (void) init_from_rekall_profile_real(vmi, (reg_t)0);
+
+done:
     return ret;
 }
 
