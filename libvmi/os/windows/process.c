@@ -199,9 +199,7 @@ find_process_by_name(
     addr_t offset = 0;
     uint32_t value = 0;
 
-    /* Some compilers don't align this large buffer. Force alignment so
-     * the offsets match between physical mem and the buffer. */
-    unsigned char block_buffer[VMI_PS_4KB] __attribute__((aligned(VMI_PS_4KB)));
+    unsigned char block_buffer[VMI_PS_4KB];
 
     if (NULL == check) {
         check = get_check_magic_func(vmi);
