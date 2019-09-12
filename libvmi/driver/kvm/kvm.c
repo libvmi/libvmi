@@ -564,18 +564,16 @@ kvm_get_memsize(
     if (!allocated_ram_size || !maximum_physical_address)
         return VMI_FAILURE;
 #endif
-    virDomainInfo info = {0};
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    if (-1 == kvm->libvirt.virDomainGetInfo(kvm->dom, &info))
-    {
-        dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
+    unsigned long long max_gfn;
+    if (kvmi_get_maximum_gfn(kvm->kvmi_dom, &max_gfn)) {
+        errprint("--failed to get maximum gfn\n");
         return VMI_FAILURE;
     }
 
-    // maxMem is in KB
-    *allocated_ram_size = info.maxMem * 1024;
-    *maximum_physical_address = info.maxMem * 1024;
+    *allocated_ram_size = max_gfn * vmi->page_size;
+    *maximum_physical_address = max_gfn << vmi->page_shift;
     return VMI_SUCCESS;
 }
 
