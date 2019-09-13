@@ -1058,7 +1058,7 @@ init_core(vmi_instance_t vmi)
         goto done;
 
     dbprint(VMI_DEBUG_MISC, "** Retrying init from Rekall profile.\n");
-    (void) init_from_rekall_profile_real(vmi, (reg_t)0);
+    ret = init_from_rekall_profile_real(vmi, (reg_t)0);
 
 done:
     return ret;
