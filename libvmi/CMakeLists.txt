@@ -115,6 +115,7 @@ if (ENABLE_KVM)
         target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
         # CMAKE_DL_LIBS -> dlopen* lib
         target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+        list(APPEND VMI_PUBLIC_HEADERS events.h)
         list(APPEND VMI_PUBLIC_DEPS ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
     endif ()
 endif ()
