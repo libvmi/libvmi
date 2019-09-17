@@ -53,6 +53,8 @@ status_t xen_altp2m_set_domain_state (vmi_instance_t vmi, bool state)
     xen_instance_t *xen = xen_get_instance(vmi);
     xc_interface * xch = xen_get_xchandle(vmi);
     domid_t domain_id = xen_get_domainid(vmi);
+    uint64_t param_altp2m;
+
     if ( !xch ) {
         errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -61,6 +63,23 @@ status_t xen_altp2m_set_domain_state (vmi_instance_t vmi, bool state)
         errprint ("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
+
+    // check altp2m feature
+    rc = xen->libxcw.xc_hvm_param_get(xch, domain_id, HVM_PARAM_ALTP2M, &param_altp2m);
+    if (rc < 0) {
+        errprint ("Failed to get HVM_PARAM_ALTP2M, RC: %i\n", rc);
+        return VMI_FAILURE;
+    }
+
+    // force XEN_ALTP2M_external if needed
+    if (XEN_ALTP2M_external != param_altp2m) {
+        rc = xen->libxcw.xc_hvm_param_set(xch, domain_id, HVM_PARAM_ALTP2M, XEN_ALTP2M_external);
+        if (rc < 0) {
+            errprint ("Failed to set HVM_PARAM_ALTP2M, RC: %i\n", rc);
+            return VMI_FAILURE;
+        }
+    }
+    // set altp2m domain state
     rc = xen->libxcw.xc_altp2m_set_domain_state (xch, domain_id, state);
     if ( rc ) {
         errprint ("xc_altp2m_set_domain_state returned rc: %i\n", rc);
