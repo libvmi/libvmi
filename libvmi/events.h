@@ -822,6 +822,11 @@ status_t vmi_stop_single_step_vcpu(
  * libvmi event object's bitfield position.
  * This does not toggle single step for the whole domain.
  *
+ * You need to ensure that the VM is paused beforehand
+ * and clean the event ring with vmi_events_listen(vmi, 0)
+ * before stopping the singlestep, otherwise new events
+ * will be queued in the meantime.
+ *
  * @param[in] vmi LibVMI instance
  * @param[in] event the event to disable the vcpu on
  * @param[in] vcpu the vcpu to stop single stepping on
