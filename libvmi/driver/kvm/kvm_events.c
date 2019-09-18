@@ -159,14 +159,68 @@ call_event_callback(
  * called from kvm_events_listen
  */
 static status_t
-process_register(vmi_instance_t vmi, struct kvmi_dom_event *event)
+process_register(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 {
 #ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi || !event)
+    if (!vmi || !kvmi_event) {
+        errprint("%s: Invalid vmi or kvmi event handles\n", __func__);
         return VMI_FAILURE;
+    }
 #endif
     dbprint(VMI_DEBUG_KVM, "--Received CR event\n");
-    return VMI_SUCCESS;
+
+    // associate kvmi reg -> libvmi reg
+    reg_t libvmi_reg;
+    switch (kvmi_event->event.cr.cr) {
+        case 0:
+            libvmi_reg = CR0;
+            break;
+        case 3:
+            libvmi_reg = CR3;
+            break;
+        case 4:
+            libvmi_reg = CR4;
+            break;
+        default:
+            errprint("Unexpected CR value %" PRIu16 "\n", kvmi_event->event.cr.cr);
+            return VMI_FAILURE;
+    }
+
+    // lookup vmi event
+    gint key = (gint)libvmi_reg;
+    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->reg_events, &key);
+    if (!libvmi_event) {
+        errprint("%s: No control register event handler is registered in LibVMI\n", __func__);
+        return VMI_FAILURE;
+    }
+
+    // fill libvmi_event struct
+    x86_registers_t regs = {0};
+    libvmi_event->x86_regs = &regs;
+    fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+
+    // fill specific CR fields
+    // TODO: kvmi only handles write accesses for now
+    libvmi_event->reg_event.out_access = VMI_REGACCESS_W;
+    libvmi_event->reg_event.value = kvmi_event->event.cr.new_value;
+    libvmi_event->reg_event.previous = kvmi_event->event.cr.old_value;
+
+    // call user callback
+    event_response_t response = call_event_callback(vmi, libvmi_event);
+
+    // reply struct
+    struct {
+        struct kvmi_vcpu_hdr hdr;
+        struct kvmi_event_reply common;
+        struct kvmi_event_cr_reply cr;
+    } rpl = {0};
+
+
+    // TODO: how can the callback specifiy a new value for the MSR ?
+    // libvmi_event.reg_event.xxx
+    rpl.cr.new_val = kvmi_event->event.cr.new_value;
+
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
 static status_t
