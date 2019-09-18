@@ -436,7 +436,29 @@ kvm_events_init(
     kvm->process_event[KVMI_EVENT_PF] = &process_pagefault;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
 
+    // enable monitoring of CR and MSR for all VCPUs by default
+    // since this has no performance cost
+    // the interception is activated only when specific registers
+    // have been defined via kvmi_control_cr(), kvmi_control_msr()
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+        if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, true)) {
+            errprint("--Failed to enable CR monitoring\n");
+            goto err_exit;
+        }
+        if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, true)) {
+            errprint("--Failed to enable MSR monitoring\n");
+            goto err_exit;
+        }
+    }
+
     return VMI_SUCCESS;
+err_exit:
+    // disable CR/MSR monitoring
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+        kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false);
+        kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false);
+    }
+    return VMI_FAILURE;
 }
 
 void
@@ -444,7 +466,21 @@ kvm_events_destroy(
         vmi_instance_t vmi)
 {
     (void)vmi;
-    // empty for now
+
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm) {
+        errprint("%s: Invalid kvm handle, cleanup is incomplete !\n", __func__);
+        return;
+    }
+#endif
+    // disable CR/MSR monitoring
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+        if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
+            errprint("--Failed to disable CR monitoring\n");
+        if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false))
+            errprint("--Failed to disable MSR monitoring\n");
+    }
 }
 
 status_t
@@ -570,14 +606,6 @@ kvm_set_reg_access(
     if (event->reg != MSR_ALL) {
         // enable event monitoring for all vcpus
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-            // TODO: this will disable CR interception system-wide,
-            // even though we want to disable a single register
-            // move this at driver init/destroy ?
-            if (kvmi_control_events(kvm->kvmi_dom, vcpu, event_id, enabled)) {
-                errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
-                goto error_exit;
-            }
-
             if (KVMI_EVENT_CR == event_id)
                 if (kvmi_control_cr(kvm->kvmi_dom, vcpu, kvmi_reg, enabled)) {
                     errprint("%s: kvmi_control_cr failed: %s\n", __func__, strerror(errno));
@@ -596,19 +624,14 @@ kvm_set_reg_access(
     } else {
         // MSR_ALL
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-            // move this at driver init/destroy ?
-            if (kvmi_control_events(kvm->kvmi_dom, vcpu, event_id, enabled)) {
-                errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
-                goto error_exit;
-            }
-            for (size_t i=0; i<msr_all_len; i++) {
-                kvmi_reg = msr_index[msr_all[i]];
+            for (size_t msr_i=0; msr_i<msr_all_len; msr_i++) {
+                kvmi_reg = msr_index[msr_all[msr_i]];
                 if (kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, enabled)) {
-                    errprint("%s: failed to set MSR event for %s: %s\n", __func__,
-                             msr_to_str[msr_all[i]], strerror(errno));
                     // this call fails on MSR_HYPERVISOR
                     // to avoid breaking MSR_ALL feature, we simply continue
                     // and print an error message
+                    errprint("%s: failed to set MSR event for %s: %s\n", __func__,
+                             msr_to_str[msr_all[msr_i]], strerror(errno));
                     continue;
                 }
             }
@@ -619,12 +642,11 @@ kvm_set_reg_access(
     return VMI_SUCCESS;
 error_exit:
     // disable monitoring
-    for (unsigned int i = 0; i < vmi->num_vcpus; i++) {
-        kvmi_control_events(kvm->kvmi_dom, i, event_id, false);
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (KVMI_EVENT_CR == event_id)
-            kvmi_control_cr(kvm->kvmi_dom, i, kvmi_reg, false);
+            kvmi_control_cr(kvm->kvmi_dom, vcpu, kvmi_reg, false);
         if (KVMI_EVENT_MSR == event_id)
-            kvmi_control_msr(kvm->kvmi_dom, i, kvmi_reg, false);
+            kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, false);
     }
     return VMI_FAILURE;
 }
