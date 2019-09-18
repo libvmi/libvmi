@@ -607,6 +607,8 @@ kvm_events_init(
     vmi->driver.set_intr_access_ptr = &kvm_set_intr_access;
     vmi->driver.set_mem_access_ptr = &kvm_set_mem_access;
     vmi->driver.set_desc_access_event_ptr = &kvm_set_desc_access_event;
+    vmi->driver.start_single_step_ptr = &kvm_start_single_step;
+    vmi->driver.stop_single_step_ptr = &kvm_stop_single_step;
 
     // fill event dispatcher
     kvm->process_event[KVMI_EVENT_CR] = &process_register;
@@ -1055,8 +1057,13 @@ status_t kvm_set_desc_access_event(
         return VMI_FAILURE;
     }
 #endif
-
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
 
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, enabled)) {
@@ -1069,11 +1076,97 @@ status_t kvm_set_desc_access_event(
     kvm->monitor_desc_on = enabled;
 
     return VMI_SUCCESS;
-
 error_exit:
     // disable monitoring
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, false);
     }
     return VMI_FAILURE;
+}
+
+status_t
+kvm_start_single_step(
+    vmi_instance_t vmi,
+    single_step_event_t *event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+    if (!event) {
+        errprint("%s: invalid event handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
+    if ( !event->vcpus ) {
+        errprint("%s: --no VCPUs selected for singlestepping\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    if ( event->vcpus && event->enable ) {
+        for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+            if ( CHECK_VCPU_SINGLESTEP(*event, vcpu) ) {
+                dbprint(VMI_DEBUG_KVM, "--Setting MTF flag on vcpu %" PRIu32 "\n", vcpu);
+                if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, true)) {
+                    errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
+                    goto rewind;
+                }
+
+                // toggle singlestepping
+                if (kvm->libkvmi.kvmi_control_singlestep(kvm->kvmi_dom, vcpu, true)) {
+                    errprint("%s: kvmi_control_singlestep failed: %s\n", __func__, strerror(errno));
+                    goto rewind;
+                }
+            }
+        }
+    }
+
+    return VMI_SUCCESS;
+rewind:
+    // disable singlestep
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
+        if ( CHECK_VCPU_SINGLESTEP(*event, vcpu) )
+            kvm_stop_single_step(vmi, vcpu);
+    return VMI_FAILURE;
+}
+
+status_t
+kvm_stop_single_step(
+        vmi_instance_t vmi,
+        uint32_t vcpu)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    dbprint(VMI_DEBUG_KVM, "--Disable MTF flag on vcpu %" PRIu32 "\n", vcpu);
+    if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, false)) {
+        errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
+        return VMI_FAILURE;
+    }
+
+    if (kvm->libkvmi.kvmi_control_singlestep(kvm->kvmi_dom, vcpu, false)) {
+        errprint("%s: kvmi_control_singlestep failed: %s\n", __func__, strerror(errno));
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
 }
