@@ -580,6 +580,50 @@ process_pause_event(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     return VMI_FAILURE;
 }
 
+status_t
+process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !kvmi_event)
+        return VMI_FAILURE;
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Received single step event\n");
+
+    // lookup vmi_event
+    gint key = (gint)kvmi_event->event.common.vcpu;
+    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->ss_events, &key);
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !libvmi_event ) {
+        errprint("%s error: no single step event handler is registered in LibVMI\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    // assign VCPU id
+    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
+    // assign regs
+    x86_registers_t libvmi_regs = {0};
+    libvmi_event->x86_regs = &libvmi_regs;
+    struct kvm_regs *regs = &kvmi_event->event.common.arch.regs;
+    struct kvm_sregs *sregs = &kvmi_event->event.common.arch.sregs;
+    kvmi_regs_to_libvmi(regs, sregs, libvmi_event->x86_regs);
+
+    // TODO
+    //      ss_event
+    // libvmi_event->ss_event
+
+    // call user callback
+    event_response_t response = call_event_callback(vmi, libvmi_event);
+
+    // reply struct
+    struct {
+        struct kvmi_vcpu_hdr hdr;
+        struct kvmi_event_reply common;
+    } rpl = {0};
+
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
+}
+
 /*
  * kvm_events.h API
  */
@@ -617,6 +661,7 @@ kvm_events_init(
     kvm->process_event[KVMI_EVENT_PF] = &process_pagefault;
     kvm->process_event[KVMI_EVENT_DESCRIPTOR] = &process_descriptor;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
+    kvm->process_event[KVMI_EVENT_SINGLESTEP] = &process_singlestep;
 
     // enable interception of CR/MSR/PF for all VCPUs by default
     // since this has no performance cost
