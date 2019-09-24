@@ -60,7 +60,17 @@ endif ()
 # target_sources doesn't work with generated files in subdirectories
 if (ENABLE_CONFIGFILE)
     find_package(FLEX)
+    set_package_properties(FLEX PROPERTIES
+        DESCRIPTION "Scanner generator for lexing in C and C++"
+        URL "https://github.com/westes/flex"
+        TYPE OPTIONAL
+        PURPOSE "Lexing LibVMI configuration file")
     find_package(BISON)
+    set_package_properties(BISON PROPERTIES
+        DESCRIPTION "Parser generator"
+        URL "https://www.gnu.org/software/bison"
+        TYPE OPTIONAL
+        PURPOSE "Parsing LibVMI configuration file")
     if (NOT FLEX_FOUND OR NOT BISON_FOUND)
         set(ENABLE_CONFIGFILE OFF CACHE BOOL "Enable config file" FORCE)
         message(WARNING "Cannot find flex or bison: config file parsing will be
@@ -107,11 +117,14 @@ endif ()
 
 if (ENABLE_KVM)
     find_package(JSON-C)
+    set_package_properties(JSON-C PROPERTIES
+        PURPOSE "Dependency for KVM driver")
     find_package(Libvirt)
     if (NOT JSON-C_FOUND OR NOT Libvirt_FOUND)
         set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
         message(WARNING "Cannot find JSON or Libvirt: disabling KVM driver")
     else ()
+        find_package(LibvmiRequest)
         target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
         # CMAKE_DL_LIBS -> dlopen* lib
         target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
@@ -122,6 +135,8 @@ endif ()
 
 if (ENABLE_BAREFLANK)
     find_package(JSON-C)
+    set_package_properties(JSON-C PROPERTIES
+        PURPOSE "Dependency for Bareflank driver")
     if (NOT JSON-C_FOUND)
         set(ENABLE_BAREFLANK OFF CACHE BOOL "Build Bareflank driver" FORCE)
         message(WARNING "Cannot find JSON: disabling Bareflank driver")
@@ -154,6 +169,8 @@ endif ()
 
 if (REKALL_PROFILES)
     find_package(JSON-C)
+    set_package_properties(JSON-C PROPERTIES
+        PURPOSE "Dependency for Rekall profiles parsing")
     if (NOT JSON-C_FOUND)
         set(REKALL_PROFILES OFF)
         message(WARNING "Cannot find JSON: disabling Rekall profiles")

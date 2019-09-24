@@ -21,7 +21,13 @@ endif()
 #-----------------------------------------------------------------------------
 #                              DEPENDENCIES
 #-----------------------------------------------------------------------------
+include(FeatureSummary)
 find_package(PkgConfig REQUIRED)
+set_package_properties(PkgConfig PROPERTIES
+    DESCRIPTION "Helper tool to compile applications and libraries"
+    URL "https://www.freedesktop.org/wiki/Software/pkg-config/"
+    TYPE REQUIRED
+    PURPOSE "Find and configure multiple LibVMI dependencies")
 pkg_search_module(GLIB REQUIRED glib-2.0)
 # cleanup GLIB_LDFLAGS (remove -l prefix)
 string(REGEX REPLACE "-l" "" GLIB_LDFLAGS ${GLIB_LDFLAGS})
@@ -59,7 +65,7 @@ option(ENABLE_FREEBSD "Build FreeBSD introspection" ON)
 option(ENABLE_STATIC "Build libvmi static library" ON)
 
 option(ENABLE_XENSTORE "Build with Xenstore" ON)
-option(ENABLE_VMIFS "Enable vmifs: maps memory to a file through FUSE" OFF)
+option(ENABLE_VMIFS "Enable vmifs: maps memory to a file through FUSE" ON)
 option(ENABLE_CONFIGFILE "Enable config file" ON)
 option(ENABLE_ADDRESS_CACHE "Enable address cache" ON)
 option(ENABLE_PAGE_CACHE "Enable page cache" ON)
@@ -122,7 +128,34 @@ add_subdirectory(doc)
 #-----------------------------------------------------------------------------
 #                               BUILD SUMMARY
 #-----------------------------------------------------------------------------
+add_feature_info(ENABLE_XEN ENABLE_XEN "Build Xen driver")
+add_feature_info(ENABLE_KVM ENABLE_KVM "Build KVM driver")
+add_feature_info(ENABLE_BAREFLANK ENABLE_BAREFLANK "Build Bareflank driver")
+add_feature_info(ENABLE_FILE ENABLE_FILE "Build file driver")
+
+add_feature_info(ENABLE_WINDOWS ENABLE_WINDOWS "Enable Windows introspection")
+add_feature_info(ENABLE_LINUX ENABLE_LINUX "Enable Linux introspection")
+add_feature_info(ENABLE_FREEBSD ENABLE_FREEBSD "Enable FreeBSD introspection")
+
+add_feature_info(ENABLE_STATIC ENABLE_STATIC "Build LibVMI static library")
+
+add_feature_info(ENABLE_XENSTORE ENABLE_XENSTORE "Build Xen driver with Xenstore")
+add_feature_info(ENABLE_VMIFS ENABLE_VMIFS "Enable vmifs: maps memory to a file through FUSE")
+add_feature_info(ENABLE_CONFIGFILE ENABLE_CONFIGFILE "Enable config file")
+add_feature_info(ENABLE_ADDRESS_CACHE ENABLE_ADDRESS_CACHE "Enable address cache")
+add_feature_info(ENABLE_PAGE_CACHE ENABLE_PAGE_CACHE "Enable page cache")
+add_feature_info(REKALL_PROFILES REKALL_PROFILES "Enable Rekall's JSON profiles")
+add_feature_info(ENABLE_SAFETY_CHECKS ENABLE_SAFETY_CHECKS "Enable API safety checks")
+add_feature_info(ENABLE_TESTING ENABLE_TESTING "Enable LibVMI test suite")
+add_feature_info(BUILD_EXAMPLES BUILD_EXAMPLES "Build the examples")
 message(STATUS " ↳ Compiler     → ${CMAKE_C_COMPILER}")
 message(STATUS " ↳ C Flags      → ${CMAKE_C_FLAGS}")
 message(STATUS " ↳ Prefix       → ${CMAKE_INSTALL_PREFIX}")
 message(STATUS " ↳ Build        → ${CMAKE_BUILD_TYPE}")
+feature_summary(DESCRIPTION
+    "--------        LibVMI package summary       --------"
+    WHAT PACKAGES_FOUND PACKAGES_NOT_FOUND)
+
+feature_summary(DESCRIPTION
+    "--------        LibVMI feature summary       --------"
+    WHAT ENABLED_FEATURES DISABLED_FEATURES)

@@ -19,3 +19,9 @@ if (Xenstore_FOUND)
 endif ()
 
 mark_as_advanced(Xenstore_INCLUDE_DIR)
+
+set_package_properties(Xenstore PROPERTIES
+    DESCRIPTION "Headers for Xen development"
+    URL "https://xenproject.org"
+    PURPOSE "optional dependency for Xen driver"
+    TYPE OPTIONAL)
