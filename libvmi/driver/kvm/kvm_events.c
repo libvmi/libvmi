@@ -23,6 +23,8 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <assert.h>
+
 #include "private.h"
 #include "msr-index.h"
 #include "kvm_events.h"
@@ -544,6 +546,8 @@ kvm_events_listen(
 #endif
     struct kvmi_dom_event *event = NULL;
     unsigned int ev_reason = 0;
+    // if timeout is 0, we have to process all leftover events on the ring
+    bool process_all_events = (timeout == 0) ? true : false;
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
@@ -551,33 +555,49 @@ kvm_events_listen(
         return VMI_FAILURE;
 #endif
 
-    // wait next event
-    if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, (kvmi_timeout_t)timeout)) {
-        if (errno == ETIMEDOUT) {
-            // no events !
-            return VMI_SUCCESS;
+    do {
+        // wait next event
+        if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, (kvmi_timeout_t)timeout)) {
+            if (errno == ETIMEDOUT) {
+                // no events !
+                return VMI_SUCCESS;
+            }
+            errprint("%s: kvmi_wait_event failed: %s\n", __func__, strerror(errno));
+            return VMI_FAILURE;
         }
-        errprint("%s: kvmi_wait_event failed: %s\n", __func__, strerror(errno));
-        return VMI_FAILURE;
-    }
 
-    // pop event from queue
-    if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &event)) {
-        errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
-        return VMI_FAILURE;
-    }
+        // pop event from queue
+        if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &event)) {
+            errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
+            return VMI_FAILURE;
+        }
 
-    // handle event
-    ev_reason = event->event.common.event;
+        // handle event
+        ev_reason = event->event.common.event;
+
+        // special case to handle PAUSE events
+        // since they have to managed by vmi_resume_vm(), we simply store them
+        // in the kvm_instance for later use by this function
+        if (KVMI_EVENT_PAUSE_VCPU == ev_reason) {
+            uint16_t vcpu = event->event.common.vcpu;
 #ifdef ENABLE_SAFETY_CHECKS
-    if ( ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason] ) {
-        errprint("Undefined handler for %u event reason\n", ev_reason);
-        goto error_exit;
-    }
+            assert(vcpu < vmi->num_vcpus);
 #endif
-    // call handler
-    if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
-        goto error_exit;
+            kvm->pause_events_list[event->event.common.vcpu] = event;
+            event = NULL;
+            continue;
+        }
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason] ) {
+            errprint("Undefined handler for %u event reason\n", ev_reason);
+            goto error_exit;
+        }
+#endif
+        // call handler
+        if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
+            goto error_exit;
+    }
+    while (process_all_events);
 
     return VMI_SUCCESS;
 error_exit:

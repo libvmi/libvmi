@@ -445,7 +445,7 @@ kvm_init_vmi(
 
     if (kvm->libvirt.virConnectGetLibVersion(kvm->conn, &libVer) != 0) {
         dbprint(VMI_DEBUG_KVM, "--failed to get libvirt version\n");
-        return VMI_FAILURE;
+        goto err_exit;
     }
     dbprint(VMI_DEBUG_KVM, "--libvirt version %lu\n", libVer);
 
@@ -455,16 +455,21 @@ kvm_init_vmi(
     dbprint(VMI_DEBUG_KVM, "--Connecting to KVMI...\n");
     if (!init_kvmi(kvm,  socket_path)) {
         dbprint(VMI_DEBUG_KVM, "--KVMI failed\n");
-        return VMI_FAILURE;
+        goto err_exit;
     }
     dbprint(VMI_DEBUG_KVM, "--KVMI connected\n");
 
     // get VCPU count
     if (kvm->libkvmi.kvmi_get_vcpu_count(kvm->kvmi_dom, &vmi->num_vcpus)) {
         dbprint(VMI_DEBUG_KVM, "--Fail to get VCPU count: %s\n", strerror(errno));
-        return VMI_FAILURE;
+        goto err_exit;
     }
     dbprint(VMI_DEBUG_KVM, "--VCPU count: %d\n", vmi->num_vcpus);
+
+    // init pause events array
+    kvm->pause_events_list = g_try_new0(struct kvmi_dom_event*, vmi->num_vcpus);
+    if (!kvm->pause_events_list)
+        goto err_exit;
 
     // events ?
     if (init_flags & VMI_INIT_EVENTS) {
@@ -473,6 +478,9 @@ kvm_init_vmi(
     }
 
     return kvm_setup_live_mode(vmi);
+err_exit:
+    kvm_destroy(vmi);
+    return VMI_FAILURE;
 }
 
 void
@@ -800,15 +808,27 @@ kvm_resume_vm(
         struct kvmi_dom_event *ev = NULL;
         unsigned int ev_id = 0;
 
-        // wait
-        if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, 1000)) {
-            errprint("%s: Failed to receive event\n", __func__);
-            return VMI_FAILURE;
+        // check pause events poped by vmi_events_listen first
+        for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+            if (kvm->pause_events_list[vcpu]) {
+                ev = kvm->pause_events_list[vcpu];
+                kvm->pause_events_list[vcpu] = NULL;
+                break;
+            }
         }
-        // pop
-        if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &ev)) {
-            errprint("%s: Failed to pop event\n", __func__);
-            return VMI_FAILURE;
+
+        // if no pause event is waiting in the list, pop next one
+        if (!ev) {
+            // wait
+            if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, 1000)) {
+                errprint("%s: Failed to receive event\n", __func__);
+                return VMI_FAILURE;
+            }
+            // pop
+            if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &ev)) {
+                errprint("%s: Failed to pop event\n", __func__);
+                return VMI_FAILURE;
+            }
         }
         // handle event
         ev_id = ev->event.common.event;
