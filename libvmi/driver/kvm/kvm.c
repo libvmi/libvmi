@@ -597,6 +597,32 @@ kvm_get_memsize(
     return VMI_SUCCESS;
 }
 
+status_t kvm_request_page_fault (
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    uint64_t virtual_address,
+    uint32_t error_code)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("Invalid vmi handle\n");
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("Invalid kvm/kvmi handles\n");
+        return VMI_FAILURE;
+    }
+#endif
+    if (kvmi_inject_page_fault(kvm->kvmi_dom, vcpu, virtual_address, error_code))
+        return VMI_FAILURE;
+
+    dbprint(VMI_DEBUG_KVM, "--Page fault injected at 0x%"PRIx64"\n", virtual_address);
+    return VMI_SUCCESS;
+}
+
 status_t
 kvm_get_vcpuregs(
     vmi_instance_t vmi,

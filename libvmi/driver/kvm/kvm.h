@@ -68,6 +68,11 @@ status_t kvm_get_memsize(
     vmi_instance_t vmi,
     uint64_t *allocate_ram_size,
     addr_t *maximum_physical_address);
+status_t kvm_request_page_fault (
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    uint64_t virtual_address,
+    uint32_t error_code);
 status_t kvm_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,
@@ -121,6 +126,7 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.set_name_ptr = &kvm_set_name;
     driver.write_ptr = &kvm_write;
     driver.get_memsize_ptr = &kvm_get_memsize;
+    driver.request_page_fault_ptr = &kvm_request_page_fault;
     driver.get_vcpureg_ptr = &kvm_get_vcpureg;
     driver.get_vcpuregs_ptr = &kvm_get_vcpuregs;
     driver.set_vcpureg_ptr = &kvm_set_vcpureg;
