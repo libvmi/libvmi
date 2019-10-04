@@ -84,7 +84,7 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
 
     wrapper->virDomainQemuMonitorCommand = dlsym(wrapper->handle_qemu, "virDomainQemuMonitorCommand");
 
-    int ret = sanity_check(kvm);
+    status_t ret = sanity_check(kvm);
     if ( ret != VMI_SUCCESS ) {
         dlclose(wrapper->handle);
         dlclose(wrapper->handle_qemu);
