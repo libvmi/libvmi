@@ -42,6 +42,7 @@
 #include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
+#include <libvirt/libvirt-qemu.h>
 #include <json-c/json.h>
 
 #include "private.h"
@@ -82,50 +83,17 @@ exec_qmp_cmd(
     kvm_instance_t *kvm,
     char *query)
 {
-    FILE *p;
-    char *output = g_try_malloc0(20000);
-    if ( !output )
-        return NULL;
+    char *output = NULL;
+    
+    dbprint(VMI_DEBUG_KVM, "--qmp: %s\n", query);
 
-    size_t length = 0;
-    const char *name = kvm->libvirt.virDomainGetName(kvm->dom);
-    int cmd_length = strlen(name) + strnlen(query, QMP_CMD_LENGTH) + 47;
-
-    char *cmd = g_try_malloc0(cmd_length);
-    if ( !cmd ) {
-        g_free(output);
+    int ret = kvm->libvirt.virDomainQemuMonitorCommand(kvm->dom, query, &output, VIR_DOMAIN_QEMU_MONITOR_COMMAND_DEFAULT);
+    if (ret < 0) {
+        errprint("Failed to execute qemu monitor command\n");
         return NULL;
     }
 
-    int rc = snprintf(cmd, cmd_length, "virsh -c qemu:///system qemu-monitor-command %s %s", name,
-                      query);
-
-    if (rc < 0 || rc >= cmd_length) {
-        errprint("Failed to properly format `virsh qemu-monitor-command`\n");
-        g_free(cmd);
-        g_free(output);
-        return NULL;
-    }
-    dbprint(VMI_DEBUG_KVM, "--qmp: %s\n", cmd);
-
-    p = popen(cmd, "r");
-    if (NULL == p) {
-        dbprint(VMI_DEBUG_KVM, "--failed to run QMP command\n");
-        g_free(cmd);
-        g_free(output);
-        return NULL;
-    }
-
-    length = fread(output, 1, 20000, p);
-    pclose(p);
-    g_free(cmd);
-
-    if (length == 0) {
-        g_free(output);
-        return NULL;
-    } else {
-        return output;
-    }
+    return output;
 }
 
 static char *
@@ -133,7 +101,7 @@ exec_info_registers(
     kvm_instance_t *kvm)
 {
     char *query =
-        "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info registers\"}}'";
+        "{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info registers\"}}";
     return exec_qmp_cmd(kvm, query);
 }
 
@@ -142,10 +110,15 @@ exec_info_version(
     kvm_instance_t *kvm)
 {
     char *query =
-        "'{\"execute\": \"query-version\"}'";
+        "{\"execute\": \"query-version\"}";
     char *output = exec_qmp_cmd(kvm, query);
-    struct json_object *jobj = json_tokener_parse(output);
-    free(output);
+    struct json_object *jobj = NULL;
+       
+    if (output) {
+        jobj = json_tokener_parse(output);
+        free(output);
+    }
+
     return jobj;
 }
 
@@ -154,7 +127,7 @@ exec_info_mtree(
     kvm_instance_t *kvm)
 {
     char *query =
-        "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info mtree\"}}'";
+        "{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info mtree\"}}";
     return exec_qmp_cmd(kvm, query);
 }
 
@@ -170,7 +143,7 @@ exec_memory_access(
 
     int rc = snprintf(query,
                       QMP_CMD_LENGTH,
-                      "'{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}'",
+                      "{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}",
                       tmpfile);
     if (rc < 0 || rc >= QMP_CMD_LENGTH) {
         g_free(query);
@@ -198,7 +171,7 @@ exec_xp(
 
     int rc = snprintf(query,
                       QMP_CMD_LENGTH,
-                      "'{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%lx\"}}'",
+                      "{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%lx\"}}",
                       numwords, paddr);
     if (rc < 0 || rc >= QMP_CMD_LENGTH) {
         g_free(query);

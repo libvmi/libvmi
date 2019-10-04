@@ -31,6 +31,7 @@ static inline status_t sanity_check(kvm_instance_t *kvm)
     if ( !w->virConnectOpenAuth || !w->virConnectGetLibVersion || !w->virConnectAuthPtrDefault ||
             !w->virConnectClose || !w->virDomainGetName || !w->virDomainGetID ||
             !w->virDomainLookupByID || !w->virDomainLookupByName || !w->virDomainGetInfo ||
+            !w->virDomainQemuMonitorCommand ||
             !w->virDomainFree || !w->virDomainSuspend || !w->virDomainResume ) {
         dbprint(VMI_DEBUG_KVM, "--failed to find the required functions in libvirt\n");
         return VMI_FAILURE;
@@ -55,6 +56,18 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
         }
     }
 
+    wrapper->handle_qemu = dlopen ("libvirt-qemu.so", RTLD_NOW | RTLD_GLOBAL);
+
+    if ( !wrapper->handle_qemu ) {
+        // fallback to libvirt-qemu.so.0
+        wrapper->handle_qemu = dlopen ("libvirt-qemu.so.0", RTLD_NOW | RTLD_GLOBAL);
+
+        if ( !wrapper->handle_qemu ) {
+            dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libvirt-qemu\n");
+            return VMI_FAILURE;
+        }
+    }
+
     wrapper->virConnectOpenAuth = dlsym(wrapper->handle, "virConnectOpenAuth");
     wrapper->virConnectGetLibVersion = dlsym(wrapper->handle, "virConnectGetLibVersion");
     wrapper->virConnectClose = dlsym(wrapper->handle, "virConnectClose");
@@ -67,6 +80,8 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
     wrapper->virDomainSuspend = dlsym(wrapper->handle, "virDomainSuspend");
     wrapper->virDomainResume = dlsym(wrapper->handle, "virDomainResume");
     wrapper->virConnectAuthPtrDefault = dlsym(wrapper->handle, "virConnectAuthPtrDefault");
+
+    wrapper->virDomainQemuMonitorCommand = dlsym(wrapper->handle_qemu, "virDomainQemuMonitorCommand");
 
     return sanity_check(kvm);
 }
