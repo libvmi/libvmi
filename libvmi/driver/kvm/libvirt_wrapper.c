@@ -44,11 +44,11 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
 {
     libvirt_wrapper_t *wrapper = &kvm->libvirt;
 
-    wrapper->handle = dlopen ("libvirt.so", RTLD_NOW | RTLD_GLOBAL);
+    wrapper->handle = dlopen("libvirt.so", RTLD_NOW | RTLD_GLOBAL);
 
     if ( !wrapper->handle ) {
         // fallback to libvirt.so.0
-        wrapper->handle = dlopen ("libvirt.so.0", RTLD_NOW | RTLD_GLOBAL);
+        wrapper->handle = dlopen("libvirt.so.0", RTLD_NOW | RTLD_GLOBAL);
 
         if ( !wrapper->handle ) {
             dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libvirt\n");
@@ -64,6 +64,7 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
 
         if ( !wrapper->handle_qemu ) {
             dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libvirt-qemu\n");
+            dlclose(wrapper->handle);
             return VMI_FAILURE;
         }
     }
@@ -83,5 +84,11 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
 
     wrapper->virDomainQemuMonitorCommand = dlsym(wrapper->handle_qemu, "virDomainQemuMonitorCommand");
 
-    return sanity_check(kvm);
+    int ret = sanity_check(kvm);
+    if ( ret != VMI_SUCCESS ) {
+        dlclose(wrapper->handle);
+        dlclose(wrapper->handle_qemu);
+    }
+
+    return ret;
 }
