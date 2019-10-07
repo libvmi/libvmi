@@ -56,10 +56,10 @@ START_TEST (test_libvmi_init4)
             goto done;
 
         if ( mode == VMI_FILE) {
-            rekall_profile = g_malloc0(snprintf(NULL,0,"%s/%s", location, XP_REKALL_PROFILE_FILE)+1);
+            rekall_profile = g_try_malloc0(snprintf(NULL,0,"%s/%s", location, XP_REKALL_PROFILE_FILE)+1);
             sprintf(rekall_profile, "%s/%s", location, XP_REKALL_PROFILE_FILE);
         } else {
-            rekall_profile = g_malloc0(snprintf(NULL,0,"%s/%s", location, XP_REKALL_PROFILE_LIVE)+1);
+            rekall_profile = g_try_malloc0(snprintf(NULL,0,"%s/%s", location, XP_REKALL_PROFILE_LIVE)+1);
             sprintf(rekall_profile, "%s/%s", location, XP_REKALL_PROFILE_LIVE);
         }
 

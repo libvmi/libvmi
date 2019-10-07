@@ -183,7 +183,7 @@ status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this interrupt: %d\n",
                 event->interrupt_event.intr);
     } else if (VMI_SUCCESS == driver_set_intr_access(vmi, &event->interrupt_event, 1)) {
-        gint *intr = g_malloc0(sizeof(gint));
+        gint *intr = g_try_malloc0(sizeof(gint));
         *intr = event->interrupt_event.intr;
 
         g_hash_table_insert(vmi->interrupt_events, intr, event);
@@ -202,7 +202,7 @@ static status_t register_msr_event(vmi_instance_t vmi, vmi_event_t *event)
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this MSR: %"PRIx32"\n",
                 event->reg_event.msr);
     } else if (VMI_SUCCESS == driver_set_reg_access(vmi, &event->reg_event)) {
-        gint *msr = g_malloc0(sizeof(gint));
+        gint *msr = g_try_malloc0(sizeof(gint));
         *msr = event->reg_event.msr;
 
         g_hash_table_insert(vmi->msr_events, msr, event);
@@ -226,7 +226,7 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this reg: %"PRIu64"\n",
                 event->reg_event.reg);
     } else if (VMI_SUCCESS == driver_set_reg_access(vmi, &event->reg_event)) {
-        gint *reg = g_malloc0(sizeof(gint));
+        gint *reg = g_try_malloc0(sizeof(gint));
         *reg = event->reg_event.reg;
 
         g_hash_table_insert(vmi->reg_events, reg, event);
@@ -311,7 +311,7 @@ static status_t register_mem_event_generic(vmi_instance_t vmi, vmi_event_t *even
         return VMI_FAILURE;
     }
 
-    gint *access = g_malloc0(sizeof(gint));
+    gint *access = g_try_malloc0(sizeof(gint));
     *access = event->mem_event.in_access;
 
     g_hash_table_insert(vmi->mem_events_generic, access, event);
@@ -383,7 +383,7 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
 
     for (vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu)) {
-            gint *key = g_malloc0(sizeof(gint));
+            gint *key = g_try_malloc0(sizeof(gint));
             *key = vcpu;
 
             g_hash_table_insert(vmi->ss_events, key, event);
@@ -746,7 +746,7 @@ vmi_swap_events(
         if ( vmi->event_callback ) {
             if (!g_slist_find_custom(vmi->swap_events, &swap_from, swap_search_from)) {
 
-                swap_wrapper_t *wrapper = g_malloc0(sizeof(swap_wrapper_t));
+                swap_wrapper_t *wrapper = g_try_malloc0(sizeof(swap_wrapper_t));
                 wrapper->swap_from = swap_from;
                 wrapper->swap_to = swap_to;
                 wrapper->free_routine = free_routine;
@@ -972,7 +972,7 @@ vmi_step_event(
 
     if (need_new_ss) {
         // setup single step event to re-register the event
-        vmi_event_t *single_event = g_malloc0(sizeof(vmi_event_t));
+        vmi_event_t *single_event = g_try_malloc0(sizeof(vmi_event_t));
         SETUP_SINGLESTEP_EVENT(single_event, 0, step_and_reg_events, 1);
         SET_VCPU_SINGLESTEP(single_event->ss_event, vcpu_id);
 
@@ -983,7 +983,7 @@ vmi_step_event(
     }
 
     // save the event into the queue using the wrapper
-    step_and_reg_event_wrapper_t *wrap = g_malloc0(sizeof(step_and_reg_event_wrapper_t));
+    step_and_reg_event_wrapper_t *wrap = g_try_malloc0(sizeof(step_and_reg_event_wrapper_t));
     wrap->event = event;
     wrap->vcpu_id = vcpu_id;
     wrap->steps = steps;

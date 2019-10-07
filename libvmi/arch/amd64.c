@@ -240,9 +240,9 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
 #define IA32E_ENTRIES_PER_PAGE 0x200 // 0x1000/0x8
 
     uint64_t *pml4_page = g_malloc(VMI_PS_4KB);
-    uint64_t *pdpt_page = g_malloc0(VMI_PS_4KB);
-    uint64_t *pgd_page = g_malloc0(VMI_PS_4KB);
-    uint64_t *pt_page = g_malloc0(VMI_PS_4KB);
+    uint64_t *pdpt_page = g_try_malloc0(VMI_PS_4KB);
+    uint64_t *pgd_page = g_try_malloc0(VMI_PS_4KB);
+    uint64_t *pt_page = g_try_malloc0(VMI_PS_4KB);
 
     if ( !pml4_page || !pdpt_page || !pgd_page || !pt_page )
         goto done;
@@ -276,7 +276,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
             }
 
             if (PAGE_SIZE(pdpte_value)) {
-                page_info_t *info = g_malloc0(sizeof(page_info_t));
+                page_info_t *info = g_try_malloc0(sizeof(page_info_t));
                 if ( !info )
                     goto done;
 
@@ -305,7 +305,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
                 if (ENTRY_PRESENT(vmi->os_type, pgd_value)) {
 
                     if (PAGE_SIZE(pgd_value)) {
-                        page_info_t *info = g_malloc0(sizeof(page_info_t));
+                        page_info_t *info = g_try_malloc0(sizeof(page_info_t));
                         if ( !info )
                             goto done;
 
@@ -333,7 +333,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
                         uint64_t pte_value = pt_page[pte_index];
 
                         if (ENTRY_PRESENT(vmi->os_type, pte_value)) {
-                            page_info_t *info = g_malloc0(sizeof(page_info_t));
+                            page_info_t *info = g_try_malloc0(sizeof(page_info_t));
                             if ( !info )
                                 goto done;
 
@@ -372,7 +372,7 @@ status_t amd64_init(vmi_instance_t vmi)
 {
 
     if (!vmi->arch_interface) {
-        vmi->arch_interface = g_malloc0(sizeof(struct arch_interface));
+        vmi->arch_interface = g_try_malloc0(sizeof(struct arch_interface));
         if ( !vmi->arch_interface )
             return VMI_FAILURE;
     }

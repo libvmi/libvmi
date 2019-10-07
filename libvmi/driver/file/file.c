@@ -67,7 +67,7 @@ file_get_memory(
         goto error_noprint;
     }   // if
 
-    memory = g_malloc0(length);
+    memory = g_try_malloc0(length);
 
     if ( !memory )
         return NULL;
@@ -118,7 +118,7 @@ file_init(
     uint32_t UNUSED(init_flags),
     vmi_init_data_t *UNUSED(init_data))
 {
-    vmi->driver.driver_data = g_malloc0(sizeof(file_instance_t));
+    vmi->driver.driver_data = g_try_malloc0(sizeof(file_instance_t));
     return VMI_SUCCESS;
 }
 

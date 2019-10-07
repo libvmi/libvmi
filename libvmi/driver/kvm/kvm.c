@@ -83,7 +83,7 @@ exec_qmp_cmd(
     char *query)
 {
     FILE *p;
-    char *output = g_malloc0(20000);
+    char *output = g_try_malloc0(20000);
     if ( !output )
         return NULL;
 
@@ -91,7 +91,7 @@ exec_qmp_cmd(
     const char *name = kvm->libvirt.virDomainGetName(kvm->dom);
     int cmd_length = strlen(name) + strnlen(query, QMP_CMD_LENGTH) + 47;
 
-    char *cmd = g_malloc0(cmd_length);
+    char *cmd = g_try_malloc0(cmd_length);
     if ( !cmd ) {
         g_free(output);
         return NULL;
@@ -163,7 +163,7 @@ exec_memory_access(
     kvm_instance_t *kvm)
 {
     char *tmpfile = tempnam("/tmp", "vmi");
-    char *query = (char *) g_malloc0(QMP_CMD_LENGTH);
+    char *query = (char *) g_try_malloc0(QMP_CMD_LENGTH);
 
     if ( !query )
         return NULL;
@@ -192,7 +192,7 @@ exec_xp(
     int numwords,
     addr_t paddr)
 {
-    char *query = (char *) g_malloc0(QMP_CMD_LENGTH);
+    char *query = (char *) g_try_malloc0(QMP_CMD_LENGTH);
     if ( !query )
         return NULL;
 
@@ -422,7 +422,7 @@ kvm_get_memory_patch(
     addr_t paddr,
     uint32_t length)
 {
-    char *buf = g_malloc0(length + 1);
+    char *buf = g_try_malloc0(length + 1);
     if ( !buf )
         return NULL;
 
@@ -468,9 +468,9 @@ kvm_get_memory_native(
     uint32_t length)
 {
     int numwords = ceil(length / 4);
-    char *buf = g_malloc0(numwords * 4);
+    char *buf = g_try_malloc0(numwords * 4);
     char *bufstr = exec_xp(kvm_get_instance(vmi), numwords, paddr);
-    char *paddrstr = g_malloc0(32);
+    char *paddrstr = g_try_malloc0(32);
 
     if ( !buf || !bufstr || !paddrstr )
         goto error;
@@ -619,7 +619,7 @@ kvm_init(
     uint32_t UNUSED(init_flags),
     vmi_init_data_t* UNUSED(init_data))
 {
-    kvm_instance_t *kvm = g_malloc0(sizeof(kvm_instance_t));
+    kvm_instance_t *kvm = g_try_malloc0(sizeof(kvm_instance_t));
     if ( VMI_FAILURE == create_libvirt_wrapper(kvm) )
         return VMI_FAILURE;
 

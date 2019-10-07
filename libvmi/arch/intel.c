@@ -389,8 +389,8 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
 
     GSList *ret = NULL;
 
-    uint32_t *pgd_page = g_malloc0(VMI_PS_4KB);
-    uint32_t *pt_page = g_malloc0(entry_size * PTRS_PER_NOPAE_PGD);
+    uint32_t *pgd_page = g_try_malloc0(VMI_PS_4KB);
+    uint32_t *pt_page = g_try_malloc0(entry_size * PTRS_PER_NOPAE_PGD);
 
     if ( VMI_FAILURE == vmi_read_pa(vmi, dtb, VMI_PS_4KB, pgd_page, NULL)) {
         goto done;
@@ -405,7 +405,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
         if (ENTRY_PRESENT(vmi->os_type, pgd_entry)) {
 
             if (PAGE_SIZE(pgd_entry) && (VMI_FILE == vmi->mode || vmi->x86.pse)) {
-                page_info_t *p = g_malloc0(sizeof(page_info_t));
+                page_info_t *p = g_try_malloc0(sizeof(page_info_t));
                 if ( !p )
                     goto done;
 
@@ -429,7 +429,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
                 uint32_t pte_entry = pt_page[pte_index];
 
                 if (ENTRY_PRESENT(vmi->os_type, pte_entry)) {
-                    page_info_t *p = g_malloc0(sizeof(page_info_t));
+                    page_info_t *p = g_try_malloc0(sizeof(page_info_t));
                     if ( !p )
                         goto done;
 
@@ -502,7 +502,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
             if (ENTRY_PRESENT(vmi->os_type, pd_entry)) {
 
                 if (PAGE_SIZE(pd_entry)) {
-                    page_info_t *p = g_malloc0(sizeof(page_info_t));
+                    page_info_t *p = g_try_malloc0(sizeof(page_info_t));
                     if ( !p )
                         goto done;
 
@@ -528,7 +528,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
                     uint64_t pte_entry = page_table[pt_index];
 
                     if (ENTRY_PRESENT(vmi->os_type, pte_entry)) {
-                        page_info_t *p = g_malloc0(sizeof(page_info_t));
+                        page_info_t *p = g_try_malloc0(sizeof(page_info_t));
                         if ( !p )
                             goto done;
 
@@ -563,7 +563,7 @@ status_t intel_init(vmi_instance_t vmi)
     status_t ret = VMI_SUCCESS;
 
     if (!vmi->arch_interface) {
-        vmi->arch_interface = g_malloc0(sizeof(struct arch_interface));
+        vmi->arch_interface = g_try_malloc0(sizeof(struct arch_interface));
         if ( !vmi->arch_interface )
             return VMI_FAILURE;
     }

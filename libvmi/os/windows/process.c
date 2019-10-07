@@ -44,7 +44,7 @@ windows_get_eprocess_name(
     }
 
     addr_t name_paddr = paddr + windows->pname_offset;
-    char *name = (char *) g_malloc0(name_length);
+    char *name = (char *) g_try_malloc0(name_length);
 
     if ( !name )
         return NULL;
@@ -276,7 +276,7 @@ eprocess_list_search(
     addr_t next_process = 0;
     addr_t tasks_offset = 0;
     addr_t rtnval = 0;
-    void *buf = g_malloc0(len);
+    void *buf = g_try_malloc0(len);
 
     if ( !buf )
         goto exit;

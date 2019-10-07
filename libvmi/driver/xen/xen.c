@@ -549,7 +549,7 @@ xen_init(
     if ( xen_get_instance(vmi) )
         return VMI_SUCCESS;
 
-    xen_instance_t *xen = g_malloc0(sizeof(xen_instance_t));
+    xen_instance_t *xen = g_try_malloc0(sizeof(xen_instance_t));
 
     if ( VMI_FAILURE == xen_get_version(xen) ) {
         g_free(xen);
