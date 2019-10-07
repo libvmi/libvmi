@@ -399,14 +399,23 @@ static status_t init_kaslr(vmi_instance_t vmi)
      * First check whether init_task can be translated as-is.
      */
     uint32_t test;
+    linux_instance_t linux_instance = vmi->os_data;
     access_context_t ctx = {
         .translate_mechanism = VMI_TM_PROCESS_DTB,
         .dtb = vmi->kpgd,
         .addr = vmi->init_task
     };
 
-    if ( VMI_SUCCESS == vmi_read_32(vmi, &ctx, &test) )
+    if ( VMI_SUCCESS == vmi_read_32(vmi, &ctx, &test) ) {
+        /* Provided init_task works fine, let's calculate kaslr from it if necessary */
+        addr_t init_task_symbol_addr;
+        if ( VMI_FAILURE == linux_symbol_to_address(vmi, "init_task", NULL, &init_task_symbol_addr) )
+            return VMI_FAILURE;
+
+        linux_instance->kaslr_offset = vmi->init_task - init_task_symbol_addr;
+        dbprint(VMI_DEBUG_MISC, "**calculated KASLR offset from pre-defined init_task addr: 0x%"PRIx64"\n", linux_instance->kaslr_offset);
         return VMI_SUCCESS;
+    }
 
     if ( vmi->page_mode == VMI_PM_IA32E ) {
         if ( VMI_SUCCESS == get_kaslr_offset_ia32e(vmi) )
@@ -414,7 +423,6 @@ static status_t init_kaslr(vmi_instance_t vmi)
     }
 
     status_t ret = VMI_FAILURE;
-    linux_instance_t linux_instance = vmi->os_data;
     GSList *loop, *pages = vmi_get_va_pages(vmi, vmi->kpgd);
     loop = pages;
     while (loop) {
@@ -533,6 +541,8 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
     if ( !vmi->os_data )
         return VMI_FAILURE;
 
+    linux_instance_t linux_instance = vmi->os_data;
+
     g_hash_table_foreach(config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
 
     if (rekall_profile(vmi))
@@ -549,14 +559,16 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
 
     /* Save away the claimed init_task addr. It may be needed again for KASLR computation. */
     vmi->init_task = canonical_addr(vmi->init_task);
-    ((linux_instance_t)vmi->os_data)->init_task_fixed = vmi->init_task;
+    linux_instance->init_task_fixed = vmi->init_task;
 
+    if ( !vmi->kpgd ) {
 #if defined(ARM32) || defined(ARM64)
-    rc = driver_get_vcpureg(vmi, &vmi->kpgd, TTBR1, 0);
+        rc = driver_get_vcpureg(vmi, &vmi->kpgd, TTBR1, 0);
 #elif defined(I386) || defined(X86_64)
-    rc = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);
-    vmi->kpgd &= ~0x1fffull; // mask PCID and meltdown bits
+        rc = driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0);
+        vmi->kpgd &= ~0x1fffull; // mask PCID and meltdown bits
 #endif
+    }
 
     /*
      * The driver failed to get us a pagetable.
@@ -566,12 +578,14 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
     if ( VMI_FAILURE == rc && VMI_FAILURE == linux_filemode_init(vmi) )
         goto _exit;
 
-    if ( VMI_FAILURE == init_kaslr(vmi) ) {
-        // try without masking Meltdown bit
-        vmi->kpgd |= 0x1000ull;
+    if ( !linux_instance->kaslr_offset ) {
         if ( VMI_FAILURE == init_kaslr(vmi) ) {
-            dbprint(VMI_DEBUG_MISC, "**failed to determine KASLR offset\n");
-            goto _exit;
+            // try without masking Meltdown bit
+            vmi->kpgd |= 0x1000ull;
+            if ( VMI_FAILURE == init_kaslr(vmi) ) {
+                dbprint(VMI_DEBUG_MISC, "**failed to determine KASLR offset\n");
+                goto _exit;
+            }
         }
     }
 
@@ -656,6 +670,11 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
+    if (strncmp(key, "linux_kaslr", CONFIG_STR_LENGTH) == 0) {
+        linux_instance->kaslr_offset = *(addr_t*)value;
+        goto _done;
+    }
+
     if (strncmp(key, "kpgd", CONFIG_STR_LENGTH) == 0) {
         vmi->kpgd = *(addr_t*)value;
         goto _done;
@@ -712,6 +731,9 @@ status_t linux_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *o
         return VMI_SUCCESS;
     } else if (strncmp(offset_name, "linux_pgd", max_length) == 0) {
         *offset = linux_instance->pgd_offset;
+        return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "linux_kaslr", max_length) == 0) {
+        *offset = linux_instance->kaslr_offset;
         return VMI_SUCCESS;
     } else if (strncmp(offset_name, "kpgd", max_length) == 0) {
         *offset = vmi->kpgd;
