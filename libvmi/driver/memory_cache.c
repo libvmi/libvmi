@@ -143,7 +143,7 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
 
     memory_cache_entry_t entry =
         (memory_cache_entry_t)
-        g_malloc0(sizeof(struct memory_cache_entry));
+        g_try_malloc0(sizeof(struct memory_cache_entry));
 
     if ( !entry )
         return NULL;
@@ -217,13 +217,13 @@ memory_cache_insert(
             return 0;
         }
 
-        key = g_malloc0(sizeof(gint64));
+        key = g_try_malloc0(sizeof(gint64));
         if ( !key ) {
             g_free(entry);
             return 0;
         }
 
-        gint64 *key2 = g_malloc0(sizeof(gint64));
+        gint64 *key2 = g_try_malloc0(sizeof(gint64));
         if ( !key2 ) {
             g_free(entry);
             g_free(key);

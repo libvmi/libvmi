@@ -529,7 +529,7 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
         g_free(vmi->os_data);
     }
 
-    vmi->os_data = g_malloc0(sizeof(struct linux_instance));
+    vmi->os_data = g_try_malloc0(sizeof(struct linux_instance));
     if ( !vmi->os_data )
         return VMI_FAILURE;
 

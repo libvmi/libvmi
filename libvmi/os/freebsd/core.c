@@ -91,7 +91,7 @@ status_t freebsd_init(vmi_instance_t vmi, GHashTable *config)
         free(vmi->os_data);
     }
 
-    vmi->os_data = g_malloc0(sizeof(struct freebsd_instance));
+    vmi->os_data = g_try_malloc0(sizeof(struct freebsd_instance));
     if ( !vmi->os_data )
         return VMI_FAILURE;
 

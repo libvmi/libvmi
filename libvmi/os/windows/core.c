@@ -1070,7 +1070,7 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
         errprint("VMI_ERROR: os data already initialized, resetting\n");
         bzero(vmi->os_data, sizeof(struct windows_instance));
     } else {
-        vmi->os_data = g_malloc0(sizeof(struct windows_instance));
+        vmi->os_data = g_try_malloc0(sizeof(struct windows_instance));
         if ( !vmi->os_data )
             return VMI_FAILURE;
     }
@@ -1081,7 +1081,7 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
     g_hash_table_foreach(config, (GHFunc)windows_read_config_ghashtable_entries, vmi);
 
     /* Need to provide this functions so that find_page_mode will work */
-    os_interface = g_malloc0(sizeof(struct os_interface));
+    os_interface = g_try_malloc0(sizeof(struct os_interface));
     if ( !os_interface )
         goto done;
 

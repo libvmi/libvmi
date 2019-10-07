@@ -2462,7 +2462,7 @@ status_t xen_domainwatch_init_events(
     }
 #endif
 
-    xe = g_malloc0(sizeof(xen_events_t));
+    xe = g_try_malloc0(sizeof(xen_events_t));
     if ( !xe ) {
         errprint("%s error: allocation for xen_events_t failed\n", __FUNCTION__);
         return VMI_FAILURE;
@@ -2520,7 +2520,7 @@ status_t xen_init_events(
         xe = xen->events;
     else {
         // Allocate memory
-        xe = g_malloc0(sizeof(xen_events_t));
+        xe = g_try_malloc0(sizeof(xen_events_t));
         if ( !xe ) {
             errprint("%s error: allocation for xen_events_t failed\n", __FUNCTION__);
             goto err;
