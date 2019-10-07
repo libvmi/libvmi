@@ -22,12 +22,13 @@
 #include <string.h>
 
 #include "private.h"
+#include "msr-index.h"
 #include "driver/driver_wrapper.h"
 #include "driver/xen/xen.h"
 #include "driver/xen/xen_private.h"
 #include "driver/xen/xen_events.h"
 #include "driver/xen/xen_events_private.h"
-#include "driver/xen/msr-index.h"
+
 
 /*
  * Event control functions
@@ -209,7 +210,7 @@ status_t xen_set_reg_access(vmi_instance_t vmi, reg_event_t *event)
                 }
             } else {
                 size_t i;
-                for (i=0; i<sizeof(msr_all)/sizeof(reg_t); i++) {
+                for (i=0; i<msr_all_len; i++) {
                     dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" to %i\n", msr_index[msr_all[i]], enable);
                     if ( xen->libxcw.xc_monitor_mov_to_msr2(xch, dom, msr_index[msr_all[i]], enable) )
                         dbprint(VMI_DEBUG_XEN, "--Setting monitor MSR: %"PRIx32" FAILED\n", msr_index[msr_all[i]]);

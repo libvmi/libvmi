@@ -31,13 +31,11 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-vmi_event_t msr_event;
-
 event_response_t msr_write_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     vmi = vmi;
-    printf("MSR write happened: MSR=%x Value=%lx\n", event->reg_event.msr, event->reg_event.value);
-    return 0;
+    printf("MSR write happened: MSR=0x%"PRIx32" Value=0x%"PRIx64"\n", event->reg_event.msr, event->reg_event.value);
+    return VMI_EVENT_RESPONSE_NONE;
 }
 
 static int interrupted = 0;
@@ -48,8 +46,11 @@ static void close_handler(int sig)
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi;
-    struct sigaction act;
+    vmi_instance_t vmi = {0};
+    vmi_event_t msr_event = {0};
+    struct sigaction act = {0};
+    vmi_init_data_t init_data = {0};
+    vmi_mode_t mode = {0};
     act.sa_handler = close_handler;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
@@ -61,19 +62,34 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: msr_events_example <name of VM>\n");
+        fprintf(stderr, "Usage: msr_events_example <name of VM> [socket path]\n");
         exit(1);
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
 
+    // KVMi socket ?
+    if (argc == 3) {
+        char *path = argv[2];
+
+        // fill init_data
+        init_data.count = 1;
+        init_data.entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data.entry[0].data = strdup(path);
+    }
+
     /* initialize the libvmi library */
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
+                                           &init_data, &mode)) {
+        fprintf(stderr, "Failed to get access mode\n");
+        exit(1);
+    }
+
     if (VMI_FAILURE ==
-            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                              NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
-        printf("Failed to init LibVMI library.\n");
-        return 1;
+            vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, &init_data, NULL)) {
+        fprintf(stderr, "Failed to init LibVMI library.\n");
+        exit(1);
     }
 
     printf("LibVMI init succeeded!\n");
@@ -86,13 +102,22 @@ int main (int argc, char **argv)
     msr_event.reg_event.in_access = VMI_REGACCESS_W;
     msr_event.callback = msr_write_cb;
 
-    vmi_register_event(vmi, &msr_event);
+    if (VMI_FAILURE == vmi_register_event(vmi, &msr_event)) {
+        fprintf(stderr, "Failed to set MSR event\n");
+        goto error_exit;
+    }
 
     printf("Waiting for events...\n");
     while (!interrupted) {
-        vmi_events_listen(vmi,500);
+        if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
+            fprintf(stderr, "Failed to listen on VMI events\n");
+            goto error_exit;
+        }
     }
     printf("Finished with test.\n");
+
+error_exit:
+    vmi_clear_event(vmi, &msr_event, NULL);
 
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
