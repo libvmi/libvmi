@@ -337,7 +337,13 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     // set reply action
     rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
     rpl.common.event = kvmi_event->event.common.event;
-    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+    // default action is RETRY: KVM will re-enter the guest
+    rpl.common.action = KVMI_EVENT_ACTION_RETRY;
+
+    // action CONTINUE: KVM should handle the event as if
+    // the introspection tool did nothing (reinject int3)
+    if (libvmi_event->interrupt_event.reinject)
+        rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
 
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
