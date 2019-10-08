@@ -126,19 +126,6 @@ process_cb_response(
             }
         }
     }
-    // the rpl struct should be like this
-    //    struct {
-    //        struct kvmi_vcpu_hdr hdr;
-    //        struct kvmi_event_reply common;
-    //        // Event specific structs
-    //        ...
-    //    };
-    struct kvmi_vcpu_hdr *hdr = (struct kvmi_vcpu_hdr *)rpl;
-    hdr->vcpu = kvmi_event->event.common.vcpu;
-
-    struct kvmi_event_reply *common = (struct kvmi_event_reply *)( hdr + 1 );
-    common->event = kvmi_event->event.common.event;
-    common->action = KVMI_EVENT_ACTION_CONTINUE;
 
     if (kvm->libkvmi.kvmi_reply_event(kvm->kvmi_dom, kvmi_event->seq, rpl, rpl_size))
         return VMI_FAILURE;
@@ -219,6 +206,11 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         struct kvmi_event_cr_reply cr;
     } rpl = {0};
 
+    // set reply action
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+
     // the reply value will override the existing one
     rpl.cr.new_val = libvmi_event->reg_event.value;
 
@@ -286,8 +278,14 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         struct kvmi_event_msr_reply msr;
     } rpl = {0};
 
+    // set reply action
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+
     // the reply value will override the existing one
     rpl.msr.new_val = libvmi_event->reg_event.value;
+
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
@@ -336,6 +334,11 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         struct kvmi_event_reply common;
     } rpl = {0};
 
+    // set reply action
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
@@ -353,6 +356,13 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     if (kvmi_event->event.page_fault.access & KVMI_PAGE_ACCESS_R) out_access |= VMI_MEMACCESS_R;
     if (kvmi_event->event.page_fault.access & KVMI_PAGE_ACCESS_W) out_access |= VMI_MEMACCESS_W;
     if (kvmi_event->event.page_fault.access & KVMI_PAGE_ACCESS_X) out_access |= VMI_MEMACCESS_X;
+
+    // reply struct
+    struct {
+        struct kvmi_vcpu_hdr hdr;
+        struct kvmi_event_reply common;
+        struct kvmi_event_pf_reply pf;
+    } rpl = {0};
 
     vmi_event_t *libvmi_event;
     addr_t gfn = kvmi_event->event.page_fault.gpa >> vmi->page_shift;
@@ -379,12 +389,10 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
             // call user callback
             event_response_t response = call_event_callback(vmi, libvmi_event);
 
-            // reply struct
-            struct {
-                struct kvmi_vcpu_hdr hdr;
-                struct kvmi_event_reply common;
-                struct kvmi_event_pf_reply pf;
-            } rpl = {0};
+            // set reply action
+            rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+            rpl.common.event = kvmi_event->event.common.event;
+            rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
 
             return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
         }
@@ -414,12 +422,10 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
                 // call user callback
                 event_response_t response = call_event_callback(vmi, libvmi_event);
 
-                // struct reply
-                struct {
-                    struct kvmi_vcpu_hdr hdr;
-                    struct kvmi_event_reply common;
-                    struct kvmi_event_pf_reply pf;
-                } rpl = {0};
+                // set reply action
+                rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+                rpl.common.event = kvmi_event->event.common.event;
+                rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
 
                 if (VMI_FAILURE ==
                         process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl)))
