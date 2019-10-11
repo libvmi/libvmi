@@ -2709,29 +2709,8 @@ xen_pause_vm(
 {
     xen_instance_t *xen = xen_get_instance(vmi);
 
-    xc_dominfo_t info = {0};
-    if (-1 == xen->libxcw.xc_domain_getinfo(xen->xchandle,
-                                            xen->domainid,
-                                            1,
-                                            &info)) {
-        return VMI_FAILURE;
-    }
-
-    if (info.domid != xen_get_instance(vmi)->domainid) {
-        return VMI_FAILURE;
-    }
-
-    /* Don't pause if it's already paused. */
-    if (info.paused) {
-        return VMI_SUCCESS;
-    }
-
-    if (-1 == xen->libxcw.xc_domain_pause(xen->xchandle,
-                                          xen->domainid)) {
-        return VMI_FAILURE;
-    }
-
-    return VMI_SUCCESS;
+    return -1 == xen->libxcw.xc_domain_pause(xen->xchandle, xen->domainid) ?
+           VMI_FAILURE : VMI_SUCCESS;
 }
 
 status_t
@@ -2740,11 +2719,8 @@ xen_resume_vm(
 {
     xen_instance_t *xen = xen_get_instance(vmi);
 
-    if (-1 == xen->libxcw.xc_domain_unpause(xen->xchandle, xen->domainid)) {
-        return VMI_FAILURE;
-    }
-
-    return VMI_SUCCESS;
+    return -1 == xen->libxcw.xc_domain_unpause(xen->xchandle, xen->domainid) ?
+           VMI_FAILURE : VMI_SUCCESS;
 }
 
 status_t
