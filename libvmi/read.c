@@ -93,6 +93,8 @@ vmi_mmap_guest(
     }
 
     pfns = calloc(num_pages, sizeof(unsigned long));
+    if (!pfns)
+        goto done;
 
     for (i = 0; i < num_pages; i++) {
         if (VMI_SUCCESS == vmi_pagetable_lookup_cache(vmi, dtb, vaddr + buf_offset, &paddr)) {
