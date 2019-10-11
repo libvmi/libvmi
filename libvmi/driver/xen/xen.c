@@ -687,7 +687,8 @@ xen_destroy(
     if ( xchandle )
         xen->libxcw.xc_interface_close(xchandle);
 
-    dlclose(xen->libxcw.handle);
+    if (dlclose(xen->libxcw.handle))
+        errprint("dlclose failed: %s\n", strerror(errno));
 
 #ifdef HAVE_LIBXENSTORE
     if (xen->xshandle) {
@@ -696,7 +697,8 @@ xen_destroy(
         xen->libxsw.xs_close(xen->xshandle);
     }
 
-    dlclose(xen->libxsw.handle);
+    if (dlclose(xen->libxsw.handle))
+        errprint("dlclose failed: %s\n", strerror(errno));
     g_tree_destroy(xen->domains);
 #endif
 
