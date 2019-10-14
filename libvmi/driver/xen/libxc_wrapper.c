@@ -221,5 +221,12 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_get_hvm_param = dlsym(wrapper->handle, "xc_get_hvm_param");
     wrapper->xc_set_hvm_param = dlsym(wrapper->handle, "xc_set_hvm_param");
 
-    return sanity_check(xen);
+    if (VMI_FAILURE == sanity_check(xen)) {
+        // close libxenctrl handle
+        if (dlclose(wrapper->handle))
+            errprint("dlclose failed: %s", strerror(errno));
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
 }
