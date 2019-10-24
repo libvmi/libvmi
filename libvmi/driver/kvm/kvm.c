@@ -620,13 +620,15 @@ kvm_init(
     vmi_init_data_t* UNUSED(init_data))
 {
     kvm_instance_t *kvm = g_try_malloc0(sizeof(kvm_instance_t));
-    if ( VMI_FAILURE == create_libvirt_wrapper(kvm) )
+    if ( VMI_FAILURE == create_libvirt_wrapper(kvm) ) {
+        g_free(kvm);
         return VMI_FAILURE;
+    }
 
     virConnectPtr conn = kvm->libvirt.virConnectOpenAuth("qemu:///system", kvm->libvirt.virConnectAuthPtrDefault, 0);
     if (NULL == conn) {
         dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
-        free(kvm);
+        g_free(kvm);
         return VMI_FAILURE;
     }
 
@@ -748,6 +750,7 @@ kvm_destroy(
     }
 
     dlclose(kvm->libvirt.handle);
+    g_free(kvm);
 }
 
 uint64_t
