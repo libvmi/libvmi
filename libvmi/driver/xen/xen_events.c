@@ -2676,9 +2676,13 @@ void xen_events_destroy(vmi_instance_t vmi)
         resume = 1;
     }
 
+    if ( driver_are_events_pending(vmi) )
+        xen_events_listen(vmi, 0);
+
     // Shutdown all events to make sure VM is in a stable state
-    (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, ~0ull, 0);
-    (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xen->max_gpfn);
+    if ( g_hash_table_size(vmi->mem_events_on_gfn) || g_hash_table_size(vmi->mem_events_generic) )
+        (void)xen->libxcw.xc_set_mem_access(xch, dom, XENMEM_access_rwx, 0, xen->max_gpfn);
+
 #if defined(I386) || defined(X86_64)
     reg_event_t regevent = { .in_access = VMI_REGACCESS_N } ;
     if ( xe->monitor_cr0_on ) {
@@ -2717,18 +2721,6 @@ void xen_events_destroy(vmi_instance_t vmi)
     if ( vmi->privcall_event )
         (void)xen->libxcw.xc_monitor_privileged_call(xch, dom, false);
 #endif
-
-    if ( driver_are_events_pending(vmi) ) {
-        xen_events_listen(vmi, 0);
-
-#if defined(I386) || defined(X86_64)
-        /*
-         * An event response may still have turned singlestep on
-         * so we ensure all vCPUs are clear again.
-         */
-        driver_shutdown_single_step(vmi);
-#endif
-    }
 
     if ( xe->ring_page )
         munmap(xe->ring_page, getpagesize());
