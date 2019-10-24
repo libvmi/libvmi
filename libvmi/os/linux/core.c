@@ -735,6 +735,9 @@ status_t linux_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *o
     } else if (strncmp(offset_name, "linux_kaslr", max_length) == 0) {
         *offset = linux_instance->kaslr_offset;
         return VMI_SUCCESS;
+    } else if (strncmp(offset_name, "linux_init_task", max_length) == 0) {
+        *offset = vmi->init_task;
+        return VMI_SUCCESS;
     } else if (strncmp(offset_name, "kpgd", max_length) == 0) {
         *offset = vmi->kpgd;
         return VMI_SUCCESS;
