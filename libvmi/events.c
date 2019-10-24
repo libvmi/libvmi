@@ -1066,6 +1066,55 @@ vmi_stop_single_step_vcpu(
     return driver_stop_single_step(vmi, vcpu);
 }
 
+status_t
+vmi_toggle_single_step_vcpu(
+    vmi_instance_t vmi,
+    vmi_event_t* event,
+    uint32_t vcpu,
+    bool enabled)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+
+    if (!vmi || !event)
+        return VMI_FAILURE;
+
+    if (!(vmi->init_flags & VMI_INIT_EVENTS))
+        return VMI_FAILURE;
+
+    if (vmi->event_callback) {
+        errprint("To toggle singlestep while in an event callback, \
+                  use VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    if (enabled) {
+        SET_VCPU_SINGLESTEP(event->ss_event, vcpu);
+
+        gint *key = g_try_malloc0(sizeof(gint));
+        if (!key)
+            return VMI_FAILURE;
+
+        *key = vcpu;
+
+        if (!g_hash_table_insert(vmi->ss_events, key, event)) {
+            g_free(key);
+            return VMI_FAILURE;
+        }
+
+        return driver_start_single_step(vmi, &event->ss_event);
+    } else {
+        UNSET_VCPU_SINGLESTEP(event->ss_event, vcpu);
+
+        gint key = vcpu;
+
+        if (!g_hash_table_remove(vmi->ss_events, &key))
+            return VMI_FAILURE;
+
+        return driver_stop_single_step(vmi, vcpu);
+    }
+}
+
 status_t vmi_shutdown_single_step(vmi_instance_t vmi)
 {
 #ifdef ENABLE_SAFETY_CHECKS
