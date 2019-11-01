@@ -283,6 +283,32 @@ matrix:
         - make
 
 #
+# disable volatility ist
+#
+    - env:
+        - TEST="disable volatility ist (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DVOLATILITY_IST=OFF -DBUILD_EXAMPLES=OFF ..
+        - make
+
+#
+# disable rekall profiles
+#
+    - env:
+        - TEST="disable volatility ist (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-volatility-ist --disable-examples
+        - make
+
+#
 # disable safety checks
 #
     - env:
