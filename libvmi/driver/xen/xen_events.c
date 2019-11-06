@@ -775,26 +775,18 @@ status_t process_register(vmi_instance_t vmi, vm_event_compat_t *vmec)
     gint lookup = convert[vmec->write_ctrlreg.index];
     vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &lookup);
 
-    switch ( lookup ) {
-        case MSR_ALL: {
-            /* Check if it's a MSR_ANY event */
-            lookup = vmec->mov_to_msr.msr;
-            if ( !event && !(event = g_hash_table_lookup(vmi->msr_events, &lookup)) )
-                return VMI_FAILURE;
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !event ) {
+        errprint("Unhandled register event caught: 0x%x\n", vmec->write_ctrlreg.index);
+        return VMI_FAILURE;
+    }
+#endif
 
-            event->reg_event.msr = vmec->mov_to_msr.msr;
-            event->reg_event.value = vmec->mov_to_msr.new_value;
-            event->reg_event.previous = vmec->mov_to_msr.old_value;
-            break;
-        }
+    switch ( lookup ) {
         case CR0:
         case CR3:
         case CR4:
         case XCR0:
-#ifdef ENABLE_SAFETY_CHECKS
-            if ( !event )
-                return VMI_FAILURE;
-#endif
             /*
              * event->reg_event.equal allows for setting a reg event for
              *  a specific VALUE of the register
@@ -808,6 +800,39 @@ status_t process_register(vmi_instance_t vmi, vm_event_compat_t *vmec)
         default:
             break;
     }
+
+    event->x86_regs = &vmec->data.regs.x86;
+    event->slat_id = vmec->altp2m_idx;
+    event->vcpu_id = vmec->vcpu_id;
+
+    vmi->event_callback = 1;
+    process_response ( event->callback(vmi, event), event, vmec );
+    vmi->event_callback = 0;
+
+    return VMI_SUCCESS;
+}
+
+static
+status_t process_msr(vmi_instance_t vmi, vm_event_compat_t *vmec)
+{
+    gint lookup = MSR_ALL;
+    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &lookup);
+
+    if ( !event ) {
+        lookup = vmec->mov_to_msr.msr;
+        event = g_hash_table_lookup(vmi->msr_events, &lookup);
+    }
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !event ) {
+        errprint("Unhandled MSR event caught: 0x%lx\n", vmec->mov_to_msr.msr);
+        return VMI_FAILURE;
+    }
+#endif
+
+    event->reg_event.msr = vmec->mov_to_msr.msr;
+    event->reg_event.value = vmec->mov_to_msr.new_value;
+    event->reg_event.previous = vmec->mov_to_msr.old_value;
 
     event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
@@ -2587,7 +2612,7 @@ status_t xen_init_events(
     xe->monitor_mem_access_on = 1;
     xe->process_event[VM_EVENT_REASON_MEM_ACCESS] = &process_mem;
     xe->process_event[VM_EVENT_REASON_WRITE_CTRLREG] = &process_register;
-    xe->process_event[VM_EVENT_REASON_MOV_TO_MSR] = &process_register;
+    xe->process_event[VM_EVENT_REASON_MOV_TO_MSR] = &process_msr;
     xe->process_event[VM_EVENT_REASON_SOFTWARE_BREAKPOINT] = &process_software_breakpoint;
     xe->process_event[VM_EVENT_REASON_SINGLESTEP] = &process_singlestep;
     xe->process_event[VM_EVENT_REASON_GUEST_REQUEST] = &process_guest_request;
