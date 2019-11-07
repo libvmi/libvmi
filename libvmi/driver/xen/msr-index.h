@@ -69,8 +69,6 @@ const reg_t msr_all[] = {
     MSR_IA32_SYSENTER_EIP,
 
     MSR_IA32_MISC_ENABLE,
-
-    MSR_HYPERVISOR,
 };
 
 const uint32_t msr_index[] = {
@@ -120,8 +118,6 @@ const uint32_t msr_index[] = {
     [MSR_IA32_SYSENTER_EIP]      = 0x00000176,
 
     [MSR_IA32_MISC_ENABLE]       = 0x000001a0,
-
-    [MSR_HYPERVISOR]             = 0x40000000
 };
 
 #endif /* MSR_INDEX_H */
