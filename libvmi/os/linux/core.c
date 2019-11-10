@@ -280,39 +280,39 @@ done:
     return rc;
 }
 
-static status_t init_from_rekall_profile(vmi_instance_t vmi)
+static status_t init_from_json_profile(vmi_instance_t vmi)
 {
 
     status_t ret = VMI_FAILURE;
     linux_instance_t linux_instance = vmi->os_data;
 
     if (!linux_instance->tasks_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "task_struct", "tasks", &linux_instance->tasks_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "task_struct", "tasks", &linux_instance->tasks_offset)) {
             goto done;
         }
     }
     if (!linux_instance->mm_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "task_struct", "mm", &linux_instance->mm_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "task_struct", "mm", &linux_instance->mm_offset)) {
             goto done;
         }
     }
     if (!linux_instance->pid_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "task_struct", "pid", &linux_instance->pid_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "task_struct", "pid", &linux_instance->pid_offset)) {
             goto done;
         }
     }
     if (!linux_instance->name_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "task_struct", "comm", &linux_instance->name_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "task_struct", "comm", &linux_instance->name_offset)) {
             goto done;
         }
     }
     if (!linux_instance->pgd_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "mm_struct", "pgd", &linux_instance->pgd_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "mm_struct", "pgd", &linux_instance->pgd_offset)) {
             goto done;
         }
     }
     if (!vmi->init_task) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "init_task", NULL, &vmi->init_task)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "init_task", NULL, &vmi->init_task)) {
             goto done;
         }
     }
@@ -545,9 +545,9 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
 
     g_hash_table_foreach(config, (GHFunc)linux_read_config_ghashtable_entries, vmi);
 
-    if (rekall_profile(vmi))
-        rc = init_from_rekall_profile(vmi);
-    else if ( !vmi->init_task )
+    rc = init_from_json_profile(vmi);
+
+    if ( VMI_FAILURE == rc && !vmi->init_task )
         rc = linux_symbol_to_address(vmi, "init_task", NULL, &vmi->init_task);
     else
         rc = VMI_SUCCESS;
@@ -631,11 +631,28 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
 
 #ifdef REKALL_PROFILES
     if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
-        vmi->rekall_profile = g_strdup((char *)value);
-        json_object *root = json_object_from_file(vmi->rekall_profile);
-        if (!root)
+        vmi->json_profile_path = g_strdup((char *)value);
+        json_object *root = json_object_from_file(vmi->json_profile_path);
+        if (!root) {
             errprint("Rekall profile couldn't be opened!\n");
-        vmi->rekall_profile_json = root;
+            goto _done;
+        }
+        vmi->json_profile = root;
+        vmi->json_handler = rekall_profile_symbol_to_rva;
+        goto _done;
+    }
+#endif
+
+#ifdef VOLATILITY_IST
+    if (strncmp(key, "volatility_ist", CONFIG_STR_LENGTH) == 0) {
+        vmi->json_profile_path = g_strdup((char *)value);
+        json_object *root = json_object_from_file(vmi->json_profile_path);
+        if (!root) {
+            errprint("Volatility IST profile couldn't be opened!\n");
+            goto _done;
+        }
+        vmi->json_profile = root;
+        vmi->json_handler = volatility_ist_symbol_to_rva;
         goto _done;
     }
 #endif
@@ -704,7 +721,7 @@ _done:
 
 status_t linux_get_kernel_struct_offset(vmi_instance_t vmi, const char* symbol, const char* member, addr_t *addr)
 {
-    return rekall_profile_symbol_to_rva(rekall_profile(vmi), symbol, member, addr);
+    return json_profile_lookup(vmi, symbol, member, addr);
 }
 
 status_t linux_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *offset)

@@ -852,15 +852,6 @@ status_t vmi_destroy(
  */
 vmi_arch_t vmi_get_library_arch(void);
 
-/**
- * Get full path of associated rekall profile
- *
- * @param[in] vmi LibVMI instance
- * @return Full path of the rekall profile
- */
-const char *vmi_get_rekall_path(
-    vmi_instance_t vmi);
-
 /*---------------------------------------------------------
  * Memory translation functions from memory.c
  */
@@ -2410,6 +2401,8 @@ void vmi_pidcache_add(
 /**
  * Returns the path of the Linux system map file for the given vmi instance
  *
+ * DEPRECATED. Please use vmi_get_os_profile_path instead.
+ *
  * @param[in] vmi LibVMI instance
  * @return String file path location of the Linux system map
  */
@@ -2418,10 +2411,34 @@ const char * vmi_get_linux_sysmap(vmi_instance_t vmi);
 /**
  * Returns the path of the FreeBSD system map file for the given vmi instance
  *
+ * DEPRECATED. Please use vmi_get_os_profile_path instead.
+ *
  * @param[in] vmi LibVMI instance
  * @return String file path location of the FreeBSD system map
  */
 const char * vmi_get_freebsd_sysmap(vmi_instance_t vmi);
+
+/**
+ * Get full path of associated rekall profile
+ *
+ * DEPRECATED. Please use vmi_get_os_profile_path instead.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Full path of the rekall profile
+ */
+const char *vmi_get_rekall_path(
+    vmi_instance_t vmi);
+
+/**
+ * Get full path of associated OS profile.
+ *
+ * This can be either the Rekall profile, Volatility ISF or System.map file.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Full path of the OS profile
+ */
+const char *vmi_get_os_profile_path(
+    vmi_instance_t vmi);
 
 #pragma GCC visibility pop
 

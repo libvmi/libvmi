@@ -96,5 +96,7 @@ rekall_profile_symbol_to_rva(
     }
 
 exit:
+    dbprint(VMI_DEBUG_MISC, "Rekall profile lookup %s %s: 0x%lx\n", symbol ?: NULL, subsymbol ?: NULL, *rva);
+
     return ret;
 }

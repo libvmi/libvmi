@@ -810,10 +810,10 @@ vmi_destroy(
     vmi->os_data = NULL;
     vmi->arch_interface = NULL;
 
-#ifdef REKALL_PROFILES
-    g_free(vmi->rekall_profile);
-    if ( vmi->rekall_profile_json )
-        json_object_put(vmi->rekall_profile_json);
+#ifdef ENABLE_JSON_PROFILES
+    g_free(vmi->json_profile_path);
+    if ( vmi->json_profile )
+        json_object_put(vmi->json_profile);
 #endif
 
     pid_cache_destroy(vmi);

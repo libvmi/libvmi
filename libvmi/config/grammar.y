@@ -277,6 +277,7 @@ int vmi_parse_config (const char *target_name)
 %token<str>    FREEBSD_PGD
 %token<str>    SYSMAPTOK
 %token<str>    REKALL_PROFILE
+%token<str>    VOLATILITY_PROFILE
 %token<str>    OSTYPETOK
 %token<str>    WORD
 %token<str>    FILENAME
@@ -312,6 +313,8 @@ assignment:
         sysmap_assignment
         |
         rekall_profile_assignment
+        |
+        volatility_ist_assignment
         |
         ostype_assignment
         |
@@ -636,6 +639,16 @@ rekall_profile_assignment:
             snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
             char* rekall_profile = strndup(tmp_str, CONFIG_STR_LENGTH);
             g_hash_table_insert(tmp_entry, $1, rekall_profile);
+            free($4);
+        }
+        ;
+
+volatility_ist_assignment:
+        VOLATILITY_PROFILE EQUALS QUOTE FILENAME QUOTE
+        {
+            snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
+            char* volatility_ist = strndup(tmp_str, CONFIG_STR_LENGTH);
+            g_hash_table_insert(tmp_entry, $1, volatility_ist);
             free($4);
         }
         ;

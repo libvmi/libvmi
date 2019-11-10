@@ -71,6 +71,7 @@ freebsd_pmap            { BeginToken(yytext); yylval.str = strndup(yytext, CONFI
 freebsd_pgd             { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return FREEBSD_PGD; }
 sysmap                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return SYSMAPTOK; }
 rekall_profile          { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return REKALL_PROFILE; }
+volatility_ist          { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return VOLATILITY_PROFILE; }
 ostype                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return OSTYPETOK; }
 0x[0-9a-fA-F]+|[0-9]+   {
     BeginToken(yytext);

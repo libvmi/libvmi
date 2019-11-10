@@ -374,22 +374,6 @@ vmi_get_name(
     }
 }
 
-const char *
-vmi_get_rekall_path(
-    vmi_instance_t vmi)
-{
-#ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi)
-        return NULL;
-#endif
-
-#ifdef REKALL_PROFILES
-    return vmi->rekall_profile;
-#else
-    return NULL;
-#endif
-}
-
 uint64_t
 vmi_get_vmid(
     vmi_instance_t vmi)
@@ -857,4 +841,55 @@ vmi_get_freebsd_sysmap(
 
     return freebsd_instance->sysmap;
 
+}
+
+const char *
+vmi_get_rekall_path(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return NULL;
+#endif
+
+#ifdef ENABLE_JSON_PROFILES
+    return vmi->json_profile_path;
+#else
+    return NULL;
+#endif
+}
+
+const char *
+vmi_get_os_profile_path(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return NULL;
+#endif
+
+#ifdef ENABLE_JSON_PROFILES
+    if ( vmi->json_profile_path )
+        return vmi->json_profile_path;
+#endif
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->os_data)
+        return NULL;
+#endif
+
+    switch (vmi->os_type) {
+        case VMI_OS_LINUX: {
+            linux_instance_t linux_instance = vmi->os_data;
+            return linux_instance->sysmap;
+        }
+        case VMI_OS_FREEBSD: {
+            freebsd_instance_t freebsd_instance = vmi->os_data;
+            return freebsd_instance->sysmap;
+        }
+        default:
+            break;
+    };
+
+    return NULL;
 }

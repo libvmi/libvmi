@@ -171,8 +171,24 @@ File / Snapshot Support
 If you would like LibVMI to work on physical memory snapshots saved to
 a file, then you don't need any special setup.
 
+Volatility3 Intermediate Symbol Table (IST) Format
+------------------------------
+LibVMI supports the use of Volatility3's IST JSONs for introspecting Windows and Linux. By using
+these jsons, LibVMI is able to bypass the use if the in-memory KdDebuggerData (KDBG)
+structure normally used by memory forensics tools and thus allows introspecting domains
+where this structure is either corrupted, or encoded (like in the case of Windows 8 x64).
+However, these ISTs have to be created for each kernel version, and therefore if an
+update is made to the kernel, the JSON file has to be re-generated, thus it's a bit less stable
+as the standard LibVMI configuration entries.
+
+Volatility3 is available at https://github.com/volatilityfoundation/volatility3.
+
+To read about how to generate the IST see: https://volatility3.readthedocs.io/en/latest/symbol-tables.html.
+
 Rekall profiles
 ------------------------------
+Note: Rekall is no longer maintained. Support for Rekall profiles will be deprecated.
+
 LibVMI also supports the use of Rekall profiles for introspecting Windows and Linux. By using
 Rekall profiles, LibVMI is able to bypass the use if the in-memory KdDebuggerData (KDBG)
 structure normally used by memory forensics tools and thus allows introspecting domains

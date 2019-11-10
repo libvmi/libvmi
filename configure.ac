@@ -130,25 +130,31 @@ AC_ARG_ENABLE([vmifs],
       [enable_vmifs=$enableval],
       [enable_vmifs=yes])
 
-AC_ARG_ENABLE([address_cache],
+AC_ARG_ENABLE([address-cache],
       [AS_HELP_STRING([--disable-address-cache],
          [Disable caching addresses (v2p, pid, etc) @<:@no@:>@])],
       [enable_address_cache=$enableval],
       [enable_address_cache=yes])
 AM_CONDITIONAL([ENABLE_ADDRESS_CACHE], [test x"$enable_address_cache" = "xyes"])
 
-AC_ARG_ENABLE([page_cache],
+AC_ARG_ENABLE([page-cache],
       [AS_HELP_STRING([--disable-page-cache],
          [Disable caching pages @<:@no@:>@])],
       [enable_page_cache=$enableval],
       [enable_page_cache=512])
 AM_CONDITIONAL([ENABLE_PAGE_CACHE], [test x"$enable_page_cache" = "xyes"])
 
-AC_ARG_ENABLE([rekall_profiles],
+AC_ARG_ENABLE([rekall-profiles],
       [AS_HELP_STRING([--disable-rekall-profiles],
-         [Disable using Rekall's JSON profiles @<:@no@:>@])],
+         [Disable support for Rekall's JSON profiles @<:@no@:>@])],
       [rekall="$enableval"],
       [rekall="yes"])
+
+AC_ARG_ENABLE([volatility-ist],
+      [AS_HELP_STRING([--disable-volatility-ist],
+         [Disable support for Volatility's JSON intermediate symbol table @<:@no@:>@])],
+      [volatility_ist="$enableval"],
+      [volatility_ist="yes"])
 
 AC_ARG_ENABLE([config-file],
       [AS_HELP_STRING([--disable-config-file],
@@ -269,16 +275,13 @@ AC_SUBST([GLIB_LIBS])
 [fi]
 
 have_vmifs='yes'
-vmifs_space='       '
 [if test "$enable_vmifs" = "yes"]
 [then]
     PKG_CHECK_MODULES([FUSE], [fuse >= 2.2], [missing="no"], [missing="yes"])
     [if test x"$missing" = "xyes"]
     [then]
         AC_DEFINE([ENABLE_VMIFS], [0], [Define to 1 to build VMIFS.])
-        have_vmifs='FUSE library missing (libfuse-dev)'
         enable_vmifs='no'
-	    vmifs_space=' '
     [else]
         AC_DEFINE([ENABLE_VMIFS], [1], [Define to 1 to build VMIFS.])
         AC_SUBST([FUSE_CFLAGS])
@@ -316,19 +319,29 @@ AM_CONDITIONAL([VMIFS], [test x"$enable_vmifs" = xyes])
 [fi]
 
 missing='no'
-[if test "$rekall" = "yes"]
+[if test "$rekall" = "yes" || test "$volatility_ist" = "yes"]
 [then]
+    AC_CHECK_HEADERS([json-c/json.h])
     AC_CHECK_LIB(json-c, json_object_get_int64,, [missing="yes"])
     [if test x"$missing" = "xno"]
     [then]
-        AC_CHECK_HEADERS([json-c/json.h])
-        AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when working JSON-C library was found to parse Rekall profiles.])
+        AM_CONDITIONAL([ENABLE_JSON_PROFILES], [test "xyes" = "xyes"])
+        AC_DEFINE([ENABLE_JSON_PROFILES], [1], [Defined to 1 when support to JSON profiles is available])
+        [if test "$rekall" = "yes"]
+        [then]
+            AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when support to Rekall profiles should be compiled])
+        [fi]
+        [if test "$volatility_ist" = "yes"]
+        [then]
+            AC_DEFINE([VOLATILITY_IST], [1], [Defined to 1 when support to Volatility IST should be compiled])
+        [fi]
     [else]
         rekall='Disabled, missing libjson-c-dev.'
-        [echo "No working JSON-C library found (libjson-c-dev), Rekall system profiles won't be supported."]
+        [echo "No working JSON-C library found (libjson-c-dev), Rekall profiles and Volatility IST won't be supported."]
     [fi]
 [fi]
 AM_CONDITIONAL([ENABLE_REKALL_PROFILES], [test x"$rekall" = "xyes"])
+AM_CONDITIONAL([ENABLE_VOLATILITY_IST], [test x"$volatility_ist" = "xyes"])
 
 [if test x"$enable_address_cache" = "xyes"]
 [then]
@@ -365,13 +378,12 @@ Host system type: $host
 Build system type: $build
 Installation prefix: $prefix
 
-Feature         | Option
+Hypervisor      | Option
 ----------------|---------------------------
 Xen Support     | --enable-xen=$enable_xen
 KVM Support     | --enable-kvm=$enable_kvm
 File Support    | --enable-file=$enable_file
 Bareflank       | --enable-bareflank=$enable_bareflank
-Rekall profiles | --enable-rekall-profiles=$rekall
 ----------------|---------------------------
 
 OS              | Option
@@ -379,11 +391,19 @@ OS              | Option
 Windows         | --enable-windows=$enable_windows
 Linux           | --enable-linux=$enable_linux
 FreeBSD         | --enable-freebsd=$enable_freebsd
+----------------|---------------------------
 
-Tools           | Option                    | Reason
-----------------|---------------------------|----------------------------
+Configuration   | Option
+----------------|---------------------------
+libvmi.conf     | --enable-config-file=$configfile
+Rekall profiles | --enable-rekall-profiles=$rekall
+Volatility IST  | --enable-volatility-ist=$volatility_ist
+----------------|---------------------------
+
+Tools           | Option
+----------------|---------------------------
 Examples        | --enable-examples=$enable_examples
-VMIFS           | --enable-vmifs=$enable_vmifs$vmifs_space  | $have_vmifs
+VMIFS           | --enable-vmifs=$enable_vmifs
 
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.

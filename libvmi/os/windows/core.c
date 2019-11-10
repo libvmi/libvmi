@@ -138,11 +138,7 @@ status_t check_pdbase_offset(vmi_instance_t vmi)
     windows_instance_t windows = vmi->os_data;
 
     if (!windows->pdbase_offset) {
-        if (rekall_profile(vmi)) {
-            if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
-                goto done;
-            }
-        } else {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
             dbprint(VMI_DEBUG_MISC, "--win_pdbase is undefined\n");
             goto done;
         }
@@ -495,7 +491,7 @@ error_exit:
 
 status_t windows_get_kernel_struct_offset(vmi_instance_t vmi, const char* symbol, const char* member, addr_t *addr)
 {
-    return rekall_profile_symbol_to_rva(rekall_profile(vmi), symbol, member, addr);
+    return json_profile_lookup(vmi, symbol, member, addr);
 }
 
 status_t windows_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *offset)
@@ -622,26 +618,35 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
     }
 
 #ifdef REKALL_PROFILES
-    /* Deprecated way of using Rekall profiles */
-    if (strncmp(key, "sysmap", CONFIG_STR_LENGTH) == 0) {
-        g_free(vmi->rekall_profile);
-        vmi->rekall_profile = g_strdup((char *)value);
-        json_object *root = json_object_from_file(vmi->rekall_profile);
-        if (!root)
+    if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
+        g_free(vmi->json_profile_path);
+        vmi->json_profile_path = g_strdup((char *)value);
+        json_object *root = json_object_from_file(vmi->json_profile_path);
+        if (!root) {
             errprint("Rekall profile couldn't be opened!\n");
-        json_object_put(vmi->rekall_profile_json);
-        vmi->rekall_profile_json = root;
+            goto _done;
+        }
+
+        json_object_put(vmi->json_profile);
+        vmi->json_profile = root;
+        vmi->json_handler = rekall_profile_symbol_to_rva;
         goto _done;
     }
+#endif
 
-    if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
-        g_free(vmi->rekall_profile);
-        vmi->rekall_profile = g_strdup((char *)value);
-        json_object *root = json_object_from_file(vmi->rekall_profile);
-        if (!root)
-            errprint("Rekall profile couldn't be opened!\n");
-        json_object_put(vmi->rekall_profile_json);
-        vmi->rekall_profile_json = root;
+#ifdef VOLATILITY_IST
+    if (strncmp(key, "volatility_ist", CONFIG_STR_LENGTH) == 0) {
+        g_free(vmi->json_profile_path);
+        vmi->json_profile_path = g_strdup((char *)value);
+        json_object *root = json_object_from_file(vmi->json_profile_path);
+        if (!root) {
+            errprint("Volatility IST couldn't be opened!\n");
+            goto _done;
+        }
+
+        json_object_put(vmi->json_profile);
+        vmi->json_profile = root;
+        vmi->json_handler = volatility_ist_symbol_to_rva;
         goto _done;
     }
 #endif
@@ -661,7 +666,7 @@ _done:
 }
 
 static status_t
-get_kpgd_from_rekall_profile(vmi_instance_t vmi)
+get_kpgd_from_json_profile(vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
@@ -670,16 +675,16 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
 
     /* The kernel base and the pdbase offset should have already been found
      * and vmi->kpgd should be holding a CR3 value */
-    if ( !rekall_profile(vmi) || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
+    if ( !vmi->json_profile || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
         return ret;
 
     if ( vmi->kpgd && windows->sysproc )
         return VMI_SUCCESS;
 
-    dbprint(VMI_DEBUG_MISC, "**Getting kernel page directory from Rekall profile\n");
+    dbprint(VMI_DEBUG_MISC, "**Getting kernel page directory from JSON profile\n");
 
     if ( !windows->sysproc ) {
-        ret = rekall_profile_symbol_to_rva(rekall_profile(vmi), "PsInitialSystemProcess", NULL, &sysproc_pointer_rva);
+        ret = json_profile_lookup(vmi, "PsInitialSystemProcess", NULL, &sysproc_pointer_rva);
         if ( VMI_FAILURE == ret )
             return ret;
 
@@ -706,7 +711,7 @@ get_kpgd_from_rekall_profile(vmi_instance_t vmi)
 }
 
 static status_t
-find_windows_version_from_rekall_profile(vmi_instance_t vmi)
+find_windows_version_from_json_profile(vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
@@ -717,7 +722,7 @@ find_windows_version_from_rekall_profile(vmi_instance_t vmi)
     if (!windows->ntoskrnl)
         goto done;
 
-    if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
+    if (VMI_FAILURE == json_profile_lookup(vmi, "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
         goto done;
     }
     if (VMI_FAILURE == vmi_read_16_pa(vmi, windows->ntoskrnl + ntbuildnumber_rva, &ntbuildnumber)) {
@@ -734,7 +739,7 @@ find_windows_version_from_rekall_profile(vmi_instance_t vmi)
 
         if (VMI_OS_WINDOWS_NONE == windows->version) {
             dbprint(VMI_DEBUG_MISC, "Failed to find a known version of Windows, "
-                    "the Rekall Profile may be incorrect for this VM or the version of Windows is not supported!\n");
+                    "the JSON Profile may be incorrect for this VM or the version of Windows is not supported!\n");
             goto done;
         }
     }
@@ -750,25 +755,25 @@ static status_t kpcr_find1(vmi_instance_t vmi, windows_instance_t windows, reg_t
     dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find1\n");
 
     addr_t kpcr_rva;
-    if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "KiInitialPCR", NULL, &kpcr_rva))
+    if (VMI_FAILURE == json_profile_lookup(vmi, "KiInitialPCR", NULL, &kpcr_rva))
         return VMI_FAILURE;
 
     if ( kpcr_reg < kpcr_rva ) { // Zero offset seems ok. Maybe negative will work too? ;)
         dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped,"
-                " (kpcr < kpcr_rva) (KiInitialPCR) can't init from Rekall profile. Kpcr=0x%" PRIx64 "kpcr_rva=0x%" PRIx64 "\n",
+                " (kpcr < kpcr_rva) (KiInitialPCR) can't init from JSON profile. Kpcr=0x%" PRIx64 "kpcr_rva=0x%" PRIx64 "\n",
                 kpcr_reg, kpcr_rva);
         return VMI_FAILURE;
     }
 
     if (vmi->page_mode == VMI_PM_IA32E && kpcr_reg < 0xffff800000000000) { // We are in 64bit user mode, this is not KPCR
-        dbprint(VMI_DEBUG_MISC, "**Error while init from Rekall profile. Getting KPCR from user mode or just after syscall before 'swapgs'.\n");
+        dbprint(VMI_DEBUG_MISC, "**Error while init from JSON profile. Getting KPCR from user mode or just after syscall before 'swapgs'.\n");
         dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped,"
-                " can't init from Rekall profile. Kpcr=0x%" PRIx64 ", kpcr_rva=0x%" PRIx64 "\n",
+                " can't init from JSON profile. Kpcr=0x%" PRIx64 ", kpcr_rva=0x%" PRIx64 "\n",
                 kpcr_reg, kpcr_rva);
         return VMI_FAILURE;
     }
 
-    // If the Rekall profile has KiInitialPCR we have Win 7+
+    // If the JSON profile has KiInitialPCR we have Win 7+
     windows->ntoskrnl_va = kpcr_reg - kpcr_rva;
 
     return VMI_SUCCESS;
@@ -781,7 +786,7 @@ static status_t kpcr_find2(vmi_instance_t vmi, windows_instance_t windows)
     addr_t kisystemcall64shadow, kisystemcall32shadow;
     reg_t lstar, cstar;
 
-    if ( VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) )
+    if ( VMI_FAILURE == json_profile_lookup(vmi, "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) )
         return VMI_FAILURE;
 
     if (VMI_FAILURE == vmi_get_vcpureg(vmi, &lstar, MSR_LSTAR, 0)) {
@@ -794,7 +799,7 @@ static status_t kpcr_find2(vmi_instance_t vmi, windows_instance_t windows)
         return VMI_FAILURE;
     }
 
-    if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "KiSystemCall32Shadow", NULL, &kisystemcall32shadow)) {
+    if (VMI_FAILURE == json_profile_lookup(vmi, "KiSystemCall32Shadow", NULL, &kisystemcall32shadow)) {
         dbprint(VMI_DEBUG_MISC, "Error retrieving rva of KiSystemCall32Shadow\n");
         return VMI_FAILURE;
     }
@@ -824,10 +829,10 @@ static status_t kpcr_find3(vmi_instance_t vmi, windows_instance_t windows)
     uint32_t int0_high = 0;
     uint16_t int0_low = 0, int0_middle = 0;
 
-    if ( VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "KiDivideErrorFault", NULL, &int0_rva) )
+    if ( VMI_FAILURE == json_profile_lookup(vmi, "KiDivideErrorFault", NULL, &int0_rva) )
         return VMI_FAILURE;
 
-    // Some Windows10+ rekall profiles don't have KiInitialPCR defined so we use the IDT route
+    // Some Windows10+ JSON profiles don't have KiInitialPCR defined so we use the IDT route
     // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
     if ( VMI_FAILURE == driver_get_vcpureg(vmi, &idt, IDTR_BASE, 0) )
         return VMI_FAILURE;
@@ -855,9 +860,9 @@ static status_t kpcr_find4(vmi_instance_t vmi, windows_instance_t windows, reg_t
 
     addr_t kdvb = 0, kdvb_offset = 0, kernbase_offset = 0;
 
-    if ( VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_KPCR", "KdVersionBlock", &kdvb_offset) )
+    if ( VMI_FAILURE == json_profile_lookup(vmi, "_KPCR", "KdVersionBlock", &kdvb_offset) )
         return VMI_FAILURE;
-    if ( VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
+    if ( VMI_FAILURE == json_profile_lookup(vmi, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
         return VMI_FAILURE;
     if ( VMI_FAILURE == vmi_read_addr_va(vmi, kpcr_reg+kdvb_offset, 0, &kdvb) )
         return VMI_FAILURE;
@@ -868,11 +873,11 @@ static status_t kpcr_find4(vmi_instance_t vmi, windows_instance_t windows, reg_t
 }
 
 static status_t
-init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
+init_from_json_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 {
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
-    dbprint(VMI_DEBUG_MISC, "**Trying to init from Rekall profile\n");
+    dbprint(VMI_DEBUG_MISC, "**Trying to init from JSON profile\n");
 
     if (kpcr_register_to_use) {
         reg_t kpcr_reg = 0;
@@ -908,9 +913,9 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 
         // get KdVersionBlock/"_DBGKD_GET_VERSION64"->KernBase
         addr_t kdvb = 0, kernbase_offset = 0;
-        if ( VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "KdVersionBlock", NULL, &kdvb) )
+        if ( VMI_FAILURE == json_profile_lookup(vmi, "KdVersionBlock", NULL, &kdvb) )
             goto done;
-        if ( VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
+        if ( VMI_FAILURE == json_profile_lookup(vmi, "_DBGKD_GET_VERSION64", "KernBase", &kernbase_offset) )
             goto done;
 
         dbprint(VMI_DEBUG_MISC, "**KdVersionBlock RVA 0x%lx. KernBase RVA: 0x%lx\n", kdvb, kernbase_offset);
@@ -939,28 +944,28 @@ init_from_rekall_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 
     // The system map seems to be good, lets grab all the required offsets
     if (!windows->pdbase_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "_KPROCESS", "DirectoryTableBase", &windows->pdbase_offset)) {
             goto done;
         }
     }
     if (!windows->tasks_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_EPROCESS", "ActiveProcessLinks", &windows->tasks_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "_EPROCESS", "ActiveProcessLinks", &windows->tasks_offset)) {
             goto done;
         }
     }
     if (!windows->pid_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_EPROCESS", "UniqueProcessId", &windows->pid_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "_EPROCESS", "UniqueProcessId", &windows->pid_offset)) {
             goto done;
         }
     }
     if (!windows->pname_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_EPROCESS", "ImageFileName", &windows->pname_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset)) {
             goto done;
         }
     }
 
     ret = VMI_SUCCESS;
-    dbprint(VMI_DEBUG_MISC, "**init from Rekall profile success\n");
+    dbprint(VMI_DEBUG_MISC, "**init from JSON profile success\n");
 
 done:
     return ret;
@@ -968,7 +973,7 @@ done:
 }
 
 static status_t
-init_from_rekall_profile(vmi_instance_t vmi)
+init_from_json_profile(vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
@@ -1001,7 +1006,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
                     for (i = 0; i < sizeof(kpcr_registers_to_try)/sizeof(kpcr_registers_to_try[0]); ++i) {
                         dbprint(VMI_DEBUG_MISC, "** (vmi->page_mode == VMI_PM_IA32E) => Using kpcr_register_to_use=%s.\n", kpcr_registers_to_try_names[i]);
 
-                        ret = init_from_rekall_profile_real(vmi, kpcr_registers_to_try[i]);
+                        ret = init_from_json_profile_real(vmi, kpcr_registers_to_try[i]);
                         if ( VMI_FAILURE != ret )
                             goto done;
 
@@ -1016,7 +1021,7 @@ init_from_rekall_profile(vmi_instance_t vmi)
             case VMI_PM_LEGACY: /* Fall-through */
             case VMI_PM_PAE:
                 dbprint(VMI_DEBUG_MISC, "** vmi->page_mode in {VMI_PM_LEGACY, VMI_PM_PAE} => Trying FS_BASE.\n");
-                ret = init_from_rekall_profile_real(vmi, FS_BASE);
+                ret = init_from_json_profile_real(vmi, FS_BASE);
                 goto done;
 
             default:
@@ -1027,13 +1032,13 @@ init_from_rekall_profile(vmi_instance_t vmi)
         dbprint(VMI_DEBUG_MISC, "** Not retrieving KPCR via 'switch', setting kpcr_register_to_use to unused = 0 .\n");
 
         reg_t unused = 0;
-        ret = init_from_rekall_profile_real(vmi, unused);
+        ret = init_from_json_profile_real(vmi, unused);
         goto done;
     }
 
 done:
     if (VMI_SUCCESS == ret)
-        ret = find_windows_version_from_rekall_profile(vmi);
+        ret = find_windows_version_from_json_profile(vmi);
 
     return ret;
 }
@@ -1041,12 +1046,8 @@ done:
 static status_t
 init_core(vmi_instance_t vmi)
 {
-    status_t ret = VMI_FAILURE;
+    status_t ret = init_from_json_profile(vmi);
 
-    if (rekall_profile(vmi))
-        ret = init_from_rekall_profile(vmi);
-
-    /* Fall be here too if the Rekall profile based init fails */
     if ( VMI_FAILURE == ret )
         ret = init_from_kdbg(vmi);
 
@@ -1133,8 +1134,8 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
         goto done;
     }
 
-    if ( VMI_SUCCESS == get_kpgd_from_rekall_profile(vmi) ) {
-        dbprint(VMI_DEBUG_MISC, "--kpgd from rekall profile success\n");
+    if ( VMI_SUCCESS == get_kpgd_from_json_profile(vmi) ) {
+        dbprint(VMI_DEBUG_MISC, "--kpgd from JSON profile success\n");
         status = VMI_SUCCESS;
         goto done;
     }

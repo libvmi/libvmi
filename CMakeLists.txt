@@ -69,7 +69,8 @@ option(ENABLE_VMIFS "Enable vmifs: maps memory to a file through FUSE" ON)
 option(ENABLE_CONFIGFILE "Enable config file" ON)
 option(ENABLE_ADDRESS_CACHE "Enable address cache" ON)
 option(ENABLE_PAGE_CACHE "Enable page cache" ON)
-option(REKALL_PROFILES "Use Rekall's JSON profiles" ON)
+option(REKALL_PROFILES "Support Rekall's JSON profiles" ON)
+option(VOLATILITY_IST "Support Volatility's JSON ISTs" ON)
 option(ENABLE_SAFETY_CHECKS "Enable API safety checks" ON)
 option(ENABLE_TESTING "Build libvmi test suite" OFF)
 option(BUILD_EXAMPLES "Build the examples" ON)
@@ -81,6 +82,7 @@ option(ENV_DEBUG "Toggle the debug output via LIBVMI_DEBUG environment variable"
 
 # default values
 set(MAX_PAGE_CACHE_SIZE "512")
+set(ENABLE_JSON_PROFILES "Support JSON profiles" ON)
 
 # enable hardening if requested
 if (HARDENING)
@@ -144,7 +146,8 @@ add_feature_info(ENABLE_VMIFS ENABLE_VMIFS "Enable vmifs: maps memory to a file 
 add_feature_info(ENABLE_CONFIGFILE ENABLE_CONFIGFILE "Enable config file")
 add_feature_info(ENABLE_ADDRESS_CACHE ENABLE_ADDRESS_CACHE "Enable address cache")
 add_feature_info(ENABLE_PAGE_CACHE ENABLE_PAGE_CACHE "Enable page cache")
-add_feature_info(REKALL_PROFILES REKALL_PROFILES "Enable Rekall's JSON profiles")
+add_feature_info(REKALL_PROFILES REKALL_PROFILES "Support Rekall's JSON profiles")
+add_feature_info(VOLATILITY_IST VOLATILITY_IST "Support Volatility's JSON ISTs")
 add_feature_info(ENABLE_SAFETY_CHECKS ENABLE_SAFETY_CHECKS "Enable API safety checks")
 add_feature_info(ENABLE_TESTING ENABLE_TESTING "Enable LibVMI test suite")
 add_feature_info(BUILD_EXAMPLES BUILD_EXAMPLES "Build the examples")

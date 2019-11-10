@@ -242,12 +242,8 @@ windows_find_eprocess(
     }
 
     if (!windows->pname_offset) {
-        if (rekall_profile(vmi)) {
-            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_EPROCESS", "ImageFileName", &windows->pname_offset) )
-                return 0;
-        } else {
+        if ( VMI_FAILURE == json_profile_lookup(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset) )
             windows->pname_offset = find_pname_offset(vmi, check);
-        }
 
         if (!windows->pname_offset) {
             dbprint(VMI_DEBUG_MISC, "--failed to find pname_offset\n");
