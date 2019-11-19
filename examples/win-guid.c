@@ -90,7 +90,7 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_p, uint8_t *pe)
 
     status_t ret = VMI_FAILURE;
 
-    struct optional_header_pe32 *optional_pe_header = NULL;
+    void *optional_pe_header = NULL;
     uint16_t optional_header_type = 0;
     struct export_table et;
 
