@@ -96,11 +96,12 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_p, uint8_t *pe)
 
     peparse_assign_headers(pe, NULL, NULL, &optional_header_type, &optional_pe_header, NULL, NULL);
     addr_t export_header_offset = peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
+    size_t export_header_size = peparse_get_idd_size(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
 
     // Check if kernel's export table is within the PE image boundary
     if ( base_p + export_header_offset < base_p + get_image_size(optional_header_type, optional_pe_header) ) {
         if ( VMI_SUCCESS == vmi_read_pa(vmi, base_p + export_header_offset, sizeof(struct export_table), &et, NULL) &&
-                !(et.export_flags || !et.name)) {
+                !(et.export_flags || !et.name) && et.name >= export_header_offset && et.name <= export_header_offset + export_header_size) {
 
             char *name = vmi_read_str_pa(vmi, base_p + et.name);
 
