@@ -44,8 +44,8 @@ static void close_handler(int sig)
 event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event)
 {
     (void)vmi;
-    (void)event;
-    return 0;
+    printf("CR3 write happened: Value=0x%"PRIx64"\n", event->reg_event.value);
+    return VMI_EVENT_RESPONSE_NONE;
 }
 
 int main (int argc, char **argv)
