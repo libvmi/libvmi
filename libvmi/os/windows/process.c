@@ -44,7 +44,7 @@ windows_get_eprocess_name(
     }
 
     addr_t name_paddr = paddr + windows->pname_offset;
-    char *name = (char *) g_malloc0(name_length);
+    char *name = (char *) g_try_malloc0(name_length);
 
     if ( !name )
         return NULL;
@@ -242,12 +242,8 @@ windows_find_eprocess(
     }
 
     if (!windows->pname_offset) {
-        if (rekall_profile(vmi)) {
-            if ( VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "_EPROCESS", "ImageFileName", &windows->pname_offset) )
-                return 0;
-        } else {
+        if ( VMI_FAILURE == json_profile_lookup(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset) )
             windows->pname_offset = find_pname_offset(vmi, check);
-        }
 
         if (!windows->pname_offset) {
             dbprint(VMI_DEBUG_MISC, "--failed to find pname_offset\n");
@@ -276,7 +272,7 @@ eprocess_list_search(
     addr_t next_process = 0;
     addr_t tasks_offset = 0;
     addr_t rtnval = 0;
-    void *buf = g_malloc0(len);
+    void *buf = g_try_malloc0(len);
 
     if ( !buf )
         goto exit;

@@ -27,16 +27,23 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-vmi_event_t single_event;
+static vmi_event_t single_event = {0};
+static vmi_instance_t vmi = {0};
 
 static int interrupted = 0;
 static void close_handler(int sig)
 {
     interrupted = sig;
+}
+
+void exit_cleanup()
+{
+    vmi_destroy(vmi);
 }
 
 event_response_t single_step_callback(vmi_instance_t vmi, vmi_event_t *event)
@@ -52,14 +59,12 @@ event_response_t single_step_callback(vmi_instance_t vmi, vmi_event_t *event)
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi;
-
     struct sigaction act;
 
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: single_step_example <name of VM> \n");
+        fprintf(stderr, "Usage: %s <name of VM> \n", argv[0]);
         exit(1);
     }
 
@@ -82,23 +87,94 @@ int main (int argc, char **argv)
     }
 
     printf("LibVMI init succeeded!\n");
+    // register cleanup routine
+    atexit(&exit_cleanup);
 
-    //Single step setup
+    // get number of vcpus
+    unsigned int num_vcpus = vmi_get_num_vcpus(vmi);
+
+    // Single step setup
     memset(&single_event, 0, sizeof(vmi_event_t));
     single_event.version = VMI_EVENTS_VERSION;
     single_event.type = VMI_EVENT_SINGLESTEP;
     single_event.callback = single_step_callback;
     single_event.ss_event.enable = 1;
     SET_VCPU_SINGLESTEP(single_event.ss_event, 0);
-    vmi_register_event(vmi, &single_event);
-    while (!interrupted ) {
+
+    // register
+    if (VMI_FAILURE == vmi_register_event(vmi, &single_event)) {
+        fprintf(stderr, "Failed to register singlestep event\n");
+        return 1;
+    }
+
+    // event loop
+    while (!interrupted) {
         printf("Waiting for events...\n");
-        vmi_events_listen(vmi,500);
+        if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
+            fprintf(stderr, "Failed to listen on events\n");
+            return 1;
+        }
+    }
+
+    // toggling singlestep off/on
+
+    // pause before cleaning the ring
+    // this prevents new events from being queued
+    if (VMI_FAILURE == vmi_pause_vm(vmi)) {
+        fprintf(stderr, "Failed to pause VM\n");
+        return 1;
+    }
+    // clean event ring
+    if (VMI_FAILURE == vmi_events_listen(vmi, 0)) {
+        fprintf(stderr, "Failed to pause VM\n");
+        return 1;
+    }
+
+    // disable singlestep on all vcpus
+    for (unsigned int vcpu=0; vcpu < num_vcpus; vcpu++) {
+        if (VMI_FAILURE == vmi_toggle_single_step_vcpu(vmi, &single_event, vcpu, false)) {
+            fprintf(stderr, "Failed to stop singlestepping on VCPU %d\n", vcpu);
+            return 1;
+        }
+    }
+    printf("Singlestep stopped\n");
+    if (VMI_FAILURE == vmi_resume_vm(vmi)) {
+        fprintf(stderr, "Failed to resume VM\n");
+        return 1;
+    }
+
+    // VM should be running
+    // sleep(5);
+
+    // toggle singlestep back ON
+    // pause before changing VM state
+    if (VMI_FAILURE == vmi_pause_vm(vmi)) {
+        fprintf(stderr, "Failed to pause VM\n");
+        return 1;
+    }
+    printf("Restarting singlestep\n");
+    for (unsigned int vcpu=0; vcpu < num_vcpus; vcpu++) {
+        if (VMI_FAILURE == vmi_toggle_single_step_vcpu(vmi, &single_event, vcpu, true)) {
+            fprintf(stderr, "Failed to enable singlestep on VCPU %d\n", vcpu);
+            return 1;
+        }
+    }
+    if (VMI_FAILURE == vmi_resume_vm(vmi)) {
+        fprintf(stderr, "Failed to resume VM\n");
+        return 1;
+    }
+    // process a few more singlestep events
+    for (int i=0; i < 5; i++) {
+        printf("Waiting for events...\n");
+        if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
+            fprintf(stderr, "Failed to listen on events\n");
+            return 1;
+        }
     }
     printf("Finished with test.\n");
 
-    // cleanup any memory associated with the libvmi instance
-    vmi_destroy(vmi);
+    // singlestep event will be cleared by vmi_destroy(), called
+    // by exit_cleanup() routine configured earlier upon exit
 
     return 0;
 }

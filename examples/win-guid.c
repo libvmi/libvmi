@@ -222,7 +222,7 @@ void print_guid(vmi_instance_t vmi, addr_t kernel_base_p, uint8_t* pe)
     }
 
     struct image_debug_directory debug_directory = { 0 };
-    struct cv_info_pdb70 *pdb_header = g_malloc0(sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH+1);
+    struct cv_info_pdb70 *pdb_header = g_try_malloc0(sizeof(struct cv_info_pdb70)+PDB_FILENAME_LENGTH+1);
     if ( VMI_FAILURE == vmi_read_pa(vmi, kernel_base_p + debug_offset, sizeof(struct image_debug_directory), (uint8_t *)&debug_directory, NULL) ) {
         g_free(pdb_header);
         return;

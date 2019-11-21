@@ -59,5 +59,12 @@ status_t create_libxs_wrapper(xen_instance_t *xen)
     wrapper->xs_watch = dlsym(wrapper->handle, "xs_watch");
     wrapper->xs_unwatch = dlsym(wrapper->handle, "xs_unwatch");
 
-    return sanity_check(xen);
+    if (VMI_FAILURE == sanity_check(xen)) {
+        // closing libxenstore handle
+        if (dlclose(wrapper->handle))
+            errprint("dlclose failed: %s\n", strerror(errno));
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
 }

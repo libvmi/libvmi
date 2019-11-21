@@ -387,7 +387,7 @@ set_id_and_name(
     // Only under Xen this is OK without Xenstore
     if (vmi->mode == VMI_XEN) {
         // create placeholder for image_type
-        char *idstring = g_malloc0(snprintf(NULL, 0, "domid-%"PRIu64, id) + 1);
+        char *idstring = g_try_malloc0(snprintf(NULL, 0, "domid-%"PRIu64, id) + 1);
         if ( idstring ) {
             sprintf(idstring, "domid-%"PRIu64, id);
             vmi->image_type = idstring;
@@ -500,7 +500,7 @@ status_t vmi_init(
     status_t status = VMI_FAILURE;
 
     /* allocate memory for instance structure */
-    vmi_instance_t _vmi = (vmi_instance_t) g_malloc0(sizeof(struct vmi_instance));
+    vmi_instance_t _vmi = (vmi_instance_t) g_try_malloc0(sizeof(struct vmi_instance));
     if ( !_vmi )
         return VMI_FAILURE;
 
@@ -810,10 +810,10 @@ vmi_destroy(
     vmi->os_data = NULL;
     vmi->arch_interface = NULL;
 
-#ifdef REKALL_PROFILES
-    g_free(vmi->rekall_profile);
-    if ( vmi->rekall_profile_json )
-        json_object_put(vmi->rekall_profile_json);
+#ifdef ENABLE_JSON_PROFILES
+    g_free(vmi->json_profile_path);
+    if ( vmi->json_profile )
+        json_object_put(vmi->json_profile);
 #endif
 
     pid_cache_destroy(vmi);

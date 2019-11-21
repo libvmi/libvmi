@@ -29,6 +29,9 @@
 struct kvm_instance;
 
 typedef struct {
+
+    /* libvirt */
+
     void *handle;
 
     virConnectPtr (*virConnectOpenAuth)
@@ -65,6 +68,13 @@ typedef struct {
     (virDomainPtr domain);
 
     virConnectAuthPtr virConnectAuthPtrDefault;
+
+    /* libvirt-qemu */
+
+    void *handle_qemu;
+
+    int (*virDomainQemuMonitorCommand)
+    (virDomainPtr domain, const char *cmd, char **result, unsigned int flags);
 
 } libvirt_wrapper_t;
 

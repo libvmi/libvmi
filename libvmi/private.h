@@ -40,16 +40,13 @@
 #include <ctype.h>
 #include <time.h>
 #include <inttypes.h>
-#ifdef REKALL_PROFILES
-#include <json-c/json.h>
-#endif /* REKALL_PROFILES */
 #include "libvmi.h"
 #include "libvmi_extra.h"
 #include "cache.h"
 #include "events.h"
 #include "slat.h"
-#include "rekall.h"
 #include "debug.h"
+#include "json_profiles/json_profiles.h"
 #include "arch/arch_interface.h"
 #include "os/os_interface.h"
 
@@ -151,10 +148,12 @@ struct vmi_instance {
     addr_t last_used_page_key; /**< the key (addr) of the last used page */
 #endif
 
-#ifdef REKALL_PROFILES
-    char *rekall_profile; /**< Rekall profile for domain's running kernel */
+#ifdef ENABLE_JSON_PROFILES
+    char *json_profile_path; /**< JSON profile's path for domain's running kernel */
 
-    json_object *rekall_profile_json; /**< Rekall profile json object */
+    json_object *json_profile; /**< JSON profile */
+
+    json_profile_handler json_handler; /**< Function to handle lookups in JSON profile */
 #endif
 
     unsigned int num_vcpus; /**< number of VCPUs used by this instance */
@@ -382,13 +381,12 @@ win_ver_t find_windows_version(
     vmi_instance_t vmi,
     addr_t kdbg);
 
-#ifdef REKALL_PROFILES
-static inline json_object* rekall_profile(vmi_instance_t vmi)
-{
-    return vmi->rekall_profile_json;
-}
+#ifdef ENABLE_JSON_PROFILES
+#define json_profile_lookup(vmi, ...) (vmi->json_handler ? \
+        vmi->json_handler(vmi->json_profile, __VA_ARGS__) : \
+        VMI_FAILURE)
 #else
-#define rekall_profile(...) NULL
+#define json_profile_lookup(...) VMI_FAILURE
 #endif
 
 #endif /* PRIVATE_H */

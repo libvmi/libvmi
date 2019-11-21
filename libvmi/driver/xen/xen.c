@@ -549,7 +549,7 @@ xen_init(
     if ( xen_get_instance(vmi) )
         return VMI_SUCCESS;
 
-    xen_instance_t *xen = g_malloc0(sizeof(xen_instance_t));
+    xen_instance_t *xen = g_try_malloc0(sizeof(xen_instance_t));
 
     if ( VMI_FAILURE == xen_get_version(xen) ) {
         g_free(xen);
@@ -687,7 +687,8 @@ xen_destroy(
     if ( xchandle )
         xen->libxcw.xc_interface_close(xchandle);
 
-    dlclose(xen->libxcw.handle);
+    if (dlclose(xen->libxcw.handle))
+        errprint("dlclose failed: %s\n", strerror(errno));
 
 #ifdef HAVE_LIBXENSTORE
     if (xen->xshandle) {
@@ -696,7 +697,8 @@ xen_destroy(
         xen->libxsw.xs_close(xen->xshandle);
     }
 
-    dlclose(xen->libxsw.handle);
+    if (dlclose(xen->libxsw.handle))
+        errprint("dlclose failed: %s\n", strerror(errno));
     g_tree_destroy(xen->domains);
 #endif
 
@@ -2709,29 +2711,8 @@ xen_pause_vm(
 {
     xen_instance_t *xen = xen_get_instance(vmi);
 
-    xc_dominfo_t info = {0};
-    if (-1 == xen->libxcw.xc_domain_getinfo(xen->xchandle,
-                                            xen->domainid,
-                                            1,
-                                            &info)) {
-        return VMI_FAILURE;
-    }
-
-    if (info.domid != xen_get_instance(vmi)->domainid) {
-        return VMI_FAILURE;
-    }
-
-    /* Don't pause if it's already paused. */
-    if (info.paused) {
-        return VMI_SUCCESS;
-    }
-
-    if (-1 == xen->libxcw.xc_domain_pause(xen->xchandle,
-                                          xen->domainid)) {
-        return VMI_FAILURE;
-    }
-
-    return VMI_SUCCESS;
+    return -1 == xen->libxcw.xc_domain_pause(xen->xchandle, xen->domainid) ?
+           VMI_FAILURE : VMI_SUCCESS;
 }
 
 status_t
@@ -2740,11 +2721,8 @@ xen_resume_vm(
 {
     xen_instance_t *xen = xen_get_instance(vmi);
 
-    if (-1 == xen->libxcw.xc_domain_unpause(xen->xchandle, xen->domainid)) {
-        return VMI_FAILURE;
-    }
-
-    return VMI_SUCCESS;
+    return -1 == xen->libxcw.xc_domain_unpause(xen->xchandle, xen->domainid) ?
+           VMI_FAILURE : VMI_SUCCESS;
 }
 
 status_t

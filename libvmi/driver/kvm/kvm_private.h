@@ -33,7 +33,9 @@
 
 #include "private.h"
 #include "libvirt_wrapper.h"
-#include "driver/kvm/include/kvmi/libkvmi.h"
+#ifndef KVM_LEGACY_DRIVER
+# include "driver/kvm/include/kvmi/libkvmi.h"
+#endif
 
 typedef struct kvm_instance {
     virConnectPtr conn;
@@ -42,6 +44,9 @@ typedef struct kvm_instance {
     char *name;
     char *ds_path;
     libvirt_wrapper_t libvirt;
+#ifdef KVM_LEGACY_DRIVER
+    int socket_fd;
+#else
     void *kvmi;
     void *kvmi_dom;
     pthread_mutex_t kvm_connect_mutex;
@@ -49,6 +54,7 @@ typedef struct kvm_instance {
     unsigned int expected_pause_count;
     // dispatcher to handle VM events in each process_xxx functions
     status_t (*process_event[KVMI_NUM_EVENTS])(vmi_instance_t vmi, struct kvmi_dom_event *event);
+#endif
 } kvm_instance_t;
 
 static inline kvm_instance_t *

@@ -7,7 +7,6 @@ h_private = \
     libvmi/private.h \
     libvmi/debug.h \
     libvmi/glib_compat.h \
-    libvmi/rekall.h \
     libvmi/arch/arch_interface.h \
     libvmi/arch/intel.h \
     libvmi/arch/amd64.h \
@@ -43,8 +42,18 @@ if ENABLE_ADDRESS_CACHE
     c_sources   += libvmi/cache.c
 endif
 
+if ENABLE_JSON_PROFILES
+    h_private   += libvmi/json_profiles/json_profiles.h
+endif
+
+if ENABLE_VOLATILITY_IST
+    c_sources   += libvmi/json_profiles/volatility_ist.c
+    h_private   += libvmi/json_profiles/volatility_ist.h
+endif
+
 if ENABLE_REKALL_PROFILES
-    c_sources   += libvmi/rekall.c
+    c_sources   += libvmi/json_profiles/rekall.c
+    h_private   += libvmi/json_profiles/rekall.h
 endif
 
 drivers =

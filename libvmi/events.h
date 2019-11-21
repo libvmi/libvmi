@@ -805,6 +805,8 @@ vmi_event_t *vmi_get_singlestep_event (vmi_instance_t vmi,
  * libvmi event object's bitfield position.
  * This does not disable single step for the whole domain.
  *
+ * DEPRECATED: prefer vmi_toggle_single_step_vcpu()
+ *
  * @param[in] vmi LibVMI instance
  * @param[in] event the event to disable the vcpu on
  * @param[in] vcpu the vcpu to stop single stepping on
@@ -814,6 +816,28 @@ status_t vmi_stop_single_step_vcpu(
     vmi_instance_t vmi,
     vmi_event_t* event,
     uint32_t vcpu);
+
+/**
+ * Toggles the MTF single step flag from a vcpu as well as the
+ * libvmi event object's bitfield position.
+ * This does not toggle single step for the whole domain.
+ *
+ * You need to ensure that the VM is paused beforehand
+ * and clean the event ring with vmi_events_listen(vmi, 0)
+ * before stopping the singlestep, otherwise new events
+ * will be queued in the meantime.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] event the event to disable the vcpu on
+ * @param[in] vcpu the vcpu to stop single stepping on
+ * @param[in] enabled whether to enable or disable single stepping
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_toggle_single_step_vcpu(
+    vmi_instance_t vmi,
+    vmi_event_t* event,
+    uint32_t vcpu,
+    bool enabled);
 
 /**
  * Cleans up any domain wide single step settings.
