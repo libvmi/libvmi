@@ -64,4 +64,12 @@ kvm_get_instance(
     return ((kvm_instance_t *) vmi->driver.driver_data);
 }
 
+// kvm_put_memory is used by kvm_common.c
+// and has different implementations
+status_t
+kvm_put_memory(vmi_instance_t vmi,
+                    addr_t paddr,
+                    uint32_t length,
+                    void *buf);
+
 #endif
