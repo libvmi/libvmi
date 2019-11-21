@@ -137,7 +137,11 @@ if (ENABLE_KVM)
                 add_definitions(-DKVM_LEGACY_DRIVER)
             endif ()
         else ()
-            # KVM driver based on KVMi series
+            # KVM driver based on KVMi series, API is exposed via libkvmi
+            #
+            # for the moment, libkvmi sources are copied from the kvm-vmi/kvm
+            # tree: kvm/tools/kvm/kvmi and versioned into the kvm/ folder as well.
+            # but maybe we will do a find_package(libkvmi) one day ?
         endif ()
         target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
         # CMAKE_DL_LIBS -> dlopen* lib
