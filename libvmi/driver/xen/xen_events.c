@@ -2302,7 +2302,38 @@ status_t init_events_413(vmi_instance_t vmi)
 /*
  * Main event functions
  */
-static inline
+
+static
+status_t unmask_event(xen_instance_t *xen, xen_events_t *xe)
+{
+    int rc, port = xen->libxcw.xc_evtchn_pending(xe->xce_handle);
+
+    if ( -1 == port ) {
+        dbprint(VMI_DEBUG_XEN, "No event channel port is pending.\n");
+        return VMI_FAILURE;
+    }
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( port != xe->port ) {
+        errprint("Event received for invalid port %i, Expected port is %i\n",
+                 port, xe->port);
+        return VMI_FAILURE;
+    }
+#endif
+
+    rc = xen->libxcw.xc_evtchn_unmask(xe->xce_handle, port);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( rc ) {
+        errprint("Failed to unmask event channel port\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return VMI_SUCCESS;
+}
+
+static
 status_t wait_for_event_or_timeout(vmi_instance_t vmi, unsigned long ms, bool *needs_unmasking)
 {
     xen_events_t *xe = xen_get_events(vmi);
@@ -2410,13 +2441,10 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
      * all requests that were on the ring.
      */
     if ( needs_unmasking ) {
-        rc = xen->libxcw.xc_evtchn_unmask(xe->xce_handle, xe->port);
-
+        vrc = unmask_event(xen, xe);
 #ifdef ENABLE_SAFETY_CHECKS
-        if ( rc ) {
-            errprint("Error unmasking event channel.\n");
+        if ( VMI_FAILURE == vrc )
             return VMI_FAILURE;
-        }
 #endif
     }
 
