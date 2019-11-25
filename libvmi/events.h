@@ -760,6 +760,7 @@ status_t vmi_step_event(
  * Listen for events until one occurs or a timeout.
  * If the timeout is given as 0, it will process leftover events
  * in the ring-buffer (if there are any).
+ * If an external poller is used, timeout with 0 will also forgo unmasking events.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] timeout Number of ms.
