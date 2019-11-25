@@ -2385,7 +2385,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
                 return VMI_FAILURE;
             }
         } else
-            needs_unmasking = 1;
+            needs_unmasking = timeout;
     }
 
 #ifdef HAVE_LIBXENSTORE
