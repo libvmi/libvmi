@@ -93,7 +93,10 @@ kvm_get_memory_patch(
     if (!kvm->kvmi_dom)
         return NULL;
 
-    char* buffer = g_malloc0(length);
+    char* buffer = g_try_malloc0(length);
+    if (!buffer)
+        return NULL;
+
     if (kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
         g_free(buffer);
         return NULL;
@@ -111,7 +114,10 @@ kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length)
     if (!kvm->kvmi_dom)
         return NULL;
 
-    buffer = g_malloc0(length);
+    buffer = g_try_malloc0(length);
+    if (!buffer)
+        return NULL;
+
     if (kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
         g_free(buffer);
         return NULL;
