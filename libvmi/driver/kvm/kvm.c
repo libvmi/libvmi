@@ -177,6 +177,7 @@ cb_kvmi_connect(
     unsigned char (*uuid)[16],
     void *ctx)
 {
+    (void)uuid; // unused
     kvm_instance_t *kvm = ctx;
 
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
