@@ -53,6 +53,7 @@ linux_pid               { BeginToken(yytext); yylval.str = strndup(yytext, CONFI
 linux_pgd               { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_PGD; }
 linux_addr              { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_ADDR; }
 linux_init_task         { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_INIT_TASK; }
+linux_kaslr             { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return LINUX_KASLR; }
 win_ntoskrnl            { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_NTOSKRNL; }
 win_ntoskrnl_va         { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_NTOSKRNL_VA; }
 win_tasks               { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return WIN_TASKS; }
@@ -70,6 +71,7 @@ freebsd_pmap            { BeginToken(yytext); yylval.str = strndup(yytext, CONFI
 freebsd_pgd             { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return FREEBSD_PGD; }
 sysmap                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return SYSMAPTOK; }
 rekall_profile          { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return REKALL_PROFILE; }
+volatility_ist          { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return VOLATILITY_PROFILE; }
 ostype                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFIG_STR_LENGTH); return OSTYPETOK; }
 0x[0-9a-fA-F]+|[0-9]+   {
     BeginToken(yytext);

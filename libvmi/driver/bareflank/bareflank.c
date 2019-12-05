@@ -386,11 +386,11 @@ bareflank_init(
     uint32_t UNUSED(init_flags),
     vmi_init_data_t* UNUSED(init_data))
 {
-    bareflank_instance_t *bf = g_malloc0(sizeof(bareflank_instance_t));
+    bareflank_instance_t *bf = g_try_malloc0(sizeof(bareflank_instance_t));
     if ( !bf )
         return VMI_FAILURE;
 
-    bf->buffer_space = g_malloc0(vmi->page_size);
+    bf->buffer_space = g_try_malloc0(vmi->page_size);
     if ( !bf->buffer_space ) {
         g_free(bf);
         return VMI_FAILURE;

@@ -20,3 +20,8 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(JSON-C DEFAULT_MSG JSON-C_LIBRARY JSON-C_INCLUDE_DIR)
 
 mark_as_advanced(JSON-C_INCLUDE_DIR JSON-C_LIBRARY)
+
+set_package_properties(JSON-C PROPERTIES
+    DESCRIPTION "JSON parsing library for C"
+    URL "https://github.com/json-c/json-c"
+    TYPE OPTIONAL)

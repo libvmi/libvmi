@@ -72,12 +72,12 @@ windows_read_unicode_struct_pm(
     }
 
     // allocate the return value
-    us = g_malloc0(sizeof(unicode_string_t));
+    us = g_try_malloc0(sizeof(unicode_string_t));
     if ( !us )
         return NULL;
 
     us->length = buffer_len;
-    us->contents = g_malloc0(sizeof(uint8_t) * (buffer_len + 2));
+    us->contents = g_try_malloc0(sizeof(uint8_t) * (buffer_len + 2));
 
     if ( !us->contents )
         goto out_error;

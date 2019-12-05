@@ -70,8 +70,9 @@ static void close_handler(int sig)
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi;
-    vmi_init_data_t init_data = {0};
     vmi_mode_t mode;
+    vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
+                                       + (sizeof(vmi_init_data_entry_t) * 1));
     struct sigaction act;
     act.sa_handler = close_handler;
     act.sa_flags = 0;
@@ -96,18 +97,18 @@ int main (int argc, char **argv)
         char *path = argv[2];
 
         // fill init_data
-        init_data.count = 1;
-        init_data.entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
-        init_data.entry[0].data = strdup(path);
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(path);
     }
 
-    if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, &init_data, &mode)) {
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, &mode)) {
         fprintf(stderr, "Failed to get access mode\n");
         return 1;
     }
 
     if (VMI_FAILURE ==
-            vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, &init_data, NULL)) {
+            vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
         fprintf(stderr, "Failed to init LibVMI library.\n");
         return 1;
     }

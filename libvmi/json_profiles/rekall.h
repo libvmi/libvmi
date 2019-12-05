@@ -32,10 +32,12 @@ rekall_profile_symbol_to_rva(
     const char *subsymbol,
     addr_t *rva);
 
+#define rekall_profile(vmi) (vmi->json_profile)
+
 #else
 
 #define rekall_profile_symbol_to_rva(...) VMI_FAILURE
+#define rekall_profile(...) NULL
 
 #endif
-
 #endif /* LIBVMI_REKALL_H */

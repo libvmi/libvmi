@@ -86,12 +86,12 @@ static int vmifs_read(const char *path, char *buf, size_t size, off_t offset,
     if (strcmp(path, mem_path) != 0)
         return -ENOENT;
 
-    unsigned long memsize = vmi_get_memsize(vmi);
-    if (offset < memsize && size) {
+    uint64_t memsize = vmi_get_memsize(vmi);
+    if (offset >= 0 && ((uint64_t) offset) < memsize && size) {
         if (offset + size > memsize)
             size = memsize-offset;
 
-        uint8_t *buffer = g_malloc0(sizeof(uint8_t)*size);
+        uint8_t *buffer = g_try_malloc0(sizeof(uint8_t)*size);
         if ( VMI_FAILURE == vmi_read_pa(vmi, offset, size, buffer, NULL) ) {
             g_free(buffer);
         } else {

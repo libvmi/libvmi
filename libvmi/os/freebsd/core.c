@@ -32,39 +32,39 @@
 void freebsd_read_config_ghashtable_entries(char* key, gpointer value,
         vmi_instance_t vmi);
 
-static status_t init_from_rekall_profile(vmi_instance_t vmi)
+static status_t init_from_json_profile(vmi_instance_t vmi)
 {
 
     status_t ret = VMI_FAILURE;
     freebsd_instance_t freebsd_instance = vmi->os_data;
 
     if (!freebsd_instance->pmap_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "vmspace", "vm_pmap", &freebsd_instance->pmap_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "vmspace", "vm_pmap", &freebsd_instance->pmap_offset)) {
             goto done;
         }
     }
     if (!freebsd_instance->vmspace_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "proc", "p_vmspace", &freebsd_instance->vmspace_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "proc", "p_vmspace", &freebsd_instance->vmspace_offset)) {
             goto done;
         }
     }
     if (!freebsd_instance->pid_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "proc", "p_pid", &freebsd_instance->pid_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "proc", "p_pid", &freebsd_instance->pid_offset)) {
             goto done;
         }
     }
     if (!freebsd_instance->name_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "proc", "p_comm", &freebsd_instance->name_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "proc", "p_comm", &freebsd_instance->name_offset)) {
             goto done;
         }
     }
     if (!freebsd_instance->pgd_offset) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "pmap", "pm_cr3", &freebsd_instance->pgd_offset)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "pmap", "pm_cr3", &freebsd_instance->pgd_offset)) {
             goto done;
         }
     }
     if (!vmi->init_task) {
-        if (VMI_FAILURE == rekall_profile_symbol_to_rva(rekall_profile(vmi), "allproc", NULL, &vmi->init_task)) {
+        if (VMI_FAILURE == json_profile_lookup(vmi, "allproc", NULL, &vmi->init_task)) {
             goto done;
         }
     }
@@ -91,20 +91,18 @@ status_t freebsd_init(vmi_instance_t vmi, GHashTable *config)
         free(vmi->os_data);
     }
 
-    vmi->os_data = g_malloc0(sizeof(struct freebsd_instance));
+    vmi->os_data = g_try_malloc0(sizeof(struct freebsd_instance));
     if ( !vmi->os_data )
         return VMI_FAILURE;
 
     g_hash_table_foreach(config, (GHFunc)freebsd_read_config_ghashtable_entries,
                          vmi);
 
-    if (rekall_profile(vmi))
-        rc = init_from_rekall_profile(vmi);
-    else
+    if ( VMI_FAILURE == (rc = init_from_json_profile(vmi)) )
         rc = freebsd_symbol_to_address(vmi, "allproc", NULL, &vmi->init_task);
 
     if (VMI_FAILURE == rc) {
-        errprint("Could not get initproc from Rekall profile or System.map\n");
+        errprint("Could not get initproc from JSON profile or System.map\n");
         goto _exit;
     }
 
@@ -163,11 +161,28 @@ void freebsd_read_config_ghashtable_entries(char* key, gpointer value,
 
 #ifdef REKALL_PROFILES
     if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
-        vmi->rekall_profile = g_strdup((char *)value);
-        json_object *root = json_object_from_file(vmi->rekall_profile);
-        if (!root)
+        vmi->json_profile_path = g_strdup((char *)value);
+        json_object *root = json_object_from_file(vmi->json_profile_path);
+        if (!root) {
             errprint("Rekall profile couldn't be opened!\n");
-        vmi->rekall_profile_json = root;
+            goto _done;
+        }
+        vmi->json_profile = root;
+        vmi->json_handler = rekall_profile_symbol_to_rva;
+        goto _done;
+    }
+#endif
+
+#ifdef VOLATILITY_IST
+    if (strncmp(key, "volatility_ist", CONFIG_STR_LENGTH) == 0) {
+        vmi->json_profile_path = g_strdup((char *)value);
+        json_object *root = json_object_from_file(vmi->json_profile_path);
+        if (!root) {
+            errprint("Volatility IST profile couldn't be opened!\n");
+            goto _done;
+        }
+        vmi->json_profile = root;
+        vmi->json_handler = volatility_ist_symbol_to_rva;
         goto _done;
     }
 #endif

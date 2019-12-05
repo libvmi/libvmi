@@ -259,6 +259,7 @@ int vmi_parse_config (const char *target_name)
 %token<str>    LINUX_PGD
 %token<str>    LINUX_ADDR
 %token<str>    LINUX_INIT_TASK
+%token<str>    LINUX_KASLR
 %token<str>    WIN_NTOSKRNL
 %token<str>    WIN_NTOSKRNL_VA
 %token<str>    WIN_TASKS
@@ -276,6 +277,7 @@ int vmi_parse_config (const char *target_name)
 %token<str>    FREEBSD_PGD
 %token<str>    SYSMAPTOK
 %token<str>    REKALL_PROFILE
+%token<str>    VOLATILITY_PROFILE
 %token<str>    OSTYPETOK
 %token<str>    WORD
 %token<str>    FILENAME
@@ -312,6 +314,8 @@ assignment:
         |
         rekall_profile_assignment
         |
+        volatility_ist_assignment
+        |
         ostype_assignment
         |
         kpgd_assignment
@@ -329,6 +333,8 @@ assignment:
         linux_addr_assignment
         |
         linux_init_task_assignment
+        |
+        linux_kaslr_assignment
         |
         win_ntoskrnl_assignment
         |
@@ -436,6 +442,17 @@ linux_addr_assignment:
 
 linux_init_task_assignment:
         LINUX_INIT_TASK EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+
+linux_kaslr_assignment:
+        LINUX_KASLR EQUALS NUM
         {
             uint64_t tmp = strtoull($3, NULL, 0);
             uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
@@ -622,6 +639,16 @@ rekall_profile_assignment:
             snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
             char* rekall_profile = strndup(tmp_str, CONFIG_STR_LENGTH);
             g_hash_table_insert(tmp_entry, $1, rekall_profile);
+            free($4);
+        }
+        ;
+
+volatility_ist_assignment:
+        VOLATILITY_PROFILE EQUALS QUOTE FILENAME QUOTE
+        {
+            snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
+            char* volatility_ist = strndup(tmp_str, CONFIG_STR_LENGTH);
+            g_hash_table_insert(tmp_entry, $1, volatility_ist);
             free($4);
         }
         ;

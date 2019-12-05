@@ -197,7 +197,7 @@ status_t aarch32_init(vmi_instance_t vmi)
 {
 
     if (!vmi->arch_interface) {
-        vmi->arch_interface = g_malloc0(sizeof(struct arch_interface));
+        vmi->arch_interface = g_try_malloc0(sizeof(struct arch_interface));
         if ( !vmi->arch_interface )
             return VMI_FAILURE;
     }

@@ -113,50 +113,32 @@ can then be transferred to the XenServer dom0 and run natively.
 
 KVM support
 ~~~~~~~~~~~
-LibVMI will have KVM support if libvirt is available during compile time. Ensure that your
-libvirt installation supports QMP commands, most prepackaged versions do not support this
-by default so you may need to install libvirt from source yourself.  To enable QMP support
-when installing from source, ensure that you have libyajl-dev (or the equivalent from your
-linux distro) installed, then run the configure script from libvirt.  Ensure that the
-configure script reports that it found yajl.  Then run make && make install.
+The KVM driver for LibVMI is based on the new ``KVMi`` subsystem for
+KVM, which aims to bring an official VMI API on this hypervisor.
 
-Currently there is no native VMI support in KVM, so you have two options for adding it:
+The current state of these KVM patches is a work-in-progress, but it is mature
+enough to be proposed by default in LibVMI, instead of using previous memory access
+methods (GDB stub or the ``tools/qemu-kvm-patch`` memaccess custom patches for QEMU).
 
-  1) Patch QEMU-KVM with the provided patch.  This technique will
-     provide the fastest memory access, but is buggy and may cause
-     your VM to crash / lose data / etc.  To use this method,
-     follow the instructions in the libvmi/tools/qemu-kvm-patch
-     directory.
+In order to use the LibVMI KVM driver, you will have to setup ``KVM-VMI`` beforehand.
+KVM-VMI is a Github community dedicated to bring a native VMI API on KVM, and
+currently hosting this new API:
 
-  2) Enable GDB access to your KVM VM.  This is done by adding
-     '-s' to the VM creation line or, by modifying the VM XML
-     definition used by libvirt as follows:
+https://github.com/KVM-VMI/kvm-vmi
 
-     - Change:
+Follow this wiki page to setup KVM-VMI:
 
-       .. code::
+https://github.com/KVM-VMI/kvm-vmi/wiki/KVM-VMI-setup
 
-          <domain type='kvm'>
+KVM legacy driver support:
 
-       to:
+To enable the old KVM memory access methods (GDB stub and QEMU fast-memaccess
+patches), you need to add the ``-DENABLE_KVM_LEGACY`` CMake command line
+argument.
 
-       .. code::
+   cd build
+   cmake .. -DENABLE_KVM_LEGACY
 
-           <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
-
-     - Add:
-
-       .. code::
-
-           <qemu:commandline>
-             <qemu:arg value='-s'/>
-           </qemu:commandline>
-
-       under the <domain> level of the XML.
-
-You only need one memory access technique.  LibVMI will first look for the QEMU-KVM patch and
-use that if it is installed.  Otherwise it will fall back to using GDB.  So if you want to
-use GDB, you should both enable GDB and ensure that QEMU-KVM does not have the LibVMI patch.
 
 Python bindings
 ----------------
@@ -171,8 +153,24 @@ File / Snapshot Support
 If you would like LibVMI to work on physical memory snapshots saved to
 a file, then you don't need any special setup.
 
+Volatility3 Intermediate Symbol Table (IST) Format
+------------------------------
+LibVMI supports the use of Volatility3's IST JSONs for introspecting Windows and Linux. By using
+these jsons, LibVMI is able to bypass the use if the in-memory KdDebuggerData (KDBG)
+structure normally used by memory forensics tools and thus allows introspecting domains
+where this structure is either corrupted, or encoded (like in the case of Windows 8 x64).
+However, these ISTs have to be created for each kernel version, and therefore if an
+update is made to the kernel, the JSON file has to be re-generated, thus it's a bit less stable
+as the standard LibVMI configuration entries.
+
+Volatility3 is available at https://github.com/volatilityfoundation/volatility3.
+
+To read about how to generate the IST see: https://volatility3.readthedocs.io/en/latest/symbol-tables.html.
+
 Rekall profiles
 ------------------------------
+Note: Rekall is no longer maintained. Support for Rekall profiles will be deprecated.
+
 LibVMI also supports the use of Rekall profiles for introspecting Windows and Linux. By using
 Rekall profiles, LibVMI is able to bypass the use if the in-memory KdDebuggerData (KDBG)
 structure normally used by memory forensics tools and thus allows introspecting domains

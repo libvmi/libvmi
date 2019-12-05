@@ -50,9 +50,19 @@
 #include "driver/driver_wrapper.h"
 #include "driver/memory_cache.h"
 #include "driver/kvm/kvm.h"
-#include "driver/kvm/kvm_events.h"
 #include "driver/kvm/kvm_private.h"
+#include "driver/kvm/kvm_events.h"
 #include "driver/kvm/include/kvmi/libkvmi.h"
+
+enum segment_type {
+    SEGMENT_SELECTOR,
+    SEGMENT_BASE,
+    SEGMENT_LIMIT,
+    SEGMENT_ATTR
+};
+
+//----------------------------------------------------------------------------
+// Helper functions
 
 static status_t
 reply_continue(void *dom, struct kvmi_dom_event *ev)
@@ -73,14 +83,20 @@ reply_continue(void *dom, struct kvmi_dom_event *ev)
 }
 
 void *
-kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length) {
+kvm_get_memory_patch(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    uint32_t length)
+{
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    void *buffer;
 
     if (!kvm->kvmi_dom)
         return NULL;
 
-    buffer = g_malloc0(length);
+    char* buffer = g_try_malloc0(length);
+    if (!buffer)
+        return NULL;
+
     if (kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
         g_free(buffer);
         return NULL;
@@ -89,6 +105,26 @@ kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length) {
     return buffer;
 }
 
+void *
+kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    void *buffer;
+
+    if (!kvm->kvmi_dom)
+        return NULL;
+
+    buffer = g_try_malloc0(length);
+    if (!buffer)
+        return NULL;
+
+    if (kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
+        g_free(buffer);
+        return NULL;
+    }
+
+    return buffer;
+}
 
 void
 kvm_release_memory(
@@ -321,14 +357,16 @@ kvm_init(
     uint32_t UNUSED(init_flags),
     vmi_init_data_t* UNUSED(init_data))
 {
-    kvm_instance_t *kvm = g_malloc0(sizeof(kvm_instance_t));
-    if ( VMI_FAILURE == create_libvirt_wrapper(kvm) )
+    kvm_instance_t *kvm = g_try_malloc0(sizeof(kvm_instance_t));
+    if ( VMI_FAILURE == create_libvirt_wrapper(kvm) ) {
+        g_free(kvm);
         return VMI_FAILURE;
+    }
 
     virConnectPtr conn = kvm->libvirt.virConnectOpenAuth("qemu:///system", kvm->libvirt.virConnectAuthPtrDefault, 0);
     if (NULL == conn) {
         dbprint(VMI_DEBUG_KVM, "--no connection to kvm hypervisor\n");
-        free(kvm);
+        g_free(kvm);
         return VMI_FAILURE;
     }
 
@@ -345,6 +383,7 @@ kvm_init_vmi(
     uint32_t init_flags,
     vmi_init_data_t* init_data)
 {
+    (void)init_flags; // unused
     vmi_init_data_entry_t init_entry;
     char *socket_path = NULL;
 
@@ -413,7 +452,6 @@ kvm_destroy(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-
     // events ?
     if (vmi->init_flags & VMI_INIT_EVENTS) {
         kvm_events_destroy(vmi);
@@ -433,125 +471,8 @@ kvm_destroy(
     }
 
     dlclose(kvm->libvirt.handle);
-}
+    g_free(kvm);
 
-uint64_t
-kvm_get_id_from_name(
-    vmi_instance_t vmi,
-    const char *name)
-{
-    virDomainPtr dom = NULL;
-    uint64_t domainid = VMI_INVALID_DOMID;
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
-    dom = kvm->libvirt.virDomainLookupByName(kvm->conn, name);
-    if (NULL == dom) {
-        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
-        domainid = VMI_INVALID_DOMID;
-    } else {
-
-        domainid = (uint64_t) kvm->libvirt.virDomainGetID(dom);
-        if (domainid == (uint64_t)-1) {
-            dbprint(VMI_DEBUG_KVM, "--requested kvm domain may not be running\n");
-            domainid = VMI_INVALID_DOMID;
-        }
-    }
-
-    if (dom)
-        kvm->libvirt.virDomainFree(dom);
-
-    return domainid;
-}
-
-status_t
-kvm_get_name_from_id(
-    vmi_instance_t vmi,
-    uint64_t domainid,
-    char **name)
-{
-    virDomainPtr dom = NULL;
-    const char* temp_name = NULL;
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
-    dom = kvm->libvirt.virDomainLookupByID(kvm->conn, domainid);
-    if (NULL == dom) {
-        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
-        return VMI_FAILURE;
-    }
-
-    temp_name = kvm->libvirt.virDomainGetName(dom);
-    *name = temp_name ? strdup(temp_name) : NULL;
-
-    if (dom)
-        kvm->libvirt.virDomainFree(dom);
-
-    if (*name) {
-        return VMI_SUCCESS;
-    }
-
-    return VMI_FAILURE;
-}
-
-uint64_t
-kvm_get_id(
-    vmi_instance_t vmi)
-{
-    return kvm_get_instance(vmi)->id;
-}
-
-void
-kvm_set_id(
-    vmi_instance_t vmi,
-    uint64_t domainid)
-{
-    kvm_get_instance(vmi)->id = domainid;
-}
-
-status_t
-kvm_check_id(
-    vmi_instance_t vmi,
-    uint64_t domainid)
-{
-    virDomainPtr dom = NULL;
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
-    dom = kvm->libvirt.virDomainLookupByID(kvm->conn, domainid);
-    if (NULL == dom) {
-        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
-        return VMI_FAILURE;
-    }
-
-    if (dom)
-        kvm->libvirt.virDomainFree(dom);
-
-    return VMI_SUCCESS;
-}
-
-status_t
-kvm_get_name(
-    vmi_instance_t vmi,
-    char **name)
-{
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
-    const char *tmpname = kvm->libvirt.virDomainGetName(kvm->dom);
-
-    // don't need to deallocate the name, it will go away with the domain object
-
-    if (NULL != tmpname) {
-        *name = strdup(tmpname);
-        return VMI_SUCCESS;
-    } else {
-        return VMI_FAILURE;
-    }
-}
-
-void
-kvm_set_name(
-    vmi_instance_t vmi,
-    const char *name)
-{
-    kvm_get_instance(vmi)->name = strndup(name, 500);
 }
 
 status_t
@@ -565,7 +486,6 @@ kvm_get_memsize(
         return VMI_FAILURE;
 #endif
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-
     unsigned long long max_gfn;
     if (kvmi_get_maximum_gfn(kvm->kvmi_dom, &max_gfn)) {
         errprint("--failed to get maximum gfn\n");
@@ -762,7 +682,8 @@ kvm_set_vcpureg(vmi_instance_t vmi,
     return VMI_SUCCESS;
 }
 
-status_t kvm_set_vcpuregs(vmi_instance_t vmi,
+status_t
+kvm_set_vcpuregs(vmi_instance_t vmi,
                           registers_t *registers,
                           unsigned long vcpu) {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
@@ -808,65 +729,6 @@ kvm_get_vcpureg(
     return VMI_FAILURE;
 }
 
-void *
-kvm_read_page(
-    vmi_instance_t vmi,
-    addr_t page)
-{
-    addr_t paddr = page << vmi->page_shift;
-
-    return memory_cache_insert(vmi, paddr);
-}
-
-status_t
-kvm_write(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void *buf,
-    uint32_t length)
-{
-    return kvm_put_memory(vmi, paddr, length, buf);
-}
-
-int
-kvm_is_pv(
-    vmi_instance_t UNUSED(vmi))
-{
-    return 0;
-}
-
-status_t
-kvm_test(
-    uint64_t domainid,
-    const char *name,
-    uint64_t UNUSED(init_flags),
-    vmi_init_data_t* UNUSED(init_data))
-{
-    struct vmi_instance _vmi = {0};
-    vmi_instance_t vmi = &_vmi;
-
-    if ( VMI_FAILURE == kvm_init(vmi, 0, NULL) )
-        return VMI_FAILURE;
-
-    if (name) {
-        domainid = kvm_get_id_from_name(vmi, name);
-        if (domainid != VMI_INVALID_DOMID)
-            return VMI_SUCCESS;
-    }
-
-    if (domainid != VMI_INVALID_DOMID) {
-        char *_name = NULL;
-        status_t rc = kvm_get_name_from_id(vmi, domainid, &_name);
-        free(_name);
-
-        if ( VMI_SUCCESS == rc )
-            return rc;
-    }
-
-    kvm_destroy(vmi);
-    return VMI_FAILURE;
-}
-
 status_t
 kvm_pause_vm(
     vmi_instance_t vmi)
@@ -894,6 +756,7 @@ kvm_resume_vm(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+
     // already resumed ?
     if (!kvm->expected_pause_count)
         return VMI_SUCCESS;

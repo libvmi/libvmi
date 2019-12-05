@@ -108,7 +108,7 @@ linux_system_map_symbol_to_address(
         goto done;
     }
 
-    row = g_malloc0(MAX_ROW_LENGTH);
+    row = g_try_malloc0(MAX_ROW_LENGTH);
     if ( !row )
         goto done;
 
@@ -178,7 +178,7 @@ char* linux_system_map_address_to_symbol(
         goto done;
     }
 
-    row = g_malloc0(MAX_ROW_LENGTH);
+    row = g_try_malloc0(MAX_ROW_LENGTH);
     if ( !row )
         goto done;
 
@@ -191,7 +191,7 @@ char* linux_system_map_address_to_symbol(
         goto done;
     }
     size = snprintf(NULL,0,"%"PRIx64"", address) + 1;
-    address_str = g_malloc0(size);
+    address_str = g_try_malloc0(size);
     snprintf(address_str, size, "%"PRIx64"", address);
     if (get_symbol_row(f, row, address_str, 0) == VMI_FAILURE) {
         goto done;

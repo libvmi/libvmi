@@ -47,8 +47,6 @@ const reg_t msr_all[] = {
     MSR_IA32_SYSENTER_EIP,
 
     MSR_IA32_MISC_ENABLE,
-
-    MSR_HYPERVISOR,
 };
 const unsigned int msr_all_len = sizeof(msr_all) / sizeof(reg_t);
 
@@ -99,8 +97,6 @@ const uint32_t msr_index[] = {
     [MSR_IA32_SYSENTER_EIP]      = 0x00000176,
 
     [MSR_IA32_MISC_ENABLE]       = 0x000001a0,
-
-    [MSR_HYPERVISOR]             = 0x40000000
 };
 const unsigned int msr_index_len = sizeof(msr_index) / sizeof(uint32_t);
 

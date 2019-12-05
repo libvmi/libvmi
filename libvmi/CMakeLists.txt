@@ -61,7 +61,17 @@ endif ()
 # target_sources doesn't work with generated files in subdirectories
 if (ENABLE_CONFIGFILE)
     find_package(FLEX)
+    set_package_properties(FLEX PROPERTIES
+        DESCRIPTION "Scanner generator for lexing in C and C++"
+        URL "https://github.com/westes/flex"
+        TYPE OPTIONAL
+        PURPOSE "Lexing LibVMI configuration file")
     find_package(BISON)
+    set_package_properties(BISON PROPERTIES
+        DESCRIPTION "Parser generator"
+        URL "https://www.gnu.org/software/bison"
+        TYPE OPTIONAL
+        PURPOSE "Parsing LibVMI configuration file")
     if (NOT FLEX_FOUND OR NOT BISON_FOUND)
         set(ENABLE_CONFIGFILE OFF CACHE BOOL "Enable config file" FORCE)
         message(WARNING "Cannot find flex or bison: config file parsing will be
@@ -107,12 +117,32 @@ if (ENABLE_CONFIGFILE)
 endif ()
 
 if (ENABLE_KVM)
-    find_package(JSON-C)
+    # common dependencies
     find_package(Libvirt)
-    if (NOT JSON-C_FOUND OR NOT Libvirt_FOUND)
+    if (NOT Libvirt_FOUND)
         set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
-        message(WARNING "Cannot find JSON or Libvirt: disabling KVM driver")
+        message(WARNING "Cannot find Libvirt: disabling KVM driver")
     else ()
+        if (ENABLE_KVM_LEGACY)
+            # legacy KVM driver
+            find_package(JSON-C)
+            set_package_properties(JSON-C PROPERTIES
+                PURPOSE "Dependency for KVM driver")
+            if (NOT JSON-C_FOUND)
+                set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
+                message(WARNING "Cannot find JSON: disabling KVM driver")
+            else ()
+                find_package(LibvmiRequest)
+                # define KVM_LEGACY_DRIVER
+                add_definitions(-DKVM_LEGACY_DRIVER)
+            endif ()
+        else ()
+            # KVM driver based on KVMi series, API is exposed via libkvmi
+            #
+            # for the moment, libkvmi sources are copied from the kvm-vmi/kvm
+            # tree: kvm/tools/kvm/kvmi and versioned into the kvm/ folder as well.
+            # but maybe we will do a find_package(libkvmi) one day ?
+        endif ()
         target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
         # CMAKE_DL_LIBS -> dlopen* lib
         target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
@@ -124,6 +154,8 @@ endif ()
 
 if (ENABLE_BAREFLANK)
     find_package(JSON-C)
+    set_package_properties(JSON-C PROPERTIES
+        PURPOSE "Dependency for Bareflank driver")
     if (NOT JSON-C_FOUND)
         set(ENABLE_BAREFLANK OFF CACHE BOOL "Build Bareflank driver" FORCE)
         message(WARNING "Cannot find JSON: disabling Bareflank driver")
@@ -154,13 +186,23 @@ if (ENABLE_ADDRESS_CACHE)
     target_sources(vmi_shared PRIVATE cache.c)
 endif ()
 
-if (REKALL_PROFILES)
+if (REKALL_PROFILES OR VOLATILITY_IST)
     find_package(JSON-C)
+    set_package_properties(JSON-C PROPERTIES
+        PURPOSE "Dependency for Rekall profiles and Volatility IST parsing")
     if (NOT JSON-C_FOUND)
+        set(ENABLE_JSON_PROFILES OFF)
         set(REKALL_PROFILES OFF)
-        message(WARNING "Cannot find JSON: disabling Rekall profiles")
+        set(VOLATILITY_IST OFF)
+        message(WARNING "Cannot find JSON: disabling Rekall profiles and Volatility IST")
     else ()
-        target_sources(vmi_shared PRIVATE rekall.c)
+        set(ENABLE_JSON_PROFILES ON)
+        if (REKALL_PROFILES)
+            target_sources(vmi_shared PRIVATE json_profiles/rekall.c)
+        endif ()
+        if (VOLATILITY_IST)
+            target_sources(vmi_shared PRIVATE json_profiles/volatility_ist.c)
+        endif ()
         target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
         target_link_libraries(vmi_shared PRIVATE ${JSON-C_LIBRARIES})
         list(APPEND VMI_PUBLIC_DEPS ${JSON-C_LIBRARIES})

@@ -31,6 +31,7 @@ static inline status_t sanity_check(kvm_instance_t *kvm)
     if ( !w->virConnectOpenAuth || !w->virConnectGetLibVersion || !w->virConnectAuthPtrDefault ||
             !w->virConnectClose || !w->virDomainGetName || !w->virDomainGetID ||
             !w->virDomainLookupByID || !w->virDomainLookupByName || !w->virDomainGetInfo ||
+            !w->virDomainQemuMonitorCommand ||
             !w->virDomainFree || !w->virDomainSuspend || !w->virDomainResume ) {
         dbprint(VMI_DEBUG_KVM, "--failed to find the required functions in libvirt\n");
         return VMI_FAILURE;
@@ -43,14 +44,27 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
 {
     libvirt_wrapper_t *wrapper = &kvm->libvirt;
 
-    wrapper->handle = dlopen ("libvirt.so", RTLD_NOW | RTLD_GLOBAL);
+    wrapper->handle = dlopen("libvirt.so", RTLD_NOW | RTLD_GLOBAL);
 
     if ( !wrapper->handle ) {
         // fallback to libvirt.so.0
-        wrapper->handle = dlopen ("libvirt.so.0", RTLD_NOW | RTLD_GLOBAL);
+        wrapper->handle = dlopen("libvirt.so.0", RTLD_NOW | RTLD_GLOBAL);
 
         if ( !wrapper->handle ) {
             dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libvirt\n");
+            return VMI_FAILURE;
+        }
+    }
+
+    wrapper->handle_qemu = dlopen ("libvirt-qemu.so", RTLD_NOW | RTLD_GLOBAL);
+
+    if ( !wrapper->handle_qemu ) {
+        // fallback to libvirt-qemu.so.0
+        wrapper->handle_qemu = dlopen ("libvirt-qemu.so.0", RTLD_NOW | RTLD_GLOBAL);
+
+        if ( !wrapper->handle_qemu ) {
+            dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libvirt-qemu\n");
+            dlclose(wrapper->handle);
             return VMI_FAILURE;
         }
     }
@@ -68,5 +82,13 @@ status_t create_libvirt_wrapper(kvm_instance_t *kvm)
     wrapper->virDomainResume = dlsym(wrapper->handle, "virDomainResume");
     wrapper->virConnectAuthPtrDefault = dlsym(wrapper->handle, "virConnectAuthPtrDefault");
 
-    return sanity_check(kvm);
+    wrapper->virDomainQemuMonitorCommand = dlsym(wrapper->handle_qemu, "virDomainQemuMonitorCommand");
+
+    status_t ret = sanity_check(kvm);
+    if ( ret != VMI_SUCCESS ) {
+        dlclose(wrapper->handle);
+        dlclose(wrapper->handle_qemu);
+    }
+
+    return ret;
 }

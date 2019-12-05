@@ -16,3 +16,9 @@ if (LibvmiRequest_FOUND)
 endif ()
 
 mark_as_advanced(LibvmiRequest_INCLUDE_DIR)
+
+set_package_properties(LibvmiRequest PROPERTIES
+    DESCRIPTION "Fast memory access for KVM driver"
+    URL "https://github.com/libvmi/libvmi/tree/master/tools/qemu-kvm-patch"
+    PURPOSE "Fast memory access for KVM driver"
+    TYPE OPTIONAL)
