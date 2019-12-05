@@ -592,6 +592,9 @@ kvm_init(
     vmi_init_data_t* UNUSED(init_data))
 {
     kvm_instance_t *kvm = g_try_malloc0(sizeof(kvm_instance_t));
+    if (!kvm)
+        return VMI_FAILURE;
+
     if ( VMI_FAILURE == create_libvirt_wrapper(kvm) ) {
         g_free(kvm);
         return VMI_FAILURE;
