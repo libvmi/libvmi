@@ -43,7 +43,7 @@ int main (int argc, char **argv)
     unsigned long tasks_offset = 0, pid_offset = 0, name_offset = 0;
     status_t status;
     vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
-                                       + (sizeof(vmi_init_data_entry_t) * 1));
+                                        + (sizeof(vmi_init_data_entry_t) * 1));
 
     /* this is the VM or file that we are looking at */
     if (argc != 3) {
@@ -61,8 +61,8 @@ int main (int argc, char **argv)
 
     /* initialize the libvmi library */
     if (VMI_FAILURE ==
-        vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, init_data,
-                          VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
+            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, init_data,
+                              VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }

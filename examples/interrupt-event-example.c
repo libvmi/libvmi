@@ -72,7 +72,7 @@ int main (int argc, char **argv)
     vmi_instance_t vmi;
     vmi_mode_t mode;
     vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
-                                       + (sizeof(vmi_init_data_entry_t) * 1));
+                                        + (sizeof(vmi_init_data_entry_t) * 1));
     struct sigaction act;
     act.sa_handler = close_handler;
     act.sa_flags = 0;

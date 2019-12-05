@@ -54,7 +54,7 @@ int main (int argc, char **argv)
     status_t status;
     vmi_mode_t mode;
     vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
-                                       + (sizeof(vmi_init_data_entry_t) * 1));
+                                        + (sizeof(vmi_init_data_entry_t) * 1));
 
     /* this is the VM or file that we are looking at */
     if (argc < 2) {
@@ -79,7 +79,7 @@ int main (int argc, char **argv)
     }
 
     if (VMI_FAILURE ==
-        vmi_init(&vmi, mode, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
+            vmi_init(&vmi, mode, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
         fprintf(stderr, "Failed to init LibVMI library.\n");
         return 1;
     }
