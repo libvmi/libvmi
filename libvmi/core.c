@@ -219,12 +219,20 @@ set_os_type_from_config(
         vmi->os_data = NULL;
     }
 
-    ostype = g_hash_table_lookup(configtbl, "ostype");
-    if (ostype == NULL) {
-        ostype = g_hash_table_lookup(configtbl, "os_type");
+    const char *json_path = g_hash_table_lookup(configtbl, "volatility_ist");
+    if ( !json_path )
+        json_path = g_hash_table_lookup(configtbl, "rekall_profile");
+
+    if ( json_path && json_profile_init(vmi, json_path) )
+        ostype = vmi->json.get_os_type(vmi);
+
+    if (!ostype) {
+        ostype = g_hash_table_lookup(configtbl, "ostype");
+        if (ostype == NULL)
+            ostype = g_hash_table_lookup(configtbl, "os_type");
     }
 
-    if (ostype == NULL) {
+    if ( !ostype ) {
         errprint("Undefined OS type!\n");
         return VMI_FAILURE;
     }
@@ -811,9 +819,9 @@ vmi_destroy(
     vmi->arch_interface = NULL;
 
 #ifdef ENABLE_JSON_PROFILES
-    g_free(vmi->json_profile_path);
-    if ( vmi->json_profile )
-        json_object_put(vmi->json_profile);
+    g_free((char*)vmi->json.path);
+    if ( vmi->json.root )
+        json_object_put(vmi->json.root);
 #endif
 
     pid_cache_destroy(vmi);

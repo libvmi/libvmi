@@ -853,7 +853,7 @@ vmi_get_rekall_path(
 #endif
 
 #ifdef ENABLE_JSON_PROFILES
-    return vmi->json_profile_path;
+    return vmi->json.path;
 #else
     return NULL;
 #endif
@@ -869,8 +869,8 @@ vmi_get_os_profile_path(
 #endif
 
 #ifdef ENABLE_JSON_PROFILES
-    if ( vmi->json_profile_path )
-        return vmi->json_profile_path;
+    if ( vmi->json.path )
+        return vmi->json.path;
 #endif
 
 #ifdef ENABLE_SAFETY_CHECKS

@@ -43,6 +43,7 @@ if ENABLE_ADDRESS_CACHE
 endif
 
 if ENABLE_JSON_PROFILES
+    c_sources   += libvmi/json_profiles/json_profiles.c
     h_private   += libvmi/json_profiles/json_profiles.h
 endif
 

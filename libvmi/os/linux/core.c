@@ -629,34 +629,6 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
-#ifdef REKALL_PROFILES
-    if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
-        vmi->json_profile_path = g_strdup((char *)value);
-        json_object *root = json_object_from_file(vmi->json_profile_path);
-        if (!root) {
-            errprint("Rekall profile couldn't be opened!\n");
-            goto _done;
-        }
-        vmi->json_profile = root;
-        vmi->json_handler = rekall_profile_symbol_to_rva;
-        goto _done;
-    }
-#endif
-
-#ifdef VOLATILITY_IST
-    if (strncmp(key, "volatility_ist", CONFIG_STR_LENGTH) == 0) {
-        vmi->json_profile_path = g_strdup((char *)value);
-        json_object *root = json_object_from_file(vmi->json_profile_path);
-        if (!root) {
-            errprint("Volatility IST profile couldn't be opened!\n");
-            goto _done;
-        }
-        vmi->json_profile = root;
-        vmi->json_handler = volatility_ist_symbol_to_rva;
-        goto _done;
-    }
-#endif
-
     if (strncmp(key, "linux_tasks", CONFIG_STR_LENGTH) == 0) {
         linux_instance->tasks_offset = *(addr_t *)value;
         goto _done;
@@ -696,24 +668,6 @@ void linux_read_config_ghashtable_entries(char* key, gpointer value,
         vmi->kpgd = *(addr_t*)value;
         goto _done;
     }
-
-    if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0 || strncmp(key, "os_type", CONFIG_STR_LENGTH) == 0) {
-        goto _done;
-    }
-
-    if (strncmp(key, "name", CONFIG_STR_LENGTH) == 0) {
-        goto _done;
-    }
-
-    if (strncmp(key, "domid", CONFIG_STR_LENGTH) == 0) {
-        goto _done;
-    }
-
-    if (strncmp(key, "physoffset", CONFIG_STR_LENGTH) == 0) {
-        goto _done;
-    }
-
-    warnprint("Invalid offset %s given for Linux target\n", key);
 
 _done:
     return;

@@ -28,11 +28,22 @@
 #include "json_profiles/rekall.h"
 #include "json_profiles/volatility_ist.h"
 
-typedef status_t (*json_profile_handler)(
-    json_object *json_profile,
-    const char *symbol,
-    const char *subsymbol,
-    addr_t *rva);
+typedef struct json_interface {
+    const char *path; /**< JSON profile's path for domain's running kernel */
+
+    json_object *root;
+
+    status_t (*handler)(
+        vmi_instance_t vmi,
+        const char *symbol,
+        const char *subsymbol,
+        addr_t *rva);
+
+    const char* (*get_os_type)(
+        vmi_instance_t vmi);
+} json_interface_t;
+
+bool json_profile_init(vmi_instance_t vmi, const char* path);
 
 #endif
 #endif /* LIBVMI_JSON_PROFILES_H */
