@@ -693,7 +693,7 @@ os_t vmi_init_os(
      * heuristics.
      */
     if ( VMI_FILE != vmi->mode && VMI_PM_UNKNOWN == vmi->page_mode &&
-            VMI_PM_UNKNOWN == vmi_init_paging(vmi, 0) ) {
+            VMI_PM_UNKNOWN == vmi_init_paging(vmi, vmi->os_type == VMI_OS_WINDOWS ? VMI_PM_INITFLAG_TRANSITION_PAGES : 0) ) {
         vmi->os_type = VMI_OS_UNKNOWN;
         if ( error )
             *error = VMI_INIT_ERROR_PAGING;
