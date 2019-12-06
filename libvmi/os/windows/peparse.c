@@ -232,11 +232,6 @@ peparse_validate_pe_image(
     size_t len)
 {
     struct dos_header *dos_header = (struct dos_header *) image;
-    uint32_t fixed_header_sz =
-        sizeof(struct optional_header_pe32plus) +
-        sizeof(struct pe_header);
-
-    //vmi_print_hex (image, MAX_HEADER_BYTES);
 
     if (IMAGE_DOS_HEADER != dos_header->signature) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: DOS header signature not found\n");
@@ -245,13 +240,12 @@ peparse_validate_pe_image(
 
     uint32_t ofs_to_pe = dos_header->offset_to_pe;
 
-    if (ofs_to_pe > len - fixed_header_sz) {
-        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: DOS header offset to PE value too big\n");
+    if (ofs_to_pe + sizeof(struct pe_header) + sizeof(struct optional_header_pe32) > len) {
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: offset to PE would be outside buffer length\n");
         return VMI_FAILURE;
     }
 
-    struct pe_header *pe_header =
-        (struct pe_header *) (image + ofs_to_pe);
+    struct pe_header *pe_header = (struct pe_header *) (image + ofs_to_pe);
     if (IMAGE_NT_SIGNATURE != pe_header->signature) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: PE header signature invalid\n");
         return VMI_FAILURE;
@@ -262,8 +256,7 @@ peparse_validate_pe_image(
         (struct optional_header_pe32 *)
         ((uint8_t *) pe_header + sizeof(struct pe_header));
 
-    if (IMAGE_PE32_MAGIC != pe_opt_header->magic &&
-            IMAGE_PE32_PLUS_MAGIC != pe_opt_header->magic) {
+    if (IMAGE_PE32_MAGIC != pe_opt_header->magic && IMAGE_PE32_PLUS_MAGIC != pe_opt_header->magic) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: Optional header magic value unknown\n");
         return VMI_FAILURE;
     }
