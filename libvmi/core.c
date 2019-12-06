@@ -180,7 +180,7 @@ status_t read_config_string(vmi_instance_t vmi,
 
     gchar *config_str = g_strconcat(vmi->image_type, " ", config, NULL);
 
-    config_file = fmemopen(config_str, strlen(config_str), "r");
+    config_file = fmemopen(config_str, strlen(config_str)+1, "r");
     ret = read_config_file(vmi, config_file, _config, error);
 
     g_free(config_str);

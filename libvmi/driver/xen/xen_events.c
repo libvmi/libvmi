@@ -630,8 +630,10 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                                    &event->emul_read->data,
                                    rsp->data.emul.read.size);
 
-                            if ( !event->emul_read->dont_free )
+                            if ( !event->emul_read->dont_free ) {
                                 free(event->emul_read);
+                                event->emul_read = NULL;
+                            }
                         }
                         break;
                     case VMI_EVENT_RESPONSE_SET_EMUL_INSN:
@@ -642,8 +644,10 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                                    &event->emul_insn->data,
                                    sizeof(rsp->data.emul.insn.data));
 
-                            if ( !event->emul_insn->dont_free )
+                            if ( !event->emul_insn->dont_free ) {
                                 free(event->emul_insn);
+                                event->emul_insn = NULL;
+                            }
                         }
                         break;
                 };
