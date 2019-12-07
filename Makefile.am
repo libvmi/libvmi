@@ -125,14 +125,14 @@ library_include_HEADERS = $(h_public)
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvmi.pc
 
-AM_CFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS)
-AM_CPPFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS)
+AM_CFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS) $(JSONC_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS) $(JSONC_CFLAGS)
 AM_YFLAGS = -y -d
 
 lib_LTLIBRARIES= libvmi/libvmi.la
 libvmi_libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
-libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS)
-libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) -no-undefined
+libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS)
+libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
 
 if ENABLE_CONFIGFILE
