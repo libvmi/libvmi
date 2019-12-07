@@ -2,6 +2,8 @@
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
+ * Author: Tamas K Lengyel <tamas@tklengyel.com>
+ *
  * This file is part of LibVMI.
  *
  * LibVMI is free software: you can redistribute it and/or modify it under
