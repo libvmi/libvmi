@@ -26,19 +26,19 @@
 
 status_t
 rekall_profile_symbol_to_rva(
-    json_object *root,
+    vmi_instance_t vmi,
     const char *symbol,
     const char *subsymbol,
     addr_t *rva)
 {
     status_t ret = VMI_FAILURE;
-    if (!root || !symbol) {
+    if (!vmi->json.root || !symbol) {
         return ret;
     }
 
     if (!subsymbol) {
         json_object *constants = NULL, *functions = NULL, *jsymbol = NULL;
-        if (json_object_object_get_ex(root, "$CONSTANTS", &constants)) {
+        if (json_object_object_get_ex(vmi->json.root, "$CONSTANTS", &constants)) {
             if (json_object_object_get_ex(constants, symbol, &jsymbol)) {
                 *rva = json_object_get_int64(jsymbol);
 
@@ -51,7 +51,7 @@ rekall_profile_symbol_to_rva(
             dbprint(VMI_DEBUG_MISC, "Rekall profile: no $CONSTANTS section found\n");
         }
 
-        if (json_object_object_get_ex(root, "$FUNCTIONS", &functions)) {
+        if (json_object_object_get_ex(vmi->json.root, "$FUNCTIONS", &functions)) {
             if (json_object_object_get_ex(functions, symbol, &jsymbol)) {
                 *rva = json_object_get_int64(jsymbol);
 
@@ -65,7 +65,7 @@ rekall_profile_symbol_to_rva(
         }
     } else {
         json_object *structs = NULL, *jstruct = NULL, *jstruct2 = NULL, *jmember = NULL, *jvalue = NULL;
-        if (!json_object_object_get_ex(root, "$STRUCTS", &structs)) {
+        if (!json_object_object_get_ex(vmi->json.root, "$STRUCTS", &structs)) {
             dbprint(VMI_DEBUG_MISC, "Rekall profile: no $STRUCTS section found\n");
             goto exit;
         }
@@ -99,4 +99,21 @@ exit:
     dbprint(VMI_DEBUG_MISC, "Rekall profile lookup %s %s: 0x%lx\n", symbol ?: NULL, subsymbol ?: NULL, *rva);
 
     return ret;
+}
+
+const char* rekall_get_os_type(vmi_instance_t vmi)
+{
+    json_object *metadata = NULL, *os = NULL;
+
+    if ( !json_object_object_get_ex(vmi->json.root, "$METADATA", &metadata) )
+        return NULL;
+    if ( !json_object_object_get_ex(metadata, "ProfileClass", &os) )
+        return NULL;
+
+    if ( !strcmp("Linux", json_object_get_string(os)) )
+        return "Linux";
+    else
+        return "Windows";
+
+    return NULL;
 }
