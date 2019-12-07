@@ -326,20 +326,21 @@ matrix:
 #
     - env:
         - TEST="cross-compile for ARM"
+        - PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig/
       addons:
         apt:
-            sources:
-                - ubuntu-toolchain-r-test
-            packages:
-                - cmake
-                - bison
-                - flex
-                - check
-                - libjson-c-dev
-                - libvirt-dev
-                - libxen-dev
-                - libfuse-dev
-                - gcc-arm-linux-gnueabi
+          sources:
+            - sourceline: 'deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports bionic main restricted universe multiverse'
+            - sourceline: 'deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports bionic-updates main restricted universe multiverse'
+            - sourceline: 'deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports bionic-backports main restricted universe multiverse'
+            - sourceline: 'deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports bionic-security main restricted universe multiverse'
+      before_install:
+        - sudo dpkg --add-architecture armhf
+        - sudo sed -i "s/http:\/\/archive/[arch=amd64,arch=i386] http:\/\/archive/" /etc/apt/sources.list
+        - sudo sed -i "s/http:\/\/security/[arch=amd64,arch=i386] http:\/\/security/" /etc/apt/sources.list
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install cmake check gcc-arm-linux-gnueabihf bison:armhf flex:armhf libjson-c-dev:armhf libvirt-dev:armhf libxen-dev:armhf libfuse-dev:armhf
       script:
         - mkdir build && cd build
         - cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/arm-clang.cmake ..
