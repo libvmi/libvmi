@@ -2654,17 +2654,30 @@ status_t xen_init_events(
 
     dbprint(VMI_DEBUG_XEN, "--Xen common events interface initialized\n");
 
-    switch (xen->minor_version) {
-        case 6 ... 7:
-            return init_events_46(vmi);
-        case 8 ... 11:
-            return init_events_48(vmi);
-        case 12:
-            return init_events_412(vmi);
-        default: /* fall-through */
-        case 13:
-            return init_events_413(vmi);
-    };
+    /*
+     * Starting with Xen 4.13 we have a new libxc API to get the real vm_event version
+     * and we don't have to deduce it from the Xen minor version, allowing vm_event
+     * versions to be backported to older Xen releases.
+     *
+     * TODO: rename internal functions here from having suffixes tied to Xen's minor version
+     */
+    if ( xen->libxcw.xc_vm_event_get_version ) {
+        switch (xen->libxcw.xc_vm_event_get_version(xch) ) {
+            default: /* fall-through */
+            case 5:
+                return init_events_413(vmi);
+        };
+    } else {
+        switch (xen->minor_version) {
+            case 6 ... 7:
+                return init_events_46(vmi);
+            case 8 ... 11:
+                return init_events_48(vmi);
+            default: /* fall-through */
+            case 12:
+                return init_events_412(vmi);
+        };
+    }
 
 err:
     g_free(xe);
