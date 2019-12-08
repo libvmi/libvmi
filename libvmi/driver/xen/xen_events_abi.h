@@ -24,8 +24,6 @@
 #include <config.h>
 #include <xen/io/ring.h>
 
-#define MAX_SUPPORTED_VM_EVENT_INTERFACE_VERSION 0x00000004
-
 #ifndef HVM_PARAM_MONITOR_RING_PFN
 #define HVM_PARAM_MONITOR_RING_PFN 28
 #endif

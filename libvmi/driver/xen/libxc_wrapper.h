@@ -253,6 +253,10 @@ typedef struct {
     int (*xc_monitor_emul_unimplemented)
     (xc_interface *xch, uint32_t domain_id, bool enable);
 
+    /* Xen 4.13+ but may be backported */
+    int (*xc_vm_event_get_version)
+    (xc_interface *xch);
+
 } libxc_wrapper_t;
 
 status_t create_libxc_wrapper(struct xen_instance *xen);
