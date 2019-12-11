@@ -863,21 +863,6 @@ jobs:
         - make install
 
 #
-# bareflank only
-#
-    - arch: arm64
-      env:
-        - TEST="bareflank only (autotools)"
-      install:
-        - sudo apt-get update
-        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev
-      script:
-        - autoreconf -vif
-        - ./configure --prefix=$PWD/install --disable-kvm --disable-xen --disable-file
-        - make
-        - make install
-
-#
 # xen only
 #
     - arch: arm64
@@ -904,21 +889,6 @@ jobs:
       script:
         - mkdir build && cd build
         - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_XEN=OFF -DENABLE_BAREFLANK=OFF -DENABLE_FILE=OFF ..
-        - make
-        - make install
-
-#
-# bareflank only
-#
-    - arch: arm64
-      env:
-        - TEST="bareflank only (cmake)"
-      install:
-        - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev
-      script:
-        - mkdir build && cd build
-        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_KVM=OFF -DENABLE_XEN=OFF -DENABLE_FILE=OFF ..
         - make
         - make install
 
