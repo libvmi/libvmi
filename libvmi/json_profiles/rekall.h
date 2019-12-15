@@ -27,20 +27,22 @@
 
 status_t
 rekall_profile_symbol_to_rva(
-    vmi_instance_t vmi,
+    json_object *json,
     const char *symbol,
     const char *subsymbol,
-    addr_t *rva);
+    addr_t *rva,
+    size_t *size);
 
 const char* rekall_get_os_type(vmi_instance_t vmi);
 
 #else
 
 static inline status_t rekall_profile_symbol_to_rva(
-    vmi_instance_t vmi,
+    json_object *json,
     const char *symbol,
     const char *subsymbol,
-    addr_t *rva)
+    addr_t *rva,
+    size_t *size)
 {
     return VMI_FAILURE;
 }

@@ -379,7 +379,7 @@ win_ver_t find_windows_version(
 
 #ifdef ENABLE_JSON_PROFILES
 #define json_profile_lookup(vmi, ...) (vmi->json.handler ? \
-        vmi->json.handler(vmi, __VA_ARGS__) : \
+        vmi->json.handler(vmi->json.root, __VA_ARGS__, NULL) : \
         VMI_FAILURE)
 #else
 #define json_profile_lookup(...) VMI_FAILURE
