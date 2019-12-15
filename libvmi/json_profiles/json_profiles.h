@@ -36,10 +36,11 @@ typedef struct json_interface {
     json_object *root;
 
     status_t (*handler)(
-        vmi_instance_t vmi,
+        json_object *json,
         const char *symbol,
         const char *subsymbol,
-        addr_t *rva);
+        addr_t *rva,
+        size_t *size);
 
     const char* (*get_os_type)(
         vmi_instance_t vmi);

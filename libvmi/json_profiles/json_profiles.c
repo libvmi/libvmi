@@ -73,3 +73,32 @@ bool json_profile_init(vmi_instance_t vmi, const char* path)
 
     return true;
 }
+
+json_object* vmi_get_kernel_json(vmi_instance_t vmi)
+{
+    return vmi->json.root;
+}
+
+status_t vmi_get_symbol_addr_from_json(vmi_instance_t vmi, json_object* json, const char* symbol, addr_t* addr)
+{
+    if ( !vmi->json.handler )
+        return VMI_FAILURE;
+
+    return vmi->json.handler(json, symbol, NULL, addr, NULL);
+}
+
+status_t vmi_get_struct_size_from_json(vmi_instance_t vmi, json_object* json, const char* struct_name, size_t* size)
+{
+    if ( !vmi->json.handler )
+        return VMI_FAILURE;
+
+    return vmi->json.handler(json, struct_name, NULL, NULL, size);
+}
+
+status_t vmi_get_struct_member_offset_from_json(vmi_instance_t vmi, json_object* json, const char* struct_name, const char* struct_member, addr_t* offset)
+{
+    if ( !vmi->json.handler )
+        return VMI_FAILURE;
+
+    return vmi->json.handler(json, struct_name, struct_member, offset, NULL);
+}
