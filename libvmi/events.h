@@ -434,7 +434,8 @@ typedef uint32_t event_response_flags_t;
 #define VMI_EVENT_RESPONSE_SET_REGISTERS        (1u << 7)
 #define VMI_EVENT_RESPONSE_SET_EMUL_INSN        (1u << 8)
 #define VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT   (1u << 9)
-#define __VMI_EVENT_RESPONSE_MAX                9
+#define VMI_EVENT_RESPONSE_FAST_SINGLESTEP      (1u << 10)
+#define __VMI_EVENT_RESPONSE_MAX                10
 
 /**
  * Bitmap holding event_reponse_flags_t values returned by callback
@@ -472,6 +473,13 @@ struct vmi_event {
      * Note: on Xen this corresponds to the altp2m_idx.
      */
     uint16_t slat_id;
+
+    /**
+     * RESPONSE
+     *
+     * Can be specified when registering fast singlestep.
+     */
+    uint16_t next_slat_id;
 
     /**
      * CONST IN

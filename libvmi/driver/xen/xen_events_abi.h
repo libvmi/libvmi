@@ -94,6 +94,7 @@ typedef enum {
 #define VM_EVENT_FLAG_SET_REGISTERS      (1 << 8)
 #define VM_EVENT_FLAG_SET_EMUL_INSN_DATA (1 << 9)
 #define VM_EVENT_FLAG_GET_NEXT_INTERRUPT (1 << 10)
+#define VM_EVENT_FLAG_FAST_SINGLESTEP    (1 << 11)
 
 #define VM_EVENT_REASON_UNKNOWN                 0
 #define VM_EVENT_REASON_MEM_ACCESS              1
@@ -315,6 +316,10 @@ struct vm_event_singlestep {
     uint64_t gfn;
 };
 
+struct vm_event_fast_singlestep {
+  uint16_t p2midx;
+};
+
 struct vm_event_debug {
     uint64_t gfn;
     uint32_t insn_length;
@@ -472,6 +477,7 @@ typedef struct vm_event_st_412 {
         struct vm_event_mov_to_msr_411        mov_to_msr;
         struct vm_event_desc_access           desc_access;
         struct vm_event_singlestep            singlestep;
+        struct vm_event_fast_singlestep       fast_singlestep;
         struct vm_event_debug                 software_breakpoint;
         struct vm_event_debug                 debug_exception;
         struct vm_event_cpuid                 cpuid;

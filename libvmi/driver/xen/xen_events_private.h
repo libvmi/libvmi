@@ -82,6 +82,7 @@ typedef struct vm_event_compat {
         struct vm_event_mov_to_msr_411        mov_to_msr;
         struct vm_event_desc_access           desc_access;
         struct vm_event_singlestep            singlestep;
+        struct vm_event_fast_singlestep       fast_singlestep;
         struct vm_event_debug                 software_breakpoint;
         struct vm_event_debug                 debug_exception;
         struct vm_event_cpuid                 cpuid;
@@ -141,6 +142,7 @@ static const unsigned int event_response_conversion[] = {
     [VMI_EVENT_RESPONSE_EMULATE] = VM_EVENT_FLAG_EMULATE,
     [VMI_EVENT_RESPONSE_EMULATE_NOWRITE] = VM_EVENT_FLAG_EMULATE_NOWRITE,
     [VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP] = VM_EVENT_FLAG_TOGGLE_SINGLESTEP,
+    [VMI_EVENT_RESPONSE_FAST_SINGLESTEP] = VM_EVENT_FLAG_FAST_SINGLESTEP,
     [VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA] = VM_EVENT_FLAG_SET_EMUL_READ_DATA,
     [VMI_EVENT_RESPONSE_DENY] = VM_EVENT_FLAG_DENY,
     [VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID] = VM_EVENT_FLAG_ALTERNATE_P2M,

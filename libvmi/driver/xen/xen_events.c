@@ -614,11 +614,15 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                     case VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID:
                         rsp->altp2m_idx = event->slat_id;
                         break;
-                    case VMI_EVENT_RESPONSE_EMULATE_NOWRITE:
+                    case VMI_EVENT_RESPONSE_FAST_SINGLESTEP:
+                        rsp->fast_singlestep.p2midx = event->next_slat_id;
+                        break;
+                    case VMI_EVENT_RESPONSE_EMULATE_NOWRITE: // TODO Remove redundant case
                         rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
                         break;
                     case VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA:
                         if ( event->emul_read ) {
+                            // TODO Remove redundant conversion
                             rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
 
                             if ( event->emul_read->size < sizeof(event->emul_read->data) )
@@ -636,6 +640,7 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                         break;
                     case VMI_EVENT_RESPONSE_SET_EMUL_INSN:
                         if ( event->emul_insn ) {
+                            // TODO Remove redundant conversion
                             rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
 
                             memcpy(&rsp->data.emul.insn.data,
@@ -1882,6 +1887,9 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
         rsp->flags = vmec.flags;
         rsp->reason = vmec.reason;
         rsp->altp2m_idx = vmec.altp2m_idx;
+
+        if (rsp->flags & VM_EVENT_FLAG_FAST_SINGLESTEP)
+          rsp->u.fast_singlestep.p2midx = vmec.fast_singlestep.p2midx;
 
         if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_READ_DATA ) {
             rsp->data.emul.read.size = vmec.data.emul.read.size;
