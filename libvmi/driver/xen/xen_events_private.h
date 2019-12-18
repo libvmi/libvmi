@@ -79,11 +79,11 @@ typedef struct vm_event_compat {
     union {
         struct vm_event_mem_access            mem_access;
         struct vm_event_write_ctrlreg         write_ctrlreg;
-        struct vm_event_mov_to_msr_411        mov_to_msr;
-        struct vm_event_desc_access           desc_access;
+        struct vm_event_mov_to_msr_3          mov_to_msr;
+        struct vm_event_desc_access_3         desc_access;
         struct vm_event_singlestep            singlestep;
-        struct vm_event_debug                 software_breakpoint;
-        struct vm_event_debug                 debug_exception;
+        struct vm_event_debug_2               software_breakpoint;
+        struct vm_event_debug_2               debug_exception;
         struct vm_event_cpuid                 cpuid;
         struct vm_event_interrupt_x86         x86_interrupt;
     };
@@ -95,7 +95,7 @@ typedef struct vm_event_compat {
         } regs;
 
         union {
-            struct vm_event_emul_read_data_412 read;
+            struct vm_event_emul_read_data_4 read;
             struct vm_event_emul_insn_data insn;
         } emul;
     } data;
@@ -115,10 +115,12 @@ typedef struct {
     bool external_poll;
     void *ring_page;
     union {
-        vm_event_46_back_ring_t back_ring_46;
-        vm_event_48_back_ring_t back_ring_48;
-        vm_event_412_back_ring_t back_ring_412;
-        vm_event_413_back_ring_t back_ring_413;
+        vm_event_1_back_ring_t back_ring_1;
+        vm_event_2_back_ring_t back_ring_2;
+        vm_event_3_back_ring_t back_ring_3;
+        vm_event_4_back_ring_t back_ring_4;
+        vm_event_5_back_ring_t back_ring_5;
+        vm_event_6_back_ring_t back_ring_6;
     };
     xen_pfn_t max_gpfn;
     uint32_t monitor_capabilities;
