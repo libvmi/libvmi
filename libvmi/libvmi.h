@@ -957,6 +957,8 @@ const char* vmi_translate_v2ksym(
  * these lists are not guaranteed to be complete and accurate. Use of
  * this function is discouraged when using events.
  *
+ * Note: Use of this function is discouraged with events.
+ *
  * @param[in] vmi LibVMI instance
  * @param[in] pid Desired process id to lookup
  * @param[out] dtb The directory table base virtual address for a pid
@@ -975,6 +977,12 @@ status_t vmi_pid_to_dtb(
  * Note: this function uses OS internal linked-lists to find a match but
  * these lists are not guaranteed to be complete and accurate. Use of
  * this function is discouraged when using events.
+ *
+ * Note: On Linux certain PIDs don't have their own dtb (task->mm)
+ * and rather re-use other process' dtb (task->active_mm). In such case
+ * the PID returned by this function will be that of the "owning" process.
+ *
+ * Note: Use of this function is discouraged with events.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] dtb Desired dtb to lookup
