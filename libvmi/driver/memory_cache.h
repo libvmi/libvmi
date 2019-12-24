@@ -50,4 +50,7 @@ void memory_cache_remove(
 void memory_cache_destroy(
     vmi_instance_t vmi);
 
+void memory_cache_flush(
+    vmi_instance_t vmi);
+
 #endif
