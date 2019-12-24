@@ -391,8 +391,11 @@ set_id_and_name(
 
     dbprint(VMI_DEBUG_CORE, "--failed to get domain name from id!\n");
 
-#if !defined(HAVE_XS_H) && !defined(HAVE_XENSTORE_H)
-    // Only under Xen this is OK without Xenstore
+    /*
+     * On Xen it is possible that we don't have access to xenstore or xenstore doesn't
+     * have the required information. Create a placeholder idstring in this case, since
+     * we really only need the domain ID to successfully work.
+     */
     if (vmi->mode == VMI_XEN) {
         // create placeholder for image_type
         char *idstring = g_try_malloc0(snprintf(NULL, 0, "domid-%"PRIu64, id) + 1);
@@ -402,7 +405,6 @@ set_id_and_name(
             goto done;
         }
     }
-#endif
 
     return VMI_FAILURE;
 
