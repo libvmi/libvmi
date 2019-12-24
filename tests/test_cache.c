@@ -38,11 +38,13 @@ START_TEST (test_libvmi_cache)
     vmi_init_complete(&vmi, (void*)get_testvm(), VMI_INIT_DOMAINNAME, NULL,
                       VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL);
 
-    v2p_cache_flush(vmi, ~0ull);
-    v2p_cache_set(vmi, 0x400000, 0xabcde, 0x3b40a000);
+    vmi_pagecache_flush(vmi);
 
 #ifdef ENABLE_ADDRESS_CACHE
     addr_t pa = 0;
+    v2p_cache_flush(vmi, ~0ull);
+    v2p_cache_set(vmi, 0x400000, 0xabcde, 0x3b40a000);
+
     status_t ret = v2p_cache_get(vmi, 0x880000400000ull, 0xabcde, &pa);
     fail_if(ret == VMI_SUCCESS, "hit a wrong cache");
 
