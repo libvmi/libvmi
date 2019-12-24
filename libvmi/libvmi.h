@@ -76,6 +76,8 @@ typedef enum vmi_config {
     VMI_CONFIG_STRING,            /**< config string provided */
 
     VMI_CONFIG_GHASHTABLE,        /**< config GHashTable provided */
+
+    VMI_CONFIG_JSON_PATH,         /**< config in json file at the location provided */
 } vmi_config_t;
 
 typedef enum status {

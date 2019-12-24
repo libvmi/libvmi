@@ -683,6 +683,10 @@ os_t vmi_init_os(
             }
             _config = (GHashTable*)config;
             break;
+        case VMI_CONFIG_JSON_PATH:
+            _config = g_hash_table_new(g_str_hash, g_str_equal);
+            g_hash_table_insert(_config, "volatility_ist", config);
+            break;
         default:
             goto error_exit;
     }
