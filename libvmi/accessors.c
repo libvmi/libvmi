@@ -26,6 +26,7 @@
 
 #include "private.h"
 #include "driver/driver_wrapper.h"
+#include "driver/memory_cache.h"
 
 /* NB: Necessary for windows specific API functions */
 #include "os/windows/windows.h"
@@ -892,4 +893,115 @@ vmi_get_os_profile_path(
     };
 
     return NULL;
+}
+
+void
+vmi_pidcache_add(
+    vmi_instance_t vmi,
+    vmi_pid_t pid,
+    addr_t dtb)
+{
+    if (!vmi)
+        return;
+
+    return pid_cache_set(vmi, pid, dtb);
+}
+
+void
+vmi_pidcache_flush(
+    vmi_instance_t vmi)
+{
+    if (!vmi)
+        return;
+
+    return pid_cache_flush(vmi);
+}
+
+void
+vmi_symcache_add(
+    vmi_instance_t vmi,
+    addr_t base_addr,
+    vmi_pid_t pid,
+    char *sym,
+    addr_t va)
+{
+    if (!vmi)
+        return;
+
+    return sym_cache_set(vmi, base_addr, pid, sym, va);
+}
+
+void
+vmi_symcache_flush(
+    vmi_instance_t vmi)
+{
+    if (!vmi)
+        return;
+
+    return sym_cache_flush(vmi);
+}
+
+void
+vmi_rvacache_add(
+    vmi_instance_t vmi,
+    addr_t base_addr,
+    vmi_pid_t pid,
+    addr_t rva,
+    char *sym)
+{
+    addr_t pgd = 0;
+
+    if (!vmi)
+        return;
+
+    if (VMI_SUCCESS != vmi_pid_to_dtb(vmi, pid, &pgd)) {
+        dbprint(VMI_DEBUG_SYMCACHE, "--SYM cache failed to find base for PID %u\n", pid);
+        return;
+    }
+
+    return rva_cache_set(vmi, base_addr, pgd, rva, sym);
+}
+
+void
+vmi_rvacache_flush(
+    vmi_instance_t vmi)
+{
+    if (!vmi)
+        return;
+
+    return rva_cache_flush(vmi);
+}
+
+void
+vmi_v2pcache_add(
+    vmi_instance_t vmi,
+    addr_t va,
+    addr_t dtb,
+    addr_t pa)
+{
+    if (!vmi)
+        return;
+
+    return v2p_cache_set(vmi, va, dtb, pa);
+}
+
+void
+vmi_v2pcache_flush(
+    vmi_instance_t vmi,
+    addr_t dtb)
+{
+    if (!vmi)
+        return;
+
+    return v2p_cache_flush(vmi, dtb);
+}
+
+void
+vmi_pagecache_flush(
+    vmi_instance_t vmi)
+{
+    if (!vmi)
+        return;
+
+    return memory_cache_flush(vmi);
 }
