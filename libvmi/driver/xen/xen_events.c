@@ -603,6 +603,11 @@ status_t xen_set_domain_watch_event(vmi_instance_t vmi, bool enabled)
 static
 void process_response ( event_response_t response, vmi_event_t *event, vm_event_compat_t *rsp )
 {
+    /*
+     * The only flag we keep from the request
+     */
+    rsp->flags = (rsp->flags & VM_EVENT_FLAG_VCPU_PAUSED);
+
     if ( response && event ) {
         uint32_t i = VMI_EVENT_RESPONSE_NONE+1;
 
@@ -613,9 +618,6 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                 switch ( er ) {
                     case VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID:
                         rsp->altp2m_idx = event->slat_id;
-                        break;
-                    case VMI_EVENT_RESPONSE_EMULATE_NOWRITE:
-                        rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
                         break;
                     case VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA:
                         if ( event->emul_read ) {
