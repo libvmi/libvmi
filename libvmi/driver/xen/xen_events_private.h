@@ -82,8 +82,8 @@ typedef struct vm_event_compat {
         struct vm_event_mov_to_msr_3          mov_to_msr;
         struct vm_event_desc_access_3         desc_access;
         struct vm_event_singlestep            singlestep;
-        struct vm_event_debug_2               software_breakpoint;
-        struct vm_event_debug_2               debug_exception;
+        struct vm_event_debug_6               software_breakpoint;
+        struct vm_event_debug_6               debug_exception;
         struct vm_event_cpuid                 cpuid;
         struct vm_event_interrupt_x86         x86_interrupt;
     };

@@ -1371,7 +1371,7 @@ status_t process_requests_1(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
                 break;
         };
 
@@ -1592,7 +1592,8 @@ status_t process_requests_2(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
                 break;
 
             case VM_EVENT_REASON_INTERRUPT:
@@ -1600,7 +1601,9 @@ status_t process_requests_2(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_DEBUG_EXCEPTION:
-                memcpy(&vmec.debug_exception, &req->u.debug_exception, sizeof(vmec.debug_exception));
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
                 break;
 
             case VM_EVENT_REASON_CPUID:
@@ -1827,7 +1830,8 @@ status_t process_requests_3(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
                 break;
 
             case VM_EVENT_REASON_INTERRUPT:
@@ -1835,7 +1839,9 @@ status_t process_requests_3(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_DEBUG_EXCEPTION:
-                memcpy(&vmec.debug_exception, &req->u.debug_exception, sizeof(vmec.debug_exception));
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
                 break;
 
             case VM_EVENT_REASON_CPUID:
@@ -2089,7 +2095,8 @@ status_t process_requests_4(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
                 break;
 
             case VM_EVENT_REASON_INTERRUPT:
@@ -2097,7 +2104,9 @@ status_t process_requests_4(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_DEBUG_EXCEPTION:
-                memcpy(&vmec.debug_exception, &req->u.debug_exception, sizeof(vmec.debug_exception));
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
                 break;
 
             case VM_EVENT_REASON_CPUID:
@@ -2376,7 +2385,8 @@ status_t process_requests_5(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
                 break;
 
             case VM_EVENT_REASON_INTERRUPT:
@@ -2384,7 +2394,9 @@ status_t process_requests_5(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_DEBUG_EXCEPTION:
-                memcpy(&vmec.debug_exception, &req->u.debug_exception, sizeof(vmec.debug_exception));
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
                 break;
 
             case VM_EVENT_REASON_CPUID:
@@ -2666,7 +2678,8 @@ status_t process_requests_6(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
                 break;
 
             case VM_EVENT_REASON_INTERRUPT:
@@ -2674,7 +2687,9 @@ status_t process_requests_6(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_DEBUG_EXCEPTION:
-                memcpy(&vmec.debug_exception, &req->u.debug_exception, sizeof(vmec.debug_exception));
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
                 break;
 
             case VM_EVENT_REASON_CPUID:
@@ -3184,22 +3199,31 @@ status_t xen_init_events(
      *
      */
     if ( xen->libxcw.xc_vm_event_get_version ) {
-        switch (xen->libxcw.xc_vm_event_get_version(xch) ) {
+        int vm_event_abi = xen->libxcw.xc_vm_event_get_version(xch);
+        dbprint(VMI_DEBUG_XEN, "--Xen vm_event ABI version: %i\n", vm_event_abi);
+
+        switch (vm_event_abi) {
             case 5:
                 return init_events_5(vmi);
-            default: /* fall-through */
             case 6:
                 return init_events_6(vmi);
+            default:
+                errprint("Unsupported Xen vm_event ABI: %i\n", vm_event_abi);
+                break;
         };
     } else {
         switch (xen->minor_version) {
             case 6 ... 7:
                 return init_events_1(vmi);
-            case 8 ... 11:
+            case 8 ... 10:
                 return init_events_2(vmi);
-            default: /* fall-through */
+            case 11:
+                return init_events_3(vmi);
             case 12:
                 return init_events_4(vmi);
+            default:
+                errprint("Unsupported Xen events version\n");
+                break;
         };
     }
 
