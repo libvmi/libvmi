@@ -682,6 +682,7 @@ find_windows_version_from_json_profile(vmi_instance_t vmi)
     }
 
     // Let's see if we know the buildnumber
+    windows->build = ntbuildnumber;
     windows->version = ntbuild2version(ntbuildnumber);
 
     if (VMI_OS_WINDOWS_UNKNOWN == windows->version) {
