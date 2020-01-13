@@ -46,6 +46,18 @@ if (ENABLE_WINDOWS)
 
     add_executable(vmi-win-offsets win-offsets.c)
     target_link_libraries(vmi-win-offsets vmi_shared)
+
+    find_package(JSON-C)
+    set_package_properties(JSON-C PROPERTIES
+      PURPOSE "Dependency for win-proc-stat example")
+    if (NOT JSON-C_FOUND)
+      message(WARNING "Cannot find JSON: disabling win-proc-stat example")
+    else ()
+      message(INFO "Build win-proc-stat: ${JSON-C_LIBRARIES}; ${JSON-C_INCLUDE_DIRS}")
+      add_executable(vmi-win-proc-stat win-proc-stat.c)
+      target_link_libraries(vmi-win-proc-stat vmi_shared ${JSON-C_LIBRARIES})
+      target_include_directories(vmi-win-proc-stat PRIVATE ${JSON-C_INCLUDE_DIRS})
+    endif ()
 endif ()
 
 install(TARGETS
