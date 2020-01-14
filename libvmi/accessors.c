@@ -95,6 +95,45 @@ vmi_get_winver(
 #endif
 }
 
+uint16_t
+vmi_get_win_buildnumber(
+    vmi_instance_t vmi)
+{
+#ifndef ENABLE_WINDOWS
+    errprint("**LibVMI wasn't compiled with Windows support!\n");
+    return 0;
+#else
+
+#ifndef ENABLE_JSON_PROFILES
+    errprint("**LibVMI wasn't compiled with JSON profiles support!\n");
+    return 0;
+#endif
+
+    windows_instance_t windows_instance = NULL;
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return 0;
+
+    if (VMI_OS_WINDOWS != vmi->os_type)
+        return 0;
+
+    if (!vmi->os_data) {
+        return 0;
+    }
+
+    if (vmi->json.handler == NULL) {
+        errprint("** LibVMI wasn't initialized with JSON profile!\n");
+        return 0;
+    }
+#endif
+
+    windows_instance = vmi->os_data;
+
+    return windows_instance->build;
+#endif
+}
+
 const char *
 vmi_get_winver_str(
     vmi_instance_t vmi)

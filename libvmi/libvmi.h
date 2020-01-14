@@ -2037,6 +2037,15 @@ win_ver_t vmi_get_winver(
     vmi_instance_t vmi);
 
 /**
+ * Get the build number of Windows that LibVMI is currently accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Windows build number
+ */
+uint16_t vmi_get_win_buildnumber(
+    vmi_instance_t vmi);
+
+/**
  * Get string represenatation of the version of Windows that LibVMI is currently accessing.
  *
  * @param[in] vmi LibVMI instance
