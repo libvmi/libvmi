@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include <libvmi/libvmi.h>
+#include <libvmi/libvmi_extra.h>
 #include <libvmi/events.h>
 #include <json-c/json.h>
 
@@ -94,111 +95,28 @@ static const char* win_offset_names[__WIN_OFFSETS_MAX][2] = {
     [CLIENT_ID_UNIQUETHREAD] = {"_CLIENT_ID", "UniqueThread" },
 };
 
-static bool rekall_lookup_in_json(
-    const char* symbol,
-    const char* subsymbol,
-    addr_t* rva,
-    addr_t* size,
-    json_object* rekall_profile_json)
-{
-    bool ret = false;
-
-    if (!rekall_profile_json) {
-        fprintf(stderr, "Rekall profile json is NULL!\n");
-        return ret;
-    }
-
-    if (!symbol) {
-        return ret;
-    }
-
-    if (!subsymbol && !size) {
-        json_object* constants = NULL;
-        json_object* jsymbol = NULL;
-        if (!json_object_object_get_ex(rekall_profile_json, "$CONSTANTS", &constants)) {
-            printf("Rekall profile: no $CONSTANTS section found\n");
-            goto exit;
-        }
-
-        if (!json_object_object_get_ex(constants, symbol, &jsymbol)) {
-            printf("Rekall profile: symbol '%s' not found\n", symbol);
-            goto exit;
-        }
-
-        *rva = json_object_get_int64(jsymbol);
-
-        ret = true;
-    } else {
-        json_object* structs = NULL;
-        json_object* jstruct = NULL;
-        json_object* jstruct2 = NULL;
-        json_object* jmember = NULL;
-        json_object* jvalue = NULL;
-        if (!json_object_object_get_ex(rekall_profile_json, "$STRUCTS", &structs)) {
-            printf("Rekall profile: no $STRUCTS section found\n");
-            goto exit;
-        }
-        if (!json_object_object_get_ex(structs, symbol, &jstruct)) {
-            printf("Rekall profile: no '%s' found\n", symbol);
-            goto exit;
-        }
-
-        if (size) {
-            json_object* jsize = json_object_array_get_idx(jstruct, 0);
-            *size = json_object_get_int64(jsize);
-
-            ret = true;
-            goto exit;
-        }
-
-        jstruct2 = json_object_array_get_idx(jstruct, 1);
-        if (!jstruct2) {
-            printf("Rekall profile: struct '%s' has no second element\n", symbol);
-            goto exit;
-        }
-
-        if (!json_object_object_get_ex(jstruct2, subsymbol, &jmember)) {
-            printf("Rekall profile: '%s' has no '%s' member\n", symbol, subsymbol);
-            goto exit;
-        }
-
-        jvalue = json_object_array_get_idx(jmember, 0);
-        if (!jvalue) {
-            printf("Rekall profile: '%s'.'%s' has no RVA defined\n", symbol, subsymbol);
-            goto exit;
-        }
-
-        *rva = json_object_get_int64(jvalue);
-
-        ret = true;
-    }
-
-exit:
-    return ret;
-}
-
-static bool rekall_lookup_array(
-    json_object* rekall_profile_json,
+static bool profile_lookup_array(
+    vmi_instance_t vmi,
+    json_object* profile_json,
     const char* symbol_subsymbol_array[][2],
     addr_t array_size,
-    addr_t* rva,
-    addr_t* size)
+    addr_t* rva)
 {
     bool ret = false;
 
-    if (!rekall_profile_json) {
+    if (!profile_json) {
         fprintf(stderr, "Rekall profile json is NULL!\n");
         return ret;
     }
 
     int errors = 0;
     for (size_t i = 0; i < array_size; i++) {
-        if (!rekall_lookup_in_json(
+        if (VMI_SUCCESS != vmi_get_struct_member_offset_from_json(
+                    vmi,
+                    profile_json,
                     symbol_subsymbol_array[i][0],
                     symbol_subsymbol_array[i][1],
-                    &rva[i],
-                    size,
-                    rekall_profile_json)
+                    &rva[i])
            ) {
             errors++;
             printf("Failed to find offset for %s:%s\n",
@@ -212,19 +130,19 @@ static bool rekall_lookup_array(
     return ret;
 }
 
-static addr_t* fill_offsets_from_rekall(const char* rekall_profile)
+static addr_t* fill_offsets_from_profile(vmi_instance_t vmi, const char* profile)
 {
     addr_t* offsets = (addr_t*)g_malloc0(sizeof(addr_t) * __WIN_OFFSETS_MAX );
     if ( !offsets )
         return NULL;
 
-    json_object* rekall_profile_json = json_object_from_file(rekall_profile);
-    if (!rekall_lookup_array(
-                rekall_profile_json,
+    json_object* profile_json = json_object_from_file(profile);
+    if (!profile_lookup_array(
+                vmi,
+                profile_json,
                 win_offset_names,
                 __WIN_OFFSETS_MAX,
-                offsets,
-                NULL))
+                offsets))
         printf("Failed to find offsets for array of structure names and subsymbols.\n");
 
     return offsets;
@@ -334,7 +252,7 @@ int main(int argc, char** argv)
 {
     /* this is the VM that we are looking at */
     if (argc != 5) {
-        printf("Usage: %s name|domid <domain name|domain id> -r <rekall profile>\n", argv[0]);
+        printf("Usage: %s name|domid <domain name|domain id> -r <profile>\n", argv[0]);
         return 1;
     }
 
@@ -354,12 +272,12 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    char* rekall_profile = NULL;
+    char* profile = NULL;
 
     if (strcmp(argv[3], "-r") == 0) {
-        rekall_profile = argv[4];
+        profile = argv[4];
     } else {
-        printf("You have to specify path to rekall profile!\n");
+        printf("You have to specify path to profile!\n");
         return 1;
     }
 
@@ -378,31 +296,21 @@ int main(int argc, char** argv)
     struct cb_context* ctx = NULL;
     GHashTable* stats = NULL;
 
-    /* Get offsets */
-    addr_t* offsets = fill_offsets_from_rekall(rekall_profile);
-    if (!offsets)
-        return 1;
-
-    /* Prepare config */
-    GHashTable* config = NULL;
-    config = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
-    if (!config) {
-        printf("Failed to create GHashTable!\n");
-        goto done;
-    }
-    g_hash_table_insert(config, g_strdup("os_type"), g_strdup("Windows"));
-    g_hash_table_insert(config, g_strdup("rekall_profile"), g_strdup(rekall_profile));
-
     /* initialize the libvmi library */
     vmi_instance_t vmi = NULL;
     vmi_init_error_t err = VMI_SUCCESS;
 
     if (VMI_FAILURE ==
             vmi_init_complete(&vmi, domain, init_flags, NULL,
-                              VMI_CONFIG_GHASHTABLE, config, &err)) {
+                              VMI_CONFIG_JSON_PATH, profile, &err)) {
         printf("Failed to init LibVMI library: %d.\n", err);
         goto done;
     }
+
+    /* Get offsets */
+    addr_t* offsets = fill_offsets_from_profile(vmi, profile);
+    if (!offsets)
+        return 1;
 
     /*
      * Prepare event
@@ -459,9 +367,6 @@ int main(int argc, char** argv)
 done:
     /* cleanup any memory associated with the LibVMI instance */
     vmi_destroy(vmi);
-
-    if (config)
-        g_hash_table_destroy(config);
 
     if (stats)
         g_hash_table_destroy(stats);
