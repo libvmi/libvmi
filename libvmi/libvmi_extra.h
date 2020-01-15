@@ -30,6 +30,9 @@
 
 #ifdef __cplusplus
 extern "C" {
+#define NOEXCEPT noexcept
+#else
+#define NOEXCEPT
 #endif
 
 #pragma GCC visibility push(default)
@@ -47,7 +50,7 @@ extern "C" {
  */
 GSList* vmi_get_va_pages(
     vmi_instance_t vmi,
-    addr_t dtb);
+    addr_t dtb) NOEXCEPT;
 
 /**
  * Retrieve the kernel's open json_object
@@ -56,7 +59,7 @@ GSList* vmi_get_va_pages(
  * @return The json_object* open for the VM or NULL on error.
  */
 json_object* vmi_get_kernel_json(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Look up the provided symbol's address from the json
@@ -71,7 +74,7 @@ status_t vmi_get_symbol_addr_from_json(
     vmi_instance_t vmi,
     json_object* json,
     const char* symbol,
-    addr_t* addr);
+    addr_t* addr) NOEXCEPT;
 
 /**
  * Look up the provided structure's size from the json
@@ -86,7 +89,7 @@ status_t vmi_get_struct_size_from_json(
     vmi_instance_t vmi,
     json_object* json,
     const char* struct_name,
-    size_t* size);
+    size_t* size) NOEXCEPT;
 
 /**
  * Look up the provided symbol's address from the json
@@ -103,7 +106,7 @@ status_t vmi_get_struct_member_offset_from_json(
     json_object* json,
     const char* struct_name,
     const char* struct_member,
-    addr_t* offset);
+    addr_t* offset) NOEXCEPT;
 
 #pragma GCC visibility pop
 

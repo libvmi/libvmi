@@ -29,6 +29,9 @@
 
 #ifdef __cplusplus
 extern "C" {
+#define NOEXCEPT noexcept
+#else
+#define NOEXCEPT
 #endif
 
 #pragma GCC visibility push(default)
@@ -200,7 +203,7 @@ struct export_table {
 status_t
 peparse_validate_pe_image(
     const uint8_t * const image,
-    size_t len);
+    size_t len) NOEXCEPT;
 
 /**
  * Return a valid PE image if one was found
@@ -217,7 +220,7 @@ peparse_get_image(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     size_t len,
-    const uint8_t * const image);
+    const uint8_t * const image) NOEXCEPT;
 
 /**
  * Assign PE headers to an image.
@@ -238,7 +241,7 @@ peparse_assign_headers(
     uint16_t *optional_header_type,
     void **optional_pe_header,
     struct optional_header_pe32 **oh_pe32,
-    struct optional_header_pe32plus **oh_pe32plus);
+    struct optional_header_pe32plus **oh_pe32plus) NOEXCEPT;
 
 /**
  * Get an RVA value from the PE image data directory (idd).
@@ -258,7 +261,7 @@ peparse_get_idd_rva(
     uint16_t *optional_header_type,
     void *optional_header,
     struct optional_header_pe32 *oh_pe32,
-    struct optional_header_pe32plus *oh_pe32plus);
+    struct optional_header_pe32plus *oh_pe32plus) NOEXCEPT;
 
 /**
  * Get the size from the PE image data directory (idd).
@@ -278,7 +281,7 @@ peparse_get_idd_size(
     uint16_t *optional_header_type,
     void *optional_header,
     struct optional_header_pe32 *oh_pe32,
-    struct optional_header_pe32plus *oh_pe32plus);
+    struct optional_header_pe32plus *oh_pe32plus) NOEXCEPT;
 
 /**
  * Get the export table from a PE image.
@@ -295,7 +298,7 @@ peparse_get_export_table(
     const access_context_t *ctx,
     struct export_table *et,
     addr_t *export_table_rva,
-    size_t *export_table_size);
+    size_t *export_table_size) NOEXCEPT;
 
 #pragma GCC visibility pop
 #ifdef __cplusplus
