@@ -83,7 +83,7 @@ ostype                  { BeginToken(yytext); yylval.str = strndup(yytext, CONFI
     yylval.str = strdup(yytext);
     return WORD;
     }
-[a-zA-Z0-9\/._-]+            {
+[a-zA-Z0-9\/._@-]+            {
     BeginToken(yytext);
     yylval.str = strdup(yytext);
     return FILENAME;
