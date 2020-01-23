@@ -44,40 +44,45 @@ int main (int argc, char **argv)
     unsigned long tasks_offset = 0, pid_offset = 0, name_offset = 0;
     status_t status;
     uint64_t domid = 0;
-    uint8_t init = 0;
-    void *input = NULL;
+    uint8_t init = VMI_INIT_DOMAINNAME, config_type = VMI_CONFIG_GLOBAL_FILE_ENTRY;
+    void *input = NULL, *config = NULL;
 
     if ( argc < 2 ) {
         printf("Usage: %s\n", argv[0]);
         printf("\t -n/--name <domain name>\n");
         printf("\t -d/--domid <domain id>\n");
+        printf("\t -j/--json <path to kernel's json profile>\n");
         return 1;
     }
+
     // left for compatibility
-    if ( argc == 2 ) {
-        init = VMI_INIT_DOMAINNAME;
+    if ( argc == 2 )
         input = argv[1];
-    }
+
     if ( argc > 2 ) {
         const struct option long_opts[] = {
             {"name", required_argument, NULL, 'n'},
             {"domid", required_argument, NULL, 'd'},
+            {"json", required_argument, NULL, 'j'},
             {NULL, 0, NULL, 0}
         };
-        const char* opts = "n:d:";
+        const char* opts = "n:d:j:";
         int c;
         int long_index = 0;
 
         while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
             switch (c) {
                 case 'n':
-                    init = VMI_INIT_DOMAINNAME;
                     input = optarg;
                     break;
                 case 'd':
                     init = VMI_INIT_DOMAINID;
                     domid = strtoull(optarg, NULL, 0);
                     input = (void*)&domid;
+                    break;
+                case 'j':
+                    config_type = VMI_CONFIG_JSON_PATH;
+                    config = (void*)optarg;
                     break;
                 default:
                     printf("Unknown option\n");
@@ -86,8 +91,7 @@ int main (int argc, char **argv)
     }
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init_complete(&vmi, input, init, NULL,
-                                         VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init_complete(&vmi, input, init, NULL, config_type, config, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
