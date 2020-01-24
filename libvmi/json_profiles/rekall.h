@@ -27,17 +27,30 @@
 
 status_t
 rekall_profile_symbol_to_rva(
-    json_object *rekall_profile_json,
+    json_object *json,
     const char *symbol,
     const char *subsymbol,
-    addr_t *rva);
+    addr_t *rva,
+    size_t *size);
 
-#define rekall_profile(vmi) (vmi->json_profile)
+const char* rekall_get_os_type(vmi_instance_t vmi);
 
 #else
 
-#define rekall_profile_symbol_to_rva(...) VMI_FAILURE
-#define rekall_profile(...) NULL
+static inline status_t rekall_profile_symbol_to_rva(
+    json_object *json,
+    const char *symbol,
+    const char *subsymbol,
+    addr_t *rva,
+    size_t *size)
+{
+    return VMI_FAILURE;
+}
+
+static inline const char *rekall_get_os_type(vmi_instance_t vmi)
+{
+    return NULL;
+}
 
 #endif
 #endif /* LIBVMI_REKALL_H */

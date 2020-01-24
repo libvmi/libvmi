@@ -233,7 +233,7 @@ linux_symbol_to_address(
         goto done;
     }
 
-    if (!linux_instance->sysmap && !rekall_profile(vmi)) {
+    if (!linux_instance->sysmap && !vmi->json.root) {
         errprint("VMI_WARNING: No linux sysmap and Rekall profile configured\n");
         goto done;
     }
@@ -241,9 +241,7 @@ linux_symbol_to_address(
     if (linux_instance->sysmap)
         ret = linux_system_map_symbol_to_address(vmi, symbol, address);
     else
-        ret = rekall_profile_symbol_to_rva(
-                  rekall_profile(vmi),
-                  symbol, NULL, address);
+        ret = json_profile_lookup(vmi, symbol, NULL, address);
 
     if ( VMI_SUCCESS == ret )
         *address += linux_instance->kaslr_offset;

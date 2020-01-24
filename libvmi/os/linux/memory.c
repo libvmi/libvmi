@@ -88,7 +88,6 @@ linux_get_taskstruct_addr_from_pgd(
 {
     addr_t list_head = 0, next_process = 0;
     addr_t task_pgd = 0;
-    uint8_t width = 0;
     int tasks_offset = 0;
     int mm_offset = 0;
     int pgd_offset = 0;
@@ -112,28 +111,23 @@ linux_get_taskstruct_addr_from_pgd(
     next_process = vmi->init_task;
     list_head = next_process;
 
-    width = vmi_get_address_width(vmi);
-
     do {
         addr_t ptr = 0;
         vmi_read_addr_va(vmi, next_process + mm_offset, 0, &ptr);
 
-        /* task_struct->mm is NULL when Linux is executing on the behalf
-         * of a task, or if the task represents a kthread. In this context,
-         * task_struct->active_mm is non-NULL and we can use it as
-         * a fallback. task_struct->active_mm can be found very reliably
-         * at task_struct->mm + 1 pointer width
+        /*
+         * Dont' check active_mm here because that's a borrowed pgd.
          */
-        if (!ptr && width)
-            vmi_read_addr_va(vmi, next_process + mm_offset + width, 0, &ptr);
         vmi_read_addr_va(vmi, ptr + pgd_offset, 0, &task_pgd);
 
-        if ( VMI_SUCCESS == vmi_translate_kv2p(vmi, task_pgd, &task_pgd) &&
-                task_pgd == pgd)
-            return next_process;
+        vmi_translate_kv2p(vmi, task_pgd, &task_pgd);
 
-        task_pgd &= ~0x1fff;
-        if (task_pgd == pgd)
+        /*
+         * Check with and without the PCID and KPTI bit to get the kernel space page table
+         * of the process due to meltdown patch.
+         * See: https://en.wikipedia.org/wiki/Kernel_page-table_isolation
+         */
+        if (task_pgd == pgd || task_pgd == (pgd & ~0x1fff) )
             return next_process;
 
         vmi_read_addr_va(vmi, next_process + tasks_offset, 0, &next_process);
@@ -233,9 +227,6 @@ linux_pgd_to_pid(
 
     linux_instance = vmi->os_data;
     pid_offset = linux_instance->pid_offset;
-
-    /* set the PCID of the CR3 registers to get the kernel space page table of the process due to meltdown patch (https://en.wikipedia.org/wiki/Kernel_page-table_isolation) */
-    pgd &= ~0x1fff;
 
     /* first we the address of the task_struct with this PGD */
     ts_addr = linux_get_taskstruct_addr_from_pgd(vmi, pgd);

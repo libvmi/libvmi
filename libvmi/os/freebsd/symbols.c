@@ -223,16 +223,15 @@ freebsd_symbol_to_address(
         goto done;
     }
 
-    if (!freebsd_instance->sysmap && !rekall_profile(vmi)) {
-        errprint("VMI_WARNING: No freebsd sysmap and Rekall profile configured\n");
+    if (!freebsd_instance->sysmap && vmi->json.root) {
+        errprint("VMI_WARNING: No freebsd sysmap and json profile configured\n");
         goto done;
     }
 
     if (freebsd_instance->sysmap)
         ret = freebsd_system_map_symbol_to_address(vmi, symbol, address);
     else
-        ret = rekall_profile_symbol_to_rva(rekall_profile(vmi),
-                                           symbol, NULL, address);
+        ret = json_profile_lookup(vmi, symbol, NULL, address);
 
 done:
     return ret;

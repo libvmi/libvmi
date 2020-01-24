@@ -30,6 +30,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <getopt.h>
 
 #include <libvmi/libvmi.h>
 
@@ -42,27 +43,65 @@ int main (int argc, char **argv)
     vmi_pid_t pid = 0;
     unsigned long tasks_offset = 0, pid_offset = 0, name_offset = 0;
     status_t status;
-    vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
-                                        + (sizeof(vmi_init_data_entry_t) * 1));
+    vmi_init_data_t *init_data = NULL;
+    uint64_t domid = 0;
+    uint8_t init = VMI_INIT_DOMAINNAME, config_type = VMI_CONFIG_GLOBAL_FILE_ENTRY;
+    void *input = NULL, *config = NULL;
 
-    /* this is the VM or file that we are looking at */
-    if (argc != 3) {
-        printf("Usage: %s <vmname> [socket]\n", argv[0]);
+    if ( argc < 2 ) {
+        printf("Usage: %s\n", argv[0]);
+        printf("\t -n/--name <domain name>\n");
+        printf("\t -d/--domid <domain id>\n");
+        printf("\t -j/--json <path to kernel's json profile>\n");
+        printf("\t -s/--socket <path to KVMI socket>\n");
         return 1;
     }
 
-    char *name = argv[1];
-    char *path = argv[2];
+    // left for compatibility
+    if ( argc == 2 )
+        input = argv[1];
 
-    // fill init_data
-    init_data->count = 1;
-    init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
-    init_data->entry[0].data = strdup(path);
+    if ( argc > 2 ) {
+        const struct option long_opts[] = {
+            {"name", required_argument, NULL, 'n'},
+            {"domid", required_argument, NULL, 'd'},
+            {"json", required_argument, NULL, 'j'},
+            {"socket", optional_argument, NULL, 's'},
+            {NULL, 0, NULL, 0}
+        };
+        const char* opts = "n:d:j:s:";
+        int c;
+        int long_index = 0;
+
+        while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
+            switch (c) {
+                case 'n':
+                    input = optarg;
+                    break;
+                case 'd':
+                    init = VMI_INIT_DOMAINID;
+                    domid = strtoull(optarg, NULL, 0);
+                    input = (void*)&domid;
+                    break;
+                case 'j':
+                    config_type = VMI_CONFIG_JSON_PATH;
+                    config = (void*)optarg;
+                    break;
+                case 's':
+                    init_data = alloca(sizeof(vmi_init_data_t)
+                                        + (sizeof(vmi_init_data_entry_t) * 1));
+                    init_data->count = 1;
+                    init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+                    init_data->entry[0].data = strdup(optarg);
+                    break;
+                default:
+                    printf("Unknown option\n");
+                    return 1;
+            }
+    }
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE ==
-            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, init_data,
-                              VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init_complete(&vmi, input, init, init_data, config_type, config, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }

@@ -45,6 +45,7 @@ if ENABLE_ADDRESS_CACHE
 endif
 
 if ENABLE_JSON_PROFILES
+    c_sources   += libvmi/json_profiles/json_profiles.c
     h_private   += libvmi/json_profiles/json_profiles.h
 endif
 
@@ -136,14 +137,14 @@ library_include_HEADERS = $(h_public)
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvmi.pc
 
-AM_CFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS)
-AM_CPPFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS)
+AM_CFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS) $(JSONC_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS) $(JSONC_CFLAGS)
 AM_YFLAGS = -y -d
 
 lib_LTLIBRARIES= libvmi/libvmi.la
 libvmi_libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
-libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS)
-libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) -no-undefined
+libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS)
+libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
 
 if !WITH_KVM_LEGACY

@@ -149,11 +149,7 @@ struct vmi_instance {
 #endif
 
 #ifdef ENABLE_JSON_PROFILES
-    char *json_profile_path; /**< JSON profile's path for domain's running kernel */
-
-    json_object *json_profile; /**< JSON profile */
-
-    json_profile_handler json_handler; /**< Function to handle lookups in JSON profile */
+    json_interface_t json;
 #endif
 
     unsigned int num_vcpus; /**< number of VCPUs used by this instance */
@@ -382,8 +378,8 @@ win_ver_t find_windows_version(
     addr_t kdbg);
 
 #ifdef ENABLE_JSON_PROFILES
-#define json_profile_lookup(vmi, ...) (vmi->json_handler ? \
-        vmi->json_handler(vmi->json_profile, __VA_ARGS__) : \
+#define json_profile_lookup(vmi, ...) (vmi->json.handler ? \
+        vmi->json.handler(vmi->json.root, __VA_ARGS__, NULL) : \
         VMI_FAILURE)
 #else
 #define json_profile_lookup(...) VMI_FAILURE

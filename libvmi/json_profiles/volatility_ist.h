@@ -27,14 +27,29 @@
 
 status_t
 volatility_ist_symbol_to_rva(
-    json_object *volatility_ist,
+    json_object *json,
     const char *symbol,
     const char *subsymbol,
-    addr_t *rva);
+    addr_t *rva,
+    size_t *size);
+
+const char* volatility_get_os_type(vmi_instance_t vmi);
 
 #else
 
-#define volatility_ist_symbol_to_rva(...) VMI_FAILURE
+static inline status_t volatility_ist_symbol_to_rva(
+    json_object *json,
+    const char *symbol,
+    const char *subsymbol,
+    addr_t *rva,
+    size_t *size)
+{
+    return VMI_FAILURE;
+}
+static inline const char* volatility_get_os_type(vmi_instance_t vmi)
+{
+    return NULL;
+}
 
 #endif
 

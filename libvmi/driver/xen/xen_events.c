@@ -604,6 +604,11 @@ status_t xen_set_domain_watch_event(vmi_instance_t vmi, bool enabled)
 static
 void process_response ( event_response_t response, vmi_event_t *event, vm_event_compat_t *rsp )
 {
+    /*
+     * The only flag we keep from the request
+     */
+    rsp->flags = (rsp->flags & VM_EVENT_FLAG_VCPU_PAUSED);
+
     if ( response && event ) {
         uint32_t i = VMI_EVENT_RESPONSE_NONE+1;
 
@@ -614,9 +619,6 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                 switch ( er ) {
                     case VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID:
                         rsp->altp2m_idx = event->slat_id;
-                        break;
-                    case VMI_EVENT_RESPONSE_EMULATE_NOWRITE:
-                        rsp->flags |= event_response_conversion[VMI_EVENT_RESPONSE_EMULATE];
                         break;
                     case VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA:
                         if ( event->emul_read ) {
@@ -631,8 +633,10 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                                    &event->emul_read->data,
                                    rsp->data.emul.read.size);
 
-                            if ( !event->emul_read->dont_free )
+                            if ( !event->emul_read->dont_free ) {
                                 free(event->emul_read);
+                                event->emul_read = NULL;
+                            }
                         }
                         break;
                     case VMI_EVENT_RESPONSE_SET_EMUL_INSN:
@@ -643,8 +647,10 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                                    &event->emul_insn->data,
                                    sizeof(rsp->data.emul.insn.data));
 
-                            if ( !event->emul_insn->dont_free )
+                            if ( !event->emul_insn->dont_free ) {
                                 free(event->emul_insn);
+                                event->emul_insn = NULL;
+                            }
                         }
                         break;
                 };
@@ -1263,15 +1269,15 @@ status_t process_request(vmi_instance_t vmi, vm_event_compat_t *vmec)
 }
 
 /*
- * Xen 4.6 ring functions
+ * VM_EVENT_VERSION 1 ring functions
  */
 
 static inline
-void ring_get_request_and_response_46(xen_events_t *xe,
-                                      vm_event_46_request_t **req,
-                                      vm_event_46_request_t **rsp)
+void ring_get_request_and_response_1(xen_events_t *xe,
+                                     vm_event_1_request_t **req,
+                                     vm_event_1_request_t **rsp)
 {
-    vm_event_46_back_ring_t *back_ring = &xe->back_ring_46;
+    vm_event_1_back_ring_t *back_ring = &xe->back_ring_1;
     RING_IDX req_cons = back_ring->req_cons;
     RING_IDX rsp_prod = back_ring->rsp_prod_pvt;
 
@@ -1286,10 +1292,10 @@ void ring_get_request_and_response_46(xen_events_t *xe,
 }
 
 static
-status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
+status_t process_requests_1(vmi_instance_t vmi, uint32_t *requests_processed)
 {
-    vm_event_46_request_t *req;
-    vm_event_46_response_t *rsp;
+    vm_event_1_request_t *req;
+    vm_event_1_response_t *rsp;
     vm_event_compat_t vmec =  { 0 };
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -1297,9 +1303,9 @@ status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
     status_t vrc = VMI_SUCCESS;
     uint32_t processed = 0;
 
-    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_46) ) {
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_1) ) {
 
-        ring_get_request_and_response_46(xe, &req, &rsp);
+        ring_get_request_and_response_1(xe, &req, &rsp);
 
         if ( req->version != 0x00000001 ) {
             errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that doesn't match what we expected (0x00000001)!\n");
@@ -1362,11 +1368,11 @@ status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SINGLESTEP:
-                memcpy(&vmec.singlestep, &req->u.singlestep, sizeof(vmec.singlestep));
+                vmec.singlestep.gfn = req->u.singlestep.gfn;
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
                 break;
         };
 
@@ -1426,7 +1432,7 @@ status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
         }
 
         processed++;
-        RING_PUSH_RESPONSES(&xe->back_ring_46);
+        RING_PUSH_RESPONSES(&xe->back_ring_1);
 
         /*
          * Send notification to Xen that response(s) were placed on the ring
@@ -1451,7 +1457,7 @@ status_t process_requests_46(vmi_instance_t vmi, uint32_t *requests_processed)
     return vrc;
 }
 
-int xen_are_events_pending_46(vmi_instance_t vmi)
+int xen_are_events_pending_1(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
@@ -1462,35 +1468,35 @@ int xen_are_events_pending_46(vmi_instance_t vmi)
     }
 #endif
 
-    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_46);
+    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_1);
 }
 
 static
-status_t init_events_46(vmi_instance_t vmi)
+status_t init_events_1(vmi_instance_t vmi)
 {
     xen_events_t * xe = xen_get_events(vmi);
 
-    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_46;
-    xe->process_requests = &process_requests_46;
+    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_1;
+    xe->process_requests = &process_requests_1;
 
-    SHARED_RING_INIT((vm_event_46_sring_t *)xe->ring_page);
-    BACK_RING_INIT(&xe->back_ring_46,
-                   (vm_event_46_sring_t *)xe->ring_page,
+    SHARED_RING_INIT((vm_event_1_sring_t *)xe->ring_page);
+    BACK_RING_INIT(&xe->back_ring_1,
+                   (vm_event_1_sring_t *)xe->ring_page,
                    XC_PAGE_SIZE);
 
     return VMI_SUCCESS;
 }
 
 /*
- * Xen 4.8 ring functions
+ * VM_EVENT_VERSION 2 ring functions
  */
 
 static inline
-void ring_get_request_and_response_48(xen_events_t *xe,
-                                      vm_event_48_request_t **req,
-                                      vm_event_48_request_t **rsp)
+void ring_get_request_and_response_2(xen_events_t *xe,
+                                     vm_event_2_request_t **req,
+                                     vm_event_2_request_t **rsp)
 {
-    vm_event_48_back_ring_t *back_ring = &xe->back_ring_48;
+    vm_event_2_back_ring_t *back_ring = &xe->back_ring_2;
     RING_IDX req_cons = back_ring->req_cons;
     RING_IDX rsp_prod = back_ring->rsp_prod_pvt;
 
@@ -1504,10 +1510,10 @@ void ring_get_request_and_response_48(xen_events_t *xe,
     back_ring->rsp_prod_pvt++;
 }
 
-status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
+status_t process_requests_2(vmi_instance_t vmi, uint32_t *requests_processed)
 {
-    vm_event_48_request_t *req;
-    vm_event_48_response_t *rsp;
+    vm_event_2_request_t *req;
+    vm_event_2_response_t *rsp;
     vm_event_compat_t vmec = { 0 };
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -1515,12 +1521,251 @@ status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
     status_t vrc = VMI_SUCCESS;
     uint32_t processed = 0;
 
-    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_48) ) {
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_2) ) {
 
-        ring_get_request_and_response_48(xe, &req, &rsp);
+        ring_get_request_and_response_2(xe, &req, &rsp);
 
-        if ( req->version > 0x00000003 ) {
-            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is newer then what we understand (0x%x > 0x%x)!\n",
+        if ( req->version != 0x00000002 ) {
+            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is different then what we expect (0x%x != 0x%x)!\n",
+                     req->version, 0x00000002);
+            return VMI_FAILURE;
+        }
+
+        vmec.version = req->version;
+        vmec.flags = req->flags;
+        vmec.reason = req->reason;
+        vmec.vcpu_id = req->vcpu_id;
+        vmec.altp2m_idx = req->altp2m_idx;
+
+#if defined(ARM32) || defined(ARM64)
+        memcpy(&vmec.data.regs.arm, &req->data.regs.arm, sizeof(vmec.data.regs.arm));
+#elif defined(I386) || defined(X86_64)
+        vmec.data.regs.x86.rax = req->data.regs.x86.rax;
+        vmec.data.regs.x86.rcx = req->data.regs.x86.rcx;
+        vmec.data.regs.x86.rdx = req->data.regs.x86.rdx;
+        vmec.data.regs.x86.rbx = req->data.regs.x86.rbx;
+        vmec.data.regs.x86.rsp = req->data.regs.x86.rsp;
+        vmec.data.regs.x86.rbp = req->data.regs.x86.rbp;
+        vmec.data.regs.x86.rsi = req->data.regs.x86.rsi;
+        vmec.data.regs.x86.rdi = req->data.regs.x86.rdi;
+        vmec.data.regs.x86.r8 = req->data.regs.x86.r8;
+        vmec.data.regs.x86.r9 = req->data.regs.x86.r9;
+        vmec.data.regs.x86.r10 = req->data.regs.x86.r10;
+        vmec.data.regs.x86.r11 = req->data.regs.x86.r11;
+        vmec.data.regs.x86.r12 = req->data.regs.x86.r12;
+        vmec.data.regs.x86.r13 = req->data.regs.x86.r13;
+        vmec.data.regs.x86.r14 = req->data.regs.x86.r14;
+        vmec.data.regs.x86.r15 = req->data.regs.x86.r15;
+        vmec.data.regs.x86.rflags = req->data.regs.x86.rflags;
+        vmec.data.regs.x86.dr7 = req->data.regs.x86.dr7;
+        vmec.data.regs.x86.rip = req->data.regs.x86.rip;
+        vmec.data.regs.x86.cr0 = req->data.regs.x86.cr0;
+        vmec.data.regs.x86.cr2 = req->data.regs.x86.cr2;
+        vmec.data.regs.x86.cr3 = req->data.regs.x86.cr3;
+        vmec.data.regs.x86.cr4 = req->data.regs.x86.cr4;
+        vmec.data.regs.x86.sysenter_cs = req->data.regs.x86.sysenter_cs;
+        vmec.data.regs.x86.sysenter_esp = req->data.regs.x86.sysenter_esp;
+        vmec.data.regs.x86.sysenter_eip = req->data.regs.x86.sysenter_eip;
+        vmec.data.regs.x86.msr_efer = req->data.regs.x86.msr_efer;
+        vmec.data.regs.x86.msr_star = req->data.regs.x86.msr_star;
+        vmec.data.regs.x86.msr_lstar = req->data.regs.x86.msr_lstar;
+        vmec.data.regs.x86.fs_base = req->data.regs.x86.fs_base;
+        vmec.data.regs.x86.gs_base = req->data.regs.x86.gs_base;
+        vmec.data.regs.x86.cs_arbytes = req->data.regs.x86.cs_arbytes;
+#endif
+
+        switch ( vmec.reason ) {
+            case VM_EVENT_REASON_MEM_ACCESS:
+                memcpy(&vmec.mem_access, &req->u.mem_access, sizeof(vmec.mem_access));
+                break;
+
+            case VM_EVENT_REASON_WRITE_CTRLREG:
+                memcpy(&vmec.write_ctrlreg, &req->u.write_ctrlreg, sizeof(vmec.write_ctrlreg));
+                break;
+
+            case VM_EVENT_REASON_MOV_TO_MSR:
+                vmec.mov_to_msr.msr = req->u.mov_to_msr_1.msr;
+                vmec.mov_to_msr.new_value = req->u.mov_to_msr_1.value;
+                break;
+
+            case VM_EVENT_REASON_SINGLESTEP:
+                memcpy(&vmec.singlestep, &req->u.singlestep, sizeof(vmec.singlestep));
+                break;
+
+            case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
+                break;
+
+            case VM_EVENT_REASON_INTERRUPT:
+                memcpy(&vmec.x86_interrupt, &req->u.interrupt.x86, sizeof(vmec.x86_interrupt));
+                break;
+
+            case VM_EVENT_REASON_DEBUG_EXCEPTION:
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
+                break;
+
+            case VM_EVENT_REASON_CPUID:
+                memcpy(&vmec.cpuid, &req->u.cpuid, sizeof(vmec.cpuid));
+                break;
+        }
+
+        vrc = process_request(vmi, &vmec);
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( VMI_FAILURE == vrc )
+            break;
+#endif
+
+        rsp->version = vmec.version;
+        rsp->vcpu_id = vmec.vcpu_id;
+        rsp->flags = vmec.flags;
+        rsp->reason = vmec.reason;
+        rsp->altp2m_idx = vmec.altp2m_idx;
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_READ_DATA ) {
+            rsp->data.emul.read.size = vmec.data.emul.read.size;
+            memcpy(&rsp->data.emul.read.data, &vmec.data.emul.read.data, vmec.data.emul.read.size);
+        }
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_INSN_DATA )
+            memcpy(&rsp->data.emul.insn, &vmec.data.emul.insn, sizeof(rsp->data.emul.insn));
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_REGISTERS ) {
+#if defined(ARM32) || defined(ARM64)
+            memcpy(&rsp->data.regs.arm, &vmec.data.regs.arm, sizeof(rsp->data.regs.arm));
+#elif defined(I386) || defined(X86_64)
+            rsp->data.regs.x86.rax = vmec.data.regs.x86.rax;
+            rsp->data.regs.x86.rcx = vmec.data.regs.x86.rcx;
+            rsp->data.regs.x86.rdx = vmec.data.regs.x86.rdx;
+            rsp->data.regs.x86.rbx = vmec.data.regs.x86.rbx;
+            rsp->data.regs.x86.rsp = vmec.data.regs.x86.rsp;
+            rsp->data.regs.x86.rbp = vmec.data.regs.x86.rbp;
+            rsp->data.regs.x86.rsi = vmec.data.regs.x86.rsi;
+            rsp->data.regs.x86.rdi = vmec.data.regs.x86.rdi;
+            rsp->data.regs.x86.r8 = vmec.data.regs.x86.r8;
+            rsp->data.regs.x86.r9 = vmec.data.regs.x86.r9;
+            rsp->data.regs.x86.r10 = vmec.data.regs.x86.r10;
+            rsp->data.regs.x86.r11 = vmec.data.regs.x86.r11;
+            rsp->data.regs.x86.r12 = vmec.data.regs.x86.r12;
+            rsp->data.regs.x86.r13 = vmec.data.regs.x86.r13;
+            rsp->data.regs.x86.r14 = vmec.data.regs.x86.r14;
+            rsp->data.regs.x86.r15 = vmec.data.regs.x86.r15;
+            rsp->data.regs.x86.rflags = vmec.data.regs.x86.rflags;
+            rsp->data.regs.x86.dr7 = vmec.data.regs.x86.dr7;
+            rsp->data.regs.x86.rip = vmec.data.regs.x86.rip;
+            rsp->data.regs.x86.cr0 = vmec.data.regs.x86.cr0;
+            rsp->data.regs.x86.cr2 = vmec.data.regs.x86.cr2;
+            rsp->data.regs.x86.cr3 = vmec.data.regs.x86.cr3;
+            rsp->data.regs.x86.cr4 = vmec.data.regs.x86.cr4;
+            rsp->data.regs.x86.sysenter_cs = vmec.data.regs.x86.sysenter_cs;
+            rsp->data.regs.x86.sysenter_esp = vmec.data.regs.x86.sysenter_esp;
+            rsp->data.regs.x86.sysenter_eip = vmec.data.regs.x86.sysenter_eip;
+            rsp->data.regs.x86.msr_efer = vmec.data.regs.x86.msr_efer;
+            rsp->data.regs.x86.msr_star = vmec.data.regs.x86.msr_star;
+            rsp->data.regs.x86.msr_lstar = vmec.data.regs.x86.msr_lstar;
+            rsp->data.regs.x86.fs_base = vmec.data.regs.x86.fs_base;
+            rsp->data.regs.x86.gs_base = vmec.data.regs.x86.gs_base;
+            rsp->data.regs.x86.cs_arbytes = vmec.data.regs.x86.cs_arbytes;
+            rsp->data.regs.x86._pad = 0;
+#endif
+        }
+
+        processed++;
+        RING_PUSH_RESPONSES(&xe->back_ring_2);
+
+        /*
+         * Send notification to Xen that response(s) were placed on the ring
+         *
+         * Note: it is more performant to send notification after each event if
+         * there are a lot of vCPUs assigned to the VM.
+         */
+        if (vmi->num_vcpus >= 7) {
+            rc = xen->libxcw.xc_evtchn_notify(xe->xce_handle, xe->port);
+
+#ifdef ENABLE_SAFETY_CHECKS
+            if ( rc ) {
+                errprint("Error sending event channel notification.\n");
+                return VMI_FAILURE;
+            }
+#endif
+        }
+    }
+
+    *requests_processed = processed;
+    return vrc;
+}
+
+int xen_are_events_pending_2(vmi_instance_t vmi)
+{
+    xen_events_t *xe = xen_get_events(vmi);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xe ) {
+        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
+        return -1;
+    }
+#endif
+
+    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_2);
+}
+
+status_t init_events_2(vmi_instance_t vmi)
+{
+    xen_events_t *xe = xen_get_events(vmi);
+
+    xe->process_requests = &process_requests_2;
+    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_2;
+
+    SHARED_RING_INIT((vm_event_2_sring_t *)xe->ring_page);
+    BACK_RING_INIT(&xe->back_ring_2,
+                   (vm_event_2_sring_t *)xe->ring_page,
+                   XC_PAGE_SIZE);
+
+    return VMI_SUCCESS;
+}
+
+/*
+ * VM_EVENT_VERSION 3 ring functions
+ */
+
+static inline
+void ring_get_request_and_response_3(xen_events_t *xe,
+                                     vm_event_3_request_t **req,
+                                     vm_event_3_request_t **rsp)
+{
+    vm_event_3_back_ring_t *back_ring = &xe->back_ring_3;
+    RING_IDX req_cons = back_ring->req_cons;
+    RING_IDX rsp_prod = back_ring->rsp_prod_pvt;
+
+    *req = RING_GET_REQUEST(back_ring, req_cons);
+    *rsp = RING_GET_RESPONSE(back_ring, rsp_prod);
+
+    // Update ring positions
+    req_cons++;
+    back_ring->req_cons = req_cons;
+    back_ring->sring->req_event = req_cons + 1;
+    back_ring->rsp_prod_pvt++;
+}
+
+status_t process_requests_3(vmi_instance_t vmi, uint32_t *requests_processed)
+{
+    vm_event_3_request_t *req;
+    vm_event_3_response_t *rsp;
+    vm_event_compat_t vmec = { 0 };
+    xen_events_t *xe = xen_get_events(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
+    int rc;
+    status_t vrc = VMI_SUCCESS;
+    uint32_t processed = 0;
+
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_3) ) {
+
+        ring_get_request_and_response_3(xe, &req, &rsp);
+
+        if ( req->version != 0x00000003 ) {
+            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is different then what we expect (0x%x != 0x%x)!\n",
                      req->version, 0x00000003);
             return VMI_FAILURE;
         }
@@ -1578,11 +1823,7 @@ status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_MOV_TO_MSR:
-                if ( xen->minor_version < 11 ) {
-                    vmec.mov_to_msr.msr = req->u.mov_to_msr_46.msr;
-                    vmec.mov_to_msr.new_value = req->u.mov_to_msr_46.value;
-                } else
-                    memcpy(&vmec.mov_to_msr, &req->u.mov_to_msr_411, sizeof(vmec.mov_to_msr));
+                memcpy(&vmec.mov_to_msr, &req->u.mov_to_msr_3, sizeof(vmec.mov_to_msr));
                 break;
 
             case VM_EVENT_REASON_SINGLESTEP:
@@ -1590,7 +1831,8 @@ status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
                 break;
 
             case VM_EVENT_REASON_INTERRUPT:
@@ -1598,7 +1840,9 @@ status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_DEBUG_EXCEPTION:
-                memcpy(&vmec.debug_exception, &req->u.debug_exception, sizeof(vmec.debug_exception));
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
                 break;
 
             case VM_EVENT_REASON_CPUID:
@@ -1671,7 +1915,7 @@ status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
         }
 
         processed++;
-        RING_PUSH_RESPONSES(&xe->back_ring_48);
+        RING_PUSH_RESPONSES(&xe->back_ring_3);
 
         /*
          * Send notification to Xen that response(s) were placed on the ring
@@ -1695,7 +1939,7 @@ status_t process_requests_48(vmi_instance_t vmi, uint32_t *requests_processed)
     return vrc;
 }
 
-int xen_are_events_pending_48(vmi_instance_t vmi)
+int xen_are_events_pending_3(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
@@ -1706,34 +1950,34 @@ int xen_are_events_pending_48(vmi_instance_t vmi)
     }
 #endif
 
-    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_48);
+    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_3);
 }
 
-status_t init_events_48(vmi_instance_t vmi)
+status_t init_events_3(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
-    xe->process_requests = &process_requests_48;
-    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_48;
+    xe->process_requests = &process_requests_3;
+    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_3;
 
-    SHARED_RING_INIT((vm_event_48_sring_t *)xe->ring_page);
-    BACK_RING_INIT(&xe->back_ring_48,
-                   (vm_event_48_sring_t *)xe->ring_page,
+    SHARED_RING_INIT((vm_event_3_sring_t *)xe->ring_page);
+    BACK_RING_INIT(&xe->back_ring_3,
+                   (vm_event_3_sring_t *)xe->ring_page,
                    XC_PAGE_SIZE);
 
     return VMI_SUCCESS;
 }
 
 /*
- * Xen 4.12 ring functions
+ * VM_EVENT_VERSION 4 ring functions
  */
 
 static inline
-void ring_get_request_and_response_412(xen_events_t *xe,
-                                       vm_event_412_request_t **req,
-                                       vm_event_412_request_t **rsp)
+void ring_get_request_and_response_4(xen_events_t *xe,
+                                     vm_event_4_request_t **req,
+                                     vm_event_4_request_t **rsp)
 {
-    vm_event_412_back_ring_t *back_ring = &xe->back_ring_412;
+    vm_event_4_back_ring_t *back_ring = &xe->back_ring_4;
     RING_IDX req_cons = back_ring->req_cons;
     RING_IDX rsp_prod = back_ring->rsp_prod_pvt;
 
@@ -1747,10 +1991,10 @@ void ring_get_request_and_response_412(xen_events_t *xe,
     back_ring->rsp_prod_pvt++;
 }
 
-status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
+status_t process_requests_4(vmi_instance_t vmi, uint32_t *requests_processed)
 {
-    vm_event_412_request_t *req;
-    vm_event_412_response_t *rsp;
+    vm_event_4_request_t *req;
+    vm_event_4_response_t *rsp;
     vm_event_compat_t vmec = { 0 };
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -1758,12 +2002,12 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
     status_t vrc = VMI_SUCCESS;
     uint32_t processed = 0;
 
-    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_412) ) {
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_4) ) {
 
-        ring_get_request_and_response_412(xe, &req, &rsp);
+        ring_get_request_and_response_4(xe, &req, &rsp);
 
-        if ( req->version > 0x00000004 ) {
-            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is newer then what we understand (0x%x > 0x%x)!\n",
+        if ( req->version != 0x00000004 ) {
+            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is different then what we expect (0x%x != 0x%x)!\n",
                      req->version, 0x00000004);
             return VMI_FAILURE;
         }
@@ -1852,7 +2096,8 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
                 break;
 
             case VM_EVENT_REASON_INTERRUPT:
@@ -1860,7 +2105,9 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_DEBUG_EXCEPTION:
-                memcpy(&vmec.debug_exception, &req->u.debug_exception, sizeof(vmec.debug_exception));
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
                 break;
 
             case VM_EVENT_REASON_CPUID:
@@ -1956,7 +2203,7 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
         }
 
         processed++;
-        RING_PUSH_RESPONSES(&xe->back_ring_412);
+        RING_PUSH_RESPONSES(&xe->back_ring_4);
 
         /*
          * Send notification to Xen that response(s) were placed on the ring
@@ -1980,7 +2227,7 @@ status_t process_requests_412(vmi_instance_t vmi, uint32_t *requests_processed)
     return vrc;
 }
 
-int xen_are_events_pending_412(vmi_instance_t vmi)
+int xen_are_events_pending_4(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
@@ -1991,34 +2238,34 @@ int xen_are_events_pending_412(vmi_instance_t vmi)
     }
 #endif
 
-    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_412);
+    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_4);
 }
 
-status_t init_events_412(vmi_instance_t vmi)
+status_t init_events_4(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
-    xe->process_requests = &process_requests_412;
-    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_412;
+    xe->process_requests = &process_requests_4;
+    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_4;
 
-    SHARED_RING_INIT((vm_event_412_sring_t *)xe->ring_page);
-    BACK_RING_INIT(&xe->back_ring_412,
-                   (vm_event_412_sring_t *)xe->ring_page,
+    SHARED_RING_INIT((vm_event_4_sring_t *)xe->ring_page);
+    BACK_RING_INIT(&xe->back_ring_4,
+                   (vm_event_4_sring_t *)xe->ring_page,
                    XC_PAGE_SIZE);
 
     return VMI_SUCCESS;
 }
 
 /*
- * Xen 4.13 ring functions
+ * VM_EVENT_VERSION 5 ring functions
  */
 
 static inline
-void ring_get_request_and_response_413(xen_events_t *xe,
-                                       vm_event_413_request_t **req,
-                                       vm_event_413_request_t **rsp)
+void ring_get_request_and_response_5(xen_events_t *xe,
+                                     vm_event_5_request_t **req,
+                                     vm_event_5_request_t **rsp)
 {
-    vm_event_413_back_ring_t *back_ring = &xe->back_ring_413;
+    vm_event_5_back_ring_t *back_ring = &xe->back_ring_5;
     RING_IDX req_cons = back_ring->req_cons;
     RING_IDX rsp_prod = back_ring->rsp_prod_pvt;
 
@@ -2032,10 +2279,10 @@ void ring_get_request_and_response_413(xen_events_t *xe,
     back_ring->rsp_prod_pvt++;
 }
 
-status_t process_requests_413(vmi_instance_t vmi, uint32_t *requests_processed)
+status_t process_requests_5(vmi_instance_t vmi, uint32_t *requests_processed)
 {
-    vm_event_413_request_t *req;
-    vm_event_413_response_t *rsp;
+    vm_event_5_request_t *req;
+    vm_event_5_response_t *rsp;
     vm_event_compat_t vmec = { 0 };
     xen_events_t *xe = xen_get_events(vmi);
     xen_instance_t *xen = xen_get_instance(vmi);
@@ -2043,12 +2290,12 @@ status_t process_requests_413(vmi_instance_t vmi, uint32_t *requests_processed)
     status_t vrc = VMI_SUCCESS;
     uint32_t processed = 0;
 
-    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_413) ) {
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_5) ) {
 
-        ring_get_request_and_response_413(xe, &req, &rsp);
+        ring_get_request_and_response_5(xe, &req, &rsp);
 
-        if ( req->version > 0x00000005 ) {
-            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is newer then what we understand (0x%x > 0x%x)!\n",
+        if ( req->version != 0x00000005 ) {
+            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is different then what we expect (0x%x > 0x%x)!\n",
                      req->version, 0x00000005);
             return VMI_FAILURE;
         }
@@ -2139,7 +2386,8 @@ status_t process_requests_413(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
-                memcpy(&vmec.software_breakpoint, &req->u.software_breakpoint, sizeof(vmec.software_breakpoint));
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
                 break;
 
             case VM_EVENT_REASON_INTERRUPT:
@@ -2147,7 +2395,9 @@ status_t process_requests_413(vmi_instance_t vmi, uint32_t *requests_processed)
                 break;
 
             case VM_EVENT_REASON_DEBUG_EXCEPTION:
-                memcpy(&vmec.debug_exception, &req->u.debug_exception, sizeof(vmec.debug_exception));
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
                 break;
 
             case VM_EVENT_REASON_CPUID:
@@ -2245,7 +2495,7 @@ status_t process_requests_413(vmi_instance_t vmi, uint32_t *requests_processed)
         }
 
         processed++;
-        RING_PUSH_RESPONSES(&xe->back_ring_413);
+        RING_PUSH_RESPONSES(&xe->back_ring_5);
 
         /*
          * Send notification to Xen that response(s) were placed on the ring
@@ -2269,7 +2519,7 @@ status_t process_requests_413(vmi_instance_t vmi, uint32_t *requests_processed)
     return vrc;
 }
 
-int xen_are_events_pending_413(vmi_instance_t vmi)
+int xen_are_events_pending_5(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
@@ -2280,25 +2530,317 @@ int xen_are_events_pending_413(vmi_instance_t vmi)
     }
 #endif
 
-    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_413);
+    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_5);
 }
 
 
-status_t init_events_413(vmi_instance_t vmi)
+status_t init_events_5(vmi_instance_t vmi)
 {
     xen_events_t *xe = xen_get_events(vmi);
 
-    xe->process_requests = &process_requests_413;
-    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_413;
+    xe->process_requests = &process_requests_5;
+    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_5;
 
-    SHARED_RING_INIT((vm_event_413_sring_t *)xe->ring_page);
-    BACK_RING_INIT(&xe->back_ring_413,
-                   (vm_event_413_sring_t *)xe->ring_page,
+    SHARED_RING_INIT((vm_event_5_sring_t *)xe->ring_page);
+    BACK_RING_INIT(&xe->back_ring_5,
+                   (vm_event_5_sring_t *)xe->ring_page,
                    XC_PAGE_SIZE);
 
     return VMI_SUCCESS;
 }
 
+/*
+ * VM_EVENT_VERSION 6 ring functions
+ */
+
+static inline
+void ring_get_request_and_response_6(xen_events_t *xe,
+                                     vm_event_6_request_t **req,
+                                     vm_event_6_request_t **rsp)
+{
+    vm_event_6_back_ring_t *back_ring = &xe->back_ring_6;
+    RING_IDX req_cons = back_ring->req_cons;
+    RING_IDX rsp_prod = back_ring->rsp_prod_pvt;
+
+    *req = RING_GET_REQUEST(back_ring, req_cons);
+    *rsp = RING_GET_RESPONSE(back_ring, rsp_prod);
+
+    // Update ring positions
+    req_cons++;
+    back_ring->req_cons = req_cons;
+    back_ring->sring->req_event = req_cons + 1;
+    back_ring->rsp_prod_pvt++;
+}
+
+status_t process_requests_6(vmi_instance_t vmi, uint32_t *requests_processed)
+{
+    vm_event_6_request_t *req;
+    vm_event_6_response_t *rsp;
+    vm_event_compat_t vmec = { 0 };
+    xen_events_t *xe = xen_get_events(vmi);
+    xen_instance_t *xen = xen_get_instance(vmi);
+    int rc;
+    status_t vrc = VMI_SUCCESS;
+    uint32_t processed = 0;
+
+    while ( RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_6) ) {
+
+        ring_get_request_and_response_6(xe, &req, &rsp);
+
+        if ( req->version != 0x00000006 ) {
+            errprint("Error, Xen reports a VM_EVENT_INTERFACE_VERSION that is different then what we expect (0x%x != 0x%x)!\n",
+                     req->version, 0x00000006);
+            return VMI_FAILURE;
+        }
+
+        vmec.version = req->version;
+        vmec.flags = req->flags;
+        vmec.reason = req->reason;
+        vmec.vcpu_id = req->vcpu_id;
+        vmec.altp2m_idx = req->altp2m_idx;
+
+#if defined(ARM32) || defined(ARM64)
+        memcpy(&vmec.data.regs.arm, &req->data.regs.arm, sizeof(vmec.data.regs.arm));
+#elif defined(I386) || defined(X86_64)
+        vmec.data.regs.x86.rax = req->data.regs.x86.rax;
+        vmec.data.regs.x86.rcx = req->data.regs.x86.rcx;
+        vmec.data.regs.x86.rdx = req->data.regs.x86.rdx;
+        vmec.data.regs.x86.rbx = req->data.regs.x86.rbx;
+        vmec.data.regs.x86.rsp = req->data.regs.x86.rsp;
+        vmec.data.regs.x86.rbp = req->data.regs.x86.rbp;
+        vmec.data.regs.x86.rsi = req->data.regs.x86.rsi;
+        vmec.data.regs.x86.rdi = req->data.regs.x86.rdi;
+        vmec.data.regs.x86.r8 = req->data.regs.x86.r8;
+        vmec.data.regs.x86.r9 = req->data.regs.x86.r9;
+        vmec.data.regs.x86.r10 = req->data.regs.x86.r10;
+        vmec.data.regs.x86.r11 = req->data.regs.x86.r11;
+        vmec.data.regs.x86.r12 = req->data.regs.x86.r12;
+        vmec.data.regs.x86.r13 = req->data.regs.x86.r13;
+        vmec.data.regs.x86.r14 = req->data.regs.x86.r14;
+        vmec.data.regs.x86.r15 = req->data.regs.x86.r15;
+        vmec.data.regs.x86.rflags = req->data.regs.x86.rflags;
+        vmec.data.regs.x86.dr6 = req->data.regs.x86.dr6;
+        vmec.data.regs.x86.dr7 = req->data.regs.x86.dr7;
+        vmec.data.regs.x86.rip = req->data.regs.x86.rip;
+        vmec.data.regs.x86.cr0 = req->data.regs.x86.cr0;
+        vmec.data.regs.x86.cr2 = req->data.regs.x86.cr2;
+        vmec.data.regs.x86.cr3 = req->data.regs.x86.cr3;
+        vmec.data.regs.x86.cr4 = req->data.regs.x86.cr4;
+        vmec.data.regs.x86.sysenter_cs = req->data.regs.x86.sysenter_cs;
+        vmec.data.regs.x86.sysenter_esp = req->data.regs.x86.sysenter_esp;
+        vmec.data.regs.x86.sysenter_eip = req->data.regs.x86.sysenter_eip;
+        vmec.data.regs.x86.msr_efer = req->data.regs.x86.msr_efer;
+        vmec.data.regs.x86.msr_star = req->data.regs.x86.msr_star;
+        vmec.data.regs.x86.msr_lstar = req->data.regs.x86.msr_lstar;
+        vmec.data.regs.x86.gdtr_base = req->data.regs.x86.gdtr_base;
+        vmec.data.regs.x86.gdtr_limit = req->data.regs.x86.gdtr_limit;
+        vmec.data.regs.x86.shadow_gs = req->data.regs.x86.shadow_gs;
+        vmec.data.regs.x86.fs_base = req->data.regs.x86.fs_base;
+        vmec.data.regs.x86.fs_sel = req->data.regs.x86.fs_sel;
+        vmec.data.regs.x86.fs_limit = req->data.regs.x86.fs.limit;
+        vmec.data.regs.x86.fs_arbytes = req->data.regs.x86.fs.ar;
+        vmec.data.regs.x86.gs_base = req->data.regs.x86.gs_base;
+        vmec.data.regs.x86.gs_sel = req->data.regs.x86.gs_sel;
+        vmec.data.regs.x86.gs_limit = req->data.regs.x86.gs.limit;
+        vmec.data.regs.x86.gs_arbytes = req->data.regs.x86.gs.ar;
+        vmec.data.regs.x86.cs_base = req->data.regs.x86.cs_base;
+        vmec.data.regs.x86.cs_sel = req->data.regs.x86.cs_sel;
+        vmec.data.regs.x86.cs_limit = req->data.regs.x86.cs.limit;
+        vmec.data.regs.x86.cs_arbytes = req->data.regs.x86.cs.ar;
+        vmec.data.regs.x86.ds_base = req->data.regs.x86.ds_base;
+        vmec.data.regs.x86.ds_sel = req->data.regs.x86.ds_sel;
+        vmec.data.regs.x86.ds_limit = req->data.regs.x86.ds.limit;
+        vmec.data.regs.x86.ds_arbytes = req->data.regs.x86.ds.ar;
+        vmec.data.regs.x86.es_base = req->data.regs.x86.es_base;
+        vmec.data.regs.x86.es_sel = req->data.regs.x86.es_sel;
+        vmec.data.regs.x86.es_limit = req->data.regs.x86.es.limit;
+        vmec.data.regs.x86.es_arbytes = req->data.regs.x86.es.ar;
+        vmec.data.regs.x86.ss_base = req->data.regs.x86.ss_base;
+        vmec.data.regs.x86.ss_sel = req->data.regs.x86.ss_sel;
+        vmec.data.regs.x86.ss_limit = req->data.regs.x86.ss.limit;
+        vmec.data.regs.x86.ss_arbytes = req->data.regs.x86.ss.ar;
+#endif
+
+        switch ( vmec.reason ) {
+            case VM_EVENT_REASON_MEM_ACCESS:
+                memcpy(&vmec.mem_access, &req->u.mem_access, sizeof(vmec.mem_access));
+                break;
+
+            case VM_EVENT_REASON_WRITE_CTRLREG:
+                memcpy(&vmec.write_ctrlreg, &req->u.write_ctrlreg, sizeof(vmec.write_ctrlreg));
+                break;
+
+            case VM_EVENT_REASON_MOV_TO_MSR:
+                memcpy(&vmec.mov_to_msr, &req->u.mov_to_msr, sizeof(vmec.mov_to_msr));
+                break;
+
+            case VM_EVENT_REASON_SINGLESTEP:
+                memcpy(&vmec.singlestep, &req->u.singlestep, sizeof(vmec.singlestep));
+                break;
+
+            case VM_EVENT_REASON_SOFTWARE_BREAKPOINT:
+                vmec.software_breakpoint.gfn = req->u.software_breakpoint.gfn;
+                vmec.software_breakpoint.insn_length = req->u.software_breakpoint.insn_length;
+                break;
+
+            case VM_EVENT_REASON_INTERRUPT:
+                memcpy(&vmec.x86_interrupt, &req->u.interrupt.x86, sizeof(vmec.x86_interrupt));
+                break;
+
+            case VM_EVENT_REASON_DEBUG_EXCEPTION:
+                vmec.debug_exception.gfn = req->u.debug_exception.gfn;
+                vmec.debug_exception.insn_length = req->u.debug_exception.insn_length;
+                vmec.debug_exception.type = req->u.debug_exception.type;
+                break;
+
+            case VM_EVENT_REASON_CPUID:
+                memcpy(&vmec.cpuid, &req->u.cpuid, sizeof(vmec.cpuid));
+                break;
+
+            case VM_EVENT_REASON_DESCRIPTOR_ACCESS:
+                memcpy(&vmec.desc_access, &req->u.desc_access, sizeof(vmec.desc_access));
+                break;
+        }
+
+        vrc = process_request(vmi, &vmec);
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( VMI_FAILURE == vrc )
+            break;
+#endif
+
+        rsp->version = vmec.version;
+        rsp->vcpu_id = vmec.vcpu_id;
+        rsp->flags = vmec.flags;
+        rsp->reason = vmec.reason;
+        rsp->altp2m_idx = vmec.altp2m_idx;
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_READ_DATA ) {
+            rsp->data.emul.read.size = vmec.data.emul.read.size;
+            memcpy(&rsp->data.emul.read.data, &vmec.data.emul.read.data, vmec.data.emul.read.size);
+        }
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_INSN_DATA )
+            memcpy(&rsp->data.emul.insn, &vmec.data.emul.insn, sizeof(rsp->data.emul.insn));
+
+        if ( rsp->flags & VM_EVENT_FLAG_SET_REGISTERS ) {
+#if defined(ARM32) || defined(ARM64)
+            memcpy(&rsp->data.regs.arm, &vmec.data.regs.arm, sizeof(rsp->data.regs.arm));
+#elif defined(I386) || defined(X86_64)
+            rsp->data.regs.x86.rax = vmec.data.regs.x86.rax;
+            rsp->data.regs.x86.rcx = vmec.data.regs.x86.rcx;
+            rsp->data.regs.x86.rdx = vmec.data.regs.x86.rdx;
+            rsp->data.regs.x86.rbx = vmec.data.regs.x86.rbx;
+            rsp->data.regs.x86.rsp = vmec.data.regs.x86.rsp;
+            rsp->data.regs.x86.rbp = vmec.data.regs.x86.rbp;
+            rsp->data.regs.x86.rsi = vmec.data.regs.x86.rsi;
+            rsp->data.regs.x86.rdi = vmec.data.regs.x86.rdi;
+            rsp->data.regs.x86.r8 = vmec.data.regs.x86.r8;
+            rsp->data.regs.x86.r9 = vmec.data.regs.x86.r9;
+            rsp->data.regs.x86.r10 = vmec.data.regs.x86.r10;
+            rsp->data.regs.x86.r11 = vmec.data.regs.x86.r11;
+            rsp->data.regs.x86.r12 = vmec.data.regs.x86.r12;
+            rsp->data.regs.x86.r13 = vmec.data.regs.x86.r13;
+            rsp->data.regs.x86.r14 = vmec.data.regs.x86.r14;
+            rsp->data.regs.x86.r15 = vmec.data.regs.x86.r15;
+            rsp->data.regs.x86.rflags = vmec.data.regs.x86.rflags;
+            rsp->data.regs.x86.dr6 = vmec.data.regs.x86.dr6;
+            rsp->data.regs.x86.dr7 = vmec.data.regs.x86.dr7;
+            rsp->data.regs.x86.rip = vmec.data.regs.x86.rip;
+            rsp->data.regs.x86.cr0 = vmec.data.regs.x86.cr0;
+            rsp->data.regs.x86.cr2 = vmec.data.regs.x86.cr2;
+            rsp->data.regs.x86.cr3 = vmec.data.regs.x86.cr3;
+            rsp->data.regs.x86.cr4 = vmec.data.regs.x86.cr4;
+            rsp->data.regs.x86.sysenter_cs = vmec.data.regs.x86.sysenter_cs;
+            rsp->data.regs.x86.sysenter_esp = vmec.data.regs.x86.sysenter_esp;
+            rsp->data.regs.x86.sysenter_eip = vmec.data.regs.x86.sysenter_eip;
+            rsp->data.regs.x86.msr_efer = vmec.data.regs.x86.msr_efer;
+            rsp->data.regs.x86.msr_star = vmec.data.regs.x86.msr_star;
+            rsp->data.regs.x86.msr_lstar = vmec.data.regs.x86.msr_lstar;
+            rsp->data.regs.x86.gdtr_base = vmec.data.regs.x86.gdtr_base;
+            rsp->data.regs.x86.gdtr_limit = vmec.data.regs.x86.gdtr_limit;
+            rsp->data.regs.x86.shadow_gs = vmec.data.regs.x86.shadow_gs;
+            rsp->data.regs.x86.fs_base = vmec.data.regs.x86.fs_base;
+            rsp->data.regs.x86.fs_sel = vmec.data.regs.x86.fs_sel;
+            rsp->data.regs.x86.fs.ar = vmec.data.regs.x86.fs_arbytes;
+            rsp->data.regs.x86.fs.limit = vmec.data.regs.x86.fs_limit;
+            rsp->data.regs.x86.gs_base = vmec.data.regs.x86.gs_base;
+            rsp->data.regs.x86.gs_sel = vmec.data.regs.x86.gs_sel;
+            rsp->data.regs.x86.gs.ar = vmec.data.regs.x86.gs_arbytes;
+            rsp->data.regs.x86.gs.limit = vmec.data.regs.x86.gs_limit;
+            rsp->data.regs.x86.cs_base = vmec.data.regs.x86.cs_base;
+            rsp->data.regs.x86.cs_sel = vmec.data.regs.x86.cs_sel;
+            rsp->data.regs.x86.cs.ar = vmec.data.regs.x86.cs_arbytes;
+            rsp->data.regs.x86.cs.limit = vmec.data.regs.x86.cs_limit;
+            rsp->data.regs.x86.ds_base = vmec.data.regs.x86.ds_base;
+            rsp->data.regs.x86.ds_sel = vmec.data.regs.x86.ds_sel;
+            rsp->data.regs.x86.ds.ar = vmec.data.regs.x86.ds_arbytes;
+            rsp->data.regs.x86.ds.limit = vmec.data.regs.x86.ds_limit;
+            rsp->data.regs.x86.es_base = vmec.data.regs.x86.es_base;
+            rsp->data.regs.x86.es_sel = vmec.data.regs.x86.es_sel;
+            rsp->data.regs.x86.es.ar = vmec.data.regs.x86.es_arbytes;
+            rsp->data.regs.x86.es.limit = vmec.data.regs.x86.es_limit;
+            rsp->data.regs.x86.ss_base = vmec.data.regs.x86.ss_base;
+            rsp->data.regs.x86.ss_sel = vmec.data.regs.x86.ss_sel;
+            rsp->data.regs.x86.ss.ar = vmec.data.regs.x86.ss_arbytes;
+            rsp->data.regs.x86.ss.limit = vmec.data.regs.x86.ss_limit;
+            rsp->data.regs.x86._pad = 0;
+#endif
+        }
+
+        processed++;
+        RING_PUSH_RESPONSES(&xe->back_ring_6);
+
+        /*
+         * Send notification to Xen that response(s) were placed on the ring
+         *
+         * Note: it is more performant to send notification after each event if
+         * there are a lot of vCPUs assigned to the VM.
+         */
+        if (vmi->num_vcpus >= 7) {
+            rc = xen->libxcw.xc_evtchn_notify(xe->xce_handle, xe->port);
+
+#ifdef ENABLE_SAFETY_CHECKS
+            if ( rc ) {
+                errprint("Error sending event channel notification.\n");
+                return VMI_FAILURE;
+            }
+#endif
+        }
+    }
+
+    *requests_processed = processed;
+    return vrc;
+}
+
+int xen_are_events_pending_6(vmi_instance_t vmi)
+{
+    xen_events_t *xe = xen_get_events(vmi);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xe ) {
+        errprint("%s error: invalid xen_events_t handle\n", __FUNCTION__);
+        return -1;
+    }
+#endif
+
+    return RING_HAS_UNCONSUMED_REQUESTS(&xe->back_ring_6);
+}
+
+
+status_t init_events_6(vmi_instance_t vmi)
+{
+    xen_events_t *xe = xen_get_events(vmi);
+
+    xe->process_requests = &process_requests_6;
+    vmi->driver.are_events_pending_ptr = &xen_are_events_pending_6;
+
+    SHARED_RING_INIT((vm_event_6_sring_t *)xe->ring_page);
+    BACK_RING_INIT(&xe->back_ring_6,
+                   (vm_event_6_sring_t *)xe->ring_page,
+                   XC_PAGE_SIZE);
+
+    return VMI_SUCCESS;
+}
 
 /*
  * Main event functions
@@ -2386,7 +2928,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
                 return VMI_FAILURE;
             }
         } else
-            needs_unmasking = 1;
+            needs_unmasking = timeout;
     }
 
 #ifdef HAVE_LIBXENSTORE
@@ -2651,17 +3193,40 @@ status_t xen_init_events(
 
     dbprint(VMI_DEBUG_XEN, "--Xen common events interface initialized\n");
 
-    switch (xen->minor_version) {
-        case 6 ... 7:
-            return init_events_46(vmi);
-        case 8 ... 11:
-            return init_events_48(vmi);
-        case 12:
-            return init_events_412(vmi);
-        default: /* fall-through */
-        case 13:
-            return init_events_413(vmi);
-    };
+    /*
+     * Starting with Xen 4.13 we have a new libxc API to get the real vm_event version
+     * and we don't have to deduce it from the Xen minor version, allowing vm_event
+     * versions to be backported to older Xen releases.
+     *
+     */
+    if ( xen->libxcw.xc_vm_event_get_version ) {
+        int vm_event_abi = xen->libxcw.xc_vm_event_get_version(xch);
+        dbprint(VMI_DEBUG_XEN, "--Xen vm_event ABI version: %i\n", vm_event_abi);
+
+        switch (vm_event_abi) {
+            case 5:
+                return init_events_5(vmi);
+            case 6:
+                return init_events_6(vmi);
+            default:
+                errprint("Unsupported Xen vm_event ABI: %i\n", vm_event_abi);
+                break;
+        };
+    } else {
+        switch (xen->minor_version) {
+            case 6 ... 7:
+                return init_events_1(vmi);
+            case 8 ... 10:
+                return init_events_2(vmi);
+            case 11:
+                return init_events_3(vmi);
+            case 12:
+                return init_events_4(vmi);
+            default:
+                errprint("Unsupported Xen events version\n");
+                break;
+        };
+    }
 
 err:
     g_free(xe);

@@ -279,6 +279,20 @@ memory_cache_destroy(
     vmi->release_data_callback = NULL;
 }
 
+void
+memory_cache_flush(
+    vmi_instance_t vmi)
+{
+    if (vmi->memory_cache_lru) {
+        g_queue_foreach(vmi->memory_cache_lru, (GFunc)g_free, NULL);
+        g_queue_free(vmi->memory_cache_lru);
+        vmi->memory_cache_lru = g_queue_new();
+    }
+
+    if (vmi->memory_cache)
+        g_hash_table_remove_all(vmi->memory_cache);
+}
+
 #else
 void
 memory_cache_init(
@@ -332,5 +346,16 @@ memory_cache_destroy(
     vmi->last_used_page = NULL;
     vmi->get_data_callback = NULL;
     vmi->release_data_callback = NULL;
+}
+
+void
+memory_cache_flush(
+    vmi_instance_t vmi)
+{
+    if (vmi->last_used_page)
+        vmi->release_data_callback(vmi, vmi->last_used_page, vmi->page_size);
+
+    vmi->last_used_page_key = 0;
+    vmi->last_used_page = NULL;
 }
 #endif

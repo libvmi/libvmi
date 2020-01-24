@@ -45,6 +45,8 @@ struct windows_instance {
 
     uint64_t pname_offset; /**< EPROCESS->ImageFileName */
 
+    uint16_t build; /**< Windows build number */
+
     win_ver_t version; /**< version of Windows */
 };
 typedef struct windows_instance *windows_instance_t;

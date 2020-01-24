@@ -180,7 +180,7 @@ status_t read_config_string(vmi_instance_t vmi,
 
     gchar *config_str = g_strconcat(vmi->image_type, " ", config, NULL);
 
-    config_file = fmemopen(config_str, strlen(config_str), "r");
+    config_file = fmemopen(config_str, strlen(config_str)+1, "r");
     ret = read_config_file(vmi, config_file, _config, error);
 
     g_free(config_str);
@@ -219,12 +219,20 @@ set_os_type_from_config(
         vmi->os_data = NULL;
     }
 
-    ostype = g_hash_table_lookup(configtbl, "ostype");
-    if (ostype == NULL) {
-        ostype = g_hash_table_lookup(configtbl, "os_type");
+    const char *json_path = g_hash_table_lookup(configtbl, "volatility_ist");
+    if ( !json_path )
+        json_path = g_hash_table_lookup(configtbl, "rekall_profile");
+
+    if ( json_path && json_profile_init(vmi, json_path) )
+        ostype = vmi->json.get_os_type(vmi);
+
+    if (!ostype) {
+        ostype = g_hash_table_lookup(configtbl, "ostype");
+        if (ostype == NULL)
+            ostype = g_hash_table_lookup(configtbl, "os_type");
     }
 
-    if (ostype == NULL) {
+    if ( !ostype ) {
         errprint("Undefined OS type!\n");
         return VMI_FAILURE;
     }
@@ -383,8 +391,11 @@ set_id_and_name(
 
     dbprint(VMI_DEBUG_CORE, "--failed to get domain name from id!\n");
 
-#if !defined(HAVE_XS_H) && !defined(HAVE_XENSTORE_H)
-    // Only under Xen this is OK without Xenstore
+    /*
+     * On Xen it is possible that we don't have access to xenstore or xenstore doesn't
+     * have the required information. Create a placeholder idstring in this case, since
+     * we really only need the domain ID to successfully work.
+     */
     if (vmi->mode == VMI_XEN) {
         // create placeholder for image_type
         char *idstring = g_try_malloc0(snprintf(NULL, 0, "domid-%"PRIu64, id) + 1);
@@ -394,7 +405,6 @@ set_id_and_name(
             goto done;
         }
     }
-#endif
 
     return VMI_FAILURE;
 
@@ -675,6 +685,10 @@ os_t vmi_init_os(
             }
             _config = (GHashTable*)config;
             break;
+        case VMI_CONFIG_JSON_PATH:
+            _config = g_hash_table_new(g_str_hash, g_str_equal);
+            g_hash_table_insert(_config, "volatility_ist", config);
+            break;
         default:
             goto error_exit;
     }
@@ -693,7 +707,7 @@ os_t vmi_init_os(
      * heuristics.
      */
     if ( VMI_FILE != vmi->mode && VMI_PM_UNKNOWN == vmi->page_mode &&
-            VMI_PM_UNKNOWN == vmi_init_paging(vmi, 0) ) {
+            VMI_PM_UNKNOWN == vmi_init_paging(vmi, vmi->os_type == VMI_OS_WINDOWS ? VMI_PM_INITFLAG_TRANSITION_PAGES : 0) ) {
         vmi->os_type = VMI_OS_UNKNOWN;
         if ( error )
             *error = VMI_INIT_ERROR_PAGING;
@@ -811,9 +825,9 @@ vmi_destroy(
     vmi->arch_interface = NULL;
 
 #ifdef ENABLE_JSON_PROFILES
-    g_free(vmi->json_profile_path);
-    if ( vmi->json_profile )
-        json_object_put(vmi->json_profile);
+    g_free((char*)vmi->json.path);
+    if ( vmi->json.root )
+        json_object_put(vmi->json.root);
 #endif
 
     pid_cache_destroy(vmi);

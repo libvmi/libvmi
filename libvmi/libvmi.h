@@ -35,6 +35,9 @@
 
 #ifdef __cplusplus
 extern "C" {
+#define NOEXCEPT noexcept
+#else
+#define NOEXCEPT
 #endif
 
 #pragma GCC visibility push(default)
@@ -76,6 +79,8 @@ typedef enum vmi_config {
     VMI_CONFIG_STRING,            /**< config string provided */
 
     VMI_CONFIG_GHASHTABLE,        /**< config GHashTable provided */
+
+    VMI_CONFIG_JSON_PATH,         /**< config in json file at the location provided */
 } vmi_config_t;
 
 typedef enum status {
@@ -760,7 +765,7 @@ status_t vmi_init(
     const void *domain,
     uint64_t init_flags,
     vmi_init_data_t *init_data,
-    vmi_init_error_t *error);
+    vmi_init_error_t *error) NOEXCEPT;
 
 /**
  * Initializes access to a specific VM or file given a name or an ID.  All
@@ -798,7 +803,7 @@ status_t vmi_init_complete(
     vmi_init_data_t *init_data,
     vmi_config_t config_mode,
     void *config,
-    vmi_init_error_t *error);
+    vmi_init_error_t *error) NOEXCEPT;
 
 /*
  * Initialize or reinitialize the paging specific functionality of LibVMI
@@ -814,7 +819,7 @@ status_t vmi_init_complete(
  */
 page_mode_t vmi_init_paging(
     vmi_instance_t vmi,
-    uint64_t flags);
+    uint64_t flags) NOEXCEPT;
 
 /*
  * Initialize the OS specific functionality of LibVMI required for functions
@@ -835,7 +840,7 @@ os_t vmi_init_os(
     vmi_instance_t vmi,
     vmi_config_t config_mode,
     void *config,
-    vmi_init_error_t *error);
+    vmi_init_error_t *error) NOEXCEPT;
 
 /**
  * Destroys an instance by freeing memory and closing any open handles.
@@ -844,7 +849,7 @@ os_t vmi_init_os(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_destroy(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Obtain the library arch mode that was used for compiling.
@@ -852,7 +857,7 @@ status_t vmi_destroy(
  * @param[in] vmi LibVMI instance
  * @return The architecture of the library
  */
-vmi_arch_t vmi_get_library_arch(void);
+vmi_arch_t vmi_get_library_arch(void) NOEXCEPT;
 
 /*---------------------------------------------------------
  * Memory translation functions from memory.c
@@ -870,7 +875,7 @@ vmi_arch_t vmi_get_library_arch(void);
 status_t vmi_translate_kv2p(
     vmi_instance_t vmi,
     addr_t vaddr,
-    addr_t *paddr);
+    addr_t *paddr) NOEXCEPT;
 
 /**
  * Performs the translation from a user virtual address to a
@@ -886,7 +891,7 @@ status_t vmi_translate_uv2p(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    addr_t *paddr);
+    addr_t *paddr) NOEXCEPT;
 
 /**
  * Performs the translation from a kernel symbol to a virtual address.
@@ -899,7 +904,7 @@ status_t vmi_translate_uv2p(
 status_t vmi_translate_ksym2v(
     vmi_instance_t vmi,
     const char *symbol,
-    addr_t *vaddr);
+    addr_t *vaddr) NOEXCEPT;
 
 /**
  * Performs the translation from a symbol to a virtual address.
@@ -916,7 +921,7 @@ status_t vmi_translate_sym2v(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     const char *symbol,
-    addr_t *vaddr);
+    addr_t *vaddr) NOEXCEPT;
 
 /**
  * Performs the translation from an RVA to a symbol
@@ -932,7 +937,7 @@ status_t vmi_translate_sym2v(
 const char* vmi_translate_v2sym(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    addr_t rva);
+    addr_t rva) NOEXCEPT;
 
 /**
  * Performs the translation from VA to a symbol for Linux with KASLR offset
@@ -947,7 +952,7 @@ const char* vmi_translate_v2sym(
 const char* vmi_translate_v2ksym(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    addr_t va);
+    addr_t va) NOEXCEPT;
 
 /**
  * Given a pid, this function returns the virtual address of the
@@ -959,6 +964,8 @@ const char* vmi_translate_v2ksym(
  * these lists are not guaranteed to be complete and accurate. Use of
  * this function is discouraged when using events.
  *
+ * Note: Use of this function is discouraged with events.
+ *
  * @param[in] vmi LibVMI instance
  * @param[in] pid Desired process id to lookup
  * @param[out] dtb The directory table base virtual address for a pid
@@ -967,7 +974,7 @@ const char* vmi_translate_v2ksym(
 status_t vmi_pid_to_dtb(
     vmi_instance_t vmi,
     vmi_pid_t pid,
-    addr_t *dtb);
+    addr_t *dtb) NOEXCEPT;
 
 /**
  * Given a dtb, this function returns the PID corresponding to the
@@ -978,6 +985,12 @@ status_t vmi_pid_to_dtb(
  * these lists are not guaranteed to be complete and accurate. Use of
  * this function is discouraged when using events.
  *
+ * Note: On Linux certain PIDs don't have their own dtb (task->mm)
+ * and rather re-use other process' dtb (task->active_mm). In such case
+ * the PID returned by this function will be that of the "owning" process.
+ *
+ * Note: Use of this function is discouraged with events.
+ *
  * @param[in] vmi LibVMI instance
  * @param[in] dtb Desired dtb to lookup
  * @param[out] pid The PID corresponding to the dtb
@@ -986,7 +999,7 @@ status_t vmi_pid_to_dtb(
 status_t vmi_dtb_to_pid(
     vmi_instance_t vmi,
     addr_t dtb,
-    vmi_pid_t *pid);
+    vmi_pid_t *pid) NOEXCEPT;
 
 /**
  * Translates a virtual address to a physical address.
@@ -1002,7 +1015,7 @@ status_t vmi_pagetable_lookup (
     vmi_instance_t vmi,
     addr_t dtb,
     addr_t vaddr,
-    addr_t *paddr);
+    addr_t *paddr) NOEXCEPT;
 
 /**
  * Gets the physical address and page size of the VA
@@ -1019,7 +1032,7 @@ status_t vmi_pagetable_lookup_extended(
     vmi_instance_t vmi,
     addr_t dtb,
     addr_t vaddr,
-    page_info_t *info);
+    page_info_t *info) NOEXCEPT;
 
 /*---------------------------------------------------------
  * Memory access functions
@@ -1040,7 +1053,7 @@ status_t vmi_read(
     const access_context_t *ctx,
     size_t count,
     void *buf,
-    size_t *bytes_read);
+    size_t *bytes_read) NOEXCEPT;
 
 /**
  * Reads 8 bits from memory.
@@ -1053,7 +1066,7 @@ status_t vmi_read(
 status_t vmi_read_8(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    uint8_t * value);
+    uint8_t * value) NOEXCEPT;
 
 /**
  * Reads 16 bits from memory, given a virtual address.
@@ -1066,7 +1079,7 @@ status_t vmi_read_8(
 status_t vmi_read_16(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    uint16_t * value);
+    uint16_t * value) NOEXCEPT;
 
 /**
  * Reads 32 bits from memory, given a virtual address.
@@ -1079,7 +1092,7 @@ status_t vmi_read_16(
 status_t vmi_read_32(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    uint32_t * value);
+    uint32_t * value) NOEXCEPT;
 
 /**
  * Reads 64 bits from memory, given a virtual address.
@@ -1093,7 +1106,7 @@ status_t vmi_read_32(
 status_t vmi_read_64(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    uint64_t * value);
+    uint64_t * value) NOEXCEPT;
 
 /**
  * Reads an address from memory, given a virtual address.  The number of
@@ -1107,7 +1120,7 @@ status_t vmi_read_64(
 status_t vmi_read_addr(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    addr_t *value);
+    addr_t *value) NOEXCEPT;
 
 /**
  * Reads a null terminated string from memory, starting at
@@ -1120,7 +1133,7 @@ status_t vmi_read_addr(
  */
 char *vmi_read_str(
     vmi_instance_t vmi,
-    const access_context_t *ctx);
+    const access_context_t *ctx) NOEXCEPT;
 
 /**
  * Reads a Unicode string from the given address. If the guest is running
@@ -1134,7 +1147,7 @@ char *vmi_read_str(
  */
 unicode_string_t *vmi_read_unicode_str(
     vmi_instance_t vmi,
-    const access_context_t *ctx);
+    const access_context_t *ctx) NOEXCEPT;
 
 /**
  * Reads a Unicode string from the given address using the specified page mode.
@@ -1152,7 +1165,7 @@ unicode_string_t *vmi_read_unicode_str(
 unicode_string_t *vmi_read_unicode_str_pm(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    page_mode_t mode );
+    page_mode_t mode ) NOEXCEPT;
 
 /**
  * Reads count bytes from memory located at the kernel symbol sym
@@ -1171,7 +1184,7 @@ status_t vmi_read_ksym(
     size_t count,
     void *buf,
     size_t *bytes_read
-);
+) NOEXCEPT;
 
 /**
  * Reads count bytes from memory located at the virtual address vaddr
@@ -1192,7 +1205,7 @@ status_t vmi_read_va(
     size_t count,
     void *buf,
     size_t *bytes_read
-);
+) NOEXCEPT;
 
 /**
  * Maps num_pages of the guest's virtual memory into host, starting at the provided vaddr.
@@ -1210,7 +1223,7 @@ status_t vmi_mmap_guest(
     const access_context_t *ctx,
     size_t num_pages,
     void **access_ptrs
-);
+) NOEXCEPT;
 
 /**
  * Reads count bytes from memory located at the physical address paddr
@@ -1229,7 +1242,7 @@ status_t vmi_read_pa(
     size_t count,
     void *buf,
     size_t *bytes_read
-);
+) NOEXCEPT;
 
 /**
  * Reads 8 bits from memory, given a kernel symbol.
@@ -1242,7 +1255,7 @@ status_t vmi_read_pa(
 status_t vmi_read_8_ksym(
     vmi_instance_t vmi,
     char *sym,
-    uint8_t * value);
+    uint8_t * value) NOEXCEPT;
 
 /**
  * Reads 16 bits from memory, given a kernel symbol.
@@ -1255,7 +1268,7 @@ status_t vmi_read_8_ksym(
 status_t vmi_read_16_ksym(
     vmi_instance_t vmi,
     char *sym,
-    uint16_t * value);
+    uint16_t * value) NOEXCEPT;
 
 /**
  * Reads 32 bits from memory, given a kernel symbol.
@@ -1268,7 +1281,7 @@ status_t vmi_read_16_ksym(
 status_t vmi_read_32_ksym(
     vmi_instance_t vmi,
     char *sym,
-    uint32_t * value);
+    uint32_t * value) NOEXCEPT;
 
 /**
  * Reads 64 bits from memory, given a kernel symbol.
@@ -1281,7 +1294,7 @@ status_t vmi_read_32_ksym(
 status_t vmi_read_64_ksym(
     vmi_instance_t vmi,
     char *sym,
-    uint64_t * value);
+    uint64_t * value) NOEXCEPT;
 
 /**
  * Reads an address from memory, given a kernel symbol.  The number of
@@ -1295,7 +1308,7 @@ status_t vmi_read_64_ksym(
 status_t vmi_read_addr_ksym(
     vmi_instance_t vmi,
     char *sym,
-    addr_t *value);
+    addr_t *value) NOEXCEPT;
 
 /**
  * Reads a null-terminated string from memory, starting at
@@ -1308,7 +1321,7 @@ status_t vmi_read_addr_ksym(
  */
 char *vmi_read_str_ksym(
     vmi_instance_t vmi,
-    char *sym);
+    char *sym) NOEXCEPT;
 
 /**
  * Reads 8 bits from memory, given a virtual address.
@@ -1323,7 +1336,7 @@ status_t vmi_read_8_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    uint8_t * value);
+    uint8_t * value) NOEXCEPT;
 
 /**
  * Reads 16 bits from memory, given a virtual address.
@@ -1338,7 +1351,7 @@ status_t vmi_read_16_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    uint16_t * value);
+    uint16_t * value) NOEXCEPT;
 
 /**
  * Reads 32 bits from memory, given a virtual address.
@@ -1353,7 +1366,7 @@ status_t vmi_read_32_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    uint32_t * value);
+    uint32_t * value) NOEXCEPT;
 
 /**
  * Reads 64 bits from memory, given a virtual address.
@@ -1368,7 +1381,7 @@ status_t vmi_read_64_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    uint64_t * value);
+    uint64_t * value) NOEXCEPT;
 
 /**
  * Reads an address from memory, given a virtual address.  The number of
@@ -1384,7 +1397,7 @@ status_t vmi_read_addr_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    addr_t *value);
+    addr_t *value) NOEXCEPT;
 
 /**
  * Reads a null terminated string from memory, starting at
@@ -1399,7 +1412,7 @@ status_t vmi_read_addr_va(
 char *vmi_read_str_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    vmi_pid_t pid);
+    vmi_pid_t pid) NOEXCEPT;
 
 /**
  * Reads a Unicode string from the given address. If the guest is running
@@ -1415,12 +1428,12 @@ char *vmi_read_str_va(
 unicode_string_t *vmi_read_unicode_str_va(
     vmi_instance_t vmi,
     addr_t vaddr,
-    vmi_pid_t pid);
+    vmi_pid_t pid) NOEXCEPT;
 
 /**
  * Converts character encoding from that in the input string to another
  * specified encoding. Two common ways to use this function are: (1) convert a
- * string to the "UTF-8" encoding and output with printf("%s"); (2) convert a
+ * string to the "UTF-8" encoding and output with printf("%s") NOEXCEPT; (2) convert a
  * string to the "WCHAR_T" encoding and output with printf("%ls").
  *
  * @param[in] in  unicode_string_t to be converted; encoding field must be set
@@ -1431,7 +1444,7 @@ unicode_string_t *vmi_read_unicode_str_va(
 status_t vmi_convert_str_encoding(
     const unicode_string_t *in,
     unicode_string_t *out,
-    const char *outencoding);
+    const char *outencoding) NOEXCEPT;
 
 /**
  * Convenience function to free a unicode_string_t struct.
@@ -1440,7 +1453,7 @@ status_t vmi_convert_str_encoding(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 void vmi_free_unicode_str(
-    unicode_string_t *p_us);
+    unicode_string_t *p_us) NOEXCEPT;
 
 /**
  * Reads 8 bits from memory, given a physical address.
@@ -1453,7 +1466,7 @@ void vmi_free_unicode_str(
 status_t vmi_read_8_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    uint8_t * value);
+    uint8_t * value) NOEXCEPT;
 
 /**
  * Reads 16 bits from memory, given a physical address.
@@ -1466,7 +1479,7 @@ status_t vmi_read_8_pa(
 status_t vmi_read_16_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    uint16_t * value);
+    uint16_t * value) NOEXCEPT;
 
 /**
  * Reads 32 bits from memory, given a physical address.
@@ -1479,7 +1492,7 @@ status_t vmi_read_16_pa(
 status_t vmi_read_32_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    uint32_t * value);
+    uint32_t * value) NOEXCEPT;
 
 /**
  * Reads 64 bits from memory, given a physical address.
@@ -1492,7 +1505,7 @@ status_t vmi_read_32_pa(
 status_t vmi_read_64_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    uint64_t * value);
+    uint64_t * value) NOEXCEPT;
 
 /**
  * Reads an address from memory, given a physical address.  The number of
@@ -1506,7 +1519,7 @@ status_t vmi_read_64_pa(
 status_t vmi_read_addr_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    addr_t *value);
+    addr_t *value) NOEXCEPT;
 
 /**
  * Reads a nul terminated string from memory, starting at
@@ -1519,7 +1532,7 @@ status_t vmi_read_addr_pa(
  */
 char *vmi_read_str_pa(
     vmi_instance_t vmi,
-    addr_t paddr);
+    addr_t paddr) NOEXCEPT;
 
 
 /**
@@ -1537,7 +1550,7 @@ status_t vmi_write(
     const access_context_t *ctx,
     size_t count,
     void *buf,
-    size_t *bytes_written);
+    size_t *bytes_written) NOEXCEPT;
 
 /**
  * Writes count bytes to memory located at the kernel symbol sym
@@ -1555,7 +1568,7 @@ status_t vmi_write_ksym(
     char *sym,
     size_t count,
     void *buf,
-    size_t *bytes_written);
+    size_t *bytes_written) NOEXCEPT;
 
 /**
  * Writes count bytes to memory located at the virtual address vaddr
@@ -1575,7 +1588,7 @@ status_t vmi_write_va(
     vmi_pid_t pid,
     size_t count,
     void *buf,
-    size_t *bytes_written);
+    size_t *bytes_written) NOEXCEPT;
 
 /**
  * Writes count bytes to memory located at the physical address paddr
@@ -1593,7 +1606,7 @@ status_t vmi_write_pa(
     addr_t paddr,
     size_t count,
     void *buf,
-    size_t *bytes_written);
+    size_t *bytes_written) NOEXCEPT;
 
 /**
  * Writes 8 bits to memory
@@ -1606,7 +1619,7 @@ status_t vmi_write_pa(
 status_t vmi_write_8(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    uint8_t * value);
+    uint8_t * value) NOEXCEPT;
 
 /**
  * Writes 16 bits to memory
@@ -1619,7 +1632,7 @@ status_t vmi_write_8(
 status_t vmi_write_16(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    uint16_t * value);
+    uint16_t * value) NOEXCEPT;
 
 /**
  * Writes 32 bits to memory
@@ -1632,7 +1645,7 @@ status_t vmi_write_16(
 status_t vmi_write_32(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    uint32_t * value);
+    uint32_t * value) NOEXCEPT;
 
 /**
  * Writes 64 bits to memory
@@ -1645,7 +1658,7 @@ status_t vmi_write_32(
 status_t vmi_write_64(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    uint64_t * value);
+    uint64_t * value) NOEXCEPT;
 
 /**
  * Writes the address to memory. The number of
@@ -1659,7 +1672,7 @@ status_t vmi_write_64(
 status_t vmi_write_addr(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    addr_t * value);
+    addr_t * value) NOEXCEPT;
 
 /**
  * Writes 8 bits to memory, given a kernel symbol.
@@ -1672,7 +1685,7 @@ status_t vmi_write_addr(
 status_t vmi_write_8_ksym(
     vmi_instance_t vmi,
     char *sym,
-    uint8_t * value);
+    uint8_t * value) NOEXCEPT;
 
 /**
  * Writes 16 bits to memory, given a kernel symbol.
@@ -1685,7 +1698,7 @@ status_t vmi_write_8_ksym(
 status_t vmi_write_16_ksym(
     vmi_instance_t vmi,
     char *sym,
-    uint16_t * value);
+    uint16_t * value) NOEXCEPT;
 
 /**
  * Writes 32 bits to memory, given a kernel symbol.
@@ -1698,7 +1711,7 @@ status_t vmi_write_16_ksym(
 status_t vmi_write_32_ksym(
     vmi_instance_t vmi,
     char *sym,
-    uint32_t * value);
+    uint32_t * value) NOEXCEPT;
 
 /**
  * Writes 64 bits to memory, given a kernel symbol.
@@ -1711,7 +1724,7 @@ status_t vmi_write_32_ksym(
 status_t vmi_write_64_ksym(
     vmi_instance_t vmi,
     char *sym,
-    uint64_t * value);
+    uint64_t * value) NOEXCEPT;
 
 /**
  * Writes the address to memory. The number of
@@ -1725,7 +1738,7 @@ status_t vmi_write_64_ksym(
 status_t vmi_write_addr_ksym(
     vmi_instance_t vmi,
     char *sym,
-    addr_t * value);
+    addr_t * value) NOEXCEPT;
 
 /**
  * Writes 8 bits to memory, given a virtual address.
@@ -1740,7 +1753,7 @@ status_t vmi_write_8_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    uint8_t * value);
+    uint8_t * value) NOEXCEPT;
 
 /**
  * Writes 16 bits to memory, given a virtual address.
@@ -1755,7 +1768,7 @@ status_t vmi_write_16_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    uint16_t * value);
+    uint16_t * value) NOEXCEPT;
 
 /**
  * Writes 32 bits to memory, given a virtual address.
@@ -1770,7 +1783,7 @@ status_t vmi_write_32_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    uint32_t * value);
+    uint32_t * value) NOEXCEPT;
 
 /**
  * Writes 64 bits to memory, given a virtual address.
@@ -1785,7 +1798,7 @@ status_t vmi_write_64_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    uint64_t * value);
+    uint64_t * value) NOEXCEPT;
 
 /**
  * Writes the address to memory. The number of
@@ -1801,7 +1814,7 @@ status_t vmi_write_addr_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    addr_t * value);
+    addr_t * value) NOEXCEPT;
 
 /**
  * Writes 8 bits to memory, given a physical address.
@@ -1814,7 +1827,7 @@ status_t vmi_write_addr_va(
 status_t vmi_write_8_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    uint8_t * value);
+    uint8_t * value) NOEXCEPT;
 
 /**
  * Writes 16 bits to memory, given a physical address.
@@ -1827,7 +1840,7 @@ status_t vmi_write_8_pa(
 status_t vmi_write_16_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    uint16_t * value);
+    uint16_t * value) NOEXCEPT;
 
 /**
  * Writes 32 bits to memory, given a physical address.
@@ -1840,7 +1853,7 @@ status_t vmi_write_16_pa(
 status_t vmi_write_32_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    uint32_t * value);
+    uint32_t * value) NOEXCEPT;
 
 /**
  * Writes 64 bits from memory, given a physical address.
@@ -1853,7 +1866,7 @@ status_t vmi_write_32_pa(
 status_t vmi_write_64_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    uint64_t * value);
+    uint64_t * value) NOEXCEPT;
 
 /**
  * Writes the address to memory. The number of
@@ -1867,7 +1880,7 @@ status_t vmi_write_64_pa(
 status_t vmi_write_addr_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    addr_t * value);
+    addr_t * value) NOEXCEPT;
 
 /*---------------------------------------------------------
  * Print util functions from pretty_print.c
@@ -1883,7 +1896,7 @@ status_t vmi_write_addr_pa(
  */
 void vmi_print_hex(
     unsigned char *data,
-    unsigned long length);
+    unsigned long length) NOEXCEPT;
 
 /**
  * Prints out the hex and ascii version of a chunk of bytes. The
@@ -1897,7 +1910,7 @@ void vmi_print_hex(
 void vmi_print_hex_ksym(
     vmi_instance_t vmi,
     char *sym,
-    size_t length);
+    size_t length) NOEXCEPT;
 
 /**
  * Prints out the hex and ascii version of a chunk of bytes. The
@@ -1913,7 +1926,7 @@ void vmi_print_hex_va(
     vmi_instance_t vmi,
     addr_t vaddr,
     vmi_pid_t pid,
-    size_t length);
+    size_t length) NOEXCEPT;
 
 /**
  * Prints out the hex and ascii version of a chunk of bytes. The
@@ -1927,7 +1940,7 @@ void vmi_print_hex_va(
 void vmi_print_hex_pa(
     vmi_instance_t vmi,
     addr_t paddr,
-    size_t length);
+    size_t length) NOEXCEPT;
 
 /**
  * Gets the name of the VM (or file) that LibVMI is accessing.
@@ -1936,7 +1949,7 @@ void vmi_print_hex_pa(
  * @return VM (or file) name, must be free'd by caller
  */
 char *vmi_get_name(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Gets the id of the VM that LibVMI is accessing.
@@ -1945,7 +1958,7 @@ char *vmi_get_name(
  * @return VM id, or zero on error
  */
 uint64_t vmi_get_vmid(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Gets the current access mode for LibVMI, which tells what
@@ -1975,7 +1988,7 @@ status_t vmi_get_access_mode(
     const void *domain,
     uint64_t init_flags,
     vmi_init_data_t *init_data,
-    vmi_mode_t *mode);
+    vmi_mode_t *mode) NOEXCEPT;
 
 /**
  * Gets the current page mode for LibVMI, which tells what
@@ -1992,7 +2005,7 @@ status_t vmi_get_access_mode(
  */
 page_mode_t vmi_get_page_mode(
     vmi_instance_t vmi,
-    unsigned long vcpu);
+    unsigned long vcpu) NOEXCEPT;
 
 /**
  * Gets the current address width for the given vmi_instance_t
@@ -2006,7 +2019,7 @@ page_mode_t vmi_get_page_mode(
  * @return address size in bytes
  */
 uint8_t vmi_get_address_width(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Get the OS type that LibVMI is currently accessing.  This is
@@ -2016,7 +2029,7 @@ uint8_t vmi_get_address_width(
  * @return OS type
  */
 os_t vmi_get_ostype(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Get the version of Windows that LibVMI is currently accessing.  This is the
@@ -2026,7 +2039,16 @@ os_t vmi_get_ostype(
  * @return Windows version
  */
 win_ver_t vmi_get_winver(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
+
+/**
+ * Get the build number of Windows that LibVMI is currently accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Windows build number
+ */
+uint16_t vmi_get_win_buildnumber(
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Get string represenatation of the version of Windows that LibVMI is currently accessing.
@@ -2035,7 +2057,7 @@ win_ver_t vmi_get_winver(
  * @return string description of Windows version (do not free)
  */
 const char *vmi_get_winver_str(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Get the version of Windows based on the provided KDVB address.  This is the
@@ -2050,7 +2072,7 @@ const char *vmi_get_winver_str(
  */
 win_ver_t vmi_get_winver_manual(
     vmi_instance_t vmi,
-    addr_t kdvb_pa);
+    addr_t kdvb_pa) NOEXCEPT;
 
 /**
  * Get the memory offset associated with the given offset_name.
@@ -2064,7 +2086,7 @@ win_ver_t vmi_get_winver_manual(
 status_t vmi_get_offset(
     vmi_instance_t vmi,
     const char *offset_name,
-    addr_t *offset);
+    addr_t *offset) NOEXCEPT;
 
 /**
  * Get the memory offset associated with the given symbol and subsymbol in the struct
@@ -2079,7 +2101,7 @@ status_t vmi_get_kernel_struct_offset(
     vmi_instance_t vmi,
     const char* struct_name,
     const char* member,
-    addr_t *addr);
+    addr_t *addr) NOEXCEPT;
 
 /**
  * Gets the current value for a VCPU xsave info.When LibVMI is accessing a raw
@@ -2093,7 +2115,7 @@ status_t vmi_get_kernel_struct_offset(
 status_t vmi_get_xsave_info(
     vmi_instance_t vmi,
     unsigned long vcpu,
-    xsave_area_t *xsave_info);
+    xsave_area_t *xsave_info) NOEXCEPT;
 
 /**
  * Gets the memory size of the guest or file that LibVMI is currently
@@ -2109,7 +2131,7 @@ status_t vmi_get_xsave_info(
  * @return Memory size
  */
 uint64_t vmi_get_memsize(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Gets highest addressable physical memory address of the guest or file that
@@ -2125,7 +2147,7 @@ uint64_t vmi_get_memsize(
  * @param[in] vmi LibVMI instance @return physical memory size
  */
 addr_t vmi_get_max_physical_address(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Gets the memory size of the guest that LibVMI is accessing.
@@ -2135,7 +2157,7 @@ addr_t vmi_get_max_physical_address(
  * @return Number of VCPUs
  */
 unsigned int vmi_get_num_vcpus (
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Injects a page fault trap. It is assumed that the guest is in user-mode and in the proper
@@ -2152,7 +2174,7 @@ vmi_request_page_fault(
     vmi_instance_t vmi,
     unsigned long vcpu,
     uint64_t virtual_address,
-    uint32_t error_code);
+    uint32_t error_code) NOEXCEPT;
 
 /**
  * Gets the current value for tsc info.  This currently only
@@ -2172,7 +2194,7 @@ vmi_get_tsc_info(
     uint32_t *tsc_mode,
     uint64_t *elapsed_nsec,
     uint32_t *gtsc_khz,
-    uint32_t *incarnation);
+    uint32_t *incarnation) NOEXCEPT;
 
 /**
  * Gets the current value of VCPU mtrr registers.  This currently only
@@ -2187,7 +2209,7 @@ vmi_get_tsc_info(
 status_t vmi_get_vcpumtrr(
     vmi_instance_t vmi,
     mtrr_regs_t *hwMtrr,
-    unsigned long vcpu);
+    unsigned long vcpu) NOEXCEPT;
 
 /**
  * Gets the current value of a VCPU register.  This currently only
@@ -2211,7 +2233,7 @@ status_t vmi_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,
     reg_t reg,
-    unsigned long vcpu);
+    unsigned long vcpu) NOEXCEPT;
 
 /**
  * Gets the current value of VCPU registers.  This currently only
@@ -2226,7 +2248,7 @@ status_t vmi_get_vcpureg(
 status_t vmi_get_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
-    unsigned long vcpu);
+    unsigned long vcpu) NOEXCEPT;
 
 /**
  * Sets the current value of a VCPU register.  This currently only
@@ -2248,7 +2270,7 @@ status_t vmi_set_vcpureg(
     vmi_instance_t vmi,
     uint64_t value,
     reg_t reg,
-    unsigned long vcpu);
+    unsigned long vcpu) NOEXCEPT;
 
 /**
  * Sets the vCPU registers to the ones passed in the struct. It is important to have
@@ -2266,7 +2288,7 @@ status_t vmi_set_vcpureg(
 status_t vmi_set_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
-    unsigned long vcpu);
+    unsigned long vcpu) NOEXCEPT;
 
 /**
  * Pauses the VM.  Use vmi_resume_vm to resume the VM after pausing
@@ -2276,7 +2298,7 @@ status_t vmi_set_vcpuregs(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_pause_vm(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Resumes the VM.  Use vmi_pause_vm to pause the VM before calling
@@ -2286,7 +2308,7 @@ status_t vmi_pause_vm(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_resume_vm(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Removes all entries from LibVMI's internal virtual to physical address
@@ -2299,7 +2321,7 @@ status_t vmi_resume_vm(
  */
 void vmi_v2pcache_flush(
     vmi_instance_t vmi,
-    addr_t dtb);
+    addr_t dtb) NOEXCEPT;
 
 /**
  * Adds one entry to LibVMI's internal virtual to physical address
@@ -2315,7 +2337,7 @@ void vmi_v2pcache_add(
     vmi_instance_t vmi,
     addr_t va,
     addr_t dtb,
-    addr_t pa);
+    addr_t pa) NOEXCEPT;
 
 /**
  * Removes all entries from LibVMI's internal kernel symbol to virtual address
@@ -2326,7 +2348,7 @@ void vmi_v2pcache_add(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 void vmi_symcache_flush(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Adds one entry to LibVMI's internal symbol to virtual address
@@ -2344,7 +2366,7 @@ void vmi_symcache_add(
     addr_t base_addr,
     vmi_pid_t pid,
     char *sym,
-    addr_t va);
+    addr_t va) NOEXCEPT;
 
 /**
  * Removes all entries from LibVMI's internal RVA to symbol
@@ -2355,7 +2377,7 @@ void vmi_symcache_add(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 void vmi_rvacache_flush(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Adds one entry to LibVMI's internal RVA to symbol
@@ -2373,7 +2395,7 @@ void vmi_rvacache_add(
     addr_t base_addr,
     vmi_pid_t pid,
     addr_t rva,
-    char *sym);
+    char *sym) NOEXCEPT;
 
 /**
  * Removes all entries from LibVMI's internal pid to directory table base
@@ -2384,7 +2406,7 @@ void vmi_rvacache_add(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 void vmi_pidcache_flush(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Adds one entry to LibVMI's internal pid to directory table base
@@ -2398,7 +2420,18 @@ void vmi_pidcache_flush(
 void vmi_pidcache_add(
     vmi_instance_t vmi,
     vmi_pid_t pid,
-    addr_t dtb);
+    addr_t dtb) NOEXCEPT;
+
+/**
+ * Removes all entries from LibVMI's internal page cache.  This is
+ * generally only useful if you believe that an entry in the cache is
+ * incorrect, or out of date.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+void vmi_pagecache_flush(
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Returns the path of the Linux system map file for the given vmi instance
@@ -2408,7 +2441,7 @@ void vmi_pidcache_add(
  * @param[in] vmi LibVMI instance
  * @return String file path location of the Linux system map
  */
-const char * vmi_get_linux_sysmap(vmi_instance_t vmi);
+const char * vmi_get_linux_sysmap(vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Returns the path of the FreeBSD system map file for the given vmi instance
@@ -2418,7 +2451,7 @@ const char * vmi_get_linux_sysmap(vmi_instance_t vmi);
  * @param[in] vmi LibVMI instance
  * @return String file path location of the FreeBSD system map
  */
-const char * vmi_get_freebsd_sysmap(vmi_instance_t vmi);
+const char * vmi_get_freebsd_sysmap(vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Get full path of associated rekall profile
@@ -2429,7 +2462,7 @@ const char * vmi_get_freebsd_sysmap(vmi_instance_t vmi);
  * @return Full path of the rekall profile
  */
 const char *vmi_get_rekall_path(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Get full path of associated OS profile.
@@ -2440,7 +2473,7 @@ const char *vmi_get_rekall_path(
  * @return Full path of the OS profile
  */
 const char *vmi_get_os_profile_path(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 #pragma GCC visibility pop
 
