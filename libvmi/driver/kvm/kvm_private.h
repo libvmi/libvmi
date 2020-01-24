@@ -34,7 +34,7 @@
 #include "private.h"
 #include "libvirt_wrapper.h"
 #ifndef KVM_LEGACY_DRIVER
-# include "driver/kvm/include/kvmi/libkvmi.h"
+# include "include/kvmi/libkvmi.h"
 #endif
 
 typedef struct kvm_instance {
