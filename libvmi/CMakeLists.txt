@@ -133,8 +133,6 @@ if (ENABLE_KVM)
                 message(WARNING "Cannot find JSON: disabling KVM driver")
             else ()
                 find_package(LibvmiRequest)
-                # define KVM_LEGACY_DRIVER
-                add_definitions(-DKVM_LEGACY_DRIVER)
             endif ()
         else ()
             # KVM driver based on KVMi series, API is exposed via libkvmi
