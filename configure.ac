@@ -89,6 +89,13 @@ AC_ARG_ENABLE([kvm],
       [enable_kvm=yes])
 AM_CONDITIONAL([WITH_KVM], [test x"$enable_kvm" = xyes])
 
+AC_ARG_ENABLE([kvm_legacy],
+      [AS_HELP_STRING([--disable-kvm-legacy],
+         [Enable support for legacy KVM driver @<:@no@:>@])],
+      [enable_kvm_legacy=$enableval],
+      [enable_kvm_legacy=no])
+AM_CONDITIONAL([WITH_KVM_LEGACY], [test x"$enable_kvm_legacy" = xyes])
+
 AC_ARG_ENABLE([bareflank],
       [AS_HELP_STRING([--disable-bareflank],
          [Support memory introspection with live Bareflank VMs (default is yes)])],
@@ -235,14 +242,25 @@ AC_SUBST([GLIB_LIBS])
     AC_CHECK_HEADER(libvirt/libvirt.h, [],
         [AC_MSG_ERROR([No libvirt headers found. Install missing package or re-run with --disable-kvm])])
     AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
-    AC_CHECK_HEADER([qemu/libvmi_request.h],
+    [if test "$enable_kvm_legacy" = "yes"]
+    [then]
+        AC_CHECK_LIB(json-c, json_object_get_int64, [],
+                         [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
+        AC_CHECK_HEADER(json-c/json.h, [],
+                         [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
+        AC_CHECK_HEADER([qemu/libvmi_request.h],
         [AC_DEFINE([HAVE_LIBVMI_REQUEST], 1,
            [Define to 1 if you have <qemu/libvmi_request.h>.])],
         [])
-    AC_CHECK_LIB(json-c, json_object_get_int64, [],
-                     [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
-    AC_CHECK_HEADER(json-c/json.h, [],
-                     [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
+        AC_DEFINE([ENABLE_KVM_LEGACY], [1],
+                  [Define to 1 to enable legacy KVM driver support.])
+    # [else]
+        # the new KVM driver depends on libkvmi, which is included in the sources
+        # for now.
+        # in the future, we will need to find it on the system
+        # AC_CHECK_HEADER(libkvmi.h, ...
+        # AC_CHECK_LIB(libkvmi, ...
+    [fi]
 [fi]
 
 [if test "$enable_file" = "yes"]
@@ -378,32 +396,33 @@ Host system type: $host
 Build system type: $build
 Installation prefix: $prefix
 
-Hypervisor      | Option
-----------------|---------------------------
-Xen Support     | --enable-xen=$enable_xen
-KVM Support     | --enable-kvm=$enable_kvm
-File Support    | --enable-file=$enable_file
-Bareflank       | --enable-bareflank=$enable_bareflank
-----------------|---------------------------
+Hypervisor              | Option
+------------------------|---------------------------
+Xen Support             | --enable-xen=$enable_xen
+KVM Support             | --enable-kvm=$enable_kvm
+Legacy KVM Driver       | --enable-kvm-legacy=$enable_kvm_legacy
+File Support            | --enable-file=$enable_file
+Bareflank               | --enable-bareflank=$enable_bareflank
+------------------------|---------------------------
 
-OS              | Option
-----------------|---------------------------
-Windows         | --enable-windows=$enable_windows
-Linux           | --enable-linux=$enable_linux
-FreeBSD         | --enable-freebsd=$enable_freebsd
-----------------|---------------------------
+OS                      | Option
+------------------------|---------------------------
+Windows                 | --enable-windows=$enable_windows
+Linux                   | --enable-linux=$enable_linux
+FreeBSD                 | --enable-freebsd=$enable_freebsd
+------------------------|---------------------------
 
-Configuration   | Option
-----------------|---------------------------
-libvmi.conf     | --enable-config-file=$configfile
-Rekall profiles | --enable-rekall-profiles=$rekall
-Volatility IST  | --enable-volatility-ist=$volatility_ist
-----------------|---------------------------
+Configuration           | Option
+------------------------|---------------------------
+libvmi.conf             | --enable-config-file=$configfile
+Rekall profiles         | --enable-rekall-profiles=$rekall
+Volatility IST          | --enable-volatility-ist=$volatility_ist
+------------------------|---------------------------
 
-Tools           | Option
-----------------|---------------------------
-Examples        | --enable-examples=$enable_examples
-VMIFS           | --enable-vmifs=$enable_vmifs
+Tools                   | Option
+------------------------|---------------------------
+Examples                | --enable-examples=$enable_examples
+VMIFS                   | --enable-vmifs=$enable_vmifs
 
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.
