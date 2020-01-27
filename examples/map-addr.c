@@ -42,7 +42,7 @@ main(
         return 1;
 
     vmi_instance_t vmi;
-    unsigned char *memory = malloc(PAGE_SIZE);
+    char *memory = malloc(PAGE_SIZE);
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
