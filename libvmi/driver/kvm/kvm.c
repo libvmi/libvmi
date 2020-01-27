@@ -138,9 +138,9 @@ kvm_release_memory(
 
 status_t
 kvm_put_memory(vmi_instance_t vmi,
-                    addr_t paddr,
-                    uint32_t length,
-                    void *buf)
+               addr_t paddr,
+               uint32_t length,
+               void *buf)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
@@ -209,9 +209,9 @@ init_kvmi(
     if (kvm->kvmi) {
         struct timeval now;
         if (gettimeofday(&now, NULL) == 0) {
-           struct timespec t = {};
-           t.tv_sec = now.tv_sec + 10;
-           err = pthread_cond_timedwait(&kvm->kvm_start_cond, &kvm->kvm_connect_mutex, &t);
+            struct timespec t = {};
+            t.tv_sec = now.tv_sec + 10;
+            err = pthread_cond_timedwait(&kvm->kvm_start_cond, &kvm->kvm_connect_mutex, &t);
         }
     }
     pthread_mutex_unlock(&kvm->kvm_connect_mutex);
@@ -263,87 +263,87 @@ get_kvmi_registers(
     /* mode should be 8 if VMI_PM_IA32E == vmi->page_mode */
 
     switch (reg) {
-    case RAX:
-        *value = regs.rax;
-        break;
-    case RBX:
-        *value = regs.rbx;
-        break;
-    case RCX:
-        *value = regs.rcx;
-        break;
-    case RDX:
-        *value = regs.rdx;
-        break;
-    case RBP:
-        *value = regs.rbp;
-        break;
-    case RSI:
-        *value = regs.rsi;
-        break;
-    case RDI:
-        *value = regs.rdi;
-        break;
-    case RSP:
-        *value = regs.rsp;
-        break;
-    case R8:
-        *value = regs.r8;
-        break;
-    case R9:
-        *value = regs.r9;
-        break;
-    case R10:
-        *value = regs.r10;
-        break;
-    case R11:
-        *value = regs.r11;
-        break;
-    case R12:
-        *value = regs.r12;
-        break;
-    case R13:
-        *value = regs.r13;
-        break;
-    case R14:
-        *value = regs.r14;
-        break;
-    case R15:
-        *value = regs.r15;
-        break;
-    case RIP:
-        *value = regs.rip;
-        break;
-    case RFLAGS:
-        *value = regs.rflags;
-        break;
-    case CR0:
-        *value = sregs.cr0;
-        break;
-    case CR2:
-        *value = sregs.cr2;
-        break;
-    case CR3:
-        *value = sregs.cr3;
-        break;
-    case CR4:
-        *value = sregs.cr4;
-        break;
-    case FS_BASE:
-        *value = sregs.fs.base;
-        break;
-    case GS_BASE:
-        *value = sregs.gs.base;
-        break;
-    case MSR_EFER:
-        *value = msrs.entries[0].data;
-        break;
-    case MSR_STAR:
-        *value = msrs.entries[1].data;
-        break;
-    default:
-        dbprint(VMI_DEBUG_KVM, "--Reading register %"PRIu64" not implemented\n", reg);
-        return false;
+        case RAX:
+            *value = regs.rax;
+            break;
+        case RBX:
+            *value = regs.rbx;
+            break;
+        case RCX:
+            *value = regs.rcx;
+            break;
+        case RDX:
+            *value = regs.rdx;
+            break;
+        case RBP:
+            *value = regs.rbp;
+            break;
+        case RSI:
+            *value = regs.rsi;
+            break;
+        case RDI:
+            *value = regs.rdi;
+            break;
+        case RSP:
+            *value = regs.rsp;
+            break;
+        case R8:
+            *value = regs.r8;
+            break;
+        case R9:
+            *value = regs.r9;
+            break;
+        case R10:
+            *value = regs.r10;
+            break;
+        case R11:
+            *value = regs.r11;
+            break;
+        case R12:
+            *value = regs.r12;
+            break;
+        case R13:
+            *value = regs.r13;
+            break;
+        case R14:
+            *value = regs.r14;
+            break;
+        case R15:
+            *value = regs.r15;
+            break;
+        case RIP:
+            *value = regs.rip;
+            break;
+        case RFLAGS:
+            *value = regs.rflags;
+            break;
+        case CR0:
+            *value = sregs.cr0;
+            break;
+        case CR2:
+            *value = sregs.cr2;
+            break;
+        case CR3:
+            *value = sregs.cr3;
+            break;
+        case CR4:
+            *value = sregs.cr4;
+            break;
+        case FS_BASE:
+            *value = sregs.fs.base;
+            break;
+        case GS_BASE:
+            *value = sregs.gs.base;
+            break;
+        case MSR_EFER:
+            *value = msrs.entries[0].data;
+            break;
+        case MSR_STAR:
+            *value = msrs.entries[1].data;
+            break;
+        default:
+            dbprint(VMI_DEBUG_KVM, "--Reading register %"PRIu64" not implemented\n", reg);
+            return false;
     }
 
     return true;
@@ -599,7 +599,8 @@ status_t
 kvm_set_vcpureg(vmi_instance_t vmi,
                 uint64_t value,
                 reg_t reg,
-                unsigned long vcpu) {
+                unsigned long vcpu)
+{
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     if (!kvm->kvmi_dom)
         return VMI_FAILURE;
@@ -618,62 +619,62 @@ kvm_set_vcpureg(vmi_instance_t vmi,
 
     // This could use a macro or something
     switch (reg) {
-    case RAX:
-        regs.rax = value;
-        break;
-    case RBX:
-        regs.rbx = value;
-        break;
-    case RCX:
-        regs.rcx = value;
-        break;
-    case RDX:
-        regs.rdx = value;
-        break;
-    case RSI:
-        regs.rsi = value;
-        break;
-    case RDI:
-        regs.rdi = value;
-        break;
-    case RSP:
-        regs.rsp = value;
-        break;
-    case RBP:
-        regs.rbp = value;
-        break;
-    case R8:
-        regs.r8 = value;
-        break;
-    case R9:
-        regs.r9 = value;
-        break;
-    case R10:
-        regs.r10 = value;
-        break;
-    case R11:
-        regs.r11 = value;
-        break;
-    case R12:
-        regs.r12 = value;
-        break;
-    case R13:
-        regs.r13 = value;
-        break;
-    case R14:
-        regs.r14 = value;
-        break;
-    case R15:
-        regs.r15 = value;
-        break;
-    case RIP:
-        regs.rip = value;
-        break;
-    case RFLAGS:
-        regs.rflags = value;
-        break;
-    default:
-        return VMI_FAILURE;
+        case RAX:
+            regs.rax = value;
+            break;
+        case RBX:
+            regs.rbx = value;
+            break;
+        case RCX:
+            regs.rcx = value;
+            break;
+        case RDX:
+            regs.rdx = value;
+            break;
+        case RSI:
+            regs.rsi = value;
+            break;
+        case RDI:
+            regs.rdi = value;
+            break;
+        case RSP:
+            regs.rsp = value;
+            break;
+        case RBP:
+            regs.rbp = value;
+            break;
+        case R8:
+            regs.r8 = value;
+            break;
+        case R9:
+            regs.r9 = value;
+            break;
+        case R10:
+            regs.r10 = value;
+            break;
+        case R11:
+            regs.r11 = value;
+            break;
+        case R12:
+            regs.r12 = value;
+            break;
+        case R13:
+            regs.r13 = value;
+            break;
+        case R14:
+            regs.r14 = value;
+            break;
+        case R15:
+            regs.r15 = value;
+            break;
+        case RIP:
+            regs.rip = value;
+            break;
+        case RFLAGS:
+            regs.rflags = value;
+            break;
+        default:
+            return VMI_FAILURE;
     }
 
     if (kvmi_set_registers(kvm->kvmi_dom, vcpu, &regs) < 0) {
@@ -685,8 +686,9 @@ kvm_set_vcpureg(vmi_instance_t vmi,
 
 status_t
 kvm_set_vcpuregs(vmi_instance_t vmi,
-                          registers_t *registers,
-                          unsigned long vcpu) {
+                 registers_t *registers,
+                 unsigned long vcpu)
+{
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     if (!kvm->kvmi_dom)
         return VMI_FAILURE;

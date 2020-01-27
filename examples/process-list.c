@@ -89,7 +89,7 @@ int main (int argc, char **argv)
                     break;
                 case 's':
                     init_data = alloca(sizeof(vmi_init_data_t)
-                                        + (sizeof(vmi_init_data_entry_t) * 1));
+                                       + (sizeof(vmi_init_data_entry_t) * 1));
                     init_data->count = 1;
                     init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
                     init_data->entry[0].data = strdup(optarg);

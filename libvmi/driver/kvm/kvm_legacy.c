@@ -500,9 +500,9 @@ kvm_release_memory(
 
 status_t
 kvm_put_memory(vmi_instance_t vmi,
-                    addr_t paddr,
-                    uint32_t length,
-                    void *buf)
+               addr_t paddr,
+               uint32_t length,
+               void *buf)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 

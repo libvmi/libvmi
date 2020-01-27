@@ -68,8 +68,8 @@ kvm_get_instance(
 // and has different implementations
 status_t
 kvm_put_memory(vmi_instance_t vmi,
-                    addr_t paddr,
-                    uint32_t length,
-                    void *buf);
+               addr_t paddr,
+               uint32_t length,
+               void *buf);
 
 #endif

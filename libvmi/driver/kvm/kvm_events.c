@@ -35,8 +35,8 @@
  */
 static void
 fill_ev_common_kvmi_to_libvmi(
-        struct kvmi_dom_event *kvmi_event,
-        vmi_event_t *libvmi_event)
+    struct kvmi_dom_event *kvmi_event,
+    vmi_event_t *libvmi_event)
 {
     //      standard regs
     libvmi_event->x86_regs->rax = kvmi_event->event.common.arch.regs.rax;
@@ -93,12 +93,12 @@ fill_ev_common_kvmi_to_libvmi(
 
 static status_t
 process_cb_response(
-        vmi_instance_t vmi,
-        event_response_t response,
-        vmi_event_t *libvmi_event,
-        struct kvmi_dom_event *kvmi_event,
-        void *rpl,
-        size_t rpl_size)
+    vmi_instance_t vmi,
+    event_response_t response,
+    vmi_event_t *libvmi_event,
+    struct kvmi_dom_event *kvmi_event,
+    void *rpl,
+    size_t rpl_size)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
@@ -144,8 +144,8 @@ process_cb_response(
 
 static event_response_t
 call_event_callback(
-        vmi_instance_t vmi,
-        vmi_event_t *libvmi_event)
+    vmi_instance_t vmi,
+    vmi_event_t *libvmi_event)
 {
     event_response_t response;
     vmi->event_callback = 1;
@@ -517,7 +517,7 @@ err_exit:
 
 void
 kvm_events_destroy(
-        vmi_instance_t vmi)
+    vmi_instance_t vmi)
 {
     (void)vmi;
 
@@ -748,10 +748,10 @@ error_exit:
 
 status_t
 kvm_set_mem_access(
-        vmi_instance_t vmi,
-        addr_t gpfn,
-        vmi_mem_access_t page_access_flag,
-        uint16_t UNUSED(vmm_pagetable_id))
+    vmi_instance_t vmi,
+    addr_t gpfn,
+    vmi_mem_access_t page_access_flag,
+    uint16_t UNUSED(vmm_pagetable_id))
 {
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {

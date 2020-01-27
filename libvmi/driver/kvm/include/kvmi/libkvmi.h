@@ -27,40 +27,40 @@
 typedef int kvmi_timeout_t;
 
 enum {
-	KVMI_NOWAIT = 0,
-	KVMI_WAIT   = 150
+    KVMI_NOWAIT = 0,
+    KVMI_WAIT   = 150
 };
 
 struct kvmi_dom_event {
-	void *next;
-	struct {
-		struct kvmi_event common;
-		union {
-			struct kvmi_event_cr         cr;
-			struct kvmi_event_msr        msr;
-			struct kvmi_event_breakpoint breakpoint;
-			struct kvmi_event_pf         page_fault;
-			struct kvmi_event_trap       trap;
-			struct kvmi_event_descriptor desc;
-		};
-	} event;
-	unsigned char buf[KVMI_MSG_SIZE];
-	unsigned int  seq;
+    void *next;
+    struct {
+        struct kvmi_event common;
+        union {
+            struct kvmi_event_cr         cr;
+            struct kvmi_event_msr        msr;
+            struct kvmi_event_breakpoint breakpoint;
+            struct kvmi_event_pf         page_fault;
+            struct kvmi_event_trap       trap;
+            struct kvmi_event_descriptor desc;
+        };
+    } event;
+    unsigned char buf[KVMI_MSG_SIZE];
+    unsigned int  seq;
 };
 
 struct kvmi_qemu2introspector {
-	uint32_t      struct_size;
-	unsigned char uuid[16];
-	uint32_t      padding;
-	int64_t       start_time;
-	char          name[64];
-	/* ... */
+    uint32_t      struct_size;
+    unsigned char uuid[16];
+    uint32_t      padding;
+    int64_t       start_time;
+    char          name[64];
+    /* ... */
 };
 
 struct kvmi_introspector2qemu {
-	uint32_t struct_size;
-	uint8_t  cookie_hash[20];
-	/* ... */
+    uint32_t struct_size;
+    uint8_t  cookie_hash[20];
+    /* ... */
 };
 
 typedef enum { KVMI_LOG_LEVEL_DEBUG, KVMI_LOG_LEVEL_INFO, KVMI_LOG_LEVEL_WARNING, KVMI_LOG_LEVEL_ERROR } kvmi_log_level;
