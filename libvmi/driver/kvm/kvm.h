@@ -126,11 +126,11 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.set_name_ptr = &kvm_set_name;
     driver.write_ptr = &kvm_write;
     driver.get_memsize_ptr = &kvm_get_memsize;
-# ifndef KVM_LEGACY_DRIVER
+# ifndef ENABLE_KVM_LEGACY
     driver.request_page_fault_ptr = &kvm_request_page_fault;
 # endif
     driver.get_vcpureg_ptr = &kvm_get_vcpureg;
-# ifndef KVM_LEGACY_DRIVER
+# ifndef ENABLE_KVM_LEGACY
     driver.get_vcpuregs_ptr = &kvm_get_vcpuregs;
     driver.set_vcpureg_ptr = &kvm_set_vcpureg;
     driver.set_vcpuregs_ptr = &kvm_set_vcpuregs;

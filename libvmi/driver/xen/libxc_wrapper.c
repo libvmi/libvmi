@@ -173,6 +173,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_domain_cacheflush = dlsym(wrapper->handle, "xc_domain_cacheflush");
 
     /* Events */
+    wrapper->xc_vm_event_get_version = dlsym(wrapper->handle, "xc_vm_event_get_version");
     wrapper->xc_domain_debug_control = dlsym(wrapper->handle, "xc_domain_debug_control");
     wrapper->xc_domain_set_access_required = dlsym(wrapper->handle, "xc_domain_set_access_required");
     wrapper->xc_domain_decrease_reservation_exact = dlsym(wrapper->handle, "xc_domain_decrease_reservation_exact");

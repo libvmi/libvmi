@@ -26,19 +26,21 @@
 
 status_t
 volatility_ist_symbol_to_rva(
-    json_object *root,
+    json_object *json,
     const char *symbol,
     const char *subsymbol,
-    addr_t *rva)
+    addr_t *rva,
+    size_t *size)
 {
     status_t ret = VMI_FAILURE;
-    if (!root || !symbol) {
+
+    if (!json || !symbol) {
         return ret;
     }
 
-    if (!subsymbol) {
+    if (!subsymbol && !size) {
         json_object *symbols = NULL, *jsymbol = NULL, *address = NULL;
-        if (!json_object_object_get_ex(root, "symbols", &symbols)) {
+        if (!json_object_object_get_ex(json, "symbols", &symbols)) {
             dbprint(VMI_DEBUG_MISC, "Volatility IST profile: no symbols section found\n");
             goto exit;
         }
@@ -55,12 +57,26 @@ volatility_ist_symbol_to_rva(
         ret = VMI_SUCCESS;
     } else {
         json_object *user_types = NULL, *jstruct = NULL, *jstruct2 = NULL, *jmember = NULL, *jvalue = NULL;
-        if (!json_object_object_get_ex(root, "user_types", &user_types)) {
+        if (!json_object_object_get_ex(json, "user_types", &user_types)) {
             dbprint(VMI_DEBUG_MISC, "Volatility IST profile: no user_types section found\n");
             goto exit;
         }
         if (!json_object_object_get_ex(user_types, symbol, &jstruct)) {
             dbprint(VMI_DEBUG_MISC, "Volatility IST profile: no %s found\n", symbol);
+            goto exit;
+        }
+
+        if (size) {
+            json_object* jsize = NULL;
+
+            if (!json_object_object_get_ex(jstruct, "size", &jsize)) {
+                dbprint(VMI_DEBUG_MISC, "Volatility IST profile: Struct '%s' size not found\n", symbol);
+                goto exit;
+            }
+
+            *size = json_object_get_int64(jsize);
+
+            ret = VMI_SUCCESS;
             goto exit;
         }
 
@@ -86,4 +102,19 @@ volatility_ist_symbol_to_rva(
 exit:
     dbprint(VMI_DEBUG_MISC, "Volatility IST profile lookup %s %s: 0x%lx\n", symbol ?: NULL, subsymbol ?: NULL, *rva);
     return ret;
+}
+
+const char *volatility_get_os_type(vmi_instance_t vmi)
+{
+    json_object *metadata = NULL, *os = NULL;
+
+    if (!json_object_object_get_ex(vmi->json.root, "metadata", &metadata)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: no metadata section found\n");
+        return NULL;
+    }
+
+    if (json_object_object_get_ex(metadata, "windows", &os))
+        return "Windows";
+
+    return "Linux";
 }

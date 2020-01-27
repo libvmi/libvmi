@@ -33,8 +33,8 @@
 
 #include "private.h"
 #include "libvirt_wrapper.h"
-#ifndef KVM_LEGACY_DRIVER
-# include "driver/kvm/include/kvmi/libkvmi.h"
+#ifndef ENABLE_KVM_LEGACY
+# include "include/kvmi/libkvmi.h"
 #endif
 
 typedef struct kvm_instance {
@@ -44,7 +44,7 @@ typedef struct kvm_instance {
     char *name;
     char *ds_path;
     libvirt_wrapper_t libvirt;
-#ifdef KVM_LEGACY_DRIVER
+#ifdef ENABLE_KVM_LEGACY
     int socket_fd;
 #else
     void *kvmi;

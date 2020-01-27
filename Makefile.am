@@ -6,6 +6,7 @@ h_public =  libvmi/libvmi.h \
 h_private = \
     libvmi/private.h \
     libvmi/debug.h \
+    libvmi/msr-index.h \
     libvmi/glib_compat.h \
     libvmi/arch/arch_interface.h \
     libvmi/arch/intel.h \
@@ -29,6 +30,7 @@ c_sources = \
     libvmi/strmatch.c \
     libvmi/write.c \
     libvmi/memory.c \
+    libvmi/msr-index.c \
     libvmi/arch/arch_interface.c \
     libvmi/arch/intel.c \
     libvmi/arch/amd64.c \
@@ -43,6 +45,7 @@ if ENABLE_ADDRESS_CACHE
 endif
 
 if ENABLE_JSON_PROFILES
+    c_sources   += libvmi/json_profiles/json_profiles.c
     h_private   += libvmi/json_profiles/json_profiles.h
 endif
 
@@ -65,9 +68,19 @@ endif
 if WITH_KVM
     drivers     += libvmi/driver/kvm/kvm.h \
                    libvmi/driver/kvm/kvm_private.h \
-                   libvmi/driver/kvm/kvm.c \
+                   libvmi/driver/kvm/kvm_common.c \
                    libvmi/driver/kvm/libvirt_wrapper.c \
                    libvmi/driver/kvm/libvirt_wrapper.h
+
+if WITH_KVM_LEGACY
+    drivers += libvmi/driver/kvm/kvm_legacy.c
+
+else
+    drivers += libvmi/driver/kvm/kvm.c \
+               libvmi/driver/kvm/kvm_events.c \
+               libvmi/driver/kvm/libkvmi.c
+
+endif
 endif
 
 if WITH_XEN
@@ -124,15 +137,19 @@ library_include_HEADERS = $(h_public)
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvmi.pc
 
-AM_CFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS)
-AM_CPPFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS)
+AM_CFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS) $(JSONC_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS) $(JSONC_CFLAGS)
 AM_YFLAGS = -y -d
 
 lib_LTLIBRARIES= libvmi/libvmi.la
 libvmi_libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
-libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS)
-libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) -no-undefined
+libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS)
+libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
+
+if !WITH_KVM_LEGACY
+    libvmi_libvmi_la_CFLAGS += -I$(top_srcdir)/libvmi/driver/kvm/include
+endif
 
 if ENABLE_CONFIGFILE
     config_h_sources = libvmi/config/config_parser.h

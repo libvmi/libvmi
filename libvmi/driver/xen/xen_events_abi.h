@@ -24,8 +24,6 @@
 #include <config.h>
 #include <xen/io/ring.h>
 
-#define MAX_SUPPORTED_VM_EVENT_INTERFACE_VERSION 0x00000004
-
 #ifndef HVM_PARAM_MONITOR_RING_PFN
 #define HVM_PARAM_MONITOR_RING_PFN 28
 #endif
@@ -138,7 +136,7 @@ typedef enum {
 #define XEN_DOMCTL_MONITOR_EVENT_CPUID                 6
 #define XEN_DOMCTL_MONITOR_EVENT_PRIVILEGED_CALL       7
 
-struct regs_x86_46 {
+struct regs_x86_1 {
     uint64_t rax;
     uint64_t rcx;
     uint64_t rdx;
@@ -179,7 +177,7 @@ struct x86_selector_reg {
     uint32_t ar     :    12;
 };
 
-struct regs_x86_412 {
+struct regs_x86_4 {
     uint64_t rax;
     uint64_t rcx;
     uint64_t rdx;
@@ -232,7 +230,7 @@ struct regs_x86_412 {
     uint32_t _pad;
 };
 
-struct regs_x86_413 {
+struct regs_x86_5 {
     uint64_t rax;
     uint64_t rcx;
     uint64_t rdx;
@@ -315,19 +313,31 @@ struct vm_event_singlestep {
     uint64_t gfn;
 };
 
-struct vm_event_debug {
+struct vm_event_debug_1 {
+    uint64_t gfn;
+};
+
+struct vm_event_debug_2 {
     uint64_t gfn;
     uint32_t insn_length;
     uint8_t type;
     uint8_t _pad[3];
 };
 
-struct vm_event_mov_to_msr_46 {
+struct vm_event_debug_6 {
+    uint64_t gfn;
+    uint64_t pending_dbg;
+    uint32_t insn_length;
+    uint8_t type;
+    uint8_t _pad[3];
+};
+
+struct vm_event_mov_to_msr_1 {
     uint64_t msr;
     uint64_t value;
 };
 
-struct vm_event_mov_to_msr_411 {
+struct vm_event_mov_to_msr_3 {
     uint64_t msr;
     uint64_t new_value;
     uint64_t old_value;
@@ -338,7 +348,7 @@ struct vm_event_mov_to_msr_411 {
 #define VM_EVENT_DESC_LDTR           3
 #define VM_EVENT_DESC_TR             4
 
-struct vm_event_desc_access {
+struct vm_event_desc_access_3 {
     union {
         struct {
             uint32_t instr_info;         /* VMX: VMCS Instruction-Information */
@@ -355,6 +365,19 @@ struct vm_event_desc_access {
     uint8_t _pad[6];
 };
 
+struct vm_event_desc_access_6 {
+    union {
+        struct {
+            uint32_t instr_info;         /* VMX: VMCS Instruction-Information */
+            uint32_t _pad1;
+            uint64_t exit_qualification; /* VMX: VMCS Exit Qualification */
+        } vmx;
+    } arch;
+    uint8_t descriptor;                  /* VM_EVENT_DESC_* */
+    uint8_t is_write;
+    uint8_t _pad[6];
+};
+
 struct vm_event_cpuid {
     uint32_t insn_length;
     uint32_t leaf;
@@ -362,19 +385,19 @@ struct vm_event_cpuid {
     uint32_t _pad;
 };
 
-struct vm_event_emul_read_data_46 {
+struct vm_event_emul_read_data_1 {
     uint32_t size;
-    uint8_t  data[sizeof(struct regs_x86_46) - sizeof(uint32_t)];
+    uint8_t  data[sizeof(struct regs_x86_1) - sizeof(uint32_t)];
 };
 
-struct vm_event_emul_read_data_412 {
+struct vm_event_emul_read_data_4 {
     uint32_t size;
-    uint8_t  data[sizeof(struct regs_x86_412) - sizeof(uint32_t)];
+    uint8_t  data[sizeof(struct regs_x86_4) - sizeof(uint32_t)];
 };
 
-struct vm_event_emul_read_data_413 {
+struct vm_event_emul_read_data_5 {
     uint32_t size;
-    uint8_t  data[sizeof(struct regs_x86_413) - sizeof(uint32_t)];
+    uint8_t  data[sizeof(struct regs_x86_5) - sizeof(uint32_t)];
 };
 
 struct vm_event_emul_insn_data {
@@ -389,7 +412,7 @@ struct vm_event_interrupt_x86 {
     uint64_t cr2;
 };
 
-typedef struct vm_event_st_46 {
+typedef struct vm_event_st_1 {
     uint32_t version;
     uint32_t flags;
     uint32_t reason;
@@ -400,21 +423,21 @@ typedef struct vm_event_st_46 {
     union {
         struct vm_event_mem_access            mem_access;
         struct vm_event_write_ctrlreg         write_ctrlreg;
-        struct vm_event_mov_to_msr_46         mov_to_msr;
-        struct vm_event_singlestep            singlestep;
-        struct vm_event_debug                 software_breakpoint;
+        struct vm_event_mov_to_msr_1          mov_to_msr;
+        struct vm_event_debug_1               singlestep;
+        struct vm_event_debug_1               software_breakpoint;
     } u;
 
     union {
         union {
-            struct regs_x86_46 x86;
+            struct regs_x86_1 x86;
         } regs;
 
-        struct vm_event_emul_read_data_46 emul_read_data;
+        struct vm_event_emul_read_data_1 emul_read_data;
     } data;
-} vm_event_46_request_t, vm_event_46_response_t;
+} vm_event_1_request_t, vm_event_1_response_t;
 
-typedef struct vm_event_st_48 {
+typedef struct vm_event_st_2 {
     uint32_t version;
     uint32_t flags;
     uint32_t reason;
@@ -425,20 +448,10 @@ typedef struct vm_event_st_48 {
     union {
         struct vm_event_mem_access            mem_access;
         struct vm_event_write_ctrlreg         write_ctrlreg;
-        /*
-         * The event structure is still ABI compatible regardless of this change in 4.11 below
-         * because mov_to_msr is in union with other structures that are still larger,
-         * so the union u size didn't change.
-         * Otherwise we would need to create a new vm_event_st.
-         */
-        union {
-            struct vm_event_mov_to_msr_46     mov_to_msr_46;
-            struct vm_event_mov_to_msr_411    mov_to_msr_411;
-        };
-        struct vm_event_desc_access           desc_access;
+        struct vm_event_mov_to_msr_1          mov_to_msr_1;
         struct vm_event_singlestep            singlestep;
-        struct vm_event_debug                 software_breakpoint;
-        struct vm_event_debug                 debug_exception;
+        struct vm_event_debug_2               software_breakpoint;
+        struct vm_event_debug_2               debug_exception;
         struct vm_event_cpuid                 cpuid;
         union {
             struct vm_event_interrupt_x86     x86;
@@ -447,18 +460,18 @@ typedef struct vm_event_st_48 {
 
     union {
         union {
-            struct regs_x86_46 x86;
+            struct regs_x86_1 x86;
             struct regs_arm arm;
         } regs;
 
         union {
-            struct vm_event_emul_read_data_46 read;
+            struct vm_event_emul_read_data_1 read;
             struct vm_event_emul_insn_data insn;
         } emul;
     } data;
-} vm_event_48_request_t, vm_event_48_response_t;
+} vm_event_2_request_t, vm_event_2_response_t;
 
-typedef struct vm_event_st_412 {
+typedef struct vm_event_st_3 {
     uint32_t version;
     uint32_t flags;
     uint32_t reason;
@@ -469,11 +482,11 @@ typedef struct vm_event_st_412 {
     union {
         struct vm_event_mem_access            mem_access;
         struct vm_event_write_ctrlreg         write_ctrlreg;
-        struct vm_event_mov_to_msr_411        mov_to_msr;
-        struct vm_event_desc_access           desc_access;
+        struct vm_event_mov_to_msr_3          mov_to_msr_3;
+        struct vm_event_desc_access_3         desc_access;
         struct vm_event_singlestep            singlestep;
-        struct vm_event_debug                 software_breakpoint;
-        struct vm_event_debug                 debug_exception;
+        struct vm_event_debug_2               software_breakpoint;
+        struct vm_event_debug_2               debug_exception;
         struct vm_event_cpuid                 cpuid;
         union {
             struct vm_event_interrupt_x86     x86;
@@ -482,18 +495,18 @@ typedef struct vm_event_st_412 {
 
     union {
         union {
-            struct regs_x86_412 x86;
+            struct regs_x86_1 x86;
             struct regs_arm arm;
         } regs;
 
         union {
-            struct vm_event_emul_read_data_412 read;
+            struct vm_event_emul_read_data_1 read;
             struct vm_event_emul_insn_data insn;
         } emul;
     } data;
-} vm_event_412_request_t, vm_event_412_response_t;
+} vm_event_3_request_t, vm_event_3_response_t;
 
-typedef struct vm_event_st_413 {
+typedef struct vm_event_st_4 {
     uint32_t version;
     uint32_t flags;
     uint32_t reason;
@@ -504,11 +517,11 @@ typedef struct vm_event_st_413 {
     union {
         struct vm_event_mem_access            mem_access;
         struct vm_event_write_ctrlreg         write_ctrlreg;
-        struct vm_event_mov_to_msr_411        mov_to_msr;
-        struct vm_event_desc_access           desc_access;
+        struct vm_event_mov_to_msr_3          mov_to_msr;
+        struct vm_event_desc_access_3         desc_access;
         struct vm_event_singlestep            singlestep;
-        struct vm_event_debug                 software_breakpoint;
-        struct vm_event_debug                 debug_exception;
+        struct vm_event_debug_2               software_breakpoint;
+        struct vm_event_debug_2               debug_exception;
         struct vm_event_cpuid                 cpuid;
         union {
             struct vm_event_interrupt_x86     x86;
@@ -517,20 +530,92 @@ typedef struct vm_event_st_413 {
 
     union {
         union {
-            struct regs_x86_413 x86;
+            struct regs_x86_4 x86;
             struct regs_arm arm;
         } regs;
 
         union {
-            struct vm_event_emul_read_data_413 read;
+            struct vm_event_emul_read_data_4 read;
             struct vm_event_emul_insn_data insn;
         } emul;
     } data;
-} vm_event_413_request_t, vm_event_413_response_t;
+} vm_event_4_request_t, vm_event_4_response_t;
 
-DEFINE_RING_TYPES(vm_event_46, vm_event_46_request_t, vm_event_46_response_t);
-DEFINE_RING_TYPES(vm_event_48, vm_event_48_request_t, vm_event_48_response_t);
-DEFINE_RING_TYPES(vm_event_412, vm_event_412_request_t, vm_event_412_response_t);
-DEFINE_RING_TYPES(vm_event_413, vm_event_413_request_t, vm_event_413_response_t);
+typedef struct vm_event_st_5 {
+    uint32_t version;
+    uint32_t flags;
+    uint32_t reason;
+    uint32_t vcpu_id;
+    uint16_t altp2m_idx;
+    uint16_t _pad[3];
+
+    union {
+        struct vm_event_mem_access            mem_access;
+        struct vm_event_write_ctrlreg         write_ctrlreg;
+        struct vm_event_mov_to_msr_3          mov_to_msr;
+        struct vm_event_desc_access_3         desc_access;
+        struct vm_event_singlestep            singlestep;
+        struct vm_event_debug_2               software_breakpoint;
+        struct vm_event_debug_2               debug_exception;
+        struct vm_event_cpuid                 cpuid;
+        union {
+            struct vm_event_interrupt_x86     x86;
+        } interrupt;
+    } u;
+
+    union {
+        union {
+            struct regs_x86_5 x86;
+            struct regs_arm arm;
+        } regs;
+
+        union {
+            struct vm_event_emul_read_data_5 read;
+            struct vm_event_emul_insn_data insn;
+        } emul;
+    } data;
+} vm_event_5_request_t, vm_event_5_response_t;
+
+typedef struct vm_event_st_6 {
+    uint32_t version;
+    uint32_t flags;
+    uint32_t reason;
+    uint32_t vcpu_id;
+    uint16_t altp2m_idx;
+    uint16_t _pad[3];
+
+    union {
+        struct vm_event_mem_access            mem_access;
+        struct vm_event_write_ctrlreg         write_ctrlreg;
+        struct vm_event_mov_to_msr_3          mov_to_msr;
+        struct vm_event_desc_access_6         desc_access;
+        struct vm_event_singlestep            singlestep;
+        struct vm_event_debug_6               software_breakpoint;
+        struct vm_event_debug_6               debug_exception;
+        struct vm_event_cpuid                 cpuid;
+        union {
+            struct vm_event_interrupt_x86     x86;
+        } interrupt;
+    } u;
+
+    union {
+        union {
+            struct regs_x86_5 x86;
+            struct regs_arm arm;
+        } regs;
+
+        union {
+            struct vm_event_emul_read_data_5 read;
+            struct vm_event_emul_insn_data insn;
+        } emul;
+    } data;
+} vm_event_6_request_t, vm_event_6_response_t;
+
+DEFINE_RING_TYPES(vm_event_1, vm_event_1_request_t, vm_event_1_response_t);
+DEFINE_RING_TYPES(vm_event_2, vm_event_2_request_t, vm_event_2_response_t);
+DEFINE_RING_TYPES(vm_event_3, vm_event_3_request_t, vm_event_3_response_t);
+DEFINE_RING_TYPES(vm_event_4, vm_event_4_request_t, vm_event_4_response_t);
+DEFINE_RING_TYPES(vm_event_5, vm_event_5_request_t, vm_event_5_response_t);
+DEFINE_RING_TYPES(vm_event_6, vm_event_6_request_t, vm_event_6_response_t);
 
 #endif

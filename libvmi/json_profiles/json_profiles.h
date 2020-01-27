@@ -2,6 +2,8 @@
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
+ * Author: Tamas K Lengyel <tamas@tklengyel.com>
+ *
  * This file is part of LibVMI.
  *
  * LibVMI is free software: you can redistribute it and/or modify it under
@@ -28,11 +30,23 @@
 #include "json_profiles/rekall.h"
 #include "json_profiles/volatility_ist.h"
 
-typedef status_t (*json_profile_handler)(
-    json_object *json_profile,
-    const char *symbol,
-    const char *subsymbol,
-    addr_t *rva);
+typedef struct json_interface {
+    const char *path; /**< JSON profile's path for domain's running kernel */
+
+    json_object *root;
+
+    status_t (*handler)(
+        json_object *json,
+        const char *symbol,
+        const char *subsymbol,
+        addr_t *rva,
+        size_t *size);
+
+    const char* (*get_os_type)(
+        vmi_instance_t vmi);
+} json_interface_t;
+
+bool json_profile_init(vmi_instance_t vmi, const char* path);
 
 #endif
 #endif /* LIBVMI_JSON_PROFILES_H */

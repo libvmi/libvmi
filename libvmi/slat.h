@@ -37,6 +37,9 @@
 
 #ifdef __cplusplus
 extern "C" {
+#define NOEXCEPT noexcept
+#else
+#define NOEXCEPT
 #endif
 
 #pragma GCC visibility push(default)
@@ -50,7 +53,7 @@ extern "C" {
 */
 status_t vmi_slat_get_domain_state (
     vmi_instance_t vmi,
-    bool *state);
+    bool *state) NOEXCEPT;
 
 /**
 * Enables or disables slat for the domain
@@ -61,7 +64,7 @@ status_t vmi_slat_get_domain_state (
 */
 status_t vmi_slat_set_domain_state (
     vmi_instance_t vmi,
-    bool state);
+    bool state) NOEXCEPT;
 
 /**
 * Creates a new slat slat_id
@@ -72,7 +75,7 @@ status_t vmi_slat_set_domain_state (
 */
 status_t vmi_slat_create (
     vmi_instance_t vmi,
-    uint16_t *slat_id);
+    uint16_t *slat_id) NOEXCEPT;
 
 /**
 * Destroys an slat slat_id
@@ -83,7 +86,7 @@ status_t vmi_slat_create (
 */
 status_t vmi_slat_destroy (
     vmi_instance_t vmi,
-    uint16_t slat_idx);
+    uint16_t slat_idx) NOEXCEPT;
 
 /**
 * Switches to a specific slat slat_id
@@ -94,7 +97,7 @@ status_t vmi_slat_destroy (
 */
 status_t vmi_slat_switch (
     vmi_instance_t vmi,
-    uint16_t slat_idx);
+    uint16_t slat_idx) NOEXCEPT;
 
 /**
 *
@@ -109,7 +112,7 @@ status_t vmi_slat_change_gfn (
     vmi_instance_t vmi,
     uint16_t slat_idx,
     addr_t old_gfn,
-    addr_t new_gfn);
+    addr_t new_gfn) NOEXCEPT;
 
 #pragma GCC visibility pop
 

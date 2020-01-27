@@ -71,6 +71,20 @@ status_t check_sections(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe)
     return VMI_FAILURE;
 }
 
+uint32_t get_image_size(uint16_t optional_header_type, void *optional_pe_header)
+{
+    if (optional_header_type == IMAGE_PE32_MAGIC) {
+        struct optional_header_pe32 *oh_pe32 = (struct optional_header_pe32 *)optional_pe_header;
+        return oh_pe32->size_of_image;
+    } else if (optional_header_type == IMAGE_PE32_PLUS_MAGIC) {
+        struct optional_header_pe32plus *oh_pe32plus = (struct optional_header_pe32plus *)optional_pe_header;
+        return oh_pe32plus->size_of_image;
+    } else {
+        // unsupported image type
+        return 0;
+    }
+}
+
 status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_p, uint8_t *pe)
 {
 
@@ -82,12 +96,12 @@ status_t is_WINDOWS_KERNEL(vmi_instance_t vmi, addr_t base_p, uint8_t *pe)
 
     peparse_assign_headers(pe, NULL, NULL, &optional_header_type, &optional_pe_header, NULL, NULL);
     addr_t export_header_offset = peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
+    size_t export_header_size = peparse_get_idd_size(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
 
-    // The kernel's export table is continuously allocated on the PA level with the PE header
-    // This trick may not work for other PE headers (though may work for some drivers)
-    if ( base_p + export_header_offset < base_p + VMI_PS_4KB ) {
+    // Check if kernel's export table is within the PE image boundary
+    if ( base_p + export_header_offset < base_p + get_image_size(optional_header_type, optional_pe_header) ) {
         if ( VMI_SUCCESS == vmi_read_pa(vmi, base_p + export_header_offset, sizeof(struct export_table), &et, NULL) &&
-                !(et.export_flags || !et.name)) {
+                !(et.export_flags || !et.name) && et.name >= export_header_offset && et.name <= export_header_offset + export_header_size) {
 
             char *name = vmi_read_str_pa(vmi, base_p + et.name);
 

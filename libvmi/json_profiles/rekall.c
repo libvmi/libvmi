@@ -26,19 +26,20 @@
 
 status_t
 rekall_profile_symbol_to_rva(
-    json_object *root,
+    json_object *json,
     const char *symbol,
     const char *subsymbol,
-    addr_t *rva)
+    addr_t *rva,
+    size_t *size)
 {
     status_t ret = VMI_FAILURE;
-    if (!root || !symbol) {
+    if (!json || !symbol) {
         return ret;
     }
 
-    if (!subsymbol) {
+    if (!subsymbol && !size) {
         json_object *constants = NULL, *functions = NULL, *jsymbol = NULL;
-        if (json_object_object_get_ex(root, "$CONSTANTS", &constants)) {
+        if (json_object_object_get_ex(json, "$CONSTANTS", &constants)) {
             if (json_object_object_get_ex(constants, symbol, &jsymbol)) {
                 *rva = json_object_get_int64(jsymbol);
 
@@ -51,7 +52,7 @@ rekall_profile_symbol_to_rva(
             dbprint(VMI_DEBUG_MISC, "Rekall profile: no $CONSTANTS section found\n");
         }
 
-        if (json_object_object_get_ex(root, "$FUNCTIONS", &functions)) {
+        if (json_object_object_get_ex(json, "$FUNCTIONS", &functions)) {
             if (json_object_object_get_ex(functions, symbol, &jsymbol)) {
                 *rva = json_object_get_int64(jsymbol);
 
@@ -65,12 +66,20 @@ rekall_profile_symbol_to_rva(
         }
     } else {
         json_object *structs = NULL, *jstruct = NULL, *jstruct2 = NULL, *jmember = NULL, *jvalue = NULL;
-        if (!json_object_object_get_ex(root, "$STRUCTS", &structs)) {
+        if (!json_object_object_get_ex(json, "$STRUCTS", &structs)) {
             dbprint(VMI_DEBUG_MISC, "Rekall profile: no $STRUCTS section found\n");
             goto exit;
         }
         if (!json_object_object_get_ex(structs, symbol, &jstruct)) {
             dbprint(VMI_DEBUG_MISC, "Rekall profile: no %s found\n", symbol);
+            goto exit;
+        }
+
+        if (size) {
+            json_object* jsize = json_object_array_get_idx(jstruct, 0);
+            *size = json_object_get_int64(jsize);
+
+            ret = VMI_SUCCESS;
             goto exit;
         }
 
@@ -99,4 +108,21 @@ exit:
     dbprint(VMI_DEBUG_MISC, "Rekall profile lookup %s %s: 0x%lx\n", symbol ?: NULL, subsymbol ?: NULL, *rva);
 
     return ret;
+}
+
+const char* rekall_get_os_type(vmi_instance_t vmi)
+{
+    json_object *metadata = NULL, *os = NULL;
+
+    if ( !json_object_object_get_ex(vmi->json.root, "$METADATA", &metadata) )
+        return NULL;
+    if ( !json_object_object_get_ex(metadata, "ProfileClass", &os) )
+        return NULL;
+
+    if ( !strcmp("Linux", json_object_get_string(os)) )
+        return "Linux";
+    else
+        return "Windows";
+
+    return NULL;
 }

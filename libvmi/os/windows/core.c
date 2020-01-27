@@ -613,54 +613,6 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
-    if (strncmp(key, "ostype", CONFIG_STR_LENGTH) == 0 || strncmp(key, "os_type", CONFIG_STR_LENGTH) == 0) {
-        goto _done;
-    }
-
-#ifdef REKALL_PROFILES
-    if (strncmp(key, "rekall_profile", CONFIG_STR_LENGTH) == 0) {
-        g_free(vmi->json_profile_path);
-        vmi->json_profile_path = g_strdup((char *)value);
-        json_object *root = json_object_from_file(vmi->json_profile_path);
-        if (!root) {
-            errprint("Rekall profile couldn't be opened!\n");
-            goto _done;
-        }
-
-        json_object_put(vmi->json_profile);
-        vmi->json_profile = root;
-        vmi->json_handler = rekall_profile_symbol_to_rva;
-        goto _done;
-    }
-#endif
-
-#ifdef VOLATILITY_IST
-    if (strncmp(key, "volatility_ist", CONFIG_STR_LENGTH) == 0) {
-        g_free(vmi->json_profile_path);
-        vmi->json_profile_path = g_strdup((char *)value);
-        json_object *root = json_object_from_file(vmi->json_profile_path);
-        if (!root) {
-            errprint("Volatility IST couldn't be opened!\n");
-            goto _done;
-        }
-
-        json_object_put(vmi->json_profile);
-        vmi->json_profile = root;
-        vmi->json_handler = volatility_ist_symbol_to_rva;
-        goto _done;
-    }
-#endif
-
-    if (strncmp(key, "name", CONFIG_STR_LENGTH) == 0) {
-        goto _done;
-    }
-
-    if (strncmp(key, "domid", CONFIG_STR_LENGTH) == 0) {
-        goto _done;
-    }
-
-    warnprint("Invalid offset \"%s\" given for Windows target\n", key);
-
 _done:
     return;
 }
@@ -675,7 +627,7 @@ get_kpgd_from_json_profile(vmi_instance_t vmi)
 
     /* The kernel base and the pdbase offset should have already been found
      * and vmi->kpgd should be holding a CR3 value */
-    if ( !vmi->json_profile || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
+    if ( !vmi->json.root || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
         return ret;
 
     if ( vmi->kpgd && windows->sysproc )
@@ -730,6 +682,7 @@ find_windows_version_from_json_profile(vmi_instance_t vmi)
     }
 
     // Let's see if we know the buildnumber
+    windows->build = ntbuildnumber;
     windows->version = ntbuild2version(ntbuildnumber);
 
     if (VMI_OS_WINDOWS_UNKNOWN == windows->version) {

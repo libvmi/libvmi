@@ -37,6 +37,9 @@
 
 #ifdef __cplusplus
 extern "C" {
+#define NOEXCEPT noexcept
+#else
+#define NOEXCEPT
 #endif
 
 #pragma GCC visibility push(default)
@@ -625,7 +628,7 @@ struct vmi_event {
  *
  * @return max supported events version
  */
-uint32_t vmi_events_version(void);
+uint32_t vmi_events_version(void) NOEXCEPT;
 
 /**
  * Register to handle the event specified by the vmi_event object.
@@ -647,7 +650,7 @@ uint32_t vmi_events_version(void);
  */
 status_t vmi_register_event(
     vmi_instance_t vmi,
-    vmi_event_t *event);
+    vmi_event_t *event) NOEXCEPT;
 
 /**
  * Swap a registered event to another.
@@ -670,7 +673,7 @@ status_t vmi_swap_events(
     vmi_instance_t vmi,
     vmi_event_t *swap_from,
     vmi_event_t *swap_to,
-    vmi_event_free_t free_routine);
+    vmi_event_free_t free_routine) NOEXCEPT;
 
 /**
  * Clear the event specified by the vmi_event_t object.
@@ -692,7 +695,7 @@ status_t vmi_swap_events(
 status_t vmi_clear_event(
     vmi_instance_t vmi,
     vmi_event_t *event,
-    vmi_event_free_t free_routine);
+    vmi_event_free_t free_routine) NOEXCEPT;
 
 /**
  * Return the pointer to the vmi_event_t if one is set on the given register.
@@ -703,7 +706,7 @@ status_t vmi_clear_event(
  */
 vmi_event_t *vmi_get_reg_event(
     vmi_instance_t vmi,
-    reg_t reg);
+    reg_t reg) NOEXCEPT;
 
 /**
  * Return the pointer to the vmi_event_t if one is set on the given page or
@@ -717,7 +720,7 @@ vmi_event_t *vmi_get_reg_event(
 vmi_event_t *vmi_get_mem_event(
     vmi_instance_t vmi,
     addr_t gfn,
-    vmi_mem_access_t access);
+    vmi_mem_access_t access) NOEXCEPT;
 
 /**
  * Set mem event on a page. Intended to be used when already registered a generic
@@ -733,7 +736,7 @@ status_t vmi_set_mem_event(
     vmi_instance_t vmi,
     addr_t gfn,
     vmi_mem_access_t access,
-    uint16_t vmm_pagetable_id);
+    uint16_t vmm_pagetable_id) NOEXCEPT;
 
 /**
  * Setup single-stepping to register the given event
@@ -754,12 +757,13 @@ status_t vmi_step_event(
     vmi_event_t *event,
     uint32_t vcpu_id,
     uint64_t steps,
-    event_callback_t cb);
+    event_callback_t cb) NOEXCEPT;
 
 /**
  * Listen for events until one occurs or a timeout.
  * If the timeout is given as 0, it will process leftover events
  * in the ring-buffer (if there are any).
+ * If an external poller is used, timeout with 0 will also forgo unmasking events.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] timeout Number of ms.
@@ -767,7 +771,7 @@ status_t vmi_step_event(
  */
 status_t vmi_events_listen(
     vmi_instance_t vmi,
-    uint32_t timeout);
+    uint32_t timeout) NOEXCEPT;
 
 /**
  * Set whether to crash the domain if the event listener is no longer present.
@@ -779,7 +783,7 @@ status_t vmi_events_listen(
  */
 status_t vmi_event_listener_required(
     vmi_instance_t vmi,
-    bool required);
+    bool required) NOEXCEPT;
 
 /**
  * Check if there are events pending to be processed.
@@ -788,7 +792,7 @@ status_t vmi_event_listener_required(
  * @return The number of pending events, or 0 if there are non, -1 on error.
  */
 int vmi_are_events_pending(
-    vmi_instance_t vmi);
+    vmi_instance_t vmi) NOEXCEPT;
 
 /**
  * Return the pointer to the vmi_event_t if one is set on the given vcpu.
@@ -798,7 +802,7 @@ int vmi_are_events_pending(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 vmi_event_t *vmi_get_singlestep_event (vmi_instance_t vmi,
-                                       uint32_t vcpu);
+                                       uint32_t vcpu) NOEXCEPT;
 
 /**
  * Disables the MTF single step flag from a vcpu as well as the
@@ -815,7 +819,7 @@ vmi_event_t *vmi_get_singlestep_event (vmi_instance_t vmi,
 status_t vmi_stop_single_step_vcpu(
     vmi_instance_t vmi,
     vmi_event_t* event,
-    uint32_t vcpu);
+    uint32_t vcpu) NOEXCEPT;
 
 /**
  * Toggles the MTF single step flag from a vcpu as well as the
@@ -837,7 +841,7 @@ status_t vmi_toggle_single_step_vcpu(
     vmi_instance_t vmi,
     vmi_event_t* event,
     uint32_t vcpu,
-    bool enabled);
+    bool enabled) NOEXCEPT;
 
 /**
  * Cleans up any domain wide single step settings.
@@ -849,7 +853,7 @@ status_t vmi_toggle_single_step_vcpu(
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_shutdown_single_step(
-    vmi_instance_t);
+    vmi_instance_t) NOEXCEPT;
 
 #pragma GCC visibility pop
 
