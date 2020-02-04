@@ -22,8 +22,8 @@
  * @file libvmi_extra.h
  * @brief The Extra LibVMI API is defined here.
  *
- * Including this header requires you to compile and link your application with
- *  GLib and JSON-C.
+ * To use GLib functions compile with -DLIBVMI_EXTRA_GLIB
+ * To use JSON functions compile with -DLIBVMI_EXTRA_JSON
  */
 #ifndef LIBVMI_EXTRA_H
 #define LIBVMI_EXTRA_H
@@ -37,8 +37,8 @@ extern "C" {
 
 #pragma GCC visibility push(default)
 
+#ifdef LIBVMI_EXTRA_GLIB
 #include <glib.h>
-#include <json-c/json.h>
 
 /**
  * Retrieve the pages mapped into the address space of a process.
@@ -51,6 +51,10 @@ extern "C" {
 GSList* vmi_get_va_pages(
     vmi_instance_t vmi,
     addr_t dtb) NOEXCEPT;
+#endif
+
+#ifdef LIBVMI_EXTRA_JSON
+#include <json-c/json.h>
 
 /**
  * Retrieve the kernel's open json_object
@@ -107,6 +111,7 @@ status_t vmi_get_struct_member_offset_from_json(
     const char* struct_name,
     const char* struct_member,
     addr_t* offset) NOEXCEPT;
+#endif
 
 #pragma GCC visibility pop
 

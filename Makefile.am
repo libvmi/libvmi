@@ -203,7 +203,6 @@ endif
                        examples/singlestep-event-example \
                        examples/interrupt-event-example \
                        examples/step-event-example \
-                       examples/va-pages \
                        examples/xen-emulate-response \
                        examples/breakpoint-emulate-example
 
@@ -217,6 +216,7 @@ endif
     examples_xen_emulate_response_SOURCES = examples/xen-emulate-response.c
     examples_breakpoint_emulate_example_SOURCES = examples/breakpoint-emulate-example.c
 
+    noinst_PROGRAMS += examples/va-pages
     examples_va_pages_SOURCES = examples/va-pages.c
     examples_va_pages_CFLAGS = $(GLIB_CFLAGS)
     examples_va_pages_LDADD = $(GLIB_LIBS) libvmi/libvmi.la
