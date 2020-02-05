@@ -1252,7 +1252,7 @@ status_t vmi_read_pa(
  */
 status_t vmi_read_8_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint8_t * value) NOEXCEPT;
 
 /**
@@ -1265,7 +1265,7 @@ status_t vmi_read_8_ksym(
  */
 status_t vmi_read_16_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint16_t * value) NOEXCEPT;
 
 /**
@@ -1278,7 +1278,7 @@ status_t vmi_read_16_ksym(
  */
 status_t vmi_read_32_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint32_t * value) NOEXCEPT;
 
 /**
@@ -1291,7 +1291,7 @@ status_t vmi_read_32_ksym(
  */
 status_t vmi_read_64_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint64_t * value) NOEXCEPT;
 
 /**
@@ -1305,7 +1305,7 @@ status_t vmi_read_64_ksym(
  */
 status_t vmi_read_addr_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     addr_t *value) NOEXCEPT;
 
 /**
@@ -1319,7 +1319,7 @@ status_t vmi_read_addr_ksym(
  */
 char *vmi_read_str_ksym(
     vmi_instance_t vmi,
-    char *sym) NOEXCEPT;
+    const char *sym) NOEXCEPT;
 
 /**
  * Reads 8 bits from memory, given a virtual address.
@@ -1563,7 +1563,7 @@ status_t vmi_write(
  */
 status_t vmi_write_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     size_t count,
     void *buf,
     size_t *bytes_written) NOEXCEPT;
@@ -1682,7 +1682,7 @@ status_t vmi_write_addr(
  */
 status_t vmi_write_8_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint8_t * value) NOEXCEPT;
 
 /**
@@ -1695,7 +1695,7 @@ status_t vmi_write_8_ksym(
  */
 status_t vmi_write_16_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint16_t * value) NOEXCEPT;
 
 /**
@@ -1708,7 +1708,7 @@ status_t vmi_write_16_ksym(
  */
 status_t vmi_write_32_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint32_t * value) NOEXCEPT;
 
 /**
@@ -1721,7 +1721,7 @@ status_t vmi_write_32_ksym(
  */
 status_t vmi_write_64_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint64_t * value) NOEXCEPT;
 
 /**
@@ -1735,7 +1735,7 @@ status_t vmi_write_64_ksym(
  */
 status_t vmi_write_addr_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     addr_t * value) NOEXCEPT;
 
 /**
@@ -1893,7 +1893,7 @@ status_t vmi_write_addr_pa(
  * @param[in] length The length (in bytes) of data
  */
 void vmi_print_hex(
-    unsigned char *data,
+    const char *data,
     unsigned long length) NOEXCEPT;
 
 /**
@@ -1907,7 +1907,7 @@ void vmi_print_hex(
  */
 void vmi_print_hex_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     size_t length) NOEXCEPT;
 
 /**

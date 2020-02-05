@@ -737,7 +737,7 @@ vmi_read_unicode_str_va(vmi_instance_t vmi, addr_t vaddr, vmi_pid_t pid)
 status_t
 vmi_read_8_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint8_t * value)
 {
     return vmi_read_ksym(vmi, sym, 1, value, NULL);
@@ -746,7 +746,7 @@ vmi_read_8_ksym(
 status_t
 vmi_read_16_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint16_t * value)
 {
     return vmi_read_ksym(vmi, sym, 2, value, NULL);
@@ -755,7 +755,7 @@ vmi_read_16_ksym(
 status_t
 vmi_read_32_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint32_t * value)
 {
     return vmi_read_ksym(vmi, sym, 4, value, NULL);
@@ -764,7 +764,7 @@ vmi_read_32_ksym(
 status_t
 vmi_read_64_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint64_t * value)
 {
     return vmi_read_ksym(vmi, sym, 8, value, NULL);
@@ -773,7 +773,7 @@ vmi_read_64_ksym(
 status_t
 vmi_read_addr_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     addr_t *value)
 {
     status_t ret = VMI_FAILURE;
@@ -813,7 +813,7 @@ vmi_read_addr_ksym(
 char *
 vmi_read_str_ksym(
     vmi_instance_t vmi,
-    char *sym)
+    const char *sym)
 {
     addr_t vaddr = 0;
 
