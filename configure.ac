@@ -256,12 +256,13 @@ AC_SUBST([GLIB_LIBS])
         [])
         AC_DEFINE([ENABLE_KVM_LEGACY], [1],
                   [Define to 1 to enable legacy KVM driver support.])
-    # [else]
-        # the new KVM driver depends on libkvmi, which is included in the sources
-        # for now.
-        # in the future, we will need to find it on the system
-        # AC_CHECK_HEADER(libkvmi.h, ...
-        # AC_CHECK_LIB(libkvmi, ...
+    [else]
+        AC_CHECK_HEADER([kvmi/libkvmi.h], [],
+            [AC_MSG_ERROR([No libkvmi headers found. Install the library or
+             enable the legacy KVM driver with --enable-kvm-legacy])])
+        AC_CHECK_LIB(kvmi, kvmi_init_vsock, [],
+            [AC_MSG_ERROR(["No working libkvmi library found. Install the library or
+             enable the legacy KVM driver with --enable-kvm-legacy"])])
     [fi]
 [fi]
 

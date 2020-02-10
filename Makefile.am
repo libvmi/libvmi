@@ -77,8 +77,7 @@ if WITH_KVM_LEGACY
 
 else
     drivers += libvmi/driver/kvm/kvm.c \
-               libvmi/driver/kvm/kvm_events.c \
-               libvmi/driver/kvm/libkvmi.c
+               libvmi/driver/kvm/kvm_events.c
 
 endif
 endif
@@ -148,7 +147,7 @@ libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
 
 if !WITH_KVM_LEGACY
-    libvmi_libvmi_la_CFLAGS += -I$(top_srcdir)/libvmi/driver/kvm/include
+    libvmi_libvmi_la_LDFLAGS += -lkvmi
 endif
 
 if ENABLE_CONFIGFILE

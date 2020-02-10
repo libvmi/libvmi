@@ -23,12 +23,12 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <kvmi/libkvmi.h>
 
 #include "private.h"
 #include "msr-index.h"
 #include "kvm_events.h"
 #include "kvm_private.h"
-#include "include/kvmi/libkvmi.h"
 
 /*
  * Helpers
