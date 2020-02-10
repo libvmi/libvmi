@@ -44,6 +44,7 @@
 #include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
+#include <kvmi/libkvmi.h>
 
 #include "private.h"
 #include "msr-index.h"
@@ -52,7 +53,6 @@
 #include "driver/kvm/kvm.h"
 #include "driver/kvm/kvm_private.h"
 #include "driver/kvm/kvm_events.h"
-#include "driver/kvm/include/kvmi/libkvmi.h"
 
 enum segment_type {
     SEGMENT_SELECTOR,

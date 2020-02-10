@@ -30,12 +30,13 @@
 
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
+#ifndef ENABLE_KVM_LEGACY
+# include <kvmi/libkvmi.h>
+#endif
+
 
 #include "private.h"
 #include "libvirt_wrapper.h"
-#ifndef ENABLE_KVM_LEGACY
-# include "include/kvmi/libkvmi.h"
-#endif
 
 typedef struct kvm_instance {
     virConnectPtr conn;
