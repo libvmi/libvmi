@@ -194,13 +194,10 @@ AM_SANITY_CHECK
 AM_PROG_AS
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
-AC_SUBST([CHECK_CFLAGS])
-AC_SUBST([CHECK_LIBS])
 AM_CONDITIONAL([MAKE_TESTS], [test x$have_check = xyes])
 
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16],[],[AC_MSG_ERROR(GLib 2.16 or newer not found. Install missing package and re-run)])
-AC_SUBST([GLIB_CFLAGS])
-AC_SUBST([GLIB_LIBS])
+PKG_CHECK_MODULES([JSONC], [json-c], [have_jsonc='yes'], [have_jsonc='no'])
 
 [if test "$enable_xen" = "yes" || test "$enable_kvm" = "yes"]
 [then]
@@ -230,8 +227,10 @@ AC_SUBST([GLIB_LIBS])
 
 [if test "$enable_kvm" = "yes"]
 [then]
-    PKG_CHECK_MODULES([JSONC], [json-c], [],
-        [AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-kvm)])
+    [if test "$have_jsonc" = "no"]
+    [then]
+        AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-kvm)
+    [fi]
     AC_CHECK_LIB(m, ceil, [],
         [AC_MSG_ERROR(No libm found. Install missing package or re-run with --disable-kvm)])
     AC_CHECK_HEADER(libvirt/libvirt.h, [],
@@ -250,8 +249,10 @@ AC_SUBST([GLIB_LIBS])
 
 [if test "$enable_bareflank" = "yes" && test "$arch" = "x86_64"]
 [then]
-    PKG_CHECK_MODULES([JSONC], [json-c], [],
-        [AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-bareflank)])
+    [if test "$have_jsonc" = "no"]
+    [then]
+        AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-bareflank)
+    [fi]
     AC_DEFINE([ENABLE_BAREFLANK], [1], [Define to 1 to enable Bareflank support.])
 [fi]
 
@@ -313,14 +314,14 @@ AM_CONDITIONAL([VMIFS], [test x"$enable_vmifs" = xyes])
     AC_DEFINE([ENABLE_CONFIGFILE], [1], [Enable libvmi.conf])
 [fi]
 
-missing='no'
 [if test "$rekall" = "yes" || test "$volatility_ist" = "yes"]
 [then]
-    PKG_CHECK_MODULES([JSONC], [json-c], [],
-        [AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-rekall-profiles --disable-volatility-ist)])
-
-    AM_CONDITIONAL([ENABLE_JSON_PROFILES], [test "xyes" = "xyes"])
+    [if test "$have_jsonc" = "no"]
+    [then]
+        AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-rekall-profiles --disable-volatility-ist)
+    [fi]
     AC_DEFINE([ENABLE_JSON_PROFILES], [1], [Defined to 1 when support to JSON profiles is available])
+    AM_CONDITIONAL([ENABLE_JSON_PROFILES], [test "true" = "true"])
     [if test "$rekall" = "yes"]
     [then]
         AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when support to Rekall profiles should be compiled])
@@ -329,6 +330,8 @@ missing='no'
     [then]
         AC_DEFINE([VOLATILITY_IST], [1], [Defined to 1 when support to Volatility IST should be compiled])
     [fi]
+[else]
+    AM_CONDITIONAL([ENABLE_JSON_PROFILES], [test "true" = "false"])
 [fi]
 AM_CONDITIONAL([ENABLE_REKALL_PROFILES], [test x"$rekall" = "xyes"])
 AM_CONDITIONAL([ENABLE_VOLATILITY_IST], [test x"$volatility_ist" = "xyes"])

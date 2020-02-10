@@ -627,7 +627,7 @@ get_kpgd_from_json_profile(vmi_instance_t vmi)
 
     /* The kernel base and the pdbase offset should have already been found
      * and vmi->kpgd should be holding a CR3 value */
-    if ( !vmi->json.root || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
+    if ( !json_profile(vmi) || !windows->ntoskrnl || !windows->pdbase_offset || !vmi->kpgd )
         return ret;
 
     if ( vmi->kpgd && windows->sysproc )

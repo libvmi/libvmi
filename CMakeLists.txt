@@ -54,8 +54,6 @@ set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "-s")
 #                             BUILD OPTIONS
 #-----------------------------------------------------------------------------
 option(ENABLE_XEN "Build Xen driver" ON)
-option(ENABLE_KVM "Build KVM driver" ON)
-option(ENABLE_BAREFLANK "Build Bareflank driver" ON)
 option(ENABLE_FILE "Build file driver" ON)
 
 option(ENABLE_WINDOWS "Build Windows introspection" ON)
@@ -69,8 +67,6 @@ option(ENABLE_VMIFS "Enable vmifs: maps memory to a file through FUSE" ON)
 option(ENABLE_CONFIGFILE "Enable config file" ON)
 option(ENABLE_ADDRESS_CACHE "Enable address cache" ON)
 option(ENABLE_PAGE_CACHE "Enable page cache" ON)
-option(REKALL_PROFILES "Support Rekall's JSON profiles" ON)
-option(VOLATILITY_IST "Support Volatility's JSON ISTs" ON)
 option(ENABLE_SAFETY_CHECKS "Enable API safety checks" ON)
 option(ENABLE_TESTING "Build libvmi test suite" OFF)
 option(BUILD_EXAMPLES "Build the examples" ON)
@@ -80,9 +76,27 @@ option(VMI_DEBUG "Debug output level" OFF)
 option(HARDENING "Enable hardening flags (with overhead)" OFF)
 option(ENV_DEBUG "Toggle the debug output via LIBVMI_DEBUG environment variable" OFF)
 
+# json
+# for some reason it's impossible to override the default options that get defined here
+# further down in the chain (ie. in libvmi/CMakeLists.txt)
+find_package(JSON-C)
+if (JSON-C_FOUND)
+option(ENABLE_KVM "Build KVM driver" ON)
+option(ENABLE_BAREFLANK "Build Bareflank driver" ON)
+option(ENABLE_JSON_PROFILES "Enable JSON profiles" ON)
+option(REKALL_PROFILES "Support Rekall's JSON profiles" ON)
+option(VOLATILITY_IST "Support Volatility's JSON ISTs" ON)
+else ()
+message(STATUS "JSON-C library was not found, KVM, Bareflank & JSON profile support is disabled")
+option(ENABLE_KVM "Build KVM driver" OFF)
+option(ENABLE_BAREFLANK "Build Bareflank driver" OFF)
+option(ENABLE_JSON_PROFILES "Enable JSON profiles" OFF)
+option(REKALL_PROFILES "Support Rekall's JSON profiles" OFF)
+option(VOLATILITY_IST "Support Volatility's JSON ISTs" OFF)
+endif ()
+
 # default values
 set(MAX_PAGE_CACHE_SIZE "512")
-set(ENABLE_JSON_PROFILES "Support JSON profiles" ON)
 
 # enable hardening if requested
 if (HARDENING)

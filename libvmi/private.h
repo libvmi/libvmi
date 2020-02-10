@@ -41,6 +41,10 @@
 #include <time.h>
 #include <inttypes.h>
 #include "libvmi.h"
+#define LIBVMI_EXTRA_GLIB
+#ifdef ENABLE_JSON_PROFILES
+#define LIBVMI_EXTRA_JSON
+#endif
 #include "libvmi_extra.h"
 #include "cache.h"
 #include "events.h"
@@ -378,10 +382,12 @@ win_ver_t find_windows_version(
     addr_t kdbg);
 
 #ifdef ENABLE_JSON_PROFILES
+#define json_profile(vmi) (vmi->json.root)
 #define json_profile_lookup(vmi, ...) (vmi->json.handler ? \
         vmi->json.handler(vmi->json.root, __VA_ARGS__, NULL) : \
         VMI_FAILURE)
 #else
+#define json_profile(...) NULL
 #define json_profile_lookup(...) VMI_FAILURE
 #endif
 

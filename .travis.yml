@@ -309,6 +309,32 @@ matrix:
         - make
 
 #
+# without json
+#
+    - env:
+        - TEST="without json (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DENABLE_KVM=OFF -DENABLE_BAREFLANK=OFF -DVOLATILITY_IST=OFF -DREKALL_PROFILES=OFF -DBUILD_EXAMPLES=OFF ..
+        - make
+
+#
+# without json
+#
+    - env:
+        - TEST="without json (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libxen-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-kvm --disable-bareflank --disable-volatility-ist --disable-rekall-profiles --disable-examples
+        - make
+
+#
 # disable safety checks
 #
     - env:
