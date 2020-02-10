@@ -121,7 +121,7 @@ if (ENABLE_KVM)
     find_package(Libvirt)
     if (NOT Libvirt_FOUND)
         set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
-        message(WARNING "Cannot find Libvirt: disabling KVM driver")
+        message(WARNING "Cannot find libvirt: disabling KVM driver")
     else ()
         if (ENABLE_KVM_LEGACY)
             # legacy KVM driver
@@ -136,10 +136,15 @@ if (ENABLE_KVM)
             endif ()
         else ()
             # KVM driver based on KVMi series, API is exposed via libkvmi
-            #
-            # for the moment, libkvmi sources are copied from the kvm-vmi/kvm
-            # tree: kvm/tools/kvm/kvmi and versioned into the kvm/ folder as well.
-            # but maybe we will do a find_package(libkvmi) one day ?
+            find_package(Libkvmi)
+            if (NOT Libkvmi_FOUND)
+                set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
+                message(WARNING "Cannot find libkvmi: disabling KVM driver")
+            else ()
+                target_include_directories(vmi_shared PRIVATE
+                    ${Libkvmi_INCLUDE_DIRS})
+                target_link_libraries(vmi_shared PRIVATE ${Libkvmi_LIBRARIES})
+            endif ()
         endif ()
         target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
         # CMAKE_DL_LIBS -> dlopen* lib
