@@ -5,6 +5,14 @@ env:
     global:
         - secure: "$COVERITY_SCAN_TOKEN"
 
+# install libkvmi for all tests
+before_install:
+  - git clone https://github.com/KVM-VMI/kvm --branch kvmi --depth 1
+  - pushd kvm/tools/kvm/kvmi
+  - make
+  - sudo make install
+  - popd
+
 matrix:
     include:
 
