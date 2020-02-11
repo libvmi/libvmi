@@ -112,11 +112,13 @@ configure_file(libvmi.pc.in ${PROJECT_BINARY_DIR}/libvmi.pc)
 install(FILES ${PROJECT_BINARY_DIR}/libvmi.pc DESTINATION
     "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig")
 
-configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
 # include <libvmi/libvmi.h> "config.h", "private.h" and <glib.h>
 include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} libvmi ${GLIB_INCLUDE_DIRS})
 add_definitions(-DHAVE_CONFIG_H)
 add_subdirectory(libvmi)
+# configure config.h after processing libvmi subdir
+# as it may have disabled some features due to unmet dependencies
+configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
 add_subdirectory(tools)
 if (ENABLE_TESTING)
     # this command should always be called in the root CMakeLists.txt
