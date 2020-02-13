@@ -31,11 +31,12 @@ matrix:
 #
     - env:
         - TEST="astyle"
+        - ARTISTIC_STYLE_OPTIONS=".astylerc"
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install astyle
       script:
-        - export ARTISTIC_STYLE_OPTIONS=".astylerc" && astyle -Q `find . | egrep "\.c$|\.h$"` > astyle.out
+        - find . -type f \( -name "*.c" -or -name "*.h" \) -exec astyle -Q "{}" >> astyle.out \;
         - TEST=$(cat astyle.out | wc -l)
         - |
           if [[ $TEST -ne 0 ]]; then
