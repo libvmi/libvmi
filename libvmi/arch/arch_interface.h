@@ -38,6 +38,7 @@ struct arch_interface {
 };
 typedef struct arch_interface *arch_interface_t;
 
+status_t get_vcpu_page_mode(vmi_instance_t vmi, unsigned long vcpu, page_mode_t *out_pm);
 status_t arch_init(vmi_instance_t vmi);
 
 #endif /* ARCH_INTERFACE_H_ */

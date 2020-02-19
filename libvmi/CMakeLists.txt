@@ -9,7 +9,6 @@ set(libvmi_src
     slat.c
     strmatch.c
     write.c
-    memory.c
     arch/arch_interface.c
     arch/intel.c
     arch/amd64.c

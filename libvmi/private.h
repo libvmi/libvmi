@@ -300,17 +300,6 @@ status_t vmi_pagetable_lookup_cache(
     addr_t *paddr);
 
 /*-----------------------------------------
- * memory.c
- */
-
-#define PSR_MODE_BIT 0x10 // set on cpsr iff ARM32
-
-status_t find_page_mode_live(
-    vmi_instance_t vmi,
-    unsigned long vcpu,
-    page_mode_t *out_pm);
-
-/*-----------------------------------------
  * strmatch.c
  */
 
