@@ -28,7 +28,6 @@ c_sources = \
     libvmi/slat.c \
     libvmi/strmatch.c \
     libvmi/write.c \
-    libvmi/memory.c \
     libvmi/arch/arch_interface.c \
     libvmi/arch/intel.c \
     libvmi/arch/amd64.c \
