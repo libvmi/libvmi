@@ -70,7 +70,9 @@ if WITH_KVM
                    libvmi/driver/kvm/kvm_private.h \
                    libvmi/driver/kvm/kvm_common.c \
                    libvmi/driver/kvm/libvirt_wrapper.c \
-                   libvmi/driver/kvm/libvirt_wrapper.h
+                   libvmi/driver/kvm/libvirt_wrapper.h \
+                   libvmi/driver/kvm/libkvmi_wrapper.c \
+                   libvmi/driver/kvm/libkvmi_wrapper.h
 
 if WITH_KVM_LEGACY
     drivers += libvmi/driver/kvm/kvm_legacy.c
@@ -145,10 +147,6 @@ libvmi_libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
 libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS)
 libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
-
-if !WITH_KVM_LEGACY
-    libvmi_libvmi_la_LDFLAGS += -lkvmi
-endif
 
 if ENABLE_CONFIGFILE
     config_h_sources = libvmi/config/config_parser.h

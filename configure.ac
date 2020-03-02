@@ -260,9 +260,6 @@ AC_SUBST([GLIB_LIBS])
         AC_CHECK_HEADER([kvmi/libkvmi.h], [],
             [AC_MSG_ERROR([No libkvmi headers found. Install the library or
              enable the legacy KVM driver with --enable-kvm-legacy])])
-        AC_CHECK_LIB(kvmi, kvmi_init_vsock, [],
-            [AC_MSG_ERROR(["No working libkvmi library found. Install the library or
-             enable the legacy KVM driver with --enable-kvm-legacy"])])
     [fi]
 [fi]
 

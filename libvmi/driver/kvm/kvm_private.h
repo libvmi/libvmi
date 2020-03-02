@@ -37,6 +37,7 @@
 
 #include "private.h"
 #include "libvirt_wrapper.h"
+#include "libkvmi_wrapper.h"
 
 typedef struct kvm_instance {
     virConnectPtr conn;
@@ -50,6 +51,7 @@ typedef struct kvm_instance {
 #else
     void *kvmi;
     void *kvmi_dom;
+    libkvmi_wrapper_t libkvmi;
     pthread_mutex_t kvm_connect_mutex;
     pthread_cond_t kvm_start_cond;
     unsigned int expected_pause_count;
