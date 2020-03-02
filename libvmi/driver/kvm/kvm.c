@@ -415,6 +415,7 @@ kvm_init_vmi(
         return VMI_FAILURE;
     }
     socket_path = (char*) init_entry.data;
+    dbprint(VMI_DEBUG_KVM, "--KVMi socket path: %s\n", socket_path);
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     virDomainPtr dom = kvm->libvirt.virDomainLookupByID(kvm->conn, kvm->id);
