@@ -233,7 +233,7 @@ linux_symbol_to_address(
         goto done;
     }
 
-    if (!linux_instance->sysmap && !vmi->json.root) {
+    if (!linux_instance->sysmap && !json_profile(vmi)) {
         errprint("VMI_WARNING: No linux sysmap and Rekall profile configured\n");
         goto done;
     }

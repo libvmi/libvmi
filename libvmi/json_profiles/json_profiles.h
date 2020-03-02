@@ -24,6 +24,7 @@
 #define LIBVMI_JSON_PROFILES_H
 
 #ifdef ENABLE_JSON_PROFILES
+#define LIBVMI_EXTRA_JSON
 
 #include <json-c/json.h>
 #include "private.h"

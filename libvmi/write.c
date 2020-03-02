@@ -185,7 +185,7 @@ vmi_write_va(
 status_t
 vmi_write_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     size_t count,
     void *buf,
     size_t *bytes_written)
@@ -384,7 +384,7 @@ vmi_write_addr_va(
 status_t
 vmi_write_8_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint8_t * value)
 {
     return vmi_write_ksym(vmi, sym, 1, value, NULL);
@@ -393,7 +393,7 @@ vmi_write_8_ksym(
 status_t
 vmi_write_16_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint16_t * value)
 {
     return vmi_write_ksym(vmi, sym, 2, value, NULL);
@@ -402,7 +402,7 @@ vmi_write_16_ksym(
 status_t
 vmi_write_32_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint32_t * value)
 {
     return vmi_write_ksym(vmi, sym, 4, value, NULL);
@@ -411,7 +411,7 @@ vmi_write_32_ksym(
 status_t
 vmi_write_64_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     uint64_t * value)
 {
     return vmi_write_ksym(vmi, sym, 8, value, NULL);
@@ -420,7 +420,7 @@ vmi_write_64_ksym(
 status_t
 vmi_write_addr_ksym(
     vmi_instance_t vmi,
-    char *sym,
+    const char *sym,
     addr_t * value)
 {
     access_context_t ctx = {

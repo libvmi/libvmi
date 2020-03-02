@@ -30,6 +30,7 @@
 #include <glib.h>
 
 #include <libvmi/libvmi.h>
+#define LIBVMI_EXTRA_GLIB
 #include <libvmi/libvmi_extra.h>
 
 #include "check_tests.h"

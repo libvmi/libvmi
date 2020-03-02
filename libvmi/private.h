@@ -41,6 +41,10 @@
 #include <time.h>
 #include <inttypes.h>
 #include "libvmi.h"
+#define LIBVMI_EXTRA_GLIB
+#ifdef ENABLE_JSON_PROFILES
+#define LIBVMI_EXTRA_JSON
+#endif
 #include "libvmi_extra.h"
 #include "cache.h"
 #include "events.h"
@@ -296,17 +300,6 @@ status_t vmi_pagetable_lookup_cache(
     addr_t *paddr);
 
 /*-----------------------------------------
- * memory.c
- */
-
-#define PSR_MODE_BIT 0x10 // set on cpsr iff ARM32
-
-status_t find_page_mode_live(
-    vmi_instance_t vmi,
-    unsigned long vcpu,
-    page_mode_t *out_pm);
-
-/*-----------------------------------------
  * strmatch.c
  */
 
@@ -378,10 +371,12 @@ win_ver_t find_windows_version(
     addr_t kdbg);
 
 #ifdef ENABLE_JSON_PROFILES
+#define json_profile(vmi) (vmi->json.root)
 #define json_profile_lookup(vmi, ...) (vmi->json.handler ? \
         vmi->json.handler(vmi->json.root, __VA_ARGS__, NULL) : \
         VMI_FAILURE)
 #else
+#define json_profile(...) NULL
 #define json_profile_lookup(...) VMI_FAILURE
 #endif
 
