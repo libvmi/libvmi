@@ -1,11 +1,8 @@
-dist:   bionic
+os: linux
+dist: bionic
 language: c
-sudo: true
-env:
-    global:
-        - secure: "$COVERITY_SCAN_TOKEN"
 
-matrix:
+jobs:
     include:
 
 #
@@ -97,7 +94,8 @@ matrix:
 #
 # Coverity
 #
-    - env:
+    - if: branch = master
+      env:
         - TEST="Coverity"
       compiler: gcc
       addons:
@@ -118,21 +116,19 @@ matrix:
 #
 # SonarCloud
 #
-    - env:
+    - if: branch = master
+      env:
         - TEST="SonarCloud"
       dist: xenial
-      edge: true
       compiler: clang
       addons:
         sonarcloud:
             organization: "libvmi"
-            token:
-                secure: "$SONAR_SCAN_TOKEN"
-      install:
-        - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+            token: "$SONAR_SCAN_TOKEN"
       script:
         - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
         - autoreconf -vif
         - ./configure
         - build-wrapper-linux-x86-64 --out-dir bw-output make -j2
