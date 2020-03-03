@@ -2,8 +2,9 @@ dnl --------------------------------
 dnl Initialization macros.
 dnl --------------------------------
 
+AC_PREREQ([2.60])
 AC_INIT([libvmi], [0.13.0])
-AM_INIT_AUTOMAKE([subdir-objects])
+AM_INIT_AUTOMAKE([1.10 no-define foreign subdir-objects])
 
 LT_INIT
 
@@ -44,26 +45,6 @@ aarch64*)
     ;;
 esac
 AC_MSG_RESULT($arch)
-
-dnl -----------------------------------------------
-dnl Helper function to check presence of a define
-dnl -----------------------------------------------
-AC_DEFUN([AC_CHECK_DEFINE],[dnl
-    AC_CACHE_CHECK(for $1 in $2, ac_cv_define_$1,
-        AC_EGREP_CPP([YES_IS_DEFINED], [
-#include <$2>
-#ifdef $1
-YES_IS_DEFINED
-#endif
-        ], ac_cv_define_$1=yes, ac_cv_define_$1=no)
-    )
-    if test "$ac_cv_define_$1" = "yes" ; then
-        AC_DEFINE([HAVE_$1],[],[Added by AC_CHECK_DEFINE])
-        have_$1="yes"
-    else
-        have_$1="no"
-    fi
-])dnl
 
 dnl -----------------------------------------------
 dnl Check package options
@@ -184,6 +165,13 @@ AC_ARG_ENABLE([debug],
       [debug="no"])
 AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
 
+AC_ARG_ENABLE([hardening],
+  [AS_HELP_STRING([--enable-hardening],
+    [Enable compiler and linker options to frustrate memory corruption exploits @<:@yes@:>@])],
+  [hardening="$enableval"],
+  [hardening="yes"])
+AM_CONDITIONAL([HARDENING], [test x$hardening = xyes])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -192,6 +180,71 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 AM_SANITY_CHECK
 AM_PROG_AS
+
+#####################################################
+# AUTOHARDEN START
+# We want to check for compiler flag support, but there is no way to make
+# clang's "argument unused" warning fatal.  So we invoke the compiler through a
+# wrapper script that greps for this message.
+
+saved_CC="$CC"
+saved_LD="$LD"
+flag_wrap="$srcdir/wrap-compiler-for-flag-check"
+CC="$flag_wrap $CC"
+LD="$flag_wrap $LD"
+
+# We use the same hardening flags for C and C++.  We must check that each flag
+# is supported by both compilers.
+AC_DEFUN([check_cc_flag],
+  [AC_LANG_PUSH(C)
+  AX_CHECK_COMPILE_FLAG([$1], [$2], [$3], [-Werror $4])
+  AC_LANG_POP(C)])
+AC_DEFUN([check_link_flag],
+ [AX_CHECK_LINK_FLAG([$1], [$2], [$3], [-Werror $4])])
+
+HARDEN_CFLAGS=""
+HARDEN_LDFLAGS=""
+AS_IF([test x"$hardening" != x"no"], [
+  check_cc_flag([-fno-strict-overflow], [HARDEN_CFLAGS="$HARDEN_CFLAGS -fno-strict-overflow"])
+
+# This one will likely succeed, even on platforms where it does nothing.
+  check_cc_flag([-D_FORTIFY_SOURCE=2], [HARDEN_CFLAGS="$HARDEN_CFLAGS -D_FORTIFY_SOURCE=2"])
+
+  check_cc_flag([-fstack-protector-all],
+   [check_link_flag([-fstack-protector-all],
+     [HARDEN_CFLAGS="$HARDEN_CFLAGS -fstack-protector-all"
+      check_cc_flag([-Wstack-protector], [HARDEN_CFLAGS="$HARDEN_CFLAGS -Wstack-protector"],
+        [], [-fstack-protector-all])
+      check_cc_flag([--param ssp-buffer-size=1], [HARDEN_CFLAGS="$HARDEN_CFLAGS --param ssp-buffer-size=1"],
+        [], [-fstack-protector-all])])])
+
+  # At the link step, we might want -pie (GCC) or -Wl,-pie (Clang on OS X)
+  #
+  # The linker checks also compile code, so we need to include -fPIE as well.
+  check_cc_flag([-fPIE],
+   [check_link_flag([-fPIE -pie],
+     [HARDEN_CFLAGS="$HARDEN_CFLAGS -fPIE"
+      HARDEN_LDFLAGS="$HARDEN_LDFLAGS -pie"],
+     [check_link_flag([-fPIE -Wl,-pie],
+       [HARDEN_CFLAGS="$HARDEN_CFLAGS -fPIE"
+        HARDEN_LDFLAGS="$HARDEN_LDFLAGS -Wl,-pie"])])])
+
+  check_link_flag([-Wl,-z,noexecstack],
+   [HARDEN_LDFLAGS="$HARDEN_LDFLAGS -Wl,-z,noexecstack"])
+  check_link_flag([-Wl,-z,relro],
+   [HARDEN_LDFLAGS="$HARDEN_LDFLAGS -Wl,-z,relro"])
+  check_link_flag([-Wl,-z,now],
+   [HARDEN_LDFLAGS="$HARDEN_LDFLAGS -Wl,-z,now"])
+])
+
+AC_SUBST([HARDEN_CFLAGS])
+AC_SUBST([HARDEN_LDFLAGS])
+
+# End of flag tests.
+CC="$saved_CC"
+LD="$saved_LD"
+# AUTOHARDEN END
+#####################################################
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
 AM_CONDITIONAL([MAKE_TESTS], [test x$have_check = xyes])
