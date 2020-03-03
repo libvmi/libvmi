@@ -256,6 +256,11 @@ void memory_cache_remove(
     g_hash_table_remove(vmi->memory_cache, key);
 }
 
+void g_free_wrapper(void *p1, void *UNUSED(p2))
+{
+    g_free(p1);
+}
+
 void
 memory_cache_destroy(
     vmi_instance_t vmi)
@@ -263,7 +268,7 @@ memory_cache_destroy(
     vmi->memory_cache_size_max = 0;
 
     if (vmi->memory_cache_lru) {
-        g_queue_foreach(vmi->memory_cache_lru, (GFunc)g_free, NULL);
+        g_queue_foreach(vmi->memory_cache_lru, (GFunc)g_free_wrapper, NULL);
         g_queue_free(vmi->memory_cache_lru);
         vmi->memory_cache_lru = NULL;
     }
@@ -284,7 +289,7 @@ memory_cache_flush(
     vmi_instance_t vmi)
 {
     if (vmi->memory_cache_lru) {
-        g_queue_foreach(vmi->memory_cache_lru, (GFunc)g_free, NULL);
+        g_queue_foreach(vmi->memory_cache_lru, (GFunc)g_free_wrapper, NULL);
         g_queue_free(vmi->memory_cache_lru);
         vmi->memory_cache_lru = g_queue_new();
     }
