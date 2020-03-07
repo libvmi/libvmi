@@ -24,6 +24,7 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -73,9 +74,7 @@ read_config_file_entry(vmi_instance_t UNUSED(vmi),
 
 extern FILE *yyin;
 
-static FILE *
-open_config_file(
-)
+static FILE *open_config_file()
 {
     FILE *f = NULL;
     gchar *location;
@@ -399,10 +398,9 @@ set_id_and_name(
      * we really only need the domain ID to successfully work.
      */
     if (vmi->mode == VMI_XEN) {
+        char *idstring = NULL;
         // create placeholder for image_type
-        char *idstring = g_try_malloc0(snprintf(NULL, 0, "domid-%"PRIu64, id) + 1);
-        if ( idstring ) {
-            sprintf(idstring, "domid-%"PRIu64, id);
+        if ( asprintf(&idstring, "domid-%"PRIu64, id) > 0 ) {
             vmi->image_type = idstring;
             goto done;
         }
