@@ -62,7 +62,7 @@ memory_cache_entry_free(
 
     if (entry) {
         entry->vmi->release_data_callback(entry->vmi, entry->data, entry->length);
-        free(entry);
+        g_slice_free(struct memory_cache_entry, entry);
     }
 }
 
@@ -74,7 +74,7 @@ clean_cache(
         gint64 *paddr = g_queue_pop_tail(vmi->memory_cache_lru);
 
         g_hash_table_remove(vmi->memory_cache, paddr);
-        g_free(paddr);
+        g_slice_free(gint64, paddr);
     }
 
     dbprint(VMI_DEBUG_MEMCACHE, "--MEMORY cache cleanup round complete (cache size = %u)\n",
@@ -141,13 +141,7 @@ static memory_cache_entry_t create_new_entry (vmi_instance_t vmi, addr_t paddr,
         }
     }
 
-    memory_cache_entry_t entry =
-        (memory_cache_entry_t)
-        g_try_malloc0(sizeof(struct memory_cache_entry));
-
-    if ( !entry )
-        return NULL;
-
+    memory_cache_entry_t entry = g_slice_new(struct memory_cache_entry);
     entry->vmi = vmi;
     entry->paddr = paddr;
     entry->length = length;
@@ -178,7 +172,7 @@ memory_cache_init(
 {
     vmi->memory_cache =
         g_hash_table_new_full(g_int64_hash, g_int64_equal,
-                              g_free,
+                              free_gint64,
                               memory_cache_entry_free);
     vmi->memory_cache_lru = g_queue_new();
     vmi->memory_cache_age = age_limit;
@@ -217,22 +211,12 @@ memory_cache_insert(
             return 0;
         }
 
-        key = g_try_malloc0(sizeof(gint64));
-        if ( !key ) {
-            g_free(entry);
-            return 0;
-        }
-
-        gint64 *key2 = g_try_malloc0(sizeof(gint64));
-        if ( !key2 ) {
-            g_free(entry);
-            g_free(key);
-            return 0;
-        }
-
+        key = g_slice_new(gint64);
         *key = paddr;
+
         g_hash_table_insert(vmi->memory_cache, key, entry);
 
+        gint64 *key2 = g_slice_new(gint64);
         *key2 = paddr;
         g_queue_push_head(vmi->memory_cache_lru, key2);
 
@@ -256,9 +240,9 @@ void memory_cache_remove(
     g_hash_table_remove(vmi->memory_cache, key);
 }
 
-void g_free_wrapper(void *p1, void *UNUSED(p2))
+void free_lru_entry(void *p1, void *UNUSED(p2))
 {
-    g_free(p1);
+    free_gint64(p1);
 }
 
 void
@@ -268,7 +252,7 @@ memory_cache_destroy(
     vmi->memory_cache_size_max = 0;
 
     if (vmi->memory_cache_lru) {
-        g_queue_foreach(vmi->memory_cache_lru, (GFunc)g_free_wrapper, NULL);
+        g_queue_foreach(vmi->memory_cache_lru, (GFunc)free_lru_entry, NULL);
         g_queue_free(vmi->memory_cache_lru);
         vmi->memory_cache_lru = NULL;
     }
@@ -289,7 +273,7 @@ memory_cache_flush(
     vmi_instance_t vmi)
 {
     if (vmi->memory_cache_lru) {
-        g_queue_foreach(vmi->memory_cache_lru, (GFunc)g_free_wrapper, NULL);
+        g_queue_foreach(vmi->memory_cache_lru, (GFunc)free_lru_entry, NULL);
         g_queue_free(vmi->memory_cache_lru);
         vmi->memory_cache_lru = g_queue_new();
     }
