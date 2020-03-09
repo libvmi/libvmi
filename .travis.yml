@@ -177,7 +177,7 @@ jobs:
         - TEST="KVM legacy build (autotools)"
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure --enable-kvm-legacy
