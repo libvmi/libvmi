@@ -955,7 +955,10 @@ scan:
                 continue;
             }
 
-            uint8_t *haystack = alloca(section.size_of_raw_data);
+            uint8_t *haystack = g_try_malloc0(section.size_of_raw_data);
+            if ( !haystack )
+                goto done;
+
             if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + section.virtual_address, section.size_of_raw_data, haystack, NULL) )
                 continue;
 

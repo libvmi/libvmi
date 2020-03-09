@@ -250,22 +250,14 @@ file_get_vcpureg(
     reg_t reg,
     unsigned long UNUSED(vcpu))
 {
-    switch (reg) {
-        case CR3:
-            if (vmi->kpgd) {
-                *value = vmi->kpgd;
-            } else {
-                goto error_exit;
-            }
-            break;
-        default:
-            goto error_exit;
-            break;
+    status_t ret = VMI_FAILURE;
+
+    if (reg == CR3 && vmi->kpgd) {
+        *value = vmi->kpgd;
+        ret = VMI_SUCCESS;
     }
 
-    return VMI_SUCCESS;
-error_exit:
-    return VMI_FAILURE;
+    return ret;
 }
 
 void *

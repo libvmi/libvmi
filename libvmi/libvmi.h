@@ -191,9 +191,9 @@ typedef enum page_size {
 
     VMI_PS_32MB     = 0x2000000ULL, /**< 32MB */
 
-    VMI_PS_512MB    = 0x2000000ULL,  /**< 512MB */
+    VMI_PS_512MB    = 0x20000000ULL,  /**< 512MB */
 
-    VMI_PS_1GB      = 0x4000000ULL,  /**< 1GB */
+    VMI_PS_1GB      = 0x40000000ULL,  /**< 1GB */
 
 } page_size_t;
 
