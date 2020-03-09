@@ -60,8 +60,7 @@ int main (int argc, char **argv)
     vmi_mode_t mode = {0};
     vmi_event_t mem_event = {0};
     struct sigaction act = {0};
-    vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
-                                        + (sizeof(vmi_init_data_entry_t) * 1));
+    vmi_init_data_t *init_data = NULL;
     act.sa_handler = close_handler;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
@@ -83,7 +82,7 @@ int main (int argc, char **argv)
     if (argc == 3) {
         char *path = argv[2];
 
-        // fill init_data
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
         init_data->count = 1;
         init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
         init_data->entry[0].data = strdup(path);
@@ -91,13 +90,13 @@ int main (int argc, char **argv)
 
     if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, &mode)) {
         fprintf(stderr, "Failed to get access mode\n");
-        return 1;
+        goto error_exit;
     }
 
     if (VMI_FAILURE ==
             vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
         fprintf(stderr, "Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     vmi_init_paging(vmi, 0);
@@ -161,6 +160,9 @@ error_exit:
 
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
+
+    if (init_data)
+        free(init_data);
 
     return 0;
 }

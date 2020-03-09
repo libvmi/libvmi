@@ -180,8 +180,7 @@ int main (int argc, char **argv)
 
     char *name = NULL;
 
-    vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
-                                        + (sizeof(vmi_init_data_entry_t) * 1));
+    vmi_init_data_t *init_data = NULL;
 
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
@@ -194,7 +193,7 @@ int main (int argc, char **argv)
     if (argc == 3) {
         char *path = argv[2];
 
-        // fill init_data
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
         init_data->count = 1;
         init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
         init_data->entry[0].data = strdup(path);
@@ -342,6 +341,9 @@ int main (int argc, char **argv)
 
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
+
+    if (init_data)
+        free(init_data);
 
     return 0;
 }

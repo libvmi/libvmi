@@ -88,8 +88,7 @@ int main (int argc, char **argv)
                     config = (void*)optarg;
                     break;
                 case 's':
-                    init_data = alloca(sizeof(vmi_init_data_t)
-                                       + (sizeof(vmi_init_data_entry_t) * 1));
+                    init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
                     init_data->count = 1;
                     init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
                     init_data->entry[0].data = strdup(optarg);
@@ -103,7 +102,7 @@ int main (int argc, char **argv)
     /* initialize the libvmi library */
     if (VMI_FAILURE == vmi_init_complete(&vmi, input, init, init_data, config_type, config, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     /* init the offset values */
@@ -255,6 +254,9 @@ error_exit:
 
     /* cleanup any memory associated with the LibVMI instance */
     vmi_destroy(vmi);
+
+    if (init_data)
+        free(init_data);
 
     return 0;
 }

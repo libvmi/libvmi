@@ -39,7 +39,7 @@ main(
     int argc,
     char **argv)
 {
-    if ( argc != 3 ) {
+    if ( argc < 3 ) {
         fprintf(stderr, "Usage: %s <name of VM> <dump file> [<socket>]", argv[0]);
         return 1;
     }
@@ -55,8 +55,7 @@ main(
     addr_t size = 0;
     vmi_mode_t mode;
     memory_map_t *memmap = NULL;
-    vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
-                                        + (sizeof(vmi_init_data_entry_t) * 1));
+    vmi_init_data_t *init_data = NULL;
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
@@ -67,6 +66,7 @@ main(
     if (argc == 4) {
         char *path = argv[3];
 
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
         init_data->count = 1;
         init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
         init_data->entry[0].data = strdup(path);
@@ -149,6 +149,8 @@ error_exit:
         fclose(f);
     if (memmap)
         free(memmap);
+    if (init_data)
+        free(init_data);
 
     free(filename);
 
