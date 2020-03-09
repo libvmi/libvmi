@@ -65,8 +65,10 @@ enum segment_type {
 // Helper functions
 
 static status_t
-reply_continue(void *dom, struct kvmi_dom_event *ev)
+reply_continue(kvm_instance_t *kvm, struct kvmi_dom_event *ev)
 {
+    void *dom = kvm->kvmi_dom;
+
     struct {
         struct kvmi_vcpu_hdr hdr;
         struct kvmi_event_reply common;
@@ -76,7 +78,7 @@ reply_continue(void *dom, struct kvmi_dom_event *ev)
     rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
     rpl.common.event = ev->event.common.event;
 
-    if (kvmi_reply_event(dom, ev->seq, &rpl, sizeof(rpl)))
+    if (kvm->libkvmi.kvmi_reply_event(dom, ev->seq, &rpl, sizeof(rpl)))
         return VMI_FAILURE;
 
     return VMI_SUCCESS;
@@ -97,7 +99,7 @@ kvm_get_memory_patch(
     if (!buffer)
         return NULL;
 
-    if (kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
+    if (kvm->libkvmi.kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
         g_free(buffer);
         return NULL;
     }
@@ -118,7 +120,7 @@ kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length)
     if (!buffer)
         return NULL;
 
-    if (kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
+    if (kvm->libkvmi.kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
         g_free(buffer);
         return NULL;
     }
@@ -147,7 +149,7 @@ kvm_put_memory(vmi_instance_t vmi,
     if (!kvm->kvmi_dom)
         return VMI_FAILURE;
 
-    if (kvmi_write_physical(kvm->kvmi_dom, paddr, buf, length) < 0)
+    if (kvm->libkvmi.kvmi_write_physical(kvm->kvmi_dom, paddr, buf, length) < 0)
         return VMI_FAILURE;
 
     return VMI_SUCCESS;
@@ -185,7 +187,7 @@ cb_kvmi_connect(
      * If kvmi_dom is not NULL it means this is a reconnection.
      * The previous connection was closed somehow.
      */
-    kvmi_domain_close(kvm->kvmi_dom, true);
+    kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
     kvm->kvmi_dom = dom;
     pthread_cond_signal(&kvm->kvm_start_cond);
     pthread_mutex_unlock(&kvm->kvm_connect_mutex);
@@ -205,7 +207,7 @@ init_kvmi(
     kvm->kvmi_dom = NULL;
 
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
-    kvm->kvmi = kvmi_init_unix_socket(sock_path, cb_kvmi_connect, NULL, kvm);
+    kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, cb_kvmi_connect, NULL, kvm);
     if (kvm->kvmi) {
         struct timeval now;
         if (gettimeofday(&now, NULL) == 0) {
@@ -222,10 +224,10 @@ init_kvmi(
          * and our callback can set kvm->kvmi_dom. So, we must
          * stop the accepting thread first.
          */
-        kvmi_uninit(kvm->kvmi);
+        kvm->libkvmi.kvmi_uninit(kvm->kvmi);
         kvm->kvmi = NULL;
         /* From this point, kvm->kvmi_dom won't be touched. */
-        kvmi_domain_close(kvm->kvmi_dom, true);
+        kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
         return false;
     }
 
@@ -255,7 +257,7 @@ get_kvmi_registers(
     msrs.entries[0].index = msr_index[MSR_EFER];
     msrs.entries[1].index = msr_index[MSR_STAR];
 
-    err = kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
+    err = kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
 
     if (err != 0)
         return false;
@@ -359,6 +361,14 @@ kvm_init(
     vmi_init_data_t* UNUSED(init_data))
 {
     kvm_instance_t *kvm = g_try_malloc0(sizeof(kvm_instance_t));
+    if (!kvm)
+        return VMI_FAILURE;
+
+    if ( VMI_FAILURE == create_libkvmi_wrapper(kvm) ) {
+        g_free(kvm);
+        return VMI_FAILURE;
+    }
+
     if ( VMI_FAILURE == create_libvirt_wrapper(kvm) ) {
         g_free(kvm);
         return VMI_FAILURE;
@@ -405,6 +415,7 @@ kvm_init_vmi(
         return VMI_FAILURE;
     }
     socket_path = (char*) init_entry.data;
+    dbprint(VMI_DEBUG_KVM, "--KVMi socket path: %s\n", socket_path);
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     virDomainPtr dom = kvm->libvirt.virDomainLookupByID(kvm->conn, kvm->id);
@@ -433,7 +444,7 @@ kvm_init_vmi(
     dbprint(VMI_DEBUG_KVM, "--KVMI connected\n");
 
     // get VCPU count
-    if (kvmi_get_vcpu_count(kvm->kvmi_dom, &vmi->num_vcpus)) {
+    if (kvm->libkvmi.kvmi_get_vcpu_count(kvm->kvmi_dom, &vmi->num_vcpus)) {
         dbprint(VMI_DEBUG_KVM, "--Fail to get VCPU count: %s\n", strerror(errno));
         return VMI_FAILURE;
     }
@@ -458,9 +469,9 @@ kvm_destroy(
         kvm_events_destroy(vmi);
     }
 
-    kvmi_uninit(kvm->kvmi); /* closes the accepting thread */
+    kvm->libkvmi.kvmi_uninit(kvm->kvmi); /* closes the accepting thread */
     kvm->kvmi = NULL;
-    kvmi_domain_close(kvm->kvmi_dom, true);
+    kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
     kvm->kvmi_dom = NULL;
 
     if (kvm->dom) {
@@ -471,6 +482,7 @@ kvm_destroy(
         kvm->libvirt.virConnectClose(kvm->conn);
     }
 
+    dlclose(kvm->libkvmi.handle);
     dlclose(kvm->libvirt.handle);
     g_free(kvm);
 
@@ -488,7 +500,7 @@ kvm_get_memsize(
 #endif
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     unsigned long long max_gfn;
-    if (kvmi_get_maximum_gfn(kvm->kvmi_dom, &max_gfn)) {
+    if (kvm->libkvmi.kvmi_get_maximum_gfn(kvm->kvmi_dom, &max_gfn)) {
         errprint("--failed to get maximum gfn\n");
         return VMI_FAILURE;
     }
@@ -517,7 +529,7 @@ status_t kvm_request_page_fault (
         return VMI_FAILURE;
     }
 #endif
-    if (kvmi_inject_exception(kvm->kvmi_dom, vcpu, virtual_address, error_code, PF_VECTOR))
+    if (kvm->libkvmi.kvmi_inject_exception(kvm->kvmi_dom, vcpu, virtual_address, error_code, PF_VECTOR))
         return VMI_FAILURE;
 
     dbprint(VMI_DEBUG_KVM, "--Page fault injected at 0x%"PRIx64"\n", virtual_address);
@@ -552,7 +564,7 @@ kvm_get_vcpuregs(
     if (!kvm->kvmi_dom)
         return VMI_FAILURE;
 
-    err = kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
+    err = kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
 
     if (err != 0)
         return VMI_FAILURE;
@@ -613,7 +625,7 @@ kvm_set_vcpureg(vmi_instance_t vmi,
     } msrs = {0};
     msrs.msrs.nmsrs = 0;
 
-    if (kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode) < 0) {
+    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode) < 0) {
         return VMI_FAILURE;
     }
 
@@ -677,7 +689,7 @@ kvm_set_vcpureg(vmi_instance_t vmi,
             return VMI_FAILURE;
     }
 
-    if (kvmi_set_registers(kvm->kvmi_dom, vcpu, &regs) < 0) {
+    if (kvm->libkvmi.kvmi_set_registers(kvm->kvmi_dom, vcpu, &regs) < 0) {
         return VMI_FAILURE;
     }
 
@@ -713,7 +725,7 @@ kvm_set_vcpuregs(vmi_instance_t vmi,
         .rip = x86->rip,
         .rflags = x86->rflags
     };
-    if (kvmi_set_registers(kvm->kvmi_dom, vcpu, &regs) < 0) {
+    if (kvm->libkvmi.kvmi_set_registers(kvm->kvmi_dom, vcpu, &regs) < 0) {
         return VMI_FAILURE;
     }
     return VMI_SUCCESS;
@@ -726,7 +738,9 @@ kvm_get_vcpureg(
     reg_t reg,
     unsigned long UNUSED(vcpu))
 {
-    if (get_kvmi_registers(kvm_get_instance(vmi), reg, value))
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    if (get_kvmi_registers(kvm, reg, value))
         return VMI_SUCCESS;
 
     return VMI_FAILURE;
@@ -742,7 +756,7 @@ kvm_pause_vm(
         return VMI_SUCCESS;
 
     // pause vcpus
-    if (kvmi_pause_all_vcpus(kvm->kvmi_dom, vmi->num_vcpus)) {
+    if (kvm->libkvmi.kvmi_pause_all_vcpus(kvm->kvmi_dom, vmi->num_vcpus)) {
         errprint("%s: Failed to pause domain: %s\n", __func__, strerror(errno));
         return VMI_FAILURE;
     }
@@ -770,12 +784,12 @@ kvm_resume_vm(
         unsigned int ev_id = 0;
 
         // wait
-        if (kvmi_wait_event(kvm->kvmi_dom, 1000)) {
+        if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, 1000)) {
             errprint("%s: Failed to receive event\n", __func__);
             return VMI_FAILURE;
         }
         // pop
-        if (kvmi_pop_event(kvm->kvmi_dom, &ev)) {
+        if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &ev)) {
             errprint("%s: Failed to pop event\n", __func__);
             return VMI_FAILURE;
         }
@@ -785,7 +799,7 @@ kvm_resume_vm(
             case KVMI_EVENT_PAUSE_VCPU:
                 dbprint(VMI_DEBUG_KVM, "--Received VCPU pause event\n");
                 kvm->expected_pause_count--;
-                if (reply_continue(kvm->kvmi_dom, ev) == VMI_FAILURE) {
+                if (reply_continue(kvm, ev) == VMI_FAILURE) {
                     errprint("%s: Fail to send continue reply", __func__);
                     free(ev);
                     return VMI_FAILURE;

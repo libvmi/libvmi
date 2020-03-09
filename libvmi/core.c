@@ -24,6 +24,7 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -73,9 +74,7 @@ read_config_file_entry(vmi_instance_t UNUSED(vmi),
 
 extern FILE *yyin;
 
-static FILE *
-open_config_file(
-)
+static FILE *open_config_file()
 {
     FILE *f = NULL;
     gchar *location;
@@ -219,12 +218,14 @@ set_os_type_from_config(
         vmi->os_data = NULL;
     }
 
+#ifdef ENABLE_JSON_PROFILES
     const char *json_path = g_hash_table_lookup(configtbl, "volatility_ist");
     if ( !json_path )
         json_path = g_hash_table_lookup(configtbl, "rekall_profile");
 
     if ( json_path && json_profile_init(vmi, json_path) )
         ostype = vmi->json.get_os_type(vmi);
+#endif
 
     if (!ostype) {
         ostype = g_hash_table_lookup(configtbl, "ostype");
@@ -397,10 +398,9 @@ set_id_and_name(
      * we really only need the domain ID to successfully work.
      */
     if (vmi->mode == VMI_XEN) {
+        char *idstring = NULL;
         // create placeholder for image_type
-        char *idstring = g_try_malloc0(snprintf(NULL, 0, "domid-%"PRIu64, id) + 1);
-        if ( idstring ) {
-            sprintf(idstring, "domid-%"PRIu64, id);
+        if ( asprintf(&idstring, "domid-%"PRIu64, id) > 0 ) {
             vmi->image_type = idstring;
             goto done;
         }
@@ -426,7 +426,7 @@ vmi_get_page_mode(
     if ( VMI_FILE == vmi->mode )
         return vmi->page_mode;
 
-    if (VMI_SUCCESS == find_page_mode_live(vmi, vcpu, &pm) ) {
+    if (VMI_SUCCESS == get_vcpu_page_mode(vmi, vcpu, &pm) ) {
         if ( vcpu == 0 && vmi->page_mode != pm )
             dbprint(VMI_DEBUG_CORE,
                     "The page-mode we just identified doesn't match what LibVMI previously recorded! "
@@ -686,6 +686,13 @@ os_t vmi_init_os(
             _config = (GHashTable*)config;
             break;
         case VMI_CONFIG_JSON_PATH:
+            if (!config) {
+
+                if (error)
+                    *error = VMI_INIT_ERROR_NO_CONFIG;
+
+                goto error_exit;
+            }
             _config = g_hash_table_new(g_str_hash, g_str_equal);
             g_hash_table_insert(_config, "volatility_ist", config);
             break;
@@ -759,6 +766,9 @@ os_t vmi_init_os(
     };
 
 error_exit:
+    if ( VMI_CONFIG_JSON_PATH == config_mode )
+        g_hash_table_destroy(_config);
+
     return vmi->os_type;
 }
 

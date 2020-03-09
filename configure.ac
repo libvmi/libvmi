@@ -2,8 +2,9 @@ dnl --------------------------------
 dnl Initialization macros.
 dnl --------------------------------
 
+AC_PREREQ([2.60])
 AC_INIT([libvmi], [0.13.0])
-AM_INIT_AUTOMAKE([subdir-objects])
+AM_INIT_AUTOMAKE([1.10 no-define foreign subdir-objects])
 
 LT_INIT
 
@@ -44,26 +45,6 @@ aarch64*)
     ;;
 esac
 AC_MSG_RESULT($arch)
-
-dnl -----------------------------------------------
-dnl Helper function to check presence of a define
-dnl -----------------------------------------------
-AC_DEFUN([AC_CHECK_DEFINE],[dnl
-    AC_CACHE_CHECK(for $1 in $2, ac_cv_define_$1,
-        AC_EGREP_CPP([YES_IS_DEFINED], [
-#include <$2>
-#ifdef $1
-YES_IS_DEFINED
-#endif
-        ], ac_cv_define_$1=yes, ac_cv_define_$1=no)
-    )
-    if test "$ac_cv_define_$1" = "yes" ; then
-        AC_DEFINE([HAVE_$1],[],[Added by AC_CHECK_DEFINE])
-        have_$1="yes"
-    else
-        have_$1="no"
-    fi
-])dnl
 
 dnl -----------------------------------------------
 dnl Check package options
@@ -191,6 +172,13 @@ AC_ARG_ENABLE([debug],
       [debug="no"])
 AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
 
+AC_ARG_ENABLE([hardening],
+  [AS_HELP_STRING([--enable-hardening],
+    [Enable compiler and linker options to frustrate memory corruption exploits @<:@yes@:>@])],
+  [hardening="$enableval"],
+  [hardening="yes"])
+AM_CONDITIONAL([HARDENING], [test x$hardening = xyes])
+
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
 dnl -----------------------------------------------
@@ -200,14 +188,76 @@ AM_PROG_CC_C_O
 AM_SANITY_CHECK
 AM_PROG_AS
 
+#####################################################
+# AUTOHARDEN START
+# We want to check for compiler flag support, but there is no way to make
+# clang's "argument unused" warning fatal.  So we invoke the compiler through a
+# wrapper script that greps for this message.
+
+saved_CC="$CC"
+saved_LD="$LD"
+flag_wrap="$srcdir/wrap-compiler-for-flag-check"
+CC="$flag_wrap $CC"
+LD="$flag_wrap $LD"
+
+# We use the same hardening flags for C and C++.  We must check that each flag
+# is supported by both compilers.
+AC_DEFUN([check_cc_flag],
+  [AC_LANG_PUSH(C)
+  AX_CHECK_COMPILE_FLAG([$1], [$2], [$3], [-Werror $4])
+  AC_LANG_POP(C)])
+AC_DEFUN([check_link_flag],
+ [AX_CHECK_LINK_FLAG([$1], [$2], [$3], [-Werror $4])])
+
+HARDEN_CFLAGS=""
+HARDEN_LDFLAGS=""
+AS_IF([test x"$hardening" != x"no"], [
+  check_cc_flag([-fno-strict-overflow], [HARDEN_CFLAGS="$HARDEN_CFLAGS -fno-strict-overflow"])
+
+# This one will likely succeed, even on platforms where it does nothing.
+  check_cc_flag([-D_FORTIFY_SOURCE=2], [HARDEN_CFLAGS="$HARDEN_CFLAGS -D_FORTIFY_SOURCE=2"])
+
+  check_cc_flag([-fstack-protector-all],
+   [check_link_flag([-fstack-protector-all],
+     [HARDEN_CFLAGS="$HARDEN_CFLAGS -fstack-protector-all"
+      check_cc_flag([-Wstack-protector], [HARDEN_CFLAGS="$HARDEN_CFLAGS -Wstack-protector"],
+        [], [-fstack-protector-all])
+      check_cc_flag([--param ssp-buffer-size=1], [HARDEN_CFLAGS="$HARDEN_CFLAGS --param ssp-buffer-size=1"],
+        [], [-fstack-protector-all])])])
+
+  # At the link step, we might want -pie (GCC) or -Wl,-pie (Clang on OS X)
+  #
+  # The linker checks also compile code, so we need to include -fPIE as well.
+  check_cc_flag([-fPIE],
+   [check_link_flag([-fPIE -pie],
+     [HARDEN_CFLAGS="$HARDEN_CFLAGS -fPIE"
+      HARDEN_LDFLAGS="$HARDEN_LDFLAGS -pie"],
+     [check_link_flag([-fPIE -Wl,-pie],
+       [HARDEN_CFLAGS="$HARDEN_CFLAGS -fPIE"
+        HARDEN_LDFLAGS="$HARDEN_LDFLAGS -Wl,-pie"])])])
+
+  check_link_flag([-Wl,-z,noexecstack],
+   [HARDEN_LDFLAGS="$HARDEN_LDFLAGS -Wl,-z,noexecstack"])
+  check_link_flag([-Wl,-z,relro],
+   [HARDEN_LDFLAGS="$HARDEN_LDFLAGS -Wl,-z,relro"])
+  check_link_flag([-Wl,-z,now],
+   [HARDEN_LDFLAGS="$HARDEN_LDFLAGS -Wl,-z,now"])
+])
+
+AC_SUBST([HARDEN_CFLAGS])
+AC_SUBST([HARDEN_LDFLAGS])
+
+# End of flag tests.
+CC="$saved_CC"
+LD="$saved_LD"
+# AUTOHARDEN END
+#####################################################
+
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
-AC_SUBST([CHECK_CFLAGS])
-AC_SUBST([CHECK_LIBS])
 AM_CONDITIONAL([MAKE_TESTS], [test x$have_check = xyes])
 
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16],[],[AC_MSG_ERROR(GLib 2.16 or newer not found. Install missing package and re-run)])
-AC_SUBST([GLIB_CFLAGS])
-AC_SUBST([GLIB_LIBS])
+PKG_CHECK_MODULES([JSONC], [json-c], [have_jsonc='yes'], [have_jsonc='no'])
 
 [if test "$enable_xen" = "yes" || test "$enable_kvm" = "yes"]
 [then]
@@ -237,8 +287,10 @@ AC_SUBST([GLIB_LIBS])
 
 [if test "$enable_kvm" = "yes"]
 [then]
-    PKG_CHECK_MODULES([JSONC], [json-c], [],
-        [AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-kvm)])
+    [if test "$have_jsonc" = "no"]
+    [then]
+        AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-kvm)
+    [fi]
     AC_CHECK_LIB(m, ceil, [],
         [AC_MSG_ERROR(No libm found. Install missing package or re-run with --disable-kvm)])
     AC_CHECK_HEADER(libvirt/libvirt.h, [],
@@ -260,9 +312,6 @@ AC_SUBST([GLIB_LIBS])
         AC_CHECK_HEADER([kvmi/libkvmi.h], [],
             [AC_MSG_ERROR([No libkvmi headers found. Install the library or
              enable the legacy KVM driver with --enable-kvm-legacy])])
-        AC_CHECK_LIB(kvmi, kvmi_init_vsock, [],
-            [AC_MSG_ERROR(["No working libkvmi library found. Install the library or
-             enable the legacy KVM driver with --enable-kvm-legacy"])])
     [fi]
 [fi]
 
@@ -273,8 +322,10 @@ AC_SUBST([GLIB_LIBS])
 
 [if test "$enable_bareflank" = "yes" && test "$arch" = "x86_64"]
 [then]
-    PKG_CHECK_MODULES([JSONC], [json-c], [],
-        [AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-bareflank)])
+    [if test "$have_jsonc" = "no"]
+    [then]
+        AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-bareflank)
+    [fi]
     AC_DEFINE([ENABLE_BAREFLANK], [1], [Define to 1 to enable Bareflank support.])
 [fi]
 
@@ -336,14 +387,14 @@ AM_CONDITIONAL([VMIFS], [test x"$enable_vmifs" = xyes])
     AC_DEFINE([ENABLE_CONFIGFILE], [1], [Enable libvmi.conf])
 [fi]
 
-missing='no'
 [if test "$rekall" = "yes" || test "$volatility_ist" = "yes"]
 [then]
-    PKG_CHECK_MODULES([JSONC], [json-c], [],
-        [AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-rekall-profiles --disable-volatility-ist)])
-
-    AM_CONDITIONAL([ENABLE_JSON_PROFILES], [test "xyes" = "xyes"])
+    [if test "$have_jsonc" = "no"]
+    [then]
+        AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-rekall-profiles --disable-volatility-ist)
+    [fi]
     AC_DEFINE([ENABLE_JSON_PROFILES], [1], [Defined to 1 when support to JSON profiles is available])
+    AM_CONDITIONAL([ENABLE_JSON_PROFILES], [test "true" = "true"])
     [if test "$rekall" = "yes"]
     [then]
         AC_DEFINE([REKALL_PROFILES], [1], [Defined to 1 when support to Rekall profiles should be compiled])
@@ -352,6 +403,8 @@ missing='no'
     [then]
         AC_DEFINE([VOLATILITY_IST], [1], [Defined to 1 when support to Volatility IST should be compiled])
     [fi]
+[else]
+    AM_CONDITIONAL([ENABLE_JSON_PROFILES], [test "true" = "false"])
 [fi]
 AM_CONDITIONAL([ENABLE_REKALL_PROFILES], [test x"$rekall" = "xyes"])
 AM_CONDITIONAL([ENABLE_VOLATILITY_IST], [test x"$volatility_ist" = "xyes"])

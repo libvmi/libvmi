@@ -122,7 +122,7 @@ vmi_get_win_buildnumber(
         return 0;
     }
 
-    if (vmi->json.handler == NULL) {
+    if (!json_profile(vmi)) {
         errprint("** LibVMI wasn't initialized with JSON profile!\n");
         return 0;
     }

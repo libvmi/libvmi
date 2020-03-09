@@ -23,8 +23,6 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <kvmi/libkvmi.h>
-
 #include "private.h"
 #include "msr-index.h"
 #include "kvm_events.h"
@@ -136,7 +134,7 @@ process_cb_response(
     common->event = kvmi_event->event.common.event;
     common->action = KVMI_EVENT_ACTION_CONTINUE;
 
-    if (kvmi_reply_event(kvm->kvmi_dom, kvmi_event->seq, rpl, rpl_size))
+    if (kvm->libkvmi.kvmi_reply_event(kvm->kvmi_dom, kvmi_event->seq, rpl, rpl_size))
         return VMI_FAILURE;
 
     return VMI_SUCCESS;
@@ -495,11 +493,11 @@ kvm_events_init(
     // the interception is activated only when specific registers
     // have been defined via kvmi_control_cr(), kvmi_control_msr()
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-        if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, true)) {
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, true)) {
             errprint("--Failed to enable CR monitoring\n");
             goto err_exit;
         }
-        if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, true)) {
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, true)) {
             errprint("--Failed to enable MSR monitoring\n");
             goto err_exit;
         }
@@ -509,8 +507,8 @@ kvm_events_init(
 err_exit:
     // disable CR/MSR monitoring
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-        kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false);
-        kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false);
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false);
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false);
     }
     return VMI_FAILURE;
 }
@@ -530,9 +528,9 @@ kvm_events_destroy(
 #endif
     // disable CR/MSR monitoring
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-        if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
             errprint("--Failed to disable CR monitoring\n");
-        if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false))
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false))
             errprint("--Failed to disable MSR monitoring\n");
     }
 }
@@ -556,7 +554,7 @@ kvm_events_listen(
 #endif
 
     // wait next event
-    if (kvmi_wait_event(kvm->kvmi_dom, (kvmi_timeout_t)timeout)) {
+    if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, (kvmi_timeout_t)timeout)) {
         if (errno == ETIMEDOUT) {
             // no events !
             return VMI_SUCCESS;
@@ -566,7 +564,7 @@ kvm_events_listen(
     }
 
     // pop event from queue
-    if (kvmi_pop_event(kvm->kvmi_dom, &event)) {
+    if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &event)) {
         errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
         return VMI_FAILURE;
     }
@@ -661,12 +659,12 @@ kvm_set_reg_access(
         // enable event monitoring for all vcpus
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
             if (KVMI_EVENT_CR == event_id)
-                if (kvmi_control_cr(kvm->kvmi_dom, vcpu, kvmi_reg, enabled)) {
+                if (kvm->libkvmi.kvmi_control_cr(kvm->kvmi_dom, vcpu, kvmi_reg, enabled)) {
                     errprint("%s: kvmi_control_cr failed: %s\n", __func__, strerror(errno));
                     goto error_exit;
                 }
             if (KVMI_EVENT_MSR == event_id)
-                if (kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, enabled)) {
+                if (kvm->libkvmi.kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, enabled)) {
                     errprint("%s: failed to set MSR event for %s: %s\n", __func__,
                              msr_to_str[kvmi_reg], strerror(errno));
                     goto error_exit;
@@ -680,7 +678,7 @@ kvm_set_reg_access(
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
             for (size_t msr_i=0; msr_i<msr_all_len; msr_i++) {
                 kvmi_reg = msr_index[msr_all[msr_i]];
-                if (kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, enabled)) {
+                if (kvm->libkvmi.kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, enabled)) {
                     // this call fails on MSR_HYPERVISOR
                     // to avoid breaking MSR_ALL feature, we simply continue
                     // and print an error message
@@ -698,9 +696,9 @@ error_exit:
     // disable monitoring
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (KVMI_EVENT_CR == event_id)
-            kvmi_control_cr(kvm->kvmi_dom, vcpu, kvmi_reg, false);
+            kvm->libkvmi.kvmi_control_cr(kvm->kvmi_dom, vcpu, kvmi_reg, false);
         if (KVMI_EVENT_MSR == event_id)
-            kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, false);
+            kvm->libkvmi.kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, false);
     }
     return VMI_FAILURE;
 }
@@ -725,7 +723,7 @@ kvm_set_intr_access(
     switch (event->intr) {
         case INT3:
             for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
-                if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_BREAKPOINT, enabled)) {
+                if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_BREAKPOINT, enabled)) {
                     errprint("%s: failed to set event on VCPU %u: %s\n", __func__, vcpu, strerror(errno));
                     goto error_exit;
                 }
@@ -742,7 +740,7 @@ kvm_set_intr_access(
 error_exit:
     // disable monitoring for all vcpus
     for (unsigned int i = 0; i < vmi->num_vcpus; i++)
-        kvmi_control_events(kvm->kvmi_dom, i, KVMI_EVENT_BREAKPOINT, false);
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, i, KVMI_EVENT_BREAKPOINT, false);
     return VMI_FAILURE;
 }
 
@@ -775,7 +773,7 @@ kvm_set_mem_access(
     if (!pf_enabled) {
         bool pf_enabled_succeeded = true;
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-            if (kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, true)) {
+            if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, true)) {
                 pf_enabled_succeeded = false;
                 errprint("%s: Fail to enable PF events on VCPU %u: %s\n", __func__, vcpu, strerror(errno));
                 break;
@@ -784,14 +782,14 @@ kvm_set_mem_access(
         if (!pf_enabled_succeeded) {
             // disable PF for all vcpu and fail
             for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
-                kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false);
+                kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false);
             return VMI_FAILURE;
         }
         pf_enabled = true;
     }
 
     // get previous access type
-    if (kvmi_get_page_access(kvm->kvmi_dom, gpfn, &kvmi_orig_access)) {
+    if (kvm->libkvmi.kvmi_get_page_access(kvm->kvmi_dom, gpfn, &kvmi_orig_access)) {
         errprint("%s: kvmi_get_page_access failed: %s\n", __func__, strerror(errno));
         return VMI_FAILURE;
     }
@@ -826,7 +824,7 @@ kvm_set_mem_access(
 
     // set page access
     long long unsigned int gpa = gpfn << vmi->page_shift;
-    if (kvmi_set_page_access(kvm->kvmi_dom, &gpa, &kvmi_access, vmi->num_vcpus)) {
+    if (kvm->libkvmi.kvmi_set_page_access(kvm->kvmi_dom, &gpa, &kvmi_access, vmi->num_vcpus)) {
         errprint("%s: unable to set page access on GPFN 0x%" PRIx64 ": %s\n",
                  __func__, gpfn, strerror(errno));
         return VMI_FAILURE;

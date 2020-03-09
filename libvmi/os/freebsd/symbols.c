@@ -223,7 +223,7 @@ freebsd_symbol_to_address(
         goto done;
     }
 
-    if (!freebsd_instance->sysmap && vmi->json.root) {
+    if (!freebsd_instance->sysmap && json_profile(vmi)) {
         errprint("VMI_WARNING: No freebsd sysmap and json profile configured\n");
         goto done;
     }

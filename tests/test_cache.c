@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include "../libvmi/libvmi.h"
+#define LIBVMI_EXTRA_GLIB
 #include "../libvmi/libvmi_extra.h"
 #include "../libvmi/cache.h"
 #include "check_tests.h"

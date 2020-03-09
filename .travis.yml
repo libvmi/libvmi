@@ -1,9 +1,6 @@
-dist:   bionic
+os: linux
+dist: bionic
 language: c
-sudo: true
-env:
-    global:
-        - secure: "$COVERITY_SCAN_TOKEN"
 
 # install libkvmi for all tests
 before_install:
@@ -14,7 +11,7 @@ before_install:
   - popd
   - rm -rf kvm
 
-matrix:
+jobs:
     include:
 
 #
@@ -69,7 +66,7 @@ matrix:
       compiler: gcc
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure --prefix=$PWD/install
@@ -98,7 +95,7 @@ matrix:
       compiler: clang
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure
@@ -107,7 +104,8 @@ matrix:
 #
 # Coverity
 #
-    - env:
+    - if: branch = master
+      env:
         - TEST="Coverity"
       compiler: gcc
       addons:
@@ -121,28 +119,26 @@ matrix:
             branch_pattern: $COVERITY_BRANCH
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
       - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 #
 # SonarCloud
 #
-    - env:
+    - if: branch = master
+      env:
         - TEST="SonarCloud"
       dist: xenial
-      edge: true
       compiler: clang
       addons:
         sonarcloud:
             organization: "libvmi"
-            token:
-                secure: "$SONAR_SCAN_TOKEN"
-      install:
-        - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+            token: "$SONAR_SCAN_TOKEN"
       script:
         - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
         - autoreconf -vif
         - ./configure
         - build-wrapper-linux-x86-64 --out-dir bw-output make -j2
@@ -181,7 +177,7 @@ matrix:
         - TEST="KVM legacy build (autotools)"
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure --enable-kvm-legacy
@@ -207,7 +203,7 @@ matrix:
         - TEST="debug options enabled (autotools)"
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL ./configure --enable-debug
@@ -234,7 +230,7 @@ matrix:
         - TEST="disable cache (autotools)"
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure --disable-address-cache --disable-page-cache
@@ -260,7 +256,7 @@ matrix:
         - TEST="without xenstore (autotools)"
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure --without-xenstore
@@ -286,7 +282,7 @@ matrix:
         - TEST="disable libvmi.conf (autotools)"
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure --disable-configfile --disable-examples
@@ -312,7 +308,7 @@ matrix:
         - TEST="disable rekall profiles (autotools)"
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure --disable-rekall-profiles --disable-examples
@@ -338,10 +334,36 @@ matrix:
         - TEST="disable volatility ist (autotools)"
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure --disable-volatility-ist --disable-examples
+        - make
+
+#
+# without json
+#
+    - env:
+        - TEST="without json (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DENABLE_KVM=OFF -DENABLE_BAREFLANK=OFF -DVOLATILITY_IST=OFF -DREKALL_PROFILES=OFF -DBUILD_EXAMPLES=OFF ..
+        - make
+
+#
+# without json
+#
+    - env:
+        - TEST="without json (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libxen-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-kvm --disable-bareflank --disable-volatility-ist --disable-rekall-profiles --disable-examples
         - make
 
 #
@@ -364,7 +386,7 @@ matrix:
         - TEST="disable safety checks (autotools)"
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
         - autoreconf -vif
         - ./configure --disable-safety-checks
@@ -382,3 +404,115 @@ matrix:
         - mkdir build && cd build
         - cmake -DCMAKE_BUILD_TYPE=RELEASE ..
         - make
+
+#
+# xen only
+#
+    - env:
+        - TEST="xen only (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libxen-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install --disable-kvm --disable-bareflank --disable-file
+        - make
+        - make install
+
+#
+# file only
+#
+    - env:
+        - TEST="file only (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install --disable-kvm --disable-bareflank --disable-xen
+        - make
+        - make install
+
+#
+# kvm only
+#
+    - env:
+        - TEST="kvm only (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install --disable-xen --disable-bareflank --disable-file
+        - make
+        - make install
+
+#
+# bareflank only
+#
+    - env:
+        - TEST="bareflank only (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install --disable-kvm --disable-xen --disable-file
+        - make
+        - make install
+
+#
+# xen only
+#
+    - env:
+        - TEST="xen only (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libxen-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_KVM=OFF -DENABLE_BAREFLANK=OFF -DENABLE_FILE=OFF ..
+        - make
+        - make install
+
+#
+# kvm only
+#
+    - env:
+        - TEST="kvm only (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_XEN=OFF -DENABLE_BAREFLANK=OFF -DENABLE_FILE=OFF ..
+        - make
+        - make install
+
+#
+# bareflank only
+#
+    - env:
+        - TEST="bareflank only (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_KVM=OFF -DENABLE_XEN=OFF -DENABLE_FILE=OFF ..
+        - make
+        - make install
+
+#
+# file only
+#
+    - env:
+        - TEST="file only (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_KVM=OFF -DENABLE_BAREFLANK=OFF -DENABLE_XEN=OFF ..
+        - make
+        - make install

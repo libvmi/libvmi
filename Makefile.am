@@ -29,7 +29,6 @@ c_sources = \
     libvmi/slat.c \
     libvmi/strmatch.c \
     libvmi/write.c \
-    libvmi/memory.c \
     libvmi/msr-index.c \
     libvmi/arch/arch_interface.c \
     libvmi/arch/intel.c \
@@ -77,7 +76,9 @@ if WITH_KVM_LEGACY
 
 else
     drivers += libvmi/driver/kvm/kvm.c \
-               libvmi/driver/kvm/kvm_events.c
+               libvmi/driver/kvm/kvm_events.c \
+               libvmi/driver/kvm/libkvmi_wrapper.c \
+               libvmi/driver/kvm/libkvmi_wrapper.h
 
 endif
 endif
@@ -136,19 +137,15 @@ library_include_HEADERS = $(h_public)
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvmi.pc
 
-AM_CFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS) $(JSONC_CFLAGS)
-AM_CPPFLAGS = -I$(top_srcdir)/libvmi $(GLIB_CFLAGS) $(JSONC_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)/libvmi
 AM_YFLAGS = -y -d
+AM_LDFLAGS = $(LDFLAGS)
 
 lib_LTLIBRARIES= libvmi/libvmi.la
 libvmi_libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
 libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS)
 libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
-
-if !WITH_KVM_LEGACY
-    libvmi_libvmi_la_LDFLAGS += -lkvmi
-endif
 
 if ENABLE_CONFIGFILE
     config_h_sources = libvmi/config/config_parser.h
@@ -164,6 +161,11 @@ if ENABLE_CONFIGFILE
     libvmi_config_libconfig_la_LDFLAGS= $(GLIB_LIBS)
 
     libvmi_libvmi_la_LIBADD= libvmi/config/libconfig.la
+endif
+
+if HARDENING
+    libvmi_libvmi_la_CFLAGS  += $(HARDEN_CFLAGS)
+    libvmi_libvmi_la_LDFLAGS += $(HARDEN_LDFLAGS)
 endif
 
 if DEBUG
@@ -218,7 +220,6 @@ endif
                        examples/singlestep-event-example \
                        examples/interrupt-event-example \
                        examples/step-event-example \
-                       examples/va-pages \
                        examples/xen-emulate-response \
                        examples/breakpoint-emulate-example
 
@@ -232,6 +233,7 @@ endif
     examples_xen_emulate_response_SOURCES = examples/xen-emulate-response.c
     examples_breakpoint_emulate_example_SOURCES = examples/breakpoint-emulate-example.c
 
+    noinst_PROGRAMS += examples/va-pages
     examples_va_pages_SOURCES = examples/va-pages.c
     examples_va_pages_CFLAGS = $(GLIB_CFLAGS)
     examples_va_pages_LDADD = $(GLIB_LIBS) libvmi/libvmi.la

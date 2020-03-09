@@ -9,7 +9,6 @@ set(libvmi_src
     slat.c
     strmatch.c
     write.c
-    memory.c
     msr-index.c
     arch/arch_interface.c
     arch/intel.c
@@ -140,10 +139,6 @@ if (ENABLE_KVM)
             if (NOT Libkvmi_FOUND)
                 set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
                 message(WARNING "Cannot find libkvmi: disabling KVM driver")
-            else ()
-                target_include_directories(vmi_shared PRIVATE
-                    ${Libkvmi_INCLUDE_DIRS})
-                target_link_libraries(vmi_shared PRIVATE ${Libkvmi_LIBRARIES})
             endif ()
         endif ()
         target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
@@ -194,9 +189,9 @@ if (REKALL_PROFILES OR VOLATILITY_IST)
     set_package_properties(JSON-C PROPERTIES
         PURPOSE "Dependency for Rekall profiles and Volatility IST parsing")
     if (NOT JSON-C_FOUND)
-        set(ENABLE_JSON_PROFILES OFF)
-        set(REKALL_PROFILES OFF)
-        set(VOLATILITY_IST OFF)
+        set(ENABLE_JSON_PROFILES OFF CACHE BOOL "Enable JSON Profiles" FORCE)
+        set(REKALL_PROFILES OFF CACHE BOOL "" FORCE)
+        set(VOLATILITY_IST OFF CACHE BOOL "" FORCE)
         message(WARNING "Cannot find JSON: disabling Rekall profiles and Volatility IST")
     else ()
         set(ENABLE_JSON_PROFILES ON)
