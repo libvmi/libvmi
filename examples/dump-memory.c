@@ -39,8 +39,10 @@ main(
     int argc,
     char **argv)
 {
-    if ( argc != 3 )
+    if ( argc != 3 ) {
+        fprintf(stderr, "Usage: %s <name of VM> <dump file> [<socket>]", argv[0]);
         return 1;
+    }
 
     vmi_instance_t vmi = NULL;
     char *filename = NULL;
@@ -52,8 +54,9 @@ main(
     addr_t address = 0;
     addr_t size = 0;
     vmi_mode_t mode;
-    vmi_init_data_t *init_data = NULL;
     memory_map_t *memmap = NULL;
+    vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
+                                        + (sizeof(vmi_init_data_entry_t) * 1));
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
@@ -61,7 +64,15 @@ main(
     /* this is the file name to write the memory image to */
     filename = strndup(argv[2], 50);
 
-    if (VMI_FAILURE == vmi_get_access_mode(vmi, (void*)name, VMI_INIT_DOMAINNAME, NULL, &mode) )
+    if (argc == 4) {
+        char *path = argv[3];
+
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(path);
+    }
+
+    if (VMI_FAILURE == vmi_get_access_mode(vmi, (void*)name, VMI_INIT_DOMAINNAME, init_data, &mode) )
         goto error_exit;
 
     /*
@@ -89,7 +100,6 @@ main(
         memmap->range[4][0] = 0x100000000;
         memmap->range[4][1] = 0x21e5fffff;
 
-        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
         init_data->count = 1;
         init_data->entry[0].type = VMI_INIT_DATA_MEMMAP;
         init_data->entry[0].data = memmap;
@@ -139,8 +149,6 @@ error_exit:
         fclose(f);
     if (memmap)
         free(memmap);
-    if (init_data)
-        free(init_data);
 
     free(filename);
 

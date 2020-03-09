@@ -58,7 +58,7 @@ int main (int argc, char **argv)
 
     /* this is the VM or file that we are looking at */
     if (argc < 2) {
-        printf("Usage: %s <vmname> [<socket>]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <vmname> [<socket>]\n", argv[0]);
         return 1;
     }
 
