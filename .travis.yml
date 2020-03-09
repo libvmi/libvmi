@@ -439,6 +439,13 @@ jobs:
 #
     - env:
         - TEST="kvm only (autotools)"
+      before_install:
+        - git clone https://github.com/KVM-VMI/kvm --branch kvmi --depth 1
+        - pushd kvm/tools/kvm/kvmi
+        - make
+        - sudo make install
+        - popd
+        - rm -rf kvm
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev
@@ -481,6 +488,13 @@ jobs:
 #
     - env:
         - TEST="kvm only (cmake)"
+      before_install:
+        - git clone https://github.com/KVM-VMI/kvm --branch kvmi --depth 1
+        - pushd kvm/tools/kvm/kvmi
+        - make
+        - sudo make install
+        - popd
+        - rm -rf kvm
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev
