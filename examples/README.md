@@ -24,7 +24,7 @@ _Note: Not compatible with the new KVM driver_
 
 Intercepts and displays `CR3` events.
 
-## dump-memory
+## vmi-dump-memory
 
 Dumps the VM's physical memory to the given filepath.
 
@@ -52,7 +52,7 @@ _Note: Not compatible with the new KVM driver_
 
 A simple execute memory access interception, configured on the current RIP.
 
-## module-list
+## vmi-module-list
 
 Displays the list of loaded modules, for Windows and linux.
 
@@ -60,7 +60,7 @@ Displays the list of loaded modules, for Windows and linux.
 
 A simple MSR event interception.
 
-## process-list
+## vmi-process-list
 
 Displays the VM's process list.
 
@@ -82,13 +82,13 @@ A Simple example monitoring for domain creation and deletion.
 
 _Note: Not compatible with the new KVM driver_
 
-## win-guid
+## vmi-win-guid
 
 Print the `GUID` and the `PE_HEADER` of the Windows kernel.
 
 _Note: Not compatible with the new KVM driver_
 
-## win-offsets
+## vmi-win-offsets
 
 Displays Windows kernel offsets based on a Rekall profile.
 
