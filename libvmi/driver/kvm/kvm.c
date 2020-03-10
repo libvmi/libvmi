@@ -484,6 +484,7 @@ kvm_destroy(
 
     dlclose(kvm->libkvmi.handle);
     dlclose(kvm->libvirt.handle);
+    dlclose(kvm->libvirt.handle_qemu);
     g_free(kvm);
 
 }
