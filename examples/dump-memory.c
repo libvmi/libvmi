@@ -49,6 +49,7 @@ main(
     FILE *f = NULL;
     unsigned char memory[PAGE_SIZE];
     unsigned char zeros[PAGE_SIZE];
+    int retcode = 1;
 
     memset(zeros, 0, PAGE_SIZE);
     addr_t address = 0;
@@ -144,6 +145,7 @@ main(
         address += PAGE_SIZE;
     }
 
+    retcode = 0;
 error_exit:
     if (f)
         fclose(f);
@@ -157,5 +159,5 @@ error_exit:
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);
 
-    return 0;
+    return retcode;
 }

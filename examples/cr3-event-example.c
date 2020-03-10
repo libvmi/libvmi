@@ -54,11 +54,12 @@ int main (int argc, char **argv)
     status_t status;
     vmi_mode_t mode;
     vmi_init_data_t *init_data = NULL;
+    int retcode = 1;
 
     /* this is the VM or file that we are looking at */
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <vmname> [<socket>]\n", argv[0]);
-        return 1;
+        return retcode;
     }
 
     char *name = argv[1];
@@ -121,6 +122,7 @@ int main (int argc, char **argv)
             printf("Failed to listen on events\n");
     }
 
+    retcode = 0;
 error_exit:
     vmi_clear_event(vmi, &cr3_event, NULL);
 
@@ -130,5 +132,5 @@ error_exit:
     if (init_data)
         free(init_data);
 
-    return 0;
+    return retcode;
 }

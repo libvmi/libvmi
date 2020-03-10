@@ -41,10 +41,11 @@ main(
     addr_t next_module, list_head;
     // init_data for KVM socket, if needed
     vmi_init_data_t *init_data = NULL;
+    int retcode = 1;
 
     if ( argc < 2 ) {
         fprintf(stderr, "Usage: %s <Name of VM> [socket]", argv[0]);
-        return 1;
+        return retcode;
     }
 
     /* this is the VM or file that we are looking at */
@@ -146,6 +147,7 @@ main(
         next_module = tmp_next;
     }
 
+    retcode = 0;
 error_exit:
     /* resume the vm */
     vmi_resume_vm(vmi);
@@ -156,5 +158,5 @@ error_exit:
     if (init_data)
         free(init_data);
 
-    return 0;
+    return retcode;
 }

@@ -61,6 +61,8 @@ int main (int argc, char **argv)
     vmi_event_t mem_event = {0};
     struct sigaction act = {0};
     vmi_init_data_t *init_data = NULL;
+    int retcode = 1;
+
     act.sa_handler = close_handler;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
@@ -71,7 +73,7 @@ int main (int argc, char **argv)
 
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <name of VM> [<socket path>]\n", argv[0]);
-        exit(1);
+        return retcode;
     }
 
     // Arg 1 is the VM name.
@@ -153,6 +155,7 @@ int main (int argc, char **argv)
     }
     printf("Finished with test.\n");
 
+    retcode = 0;
 error_exit:
     vmi_clear_event(vmi, &mem_event, NULL);
 
@@ -164,5 +167,5 @@ error_exit:
     if (init_data)
         free(init_data);
 
-    return 0;
+    return retcode;
 }

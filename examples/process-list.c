@@ -47,6 +47,7 @@ int main (int argc, char **argv)
     uint64_t domid = 0;
     uint8_t init = VMI_INIT_DOMAINNAME, config_type = VMI_CONFIG_GLOBAL_FILE_ENTRY;
     void *input = NULL, *config = NULL;
+    int retcode = 1;
 
     if ( argc < 2 ) {
         printf("Usage: %s\n", argv[0]);
@@ -54,7 +55,7 @@ int main (int argc, char **argv)
         printf("\t -d/--domid <domain id>\n");
         printf("\t -j/--json <path to kernel's json profile>\n");
         printf("\t -s/--socket <path to KVMI socket>\n");
-        return 1;
+        return retcode;
     }
 
     // left for compatibility
@@ -95,7 +96,7 @@ int main (int argc, char **argv)
                     break;
                 default:
                     printf("Unknown option\n");
-                    return 1;
+                    return retcode;
             }
     }
 
@@ -248,6 +249,7 @@ int main (int argc, char **argv)
         }
     };
 
+    retcode = 0;
 error_exit:
     /* resume the vm */
     vmi_resume_vm(vmi);
@@ -258,5 +260,5 @@ error_exit:
     if (init_data)
         free(init_data);
 
-    return 0;
+    return retcode;
 }

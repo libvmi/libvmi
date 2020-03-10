@@ -73,6 +73,8 @@ int main (int argc, char **argv)
     vmi_mode_t mode;
     vmi_init_data_t *init_data = NULL;
     struct sigaction act;
+    int retcode = 1;
+
     act.sa_handler = close_handler;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
@@ -85,7 +87,7 @@ int main (int argc, char **argv)
 
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <name of VM> [<socket path>]\n", argv[0]);
-        exit(1);
+        return retcode;
     }
 
     // Arg 1 is the VM name.
@@ -129,6 +131,7 @@ int main (int argc, char **argv)
     }
     printf("Finished with test.\n");
 
+    retcode = 0;
 error_exit:
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
@@ -136,5 +139,5 @@ error_exit:
     if (init_data)
         free(init_data);
 
-    return 0;
+    return retcode;
 }

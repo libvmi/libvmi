@@ -51,6 +51,8 @@ int main (int argc, char **argv)
     struct sigaction act = {0};
     vmi_init_data_t *init_data = NULL;
     vmi_mode_t mode = {0};
+    int retcode = 1;
+
     act.sa_handler = close_handler;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
@@ -63,7 +65,7 @@ int main (int argc, char **argv)
 
     if (argc < 2) {
         fprintf(stderr, "Usage: msr_events_example <name of VM> [socket path]\n");
-        exit(1);
+        return retcode;
     }
 
     // Arg 1 is the VM name.
@@ -116,6 +118,7 @@ int main (int argc, char **argv)
     }
     printf("Finished with test.\n");
 
+    retcode = 0;
 error_exit:
     vmi_clear_event(vmi, &msr_event, NULL);
 
@@ -125,5 +128,5 @@ error_exit:
     if (init_data)
         free(init_data);
 
-    return 0;
+    return retcode;
 }
