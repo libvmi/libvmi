@@ -5,9 +5,6 @@ This folder contains a few examples of code using the LibVMI library.
 Note: some of them take an optional `[<socket>]` parameter. This refers to the
 `KVMi socket`, which needs to be specified when using the KVM driver.
 
-Not all examples have been modified to accept this `[<socket>]` parameter,
-and therefore are not compatible with the new KVM driver.
-
 ## breakpoint-emulate-example
 
 Recoiling on a software breakpoint via instruction emulation.
@@ -17,8 +14,6 @@ parameter) and sets a software breakpoint by writing `int3` interrupt.
 
 When the breakpoint is hit, use the `VMI_EVENT_RESPONSE_SET_EMUL_INSN` event response
 to emulate the instruction stored in `event->emul_insn`.
-
-_Note: Not compatible with the new KVM driver_
 
 ## cr3-event-example
 
@@ -39,8 +34,6 @@ A simple interrupt interception example that will display `int3` events.
 ## map-addr
 
 Display a page in hexadecimal at the given virtual address.
-
-_Note: Not compatible with the new KVM driver_
 
 ## map-symbol
 
@@ -68,34 +61,22 @@ Displays the VM's process list.
 
 A simple singlestep event interception. Also demonstrate how to manually toggle the singlestep once enabled.
 
-_Note: Not compatible with the new KVM driver_
-
 ## va-pages
 
 Displays the current process page tables upon each `CR3` load.
-
-_Note: Not compatible with the new KVM driver_
 
 ## wait-for-domain-example
 
 A Simple example monitoring for domain creation and deletion.
 
-_Note: Not compatible with the new KVM driver_
-
 ## vmi-win-guid
 
 Print the `GUID` and the `PE_HEADER` of the Windows kernel.
-
-_Note: Not compatible with the new KVM driver_
 
 ## vmi-win-offsets
 
 Displays Windows kernel offsets based on a Rekall profile.
 
-_Note: Not compatible with the new KVM driver_
-
 ## xen-emulate-response
 
 Sets an execute memory access trap on a virtual address and emulate the instruction to continue execution.
-
-_Note: Not compatible with the new KVM driver_

@@ -31,6 +31,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <getopt.h>
 #include <glib.h>
 
 
@@ -39,46 +40,69 @@ int main(int argc, char **argv)
     GHashTable* config = NULL;
     vmi_instance_t vmi = NULL;
     vmi_mode_t mode;
+    uint64_t init_flags = 0;
+    vmi_init_data_t *init_data = NULL;
+    uint64_t domid = 0;
+    void* domain = NULL;
+    char *profile = NULL;
+
     int rc = 1;
 
-    /* this is the VM that we are looking at */
-    if (argc != 5) {
-        printf("Usage: %s name|domid <domain name|domain id> -r <rekall profile>\n", argv[0]);
-        return 1;
-    }   // if
-
-    void *domain;
-    uint64_t domid = VMI_INVALID_DOMID;
-    uint64_t init_flags = 0;
-
-    if (strcmp(argv[1],"name")==0) {
-        domain = (void*)argv[2];
-        init_flags |= VMI_INIT_DOMAINNAME;
-    } else if (strcmp(argv[1],"domid")==0) {
-        domid = strtoull(argv[2], NULL, 0);
-        domain = (void*)&domid;
-        init_flags |= VMI_INIT_DOMAINID;
-    } else {
-        printf("You have to specify either name or domid!\n");
-        return 1;
+    if ( argc < 2 ) {
+        fprintf(stderr, "Usage: %s\n", argv[0]);
+        fprintf(stderr, "\t -n/--name <domain name>\n");
+        fprintf(stderr, "\t -d/--domid <domain id>\n");
+        fprintf(stderr, "\t -j/--json <path to kernel's json profile>\n");
+        fprintf(stderr, "\t -s/--socket <path to KVMI socket>\n");
+        return rc;
     }
 
-    char *rekall_profile = NULL;
+    // parse options
+    const struct option long_opts[] = {
+        {"name", required_argument, NULL, 'n'},
+        {"domid", required_argument, NULL, 'd'},
+        {"json", required_argument, NULL, 'j'},
+        {"socket", optional_argument, NULL, 's'},
+        {NULL, 0, NULL, 0}
+    };
+    const char* opts = "n:d:j:s:";
+    int c;
+    int long_index = 0;
 
-    if (strcmp(argv[3], "-r") == 0) {
-        rekall_profile = argv[4];
-    } else {
-        printf("You have to specify path to rekall profile!\n");
-        return 1;
+    while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
+        switch (c) {
+            case 'n':
+                domain = optarg;
+                init_flags = VMI_INIT_DOMAINNAME;
+                break;
+            case 'd':
+                init_flags = VMI_INIT_DOMAINID;
+                domid = strtoull(optarg, NULL, 0);
+                domain = (void*)&domid;
+                break;
+            case 'j':
+                profile = (char*)optarg;
+                break;
+            case 's':
+                init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                init_data->count = 1;
+                init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+                init_data->entry[0].data = strdup(optarg);
+                break;
+            default:
+                printf("Unknown option\n");
+                return rc;
+        }
+
+    if (VMI_FAILURE == vmi_get_access_mode(vmi, domain, init_flags, init_data, &mode)) {
+        printf("Failed to get access mode\n");
+        goto done;
     }
-
-    if (VMI_FAILURE == vmi_get_access_mode(vmi, domain, init_flags, NULL, &mode) )
-        return 1;
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto done;
     }
 
     /* pause the vm for consistent memory access */
@@ -94,7 +118,7 @@ int main(int argc, char **argv)
     }
 
     g_hash_table_insert(config, g_strdup("os_type"), g_strdup("Windows"));
-    g_hash_table_insert(config, g_strdup("rekall_profile"), g_strdup(rekall_profile));
+    g_hash_table_insert(config, g_strdup("rekall_profile"), g_strdup(profile));
 
     if (VMI_PM_UNKNOWN == vmi_init_paging(vmi, VMI_PM_INITFLAG_TRANSITION_PAGES) ) {
         printf("Failed to init LibVMI paging.\n");
@@ -192,6 +216,9 @@ done:
 
     if (config)
         g_hash_table_destroy(config);
+
+    if (init_data)
+        free(init_data);
 
     return rc;
 }

@@ -40,7 +40,7 @@ main(
     char **argv)
 {
     if ( argc < 3 ) {
-        fprintf(stderr, "Usage: %s <name of VM> <dump file> [<socket>]", argv[0]);
+        fprintf(stderr, "Usage: %s <name of VM> <dump file> [<socket>]\n", argv[0]);
         return 1;
     }
 

@@ -64,7 +64,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: msr_events_example <name of VM> [socket path]\n");
+        fprintf(stderr, "Usage: %s <name of VM> [socket path]\n", argv[0]);
         return retcode;
     }
 
