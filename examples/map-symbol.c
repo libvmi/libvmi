@@ -83,8 +83,10 @@ main(
 error_exit:
     if (memory)
         free(memory);
-    if (init_data)
+    if (init_data) {
+        free(init_data->entry[0].data);
         free(init_data);
+    }
 
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);

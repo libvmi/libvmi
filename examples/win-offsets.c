@@ -217,8 +217,10 @@ done:
     if (config)
         g_hash_table_destroy(config);
 
-    if (init_data)
+    if (init_data) {
+        free(init_data->entry[0].data);
         free(init_data);
+    }
 
     return rc;
 }

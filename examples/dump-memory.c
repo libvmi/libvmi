@@ -151,8 +151,10 @@ error_exit:
         fclose(f);
     if (memmap)
         free(memmap);
-    if (init_data)
+    if (init_data) {
+        free(init_data->entry[0].data);
         free(init_data);
+    }
 
     free(filename);
 

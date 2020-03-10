@@ -130,8 +130,10 @@ leave:
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
 
-    if (init_data)
+    if (init_data) {
+        free(init_data->entry[0].data);
         free(init_data);
+    }
 
     return rc;
 }

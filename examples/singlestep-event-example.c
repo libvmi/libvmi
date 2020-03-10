@@ -188,8 +188,10 @@ int main (int argc, char **argv)
 error_exit:
     vmi_destroy(vmi);
 
-    if (init_data)
+    if (init_data) {
+        free(init_data->entry[0].data);
         free(init_data);
+    }
 
     return retcode;
 }

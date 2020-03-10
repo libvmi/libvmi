@@ -257,8 +257,10 @@ error_exit:
     /* cleanup any memory associated with the LibVMI instance */
     vmi_destroy(vmi);
 
-    if (init_data)
+    if (init_data) {
+        free(init_data->entry[0].data);
         free(init_data);
+    }
 
     return retcode;
 }
