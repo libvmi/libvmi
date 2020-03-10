@@ -185,13 +185,17 @@ kvm_test(
     struct vmi_instance _vmi = {0};
     vmi_instance_t vmi = &_vmi;
 
-    if ( VMI_FAILURE == kvm_init(vmi, 0, NULL) )
+    if ( VMI_FAILURE == kvm_init(vmi, 0, NULL) ) {
+        kvm_destroy(vmi);
         return VMI_FAILURE;
+    }
 
     if (name) {
         domainid = kvm_get_id_from_name(vmi, name);
-        if (domainid != VMI_INVALID_DOMID)
+        if (domainid != VMI_INVALID_DOMID) {
+            kvm_destroy(vmi);
             return VMI_SUCCESS;
+        }
     }
 
     if (domainid != VMI_INVALID_DOMID) {
@@ -199,8 +203,10 @@ kvm_test(
         status_t rc = kvm_get_name_from_id(vmi, domainid, &_name);
         free(_name);
 
-        if ( VMI_SUCCESS == rc )
-            return rc;
+        if ( VMI_SUCCESS == rc ) {
+            kvm_destroy(vmi);
+           return rc;
+        }
     }
 
     kvm_destroy(vmi);
