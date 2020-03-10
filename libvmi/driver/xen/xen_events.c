@@ -2970,8 +2970,12 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
             swap_wrapper_t *swap_wrapper = loop->data;
             swap_events(vmi, swap_wrapper->swap_from, swap_wrapper->swap_to,
                         swap_wrapper->free_routine);
+            g_slice_free(swap_wrapper_t, swap_wrapper);
             loop = loop->next;
         }
+
+        g_slist_free(vmi->swap_events);
+        vmi->swap_events = NULL;
 
         g_hash_table_foreach_remove(vmi->clear_events, clear_events_full, vmi);
 

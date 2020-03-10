@@ -286,6 +286,9 @@ int is_addr_aligned(
 #  define UNUSED_FUNCTION(x) UNUSED_ ## x
 #endif
 
+void free_gint(gpointer p);
+void free_gint64(gpointer p);
+
 /*-------------------------------------
  * accessors.c
  */
