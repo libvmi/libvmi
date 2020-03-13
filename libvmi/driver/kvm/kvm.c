@@ -254,8 +254,12 @@ get_kvmi_registers(
         return false;
 
     msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
-    msrs.entries[0].index = msr_index[MSR_EFER];
-    msrs.entries[1].index = msr_index[MSR_STAR];
+    msrs.entries[0].index = msr_index[MSR_IA32_SYSENTER_CS];
+    msrs.entries[1].index = msr_index[MSR_IA32_SYSENTER_ESP];
+    msrs.entries[2].index = msr_index[MSR_IA32_SYSENTER_EIP];
+    msrs.entries[3].index = msr_index[MSR_EFER];
+    msrs.entries[4].index = msr_index[MSR_STAR];
+    msrs.entries[5].index = msr_index[MSR_LSTAR];
 
     err = kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
 
@@ -337,11 +341,23 @@ get_kvmi_registers(
         case GS_BASE:
             *value = sregs.gs.base;
             break;
-        case MSR_EFER:
+        case MSR_IA32_SYSENTER_CS:
             *value = msrs.entries[0].data;
             break;
-        case MSR_STAR:
+        case MSR_IA32_SYSENTER_ESP:
             *value = msrs.entries[1].data;
+            break;
+        case MSR_IA32_SYSENTER_EIP:
+            *value = msrs.entries[2].data;
+            break;
+        case MSR_EFER:
+            *value = msrs.entries[3].data;
+            break;
+        case MSR_STAR:
+            *value = msrs.entries[4].data;
+            break;
+        case MSR_LSTAR:
+            *value = msrs.entries[5].data;
             break;
         default:
             dbprint(VMI_DEBUG_KVM, "--Reading register %"PRIu64" not implemented\n", reg);
