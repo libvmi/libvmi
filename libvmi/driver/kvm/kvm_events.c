@@ -217,10 +217,8 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         struct kvmi_event_cr_reply cr;
     } rpl = {0};
 
-
-    // TODO: how can the callback specifiy a new value for the MSR ?
-    // libvmi_event.reg_event.xxx
-    rpl.cr.new_val = kvmi_event->event.cr.new_value;
+    // the reply value will override the existing one
+    rpl.cr.new_val = libvmi_event->reg_event.value;
 
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
@@ -286,12 +284,8 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         struct kvmi_event_msr_reply msr;
     } rpl = {0};
 
-    // TODO: how can the callback specifiy a new value for the MSR ?
-    // libvmi_event.reg_event.xxx
-
-    // the reply new value will be used anyway,
-    // write the new val from the kvmi event
-    rpl.msr.new_val = kvmi_event->event.msr.new_value;
+    // the reply value will override the existing one
+    rpl.msr.new_val = libvmi_event->reg_event.value;
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
