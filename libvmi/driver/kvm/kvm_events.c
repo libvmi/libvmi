@@ -269,10 +269,10 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
 
     //      msr_event
+    // TODO: only handle write accesses for now
+    libvmi_event->reg_event.out_access = VMI_REGACCESS_W;
     libvmi_event->reg_event.value = kvmi_event->event.msr.new_value;
     libvmi_event->reg_event.previous = kvmi_event->event.msr.old_value;
-    // TODO
-    // libvmi_event->reg_event.out_access
 
     // call user callback
     event_response_t response = call_event_callback(vmi, libvmi_event);
