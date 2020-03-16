@@ -34,6 +34,49 @@ jobs:
           fi
 
 #
+# Coverity
+#
+    - if: branch = master
+      env:
+        - TEST="Coverity"
+      compiler: gcc
+      addons:
+        coverity_scan:
+            project:
+                name: "$COVERITY_PROJECT"
+                description: "Build submitted via Travis CI"
+            notification_email: $COVERITY_EMAIL
+            build_command_prepend: "mkdir build; cd build; cmake .."
+            build_command:   "make"
+            branch_pattern: $COVERITY_BRANCH
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+      - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
+#
+# SonarCloud
+#
+    - if: branch = master
+      env:
+        - TEST="SonarCloud"
+      dist: xenial
+      compiler: clang
+      addons:
+        sonarcloud:
+            organization: "libvmi"
+            token: "$SONAR_SCAN_TOKEN"
+      script:
+        - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - autoreconf -vif
+        - ./configure
+        - build-wrapper-linux-x86-64 --out-dir bw-output make -j2
+        - sonar-scanner
+
+#
 # gcc compile test
 #
     - env:
@@ -90,49 +133,6 @@ jobs:
         - autoreconf -vif
         - ./configure
         - make
-
-#
-# Coverity
-#
-    - if: branch = master
-      env:
-        - TEST="Coverity"
-      compiler: gcc
-      addons:
-        coverity_scan:
-            project:
-                name: "$COVERITY_PROJECT"
-                description: "Build submitted via Travis CI"
-            notification_email: $COVERITY_EMAIL
-            build_command_prepend: "mkdir build; cd build; cmake .."
-            build_command:   "make"
-            branch_pattern: $COVERITY_BRANCH
-      install:
-        - sudo apt-get update
-        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
-      script:
-      - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
-
-#
-# SonarCloud
-#
-    - if: branch = master
-      env:
-        - TEST="SonarCloud"
-      dist: xenial
-      compiler: clang
-      addons:
-        sonarcloud:
-            organization: "libvmi"
-            token: "$SONAR_SCAN_TOKEN"
-      script:
-        - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
-        - sudo apt-get update
-        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
-        - autoreconf -vif
-        - ./configure
-        - build-wrapper-linux-x86-64 --out-dir bw-output make -j2
-        - sonar-scanner
 
 #
 # clang --analyze test
