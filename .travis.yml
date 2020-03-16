@@ -77,9 +77,26 @@ jobs:
         - sonar-scanner
 
 #
-# gcc compile test
+# clang --analyze test
 #
     - env:
+        - TEST="clang --analyze"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake ..
+        - make static_analysis_test
+
+# AMD64 tests
+#-------------
+
+#
+# gcc compile test
+#
+    - arch: amd64
+      env:
         - TEST="gcc compile and install (cmake)"
       compiler: gcc
       install:
@@ -94,7 +111,8 @@ jobs:
 #
 # gcc compile test
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="gcc compile and install (autotools)"
       compiler: gcc
       install:
@@ -109,7 +127,8 @@ jobs:
 #
 # clang compile test
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="clang compile (cmake)"
       compiler: clang
       install:
@@ -123,7 +142,8 @@ jobs:
 #
 # clang compile test
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="clang compile (autotools)"
       compiler: clang
       install:
@@ -135,22 +155,10 @@ jobs:
         - make
 
 #
-# clang --analyze test
-#
-    - env:
-        - TEST="clang --analyze"
-      install:
-        - sudo apt-get update
-        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
-      script:
-        - mkdir build && cd build
-        - cmake ..
-        - make static_analysis_test
-
-#
 # debug test
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="debug options enabled (cmake)"
       install:
         - sudo apt-get update
@@ -163,7 +171,8 @@ jobs:
 #
 # debug test
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="debug options enabled (autotools)"
       install:
         - sudo apt-get update
@@ -177,7 +186,8 @@ jobs:
 #
 # disable cache
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable cache (cmake)"
       install:
         - sudo apt-get update
@@ -190,7 +200,8 @@ jobs:
 #
 # disable cache
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable cache (autotools)"
       install:
         - sudo apt-get update
@@ -203,7 +214,8 @@ jobs:
 #
 # without xenstore
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="without xenstore (cmake)"
       install:
         - sudo apt-get update
@@ -216,7 +228,8 @@ jobs:
 #
 # without xenstore
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="without xenstore (autotools)"
       install:
         - sudo apt-get update
@@ -229,7 +242,8 @@ jobs:
 #
 # disable config file
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable libvmi.conf (cmake)"
       install:
         - sudo apt-get update
@@ -242,7 +256,8 @@ jobs:
 #
 # disable config file
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable libvmi.conf (autotools)"
       install:
         - sudo apt-get update
@@ -255,7 +270,8 @@ jobs:
 #
 # disable rekall profiles
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable rekall profiles"
       install:
         - sudo apt-get update
@@ -268,7 +284,8 @@ jobs:
 #
 # disable rekall profiles
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable rekall profiles (autotools)"
       install:
         - sudo apt-get update
@@ -281,7 +298,8 @@ jobs:
 #
 # disable volatility ist
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable volatility ist (cmake)"
       install:
         - sudo apt-get update
@@ -294,7 +312,8 @@ jobs:
 #
 # disable rekall profiles
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable volatility ist (autotools)"
       install:
         - sudo apt-get update
@@ -307,7 +326,8 @@ jobs:
 #
 # without json
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="without json (cmake)"
       install:
         - sudo apt-get update
@@ -320,7 +340,8 @@ jobs:
 #
 # without json
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="without json (autotools)"
       install:
         - sudo apt-get update
@@ -333,7 +354,8 @@ jobs:
 #
 # disable safety checks
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable safety checks (cmake)"
       install:
         - sudo apt-get update
@@ -346,7 +368,8 @@ jobs:
 #
 # disable safety checks
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="disable safety checks (autotools)"
       install:
         - sudo apt-get update
@@ -359,7 +382,8 @@ jobs:
 #
 # release build
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="release build"
       install:
         - sudo apt-get update
@@ -372,7 +396,8 @@ jobs:
 #
 # xen only
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="xen only (autotools)"
       install:
         - sudo apt-get update
@@ -386,7 +411,8 @@ jobs:
 #
 # file only
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="file only (autotools)"
       install:
         - sudo apt-get update
@@ -400,7 +426,8 @@ jobs:
 #
 # kvm only
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="kvm only (autotools)"
       install:
         - sudo apt-get update
@@ -414,7 +441,8 @@ jobs:
 #
 # bareflank only
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="bareflank only (autotools)"
       install:
         - sudo apt-get update
@@ -428,7 +456,8 @@ jobs:
 #
 # xen only
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="xen only (cmake)"
       install:
         - sudo apt-get update
@@ -442,7 +471,8 @@ jobs:
 #
 # kvm only
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="kvm only (cmake)"
       install:
         - sudo apt-get update
@@ -456,7 +486,8 @@ jobs:
 #
 # bareflank only
 #
-    - env:
+    - arch: amd64
+      env:
         - TEST="bareflank only (cmake)"
       install:
         - sudo apt-get update
@@ -470,7 +501,432 @@ jobs:
 #
 # file only
 #
-    - env:
+    - arch: amd64
+      env:
+        - TEST="file only (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_KVM=OFF -DENABLE_BAREFLANK=OFF -DENABLE_XEN=OFF ..
+        - make
+        - make install
+
+# ARM64 tests
+#-------------
+#
+
+# gcc compile test
+#
+    - arch: arm64
+      env:
+        - TEST="gcc compile and install (cmake)"
+      compiler: gcc
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install ..
+        - make
+        - make install
+
+#
+# gcc compile test
+#
+    - arch: arm64
+      env:
+        - TEST="gcc compile and install (autotools)"
+      compiler: gcc
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install
+        - make
+        - make install
+
+#
+# clang compile test
+#
+    - arch: arm64
+      env:
+        - TEST="clang compile (cmake)"
+      compiler: clang
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake ..
+        - make
+
+#
+# clang compile test
+#
+    - arch: arm64
+      env:
+        - TEST="clang compile (autotools)"
+      compiler: clang
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure
+        - make
+
+#
+# debug test
+#
+    - arch: arm64
+      env:
+        - TEST="debug options enabled (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_BUILD_TYPE=DEBUG -DVMI_DEBUG=__VMI_DEBUG_ALL ..
+        - make
+
+#
+# debug test
+#
+    - arch: arm64
+      env:
+        - TEST="debug options enabled (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL ./configure --enable-debug
+        - make
+
+
+#
+# disable cache
+#
+    - arch: arm64
+      env:
+        - TEST="disable cache (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DENABLE_ADDRESS_CACHE=OFF -DENABLE_PAGE_CACHE=OFF ..
+        - make
+
+#
+# disable cache
+#
+    - arch: arm64
+      env:
+        - TEST="disable cache (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-address-cache --disable-page-cache
+        - make
+
+#
+# without xenstore
+#
+    - arch: arm64
+      env:
+        - TEST="without xenstore (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DENABLE_XENSTORE=OFF ..
+        - make
+
+#
+# without xenstore
+#
+    - arch: arm64
+      env:
+        - TEST="without xenstore (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --without-xenstore
+        - make
+
+#
+# disable config file
+#
+    - arch: arm64
+      env:
+        - TEST="disable libvmi.conf (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DENABLE_CONFIGFILE=OFF -DBUILD_EXAMPLES=OFF ..
+        - make
+
+#
+# disable config file
+#
+    - arch: arm64
+      env:
+        - TEST="disable libvmi.conf (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-configfile --disable-examples
+        - make
+
+#
+# disable rekall profiles
+#
+    - arch: arm64
+      env:
+        - TEST="disable rekall profiles"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DREKALL_PROFILES=OFF -DBUILD_EXAMPLES=OFF ..
+        - make
+
+#
+# disable rekall profiles
+#
+    - arch: arm64
+      env:
+        - TEST="disable rekall profiles (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-rekall-profiles --disable-examples
+        - make
+
+#
+# disable volatility ist
+#
+    - arch: arm64
+      env:
+        - TEST="disable volatility ist (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DVOLATILITY_IST=OFF -DBUILD_EXAMPLES=OFF ..
+        - make
+
+#
+# disable rekall profiles
+#
+    - arch: arm64
+      env:
+        - TEST="disable volatility ist (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-volatility-ist --disable-examples
+        - make
+
+#
+# without json
+#
+    - arch: arm64
+      env:
+        - TEST="without json (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DENABLE_KVM=OFF -DENABLE_BAREFLANK=OFF -DVOLATILITY_IST=OFF -DREKALL_PROFILES=OFF -DBUILD_EXAMPLES=OFF ..
+        - make
+
+#
+# without json
+#
+    - arch: arm64
+      env:
+        - TEST="without json (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libxen-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-kvm --disable-bareflank --disable-volatility-ist --disable-rekall-profiles --disable-examples
+        - make
+
+#
+# disable safety checks
+#
+    - arch: arm64
+      env:
+        - TEST="disable safety checks (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DENABLE_SAFETY_CHECKS=OFF ..
+        - make
+
+#
+# disable safety checks
+#
+    - arch: arm64
+      env:
+        - TEST="disable safety checks (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - autoreconf -vif
+        - ./configure --disable-safety-checks
+        - make
+
+#
+# release build
+#
+    - arch: arm64
+      env:
+        - TEST="release build"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_BUILD_TYPE=RELEASE ..
+        - make
+
+#
+# xen only
+#
+    - arch: arm64
+      env:
+        - TEST="xen only (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libxen-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install --disable-kvm --disable-bareflank --disable-file
+        - make
+        - make install
+
+#
+# file only
+#
+    - arch: arm64
+      env:
+        - TEST="file only (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install --disable-kvm --disable-bareflank --disable-xen
+        - make
+        - make install
+
+#
+# kvm only
+#
+    - arch: arm64
+      env:
+        - TEST="kvm only (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install --disable-xen --disable-bareflank --disable-file
+        - make
+        - make install
+
+#
+# bareflank only
+#
+    - arch: arm64
+      env:
+        - TEST="bareflank only (autotools)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev
+      script:
+        - autoreconf -vif
+        - ./configure --prefix=$PWD/install --disable-kvm --disable-xen --disable-file
+        - make
+        - make install
+
+#
+# xen only
+#
+    - arch: arm64
+      env:
+        - TEST="xen only (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libxen-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_KVM=OFF -DENABLE_BAREFLANK=OFF -DENABLE_FILE=OFF ..
+        - make
+        - make install
+
+#
+# kvm only
+#
+    - arch: arm64
+      env:
+        - TEST="kvm only (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_XEN=OFF -DENABLE_BAREFLANK=OFF -DENABLE_FILE=OFF ..
+        - make
+        - make install
+
+#
+# bareflank only
+#
+    - arch: arm64
+      env:
+        - TEST="bareflank only (cmake)"
+      install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev
+      script:
+        - mkdir build && cd build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_KVM=OFF -DENABLE_XEN=OFF -DENABLE_FILE=OFF ..
+        - make
+        - make install
+
+#
+# file only
+#
+    - arch: arm64
+      env:
         - TEST="file only (cmake)"
       install:
         - sudo apt-get update
