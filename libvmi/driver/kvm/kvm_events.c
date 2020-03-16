@@ -572,7 +572,7 @@ kvm_events_listen(
 #ifdef ENABLE_SAFETY_CHECKS
     if ( ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason] ) {
         errprint("Undefined handler for %u event reason\n", ev_reason);
-        return VMI_FAILURE;
+        goto error_exit;
     }
 #endif
     // call handler
