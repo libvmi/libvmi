@@ -30,6 +30,15 @@
 #include "kvm_events.h"
 #include "kvm_private.h"
 
+// helper struct for process_cb_response_emulate to avoid ugly
+// pointer arithmetic to find back pf field in process_cb_response_emulate()
+struct kvm_event_pf_reply_packet {
+    struct kvmi_vcpu_hdr hdr;
+    struct kvmi_event_reply common;
+    struct kvmi_event_pf_reply pf;
+};
+
+
 /*
  * Helpers
  */
@@ -95,6 +104,65 @@ fill_ev_common_kvmi_to_libvmi(
 
 }
 
+/*
+ * handle emulation related event response.
+ * since only memory events support this feature, we can't
+ * handle it in the common function
+ */
+static status_t
+process_cb_response_emulate(
+    vmi_instance_t vmi,
+    event_response_t response,
+    vmi_event_t *libvmi_event,
+    struct kvm_event_pf_reply_packet* rpl)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm or kvmi handles\n", __func__);
+        return VMI_FAILURE;
+    }
+    if (!libvmi_event || !rpl) {
+        errprint("%s: invalid libvmi/rpl handles\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    status_t status = VMI_SUCCESS;
+
+    // loop over all possible responses
+    // only handle emulation, since only memory event are capable of that
+    for (uint32_t i = VMI_EVENT_RESPONSE_NONE+1; i <=__VMI_EVENT_RESPONSE_MAX; i++) {
+        event_response_t candidate = 1u << i;
+        if (response & candidate) {
+            switch (candidate) {
+                case VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA:
+                    if (libvmi_event->emul_read) {
+                        if (libvmi_event->emul_read->size > sizeof(rpl->pf.ctx_data)) {
+                            errprint("%s: requested emulation buffer size too big (max: %ld)\n", __func__, sizeof(rpl->pf.ctx_data));
+                            status = VMI_FAILURE;
+                        } else {
+                            // set reply size
+                            rpl->pf.ctx_size = libvmi_event->emul_read->size;
+                            // set linear address
+                            // TODO: ARM support
+                            rpl->pf.ctx_addr = libvmi_event->x86_regs->rip;
+                            // copy libvmi buffer into kvm reply event
+                            memcpy(rpl->pf.ctx_data, libvmi_event->emul_read->data, libvmi_event->emul_read->size);
+                        }
+                        // free ?
+                        if (!libvmi_event->emul_read->dont_free) {
+                            free(libvmi_event->emul_read);
+                            libvmi_event->emul_read = NULL;
+                        }
+                    }
+                    break;
+            }
+        }
+    }
+
+    return status;
+}
+
 static status_t
 process_cb_response(
     vmi_instance_t vmi,
@@ -118,6 +186,9 @@ process_cb_response(
     // loop over all possible responses
     for (uint32_t i = VMI_EVENT_RESPONSE_NONE+1; i <=__VMI_EVENT_RESPONSE_MAX; i++) {
         event_response_t candidate = 1u << i;
+        // skip VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA which is handled only for mem_events
+        if (candidate == VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA)
+            continue;
         if (response & candidate) {
             switch (candidate) {
                 default:
@@ -364,11 +435,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     if (kvmi_event->event.page_fault.access & KVMI_PAGE_ACCESS_X) out_access |= VMI_MEMACCESS_X;
 
     // reply struct
-    struct {
-        struct kvmi_vcpu_hdr hdr;
-        struct kvmi_event_reply common;
-        struct kvmi_event_pf_reply pf;
-    } rpl = {0};
+    struct kvm_event_pf_reply_packet rpl = {0};
 
     vmi_event_t *libvmi_event;
     addr_t gfn = kvmi_event->event.page_fault.gpa >> vmi->page_shift;
@@ -394,6 +461,10 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 
             // call user callback
             event_response_t response = call_event_callback(vmi, libvmi_event);
+
+            // handle emulation reply requests
+            if (VMI_FAILURE == process_cb_response_emulate(vmi, response, libvmi_event, &rpl))
+                return VMI_FAILURE;
 
             // set reply action
             rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
@@ -424,9 +495,12 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
                 // libvmi_event->mem_event.valid
                 // libvmi_event->mem_event.gptw
 
-
                 // call user callback
                 event_response_t response = call_event_callback(vmi, libvmi_event);
+
+                // handle emulation reply requests
+                if (VMI_FAILURE == process_cb_response_emulate(vmi, response, libvmi_event, &rpl))
+                    return VMI_FAILURE;
 
                 // set reply action
                 rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
@@ -608,8 +682,7 @@ kvm_events_listen(
         // call handler
         if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
             goto error_exit;
-    }
-    while (process_all_events);
+    } while (process_all_events);
 
     return VMI_SUCCESS;
 error_exit:

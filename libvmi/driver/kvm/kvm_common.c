@@ -205,7 +205,7 @@ kvm_test(
 
         if ( VMI_SUCCESS == rc ) {
             kvm_destroy(vmi);
-           return rc;
+            return rc;
         }
     }
 
