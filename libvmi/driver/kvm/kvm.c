@@ -404,6 +404,40 @@ kvm_init(
     return VMI_SUCCESS;
 }
 
+static void
+kvm_close_vmi(vmi_instance_t vmi, kvm_instance_t *kvm)
+{
+    // events ?
+    if (vmi->init_flags & VMI_INIT_EVENTS) {
+        kvm_events_destroy(vmi);
+    }
+
+    if (kvm->pause_events_list) {
+        g_free(kvm->pause_events_list);
+        kvm->pause_events_list = NULL;
+    }
+
+    if (kvm->kvmi_dom) {
+        kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
+        kvm->kvmi_dom = NULL;
+    }
+
+    if (kvm->kvmi) {
+        kvm->libkvmi.kvmi_uninit(kvm->kvmi);
+        kvm->kvmi = NULL;
+    }
+
+    if (kvm->dom) {
+        kvm->libvirt.virDomainFree(kvm->dom);
+        kvm->dom = NULL;
+    }
+
+    if (kvm->conn) {
+        kvm->libvirt.virConnectClose(kvm->conn);
+        kvm->conn = NULL;
+    }
+}
+
 status_t
 kvm_init_vmi(
     vmi_instance_t vmi,
@@ -434,8 +468,8 @@ kvm_init_vmi(
     dbprint(VMI_DEBUG_KVM, "--KVMi socket path: %s\n", socket_path);
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    virDomainPtr dom = kvm->libvirt.virDomainLookupByID(kvm->conn, kvm->id);
-    if (NULL == dom) {
+    kvm->dom = kvm->libvirt.virDomainLookupByID(kvm->conn, kvm->id);
+    if (NULL == kvm->dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
     }
@@ -449,7 +483,6 @@ kvm_init_vmi(
     }
     dbprint(VMI_DEBUG_KVM, "--libvirt version %lu\n", libVer);
 
-    kvm->dom = dom;
     vmi->vm_type = NORMAL;
 
     dbprint(VMI_DEBUG_KVM, "--Connecting to KVMI...\n");
@@ -479,7 +512,7 @@ kvm_init_vmi(
 
     return kvm_setup_live_mode(vmi);
 err_exit:
-    kvm_destroy(vmi);
+    kvm_close_vmi(vmi, kvm);
     return VMI_FAILURE;
 }
 
@@ -488,29 +521,13 @@ kvm_destroy(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    // events ?
-    if (vmi->init_flags & VMI_INIT_EVENTS) {
-        kvm_events_destroy(vmi);
-    }
 
-    kvm->libkvmi.kvmi_uninit(kvm->kvmi); /* closes the accepting thread */
-    kvm->kvmi = NULL;
-    kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
-    kvm->kvmi_dom = NULL;
-
-    if (kvm->dom) {
-        kvm->libvirt.virDomainFree(kvm->dom);
-    }
-
-    if (kvm->conn) {
-        kvm->libvirt.virConnectClose(kvm->conn);
-    }
+    kvm_close_vmi(vmi, kvm);
 
     dlclose(kvm->libkvmi.handle);
     dlclose(kvm->libvirt.handle);
     dlclose(kvm->libvirt.handle_qemu);
     g_free(kvm);
-
 }
 
 status_t
