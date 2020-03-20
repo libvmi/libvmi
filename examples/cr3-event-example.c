@@ -50,9 +50,9 @@ event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event)
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi;
-    status_t status;
-    vmi_mode_t mode;
+    vmi_instance_t vmi = {0};
+    status_t status = VMI_FAILURE;
+    vmi_mode_t mode = {0};
     vmi_init_data_t *init_data = NULL;
     int retcode = 1;
 

@@ -36,13 +36,13 @@
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi;
+    vmi_instance_t vmi = {0};
     addr_t list_head = 0, cur_list_entry = 0, next_list_entry = 0;
     addr_t current_process = 0;
     char *procname = NULL;
     vmi_pid_t pid = 0;
     unsigned long tasks_offset = 0, pid_offset = 0, name_offset = 0;
-    status_t status;
+    status_t status = VMI_FAILURE;
     vmi_init_data_t *init_data = NULL;
     uint64_t domid = 0;
     uint8_t init = VMI_INIT_DOMAINNAME, config_type = VMI_CONFIG_GLOBAL_FILE_ENTRY;

@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 {
     GHashTable* config = NULL;
     vmi_instance_t vmi = NULL;
-    vmi_mode_t mode;
+    vmi_mode_t mode = {0};
     uint64_t init_flags = 0;
     vmi_init_data_t *init_data = NULL;
     uint64_t domid = 0;

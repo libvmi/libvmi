@@ -69,8 +69,8 @@ static void close_handler(int sig)
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi;
-    vmi_mode_t mode;
+    vmi_instance_t vmi = {0};
+    vmi_mode_t mode = {0};
     vmi_init_data_t *init_data = NULL;
     struct sigaction act;
     int retcode = 1;

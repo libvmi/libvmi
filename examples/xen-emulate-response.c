@@ -56,12 +56,12 @@ event_response_t cb(vmi_instance_t vmi, vmi_event_t *event)
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi = NULL;
-    vmi_event_t event;
+    vmi_event_t event = {0};
     status_t status = VMI_SUCCESS;
-    addr_t addr;
+    addr_t addr = 0;
     char *name = NULL;
     vmi_init_data_t *init_data = NULL;
-    struct sigaction act;
+    struct sigaction act = {0};
     int rc = 1;
 
     if (argc < 3) {

@@ -37,8 +37,9 @@ main(
     int argc,
     char **argv)
 {
-    vmi_instance_t vmi;
-    addr_t next_module, list_head;
+    vmi_instance_t vmi = {0};
+    addr_t next_module = 0;
+    addr_t list_head = 0;
     // init_data for KVM socket, if needed
     vmi_init_data_t *init_data = NULL;
     int retcode = 1;
