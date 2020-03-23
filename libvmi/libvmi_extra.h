@@ -101,7 +101,7 @@ status_t vmi_get_struct_size_from_json(
  * @param[in] json The open json_object* to use
  * @param[in] struct_name The structure's name
  * @param[in] struct_member The structure's member
- * @param[out] offset THe structure member's offset
+ * @param[out] offset The structure member's offset
  *
  * @return VMI_SUCCESS or VMI_FAILURE
  */
@@ -111,6 +111,24 @@ status_t vmi_get_struct_member_offset_from_json(
     const char* struct_name,
     const char* struct_member,
     addr_t* offset) NOEXCEPT;
+
+/**
+ * Look up the provided symbol's address and bit position from the json
+ * @param[in] vmi Instance
+ * @param[in] json The open json_object* to use
+ * @param[in] struct_name The structure's name
+ * @param[in] struct_member The structure's member
+ * @param[out] offset The structure member's offset
+ * @param[out] start_bit The structure member's start bit offset
+ * @param[out] end_bit The structure member's end bit offset
+ *
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_get_bitfield_offset_and_size_from_json(vmi_instance_t vmi, json_object *json,
+        const char *struct_name,
+        const char *struct_member,
+        addr_t *offset, size_t *start_bit,
+        size_t *end_bit);
 #endif
 
 #pragma GCC visibility pop

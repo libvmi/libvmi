@@ -110,6 +110,81 @@ exit:
     return ret;
 }
 
+status_t
+rekall_profile_bitfield_offset_and_size(
+    json_object *json,
+    const char *symbol,
+    const char *subsymbol,
+    addr_t *rva,
+    size_t *start_bit,
+    size_t *end_bit)
+{
+    status_t ret = VMI_FAILURE;
+    if (!json || !symbol) {
+        return ret;
+    }
+
+    json_object *structs = NULL, *jstruct = NULL, *jstruct2 = NULL, *jstruct3 = NULL, *jmember = NULL, *jvalue = NULL;
+    if (!json_object_object_get_ex(json, "$STRUCTS", &structs)) {
+        dbprint(VMI_DEBUG_MISC, "Rekall profile: no $STRUCTS section found\n");
+        goto exit;
+    }
+    if (!json_object_object_get_ex(structs, symbol, &jstruct)) {
+        dbprint(VMI_DEBUG_MISC, "Rekall profile: no %s found\n", symbol);
+        goto exit;
+    }
+
+    jstruct2 = json_object_array_get_idx(jstruct, 1);
+    if (!jstruct2) {
+        dbprint(VMI_DEBUG_MISC, "Rekall profile: struct %s has no second element\n", symbol);
+        goto exit;
+    }
+
+    if (!json_object_object_get_ex(jstruct2, subsymbol, &jmember)) {
+        dbprint(VMI_DEBUG_MISC, "Rekall profile: %s has no %s member\n", symbol, subsymbol);
+        goto exit;
+    }
+
+    jvalue = json_object_array_get_idx(jmember, 0);
+    if (!jvalue) {
+        dbprint(VMI_DEBUG_MISC, "Rekall profile: %s.%s has no RVA defined\n", symbol, subsymbol);
+        goto exit;
+    }
+
+    *rva = json_object_get_int64(jvalue);
+
+    jvalue = json_object_array_get_idx(jmember, 1);
+    if (!jvalue) {
+        dbprint(VMI_DEBUG_MISC, "Rekall profile: %s.%s has no BitField declaration\n", symbol, subsymbol);
+        goto exit;
+    }
+
+    jstruct3 = json_object_array_get_idx(jvalue, 1);
+    if (!jvalue) {
+        dbprint(VMI_DEBUG_MISC, "Rekall profile: %s.%s has no BitField definition\n", symbol, subsymbol);
+        goto exit;
+    }
+
+    if (!json_object_object_get_ex(jstruct3, "start_bit", &jvalue)) {
+        dbprint(VMI_DEBUG_MISC, "Rekall profile: %s.%s has no member start_bit\n", symbol, subsymbol);
+        goto exit;
+    }
+    *start_bit = json_object_get_int64(jvalue);
+
+    if (!json_object_object_get_ex(jstruct3, "end_bit", &jvalue)) {
+        dbprint(VMI_DEBUG_MISC, "Rekall profile: %s.%s has no member end_bit\n", symbol, subsymbol);
+        goto exit;
+    }
+    *end_bit = json_object_get_int64(jvalue);
+
+    ret = VMI_SUCCESS;
+
+exit:
+    dbprint(VMI_DEBUG_MISC, "Rekall profile lookup %s %s: offset 0x%lx, start bit %ld, end bit %ld\n", symbol ?: NULL, subsymbol ?: NULL, *rva, *start_bit, *end_bit);
+
+    return ret;
+}
+
 const char* rekall_get_os_type(vmi_instance_t vmi)
 {
     json_object *metadata = NULL, *os = NULL;
