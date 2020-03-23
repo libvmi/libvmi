@@ -124,7 +124,7 @@ status_t vmi_get_struct_member_offset_from_json(
  *
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_get_bitfield_offset_and_size(vmi_instance_t vmi, json_object *json,
+status_t vmi_get_bitfield_offset_and_size_from_json(vmi_instance_t vmi, json_object *json,
         const char *struct_name,
         const char *struct_member,
         addr_t *offset, size_t *start_bit,
