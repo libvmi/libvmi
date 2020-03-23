@@ -244,7 +244,7 @@ get_kvmi_registers(
     struct kvm_sregs sregs;
     struct {
         struct kvm_msrs      msrs;
-        struct kvm_msr_entry entries[2];
+        struct kvm_msr_entry entries[6];
     } msrs = {0};
     unsigned int mode;
     unsigned short vcpu = 0;
