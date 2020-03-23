@@ -238,7 +238,8 @@ static bool
 get_kvmi_registers(
     kvm_instance_t *kvm,
     reg_t reg,
-    uint64_t *value)
+    uint64_t *value,
+    unsigned short vcpu)
 {
     struct kvm_regs regs;
     struct kvm_sregs sregs;
@@ -247,7 +248,6 @@ get_kvmi_registers(
         struct kvm_msr_entry entries[6];
     } msrs = {0};
     unsigned int mode;
-    unsigned short vcpu = 0;
     int err;
 
     if (!kvm->kvmi_dom)
@@ -778,11 +778,11 @@ kvm_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,
     reg_t reg,
-    unsigned long UNUSED(vcpu))
+    unsigned long vcpu)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    if (get_kvmi_registers(kvm, reg, value))
+    if (get_kvmi_registers(kvm, reg, value, (unsigned short)vcpu))
         return VMI_SUCCESS;
 
     return VMI_FAILURE;
