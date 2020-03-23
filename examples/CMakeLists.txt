@@ -16,6 +16,9 @@ target_link_libraries(va-pages vmi_shared)
 add_executable(event-example event-example.c)
 target_link_libraries(event-example vmi_shared)
 
+add_executable(fool-patchguard fool-patchguard.c)
+target_link_libraries(fool-patchguard vmi_shared)
+
 add_executable(interrupt-event-example interrupt-event-example.c)
 target_link_libraries(interrupt-event-example vmi_shared)
 
