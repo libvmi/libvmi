@@ -27,6 +27,17 @@ Dumps the VM's physical memory to the given filepath.
 
 A demo of the event API using `MSRs`, `memory access` and `CR3` events.
 
+## fool-patchguard
+
+Finds the index of `nt!NtLoadDriver` routine in the `SSDT`, and corrupts the entry.
+
+Then it waits for a Patchguard check to return fake data.
+
+Demonstrates how to use
+
+- `event->emul_read`
+- `VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA`
+
 ## interrupt-event-example
 
 A simple interrupt interception example that will display `int3` events.
