@@ -27,6 +27,7 @@
 
 #include "private.h"
 #include "msr-index.h"
+#include "kvm.h"
 #include "kvm_events.h"
 #include "kvm_private.h"
 
@@ -183,6 +184,8 @@ process_cb_response(
         return VMI_FAILURE;
     }
 #endif
+
+    registers_t regs;
     // loop over all possible responses
     for (uint32_t i = VMI_EVENT_RESPONSE_NONE+1; i <=__VMI_EVENT_RESPONSE_MAX; i++) {
         event_response_t candidate = 1u << i;
@@ -191,6 +194,13 @@ process_cb_response(
             continue;
         if (response & candidate) {
             switch (candidate) {
+                case VMI_EVENT_RESPONSE_SET_REGISTERS:
+                    regs.x86 = (*libvmi_event->x86_regs);
+                    if (VMI_FAILURE == kvm_set_vcpuregs(vmi, &regs, libvmi_event->vcpu_id)) {
+                        errprint("%s: KVM: failed to set registers in callback response\n", __func__);
+                        return VMI_FAILURE;
+                    }
+                    break;
                 default:
                     errprint("%s: KVM - unhandled event reponse %u\n", __func__, candidate);
                     break;
