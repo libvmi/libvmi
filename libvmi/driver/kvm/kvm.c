@@ -217,6 +217,18 @@ cb_new_guest(
     return 0;
 }
 
+static int handshake_cb(
+    const struct kvmi_qemu2introspector *qemu,
+    struct kvmi_introspector2qemu *intro,
+    void *ctx)
+{
+    (void)qemu;
+    (void)intro;
+    (void)ctx;
+    dbprint(VMI_DEBUG_KVM, "--KVMi handshake\n");
+    return 0;
+}
+
 static bool
 init_kvmi(
     kvm_instance_t *kvm,
@@ -229,7 +241,7 @@ init_kvmi(
     kvm->kvmi_dom = NULL;
 
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
-    kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, cb_new_guest, NULL, kvm);
+    kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, cb_new_guest, handshake_cb, kvm);
     if (kvm->kvmi) {
         struct timeval now;
         if (gettimeofday(&now, NULL) == 0) {
