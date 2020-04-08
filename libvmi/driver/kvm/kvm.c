@@ -239,6 +239,31 @@ static int handshake_cb(
     return 0;
 }
 
+static void
+log_cb(
+    kvmi_log_level level,
+    const char *s,
+    void *ctx)
+{
+    (void)ctx;
+    switch (level) {
+        case KVMI_LOG_LEVEL_ERROR:
+            dbprint(VMI_DEBUG_KVM, "--KVMi Error: %s\n", s);
+            break;
+        case KVMI_LOG_LEVEL_WARNING:
+            dbprint(VMI_DEBUG_KVM, "--KVMi Warning: %s\n", s);
+            break;
+        case KVMI_LOG_LEVEL_INFO:
+            dbprint(VMI_DEBUG_KVM, "--KVMi Info: %s\n", s);
+            break;
+        case KVMI_LOG_LEVEL_DEBUG:
+            dbprint(VMI_DEBUG_KVM, "--KVMi Debug: %s\n", s);
+            break;
+        default:
+            errprint("Unhandled KVMi log level %d\n", level);
+    }
+}
+
 static bool
 init_kvmi(
     kvm_instance_t *kvm,
@@ -528,6 +553,9 @@ kvm_init_vmi(
     dbprint(VMI_DEBUG_KVM, "--libvirt version %lu\n", libVer);
 
     vmi->vm_type = NORMAL;
+
+    // configure log cb before connecting
+    kvm->libkvmi.kvmi_set_log_cb(log_cb, (void*)vmi);
 
     dbprint(VMI_DEBUG_KVM, "--Connecting to KVMI...\n");
     if (!init_kvmi(kvm,  socket_path)) {
