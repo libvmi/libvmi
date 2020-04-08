@@ -44,6 +44,9 @@ typedef struct {
     void (*kvmi_domain_close)
     (void *dom, bool do_shutdown);
 
+    int (*kvmi_connection_fd)
+    ( const void *dom );
+
     int (*kvmi_control_events)
     (void *dom, unsigned short vcpu, int id, bool enable);
 
