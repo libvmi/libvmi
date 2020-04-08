@@ -142,7 +142,7 @@ volatility_profile_bitfield_offset_and_size(
         dbprint(VMI_DEBUG_MISC, "Volatility profile: no %s found\n", symbol);
         goto exit;
     }
-    if (!json_object_object_get_ex(user_types, "fields", &fields)) {
+    if (!json_object_object_get_ex(jstruct, "fields", &fields)) {
         dbprint(VMI_DEBUG_MISC, "Volatility profile: no fields found\n");
         goto exit;
     }
