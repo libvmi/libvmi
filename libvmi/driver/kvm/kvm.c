@@ -212,7 +212,8 @@ cb_new_guest(
      * If kvmi_dom is not NULL it means this is a reconnection.
      * The previous connection was closed somehow.
      */
-    kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
+    if (kvm->kvmi_dom)
+        kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
     kvm->kvmi_dom = dom;
     pthread_cond_signal(&kvm->kvm_start_cond);
     pthread_mutex_unlock(&kvm->kvm_connect_mutex);
