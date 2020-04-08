@@ -99,6 +99,9 @@ typedef struct {
     int (*kvmi_wait_event)
     (void *dom, kvmi_timeout_t ms);
 
+    void (*kvmi_set_log_cb)
+    ( kvmi_log_cb cb, void *ctx );
+
     int (*kvmi_get_maximum_gfn)
     (void *dom, unsigned long long *gfn);
 

@@ -37,7 +37,7 @@ static status_t sanity_check(kvm_instance_t *kvm)
             !w->kvmi_read_physical || !w->kvmi_write_physical ||
             !w->kvmi_get_registers || !w->kvmi_set_registers ||
             !w->kvmi_reply_event || !w->kvmi_pop_event || !w->kvmi_wait_event ||
-            !w->kvmi_get_maximum_gfn ) {
+            !w->kvmi_set_log_cb || !w->kvmi_get_maximum_gfn ) {
         dbprint(VMI_DEBUG_KVM, "--failed to find the required functions in libkvmi\n");
         return VMI_FAILURE;
     }
@@ -79,6 +79,7 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
     wrapper->kvmi_reply_event = dlsym(wrapper->handle, "kvmi_reply_event");
     wrapper->kvmi_pop_event = dlsym(wrapper->handle, "kvmi_pop_event");
     wrapper->kvmi_wait_event = dlsym(wrapper->handle, "kvmi_wait_event");
+    wrapper->kvmi_set_log_cb = dlsym(wrapper->handle, "kvmi_set_log_cb");
     wrapper->kvmi_get_maximum_gfn = dlsym(wrapper->handle, "kvmi_get_maximum_gfn");
 
     status_t ret = sanity_check(kvm);
