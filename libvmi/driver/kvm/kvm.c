@@ -205,8 +205,14 @@ cb_new_guest(
     uuid_str[current_size] = '\0';
     // get fd
     int fd = kvm->libkvmi.kvmi_connection_fd(dom);
+    // get version
+    unsigned int version = 0;
+    if (kvm->libkvmi.kvmi_get_version(dom, &version) != 0) {
+        errprint("Failed to get KVMi version\n");
+        return 1;
+    }
     // print infos
-    dbprint(VMI_DEBUG_KVM, "--KVMi new guest - UUID: %s, FD: %d\n", uuid_str, fd);
+    dbprint(VMI_DEBUG_KVM, "--KVMi new guest - UUID: %s, FD: %d, protocol version: %d\n", uuid_str, fd, version);
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
     /*
      * If kvmi_dom is not NULL it means this is a reconnection.
