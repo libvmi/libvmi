@@ -24,15 +24,20 @@
 
 static status_t sanity_check(kvm_instance_t *kvm)
 {
-    libkvmi_wrapper_t *w = &kvm->libkvmi;
+    libkvmi_wrapper_t *w =
+        &kvm->libkvmi;
 
     if ( !w->kvmi_init_unix_socket || !w->kvmi_uninit || !w->kvmi_close ||
-            !w->kvmi_domain_close || !w->kvmi_connection_fd || !w->kvmi_control_events || !w->kvmi_control_vm_events ||
-            !w->kvmi_control_cr || !w->kvmi_control_msr || !w->kvmi_pause_all_vcpus ||
-            !w->kvmi_get_page_access || !w->kvmi_set_page_access || !w->kvmi_get_vcpu_count ||
-            !w->kvmi_inject_exception || !w->kvmi_read_physical || !w->kvmi_write_physical ||
-            !w->kvmi_get_registers || !w->kvmi_set_registers || !w->kvmi_reply_event ||
-            !w->kvmi_pop_event || !w->kvmi_wait_event || !w->kvmi_get_maximum_gfn ) {
+            !w->kvmi_domain_close || !w->kvmi_connection_fd ||
+            !w->kvmi_get_version || !w->kvmi_control_events ||
+            !w->kvmi_control_vm_events || !w->kvmi_control_cr ||
+            !w->kvmi_control_msr || !w->kvmi_pause_all_vcpus ||
+            !w->kvmi_get_page_access || !w->kvmi_set_page_access ||
+            !w->kvmi_get_vcpu_count || !w->kvmi_inject_exception ||
+            !w->kvmi_read_physical || !w->kvmi_write_physical ||
+            !w->kvmi_get_registers || !w->kvmi_set_registers ||
+            !w->kvmi_reply_event || !w->kvmi_pop_event || !w->kvmi_wait_event ||
+            !w->kvmi_get_maximum_gfn ) {
         dbprint(VMI_DEBUG_KVM, "--failed to find the required functions in libkvmi\n");
         return VMI_FAILURE;
     }
@@ -57,6 +62,7 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
     wrapper->kvmi_close = dlsym(wrapper->handle, "kvmi_close");
     wrapper->kvmi_domain_close = dlsym(wrapper->handle, "kvmi_domain_close");
     wrapper->kvmi_connection_fd = dlsym(wrapper->handle, "kvmi_connection_fd");
+    wrapper->kvmi_get_version = dlsym(wrapper->handle, "kvmi_get_version");
     wrapper->kvmi_control_events = dlsym(wrapper->handle, "kvmi_control_events");
     wrapper->kvmi_control_vm_events = dlsym(wrapper->handle, "kvmi_control_vm_events");
     wrapper->kvmi_control_cr = dlsym(wrapper->handle, "kvmi_control_cr");

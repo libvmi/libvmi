@@ -47,6 +47,9 @@ typedef struct {
     int (*kvmi_connection_fd)
     ( const void *dom );
 
+    int (*kvmi_get_version)
+    ( void *dom, unsigned int *version );
+
     int (*kvmi_control_events)
     (void *dom, unsigned short vcpu, int id, bool enable);
 
