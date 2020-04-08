@@ -174,14 +174,36 @@ kvm_setup_live_mode(
 // KVMI-Specific Interface Functions (no direction mapping to driver_*)
 
 static int
-cb_kvmi_connect(
+cb_new_guest(
     void *dom,
     unsigned char (*uuid)[16],
     void *ctx)
 {
-    (void)uuid; // unused
-    kvm_instance_t *kvm = ctx;
+    if (!dom || !uuid || !ctx) {
+        errprint("Invalid parameters in KVMi new guest callback");
+        return 1;
+    }
 
+    kvm_instance_t *kvm = ctx;
+    // 2 chars for hex + 1 space
+    unsigned int uuid_str_len = (sizeof(*uuid) * 3) + 1;
+    char uuid_str[uuid_str_len];
+    memset(uuid_str, 0, uuid_str_len);
+
+    // convert UUID hex to string
+    unsigned int current_size = 0;
+    for (long unsigned int k = 0; k < sizeof(*uuid); k++ ) {
+        if (k < sizeof(*uuid) - 1 ) {
+            sprintf(&uuid_str[current_size], "%02X ", ( *uuid )[k] );
+            current_size += 3;
+        } else {
+            // no space
+            sprintf(&uuid_str[current_size], "%02X", ( *uuid )[k] );
+            current_size += 2;
+        }
+    }
+    uuid_str[current_size] = '\0';
+    dbprint(VMI_DEBUG_KVM, "--KVMi new guest: UUID: %s\n", uuid_str);
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
     /*
      * If kvmi_dom is not NULL it means this is a reconnection.
@@ -207,7 +229,7 @@ init_kvmi(
     kvm->kvmi_dom = NULL;
 
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
-    kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, cb_kvmi_connect, NULL, kvm);
+    kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, cb_new_guest, NULL, kvm);
     if (kvm->kvmi) {
         struct timeval now;
         if (gettimeofday(&now, NULL) == 0) {
