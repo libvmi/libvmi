@@ -174,7 +174,7 @@ kvm_setup_live_mode(
 // KVMI-Specific Interface Functions (no direction mapping to driver_*)
 
 static int
-cb_new_guest(
+new_guest_cb(
     void *dom,
     unsigned char (*uuid)[16],
     void *ctx)
@@ -276,7 +276,7 @@ init_kvmi(
     kvm->kvmi_dom = NULL;
 
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
-    kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, cb_new_guest, handshake_cb, kvm);
+    kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, new_guest_cb, handshake_cb, kvm);
     if (kvm->kvmi) {
         struct timeval now;
         if (gettimeofday(&now, NULL) == 0) {
