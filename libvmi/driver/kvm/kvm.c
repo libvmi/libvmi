@@ -84,6 +84,67 @@ reply_continue(kvm_instance_t *kvm, struct kvmi_dom_event *ev)
     return VMI_SUCCESS;
 }
 
+
+void
+kvmi_regs_to_libvmi(
+    struct kvm_regs *kvmi_regs,
+    struct kvm_sregs *kvmi_sregs,
+    x86_registers_t *libvmi_regs)
+{
+    x86_registers_t x86_regs = {0};
+    //      standard regs
+    x86_regs.rax = kvmi_regs->rax;
+    x86_regs.rbx = kvmi_regs->rbx;
+    x86_regs.rcx = kvmi_regs->rcx;
+    x86_regs.rdx = kvmi_regs->rdx;
+    x86_regs.rsi = kvmi_regs->rsi;
+    x86_regs.rdi = kvmi_regs->rdi;
+    x86_regs.rip = kvmi_regs->rip;
+    x86_regs.rsp = kvmi_regs->rsp;
+    x86_regs.rbp = kvmi_regs->rbp;
+    x86_regs.rflags = kvmi_regs->rflags;
+    x86_regs.r8 = kvmi_regs->r8;
+    x86_regs.r9 = kvmi_regs->r9;
+    x86_regs.r10 = kvmi_regs->r10;
+    x86_regs.r11 = kvmi_regs->r11;
+    x86_regs.r12 = kvmi_regs->r12;
+    x86_regs.r13 = kvmi_regs->r13;
+    x86_regs.r14 = kvmi_regs->r14;
+    x86_regs.r15 = kvmi_regs->r15;
+    //      special regs
+    //          Control Registers
+    x86_regs.cr0 = kvmi_sregs->cr0;
+    x86_regs.cr2 = kvmi_sregs->cr2;
+    x86_regs.cr3 = kvmi_sregs->cr3;
+    x86_regs.cr4 = kvmi_sregs->cr4;
+    //          CS
+    x86_regs.cs_base = kvmi_sregs->cs.base;
+    x86_regs.cs_limit = kvmi_sregs->cs.limit;
+    x86_regs.cs_sel = kvmi_sregs->cs.selector;
+    //          DS
+    x86_regs.ds_base = kvmi_sregs->ds.base;
+    x86_regs.ds_limit = kvmi_sregs->ds.limit;
+    x86_regs.ds_sel = kvmi_sregs->ds.selector;
+    //          SS
+    x86_regs.ss_base = kvmi_sregs->ss.base;
+    x86_regs.ss_limit = kvmi_sregs->ss.limit;
+    x86_regs.ss_sel = kvmi_sregs->ss.selector;
+    //          ES
+    x86_regs.es_base = kvmi_sregs->es.base;
+    x86_regs.es_limit = kvmi_sregs->es.limit;
+    x86_regs.es_sel = kvmi_sregs->es.selector;
+    //          FS
+    x86_regs.fs_base = kvmi_sregs->fs.base;
+    x86_regs.fs_limit = kvmi_sregs->fs.limit;
+    x86_regs.fs_sel = kvmi_sregs->fs.selector;
+    //          GS
+    x86_regs.gs_base = kvmi_sregs->gs.base;
+    x86_regs.gs_limit = kvmi_sregs->gs.limit;
+    x86_regs.gs_sel = kvmi_sregs->gs.selector;
+    // assign
+    (*libvmi_regs) = x86_regs;
+}
+
 void *
 kvm_get_memory_patch(
     vmi_instance_t vmi,

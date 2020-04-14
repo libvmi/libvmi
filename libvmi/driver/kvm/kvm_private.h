@@ -79,4 +79,13 @@ kvm_put_memory(vmi_instance_t vmi,
                uint32_t length,
                void *buf);
 
+// shared by kvm.c and kvm_events.c
+# ifndef ENABLE_KVM_LEGACY
+void
+kvmi_regs_to_libvmi(
+    struct kvm_regs *kvmi_regs,
+    struct kvm_sregs *kvmi_sregs,
+    x86_registers_t *libvmi_regs);
+# endif
+
 #endif
