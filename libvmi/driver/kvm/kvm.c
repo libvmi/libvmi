@@ -712,6 +712,21 @@ status_t kvm_request_page_fault (
 }
 
 status_t
+kvm_get_vcpureg(
+    vmi_instance_t vmi,
+    uint64_t *value,
+    reg_t reg,
+    unsigned long vcpu)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    if (get_kvmi_registers(kvm, reg, value, (unsigned short)vcpu))
+        return VMI_SUCCESS;
+
+    return VMI_FAILURE;
+}
+
+status_t
 kvm_get_vcpuregs(
     vmi_instance_t vmi,
     registers_t *registers,
@@ -874,21 +889,6 @@ kvm_set_vcpuregs(vmi_instance_t vmi,
         return VMI_FAILURE;
     }
     return VMI_SUCCESS;
-}
-
-status_t
-kvm_get_vcpureg(
-    vmi_instance_t vmi,
-    uint64_t *value,
-    reg_t reg,
-    unsigned long vcpu)
-{
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
-    if (get_kvmi_registers(kvm, reg, value, (unsigned short)vcpu))
-        return VMI_SUCCESS;
-
-    return VMI_FAILURE;
 }
 
 status_t
