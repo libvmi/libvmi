@@ -717,14 +717,13 @@ kvm_get_vcpuregs(
     registers_t *registers,
     unsigned long vcpu)
 {
-    struct kvm_regs regs;
-    struct kvm_sregs sregs;
+    struct kvm_regs regs = {0};
+    struct kvm_sregs sregs = {0};
     struct {
         struct kvm_msrs msrs;
         struct kvm_msr_entry entries[6];
     } msrs = { 0 };
-    int err;
-    unsigned int mode;
+    unsigned int mode = {0};
     x86_registers_t *x86 = &registers->x86;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
@@ -739,45 +738,16 @@ kvm_get_vcpuregs(
     if (!kvm->kvmi_dom)
         return VMI_FAILURE;
 
-    err = kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
-
-    if (err != 0)
+    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode))
         return VMI_FAILURE;
 
-    x86->rax = regs.rax;
-    x86->rcx = regs.rcx;
-    x86->rdx = regs.rdx;
-    x86->rbx = regs.rbx;
-    x86->rsp = regs.rsp;
-    x86->rbp = regs.rbp;
-    x86->rsi = regs.rsi;
-    x86->rdi = regs.rdi;
-    x86->r8 = regs.r8;
-    x86->r9 = regs.r9;
-    x86->r10 = regs.r10;
-    x86->r11 = regs.r11;
-    x86->r12 = regs.r12;
-    x86->r13 = regs.r13;
-    x86->r14 = regs.r14;
-    x86->r15 = regs.r15;
-    x86->rflags = regs.rflags;
-    x86->dr7 = 0; // FIXME: where do I get this
-    x86->rip = regs.rip;
-    x86->cr0 = sregs.cr0;
-    x86->cr2 = sregs.cr2;
-    x86->cr3 = sregs.cr3;
-    x86->cr4 = sregs.cr4;
-    // Are these correct
+    kvmi_regs_to_libvmi(&regs, &sregs, x86);
     x86->sysenter_cs = msrs.entries[0].data;
     x86->sysenter_esp = msrs.entries[1].data;
     x86->sysenter_eip = msrs.entries[2].data;
     x86->msr_efer = msrs.entries[3].data;
     x86->msr_star = msrs.entries[4].data;
     x86->msr_lstar = msrs.entries[5].data;
-    x86->fs_base = 0; // FIXME: Where do I get these
-    x86->gs_base = 0;
-    x86->cs_arbytes = 0;
-    x86->_pad = 0;
 
     return VMI_SUCCESS;
 }
