@@ -364,139 +364,6 @@ init_kvmi(
     return true;
 }
 
-static bool
-get_kvmi_registers(
-    kvm_instance_t *kvm,
-    reg_t reg,
-    uint64_t *value,
-    unsigned short vcpu)
-{
-    struct kvm_regs regs;
-    struct kvm_sregs sregs;
-    struct {
-        struct kvm_msrs      msrs;
-        struct kvm_msr_entry entries[6];
-    } msrs = {0};
-    unsigned int mode;
-    int err;
-
-    if (!kvm->kvmi_dom)
-        return false;
-
-    msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
-    msrs.entries[0].index = msr_index[MSR_IA32_SYSENTER_CS];
-    msrs.entries[1].index = msr_index[MSR_IA32_SYSENTER_ESP];
-    msrs.entries[2].index = msr_index[MSR_IA32_SYSENTER_EIP];
-    msrs.entries[3].index = msr_index[MSR_EFER];
-    msrs.entries[4].index = msr_index[MSR_STAR];
-    msrs.entries[5].index = msr_index[MSR_LSTAR];
-
-    err = kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode);
-
-    if (err != 0)
-        return false;
-
-    /* mode should be 8 if VMI_PM_IA32E == vmi->page_mode */
-
-    switch (reg) {
-        case RAX:
-            *value = regs.rax;
-            break;
-        case RBX:
-            *value = regs.rbx;
-            break;
-        case RCX:
-            *value = regs.rcx;
-            break;
-        case RDX:
-            *value = regs.rdx;
-            break;
-        case RBP:
-            *value = regs.rbp;
-            break;
-        case RSI:
-            *value = regs.rsi;
-            break;
-        case RDI:
-            *value = regs.rdi;
-            break;
-        case RSP:
-            *value = regs.rsp;
-            break;
-        case R8:
-            *value = regs.r8;
-            break;
-        case R9:
-            *value = regs.r9;
-            break;
-        case R10:
-            *value = regs.r10;
-            break;
-        case R11:
-            *value = regs.r11;
-            break;
-        case R12:
-            *value = regs.r12;
-            break;
-        case R13:
-            *value = regs.r13;
-            break;
-        case R14:
-            *value = regs.r14;
-            break;
-        case R15:
-            *value = regs.r15;
-            break;
-        case RIP:
-            *value = regs.rip;
-            break;
-        case RFLAGS:
-            *value = regs.rflags;
-            break;
-        case CR0:
-            *value = sregs.cr0;
-            break;
-        case CR2:
-            *value = sregs.cr2;
-            break;
-        case CR3:
-            *value = sregs.cr3;
-            break;
-        case CR4:
-            *value = sregs.cr4;
-            break;
-        case FS_BASE:
-            *value = sregs.fs.base;
-            break;
-        case GS_BASE:
-            *value = sregs.gs.base;
-            break;
-        case MSR_IA32_SYSENTER_CS:
-            *value = msrs.entries[0].data;
-            break;
-        case MSR_IA32_SYSENTER_ESP:
-            *value = msrs.entries[1].data;
-            break;
-        case MSR_IA32_SYSENTER_EIP:
-            *value = msrs.entries[2].data;
-            break;
-        case MSR_EFER:
-            *value = msrs.entries[3].data;
-            break;
-        case MSR_STAR:
-            *value = msrs.entries[4].data;
-            break;
-        case MSR_LSTAR:
-            *value = msrs.entries[5].data;
-            break;
-        default:
-            dbprint(VMI_DEBUG_KVM, "--Reading register %"PRIu64" not implemented\n", reg);
-            return false;
-    }
-
-    return true;
-}
-
 //----------------------------------------------------------------------------
 // General Interface Functions (1-1 mapping to driver_* function)
 
@@ -718,12 +585,114 @@ kvm_get_vcpureg(
     reg_t reg,
     unsigned long vcpu)
 {
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    if (!value) {
+        errprint("%s: value is invalid\n", __func__);
+        return VMI_FAILURE;
+    }
 
-    if (get_kvmi_registers(kvm, reg, value, (unsigned short)vcpu))
-        return VMI_SUCCESS;
+    // TODO: add some sort of caching to avoir fetching
+    // all registers everytime ?
+    registers_t regs = {0};
+    if (VMI_FAILURE == kvm_get_vcpuregs(vmi, &regs, (unsigned short)vcpu))
+        return VMI_FAILURE;
 
-    return VMI_FAILURE;
+    switch (reg) {
+        case RAX:
+            *value = regs.x86.rax;
+            break;
+        case RBX:
+            *value = regs.x86.rbx;
+            break;
+        case RCX:
+            *value = regs.x86.rcx;
+            break;
+        case RDX:
+            *value = regs.x86.rdx;
+            break;
+        case RBP:
+            *value = regs.x86.rbp;
+            break;
+        case RSI:
+            *value = regs.x86.rsi;
+            break;
+        case RDI:
+            *value = regs.x86.rdi;
+            break;
+        case RSP:
+            *value = regs.x86.rsp;
+            break;
+        case R8:
+            *value = regs.x86.r8;
+            break;
+        case R9:
+            *value = regs.x86.r9;
+            break;
+        case R10:
+            *value = regs.x86.r10;
+            break;
+        case R11:
+            *value = regs.x86.r11;
+            break;
+        case R12:
+            *value = regs.x86.r12;
+            break;
+        case R13:
+            *value = regs.x86.r13;
+            break;
+        case R14:
+            *value = regs.x86.r14;
+            break;
+        case R15:
+            *value = regs.x86.r15;
+            break;
+        case RIP:
+            *value = regs.x86.rip;
+            break;
+        case RFLAGS:
+            *value = regs.x86.rflags;
+            break;
+        case CR0:
+            *value = regs.x86.cr0;
+            break;
+        case CR2:
+            *value = regs.x86.cr2;
+            break;
+        case CR3:
+            *value = regs.x86.cr3;
+            break;
+        case CR4:
+            *value = regs.x86.cr4;
+            break;
+        case FS_BASE:
+            *value = regs.x86.fs_base;
+            break;
+        case GS_BASE:
+            *value = regs.x86.gs_base;
+            break;
+        case MSR_IA32_SYSENTER_CS:
+            *value = regs.x86.sysenter_cs;
+            break;
+        case MSR_IA32_SYSENTER_ESP:
+            *value = regs.x86.sysenter_esp;
+            break;
+        case MSR_IA32_SYSENTER_EIP:
+            *value = regs.x86.sysenter_eip;
+            break;
+        case MSR_EFER:
+            *value = regs.x86.msr_efer;
+            break;
+        case MSR_STAR:
+            *value = regs.x86.msr_star;
+            break;
+        case MSR_LSTAR:
+            *value = regs.x86.msr_lstar;
+            break;
+        default:
+            dbprint(VMI_DEBUG_KVM, "--Reading register %"PRIu64" not implemented\n", reg);
+            return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
 }
 
 status_t
