@@ -72,7 +72,7 @@ static status_t get_vcpu_page_mode_x86(vmi_instance_t vmi, unsigned long vcpu, p
         goto _exit;
     }
 
-    /* PSE Flag --> CR4, bit 5 */
+    /* PAE Flag --> CR4, bit 5 */
     pae = VMI_GET_BIT(cr4, 5);
     dbprint(VMI_DEBUG_PTLOOKUP, "**set pae = %d\n", pae);
 
