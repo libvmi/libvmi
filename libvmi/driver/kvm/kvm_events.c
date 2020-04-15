@@ -340,7 +340,6 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
 
     //      interrupt_event
-    // TODO: hardcoded PAGE_SHIFT
     libvmi_event->interrupt_event.gfn = kvmi_event->event.breakpoint.gpa >> vmi->page_shift;
     // TODO: vector and type
     // event->interrupt_event.vector =
@@ -397,8 +396,6 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     // lookup vmi_event
     //      standard ?
     if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
-        // TODO: hardcoded page shift
-
         libvmi_event = g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
         if (libvmi_event && (libvmi_event->mem_event.in_access & out_access)) {
             // fill libvmi_event struct
