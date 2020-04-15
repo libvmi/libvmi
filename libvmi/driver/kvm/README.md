@@ -71,3 +71,15 @@ This section will give an implementation status of the LibVMI API on the new KVM
     - [ ] cpuid
     - [ ] privcall
     - [ ] descriptor
+- [ ] VMI Event response
+    - [x] `VMI_EVENT_RESPONSE_NONE`
+    - [ ] `VMI_EVENT_RESPONSE_EMULATE`
+    - [ ] `VMI_EVENT_RESPONSE_EMULATE_NOWRITE`
+    - [x] `VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA` (only for memory access events)
+    - [ ] `VMI_EVENT_RESPONSE_DENY`
+    - [ ] `VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP`
+    - [ ] `VMI_EVENT_RESPONSE_SLAT_ID`
+    - [ ] `VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID`
+    - [x] `VMI_EVENT_RESPONSE_SET_REGISTERS`
+    - [ ] `VMI_EVENT_RESPONSE_SET_EMUL_INSN`
+    - [ ] `VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT`
