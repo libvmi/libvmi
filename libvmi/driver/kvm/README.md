@@ -23,6 +23,10 @@ This section will give an implementation status of the LibVMI API on the new KVM
 - [x] request page fault
 - [ ] guest memory mapping
 - [ ] TSC info
+  - [ ] `tsc_mode`
+  - [ ] `elapsed_nsec`
+  - [x] `gtsc_khz`
+  - [ ] `incarnation`
 - [ ] MTRR
 - [ ] XSAVE
 - [ ] SLAT

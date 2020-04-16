@@ -85,6 +85,13 @@ status_t kvm_request_page_fault(
     uint64_t virtual_address,
     uint32_t error_code);
 
+status_t kvm_get_tsc_info(
+    vmi_instance_t vmi,
+    uint32_t *tsc_mode,
+    uint64_t *elapsed_nsec,
+    uint32_t *gtsc_khz,
+    uint32_t *incarnation);
+
 addr_t kvm_pfn_to_mfn(
     vmi_instance_t vmi,
     addr_t pfn);
@@ -150,6 +157,7 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.get_memsize_ptr = &kvm_get_memsize;
 # ifndef ENABLE_KVM_LEGACY
     driver.request_page_fault_ptr = &kvm_request_page_fault;
+    driver.get_tsc_info_ptr = &kvm_get_tsc_info;
 # endif
     driver.get_vcpureg_ptr = &kvm_get_vcpureg;
 # ifndef ENABLE_KVM_LEGACY

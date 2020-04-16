@@ -578,6 +578,45 @@ status_t kvm_request_page_fault (
     return VMI_SUCCESS;
 }
 
+status_t kvm_get_tsc_info(
+    vmi_instance_t vmi,
+    __attribute__((unused)) uint32_t *tsc_mode,
+    __attribute__((unused)) uint64_t *elapsed_nsec,
+    uint32_t *gtsc_khz,
+    __attribute__((unused)) uint32_t *incarnation)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("Invalid vmi handle\n");
+        return VMI_FAILURE;
+    }
+#endif
+    // checking only gtsc_khz parameter
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!gtsc_khz) {
+        errprint("Invalid gtsc_khz pointer\n");
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("Invalid kvm/kvmi handles\n");
+        return VMI_FAILURE;
+    }
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Get TSC info\n");
+
+    unsigned long long speed = 0;
+    if (kvm->libkvmi.kvmi_get_tsc_speed(kvm->kvmi_dom, &speed))
+        return VMI_FAILURE;
+
+    // convert to KHz and assign gtsc_khz
+    (*gtsc_khz) = speed / 1000;
+
+    return VMI_SUCCESS;
+}
+
 status_t
 kvm_get_vcpureg(
     vmi_instance_t vmi,
