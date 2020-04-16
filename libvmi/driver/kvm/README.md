@@ -33,7 +33,6 @@ This section will give an implementation status of the LibVMI API on the new KVM
             - [x] CR
             - [ ] MSR
                 - [ ] `MSR_ALL` (loop over all defined MSRs in LibVMI. Unable to set intercept on any kind of MSR in `KVMi-v6`)
-                - [ ] `MSR_HYPERVISOR` (not supported in `KVMi-v6`)
         - [ ] `reg_event.equal`
         - [ ] `reg_event.async`
         - [ ] `reg_event.onchange`
