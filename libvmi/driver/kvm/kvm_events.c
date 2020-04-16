@@ -824,7 +824,7 @@ kvm_set_mem_access(
 
     // set page access
     long long unsigned int gpa = gpfn << vmi->page_shift;
-    if (kvm->libkvmi.kvmi_set_page_access(kvm->kvmi_dom, &gpa, &kvmi_access, vmi->num_vcpus)) {
+    if (kvm->libkvmi.kvmi_set_page_access(kvm->kvmi_dom, &gpa, &kvmi_access, 1)) {
         errprint("%s: unable to set page access on GPFN 0x%" PRIx64 ": %s\n",
                  __func__, gpfn, strerror(errno));
         return VMI_FAILURE;
