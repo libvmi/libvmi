@@ -19,6 +19,10 @@ to emulate the instruction stored in `event->emul_insn`.
 
 Intercepts and displays `CR3` events.
 
+## descriptor-event-example
+
+Intercepts descriptor register accesss events. (`IDTR`, `GDTR`, `LDTR`, `TR`)
+
 ## vmi-dump-memory
 
 Dumps the VM's physical memory to the given filepath.

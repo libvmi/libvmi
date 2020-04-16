@@ -4,6 +4,9 @@ target_link_libraries(map-addr vmi_shared)
 add_executable(cr3-event-example cr3-event-example.c)
 target_link_libraries(cr3-event-example vmi_shared)
 
+add_executable(descriptor-event-example descriptor-event-example.c)
+target_link_libraries(descriptor-event-example vmi_shared)
+
 add_executable(mem-event-example mem-event-example.c)
 target_link_libraries(mem-event-example vmi_shared)
 
