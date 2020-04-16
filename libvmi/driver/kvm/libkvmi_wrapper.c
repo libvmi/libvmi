@@ -32,7 +32,7 @@ static status_t sanity_check(kvm_instance_t *kvm)
             !w->kvmi_get_version || !w->kvmi_control_events ||
             !w->kvmi_control_vm_events || !w->kvmi_control_cr ||
             !w->kvmi_control_msr || !w->kvmi_pause_all_vcpus ||
-            !w->kvmi_get_page_access || !w->kvmi_set_page_access ||
+            !w->kvmi_get_page_access || !w->kvmi_set_page_access || !w->kvmi_get_tsc_speed ||
             !w->kvmi_get_vcpu_count || !w->kvmi_inject_exception ||
             !w->kvmi_read_physical || !w->kvmi_write_physical ||
             !w->kvmi_get_registers || !w->kvmi_set_registers ||
@@ -70,6 +70,7 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
     wrapper->kvmi_pause_all_vcpus = dlsym(wrapper->handle, "kvmi_pause_all_vcpus");
     wrapper->kvmi_get_page_access = dlsym(wrapper->handle, "kvmi_get_page_access");
     wrapper->kvmi_set_page_access = dlsym(wrapper->handle, "kvmi_set_page_access");
+    wrapper->kvmi_get_tsc_speed = dlsym(wrapper->handle, "kvmi_get_tsc_speed");
     wrapper->kvmi_get_vcpu_count = dlsym(wrapper->handle, "kvmi_get_vcpu_count");
     wrapper->kvmi_inject_exception = dlsym(wrapper->handle, "kvmi_inject_exception");
     wrapper->kvmi_read_physical = dlsym(wrapper->handle, "kvmi_read_physical");

@@ -71,6 +71,9 @@ typedef struct {
     int (*kvmi_set_page_access)
     (void *dom, unsigned long long int *gpa, unsigned char *access, unsigned short count);
 
+    int (*kvmi_get_tsc_speed)
+    (void *dom, unsigned long long int *speed);
+
     int (*kvmi_get_vcpu_count)
     (void *dom, unsigned int *count);
 
