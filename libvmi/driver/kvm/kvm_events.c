@@ -481,6 +481,64 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 }
 
 static status_t
+process_descriptor(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
+{
+    vmi_event_t *libvmi_event = vmi->descriptor_access_event;
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !kvmi_event || !libvmi_event) {
+        errprint("%s: invalid parameters\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Received descriptor event\n");
+
+    // assign VCPU id
+    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
+    // assign regs
+    x86_registers_t libvmi_regs = {0};
+    libvmi_event->x86_regs = &libvmi_regs;
+    struct kvm_regs *regs = &kvmi_event->event.common.arch.regs;
+    struct kvm_sregs *sregs = &kvmi_event->event.common.arch.sregs;
+    kvmi_regs_to_libvmi(regs, sregs, libvmi_event->x86_regs);
+    // event specific fields
+    switch (kvmi_event->event.desc.descriptor) {
+        case KVMI_DESC_IDTR:
+            libvmi_event->descriptor_event.descriptor = VMI_DESCRIPTOR_IDTR;
+            break;
+        case KVMI_DESC_GDTR:
+            libvmi_event->descriptor_event.descriptor = VMI_DESCRITPOR_GDTR;
+            break;
+        case KVMI_DESC_LDTR:
+            libvmi_event->descriptor_event.descriptor = VMI_DESCRIPTOR_IDTR;
+            break;
+        case KVMI_DESC_TR:
+            libvmi_event->descriptor_event.descriptor = VMI_DESCRIPTOR_TR;
+            break;
+        default:
+            errprint("Unexpected descriptor ID %d\n", kvmi_event->event.desc.descriptor);
+            return VMI_FAILURE;
+    }
+    libvmi_event->descriptor_event.is_write = kvmi_event->event.desc.write;
+
+    // call user callback
+    event_response_t response = call_event_callback(vmi, libvmi_event);
+
+    // reply struct
+    struct {
+        struct kvmi_vcpu_hdr hdr;
+        struct kvmi_event_reply common;
+    } rpl = {0};
+
+    // set reply
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
+}
+
+static status_t
 process_pause_event(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 {
 #ifdef ENABLE_SAFETY_CHECKS
@@ -523,12 +581,14 @@ kvm_events_init(
     vmi->driver.set_reg_access_ptr = &kvm_set_reg_access;
     vmi->driver.set_intr_access_ptr = &kvm_set_intr_access;
     vmi->driver.set_mem_access_ptr = &kvm_set_mem_access;
+    vmi->driver.set_desc_access_event_ptr = &kvm_set_desc_access_event;
 
     // fill event dispatcher
     kvm->process_event[KVMI_EVENT_CR] = &process_register;
     kvm->process_event[KVMI_EVENT_MSR] = &process_msr;
     kvm->process_event[KVMI_EVENT_BREAKPOINT] = &process_interrupt;
     kvm->process_event[KVMI_EVENT_PF] = &process_pagefault;
+    kvm->process_event[KVMI_EVENT_DESCRIPTOR] = &process_descriptor;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
 
     // enable monitoring of CR and MSR for all VCPUs by default
@@ -892,4 +952,35 @@ kvm_set_mem_access(
 
     dbprint(VMI_DEBUG_KVM, "--Done setting memaccess on GPFN: 0x%" PRIx64 "\n", gpfn);
     return VMI_SUCCESS;
+}
+
+status_t kvm_set_desc_access_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    dbprint(VMI_DEBUG_KVM, "--%s descriptor monitoring\n", (enabled) ? "Enable" : "Disable");
+
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, enabled)) {
+            errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
+            goto error_exit;
+        }
+    }
+
+    return VMI_SUCCESS;
+
+error_exit:
+    // disable monitoring
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, false);
+    }
+    return VMI_FAILURE;
 }

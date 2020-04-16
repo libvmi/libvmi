@@ -71,6 +71,11 @@ This section will give an implementation status of the LibVMI API on the new KVM
     - [ ] cpuid
     - [ ] privcall
     - [ ] descriptor
+        - [ ] `desc_event.instr_info`
+        - [ ] `desc_event.exit_qualification`
+        - [ ] `desc_event.exit_info`
+        - [x] `desc_event.descriptor`
+        - [x] `desc_event.is_write`
 - [ ] VMI Event response
     - [x] `VMI_EVENT_RESPONSE_NONE`
     - [ ] `VMI_EVENT_RESPONSE_EMULATE`
