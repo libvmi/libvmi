@@ -32,73 +32,95 @@ status_t kvm_init(
     vmi_instance_t vmi,
     uint32_t init_flags,
     vmi_init_data_t *init_data);
+
 status_t kvm_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
     vmi_init_data_t *init_data);
+
 void kvm_destroy(
     vmi_instance_t vmi);
 uint64_t kvm_get_id_from_name(
     vmi_instance_t vmi,
     const char *name);
+
 status_t kvm_get_name_from_id(
     vmi_instance_t vmi,
     uint64_t domainid,
     char **name);
+
 uint64_t kvm_get_id(
     vmi_instance_t vmi);
+
 void kvm_set_id(
     vmi_instance_t vmi,
     uint64_t domainid);
+
 status_t kvm_check_id(
     vmi_instance_t vmi,
     uint64_t domainid);
+
 status_t kvm_write(
     vmi_instance_t vmi,
     addr_t paddr,
     void *buf,
     uint32_t length);
+
 status_t kvm_get_name(
     vmi_instance_t vmi,
     char **name);
+
 void kvm_set_name(
     vmi_instance_t vmi,
     const char *name);
+
 status_t kvm_get_memsize(
     vmi_instance_t vmi,
     uint64_t *allocate_ram_size,
     addr_t *maximum_physical_address);
-status_t kvm_request_page_fault (
+
+status_t kvm_request_page_fault(
     vmi_instance_t vmi,
     unsigned long vcpu,
     uint64_t virtual_address,
     uint32_t error_code);
-status_t kvm_get_vcpureg(
-    vmi_instance_t vmi,
-    uint64_t *value,
-    reg_t reg,
-    unsigned long vcpu);
+
 addr_t kvm_pfn_to_mfn(
     vmi_instance_t vmi,
     addr_t pfn);
+
 void *kvm_read_page(
     vmi_instance_t vmi,
     addr_t page);
+
 int kvm_is_pv(
     vmi_instance_t vmi);
+
 status_t kvm_test(
     uint64_t domainid,
     const char *name,
     uint64_t init_flags,
     vmi_init_data_t* init_data);
+
+// pause & resume
 status_t kvm_pause_vm(
     vmi_instance_t vmi);
+
 status_t kvm_resume_vm(
     vmi_instance_t vmi);
+
+// registers
+status_t kvm_get_vcpureg(
+    vmi_instance_t vmi,
+    uint64_t *value,
+    reg_t reg,
+    unsigned long vcpu);
+
 status_t kvm_get_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
     unsigned long vcpu);
+
 status_t kvm_set_vcpureg(
     vmi_instance_t vmi,
     uint64_t value,
