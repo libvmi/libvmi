@@ -62,6 +62,31 @@ win_ver_t ntbuild2version(uint16_t ntbuildnumber)
 };
 
 static inline
+win_major_minor_t pe2major_minor(vmi_instance_t vmi, addr_t kernbase_pa)
+{
+    // Examine the PE header to determine the version
+    win_major_minor_t mm;
+    mm.full_version = 0;
+    struct optional_header_pe32 *oh32 = NULL;
+    uint8_t pe[VMI_PS_4KB];
+    access_context_t ctx = {
+        .translate_mechanism = VMI_TM_NONE,
+        .addr = kernbase_pa
+    };
+
+    if ( VMI_FAILURE == peparse_get_image(vmi, &ctx, VMI_PS_4KB, pe) ) {
+        return mm;
+    }
+
+    peparse_assign_headers(pe, NULL, NULL, NULL, NULL, &oh32, NULL);
+
+    mm.major = oh32->major_os_version;
+    mm.minor = oh32->minor_os_version;
+
+    return mm;
+}
+
+static inline
 win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa)
 {
     // Examine the PE header to determine the version
@@ -684,6 +709,10 @@ find_windows_version_from_json_profile(vmi_instance_t vmi)
     // Let's see if we know the buildnumber
     windows->build = ntbuildnumber;
     windows->version = ntbuild2version(ntbuildnumber);
+
+    win_major_minor_t mm = pe2major_minor(vmi, windows->ntoskrnl);
+    windows->major = mm.major;
+    windows->minor = mm.minor;
 
     if (VMI_OS_WINDOWS_UNKNOWN == windows->version) {
 

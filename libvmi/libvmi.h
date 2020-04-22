@@ -122,6 +122,14 @@ typedef enum os {
     VMI_OS_FREEBSD   /**< OS type is FreeBSD */
 } os_t;
 
+typedef union {
+    uint32_t full_version;
+    struct {
+        uint16_t minor;
+        uint16_t major;
+    };
+} win_major_minor_t;
+
 /**
  * Windows version enumeration.
  */
@@ -2046,6 +2054,24 @@ win_ver_t vmi_get_winver(
  * @return Windows build number
  */
 uint16_t vmi_get_win_buildnumber(
+    vmi_instance_t vmi) NOEXCEPT;
+
+/**
+ * Get the major version number of Windows that LibVMI is currently accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Windows major version number
+ */
+uint16_t vmi_get_win_major_ver(
+    vmi_instance_t vmi) NOEXCEPT;
+
+/**
+ * Get the minor version number of Windows that LibVMI is currently accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return Windows minor version number
+ */
+uint16_t vmi_get_win_minor_ver(
     vmi_instance_t vmi) NOEXCEPT;
 
 /**

@@ -134,6 +134,84 @@ vmi_get_win_buildnumber(
 #endif
 }
 
+uint16_t
+vmi_get_win_major_ver(
+    vmi_instance_t vmi)
+{
+#ifndef ENABLE_WINDOWS
+    errprint("**LibVMI wasn't compiled with Windows support!\n");
+    return 0;
+#else
+
+#ifndef ENABLE_JSON_PROFILES
+    errprint("**LibVMI wasn't compiled with JSON profiles support!\n");
+    return 0;
+#endif
+
+    windows_instance_t windows_instance = NULL;
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return 0;
+
+    if (VMI_OS_WINDOWS != vmi->os_type)
+        return 0;
+
+    if (!vmi->os_data) {
+        return 0;
+    }
+
+    if (!json_profile(vmi)) {
+        errprint("** LibVMI wasn't initialized with JSON profile!\n");
+        return 0;
+    }
+#endif
+
+    windows_instance = vmi->os_data;
+
+    return windows_instance->major;
+#endif
+}
+
+uint16_t
+vmi_get_win_minor_ver(
+    vmi_instance_t vmi)
+{
+#ifndef ENABLE_WINDOWS
+    errprint("**LibVMI wasn't compiled with Windows support!\n");
+    return 0;
+#else
+
+#ifndef ENABLE_JSON_PROFILES
+    errprint("**LibVMI wasn't compiled with JSON profiles support!\n");
+    return 0;
+#endif
+
+    windows_instance_t windows_instance = NULL;
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return 0;
+
+    if (VMI_OS_WINDOWS != vmi->os_type)
+        return 0;
+
+    if (!vmi->os_data) {
+        return 0;
+    }
+
+    if (!json_profile(vmi)) {
+        errprint("** LibVMI wasn't initialized with JSON profile!\n");
+        return 0;
+    }
+#endif
+
+    windows_instance = vmi->os_data;
+
+    return windows_instance->minor;
+#endif
+}
+
 const char *
 vmi_get_winver_str(
     vmi_instance_t vmi)
