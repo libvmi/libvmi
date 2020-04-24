@@ -304,7 +304,16 @@ static int handshake_cb(
     (void)ctx;
     dbprint(VMI_DEBUG_KVM, "--KVMi handshake:\n");
     dbprint(VMI_DEBUG_KVM, "--    VM name: %s\n", qemu->name);
-
+    char start_date[64];
+    const char *format = "%H:%M:%S - %a %b %d %Y";
+    time_t starttime = (time_t) qemu->start_time;
+    struct tm *tm = NULL;
+    tm = localtime(&starttime);
+    if (strftime(start_date, sizeof(start_date), format, tm) <= 0) {
+        errprint("Failed to convert time to string\n");
+    } else {
+        dbprint(VMI_DEBUG_KVM, "--    VM start time: %s\n", start_date);
+    }
     return 0;
 }
 
