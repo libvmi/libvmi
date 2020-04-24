@@ -366,6 +366,21 @@ init_kvmi(
         return false;
     }
 
+    // query and display supported features
+    struct kvmi_features features = {0};
+    kvm->libkvmi.kvmi_spp_support(kvm->kvmi_dom, (bool*)&features.spp);
+    kvm->libkvmi.kvmi_vmfunc_support(kvm->kvmi_dom, (bool*)&features.vmfunc);
+    kvm->libkvmi.kvmi_eptp_support(kvm->kvmi_dom, (bool*)&features.eptp);
+    kvm->libkvmi.kvmi_ve_support(kvm->kvmi_dom, (bool*)&features.ve);
+
+    dbprint(VMI_DEBUG_KVM, "--KVMi features:\n");
+    // available in 2013 on Intel Haswell
+    dbprint(VMI_DEBUG_KVM, "--    VMFUNC: %s\n", features.vmfunc ? "Yes" : "No");
+    dbprint(VMI_DEBUG_KVM, "--    EPTP: %s\n", features.eptp ? "Yes" : "No");
+    dbprint(VMI_DEBUG_KVM, "--    VE: %s\n", features.ve ? "Yes" : "No");
+    // available in 2019 on Intel Ice Lake
+    dbprint(VMI_DEBUG_KVM, "--    SPP: %s\n", features.spp ? "Yes" : "No");
+
     return true;
 }
 
