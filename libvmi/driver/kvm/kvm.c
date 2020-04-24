@@ -300,10 +300,11 @@ static int handshake_cb(
     struct kvmi_introspector2qemu *intro,
     void *ctx)
 {
-    (void)qemu;
     (void)intro;
     (void)ctx;
-    dbprint(VMI_DEBUG_KVM, "--KVMi handshake\n");
+    dbprint(VMI_DEBUG_KVM, "--KVMi handshake:\n");
+    dbprint(VMI_DEBUG_KVM, "--    VM name: %s\n", qemu->name);
+
     return 0;
 }
 
