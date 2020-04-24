@@ -65,9 +65,6 @@ typedef struct {
     int (*kvmi_pause_all_vcpus)
     (void *dom, unsigned int count);
 
-    int (*kvmi_get_page_access)
-    (void *dom, unsigned long long int gpa, unsigned char *access, unsigned short view);
-
     int (*kvmi_set_page_access)
     (void *dom, unsigned long long int *gpa, unsigned char *access, unsigned short count,
         unsigned short view);
