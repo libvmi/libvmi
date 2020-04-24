@@ -267,6 +267,8 @@ new_guest_cb(
     uuid_str[current_size] = '\0';
     // get fd
     int fd = kvm->libkvmi.kvmi_connection_fd(dom);
+    // remove unused variable if no debug
+    (void)fd;
 
     // get version
     unsigned int version = 0;
@@ -275,9 +277,10 @@ new_guest_cb(
         return 1;
     }
     // print infos
-    // silence unused variables if no debug
-    (void)fd;
-    dbprint(VMI_DEBUG_KVM, "--KVMi new guest - UUID: %s, FD: %d, protocol version: %d\n", uuid_str, fd, version);
+    dbprint(VMI_DEBUG_KVM, "--KVMi new guest:\n");
+    dbprint(VMI_DEBUG_KVM, "--    UUID: %s\n", uuid_str);
+    dbprint(VMI_DEBUG_KVM, "--    FD: %d\n", fd);
+    dbprint(VMI_DEBUG_KVM, "--    Protocol version: %u\n", version);
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
     /*
      * If kvmi_dom is not NULL it means this is a reconnection.
