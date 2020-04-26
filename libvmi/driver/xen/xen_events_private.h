@@ -82,6 +82,7 @@ typedef struct vm_event_compat {
         struct vm_event_mov_to_msr_3          mov_to_msr;
         struct vm_event_desc_access_3         desc_access;
         struct vm_event_singlestep            singlestep;
+        struct vm_event_fast_singlestep       fast_singlestep;
         struct vm_event_debug_6               software_breakpoint;
         struct vm_event_debug_6               debug_exception;
         struct vm_event_cpuid                 cpuid;
@@ -149,6 +150,7 @@ static const unsigned int event_response_conversion[] = {
     [VMI_EVENT_RESPONSE_SET_REGISTERS] = VM_EVENT_FLAG_SET_REGISTERS,
     [VMI_EVENT_RESPONSE_SET_EMUL_INSN] = VM_EVENT_FLAG_SET_EMUL_INSN_DATA,
     [VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT] = VM_EVENT_FLAG_GET_NEXT_INTERRUPT,
+    [VMI_EVENT_RESPONSE_NEXT_SLAT_ID] = VM_EVENT_FLAG_FAST_SINGLESTEP,
 };
 
 static inline status_t

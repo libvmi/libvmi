@@ -652,6 +652,9 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                             }
                         }
                         break;
+                    case VMI_EVENT_RESPONSE_NEXT_SLAT_ID:
+                        rsp->fast_singlestep.p2midx = event->next_slat_id;
+                        break;
                 };
 
                 rsp->flags |= event_response_conversion[er];
@@ -2720,6 +2723,9 @@ status_t process_requests_6(vmi_instance_t vmi, uint32_t *requests_processed)
 
         if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_INSN_DATA )
             memcpy(&rsp->data.emul.insn, &vmec.data.emul.insn, sizeof(rsp->data.emul.insn));
+
+        if ( rsp->flags & VM_EVENT_FLAG_FAST_SINGLESTEP )
+            rsp->u.fast_singlestep.p2midx = vmec.fast_singlestep.p2midx;
 
         if ( rsp->flags & VM_EVENT_FLAG_SET_REGISTERS ) {
 #if defined(ARM32) || defined(ARM64)
