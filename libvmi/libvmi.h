@@ -122,14 +122,6 @@ typedef enum os {
     VMI_OS_FREEBSD   /**< OS type is FreeBSD */
 } os_t;
 
-typedef union {
-    uint32_t full_version;
-    struct {
-        uint16_t minor;
-        uint16_t major;
-    };
-} win_major_minor_t;
-
 /**
  * Windows version enumeration.
  */
@@ -155,6 +147,13 @@ typedef enum win_ver {
 
     VMI_OS_WINDOWS_10,
 } win_ver_t;
+
+typedef struct {
+    win_ver_t version;
+    uint16_t buildnumber;
+    uint16_t major;
+    uint16_t minor;
+} win_build_info_t;
 
 typedef enum page_mode {
 
@@ -2038,6 +2037,16 @@ os_t vmi_get_ostype(
     vmi_instance_t vmi) NOEXCEPT;
 
 /**
+ * Get the version info of Windows that LibVMI is currently accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] info Pointer to structure to fill
+ * @return True if success. False otherwise
+ */
+bool vmi_get_windows_build_info(
+    vmi_instance_t vmi, win_build_info_t* info) NOEXCEPT;
+
+/**
  * Get the version of Windows that LibVMI is currently accessing.  This is the
  * simple Windows version - no service pack or patch level is provided.
  *
@@ -2054,24 +2063,6 @@ win_ver_t vmi_get_winver(
  * @return Windows build number
  */
 uint16_t vmi_get_win_buildnumber(
-    vmi_instance_t vmi) NOEXCEPT;
-
-/**
- * Get the major version number of Windows that LibVMI is currently accessing.
- *
- * @param[in] vmi LibVMI instance
- * @return Windows major version number
- */
-uint16_t vmi_get_win_major_ver(
-    vmi_instance_t vmi) NOEXCEPT;
-
-/**
- * Get the minor version number of Windows that LibVMI is currently accessing.
- *
- * @param[in] vmi LibVMI instance
- * @return Windows minor version number
- */
-uint16_t vmi_get_win_minor_ver(
     vmi_instance_t vmi) NOEXCEPT;
 
 /**
