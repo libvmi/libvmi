@@ -148,6 +148,13 @@ typedef enum win_ver {
     VMI_OS_WINDOWS_10,
 } win_ver_t;
 
+typedef struct {
+    win_ver_t version;
+    uint16_t buildnumber;
+    uint16_t major;
+    uint16_t minor;
+} win_build_info_t;
+
 typedef enum page_mode {
 
     VMI_PM_UNKNOWN, /**< page mode unknown */
@@ -2028,6 +2035,16 @@ uint8_t vmi_get_address_width(
  */
 os_t vmi_get_ostype(
     vmi_instance_t vmi) NOEXCEPT;
+
+/**
+ * Get the version info of Windows that LibVMI is currently accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] info Pointer to structure to fill
+ * @return True if success. False otherwise
+ */
+bool vmi_get_windows_build_info(
+    vmi_instance_t vmi, win_build_info_t* info) NOEXCEPT;
 
 /**
  * Get the version of Windows that LibVMI is currently accessing.  This is the

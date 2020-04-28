@@ -62,11 +62,13 @@ win_ver_t ntbuild2version(uint16_t ntbuildnumber)
 };
 
 static inline
-win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa)
+win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t* major, uint16_t* minor)
 {
+    // Clear in/out
+    *major = 0;
+    *minor = 0;
+
     // Examine the PE header to determine the version
-    uint16_t major_os_version = 0;
-    uint16_t minor_os_version = 0;
     uint16_t optional_header_type = 0;
     struct optional_header_pe32 *oh32 = NULL;
     struct optional_header_pe32plus *oh32plus = NULL;
@@ -84,24 +86,24 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa)
 
     switch (optional_header_type) {
         case IMAGE_PE32_MAGIC:
-            major_os_version=oh32->major_os_version;
-            minor_os_version=oh32->minor_os_version;
+            *major=oh32->major_linker_version;
+            *minor=oh32->minor_linker_version;
             break;
         case IMAGE_PE32_PLUS_MAGIC:
-            major_os_version=oh32plus->major_os_version;
-            minor_os_version=oh32plus->minor_os_version;
+            *major=oh32plus->major_linker_version;
+            *minor=oh32plus->minor_linker_version;
             break;
         default:
             return VMI_OS_WINDOWS_NONE;
     };
 
-    switch (major_os_version) {
+    switch (*major) {
         case 3:
         case 4:
             // This is Windows NT but it is not supported
             return VMI_OS_WINDOWS_NONE;
         case 5:
-            switch (minor_os_version) {
+            switch (*minor) {
                 case 0:
                     return VMI_OS_WINDOWS_2000;
                 case 1:
@@ -111,7 +113,7 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa)
             };
             break;
         case 6:
-            switch (minor_os_version) {
+            switch (*minor) {
                 case 0:
                     return VMI_OS_WINDOWS_VISTA;
                 case 1:
@@ -121,7 +123,7 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa)
             };
             break;
         case 10:
-            switch (minor_os_version) {
+            switch (*minor) {
                 case 0:
                     return VMI_OS_WINDOWS_10;
             };
@@ -688,7 +690,7 @@ find_windows_version_from_json_profile(vmi_instance_t vmi)
     if (VMI_OS_WINDOWS_UNKNOWN == windows->version) {
 
         // Let's check the PE header if the buildnumber is unknown
-        windows->version = pe2version(vmi, windows->ntoskrnl);
+        windows->version = pe2version(vmi, windows->ntoskrnl, &windows->major, &windows->minor);
 
         if (VMI_OS_WINDOWS_NONE == windows->version) {
             dbprint(VMI_DEBUG_MISC, "Failed to find a known version of Windows, "
