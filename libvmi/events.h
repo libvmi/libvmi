@@ -399,7 +399,7 @@ typedef struct {
 } cpuid_event_t;
 
 #define VMI_DESCRIPTOR_IDTR           1
-#define VMI_DESCRITPOR_GDTR           2
+#define VMI_DESCRIPTOR_GDTR           2
 #define VMI_DESCRIPTOR_LDTR           3
 #define VMI_DESCRIPTOR_TR             4
 
