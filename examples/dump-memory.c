@@ -31,8 +31,9 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <stdio.h>
+#include <limits.h>
 
-#define PAGE_SIZE 1 << 12
+#define PAGE_SIZE 1UL << 12
 
 int
 main(
@@ -46,20 +47,19 @@ main(
     char *filename = NULL;
     FILE *f = NULL;
     unsigned char memory[PAGE_SIZE];
-    unsigned char zeros[PAGE_SIZE];
 
-    memset(zeros, 0, PAGE_SIZE);
     addr_t address = 0;
     addr_t size = 0;
     vmi_mode_t mode;
     vmi_init_data_t *init_data = NULL;
     memory_map_t *memmap = NULL;
+    int status;
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
 
     /* this is the file name to write the memory image to */
-    filename = strndup(argv[2], 50);
+    filename = strndup(argv[2], PATH_MAX);
 
     if (VMI_FAILURE == vmi_get_access_mode(vmi, (void*)name, VMI_INIT_DOMAINNAME, NULL, &mode) )
         goto error_exit;
@@ -121,11 +121,10 @@ main(
                 goto error_exit;
             }
         } else {
-            /* memory not mapped, write zeros to maintain offset */
-            size_t written = fwrite(zeros, 1, PAGE_SIZE, f);
-
-            if (written != PAGE_SIZE) {
-                printf("failed to write zeros to file.\n");
+            /* memory not mapped, seek to maintain offset with sparse output */
+            status = fseek(f, PAGE_SIZE, SEEK_CUR);
+            if (status != 0) {
+                printf("failed to fseek PAGE_SIZE in file.\n");
                 goto error_exit;
             }
         }
