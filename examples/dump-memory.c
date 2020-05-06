@@ -32,8 +32,10 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <limits.h>
+#include <getopt.h>
 
 #define PAGE_SIZE 1UL << 12
+static int sparse_flag = 0;
 
 int
 main(
@@ -43,10 +45,19 @@ main(
     if ( argc != 3 )
         return 1;
 
+    char c;
+    const char* opts = "s";
+    const struct option long_opts[] = {
+        {"sparse", no_argument, &sparse_flag, 1},
+    };
+
     vmi_instance_t vmi = NULL;
     char *filename = NULL;
     FILE *f = NULL;
     unsigned char memory[PAGE_SIZE];
+    unsigned char zeros[PAGE_SIZE];
+
+    memset(zeros, 0, PAGE_SIZE);
 
     addr_t address = 0;
     addr_t size = 0;
@@ -54,6 +65,20 @@ main(
     vmi_init_data_t *init_data = NULL;
     memory_map_t *memmap = NULL;
     int status;
+    while (1) {
+        c = getopt_long (argc, argv, opts, long_opts, NULL);
+        if (c == -1) break;
+        switch (c) {
+            case 0: //long opt flag is set
+                break;
+            case 's':
+                sparse_flag = 1;
+                break;
+            case '?':
+            default:
+                return 2;
+        }
+    }
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
@@ -121,11 +146,22 @@ main(
                 goto error_exit;
             }
         } else {
-            /* memory not mapped, seek to maintain offset with sparse output */
-            status = fseek(f, PAGE_SIZE, SEEK_CUR);
-            if (status != 0) {
-                printf("failed to fseek PAGE_SIZE in file.\n");
-                goto error_exit;
+            /* memory not mapped */
+            if (sparse_flag) {
+                /* seek to maintain offset with sparse output */
+                status = fseek(f, PAGE_SIZE, SEEK_CUR);
+                if (status != 0) {
+                    printf("failed to fseek PAGE_SIZE in file.\n");
+                    goto error_exit;
+                }
+            } else {
+                /* write zeros to maintain offset */
+                size_t written = fwrite(zeros, 1, PAGE_SIZE, f);
+
+                if (written != PAGE_SIZE) {
+                    printf("failed to write zeros to file.\n");
+                    goto error_exit;
+                }
             }
         }
 
