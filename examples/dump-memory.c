@@ -37,7 +37,8 @@
 #define PAGE_SIZE 1UL << 12
 static int sparse_flag = 0;
 
-static inline void usage(const char *argv0) {
+static inline void usage(const char *argv0)
+{
     printf("Usage: %s [-s|--sparse] domain output_file\n", argv0);
 }
 
