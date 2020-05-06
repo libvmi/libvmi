@@ -37,13 +37,19 @@
 #define PAGE_SIZE 1UL << 12
 static int sparse_flag = 0;
 
+static inline void usage(const char *argv0) {
+    printf("Usage: %s [-s|--sparse] domain output_file\n", argv0);
+}
+
 int
 main(
     int argc,
     char **argv)
 {
-    if ( argc != 3 )
+    if ( argc != 3 ) {
+        usage(argv[0]);
         return 1;
+    }
 
     char c;
     const char* opts = "s";
@@ -76,6 +82,7 @@ main(
                 break;
             case '?':
             default:
+                usage(argv[0]);
                 return 2;
         }
     }
