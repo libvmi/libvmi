@@ -86,12 +86,12 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t* major, ui
 
     switch (optional_header_type) {
         case IMAGE_PE32_MAGIC:
-            *major=oh32->major_linker_version;
-            *minor=oh32->minor_linker_version;
+            *major=oh32->major_os_version;
+            *minor=oh32->minor_os_version;
             break;
         case IMAGE_PE32_PLUS_MAGIC:
-            *major=oh32plus->major_linker_version;
-            *minor=oh32plus->minor_linker_version;
+            *major=oh32plus->major_os_version;
+            *minor=oh32plus->minor_os_version;
             break;
         default:
             return VMI_OS_WINDOWS_NONE;
