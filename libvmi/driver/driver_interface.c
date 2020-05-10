@@ -78,7 +78,7 @@ status_t driver_init_mode(const char *name,
     }
 #endif
 #ifdef ENABLE_BAREFLANK
-    if (VMI_SUCCESS == bareflank_test(domainid, name)) {
+    if (VMI_SUCCESS == bareflank_test(domainid, name, init_flags, init_data)) {
         dbprint(VMI_DEBUG_DRIVER, "--found Bareflank\n");
         *mode = VMI_BAREFLANK;
         count++;

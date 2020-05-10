@@ -23,9 +23,12 @@
 #ifndef BAREFLANK_DRIVER_H
 #define BAREFLANK_DRIVER_H
 
-status_t bareflank_test(
-    uint64_t domainid,
-    const char *name);
+status_t
+bareflank_test(
+    uint64_t domid,
+    const char *name,
+    uint64_t init_flags,
+    void *init_data);
 status_t bareflank_init(
     vmi_instance_t vmi,
     uint32_t init_flags,

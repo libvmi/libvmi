@@ -365,7 +365,12 @@ status_t bareflank_resume_vm(
     return VMI_SUCCESS;
 }
 
-status_t bareflank_test(uint64_t UNUSED(domid), const char* UNUSED(name))
+status_t
+bareflank_test(
+    uint64_t UNUSED(domid),
+    const char *UNUSED(name),
+    uint64_t UNUSED(init_flags),
+    void *UNUSED(init_data))
 {
     uint64_t rax = 0, rbx = 0, rcx = 0, rdx = 0;
 
