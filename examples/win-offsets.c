@@ -32,12 +32,27 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <glib.h>
+#include <signal.h>
 
+vmi_instance_t vmi;
+GHashTable* config;
+
+void clean_up(void)
+{
+    vmi_resume_vm(vmi);
+    vmi_destroy(vmi);
+    if (config)
+        g_hash_table_destroy(config);
+}
+
+void sigint_handler()
+{
+    clean_up();
+    exit(1);
+}
 
 int main(int argc, char **argv)
 {
-    GHashTable* config = NULL;
-    vmi_instance_t vmi = NULL;
     vmi_mode_t mode;
     int rc = 1;
 
@@ -86,6 +101,8 @@ int main(int argc, char **argv)
         printf("Failed to pause VM\n");
         goto done;
     } // if
+
+    signal(SIGINT, sigint_handler);
 
     config = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
     if (!config) {
@@ -185,13 +202,6 @@ int main(int argc, char **argv)
 
     /* cleanup any memory associated with the LibVMI instance */
 done:
-    /* resume the vm */
-    vmi_resume_vm(vmi);
-
-    vmi_destroy(vmi);
-
-    if (config)
-        g_hash_table_destroy(config);
-
+    clean_up();
     return rc;
 }
