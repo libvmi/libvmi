@@ -29,8 +29,6 @@ set_package_properties(PkgConfig PROPERTIES
     TYPE REQUIRED
     PURPOSE "Find and configure multiple LibVMI dependencies")
 pkg_search_module(GLIB REQUIRED glib-2.0)
-# cleanup GLIB_LDFLAGS (remove -l prefix)
-string(REGEX REPLACE "-l" "" GLIB_LDFLAGS ${GLIB_LDFLAGS})
 
 include(DetectArchitecture)
 include(StaticAnalysis)

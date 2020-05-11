@@ -39,9 +39,7 @@ target_link_libraries(vmi_shared PRIVATE m)
 list(APPEND VMI_PUBLIC_DEPS m)
 # one libvmi_extra.h function returns a GSList*
 target_link_libraries(vmi_shared PUBLIC ${GLIB_LDFLAGS})
-# cleanup GLIB_LDFLAGS (remove -l prefix)
-string(REGEX REPLACE "-l" "" GLIB_LDFLAGS ${GLIB_LDFLAGS})
-list(APPEND VMI_PUBLIC_DEPS ${GLIB_LDFLAGS})
+list(APPEND VMI_PUBLIC_DEPS ${GLIB_LIBRARIES})
 set_target_properties(vmi_shared PROPERTIES OUTPUT_NAME "vmi")
 # set soname
 set_target_properties(vmi_shared PROPERTIES
