@@ -52,6 +52,8 @@ struct windows_instance {
     uint16_t major; /**< Windows major number */
 
     uint16_t minor; /**< Windows minor number */
+
+    unsigned long init_vcpu; /**< vCPU number used for initialization */
 };
 typedef struct windows_instance *windows_instance_t;
 

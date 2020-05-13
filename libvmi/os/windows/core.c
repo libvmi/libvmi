@@ -610,6 +610,11 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
         goto _done;
     }
 
+    if (strncmp(key, "win_init_vcpu", CONFIG_STR_LENGTH) == 0) {
+        windows_instance->init_vcpu = *(unsigned long *)value;
+        goto _done;
+    }
+
     if (strncmp(key, "kpgd", CONFIG_STR_LENGTH) == 0) {
         vmi->kpgd = *(addr_t *)value;
         goto _done;
@@ -714,17 +719,17 @@ static status_t kpcr_find1(vmi_instance_t vmi, windows_instance_t windows, reg_t
         return VMI_FAILURE;
 
     if ( kpcr_reg < kpcr_rva ) { // Zero offset seems ok. Maybe negative will work too? ;)
-        dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped,"
+        dbprint(VMI_DEBUG_MISC, "**vCPU %lu doesn't seem to have KiInitialPCR mapped,"
                 " (kpcr < kpcr_rva) (KiInitialPCR) can't init from JSON profile. Kpcr=0x%" PRIx64 "kpcr_rva=0x%" PRIx64 "\n",
-                kpcr_reg, kpcr_rva);
+                windows->init_vcpu, kpcr_reg, kpcr_rva);
         return VMI_FAILURE;
     }
 
     if (vmi->page_mode == VMI_PM_IA32E && kpcr_reg < 0xffff800000000000) { // We are in 64bit user mode, this is not KPCR
         dbprint(VMI_DEBUG_MISC, "**Error while init from JSON profile. Getting KPCR from user mode or just after syscall before 'swapgs'.\n");
-        dbprint(VMI_DEBUG_MISC, "**vCPU0 doesn't seem to have KiInitialPCR mapped,"
+        dbprint(VMI_DEBUG_MISC, "**vCPU %lu doesn't seem to have KiInitialPCR mapped,"
                 " can't init from JSON profile. Kpcr=0x%" PRIx64 ", kpcr_rva=0x%" PRIx64 "\n",
-                kpcr_reg, kpcr_rva);
+                windows->init_vcpu, kpcr_reg, kpcr_rva);
         return VMI_FAILURE;
     }
 
@@ -744,12 +749,12 @@ static status_t kpcr_find2(vmi_instance_t vmi, windows_instance_t windows)
     if ( VMI_FAILURE == json_profile_lookup(vmi, "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) )
         return VMI_FAILURE;
 
-    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &lstar, MSR_LSTAR, 0)) {
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &lstar, MSR_LSTAR, windows->init_vcpu)) {
         dbprint(VMI_DEBUG_MISC, "Error reading MSR_LSTAR\n");
         return VMI_FAILURE;
     }
 
-    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cstar, MSR_CSTAR, 0)) {
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cstar, MSR_CSTAR, windows->init_vcpu)) {
         dbprint(VMI_DEBUG_MISC, "Error reading MSR_CSTAR\n");
         return VMI_FAILURE;
     }
@@ -789,7 +794,7 @@ static status_t kpcr_find3(vmi_instance_t vmi, windows_instance_t windows)
 
     // Some Windows10+ JSON profiles don't have KiInitialPCR defined so we use the IDT route
     // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
-    if ( VMI_FAILURE == driver_get_vcpureg(vmi, &idt, IDTR_BASE, 0) )
+    if ( VMI_FAILURE == driver_get_vcpureg(vmi, &idt, IDTR_BASE, windows->init_vcpu) )
         return VMI_FAILURE;
     if ( VMI_FAILURE == vmi_read_16_va(vmi, idt, 0, &int0_low) )
         return VMI_FAILURE;
@@ -837,7 +842,7 @@ init_from_json_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
     if (kpcr_register_to_use) {
         reg_t kpcr_reg = 0;
         dbprint(VMI_DEBUG_MISC, "** Trying kpcr_register_to_use to get KPCR.\n");
-        if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr_reg, kpcr_register_to_use, 0)) {
+        if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr_reg, kpcr_register_to_use, windows->init_vcpu)) {
             dbprint(VMI_DEBUG_MISC, "** driver_get_vcpureg(..) failed.\n");
             goto done;
         }
@@ -1064,7 +1069,7 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
      * If the driver gets us a dtb, it will be used _only_ during the init phase,
      * and will be replaced by the real kpgd later. */
     if ( !vmi->kpgd ) {
-        if ( VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
+        if ( VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, windows->init_vcpu)) {
             if (VMI_FAILURE == get_kpgd_method2(vmi)) {
                 errprint("Could not get kpgd, will not be able to determine page mode\n");
                 goto done;

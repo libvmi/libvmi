@@ -57,6 +57,26 @@ GSList* vmi_get_va_pages(
 #include <json-c/json.h>
 
 /**
+ * Initialize kernel's JSON profile from particular config type.
+ * After this operation, it will be possible to use JSON-related functions,
+ * like vmi_get_kernel_json or vmi_get_struct_member_offset_from_json.
+ * However, it will be not possible to perform functions that interact
+ * with the physical memory unless paging is initialized.
+ * Moreover, to use functions that interact with the virual memory,
+ * it is also necessary to perform vmi_init_os.
+ * @param[in] vmi Instance
+ * @param[in] config_mode The type of OS configuration that is provided.
+ * @param[in] config Configuration is passed directly to LibVMI (ie. in a string
+ *                   or in a GHashTable) or NULL of global config file is used.
+ * @return os_t Type of the initialized OS, according to the provided config.
+ *              VMI_OS_UNKNOWN is returned on failure.
+ */
+os_t vmi_init_profile(
+    vmi_instance_t vmi,
+    vmi_config_t config_mode,
+    void *config) NOEXCEPT;
+
+/**
  * Retrieve the kernel's open json_object
  * @param[in] vmi Instance
  *
