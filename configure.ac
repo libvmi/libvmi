@@ -151,6 +151,14 @@ AC_ARG_ENABLE([safety-checks],
       [enable_safety_checks=yes])
 AM_CONDITIONAL([ENABLE_SAFETY_CHECKS], [test x"$enable_safety_checks" = "xyes"])
 
+AC_ARG_ENABLE([vmi-debug],
+      [AS_HELP_STRING([--enable-vmi-debug],
+         [Enable VMI debug prints when LIBVMI_DEBUG environment variable is set @<:@no@:>@])],
+      [enable_vmi_debug=$enableval],
+      [enable_vmi_debug=no])
+AM_CONDITIONAL([VMI_DEBUG], [test x"$enable_vmi_debug" = "xyes"])
+AM_CONDITIONAL([ENV_DEBUG], [test x"$enable_vmi_debug" = "xyes"])
+
 AC_ARG_ENABLE([examples],
       [AS_HELP_STRING([--disable-examples],
          [Disable building LibVMI examples @<:@yes@:>@])],
@@ -403,6 +411,12 @@ AM_CONDITIONAL([ENABLE_VOLATILITY_IST], [test x"$volatility_ist" = "xyes"])
 [if test x"$enable_safety_checks" = "xyes"]
 [then]
         AC_DEFINE([ENABLE_SAFETY_CHECKS], [1], [Enable API safety checks])
+[fi]
+
+[if test x"$enable_vmi_debug" = "xyes"]
+[then]
+        AC_DEFINE([VMI_DEBUG], [__VMI_DEBUG_ALL], [Enable LibVMI debug prints])
+        AC_DEFINE([ENV_DEBUG], [1], [Enable debug prints only when LIBVMI_DEBUG environment variable is set])
 [fi]
 
 dnl -----------------------------------------------
