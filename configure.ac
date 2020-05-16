@@ -416,7 +416,7 @@ AM_CONDITIONAL([ENABLE_VOLATILITY_IST], [test x"$volatility_ist" = "xyes"])
 [if test x"$enable_vmi_debug" = "xyes"]
 [then]
         AC_DEFINE([VMI_DEBUG], [__VMI_DEBUG_ALL], [Enable LibVMI debug prints])
-	AC_DEFINE([ENV_DEBUG], [1], [Enable debug prints only when LIBVMI_DEBUG environment variable is set])
+        AC_DEFINE([ENV_DEBUG], [1], [Enable debug prints only when LIBVMI_DEBUG environment variable is set])
 [fi]
 
 dnl -----------------------------------------------
