@@ -112,11 +112,9 @@ int main(int argc, char **argv)
                 break;
             case 's':
                 sparse_flag = 1;
-                printf("found sparse flag!");
                 break;
             case 'p':
                 progress_flag = 1;
-                printf("found progress flag!");
                 break;
             case 'h':
             default:
