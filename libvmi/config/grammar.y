@@ -270,7 +270,6 @@ int vmi_parse_config (const char *target_name)
 %token<str>    WIN_KDBG
 %token<str>    WIN_KPCR
 %token<str>    WIN_SYSPROC
-%token<str>    WIN_INIT_VCPU
 %token<str>    FREEBSD_NAME
 %token<str>    FREEBSD_PID
 %token<str>    FREEBSD_VMSPACE
@@ -356,8 +355,6 @@ assignment:
         win_kpcr_assignment
         |
         win_sysproc_assignment
-        |
-        win_init_vcpu_assignment
         |
         freebsd_name_assignment
         |
@@ -569,17 +566,6 @@ win_sysproc_assignment:
         {
             uint64_t tmp = strtoull($3, NULL, 0);
             uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
-            (*tmp_ptr) = tmp;
-            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
-            free($3);
-        }
-        ;
-
-win_init_vcpu_assignment:
-        WIN_INIT_VCPU EQUALS NUM
-        {
-            unsigned long tmp = strtoull($3, NULL, 0);
-            unsigned long *tmp_ptr = malloc(sizeof(unsigned long));
             (*tmp_ptr) = tmp;
             g_hash_table_insert(tmp_entry, $1, tmp_ptr);
             free($3);

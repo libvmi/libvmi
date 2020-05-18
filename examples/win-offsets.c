@@ -47,7 +47,7 @@ GHashTable* config;
 vmi_event_t cr3_event;
 
 int find_pid4_success = 0;
-unsigned long found_vcpu_id;
+uint64_t found_cr3;
 
 addr_t offset_kpcr_prcb;
 addr_t offset_kprcb_currentthread;
@@ -151,9 +151,9 @@ event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t *event)
         goto failed;
     }
 
-    dp("Stopped inside system process, VCPU %lu\n", event->vcpu_id);
+    dp("Stopped inside system process, VCPU %lu, CR3=%llx\n", event->vcpu_id, event->reg_event.value);
     find_pid4_success = 1;
-    found_vcpu_id = event->vcpu_id;
+    found_cr3 = event->reg_event.value;
 
     /*
      * Remove CR3 event and leave the VM paused inside System process,
@@ -337,9 +337,9 @@ int main(int argc, char **argv)
     if ( vmi_are_events_pending(vmi) > 0 )
         vmi_events_listen(vmi, 0);
 
-    unsigned long *val_vcpu_id = (unsigned long*)g_malloc(sizeof(unsigned long));
-    *val_vcpu_id = found_vcpu_id;
-    g_hash_table_insert(config, g_strdup("win_init_vcpu"), val_vcpu_id);
+    uint64_t *val_cr3 = (uint64_t*)g_malloc(sizeof(uint64_t));
+    *val_cr3 = found_cr3;
+    g_hash_table_insert(config, g_strdup("kpgd"), val_cr3);
 
     // the vm is already paused if we've got here
     os = vmi_init_os(vmi, VMI_CONFIG_GHASHTABLE, config, NULL);
