@@ -82,7 +82,7 @@ void sigint_handler()
 
 event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    dp("CR#: %llx, VCPU: %lu\n", event->reg_event.value, event->vcpu_id);
+    dp("CR#: %llx, VCPU: %u\n", event->reg_event.value, event->vcpu_id);
 
     if (find_pid4_success) {
         dp("Skip callback as we already found System process\n");
@@ -151,7 +151,7 @@ event_response_t cr3_cb(vmi_instance_t vmi, vmi_event_t *event)
         goto failed;
     }
 
-    dp("Stopped inside system process, VCPU %lu, CR3=%llx\n", event->vcpu_id, event->reg_event.value);
+    dp("Stopped inside system process, VCPU %u, CR3=%llx\n", event->vcpu_id, event->reg_event.value);
     find_pid4_success = 1;
     found_cr3 = event->reg_event.value;
 
