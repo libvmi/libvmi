@@ -137,7 +137,7 @@ int main (int argc, char **argv)
     }
     // clean event ring
     if (VMI_FAILURE == vmi_events_listen(vmi, 0)) {
-        fprintf(stderr, "Failed to pause VM\n");
+        fprintf(stderr, "Failed to listen on VM events\n");
         goto error_exit;
     }
 
