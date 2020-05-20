@@ -62,6 +62,10 @@ typedef struct {
     int (*kvmi_control_msr)
     (void *dom, unsigned short vcpu, unsigned int msr, bool enable);
 
+    // singlestep only in KVMi-v7
+    int (*kvmi_control_singlestep)
+    (void *dom, unsigned short vcpu, bool enable);
+
     int (*kvmi_pause_all_vcpus)
     (void *dom, unsigned int count);
 

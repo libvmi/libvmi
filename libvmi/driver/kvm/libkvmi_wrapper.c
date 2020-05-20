@@ -24,13 +24,12 @@
 
 static status_t sanity_check(kvm_instance_t *kvm)
 {
-    libkvmi_wrapper_t *w =
-        &kvm->libkvmi;
+    libkvmi_wrapper_t *w = &kvm->libkvmi;
 
     if ( !w->kvmi_init_unix_socket || !w->kvmi_uninit || !w->kvmi_close ||
             !w->kvmi_domain_close || !w->kvmi_connection_fd ||
             !w->kvmi_get_version || !w->kvmi_control_events ||
-            !w->kvmi_control_vm_events || !w->kvmi_control_cr ||
+            !w->kvmi_control_vm_events || !w->kvmi_control_cr || !w->kvmi_control_singlestep ||
             !w->kvmi_control_msr || !w->kvmi_pause_all_vcpus ||
             !w->kvmi_set_page_access || !w->kvmi_get_tsc_speed ||
             !w->kvmi_get_vcpu_count || !w->kvmi_inject_exception ||
@@ -69,6 +68,7 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
     wrapper->kvmi_control_vm_events = dlsym(wrapper->handle, "kvmi_control_vm_events");
     wrapper->kvmi_control_cr = dlsym(wrapper->handle, "kvmi_control_cr");
     wrapper->kvmi_control_msr = dlsym(wrapper->handle, "kvmi_control_msr");
+    wrapper->kvmi_control_singlestep = dlsym(wrapper->handle, "kvmi_control_singlestep");
     wrapper->kvmi_pause_all_vcpus = dlsym(wrapper->handle, "kvmi_pause_all_vcpus");
     wrapper->kvmi_set_page_access = dlsym(wrapper->handle, "kvmi_set_page_access");
     wrapper->kvmi_get_tsc_speed = dlsym(wrapper->handle, "kvmi_get_tsc_speed");
