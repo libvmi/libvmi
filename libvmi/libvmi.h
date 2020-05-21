@@ -810,7 +810,7 @@ status_t vmi_init_complete(
     void *config,
     vmi_init_error_t *error) NOEXCEPT;
 
-/*
+/**
  * Initialize or reinitialize the paging specific functionality of LibVMI
  * required for virtual-to-physical translation.
  *
@@ -826,7 +826,7 @@ page_mode_t vmi_init_paging(
     vmi_instance_t vmi,
     uint64_t flags) NOEXCEPT;
 
-/*
+/**
  * Initialize the OS specific functionality of LibVMI required for functions
  * such as vmi_*_ksym. If the user hasn't called vmi_init_paging yet, this
  * function will do that automatically.
