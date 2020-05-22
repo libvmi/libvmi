@@ -665,9 +665,11 @@ kvm_events_init(
 
     // enable interception of CR/MSR/PF for all VCPUs by default
     // since this has no performance cost
-    // the interception will trigger VM-Exists only when specific registers
-    // have been defined via kvmi_control_cr(), kvmi_control_msr(),
-    // or kvmi_set_page_access() for pagefault events
+    // the interception will trigger VM-Exists only when using these functions to specify what to intercept
+    //  CR:         kvmi_control_cr()
+    //  MSR:        kvmi_control_msr()
+    //  PF:         kvmi_set_page_access
+    //  singlestep: kvmi_control_singlestep()
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, true)) {
             errprint("--Failed to enable CR interception\n");
@@ -681,15 +683,21 @@ kvm_events_init(
             errprint("--Failed to enable page fault interception\n");
             goto err_exit;
         }
+
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, true)) {
+            errprint("--Failed to enable singlestep monitoring\n");
+            goto err_exit;
+        }
     }
 
     return VMI_SUCCESS;
 err_exit:
-    // disable CR/MSR/PF monitoring
+    // disable CR/MSR/PF/singlestep monitoring
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false);
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false);
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false);
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, false);
     }
     return VMI_FAILURE;
 }
@@ -747,7 +755,7 @@ kvm_events_destroy(
         kvm_set_desc_access_event(vmi, false);
     }
 
-    // disable CR/MSR/PF interception
+    // disable CR/MSR/PF/singlestep interception
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
             errprint("--Failed to disable CR interception\n");
@@ -755,6 +763,8 @@ kvm_events_destroy(
             errprint("--Failed to disable MSR interception\n");
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false))
             errprint("--Failed to disable PF interception\n");
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, false))
+            errprint("--Failed to disable singlestep monitoring\n");
     }
 
     // clean event queue
@@ -1160,10 +1170,6 @@ kvm_start_single_step(
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
             if ( CHECK_VCPU_SINGLESTEP(*event, vcpu) ) {
                 dbprint(VMI_DEBUG_KVM, "--Setting MTF flag on vcpu %" PRIu32 "\n", vcpu);
-                if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, true)) {
-                    errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
-                    goto rewind;
-                }
 
                 // toggle singlestepping
                 if (kvm->libkvmi.kvmi_control_singlestep(kvm->kvmi_dom, vcpu, true)) {
@@ -1203,10 +1209,6 @@ kvm_stop_single_step(
 #endif
 
     dbprint(VMI_DEBUG_KVM, "--Disable MTF flag on vcpu %" PRIu32 "\n", vcpu);
-    if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, false)) {
-        errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
-        return VMI_FAILURE;
-    }
 
     if (kvm->libkvmi.kvmi_control_singlestep(kvm->kvmi_dom, vcpu, false)) {
         errprint("%s: kvmi_control_singlestep failed: %s\n", __func__, strerror(errno));
