@@ -77,6 +77,10 @@ kvm_stop_single_step(
         uint32_t vcpu);
 
 status_t
+kvm_shutdown_single_step(
+    vmi_instance_t vmi);
+
+status_t
 kvm_get_next_event(
     kvm_instance_t *kvm,
     struct kvmi_dom_event **event,

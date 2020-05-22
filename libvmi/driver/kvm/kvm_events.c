@@ -608,9 +608,10 @@ process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     struct kvm_sregs *sregs = &kvmi_event->event.common.arch.sregs;
     kvmi_regs_to_libvmi(regs, sregs, libvmi_event->x86_regs);
 
-    // TODO
-    //      ss_event
-    // libvmi_event->ss_event
+    // TODO ss_event
+    // gfn
+    // offset
+    libvmi_event->ss_event.gla = libvmi_event->x86_regs->rip;
 
     // call user callback
     event_response_t response = call_event_callback(vmi, libvmi_event);
@@ -653,6 +654,7 @@ kvm_events_init(
     vmi->driver.set_desc_access_event_ptr = &kvm_set_desc_access_event;
     vmi->driver.start_single_step_ptr = &kvm_start_single_step;
     vmi->driver.stop_single_step_ptr = &kvm_stop_single_step;
+    vmi->driver.shutdown_single_step_ptr = &kvm_shutdown_single_step;
 
     // fill event dispatcher
     kvm->process_event[KVMI_EVENT_CR] = &process_register;
@@ -1215,5 +1217,25 @@ kvm_stop_single_step(
         return VMI_FAILURE;
     }
 
+    return VMI_SUCCESS;
+}
+
+status_t
+kvm_shutdown_single_step(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    dbprint(VMI_DEBUG_KVM, "--Shutting down single step\n");
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
+        if (kvm_stop_single_step(vmi, vcpu))
+            return VMI_FAILURE;
+
+    // disabling singlestep monitoring is done at driver destroy
     return VMI_SUCCESS;
 }
