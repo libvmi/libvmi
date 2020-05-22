@@ -521,6 +521,7 @@ kvm_destroy(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+    dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver\n");
 
     kvm_close_vmi(vmi, kvm);
 
