@@ -30,7 +30,7 @@
 
 void
 vmi_print_hex(
-    const char *data,
+    const unsigned char *data,
     unsigned long length)
 {
     unsigned long i, j, numrows, index;
@@ -84,7 +84,7 @@ vmi_print_hex_pa(
     addr_t paddr,
     size_t length)
 {
-    char *buf = safe_malloc(length);
+    unsigned char *buf = safe_malloc(length);
 
     if ( VMI_SUCCESS == vmi_read_pa(vmi, paddr, length, buf, NULL) )
         vmi_print_hex(buf, length);

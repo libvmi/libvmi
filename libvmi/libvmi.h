@@ -1900,7 +1900,7 @@ status_t vmi_write_addr_pa(
  * @param[in] length The length (in bytes) of data
  */
 void vmi_print_hex(
-    const char *data,
+    const unsigned char *data,
     unsigned long length) NOEXCEPT;
 
 /**
