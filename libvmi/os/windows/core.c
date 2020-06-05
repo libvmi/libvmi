@@ -738,11 +738,14 @@ static status_t kpcr_find2(vmi_instance_t vmi, windows_instance_t windows)
 {
     dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find2\n");
 
-    addr_t kisystemcall64shadow, kisystemcall32shadow;
+    addr_t kisystemcall64shadow, kisystemcall32shadow, ntbaseaddress, ntbaseaddress_chk;
     reg_t lstar, cstar;
+    int i;
 
-    if ( VMI_FAILURE == json_profile_lookup(vmi, "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) )
-        return VMI_FAILURE;
+    char *kisystemcall_syms[2][2] = {
+        { "KiSystemCall64Shadow", "KiSystemCall32Shadow" },
+        { "KiSystemCall64", "KiSystemCall32" },
+    };
 
     if (VMI_FAILURE == vmi_get_vcpureg(vmi, &lstar, MSR_LSTAR, 0)) {
         dbprint(VMI_DEBUG_MISC, "Error reading MSR_LSTAR\n");
@@ -754,13 +757,23 @@ static status_t kpcr_find2(vmi_instance_t vmi, windows_instance_t windows)
         return VMI_FAILURE;
     }
 
-    if (VMI_FAILURE == json_profile_lookup(vmi, "KiSystemCall32Shadow", NULL, &kisystemcall32shadow)) {
-        dbprint(VMI_DEBUG_MISC, "Error retrieving rva of KiSystemCall32Shadow\n");
-        return VMI_FAILURE;
-    }
+    for (i = 0; i < 2; i++) {
+        if ( VMI_FAILURE == json_profile_lookup(vmi, kisystemcall_syms[i][0], NULL, &kisystemcall64shadow) ) {
+            dbprint(VMI_DEBUG_MISC, "Error retrieving rva of %s\n", kisystemcall_syms[i][0]);
+            return VMI_FAILURE;
+        }
 
-    addr_t ntbaseaddress = lstar - kisystemcall64shadow;
-    addr_t ntbaseaddress_chk = cstar - kisystemcall32shadow;
+        if (VMI_FAILURE == json_profile_lookup(vmi, kisystemcall_syms[i][1], NULL, &kisystemcall32shadow)) {
+            dbprint(VMI_DEBUG_MISC, "Error retrieving rva of %s\n", kisystemcall_syms[i][1]);
+            return VMI_FAILURE;
+        }
+
+        ntbaseaddress = lstar - kisystemcall64shadow;
+        ntbaseaddress_chk = cstar - kisystemcall32shadow;
+
+        if (ntbaseaddress == ntbaseaddress_chk)
+            break;
+    }
 
     if (ntbaseaddress != ntbaseaddress_chk) {
         dbprint(VMI_DEBUG_MISC, "Error calculating NT base address\n");
@@ -771,6 +784,8 @@ static status_t kpcr_find2(vmi_instance_t vmi, windows_instance_t windows)
 
     if ( VMI_FAILURE == vmi_translate_kv2p(vmi, windows->ntoskrnl_va, &windows->ntoskrnl) )
         return VMI_FAILURE;
+
+    dbprint(VMI_DEBUG_MISC, "** Found ntoskrnl via %s method\n", kisystemcall_syms[i][0]);
 
     return VMI_SUCCESS;
 }
