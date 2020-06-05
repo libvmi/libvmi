@@ -303,6 +303,11 @@ memory_cache_insert(
     vmi_instance_t vmi,
     addr_t paddr)
 {
+
+#ifdef ENABLE_BAREFLANK
+    // TODO sanity check on e820 memory map
+#endif
+
     if (paddr == vmi->last_used_page_key && vmi->last_used_page) {
         return vmi->last_used_page;
     } else {

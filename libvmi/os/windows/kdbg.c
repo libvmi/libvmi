@@ -1198,9 +1198,33 @@ find_kdbg:
     if (VMI_SUCCESS == find_kdbg_address_instant(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
         goto found;
     }
+
+#ifdef ENABLE_BAREFLANK
+    // Note:
+    //
+    // Accessing the host memory with Bareflank is unsafe unless an E820 memory
+    // map is given. Without a memory map, we need to disable all memory sweep
+    // algorithms to prevent a BSoD on the host.
+
+#ifdef ENABLE_PAGE_CACHE
+    if (!vmi->memmap)
+#endif
+        dbprint(VMI_DEBUG_MISC, "**Unsafe to perform memory sweep algorithms with Bareflank.\n");
+
+#ifndef ENABLE_PAGE_CACHE
+    errprint("Please provide a valid profile for initialization to succeed.\n");
+    goto exit;
+#endif
+    if (!vmi->memmap) {
+        errprint("Please provide an e820 memory map or a valid profile.\n");
+        goto exit;
+    }
+#endif
+
     if (VMI_SUCCESS == find_kdbg_address_faster(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
         goto found;
     }
+
     if (VMI_SUCCESS == find_kdbg_address_fast(vmi, &kdbg_pa, &kernbase_pa, &kernbase_va)) {
         goto found;
     }
