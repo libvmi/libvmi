@@ -204,15 +204,11 @@ bareflank_get_memory(
 
     *(uint64_t*)space = 0;
 
-    dbprint(VMI_DEBUG_BAREFLANK, "Allocated remap memory at %p\n", space);
-
     if ( hcall_v2p((uint64_t)space, &original_pa, bareflank_get_instance(vmi)->domainid) ) {
         dbprint(VMI_DEBUG_BAREFLANK, "Failed to translate %p to physical address\n", space);
         free(space);
         return NULL;
     }
-
-    dbprint(VMI_DEBUG_BAREFLANK, "Remap memory is at %p -> 0x%lx\n", space, original_pa);
 
     if ( hcall_map_pa((uint64_t)space, pa, bareflank_get_instance(vmi)->domainid) ) {
         dbprint(VMI_DEBUG_BAREFLANK, "Failed to remap at 0x%lx\n", original_pa);
@@ -220,8 +216,8 @@ bareflank_get_memory(
         return NULL;
     }
 
-    dbprint(VMI_DEBUG_BAREFLANK, "Bareflank remapped 0x%lx to 0x%lx\n",
-            original_pa, pa);
+    dbprint(VMI_DEBUG_BAREFLANK, "Bareflank remapped GPA 0x%lx to 0x%lx for GVA %p\n",
+            original_pa, pa, space);
 
     g_hash_table_insert(bareflank_get_instance(vmi)->remaps,
                         g_memdup(&space, sizeof(void*)),
@@ -241,10 +237,8 @@ bareflank_release_memory(
 
     /* Reverse the EPT remapping */
     if ( pa ) {
-        dbprint(VMI_DEBUG_BAREFLANK, "Bareflank release & remap %p -> 0x%lx\n", memory, *pa);
-
         if ( hcall_map_pa((uint64_t)memory, *pa, bareflank_get_instance(vmi)->domainid) )
-            dbprint(VMI_DEBUG_BAREFLANK, "Bareflank remap failed\n");
+            dbprint(VMI_DEBUG_BAREFLANK, "Bareflank failed to remap back GPA 0x%p for GVA %ld\n", memory, *pa);
 
         g_hash_table_remove(bf->remaps, memory);
     }
