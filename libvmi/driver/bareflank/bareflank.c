@@ -68,7 +68,7 @@ static inline uint64_t parse_reg_value(const char *reg, json_object *root)
     // parse the json and get the value of the key
     json_object *return_obj = NULL;
     json_object_object_get_ex(root,reg,&return_obj);
-    return json_object_get_int64(return_obj);
+    return (uint64_t) json_object_get_uint64(return_obj);
 }
 
 static inline status_t getkeyfrom_json(json_object *root, reg_t reg, uint64_t *value)
@@ -146,7 +146,20 @@ static inline status_t getkeyfrom_json(json_object *root, reg_t reg, uint64_t *v
         case MSR_EFER:
             *value = parse_reg_value("MSR_EFER", root);
             break;
+        case GS_BASE:
+            *value = parse_reg_value("GS_BASE", root);
+            break;
+        case MSR_LSTAR:
+            *value = parse_reg_value("MSR_LSTAR", root);
+            break;
+        case MSR_CSTAR:
+            *value = parse_reg_value("MSR_CSTAR", root);
+            break;
+        case IDTR_BASE:
+            *value = parse_reg_value("IDTR_BASE", root);
+            break;
         default:
+            dbprint(VMI_DEBUG_BAREFLANK, "** Register not yet implemented id = %ld\n", reg);
             ret = VMI_FAILURE;
             break;
     }
@@ -178,7 +191,7 @@ void *
 bareflank_get_memory(
     vmi_instance_t vmi,
     addr_t pa,
-    uint32_t UNUSED(prot))
+    uint32_t UNUSED(length))
 {
     void *space = NULL;
     addr_t original_pa = 0;
