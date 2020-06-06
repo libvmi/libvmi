@@ -204,7 +204,7 @@ bareflank_get_memory(
 
     *(uint64_t*)space = 0;
 
-    if ( hcall_v2p((uint64_t)space, &original_pa, bareflank_get_instance(vmi)->domainid) ) {
+    if ( hcall_v2p((uint64_t)space, &original_pa, BF_DOMID_SELF) ) {
         dbprint(VMI_DEBUG_BAREFLANK, "Failed to translate %p to physical address\n", space);
         free(space);
         return NULL;
