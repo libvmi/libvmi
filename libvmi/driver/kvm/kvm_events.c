@@ -794,6 +794,18 @@ kvm_set_reg_access(
                     goto error_exit;
                 }
         }
+        // monitoring has been enabled
+        switch (event->reg) {
+            case CR0:
+                kvm->monitor_cr0_on = enabled;
+                break;
+            case CR3:
+                kvm->monitor_cr3_on = enabled;
+                break;
+            case CR4:
+                kvm->monitor_cr4_on = enabled;
+                break;
+        }
         dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on register %" PRIu64"\n",
                 (enabled ? "enabling" : "disabling"),
                 event->reg);
