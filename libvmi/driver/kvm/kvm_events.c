@@ -684,8 +684,10 @@ kvm_events_listen(
         // since they have to managed by vmi_resume_vm(), we simply store them
         // in the kvm_instance for later use by this function
         if (KVMI_EVENT_PAUSE_VCPU == ev_reason) {
-            uint16_t vcpu = event->event.common.vcpu;
 #ifdef ENABLE_SAFETY_CHECKS
+            uint16_t vcpu = event->event.common.vcpu;
+            // silence unused variable warnings if not asserts
+            (void)vcpu;
             assert(vcpu < vmi->num_vcpus);
 #endif
             kvm->pause_events_list[event->event.common.vcpu] = event;

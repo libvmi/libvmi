@@ -266,6 +266,7 @@ new_guest_cb(
     uuid_str[current_size] = '\0';
     // get fd
     int fd = kvm->libkvmi.kvmi_connection_fd(dom);
+
     // get version
     unsigned int version = 0;
     if (kvm->libkvmi.kvmi_get_version(dom, &version) != 0) {
@@ -273,6 +274,8 @@ new_guest_cb(
         return 1;
     }
     // print infos
+    // silence unused variables if no debug
+    (void)fd;
     dbprint(VMI_DEBUG_KVM, "--KVMi new guest - UUID: %s, FD: %d, protocol version: %d\n", uuid_str, fd, version);
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
     /*
@@ -307,6 +310,7 @@ log_cb(
     void *ctx)
 {
     (void)ctx;
+    (void)s;
     switch (level) {
         case KVMI_LOG_LEVEL_ERROR:
             dbprint(VMI_DEBUG_KVM, "--KVMi Error: %s\n", s);

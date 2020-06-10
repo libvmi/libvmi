@@ -73,6 +73,8 @@ int main (int argc, char **argv)
     vmi_instance_t vmi = {0};
     struct sigaction act = {0};
     vmi_init_data_t *init_data = NULL;
+    bool is_corrupted = false;
+    addr_t ntload_driver_entry_addr = 0;
     int retcode = 1;
 
     act.sa_handler = close_handler;
@@ -198,9 +200,8 @@ int main (int argc, char **argv)
 
     // corrupting pointer
     printf("Corrupting NtLoadDriver SSDT entry\n");
-    addr_t ntload_driver_entry_addr = ki_sv_table_addr + (addr_width * ntload_driver_index);
+    ntload_driver_entry_addr = ki_sv_table_addr + (addr_width * ntload_driver_index);
     addr_t corrupted_value = 0;
-    bool is_corrupted = false;
     if (VMI_FAILURE == vmi_write_addr_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
         fprintf(stderr, "Failed to corrupt NtLoadDriver SSDT entry\n");
         goto error_exit;
