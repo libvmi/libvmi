@@ -95,7 +95,6 @@ if WITH_XEN
                    libvmi/driver/xen/xen_events.h \
                    libvmi/driver/xen/xen_events_abi.h \
                    libvmi/driver/xen/xen_events_private.h \
-                   libvmi/driver/xen/msr-index.h \
                    libvmi/driver/xen/libxc_wrapper.c \
                    libvmi/driver/xen/libxc_wrapper.h \
                    libvmi/driver/xen/libxs_wrapper.c \
