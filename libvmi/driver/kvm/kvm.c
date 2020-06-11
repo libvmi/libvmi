@@ -54,6 +54,9 @@
 #include "driver/kvm/kvm_private.h"
 #include "driver/kvm/kvm_events.h"
 
+// 2 chars for each hex + 1 space + 1 \0
+#define UUID_HEX_STR_LEN (16 * 3 + 1)
+
 enum segment_type {
     SEGMENT_SELECTOR,
     SEGMENT_BASE,
@@ -246,10 +249,8 @@ new_guest_cb(
     }
 
     kvm_instance_t *kvm = ctx;
-    // 2 chars for hex + 1 space
-    unsigned int uuid_str_len = (sizeof(*uuid) * 3) + 1;
-    char uuid_str[uuid_str_len];
-    memset(uuid_str, 0, uuid_str_len);
+    char uuid_str[UUID_HEX_STR_LEN] = {0};
+    memset(uuid_str, 0, UUID_HEX_STR_LEN);
 
     // convert UUID hex to string
     unsigned int current_size = 0;
