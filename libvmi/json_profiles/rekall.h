@@ -35,6 +35,14 @@ rekall_profile_symbol_to_rva(
 
 const char* rekall_get_os_type(vmi_instance_t vmi);
 
+status_t
+rekall_profile_bitfield_offset_and_size(
+    json_object *json,
+    const char *symbol,
+    const char *subsymbol,
+    addr_t *rva,
+    size_t *start_bit,
+    size_t *end_bit);
 #else
 
 static inline status_t rekall_profile_symbol_to_rva(
@@ -43,6 +51,18 @@ static inline status_t rekall_profile_symbol_to_rva(
     const char *subsymbol,
     addr_t *rva,
     size_t *size)
+{
+    return VMI_FAILURE;
+}
+
+static inline status_t
+rekall_profile_bitfield_offset_and_size(
+    json_object *json,
+    const char *symbol,
+    const char *subsymbol,
+    addr_t *rva,
+    size_t *start_bit,
+    size_t *end_bit)
 {
     return VMI_FAILURE;
 }

@@ -46,8 +46,7 @@ main(
     vmi_instance_t vmi = {0};
     vmi_init_data_t *init_data = NULL;
     int retcode = 1;
-
-    char *memory = malloc(PAGE_SIZE);
+    unsigned char *memory = malloc(PAGE_SIZE);
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];

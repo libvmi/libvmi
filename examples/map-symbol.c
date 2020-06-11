@@ -38,15 +38,16 @@ main(
     int argc,
     char **argv)
 {
+    int retcode = 1;
     if ( argc < 3 ) {
         fprintf(stderr, "Usage: %s <name of VM> <symbol> [<socket>]\n", argv[0]);
-        return 1;
+        return retcode;
     }
 
     vmi_instance_t vmi = {0};
     vmi_init_data_t *init_data = NULL;
-    char *memory = malloc(PAGE_SIZE);
-    int retcode = 1;
+    unsigned char *memory = malloc(PAGE_SIZE);
+
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];

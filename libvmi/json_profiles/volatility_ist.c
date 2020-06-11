@@ -118,3 +118,67 @@ const char *volatility_get_os_type(vmi_instance_t vmi)
 
     return "Linux";
 }
+
+status_t
+volatility_profile_bitfield_offset_and_size(
+    json_object *json,
+    const char *symbol,
+    const char *subsymbol,
+    addr_t *rva,
+    size_t *start_bit,
+    size_t *end_bit)
+{
+    status_t ret = VMI_FAILURE;
+    if (!json || !symbol) {
+        return ret;
+    }
+
+    json_object *user_types = NULL, *jstruct = NULL, *fields = NULL, *type = NULL, *jmember = NULL, *jvalue = NULL;
+    if (!json_object_object_get_ex(json, "user_types", &user_types)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility profile: no user_types section found\n");
+        goto exit;
+    }
+    if (!json_object_object_get_ex(user_types, symbol, &jstruct)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility profile: no %s found\n", symbol);
+        goto exit;
+    }
+    if (!json_object_object_get_ex(jstruct, "fields", &fields)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility profile: no fields found\n");
+        goto exit;
+    }
+    if (!json_object_object_get_ex(fields, subsymbol, &jmember)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility profile: %s has no %s member\n", symbol, subsymbol);
+        goto exit;
+    }
+    if (!json_object_object_get_ex(jmember, "offset", &jvalue)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: %s.%s has no offset defined\n", symbol, subsymbol);
+        goto exit;
+    }
+
+    *rva = json_object_get_int64(jvalue);
+
+    if (!json_object_object_get_ex(jmember, "type", &type)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility profile: no type found\n");
+        goto exit;
+    }
+
+    if (!json_object_object_get_ex(type, "bit_position", &jvalue)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility profile: %s.%s has no member bit_position\n", symbol, subsymbol);
+        goto exit;
+    }
+    *start_bit = json_object_get_int64(jvalue);
+
+    if (!json_object_object_get_ex(type, "bit_length", &jvalue)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility profile: %s.%s has no member bit_length\n", symbol, subsymbol);
+        goto exit;
+    }
+    size_t bit_length = json_object_get_int64(jvalue);
+    *end_bit = *start_bit + bit_length;
+
+    ret = VMI_SUCCESS;
+
+exit:
+    dbprint(VMI_DEBUG_MISC, "Volatility profile lookup %s %s: offset 0x%lx, start bit %ld, end bit %ld\n", symbol ?: NULL, subsymbol ?: NULL, *rva, *start_bit, *end_bit);
+
+    return ret;
+}

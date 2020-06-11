@@ -41,6 +41,7 @@ c_sources = \
 
 if ENABLE_ADDRESS_CACHE
     c_sources   += libvmi/cache.c
+    c_sources   += libvmi/cache.h
 endif
 
 if ENABLE_JSON_PROFILES
@@ -77,6 +78,7 @@ if WITH_KVM_LEGACY
 else
     drivers += libvmi/driver/kvm/kvm.c \
                libvmi/driver/kvm/kvm_events.c \
+               libvmi/driver/kvm/kvm_events.h \
                libvmi/driver/kvm/libkvmi_wrapper.c \
                libvmi/driver/kvm/libkvmi_wrapper.h
 
@@ -92,6 +94,7 @@ if WITH_XEN
                    libvmi/driver/xen/xen.c \
                    libvmi/driver/xen/xen_events.c \
                    libvmi/driver/xen/xen_events.h \
+                   libvmi/driver/xen/xen_events_abi.h \
                    libvmi/driver/xen/xen_events_private.h \
                    libvmi/driver/xen/libxc_wrapper.c \
                    libvmi/driver/xen/libxc_wrapper.h \

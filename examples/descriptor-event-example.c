@@ -45,9 +45,9 @@ event_response_t desc_cb(
             desc_str = "IDTR";
             stats[VMI_DESCRIPTOR_IDTR] += 1;
             break;
-        case VMI_DESCRITPOR_GDTR:
+        case VMI_DESCRIPTOR_GDTR:
             desc_str = "GDTR";
-            stats[VMI_DESCRITPOR_GDTR] += 1;
+            stats[VMI_DESCRIPTOR_GDTR] += 1;
             break;
         case VMI_DESCRIPTOR_LDTR:
             desc_str = "LDTR";
@@ -149,7 +149,7 @@ int main (int argc, char **argv)
     // display stats
     printf("Statistics:\n");
     printf("\tIDTR access: %d\n", stats[VMI_DESCRIPTOR_IDTR]);
-    printf("\tGDTR access: %d\n", stats[VMI_DESCRITPOR_GDTR]);
+    printf("\tGDTR access: %d\n", stats[VMI_DESCRIPTOR_GDTR]);
     printf("\tLDTR access: %d\n", stats[VMI_DESCRIPTOR_LDTR]);
     printf("\tTR access: %d\n", stats[VMI_DESCRIPTOR_TR]);
 

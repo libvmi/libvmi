@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <iconv.h>  // conversion between character sets
+#include <glib.h>
 
 #include "private.h"
 
@@ -235,4 +236,14 @@ vmi_free_unicode_str(
         free(p_us->contents);
     memset((void *) p_us, 0, sizeof(*p_us));
     free(p_us);
+}
+
+void free_gint(gpointer p)
+{
+    g_slice_free(gint, p);
+}
+
+void free_gint64(gpointer p)
+{
+    g_slice_free(gint64, p);
 }

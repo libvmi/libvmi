@@ -35,6 +35,15 @@ volatility_ist_symbol_to_rva(
 
 const char* volatility_get_os_type(vmi_instance_t vmi);
 
+status_t
+volatility_profile_bitfield_offset_and_size(
+    json_object *json,
+    const char *symbol,
+    const char *subsymbol,
+    addr_t *rva,
+    size_t *start_bit,
+    size_t *end_bit);
+
 #else
 
 static inline status_t volatility_ist_symbol_to_rva(
@@ -49,6 +58,18 @@ static inline status_t volatility_ist_symbol_to_rva(
 static inline const char* volatility_get_os_type(vmi_instance_t vmi)
 {
     return NULL;
+}
+
+static inline status_t
+volatility_profile_bitfield_offset_and_size(
+    __attribute__((__unused__)) json_object *json,
+    __attribute__((__unused__)) const char *symbol,
+    __attribute__((__unused__)) const char *subsymbol,
+    __attribute__((__unused__)) addr_t *rva,
+    __attribute__((__unused__)) size_t *start_bit,
+    __attribute__((__unused__)) size_t *end_bit)
+{
+    return VMI_FAILURE;
 }
 
 #endif

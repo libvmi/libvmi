@@ -57,6 +57,26 @@ GSList* vmi_get_va_pages(
 #include <json-c/json.h>
 
 /**
+ * Initialize kernel's JSON profile from particular config type.
+ * After this operation, it will be possible to use JSON-related functions,
+ * like vmi_get_kernel_json or vmi_get_struct_member_offset_from_json.
+ * However, it will be not possible to perform functions that interact
+ * with the physical memory unless paging is initialized.
+ * Moreover, to use functions that interact with the virual memory,
+ * it is also necessary to perform vmi_init_os.
+ * @param[in] vmi Instance
+ * @param[in] config_mode The type of OS configuration that is provided.
+ * @param[in] config Configuration is passed directly to LibVMI (ie. in a string
+ *                   or in a GHashTable) or NULL of global config file is used.
+ * @return os_t Type of the initialized OS, according to the provided config.
+ *              VMI_OS_UNKNOWN is returned on failure.
+ */
+os_t vmi_init_profile(
+    vmi_instance_t vmi,
+    vmi_config_t config_mode,
+    void *config) NOEXCEPT;
+
+/**
  * Retrieve the kernel's open json_object
  * @param[in] vmi Instance
  *
@@ -101,7 +121,7 @@ status_t vmi_get_struct_size_from_json(
  * @param[in] json The open json_object* to use
  * @param[in] struct_name The structure's name
  * @param[in] struct_member The structure's member
- * @param[out] offset THe structure member's offset
+ * @param[out] offset The structure member's offset
  *
  * @return VMI_SUCCESS or VMI_FAILURE
  */
@@ -111,6 +131,24 @@ status_t vmi_get_struct_member_offset_from_json(
     const char* struct_name,
     const char* struct_member,
     addr_t* offset) NOEXCEPT;
+
+/**
+ * Look up the provided symbol's address and bit position from the json
+ * @param[in] vmi Instance
+ * @param[in] json The open json_object* to use
+ * @param[in] struct_name The structure's name
+ * @param[in] struct_member The structure's member
+ * @param[out] offset The structure member's offset
+ * @param[out] start_bit The structure member's start bit offset
+ * @param[out] end_bit The structure member's end bit offset
+ *
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_get_bitfield_offset_and_size_from_json(vmi_instance_t vmi, json_object *json,
+        const char *struct_name,
+        const char *struct_member,
+        addr_t *offset, size_t *start_bit,
+        size_t *end_bit);
 #endif
 
 #pragma GCC visibility pop
