@@ -78,6 +78,7 @@ if WITH_KVM_LEGACY
 else
     drivers += libvmi/driver/kvm/kvm.c \
                libvmi/driver/kvm/kvm_events.c \
+               libvmi/driver/kvm/kvm_events.h \
                libvmi/driver/kvm/libkvmi_wrapper.c \
                libvmi/driver/kvm/libkvmi_wrapper.h
 
