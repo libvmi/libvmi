@@ -23,70 +23,80 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <assert.h>
+
 #include "private.h"
 #include "msr-index.h"
+#include "kvm.h"
 #include "kvm_events.h"
 #include "kvm_private.h"
 
+// helper struct for process_cb_response_emulate to avoid ugly
+// pointer arithmetic to find back pf field in process_cb_response_emulate()
+struct kvm_event_pf_reply_packet {
+    struct kvmi_vcpu_hdr hdr;
+    struct kvmi_event_reply common;
+    struct kvmi_event_pf_reply pf;
+};
+
+
 /*
- * Helpers
+ * handle emulation related event response.
+ * since only memory events support this feature, we can't
+ * handle it in the common function
  */
-static void
-fill_ev_common_kvmi_to_libvmi(
-    struct kvmi_dom_event *kvmi_event,
-    vmi_event_t *libvmi_event)
+static status_t
+process_cb_response_emulate(
+    vmi_instance_t vmi,
+    event_response_t response,
+    vmi_event_t *libvmi_event,
+    struct kvm_event_pf_reply_packet* rpl)
 {
-    //      standard regs
-    libvmi_event->x86_regs->rax = kvmi_event->event.common.arch.regs.rax;
-    libvmi_event->x86_regs->rbx = kvmi_event->event.common.arch.regs.rbx;
-    libvmi_event->x86_regs->rcx = kvmi_event->event.common.arch.regs.rcx;
-    libvmi_event->x86_regs->rdx = kvmi_event->event.common.arch.regs.rdx;
-    libvmi_event->x86_regs->rsi = kvmi_event->event.common.arch.regs.rsi;
-    libvmi_event->x86_regs->rdi = kvmi_event->event.common.arch.regs.rdi;
-    libvmi_event->x86_regs->rip = kvmi_event->event.common.arch.regs.rip;
-    libvmi_event->x86_regs->rsp = kvmi_event->event.common.arch.regs.rsp;
-    libvmi_event->x86_regs->rbp = kvmi_event->event.common.arch.regs.rbp;
-    libvmi_event->x86_regs->rflags = kvmi_event->event.common.arch.regs.rflags;
-    libvmi_event->x86_regs->r8 = kvmi_event->event.common.arch.regs.r8;
-    libvmi_event->x86_regs->r9 = kvmi_event->event.common.arch.regs.r9;
-    libvmi_event->x86_regs->r10 = kvmi_event->event.common.arch.regs.r10;
-    libvmi_event->x86_regs->r11 = kvmi_event->event.common.arch.regs.r11;
-    libvmi_event->x86_regs->r12 = kvmi_event->event.common.arch.regs.r12;
-    libvmi_event->x86_regs->r13 = kvmi_event->event.common.arch.regs.r13;
-    libvmi_event->x86_regs->r14 = kvmi_event->event.common.arch.regs.r14;
-    libvmi_event->x86_regs->r15 = kvmi_event->event.common.arch.regs.r15;
-    //      special regs
-    //          Control Registers
-    libvmi_event->x86_regs->cr0 = kvmi_event->event.common.arch.sregs.cr0;
-    libvmi_event->x86_regs->cr2 = kvmi_event->event.common.arch.sregs.cr2;
-    libvmi_event->x86_regs->cr3 = kvmi_event->event.common.arch.sregs.cr3;
-    libvmi_event->x86_regs->cr4 = kvmi_event->event.common.arch.sregs.cr4;
-    //          CS
-    libvmi_event->x86_regs->cs_base = kvmi_event->event.common.arch.sregs.cs.base;
-    libvmi_event->x86_regs->cs_limit = kvmi_event->event.common.arch.sregs.cs.limit;
-    libvmi_event->x86_regs->cs_sel = kvmi_event->event.common.arch.sregs.cs.selector;
-    //          DS
-    libvmi_event->x86_regs->ds_base = kvmi_event->event.common.arch.sregs.ds.base;
-    libvmi_event->x86_regs->ds_limit = kvmi_event->event.common.arch.sregs.ds.limit;
-    libvmi_event->x86_regs->ds_sel = kvmi_event->event.common.arch.sregs.ds.selector;
-    //          SS
-    libvmi_event->x86_regs->ss_base = kvmi_event->event.common.arch.sregs.ss.base;
-    libvmi_event->x86_regs->ss_limit = kvmi_event->event.common.arch.sregs.ss.limit;
-    libvmi_event->x86_regs->ss_sel = kvmi_event->event.common.arch.sregs.ss.selector;
-    //          ES
-    libvmi_event->x86_regs->es_base = kvmi_event->event.common.arch.sregs.es.base;
-    libvmi_event->x86_regs->es_limit = kvmi_event->event.common.arch.sregs.es.limit;
-    libvmi_event->x86_regs->es_sel = kvmi_event->event.common.arch.sregs.es.selector;
-    //          FS
-    libvmi_event->x86_regs->fs_base = kvmi_event->event.common.arch.sregs.fs.base;
-    libvmi_event->x86_regs->fs_limit = kvmi_event->event.common.arch.sregs.fs.limit;
-    libvmi_event->x86_regs->fs_sel = kvmi_event->event.common.arch.sregs.fs.selector;
-    //          GS
-    libvmi_event->x86_regs->gs_base = kvmi_event->event.common.arch.sregs.gs.base;
-    libvmi_event->x86_regs->gs_limit = kvmi_event->event.common.arch.sregs.gs.limit;
-    libvmi_event->x86_regs->gs_sel = kvmi_event->event.common.arch.sregs.gs.selector;
-    //      VCPU
-    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm or kvmi handles\n", __func__);
+        return VMI_FAILURE;
+    }
+    if (!libvmi_event || !rpl) {
+        errprint("%s: invalid libvmi/rpl handles\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    status_t status = VMI_SUCCESS;
+
+    // loop over all possible responses
+    // only handle emulation, since only memory event are capable of that
+    for (uint32_t i = VMI_EVENT_RESPONSE_NONE+1; i <=__VMI_EVENT_RESPONSE_MAX; i++) {
+        event_response_t candidate = 1u << i;
+        if (response & candidate) {
+            switch (candidate) {
+                case VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA:
+                    if (libvmi_event->emul_read) {
+                        if (libvmi_event->emul_read->size > sizeof(rpl->pf.ctx_data)) {
+                            errprint("%s: requested emulation buffer size too big (max: %ld)\n", __func__, sizeof(rpl->pf.ctx_data));
+                            status = VMI_FAILURE;
+                        } else {
+                            // set reply size
+                            rpl->pf.ctx_size = libvmi_event->emul_read->size;
+                            // set linear address
+                            // TODO: ARM support
+                            rpl->pf.ctx_addr = libvmi_event->x86_regs->rip;
+                            // copy libvmi buffer into kvm reply event
+                            memcpy(rpl->pf.ctx_data, libvmi_event->emul_read->data, libvmi_event->emul_read->size);
+                        }
+                        // free ?
+                        if (!libvmi_event->emul_read->dont_free) {
+                            free(libvmi_event->emul_read);
+                            libvmi_event->emul_read = NULL;
+                        }
+                    }
+                    break;
+            }
+        }
+    }
+
+    return status;
 }
 
 static status_t
@@ -109,30 +119,29 @@ process_cb_response(
         return VMI_FAILURE;
     }
 #endif
+
+    registers_t regs;
     // loop over all possible responses
     for (uint32_t i = VMI_EVENT_RESPONSE_NONE+1; i <=__VMI_EVENT_RESPONSE_MAX; i++) {
         event_response_t candidate = 1u << i;
+        // skip VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA which is handled only for mem_events
+        if (candidate == VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA)
+            continue;
         if (response & candidate) {
             switch (candidate) {
+                case VMI_EVENT_RESPONSE_SET_REGISTERS:
+                    regs.x86 = (*libvmi_event->x86_regs);
+                    if (VMI_FAILURE == kvm_set_vcpuregs(vmi, &regs, libvmi_event->vcpu_id)) {
+                        errprint("%s: KVM: failed to set registers in callback response\n", __func__);
+                        return VMI_FAILURE;
+                    }
+                    break;
                 default:
                     errprint("%s: KVM - unhandled event reponse %u\n", __func__, candidate);
                     break;
             }
         }
     }
-    // the rpl struct should be like this
-    //    struct {
-    //        struct kvmi_vcpu_hdr hdr;
-    //        struct kvmi_event_reply common;
-    //        // Event specific structs
-    //        ...
-    //    };
-    struct kvmi_vcpu_hdr *hdr = (struct kvmi_vcpu_hdr *)rpl;
-    hdr->vcpu = kvmi_event->event.common.vcpu;
-
-    struct kvmi_event_reply *common = (struct kvmi_event_reply *)( hdr + 1 );
-    common->event = kvmi_event->event.common.event;
-    common->action = KVMI_EVENT_ACTION_CONTINUE;
 
     if (kvm->libkvmi.kvmi_reply_event(kvm->kvmi_dom, kvmi_event->seq, rpl, rpl_size))
         return VMI_FAILURE;
@@ -195,7 +204,11 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     // fill libvmi_event struct
     x86_registers_t regs = {0};
     libvmi_event->x86_regs = &regs;
-    fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+
+    struct kvm_regs *kvmi_regs = &kvmi_event->event.common.arch.regs;
+    struct kvm_sregs *kvmi_sregs = &kvmi_event->event.common.arch.sregs;
+    kvmi_regs_to_libvmi(kvmi_regs, kvmi_sregs, libvmi_event->x86_regs);
+    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
 
     // fill specific CR fields
     // TODO: kvmi only handles write accesses for now
@@ -213,10 +226,13 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         struct kvmi_event_cr_reply cr;
     } rpl = {0};
 
+    // set reply action
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
 
-    // TODO: how can the callback specifiy a new value for the MSR ?
-    // libvmi_event.reg_event.xxx
-    rpl.cr.new_val = kvmi_event->event.cr.new_value;
+    // the reply value will override the existing one
+    rpl.cr.new_val = libvmi_event->reg_event.value;
 
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
@@ -264,13 +280,16 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     // fill libvmi_event struct
     x86_registers_t regs = {0};
     libvmi_event->x86_regs = &regs;
-    fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+    struct kvm_regs *kvmi_regs = &kvmi_event->event.common.arch.regs;
+    struct kvm_sregs *kvmi_sregs = &kvmi_event->event.common.arch.sregs;
+    kvmi_regs_to_libvmi(kvmi_regs, kvmi_sregs, libvmi_event->x86_regs);
+    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
 
     //      msr_event
+    // TODO: only handle write accesses for now
+    libvmi_event->reg_event.out_access = VMI_REGACCESS_W;
     libvmi_event->reg_event.value = kvmi_event->event.msr.new_value;
     libvmi_event->reg_event.previous = kvmi_event->event.msr.old_value;
-    // TODO
-    // libvmi_event->reg_event.out_access
 
     // call user callback
     event_response_t response = call_event_callback(vmi, libvmi_event);
@@ -282,12 +301,14 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         struct kvmi_event_msr_reply msr;
     } rpl = {0};
 
-    // TODO: how can the callback specifiy a new value for the MSR ?
-    // libvmi_event.reg_event.xxx
+    // set reply action
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
 
-    // the reply new value will be used anyway,
-    // write the new val from the kvmi event
-    rpl.msr.new_val = kvmi_event->event.msr.new_value;
+    // the reply value will override the existing one
+    rpl.msr.new_val = libvmi_event->reg_event.value;
+
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
@@ -313,10 +334,12 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     // fill libvmi_event struct
     x86_registers_t regs = {0};
     libvmi_event->x86_regs = &regs;
-    fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+    struct kvm_regs *kvmi_regs = &kvmi_event->event.common.arch.regs;
+    struct kvm_sregs *kvmi_sregs = &kvmi_event->event.common.arch.sregs;
+    kvmi_regs_to_libvmi(kvmi_regs, kvmi_sregs, libvmi_event->x86_regs);
+    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
 
     //      interrupt_event
-    // TODO: hardcoded PAGE_SHIFT
     libvmi_event->interrupt_event.gfn = kvmi_event->event.breakpoint.gpa >> vmi->page_shift;
     // TODO: vector and type
     // event->interrupt_event.vector =
@@ -336,6 +359,17 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         struct kvmi_event_reply common;
     } rpl = {0};
 
+    // set reply action
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    // default action is RETRY: KVM will re-enter the guest
+    rpl.common.action = KVMI_EVENT_ACTION_RETRY;
+
+    // action CONTINUE: KVM should handle the event as if
+    // the introspection tool did nothing (reinject int3)
+    if (libvmi_event->interrupt_event.reinject)
+        rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
@@ -354,19 +388,23 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     if (kvmi_event->event.page_fault.access & KVMI_PAGE_ACCESS_W) out_access |= VMI_MEMACCESS_W;
     if (kvmi_event->event.page_fault.access & KVMI_PAGE_ACCESS_X) out_access |= VMI_MEMACCESS_X;
 
+    // reply struct
+    struct kvm_event_pf_reply_packet rpl = {0};
+
     vmi_event_t *libvmi_event;
     addr_t gfn = kvmi_event->event.page_fault.gpa >> vmi->page_shift;
     // lookup vmi_event
     //      standard ?
     if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
-        // TODO: hardcoded page shift
-
         libvmi_event = g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
         if (libvmi_event && (libvmi_event->mem_event.in_access & out_access)) {
             // fill libvmi_event struct
             x86_registers_t regs = {0};
             libvmi_event->x86_regs = &regs;
-            fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+            struct kvm_regs *kvmi_regs = &kvmi_event->event.common.arch.regs;
+            struct kvm_sregs *kvmi_sregs = &kvmi_event->event.common.arch.sregs;
+            kvmi_regs_to_libvmi(kvmi_regs, kvmi_sregs, libvmi_event->x86_regs);
+            libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
             //      mem_event
             libvmi_event->mem_event.gfn = gfn;
             libvmi_event->mem_event.out_access = out_access;
@@ -379,12 +417,14 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
             // call user callback
             event_response_t response = call_event_callback(vmi, libvmi_event);
 
-            // reply struct
-            struct {
-                struct kvmi_vcpu_hdr hdr;
-                struct kvmi_event_reply common;
-                struct kvmi_event_pf_reply pf;
-            } rpl = {0};
+            // handle emulation reply requests
+            if (VMI_FAILURE == process_cb_response_emulate(vmi, response, libvmi_event, &rpl))
+                return VMI_FAILURE;
+
+            // set reply action
+            rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+            rpl.common.event = kvmi_event->event.common.event;
+            rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
 
             return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
         }
@@ -400,7 +440,9 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
                 // fill libvmi_event struct
                 x86_registers_t regs = {0};
                 libvmi_event->x86_regs = &regs;
-                fill_ev_common_kvmi_to_libvmi(kvmi_event, libvmi_event);
+                struct kvm_regs *kvmi_regs = &kvmi_event->event.common.arch.regs;
+                struct kvm_sregs *kvmi_sregs = &kvmi_event->event.common.arch.sregs;
+                kvmi_regs_to_libvmi(kvmi_regs, kvmi_sregs, libvmi_event->x86_regs);
                 //      mem_event
                 libvmi_event->mem_event.gfn = gfn;
                 libvmi_event->mem_event.out_access = out_access;
@@ -410,16 +452,17 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
                 // libvmi_event->mem_event.valid
                 // libvmi_event->mem_event.gptw
 
-
                 // call user callback
                 event_response_t response = call_event_callback(vmi, libvmi_event);
 
-                // struct reply
-                struct {
-                    struct kvmi_vcpu_hdr hdr;
-                    struct kvmi_event_reply common;
-                    struct kvmi_event_pf_reply pf;
-                } rpl = {0};
+                // handle emulation reply requests
+                if (VMI_FAILURE == process_cb_response_emulate(vmi, response, libvmi_event, &rpl))
+                    return VMI_FAILURE;
+
+                // set reply action
+                rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+                rpl.common.event = kvmi_event->event.common.event;
+                rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
 
                 if (VMI_FAILURE ==
                         process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl)))
@@ -435,6 +478,64 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     errprint("%s: Caught a memory event that had no handler registered in LibVMI @ GFN 0x%" PRIx64 " (0x%" PRIx64 "), access: %u\n",
              __func__, gfn, (addr_t)kvmi_event->event.page_fault.gpa, out_access);
     return VMI_FAILURE;
+}
+
+static status_t
+process_descriptor(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
+{
+    vmi_event_t *libvmi_event = vmi->descriptor_access_event;
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !kvmi_event || !libvmi_event) {
+        errprint("%s: invalid parameters\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Received descriptor event\n");
+
+    // assign VCPU id
+    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
+    // assign regs
+    x86_registers_t libvmi_regs = {0};
+    libvmi_event->x86_regs = &libvmi_regs;
+    struct kvm_regs *regs = &kvmi_event->event.common.arch.regs;
+    struct kvm_sregs *sregs = &kvmi_event->event.common.arch.sregs;
+    kvmi_regs_to_libvmi(regs, sregs, libvmi_event->x86_regs);
+    // event specific fields
+    switch (kvmi_event->event.desc.descriptor) {
+        case KVMI_DESC_IDTR:
+            libvmi_event->descriptor_event.descriptor = VMI_DESCRIPTOR_IDTR;
+            break;
+        case KVMI_DESC_GDTR:
+            libvmi_event->descriptor_event.descriptor = VMI_DESCRITPOR_GDTR;
+            break;
+        case KVMI_DESC_LDTR:
+            libvmi_event->descriptor_event.descriptor = VMI_DESCRIPTOR_IDTR;
+            break;
+        case KVMI_DESC_TR:
+            libvmi_event->descriptor_event.descriptor = VMI_DESCRIPTOR_TR;
+            break;
+        default:
+            errprint("Unexpected descriptor ID %d\n", kvmi_event->event.desc.descriptor);
+            return VMI_FAILURE;
+    }
+    libvmi_event->descriptor_event.is_write = kvmi_event->event.desc.write;
+
+    // call user callback
+    event_response_t response = call_event_callback(vmi, libvmi_event);
+
+    // reply struct
+    struct {
+        struct kvmi_vcpu_hdr hdr;
+        struct kvmi_event_reply common;
+    } rpl = {0};
+
+    // set reply
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
 static status_t
@@ -480,12 +581,14 @@ kvm_events_init(
     vmi->driver.set_reg_access_ptr = &kvm_set_reg_access;
     vmi->driver.set_intr_access_ptr = &kvm_set_intr_access;
     vmi->driver.set_mem_access_ptr = &kvm_set_mem_access;
+    vmi->driver.set_desc_access_event_ptr = &kvm_set_desc_access_event;
 
     // fill event dispatcher
     kvm->process_event[KVMI_EVENT_CR] = &process_register;
     kvm->process_event[KVMI_EVENT_MSR] = &process_msr;
     kvm->process_event[KVMI_EVENT_BREAKPOINT] = &process_interrupt;
     kvm->process_event[KVMI_EVENT_PF] = &process_pagefault;
+    kvm->process_event[KVMI_EVENT_DESCRIPTOR] = &process_descriptor;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
 
     // enable monitoring of CR and MSR for all VCPUs by default
@@ -527,6 +630,8 @@ kvm_events_destroy(
     }
 #endif
     // disable CR/MSR monitoring
+    dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver events\n");
+
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
             errprint("--Failed to disable CR monitoring\n");
@@ -546,6 +651,8 @@ kvm_events_listen(
 #endif
     struct kvmi_dom_event *event = NULL;
     unsigned int ev_reason = 0;
+    // if timeout is 0, we have to process all leftover events on the ring
+    bool process_all_events = (timeout == 0) ? true : false;
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
@@ -553,33 +660,50 @@ kvm_events_listen(
         return VMI_FAILURE;
 #endif
 
-    // wait next event
-    if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, (kvmi_timeout_t)timeout)) {
-        if (errno == ETIMEDOUT) {
-            // no events !
-            return VMI_SUCCESS;
+    do {
+        // wait next event
+        if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, (kvmi_timeout_t)timeout)) {
+            if (errno == ETIMEDOUT) {
+                // no events !
+                return VMI_SUCCESS;
+            }
+            errprint("%s: kvmi_wait_event failed: %s\n", __func__, strerror(errno));
+            return VMI_FAILURE;
         }
-        errprint("%s: kvmi_wait_event failed: %s\n", __func__, strerror(errno));
-        return VMI_FAILURE;
-    }
 
-    // pop event from queue
-    if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &event)) {
-        errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
-        return VMI_FAILURE;
-    }
+        // pop event from queue
+        if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &event)) {
+            errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
+            return VMI_FAILURE;
+        }
 
-    // handle event
-    ev_reason = event->event.common.event;
+        // handle event
+        ev_reason = event->event.common.event;
+
+        // special case to handle PAUSE events
+        // since they have to managed by vmi_resume_vm(), we simply store them
+        // in the kvm_instance for later use by this function
+        if (KVMI_EVENT_PAUSE_VCPU == ev_reason) {
 #ifdef ENABLE_SAFETY_CHECKS
-    if ( ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason] ) {
-        errprint("Undefined handler for %u event reason\n", ev_reason);
-        return VMI_FAILURE;
-    }
+            uint16_t vcpu = event->event.common.vcpu;
+            // silence unused variable warnings if not asserts
+            (void)vcpu;
+            assert(vcpu < vmi->num_vcpus);
 #endif
-    // call handler
-    if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
-        goto error_exit;
+            kvm->pause_events_list[event->event.common.vcpu] = event;
+            event = NULL;
+            continue;
+        }
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason] ) {
+            errprint("Undefined handler for %u event reason\n", ev_reason);
+            goto error_exit;
+        }
+#endif
+        // call handler
+        if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
+            goto error_exit;
+    } while (process_all_events);
 
     return VMI_SUCCESS;
 error_exit:
@@ -679,9 +803,6 @@ kvm_set_reg_access(
             for (size_t msr_i=0; msr_i<msr_all_len; msr_i++) {
                 kvmi_reg = msr_index[msr_all[msr_i]];
                 if (kvm->libkvmi.kvmi_control_msr(kvm->kvmi_dom, vcpu, kvmi_reg, enabled)) {
-                    // this call fails on MSR_HYPERVISOR
-                    // to avoid breaking MSR_ALL feature, we simply continue
-                    // and print an error message
                     errprint("%s: failed to set MSR event for %s: %s\n", __func__,
                              msr_to_str[msr_all[msr_i]], strerror(errno));
                     continue;
@@ -832,4 +953,35 @@ kvm_set_mem_access(
 
     dbprint(VMI_DEBUG_KVM, "--Done setting memaccess on GPFN: 0x%" PRIx64 "\n", gpfn);
     return VMI_SUCCESS;
+}
+
+status_t kvm_set_desc_access_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    dbprint(VMI_DEBUG_KVM, "--%s descriptor monitoring\n", (enabled) ? "Enable" : "Disable");
+
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, enabled)) {
+            errprint("%s: kvmi_control_events failed: %s\n", __func__, strerror(errno));
+            goto error_exit;
+        }
+    }
+
+    return VMI_SUCCESS;
+
+error_exit:
+    // disable monitoring
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, false);
+    }
+    return VMI_FAILURE;
 }

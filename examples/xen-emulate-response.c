@@ -56,20 +56,32 @@ event_response_t cb(vmi_instance_t vmi, vmi_event_t *event)
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi = NULL;
-    vmi_event_t event;
+    vmi_event_t event = {0};
     status_t status = VMI_SUCCESS;
-    addr_t addr;
+    addr_t addr = 0;
     char *name = NULL;
-    struct sigaction act;
+    vmi_init_data_t *init_data = NULL;
+    struct sigaction act = {0};
+    int rc = 1;
 
     if (argc < 3) {
-        fprintf(stderr, "Usage: xen-emulate-response <name of VM> <kernel virtual address trap in hex>\n");
-        return 1;
+        fprintf(stderr, "Usage: %s <name of VM> <kernel virtual address trap in hex> [<socket>]\n", argv[0]);
+        return rc;
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
     addr = (addr_t) strtoul(argv[2], NULL, 16);
+
+    // KVMi socket ?
+    if (argc == 4) {
+        char *path = argv[3];
+
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(path);
+    }
 
     /* for a clean exit */
     act.sa_handler = close_handler;
@@ -83,9 +95,9 @@ int main (int argc, char **argv)
     // Initialize the libvmi library.
     if (VMI_FAILURE ==
             vmi_init_complete(&vmi, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                              NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
+                              init_data, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto leave;
     }
 
     printf("LibVMI init succeeded!\n");
@@ -113,9 +125,15 @@ int main (int argc, char **argv)
     }
     printf("Finished with test.\n");
 
+    rc = 0;
 leave:
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
 
-    return 0;
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
+
+    return rc;
 }

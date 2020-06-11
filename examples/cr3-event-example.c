@@ -50,16 +50,16 @@ event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event)
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi;
-    status_t status;
-    vmi_mode_t mode;
-    vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
-                                        + (sizeof(vmi_init_data_entry_t) * 1));
+    vmi_instance_t vmi = {0};
+    status_t status = VMI_FAILURE;
+    vmi_mode_t mode = {0};
+    vmi_init_data_t *init_data = NULL;
+    int retcode = 1;
 
     /* this is the VM or file that we are looking at */
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <vmname> [<socket>]\n", argv[0]);
-        return 1;
+        return retcode;
     }
 
     char *name = argv[1];
@@ -68,6 +68,7 @@ int main (int argc, char **argv)
         char *path = argv[2];
 
         // fill init_data
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
         init_data->count = 1;
         init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
         init_data->entry[0].data = strdup(path);
@@ -75,13 +76,13 @@ int main (int argc, char **argv)
 
     if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, &mode)) {
         fprintf(stderr, "Failed to get access mode\n");
-        return 1;
+        goto error_exit;
     }
 
     if (VMI_FAILURE ==
             vmi_init(&vmi, mode, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
         fprintf(stderr, "Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     struct sigaction act;
@@ -121,11 +122,17 @@ int main (int argc, char **argv)
             printf("Failed to listen on events\n");
     }
 
+    retcode = 0;
 error_exit:
     vmi_clear_event(vmi, &cr3_event, NULL);
 
     /* cleanup any memory associated with the LibVMI instance */
     vmi_destroy(vmi);
 
-    return 0;
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
+
+    return retcode;
 }

@@ -1,3 +1,4 @@
+
 /* The LibVMI Library is an introspection library that simplifies access to
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
@@ -55,6 +56,9 @@ typedef struct kvm_instance {
     pthread_mutex_t kvm_connect_mutex;
     pthread_cond_t kvm_start_cond;
     unsigned int expected_pause_count;
+    // store KVMI_EVENT_PAUSE_VCPU events poped by vmi_events_listen(vmi, 0)
+    // to be used by vmi_resume_vm()
+    struct kvmi_dom_event** pause_events_list;
     // dispatcher to handle VM events in each process_xxx functions
     status_t (*process_event[KVMI_NUM_EVENTS])(vmi_instance_t vmi, struct kvmi_dom_event *event);
 #endif
@@ -74,5 +78,14 @@ kvm_put_memory(vmi_instance_t vmi,
                addr_t paddr,
                uint32_t length,
                void *buf);
+
+// shared by kvm.c and kvm_events.c
+# ifndef ENABLE_KVM_LEGACY
+void
+kvmi_regs_to_libvmi(
+    struct kvm_regs *kvmi_regs,
+    struct kvm_sregs *kvmi_sregs,
+    x86_registers_t *libvmi_regs);
+# endif
 
 #endif

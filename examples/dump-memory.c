@@ -39,8 +39,8 @@ main(
     int argc,
     char **argv)
 {
-    if ( argc != 3 ) {
-        fprintf(stderr, "Usage: %s <name of VM> <dump file> [<socket>]", argv[0]);
+    if ( argc < 3 ) {
+        fprintf(stderr, "Usage: %s <name of VM> <dump file> [<socket>]\n", argv[0]);
         return 1;
     }
 
@@ -49,14 +49,14 @@ main(
     FILE *f = NULL;
     unsigned char memory[PAGE_SIZE];
     unsigned char zeros[PAGE_SIZE];
+    int retcode = 1;
 
     memset(zeros, 0, PAGE_SIZE);
     addr_t address = 0;
     addr_t size = 0;
     vmi_mode_t mode;
     memory_map_t *memmap = NULL;
-    vmi_init_data_t *init_data = alloca(sizeof(vmi_init_data_t)
-                                        + (sizeof(vmi_init_data_entry_t) * 1));
+    vmi_init_data_t *init_data = NULL;
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
@@ -67,6 +67,7 @@ main(
     if (argc == 4) {
         char *path = argv[3];
 
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
         init_data->count = 1;
         init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
         init_data->entry[0].data = strdup(path);
@@ -144,16 +145,21 @@ main(
         address += PAGE_SIZE;
     }
 
+    retcode = 0;
 error_exit:
     if (f)
         fclose(f);
     if (memmap)
         free(memmap);
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
 
     free(filename);
 
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);
 
-    return 0;
+    return retcode;
 }

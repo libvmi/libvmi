@@ -803,14 +803,18 @@ vmi_init_complete(
         if ( error )
             *error = VMI_INIT_ERROR_PAGING;
 
-        return VMI_FAILURE;
+        goto error_exit;
     }
 
     if ( VMI_OS_UNKNOWN == vmi_init_os(_vmi, config_mode, config, error) )
-        return VMI_FAILURE;
+        goto error_exit;
 
     *vmi = _vmi;
     return VMI_SUCCESS;
+error_exit:
+    if (_vmi)
+        g_free(_vmi);
+    return VMI_FAILURE;
 }
 
 status_t

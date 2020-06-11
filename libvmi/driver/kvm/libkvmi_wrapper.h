@@ -1,3 +1,24 @@
+/* The LibVMI Library is an introspection library that simplifies access to
+ * memory in a target virtual machine or in a file containing a dump of
+ * a system's physical memory.  LibVMI is based on the XenAccess Library.
+ *
+ * Author: Mathieu Tarral (mathieu.tarral@ssi.gouv.fr)
+ *
+ * This file is part of LibVMI.
+ *
+ * LibVMI is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License as published by the
+ * Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * LibVMI is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
+ */
 #ifndef LIBKVMI_WRAPPER_H
 #define LIBKVMI_WRAPPER_H
 
@@ -23,6 +44,12 @@ typedef struct {
     void (*kvmi_domain_close)
     (void *dom, bool do_shutdown);
 
+    int (*kvmi_connection_fd)
+    ( const void *dom );
+
+    int (*kvmi_get_version)
+    ( void *dom, unsigned int *version );
+
     int (*kvmi_control_events)
     (void *dom, unsigned short vcpu, int id, bool enable);
 
@@ -43,6 +70,9 @@ typedef struct {
 
     int (*kvmi_set_page_access)
     (void *dom, unsigned long long int *gpa, unsigned char *access, unsigned short count);
+
+    int (*kvmi_get_tsc_speed)
+    (void *dom, unsigned long long int *speed);
 
     int (*kvmi_get_vcpu_count)
     (void *dom, unsigned int *count);
@@ -71,6 +101,9 @@ typedef struct {
 
     int (*kvmi_wait_event)
     (void *dom, kvmi_timeout_t ms);
+
+    void (*kvmi_set_log_cb)
+    ( kvmi_log_cb cb, void *ctx );
 
     int (*kvmi_get_maximum_gfn)
     (void *dom, unsigned long long *gfn);

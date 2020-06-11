@@ -344,12 +344,14 @@ void print_pe_header(vmi_instance_t vmi, addr_t image_base_p, uint8_t *pe)
 int main(int argc, char **argv)
 {
 
-    vmi_instance_t vmi = NULL;
-    vmi_mode_t mode;
+    vmi_instance_t vmi = {0};
+    vmi_mode_t mode = {0};
+    vmi_init_data_t *init_data = NULL;
+    int retcode = 1;
 
     /* this is the VM that we are looking at */
-    if (argc != 3) {
-        printf("Usage: %s name|domid <domain name|domain id>\n", argv[0]);
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s name|domid <domain name|domain id> [<socket>]\n", argv[0]);
         return 1;
     }   // if
 
@@ -369,13 +371,23 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (VMI_FAILURE == vmi_get_access_mode(vmi, domain, init_flags, NULL, &mode) )
-        return 1;
+    // KVMi socket ?
+    if (argc == 4) {
+        char *path = argv[3];
+
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(path);
+    }
+
+    if (VMI_FAILURE == vmi_get_access_mode(vmi, domain, init_flags, init_data, &mode) )
+        goto error_exit;
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     max_mem = vmi_get_max_physical_address(vmi);
@@ -403,9 +415,16 @@ int main(int argc, char **argv)
         }
     }
 
+    if (found)
+        retcode = 0;
+error_exit:
     /* cleanup any memory associated with the LibVMI instance */
     vmi_destroy(vmi);
 
-    if (found) return 0;
-    return 1;
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
+
+    return retcode;
 }
