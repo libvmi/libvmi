@@ -523,7 +523,7 @@ jobs:
 #
     - env:
         - TEST="compile from make dist tarball"
-      before_install:
+      install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev autoconf-archive libxen-dev libvirt-dev
       script:
