@@ -48,6 +48,10 @@ struct windows_instance {
     uint16_t build; /**< Windows build number */
 
     win_ver_t version; /**< version of Windows */
+
+    uint16_t major; /**< Windows major number */
+
+    uint16_t minor; /**< Windows minor number */
 };
 typedef struct windows_instance *windows_instance_t;
 

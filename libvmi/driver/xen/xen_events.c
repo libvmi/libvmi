@@ -653,6 +653,9 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
                             }
                         }
                         break;
+                    case VMI_EVENT_RESPONSE_NEXT_SLAT_ID:
+                        rsp->fast_singlestep.p2midx = event->next_slat_id;
+                        break;
                 };
 
                 rsp->flags |= event_response_conversion[er];
@@ -2722,6 +2725,9 @@ status_t process_requests_6(vmi_instance_t vmi, uint32_t *requests_processed)
         if ( rsp->flags & VM_EVENT_FLAG_SET_EMUL_INSN_DATA )
             memcpy(&rsp->data.emul.insn, &vmec.data.emul.insn, sizeof(rsp->data.emul.insn));
 
+        if ( rsp->flags & VM_EVENT_FLAG_FAST_SINGLESTEP )
+            rsp->u.fast_singlestep.p2midx = vmec.fast_singlestep.p2midx;
+
         if ( rsp->flags & VM_EVENT_FLAG_SET_REGISTERS ) {
 #if defined(ARM32) || defined(ARM64)
             memcpy(&rsp->data.regs.arm, &vmec.data.regs.arm, sizeof(rsp->data.regs.arm));
@@ -2971,8 +2977,12 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
             swap_wrapper_t *swap_wrapper = loop->data;
             swap_events(vmi, swap_wrapper->swap_from, swap_wrapper->swap_to,
                         swap_wrapper->free_routine);
+            g_slice_free(swap_wrapper_t, swap_wrapper);
             loop = loop->next;
         }
+
+        g_slist_free(vmi->swap_events);
+        vmi->swap_events = NULL;
 
         g_hash_table_foreach_remove(vmi->clear_events, clear_events_full, vmi);
 

@@ -517,3 +517,22 @@ jobs:
         - cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DENABLE_KVM=OFF -DENABLE_BAREFLANK=OFF -DENABLE_XEN=OFF ..
         - make
         - make install
+
+#
+# compile from make dist tarball
+#
+    - env:
+        - TEST="compile from make dist tarball"
+      before_install:
+        - sudo apt-get update
+        - sudo apt-get -q -y install bison flex libjson-c-dev autoconf-archive libxen-dev libvirt-dev
+      script:
+        - autoreconf -vif
+        - ./configure || cat config.log
+        - make dist
+        - mkdir build && cd build
+        - tar xvf ../libvmi-*.tar.gz
+        - cd *libvmi*
+        - autoreconf -vif
+        - ./configure || cat config.log
+        - make

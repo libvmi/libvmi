@@ -33,7 +33,7 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
-#define VMI_EVENTS_VERSION 0x00000006
+#define VMI_EVENTS_VERSION 0x00000007
 
 #ifdef __cplusplus
 extern "C" {
@@ -399,7 +399,7 @@ typedef struct {
 } cpuid_event_t;
 
 #define VMI_DESCRIPTOR_IDTR           1
-#define VMI_DESCRITPOR_GDTR           2
+#define VMI_DESCRIPTOR_GDTR           2
 #define VMI_DESCRIPTOR_LDTR           3
 #define VMI_DESCRIPTOR_TR             4
 
@@ -437,7 +437,8 @@ typedef uint32_t event_response_flags_t;
 #define VMI_EVENT_RESPONSE_SET_REGISTERS        (1u << 7)
 #define VMI_EVENT_RESPONSE_SET_EMUL_INSN        (1u << 8)
 #define VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT   (1u << 9)
-#define __VMI_EVENT_RESPONSE_MAX                9
+#define VMI_EVENT_RESPONSE_NEXT_SLAT_ID         (1u << 10)
+#define __VMI_EVENT_RESPONSE_MAX                10
 
 /**
  * Bitmap holding event_reponse_flags_t values returned by callback
@@ -475,6 +476,18 @@ struct vmi_event {
      * Note: on Xen this corresponds to the altp2m_idx.
      */
     uint16_t slat_id;
+
+    /**
+     * RESPONSE
+     *
+     * The VMM should switch to this SLAT ID on the occurance of the next event.
+     * Iff VMI_EVENT_RESPONSE_NEXT_SLAT_ID is set.
+     *
+     * Note: on Xen this corresponds to the altp2m_idx and it also enables MTF singlestepping.
+     *  The altp2m switch automatically happens in the singlestep handler in Xen after a single
+     *  instruction is executed.
+     */
+    uint16_t next_slat_id;
 
     /**
      * CONST IN

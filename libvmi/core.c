@@ -649,6 +649,73 @@ page_mode_t vmi_init_paging(
     return vmi->page_mode;
 }
 
+GHashTable *init_config(vmi_instance_t vmi, vmi_config_t config_mode, void *config, vmi_init_error_t *error)
+{
+    GHashTable *_config = NULL;
+
+    switch (config_mode) {
+        case VMI_CONFIG_STRING:
+            /* read and parse the config string */
+            if (VMI_FAILURE == read_config_string(vmi, (const char*)config, &_config, error)) {
+                return NULL;
+            }
+            break;
+        case VMI_CONFIG_GLOBAL_FILE_ENTRY:
+            /* read and parse the config file */
+            if (VMI_FAILURE == read_config_file_entry(vmi, &_config, error)) {
+                return NULL;
+            }
+            break;
+        case VMI_CONFIG_GHASHTABLE:
+            /* read and parse the ghashtable */
+            if (!config) {
+
+                if (error)
+                    *error = VMI_INIT_ERROR_NO_CONFIG;
+
+                return NULL;
+            }
+            _config = (GHashTable*)config;
+            break;
+        case VMI_CONFIG_JSON_PATH:
+            if (!config) {
+
+                if (error)
+                    *error = VMI_INIT_ERROR_NO_CONFIG;
+
+                return NULL;
+            }
+            _config = g_hash_table_new(g_str_hash, g_str_equal);
+            g_hash_table_insert(_config, "volatility_ist", config);
+            break;
+        default:
+            return NULL;
+    }
+
+    if (VMI_FAILURE == set_os_type_from_config(vmi, _config)) {
+        if ( error )
+            *error = VMI_INIT_ERROR_NO_CONFIG_ENTRY;
+
+        dbprint(VMI_DEBUG_CORE, "--failed to determine os type from config\n");
+        return NULL;
+    }
+
+    return _config;
+}
+
+os_t vmi_init_profile(
+    vmi_instance_t vmi,
+    vmi_config_t config_mode,
+    void *config)
+{
+    GHashTable *_config = init_config(vmi, config_mode, config, NULL);
+
+    if (!_config)
+        return VMI_OS_UNKNOWN;
+
+    return vmi->os_type;
+}
+
 os_t vmi_init_os(
     vmi_instance_t vmi,
     vmi_config_t config_mode,
@@ -659,54 +726,10 @@ os_t vmi_init_os(
         return VMI_OS_UNKNOWN;
 
     vmi->os_type = VMI_OS_UNKNOWN;
-    GHashTable *_config = NULL;
+    GHashTable *_config = init_config(vmi, config_mode, config, error);
 
-    switch (config_mode) {
-        case VMI_CONFIG_STRING:
-            /* read and parse the config string */
-            if (VMI_FAILURE == read_config_string(vmi, (const char*)config, &_config, error)) {
-                goto error_exit;
-            }
-            break;
-        case VMI_CONFIG_GLOBAL_FILE_ENTRY:
-            /* read and parse the config file */
-            if (VMI_FAILURE == read_config_file_entry(vmi, &_config, error)) {
-                goto error_exit;
-            }
-            break;
-        case VMI_CONFIG_GHASHTABLE:
-            /* read and parse the ghashtable */
-            if (!config) {
-
-                if (error)
-                    *error = VMI_INIT_ERROR_NO_CONFIG;
-
-                goto error_exit;
-            }
-            _config = (GHashTable*)config;
-            break;
-        case VMI_CONFIG_JSON_PATH:
-            if (!config) {
-
-                if (error)
-                    *error = VMI_INIT_ERROR_NO_CONFIG;
-
-                goto error_exit;
-            }
-            _config = g_hash_table_new(g_str_hash, g_str_equal);
-            g_hash_table_insert(_config, "volatility_ist", config);
-            break;
-        default:
-            goto error_exit;
-    }
-
-    if (VMI_FAILURE == set_os_type_from_config(vmi, _config)) {
-        if ( error )
-            *error = VMI_INIT_ERROR_NO_CONFIG_ENTRY;
-
-        dbprint(VMI_DEBUG_CORE, "--failed to determine os type from config\n");
+    if (!_config)
         goto error_exit;
-    }
 
     /*
      * Initialize paging if it hasn't been done yet. For VMI_FILE mode it

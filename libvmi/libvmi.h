@@ -148,6 +148,13 @@ typedef enum win_ver {
     VMI_OS_WINDOWS_10,
 } win_ver_t;
 
+typedef struct {
+    win_ver_t version;
+    uint16_t buildnumber;
+    uint16_t major;
+    uint16_t minor;
+} win_build_info_t;
+
 typedef enum page_mode {
 
     VMI_PM_UNKNOWN, /**< page mode unknown */
@@ -805,7 +812,7 @@ status_t vmi_init_complete(
     void *config,
     vmi_init_error_t *error) NOEXCEPT;
 
-/*
+/**
  * Initialize or reinitialize the paging specific functionality of LibVMI
  * required for virtual-to-physical translation.
  *
@@ -821,7 +828,7 @@ page_mode_t vmi_init_paging(
     vmi_instance_t vmi,
     uint64_t flags) NOEXCEPT;
 
-/*
+/**
  * Initialize the OS specific functionality of LibVMI required for functions
  * such as vmi_*_ksym. If the user hasn't called vmi_init_paging yet, this
  * function will do that automatically.
@@ -1895,7 +1902,7 @@ status_t vmi_write_addr_pa(
  * @param[in] length The length (in bytes) of data
  */
 void vmi_print_hex(
-    const char *data,
+    const unsigned char *data,
     unsigned long length) NOEXCEPT;
 
 /**
@@ -2030,6 +2037,16 @@ uint8_t vmi_get_address_width(
  */
 os_t vmi_get_ostype(
     vmi_instance_t vmi) NOEXCEPT;
+
+/**
+ * Get the version info of Windows that LibVMI is currently accessing.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] info Pointer to structure to fill
+ * @return True if success. False otherwise
+ */
+bool vmi_get_windows_build_info(
+    vmi_instance_t vmi, win_build_info_t* info) NOEXCEPT;
 
 /**
  * Get the version of Windows that LibVMI is currently accessing.  This is the

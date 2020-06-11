@@ -507,7 +507,7 @@ process_descriptor(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
             libvmi_event->descriptor_event.descriptor = VMI_DESCRIPTOR_IDTR;
             break;
         case KVMI_DESC_GDTR:
-            libvmi_event->descriptor_event.descriptor = VMI_DESCRITPOR_GDTR;
+            libvmi_event->descriptor_event.descriptor = VMI_DESCRIPTOR_GDTR;
             break;
         case KVMI_DESC_LDTR:
             libvmi_event->descriptor_event.descriptor = VMI_DESCRIPTOR_IDTR;

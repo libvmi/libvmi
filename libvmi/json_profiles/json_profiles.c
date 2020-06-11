@@ -61,10 +61,12 @@ bool json_profile_init(vmi_instance_t vmi, const char* path)
     switch ( type ) {
         case JPT_VOLATILITY_IST:
             json->handler = volatility_ist_symbol_to_rva;
+            json->bitfield_offset_and_size = volatility_profile_bitfield_offset_and_size;
             json->get_os_type = volatility_get_os_type;
             break;
         case JPT_REKALL_PROFILE:
             json->handler = rekall_profile_symbol_to_rva;
+            json->bitfield_offset_and_size = rekall_profile_bitfield_offset_and_size;
             json->get_os_type = rekall_get_os_type;
             break;
         default:
@@ -101,4 +103,13 @@ status_t vmi_get_struct_member_offset_from_json(vmi_instance_t vmi, json_object*
         return VMI_FAILURE;
 
     return vmi->json.handler(json, struct_name, struct_member, offset, NULL);
+}
+
+status_t
+vmi_get_bitfield_offset_and_size_from_json(vmi_instance_t vmi, json_object *json, const char *struct_name, const char *struct_member, addr_t *offset, size_t *start_bit, size_t *end_bit)
+{
+    if ( !vmi->json.bitfield_offset_and_size )
+        return VMI_FAILURE;
+
+    return vmi->json.bitfield_offset_and_size(json, struct_name, struct_member, offset, start_bit, end_bit);
 }

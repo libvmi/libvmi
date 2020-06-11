@@ -63,6 +63,46 @@ vmi_get_ostype(
         vmi->os_type;
 }
 
+bool
+vmi_get_windows_build_info(
+    vmi_instance_t vmi, win_build_info_t* info)
+{
+#ifndef ENABLE_WINDOWS
+    errprint("**LibVMI wasn't compiled with Windows support!\n");
+    return false;
+#else
+    windows_instance_t windows_instance = NULL;
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!info || !vmi) {
+        errprint("**%s:%d Error: null pointer!\n", __FUNCTION__, __LINE__);
+        return false;
+    }
+
+    if (VMI_OS_WINDOWS != vmi->os_type)
+        return false;
+
+    if (!vmi->os_data) {
+        return false;
+    }
+#endif
+
+    windows_instance = vmi->os_data;
+
+    if (!windows_instance->version || windows_instance->version == VMI_OS_WINDOWS_UNKNOWN) {
+        addr_t kdbg = windows_instance->ntoskrnl + windows_instance->kdbg_offset;
+        windows_instance->version = find_windows_version(vmi, kdbg);
+    }
+
+    info->version = windows_instance->version;
+    info->buildnumber = windows_instance->build;
+    info->major = windows_instance->major;
+    info->minor = windows_instance->minor;
+
+    return true;
+#endif
+}
+
 win_ver_t
 vmi_get_winver(
     vmi_instance_t vmi)
