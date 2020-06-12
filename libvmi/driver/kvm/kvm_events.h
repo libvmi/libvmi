@@ -73,8 +73,8 @@ kvm_start_single_step(
 
 status_t
 kvm_stop_single_step(
-        vmi_instance_t vmi,
-        uint32_t vcpu);
+    vmi_instance_t vmi,
+    uint32_t vcpu);
 
 status_t
 kvm_shutdown_single_step(

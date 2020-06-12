@@ -1193,8 +1193,8 @@ rewind:
 
 status_t
 kvm_stop_single_step(
-        vmi_instance_t vmi,
-        uint32_t vcpu)
+    vmi_instance_t vmi,
+    uint32_t vcpu)
 {
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
