@@ -790,7 +790,7 @@ xen_get_memsize(
     }
 
     *allocated_ram_size = XC_PAGE_SIZE * pages;
-    *max_physical_address = xen->max_gpfn << XC_PAGE_SHIFT;
+    *max_physical_address = (xen->max_gpfn + 1) << XC_PAGE_SHIFT;
 
     return VMI_SUCCESS;
 }
