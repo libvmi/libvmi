@@ -812,20 +812,27 @@ kvm_set_reg_access(
                 }
         }
         // monitoring has been enabled
+        char *cr_reg_str = NULL;
         switch (event->reg) {
             case CR0:
                 kvm->monitor_cr0_on = enabled;
+                cr_reg_str = "CR0";
                 break;
             case CR3:
                 kvm->monitor_cr3_on = enabled;
+                cr_reg_str = "CR3";
                 break;
             case CR4:
                 kvm->monitor_cr4_on = enabled;
+                cr_reg_str = "CR4";
                 break;
+            default:
+                errprint("--Unexpected value for reg: %" PRIu64 "\n", event->reg);
+                goto error_exit;
         }
-        dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on register %" PRIu64"\n",
+        dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on register %s\n",
                 (enabled ? "enabling" : "disabling"),
-                event->reg);
+                cr_reg_str);
     } else {
         // MSR_ALL
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
