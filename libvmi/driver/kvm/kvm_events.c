@@ -633,7 +633,6 @@ kvm_events_destroy(
     if (VMI_FAILURE == vmi_pause_vm(vmi))
         errprint("--Failed to pause VM while destroying events\n");
 
-    // disable CR0/3/4 monitoring if needed
     reg_event_t regevent = { .in_access = VMI_REGACCESS_N };
     if (kvm->monitor_cr0_on) {
         // disable CR0
