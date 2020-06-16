@@ -1023,7 +1023,6 @@ status_t kvm_set_desc_access_event(
 #endif
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    dbprint(VMI_DEBUG_KVM, "--%s descriptor monitoring\n", (enabled) ? "Enable" : "Disable");
 
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, enabled)) {
@@ -1032,6 +1031,7 @@ status_t kvm_set_desc_access_event(
         }
     }
 
+    dbprint(VMI_DEBUG_KVM, "--%s descriptor monitoring\n", (enabled) ? "Enabled" : "Disabled");
     kvm->monitor_desc_on = enabled;
 
     return VMI_SUCCESS;
