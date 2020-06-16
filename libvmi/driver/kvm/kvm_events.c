@@ -654,6 +654,12 @@ kvm_events_destroy(
         kvm_set_reg_access(vmi, &regevent);
     }
 
+    if (kvm->monitor_intr_on) {
+        // disable INT3
+        interrupt_event_t intrevent = { .intr = INT3 };
+        kvm_set_intr_access(vmi, &intrevent, false);
+    }
+
     // disable CR/MSR interception
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
