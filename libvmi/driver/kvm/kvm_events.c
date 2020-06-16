@@ -660,6 +660,11 @@ kvm_events_destroy(
         kvm_set_intr_access(vmi, &intrevent, false);
     }
 
+    if (kvm->monitor_desc_on) {
+        // disable descriptor
+        kvm_set_desc_access_event(vmi, false);
+    }
+
     // disable CR/MSR interception
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
