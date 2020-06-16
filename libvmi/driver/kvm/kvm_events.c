@@ -628,6 +628,11 @@ kvm_events_destroy(
     }
 #endif
     dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver events\n");
+    // pause VM
+    dbprint(VMI_DEBUG_KVM, "--Ensure VM is paused\n");
+    if (VMI_FAILURE == vmi_pause_vm(vmi))
+        errprint("--Failed to pause VM while destroying events\n");
+
     // disable CR0/3/4 monitoring if needed
     reg_event_t regevent = { .in_access = VMI_REGACCESS_N };
     if (kvm->monitor_cr0_on) {
@@ -672,6 +677,11 @@ kvm_events_destroy(
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false))
             errprint("--Failed to disable MSR interception\n");
     }
+
+    // resume VM
+    dbprint(VMI_DEBUG_KVM, "--Resume VM\n");
+    if (VMI_FAILURE == vmi_resume_vm(vmi))
+        errprint("--Failed to resume VM while destroying events\n");
 }
 
 status_t
