@@ -1027,6 +1027,8 @@ status_t kvm_set_desc_access_event(
         }
     }
 
+    kvm->monitor_desc_on = enabled;
+
     return VMI_SUCCESS;
 
 error_exit:
