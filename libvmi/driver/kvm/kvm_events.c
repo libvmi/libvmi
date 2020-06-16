@@ -892,6 +892,7 @@ kvm_set_intr_access(
                     errprint("%s: failed to set event on VCPU %u: %s\n", __func__, vcpu, strerror(errno));
                     goto error_exit;
                 }
+            kvm->monitor_intr_on = enabled;
             break;
         default:
             errprint("KVM driver does not support enabling events for interrupt: %"PRIu32"\n", event->intr);

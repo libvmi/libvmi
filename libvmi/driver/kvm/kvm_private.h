@@ -65,6 +65,7 @@ typedef struct kvm_instance {
     bool monitor_cr3_on;
     bool monitor_cr4_on;
     bool monitor_msr_all_on;
+    bool monitor_intr_on;
 #endif
 } kvm_instance_t;
 
