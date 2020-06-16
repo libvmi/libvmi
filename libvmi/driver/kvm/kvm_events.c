@@ -591,10 +591,11 @@ kvm_events_init(
     kvm->process_event[KVMI_EVENT_DESCRIPTOR] = &process_descriptor;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
 
-    // enable interception of CR and MSR for all VCPUs by default
+    // enable interception of CR/MSR/PF for all VCPUs by default
     // since this has no performance cost
-    // the interception is activated only when specific registers
-    // have been defined via kvmi_control_cr(), kvmi_control_msr()
+    // the interception will trigger VM-Exists only when specific registers
+    // have been defined via kvmi_control_cr(), kvmi_control_msr(),
+    // or kvmi_set_page_access() for pagefault events
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, true)) {
             errprint("--Failed to enable CR interception\n");
@@ -604,14 +605,19 @@ kvm_events_init(
             errprint("--Failed to enable MSR interception\n");
             goto err_exit;
         }
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, true)) {
+            errprint("--Failed to enable page fault interception\n");
+            goto err_exit;
+        }
     }
 
     return VMI_SUCCESS;
 err_exit:
-    // disable CR/MSR monitoring
+    // disable CR/MSR/PF monitoring
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false);
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false);
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false);
     }
     return VMI_FAILURE;
 }
@@ -669,12 +675,14 @@ kvm_events_destroy(
         kvm_set_desc_access_event(vmi, false);
     }
 
-    // disable CR/MSR interception
+    // disable CR/MSR/PF interception
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
             errprint("--Failed to disable CR interception\n");
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false))
             errprint("--Failed to disable MSR interception\n");
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false))
+            errprint("--Failed to disable PF interception\n");
     }
 
     // clean event queue
@@ -948,7 +956,6 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 #endif
-    static bool pf_enabled = false;
     unsigned char kvmi_access, kvmi_orig_access;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
@@ -957,28 +964,6 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 #endif
-    // enable PF events the first time we call this function
-    // this avoids enabling them at kvm_init_vmi, since we don't
-    // know if the app is going to use mem_events at all
-    // TODO: move this at driver init ?
-    if (!pf_enabled) {
-        bool pf_enabled_succeeded = true;
-        for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-            if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, true)) {
-                pf_enabled_succeeded = false;
-                errprint("%s: Fail to enable PF events on VCPU %u: %s\n", __func__, vcpu, strerror(errno));
-                break;
-            }
-        }
-        if (!pf_enabled_succeeded) {
-            // disable PF for all vcpu and fail
-            for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
-                kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false);
-            return VMI_FAILURE;
-        }
-        pf_enabled = true;
-    }
-
     // get previous access type
     if (kvm->libkvmi.kvmi_get_page_access(kvm->kvmi_dom, gpfn, &kvmi_orig_access)) {
         errprint("%s: kvmi_get_page_access failed: %s\n", __func__, strerror(errno));
