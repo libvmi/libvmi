@@ -620,8 +620,6 @@ void
 kvm_events_destroy(
     vmi_instance_t vmi)
 {
-    (void)vmi;
-
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
     if (!kvm) {
@@ -629,14 +627,33 @@ kvm_events_destroy(
         return;
     }
 #endif
-    // disable CR/MSR monitoring
     dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver events\n");
+    // disable CR0/3/4 monitoring if needed
+    reg_event_t regevent = { .in_access = VMI_REGACCESS_N };
+    if (kvm->monitor_cr0_on) {
+        // disable CR0
+        regevent.reg = CR0;
+        kvm_set_reg_access(vmi, &regevent);
+    }
 
+    if (kvm->monitor_cr3_on) {
+        // disable CR3
+        regevent.reg = CR3;
+        kvm_set_reg_access(vmi, &regevent);
+    }
+
+    if (kvm->monitor_cr4_on) {
+        // disable CR4
+        regevent.reg = CR4;
+        kvm_set_reg_access(vmi, &regevent);
+    }
+
+    // disable CR/MSR interception
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
-            errprint("--Failed to disable CR monitoring\n");
+            errprint("--Failed to disable CR interception\n");
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false))
-            errprint("--Failed to disable MSR monitoring\n");
+            errprint("--Failed to disable MSR interception\n");
     }
 }
 
