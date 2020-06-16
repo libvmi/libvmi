@@ -845,6 +845,7 @@ kvm_set_reg_access(
                 }
             }
         }
+        kvm->monitor_msr_all_on = enabled;
         dbprint(VMI_DEBUG_KVM, "--Set MSR events on all MSRs\n");
     }
 
