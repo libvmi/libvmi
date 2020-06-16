@@ -591,17 +591,17 @@ kvm_events_init(
     kvm->process_event[KVMI_EVENT_DESCRIPTOR] = &process_descriptor;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
 
-    // enable monitoring of CR and MSR for all VCPUs by default
+    // enable interception of CR and MSR for all VCPUs by default
     // since this has no performance cost
     // the interception is activated only when specific registers
     // have been defined via kvmi_control_cr(), kvmi_control_msr()
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, true)) {
-            errprint("--Failed to enable CR monitoring\n");
+            errprint("--Failed to enable CR interception\n");
             goto err_exit;
         }
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, true)) {
-            errprint("--Failed to enable MSR monitoring\n");
+            errprint("--Failed to enable MSR interception\n");
             goto err_exit;
         }
     }
