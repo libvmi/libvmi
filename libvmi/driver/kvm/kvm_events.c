@@ -648,6 +648,12 @@ kvm_events_destroy(
         kvm_set_reg_access(vmi, &regevent);
     }
 
+    if (kvm->monitor_msr_all_on) {
+        // disable MSR_ALL
+        regevent.reg = MSR_ALL;
+        kvm_set_reg_access(vmi, &regevent);
+    }
+
     // disable CR/MSR interception
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
@@ -846,7 +852,8 @@ kvm_set_reg_access(
             }
         }
         kvm->monitor_msr_all_on = enabled;
-        dbprint(VMI_DEBUG_KVM, "--Set MSR events on all MSRs\n");
+        dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on all MSRs\n",
+                (enabled ? "enabling" : "disabling"));
     }
 
     return VMI_SUCCESS;
