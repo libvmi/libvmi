@@ -836,8 +836,8 @@ kvm_set_reg_access(
                 errprint("--Unexpected value for reg: %" PRIu64 "\n", event->reg);
                 goto error_exit;
         }
-        dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on register %s\n",
-                (enabled ? "enabling" : "disabling"),
+        dbprint(VMI_DEBUG_KVM, "--%s monitoring on register %s\n",
+                (enabled ? "Enabling" : "Disabling"),
                 cr_reg_str);
     } else {
         // MSR_ALL
@@ -852,8 +852,8 @@ kvm_set_reg_access(
             }
         }
         kvm->monitor_msr_all_on = enabled;
-        dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on all MSRs\n",
-                (enabled ? "enabling" : "disabling"));
+        dbprint(VMI_DEBUG_KVM, "--%s monitoring on all MSRs\n",
+                (enabled ? "Enabling" : "Disabling"));
     }
 
     return VMI_SUCCESS;
@@ -995,7 +995,7 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 
-    dbprint(VMI_DEBUG_KVM, "--Done setting memaccess on GPFN: 0x%" PRIx64 "\n", gpfn);
+    dbprint(VMI_DEBUG_KVM, "--Setting memaccess on GPFN: 0x%" PRIx64 "\n", gpfn);
     return VMI_SUCCESS;
 }
 
