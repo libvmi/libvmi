@@ -678,6 +678,11 @@ kvm_events_destroy(
             errprint("--Failed to disable MSR interception\n");
     }
 
+    // clean event queue
+    dbprint(VMI_DEBUG_KVM, "--Cleanup event queue\n");
+    if (VMI_FAILURE == vmi_events_listen(vmi, 0))
+        errprint("--Failed to clean event queue\n");
+
     // resume VM
     dbprint(VMI_DEBUG_KVM, "--Resume VM\n");
     if (VMI_FAILURE == vmi_resume_vm(vmi))
