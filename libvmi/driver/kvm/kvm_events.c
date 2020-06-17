@@ -765,6 +765,7 @@ kvm_events_listen(
             (void)vcpu;
             assert(vcpu < vmi->num_vcpus);
 #endif
+            dbprint(VMI_DEBUG_KVM, "--Moving PAUSE_VPCU event in the buffer\n");
             kvm->pause_events_list[event->event.common.vcpu] = event;
             event = NULL;
             continue;

@@ -945,6 +945,7 @@ kvm_resume_vm(
         // check pause events poped by vmi_events_listen first
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
             if (kvm->pause_events_list[vcpu]) {
+                dbprint(VMI_DEBUG_KVM, "--Removing PAUSE_VCPU event from the buffer\n");
                 ev = kvm->pause_events_list[vcpu];
                 kvm->pause_events_list[vcpu] = NULL;
                 break;
@@ -953,7 +954,7 @@ kvm_resume_vm(
 
         // if no pause event is waiting in the list, pop next one
         if (!ev) {
-            if (VMI_FAILURE == kvm_get_next_event(kvm, &ev, 3000)) {
+            if (VMI_FAILURE == kvm_get_next_event(kvm, &ev, 1000)) {
                 errprint("Failed to get next KVMi event\n");
             }
             if (!ev) {
