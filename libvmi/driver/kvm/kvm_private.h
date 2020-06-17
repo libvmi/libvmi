@@ -61,6 +61,12 @@ typedef struct kvm_instance {
     struct kvmi_dom_event** pause_events_list;
     // dispatcher to handle VM events in each process_xxx functions
     status_t (*process_event[KVMI_NUM_EVENTS])(vmi_instance_t vmi, struct kvmi_dom_event *event);
+    bool monitor_cr0_on;
+    bool monitor_cr3_on;
+    bool monitor_cr4_on;
+    bool monitor_msr_all_on;
+    bool monitor_intr_on;
+    bool monitor_desc_on;
 #endif
 } kvm_instance_t;
 

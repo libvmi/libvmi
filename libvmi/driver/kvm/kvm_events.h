@@ -27,6 +27,7 @@
 #define KVM_EVENTS_H
 
 #include "private.h"
+#include "kvm_private.h"
 
 status_t
 kvm_events_init(
@@ -63,5 +64,11 @@ kvm_set_mem_access(
 status_t kvm_set_desc_access_event(
     vmi_instance_t,
     bool enabled);
+
+status_t
+kvm_get_next_event(
+    kvm_instance_t *kvm,
+    struct kvmi_dom_event **event,
+    kvmi_timeout_t timeout);
 
 #endif // KVM_EVENTS_H

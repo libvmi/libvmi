@@ -39,6 +39,31 @@ struct kvm_event_pf_reply_packet {
     struct kvmi_event_pf_reply pf;
 };
 
+// helper function to wait and pop the next event from the queue
+status_t
+kvm_get_next_event(
+    kvm_instance_t *kvm,
+    struct kvmi_dom_event **event,
+    kvmi_timeout_t timeout)
+{
+    // wait next event
+    if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, timeout)) {
+        if (errno == ETIMEDOUT) {
+            // no events !
+            return VMI_SUCCESS;
+        }
+        errprint("%s: kvmi_wait_event failed: %s\n", __func__, strerror(errno));
+        return VMI_FAILURE;
+    }
+
+    // pop event from queue
+    if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, event)) {
+        errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
+        return VMI_FAILURE;
+    }
+    return VMI_SUCCESS;
+}
+
 
 /*
  * handle emulation related event response.
@@ -591,27 +616,33 @@ kvm_events_init(
     kvm->process_event[KVMI_EVENT_DESCRIPTOR] = &process_descriptor;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
 
-    // enable monitoring of CR and MSR for all VCPUs by default
+    // enable interception of CR/MSR/PF for all VCPUs by default
     // since this has no performance cost
-    // the interception is activated only when specific registers
-    // have been defined via kvmi_control_cr(), kvmi_control_msr()
+    // the interception will trigger VM-Exists only when specific registers
+    // have been defined via kvmi_control_cr(), kvmi_control_msr(),
+    // or kvmi_set_page_access() for pagefault events
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, true)) {
-            errprint("--Failed to enable CR monitoring\n");
+            errprint("--Failed to enable CR interception\n");
             goto err_exit;
         }
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, true)) {
-            errprint("--Failed to enable MSR monitoring\n");
+            errprint("--Failed to enable MSR interception\n");
+            goto err_exit;
+        }
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, true)) {
+            errprint("--Failed to enable page fault interception\n");
             goto err_exit;
         }
     }
 
     return VMI_SUCCESS;
 err_exit:
-    // disable CR/MSR monitoring
+    // disable CR/MSR/PF monitoring
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false);
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false);
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false);
     }
     return VMI_FAILURE;
 }
@@ -620,8 +651,6 @@ void
 kvm_events_destroy(
     vmi_instance_t vmi)
 {
-    (void)vmi;
-
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
     if (!kvm) {
@@ -629,15 +658,67 @@ kvm_events_destroy(
         return;
     }
 #endif
-    // disable CR/MSR monitoring
     dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver events\n");
+    // pause VM
+    dbprint(VMI_DEBUG_KVM, "--Ensure VM is paused\n");
+    if (VMI_FAILURE == vmi_pause_vm(vmi))
+        errprint("--Failed to pause VM while destroying events\n");
 
+    reg_event_t regevent = { .in_access = VMI_REGACCESS_N };
+    if (kvm->monitor_cr0_on) {
+        // disable CR0
+        regevent.reg = CR0;
+        kvm_set_reg_access(vmi, &regevent);
+    }
+
+    if (kvm->monitor_cr3_on) {
+        // disable CR3
+        regevent.reg = CR3;
+        kvm_set_reg_access(vmi, &regevent);
+    }
+
+    if (kvm->monitor_cr4_on) {
+        // disable CR4
+        regevent.reg = CR4;
+        kvm_set_reg_access(vmi, &regevent);
+    }
+
+    if (kvm->monitor_msr_all_on) {
+        // disable MSR_ALL
+        regevent.reg = MSR_ALL;
+        kvm_set_reg_access(vmi, &regevent);
+    }
+
+    if (kvm->monitor_intr_on) {
+        // disable INT3
+        interrupt_event_t intrevent = { .intr = INT3 };
+        kvm_set_intr_access(vmi, &intrevent, false);
+    }
+
+    if (kvm->monitor_desc_on) {
+        // disable descriptor
+        kvm_set_desc_access_event(vmi, false);
+    }
+
+    // disable CR/MSR/PF interception
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
-            errprint("--Failed to disable CR monitoring\n");
+            errprint("--Failed to disable CR interception\n");
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false))
-            errprint("--Failed to disable MSR monitoring\n");
+            errprint("--Failed to disable MSR interception\n");
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false))
+            errprint("--Failed to disable PF interception\n");
     }
+
+    // clean event queue
+    dbprint(VMI_DEBUG_KVM, "--Cleanup event queue\n");
+    if (VMI_FAILURE == vmi_events_listen(vmi, 0))
+        errprint("--Failed to clean event queue\n");
+
+    // resume VM
+    dbprint(VMI_DEBUG_KVM, "--Resume VM\n");
+    if (VMI_FAILURE == vmi_resume_vm(vmi))
+        errprint("--Failed to resume VM while destroying events\n");
 }
 
 status_t
@@ -661,20 +742,15 @@ kvm_events_listen(
 #endif
 
     do {
-        // wait next event
-        if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, (kvmi_timeout_t)timeout)) {
-            if (errno == ETIMEDOUT) {
-                // no events !
-                return VMI_SUCCESS;
-            }
-            errprint("%s: kvmi_wait_event failed: %s\n", __func__, strerror(errno));
-            return VMI_FAILURE;
+        event = NULL;
+        if (VMI_FAILURE == kvm_get_next_event(kvm, &event, (kvmi_timeout_t)timeout)) {
+            errprint("%s: Failed to get next KVMi event: %s\n", __func__, strerror(errno));
+            goto error_exit;
         }
-
-        // pop event from queue
-        if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &event)) {
-            errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
-            return VMI_FAILURE;
+        // not events ?
+        if (!event) {
+            // no events. Skipping
+            return VMI_SUCCESS;
         }
 
         // handle event
@@ -690,6 +766,7 @@ kvm_events_listen(
             (void)vcpu;
             assert(vcpu < vmi->num_vcpus);
 #endif
+            dbprint(VMI_DEBUG_KVM, "--Moving PAUSE_VPCU event in the buffer\n");
             kvm->pause_events_list[event->event.common.vcpu] = event;
             event = NULL;
             continue;
@@ -700,9 +777,14 @@ kvm_events_listen(
             goto error_exit;
         }
 #endif
-        // call handler
-        if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
-            goto error_exit;
+        if (!vmi->shutting_down) {
+            // call handler
+            if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
+                goto error_exit;
+        }
+        // free event
+        if (event)
+            free(event);
     } while (process_all_events);
 
     return VMI_SUCCESS;
@@ -794,9 +876,30 @@ kvm_set_reg_access(
                     goto error_exit;
                 }
         }
-        dbprint(VMI_DEBUG_KVM, "--Done %s monitoring on register %" PRIu64"\n",
-                (enabled ? "enabling" : "disabling"),
-                event->reg);
+        // monitoring has been enabled
+        char *cr_reg_str = NULL;
+        switch (event->reg) {
+            case CR0:
+                kvm->monitor_cr0_on = enabled;
+                cr_reg_str = "CR0";
+                break;
+            case CR3:
+                kvm->monitor_cr3_on = enabled;
+                cr_reg_str = "CR3";
+                break;
+            case CR4:
+                kvm->monitor_cr4_on = enabled;
+                cr_reg_str = "CR4";
+                break;
+            default:
+                errprint("--Unexpected value for reg: %" PRIu64 "\n", event->reg);
+                goto error_exit;
+        }
+        // silence unused variable if debug disabled
+        (void)cr_reg_str;
+        dbprint(VMI_DEBUG_KVM, "--%s monitoring on register %s\n",
+                (enabled ? "Enabling" : "Disabling"),
+                cr_reg_str);
     } else {
         // MSR_ALL
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
@@ -809,7 +912,9 @@ kvm_set_reg_access(
                 }
             }
         }
-        dbprint(VMI_DEBUG_KVM, "--Set MSR events on all MSRs\n");
+        kvm->monitor_msr_all_on = enabled;
+        dbprint(VMI_DEBUG_KVM, "--%s monitoring on all MSRs\n",
+                (enabled ? "Enabling" : "Disabling"));
     }
 
     return VMI_SUCCESS;
@@ -848,6 +953,7 @@ kvm_set_intr_access(
                     errprint("%s: failed to set event on VCPU %u: %s\n", __func__, vcpu, strerror(errno));
                     goto error_exit;
                 }
+            kvm->monitor_intr_on = enabled;
             break;
         default:
             errprint("KVM driver does not support enabling events for interrupt: %"PRIu32"\n", event->intr);
@@ -878,7 +984,6 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 #endif
-    static bool pf_enabled = false;
     unsigned char kvmi_access, kvmi_orig_access;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
@@ -887,28 +992,6 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 #endif
-    // enable PF events the first time we call this function
-    // this avoids enabling them at kvm_init_vmi, since we don't
-    // know if the app is going to use mem_events at all
-    // TODO: move this at driver init ?
-    if (!pf_enabled) {
-        bool pf_enabled_succeeded = true;
-        for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-            if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, true)) {
-                pf_enabled_succeeded = false;
-                errprint("%s: Fail to enable PF events on VCPU %u: %s\n", __func__, vcpu, strerror(errno));
-                break;
-            }
-        }
-        if (!pf_enabled_succeeded) {
-            // disable PF for all vcpu and fail
-            for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
-                kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false);
-            return VMI_FAILURE;
-        }
-        pf_enabled = true;
-    }
-
     // get previous access type
     if (kvm->libkvmi.kvmi_get_page_access(kvm->kvmi_dom, gpfn, &kvmi_orig_access)) {
         errprint("%s: kvmi_get_page_access failed: %s\n", __func__, strerror(errno));
@@ -918,7 +1001,7 @@ kvm_set_mem_access(
     // check access type and convert to KVMI
     switch (page_access_flag) {
         case VMI_MEMACCESS_N:
-            kvmi_access = 0;
+            kvmi_access = KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X;
             break;
         case VMI_MEMACCESS_R:
             kvmi_access = kvmi_orig_access & ~KVMI_PAGE_ACCESS_R;
@@ -951,7 +1034,14 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 
-    dbprint(VMI_DEBUG_KVM, "--Done setting memaccess on GPFN: 0x%" PRIx64 "\n", gpfn);
+    char str_access[4] = {'_', '_', '_', '\0'};
+    if (kvmi_access & KVMI_PAGE_ACCESS_R) str_access[0] = 'R';
+    if (kvmi_access & KVMI_PAGE_ACCESS_W) str_access[1] = 'W';
+    if (kvmi_access & KVMI_PAGE_ACCESS_X) str_access[2] = 'X';
+
+    // silence unused variable if debug disabled
+    (void)str_access;
+    dbprint(VMI_DEBUG_KVM, "--Setting memaccess permissions to %s on GPFN: 0x%" PRIx64 "\n", str_access, gpfn);
     return VMI_SUCCESS;
 }
 
@@ -967,7 +1057,6 @@ status_t kvm_set_desc_access_event(
 #endif
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    dbprint(VMI_DEBUG_KVM, "--%s descriptor monitoring\n", (enabled) ? "Enable" : "Disable");
 
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, enabled)) {
@@ -975,6 +1064,9 @@ status_t kvm_set_desc_access_event(
             goto error_exit;
         }
     }
+
+    dbprint(VMI_DEBUG_KVM, "--%s descriptor monitoring\n", (enabled) ? "Enabled" : "Disabled");
+    kvm->monitor_desc_on = enabled;
 
     return VMI_SUCCESS;
 
