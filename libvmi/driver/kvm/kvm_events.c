@@ -895,6 +895,8 @@ kvm_set_reg_access(
                 errprint("--Unexpected value for reg: %" PRIu64 "\n", event->reg);
                 goto error_exit;
         }
+        // silence unused variable if debug disabled
+        (void)cr_reg_str;
         dbprint(VMI_DEBUG_KVM, "--%s monitoring on register %s\n",
                 (enabled ? "Enabling" : "Disabling"),
                 cr_reg_str);
@@ -1037,6 +1039,8 @@ kvm_set_mem_access(
     if (kvmi_access & KVMI_PAGE_ACCESS_W) str_access[1] = 'W';
     if (kvmi_access & KVMI_PAGE_ACCESS_X) str_access[2] = 'X';
 
+    // silence unused variable if debug disabled
+    (void)str_access;
     dbprint(VMI_DEBUG_KVM, "--Setting memaccess permissions to %s on GPFN: 0x%" PRIx64 "\n", str_access, gpfn);
     return VMI_SUCCESS;
 }
