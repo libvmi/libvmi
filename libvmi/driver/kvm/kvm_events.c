@@ -973,7 +973,7 @@ kvm_set_mem_access(
     // check access type and convert to KVMI
     switch (page_access_flag) {
         case VMI_MEMACCESS_N:
-            kvmi_access = 0;
+            kvmi_access = KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X;
             break;
         case VMI_MEMACCESS_R:
             kvmi_access = kvmi_orig_access & ~KVMI_PAGE_ACCESS_R;
