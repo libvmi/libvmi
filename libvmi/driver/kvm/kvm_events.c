@@ -39,6 +39,31 @@ struct kvm_event_pf_reply_packet {
     struct kvmi_event_pf_reply pf;
 };
 
+// helper function to wait and pop the next event from the queue
+status_t
+kvm_get_next_event(
+    kvm_instance_t *kvm,
+    struct kvmi_dom_event **event,
+    kvmi_timeout_t timeout)
+{
+    // wait next event
+    if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, timeout)) {
+        if (errno == ETIMEDOUT) {
+            // no events !
+            return VMI_SUCCESS;
+        }
+        errprint("%s: kvmi_wait_event failed: %s\n", __func__, strerror(errno));
+        return VMI_FAILURE;
+    }
+
+    // pop event from queue
+    if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, event)) {
+        errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
+        return VMI_FAILURE;
+    }
+    return VMI_SUCCESS;
+}
+
 
 /*
  * handle emulation related event response.
@@ -717,20 +742,14 @@ kvm_events_listen(
 #endif
 
     do {
-        // wait next event
-        if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, (kvmi_timeout_t)timeout)) {
-            if (errno == ETIMEDOUT) {
-                // no events !
-                return VMI_SUCCESS;
-            }
-            errprint("%s: kvmi_wait_event failed: %s\n", __func__, strerror(errno));
-            return VMI_FAILURE;
+        if (VMI_FAILURE == kvm_get_next_event(kvm, &event, (kvmi_timeout_t)timeout)) {
+            errprint("%s: Failed to get next KVMi event: %s\n", __func__, strerror(errno));
+            goto error_exit;
         }
-
-        // pop event from queue
-        if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &event)) {
-            errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
-            return VMI_FAILURE;
+        // not events ?
+        if (!event) {
+            // no events. Skipping
+            return VMI_SUCCESS;
         }
 
         // handle event

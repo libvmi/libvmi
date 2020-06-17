@@ -953,14 +953,12 @@ kvm_resume_vm(
 
         // if no pause event is waiting in the list, pop next one
         if (!ev) {
-            // wait
-            if (kvm->libkvmi.kvmi_wait_event(kvm->kvmi_dom, 1000)) {
-                errprint("%s: Failed to receive event\n", __func__);
-                return VMI_FAILURE;
+            if (VMI_FAILURE == kvm_get_next_event(kvm, &ev, 3000)) {
+                errprint("Failed to get next KVMi event\n");
             }
-            // pop
-            if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &ev)) {
-                errprint("%s: Failed to pop event\n", __func__);
+            if (!ev) {
+                // no new events
+                // report error
                 return VMI_FAILURE;
             }
         }
