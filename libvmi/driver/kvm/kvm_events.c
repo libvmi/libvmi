@@ -781,6 +781,9 @@ kvm_events_listen(
             if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
                 goto error_exit;
         }
+        // free event
+        if (event)
+            free(event);
     } while (process_all_events);
 
     return VMI_SUCCESS;
