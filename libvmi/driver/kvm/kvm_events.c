@@ -1006,7 +1006,12 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 
-    dbprint(VMI_DEBUG_KVM, "--Setting memaccess on GPFN: 0x%" PRIx64 "\n", gpfn);
+    char str_access[4] = {'_', '_', '_', '\0'};
+    if (kvmi_access & KVMI_PAGE_ACCESS_R) str_access[0] = 'R';
+    if (kvmi_access & KVMI_PAGE_ACCESS_W) str_access[1] = 'W';
+    if (kvmi_access & KVMI_PAGE_ACCESS_X) str_access[2] = 'X';
+
+    dbprint(VMI_DEBUG_KVM, "--Setting memaccess permissions to %s on GPFN: 0x%" PRIx64 "\n", str_access, gpfn);
     return VMI_SUCCESS;
 }
 
