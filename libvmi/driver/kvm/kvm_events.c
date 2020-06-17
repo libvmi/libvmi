@@ -742,6 +742,7 @@ kvm_events_listen(
 #endif
 
     do {
+        event = NULL;
         if (VMI_FAILURE == kvm_get_next_event(kvm, &event, (kvmi_timeout_t)timeout)) {
             errprint("%s: Failed to get next KVMi event: %s\n", __func__, strerror(errno));
             goto error_exit;
