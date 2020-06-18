@@ -110,7 +110,9 @@ int main (int argc, char **argv)
     single_event.type = VMI_EVENT_SINGLESTEP;
     single_event.callback = single_step_callback;
     single_event.ss_event.enable = 1;
-    SET_VCPU_SINGLESTEP(single_event.ss_event, 0);
+    // enable singlestep on all VCPUs
+    for (unsigned int vcpu=0; vcpu < num_vcpus; vcpu++)
+        SET_VCPU_SINGLESTEP(single_event.ss_event, vcpu);
 
     // register
     if (VMI_FAILURE == vmi_register_event(vmi, &single_event)) {
