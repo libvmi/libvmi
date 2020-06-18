@@ -757,6 +757,9 @@ kvm_events_destroy(
         kvm_set_desc_access_event(vmi, false);
     }
 
+    if (VMI_FAILURE == kvm_shutdown_single_step(vmi))
+        errprint("--Failed to shutdown singlestep\n");
+
     // disable CR/MSR/PF/singlestep interception
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
