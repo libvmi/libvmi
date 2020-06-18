@@ -35,7 +35,7 @@ jobs:
         - sudo apt-get update
         - sudo apt-get -q -y install astyle
       script:
-        - find . -type f \( -name "*.c" -or -name "*.h" \) -exec astyle -Q "{}" >> astyle.out \;
+        - astyle -Q `find . -type f -name "*.c" -o -name "*.h"` >> astyle.out
         - TEST=$(cat astyle.out | wc -l)
         - |
           if [[ $TEST -ne 0 ]]; then
