@@ -1,0 +1,4 @@
+[submodule "deps/json-c"]
+	path = deps/json-c
+	url = https://github.com/json-c/json-c.git
+	branch = "json-c-0.14-20200419"
