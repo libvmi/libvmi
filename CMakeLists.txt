@@ -80,10 +80,15 @@ option(ENV_DEBUG "Toggle the debug output via LIBVMI_DEBUG environment variable"
 find_package(JSON-C)
 if (JSON-C_FOUND)
 option(ENABLE_KVM "Build KVM driver" ON)
-option(ENABLE_BAREFLANK "Build Bareflank driver" ON)
 option(ENABLE_JSON_PROFILES "Enable JSON profiles" ON)
 option(REKALL_PROFILES "Support Rekall's JSON profiles" ON)
 option(VOLATILITY_IST "Support Volatility's JSON ISTs" ON)
+if (${JSON-C_VERSION} VERSION_LESS 0.14)
+    message(STATUS "JSON-C library version ${JSON-C_VERSION} is older than 0.14. Bareflank support is disabled")
+    option(ENABLE_BAREFLANK "Build Bareflank driver" OFF)
+else()
+    option(ENABLE_BAREFLANK "Build Bareflank driver" ON)
+endif()
 else ()
 message(STATUS "JSON-C library was not found, KVM, Bareflank & JSON profile support is disabled")
 option(ENABLE_KVM "Build KVM driver" OFF)
@@ -115,6 +120,14 @@ endif ()
 if (ENABLE_XEN AND ENABLE_XENSTORE)
     find_package(Xenstore REQUIRED)
 endif ()
+
+# ----------------------------------------------------------------------------
+#                              VALIDATE
+# ----------------------------------------------------------------------------
+
+if (ENABLE_BAREFLANK AND (NOT JSON-C_FOUND OR (${JSON-C_VERSION}) VERSION_LESS 0.14))
+    message(FATAL_ERROR "Bareflank requires json-c version >=0.14 but ${JSON-C_VERSION} was found")
+endif()
 
 #-----------------------------------------------------------------------------
 #                               SOURCES
