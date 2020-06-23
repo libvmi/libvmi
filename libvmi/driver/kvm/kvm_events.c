@@ -139,8 +139,12 @@ process_cb_response(
         errprint("%s: invalid kvm or kvmi handles\n", __func__);
         return VMI_FAILURE;
     }
-    if (!libvmi_event || !kvmi_event || !rpl) {
-        errprint("%s: invalid libvmi/kvmi/rpl handles\n", __func__);
+    // Note: libvmi_event can be NULL
+    // this indicates that we are shutting down libvmi, and that vmi_events_listen(0) has been called
+    // to process the rest of the events in the queue.
+    // the libvmi event has already been cleared at this point.
+    if (!kvmi_event || !rpl) {
+        errprint("%s: invalid kvmi/rpl handles\n", __func__);
         return VMI_FAILURE;
     }
 #endif
@@ -588,33 +592,37 @@ process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         return VMI_FAILURE;
 #endif
     dbprint(VMI_DEBUG_KVM, "--Received single step event\n");
+    event_response_t response = VMI_EVENT_RESPONSE_NONE;
+    vmi_event_t *libvmi_event = NULL;
 
-    // lookup vmi_event
-    gint key = (gint)kvmi_event->event.common.vcpu;
-    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->ss_events, &key);
+    if (!vmi->shutting_down) {
+        // lookup vmi_event
+        gint key = (gint)kvmi_event->event.common.vcpu;
+        libvmi_event = g_hash_table_lookup(vmi->ss_events, &key);
 #ifdef ENABLE_SAFETY_CHECKS
-    if ( !libvmi_event ) {
-        errprint("%s error: no single step event handler is registered in LibVMI\n", __func__);
-        return VMI_FAILURE;
-    }
+        if ( !libvmi_event ) {
+            errprint("%s error: no single step event handler is registered in LibVMI\n", __func__);
+            return VMI_FAILURE;
+        }
 #endif
 
-    // assign VCPU id
-    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
-    // assign regs
-    x86_registers_t libvmi_regs = {0};
-    libvmi_event->x86_regs = &libvmi_regs;
-    struct kvm_regs *regs = &kvmi_event->event.common.arch.regs;
-    struct kvm_sregs *sregs = &kvmi_event->event.common.arch.sregs;
-    kvmi_regs_to_libvmi(regs, sregs, libvmi_event->x86_regs);
+        // assign VCPU id
+        libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
+        // assign regs
+        x86_registers_t libvmi_regs = {0};
+        libvmi_event->x86_regs = &libvmi_regs;
+        struct kvm_regs *regs = &kvmi_event->event.common.arch.regs;
+        struct kvm_sregs *sregs = &kvmi_event->event.common.arch.sregs;
+        kvmi_regs_to_libvmi(regs, sregs, libvmi_event->x86_regs);
 
-    // TODO ss_event
-    // gfn
-    // offset
-    libvmi_event->ss_event.gla = libvmi_event->x86_regs->rip;
+        // TODO ss_event
+        // gfn
+        // offset
+        libvmi_event->ss_event.gla = libvmi_event->x86_regs->rip;
 
-    // call user callback
-    event_response_t response = call_event_callback(vmi, libvmi_event);
+        // call user callback
+        response = call_event_callback(vmi, libvmi_event);
+    }
 
     // reply struct
     struct {
