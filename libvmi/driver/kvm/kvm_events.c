@@ -852,11 +852,10 @@ kvm_events_listen(
             goto error_exit;
         }
 #endif
-        if (!vmi->shutting_down) {
-            // call handler
-            if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
-                goto error_exit;
-        }
+        // call handler
+        if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
+            goto error_exit;
+
         // free event
         if (event)
             free(event);
