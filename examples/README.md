@@ -15,6 +15,19 @@ parameter) and sets a software breakpoint by writing `int3` interrupt.
 When the breakpoint is hit, use the `VMI_EVENT_RESPONSE_SET_EMUL_INSN` event response
 to emulate the instruction stored in `event->emul_insn`.
 
+## breakpoint-recoil-example
+
+Recoiling on a software breakpoint like a traditional debugger.
+
+Reads the opcode at the specified symbol location and writes a software breakpoint `int3`, then
+waits for interrupt events
+
+When the breakpoint is hit, use the checks if it's our breakpoint, and recoil over it
+by writing back the original opcode and enabling singlestep with `VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP`.
+
+The singlestep callback will handle the second step of the recoil by writing back the breakoint
+and disabling the singlestep for this VCPU.
+
 ## cr3-event-example
 
 Intercepts and displays `CR3` events.
