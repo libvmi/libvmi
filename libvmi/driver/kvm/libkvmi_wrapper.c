@@ -19,6 +19,10 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define _GNU_SOURCE
+#include <link.h>
+#include <dlfcn.h>
+
 #include "kvm_private.h"
 #include "libkvmi_wrapper.h"
 
@@ -53,10 +57,17 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
 
     wrapper->handle = dlopen("libkvmi.so", RTLD_NOW | RTLD_GLOBAL);
 
+
     if (!wrapper->handle) {
         dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libkvmi\n");
         return VMI_FAILURE;
     }
+    struct link_map *map = NULL;
+    if (dlinfo(wrapper->handle, RTLD_DI_LINKMAP, &map)) {
+        dbprint(VMI_DEBUG_KVM, "--failed to get dlopen handle info\n");
+        return VMI_FAILURE;
+    }
+    dbprint(VMI_DEBUG_KVM, "--libkvmi path: %s\n", map->l_name);
 
     wrapper->kvmi_init_unix_socket = dlsym(wrapper->handle, "kvmi_init_unix_socket");
     wrapper->kvmi_uninit = dlsym(wrapper->handle, "kvmi_uninit");
