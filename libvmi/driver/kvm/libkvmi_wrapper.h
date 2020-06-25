@@ -123,6 +123,9 @@ typedef struct {
     int (*kvmi_eptp_support)
     (void *dom, bool *supported);
 
+    size_t (*kvmi_get_pending_events)
+    (void *dom);
+
 } libkvmi_wrapper_t;
 
 status_t create_libkvmi_wrapper(struct kvm_instance *kvm);
