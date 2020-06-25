@@ -661,6 +661,7 @@ kvm_events_init(
 
     // bind driver functions
     vmi->driver.events_listen_ptr = &kvm_events_listen;
+    vmi->driver.are_events_pending_ptr = &kvm_are_events_pending;
     vmi->driver.set_reg_access_ptr = &kvm_set_reg_access;
     vmi->driver.set_intr_access_ptr = &kvm_set_intr_access;
     vmi->driver.set_mem_access_ptr = &kvm_set_mem_access;
@@ -786,9 +787,11 @@ kvm_events_destroy(
     }
 
     // clean event queue
-    dbprint(VMI_DEBUG_KVM, "--Cleanup event queue\n");
-    if (VMI_FAILURE == vmi_events_listen(vmi, 0))
-        errprint("--Failed to clean event queue\n");
+    if (kvm_are_events_pending(vmi)) {
+        dbprint(VMI_DEBUG_KVM, "--Cleanup event queue\n");
+        if (VMI_FAILURE == vmi_events_listen(vmi, 0))
+            errprint("--Failed to clean event queue\n");
+    }
 
     // resume VM
     dbprint(VMI_DEBUG_KVM, "--Resume VM\n");
@@ -866,6 +869,26 @@ error_exit:
     if (event)
         free(event);
     return VMI_FAILURE;
+}
+
+int
+kvm_are_events_pending(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("Invalid VMI handle\n");
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("Invalid kvm or kvmi_dom handles\n");
+        return VMI_FAILURE;
+    }
+#endif
+    return kvm->libkvmi.kvmi_get_pending_events(kvm->kvmi_dom);
 }
 
 status_t

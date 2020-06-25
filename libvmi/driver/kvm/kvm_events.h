@@ -43,6 +43,10 @@ kvm_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout);
 
+int
+kvm_are_events_pending(
+    vmi_instance_t vmi);
+
 status_t
 kvm_set_reg_access(
     vmi_instance_t vmi,
