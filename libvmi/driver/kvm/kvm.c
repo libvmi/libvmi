@@ -556,12 +556,14 @@ kvm_destroy(
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver\n");
 
-    kvm_close_vmi(vmi, kvm);
+    if (kvm) {
+        kvm_close_vmi(vmi, kvm);
 
-    dlclose(kvm->libkvmi.handle);
-    dlclose(kvm->libvirt.handle);
-    dlclose(kvm->libvirt.handle_qemu);
-    g_free(kvm);
+        dlclose(kvm->libkvmi.handle);
+        dlclose(kvm->libvirt.handle);
+        dlclose(kvm->libvirt.handle_qemu);
+        g_free(kvm);
+    }
 }
 
 status_t
