@@ -1216,6 +1216,7 @@ kvm_start_single_step(
                     errprint("%s: kvmi_control_singlestep failed: %s\n", __func__, strerror(errno));
                     goto rewind;
                 }
+                kvm->sstep_enabled[vcpu] = true;
             }
         }
     }
@@ -1254,6 +1255,8 @@ kvm_stop_single_step(
         errprint("%s: kvmi_control_singlestep failed: %s\n", __func__, strerror(errno));
         return VMI_FAILURE;
     }
+
+    kvm->sstep_enabled[vcpu] = false;
 
     return VMI_SUCCESS;
 }

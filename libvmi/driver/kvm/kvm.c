@@ -442,6 +442,11 @@ kvm_close_vmi(vmi_instance_t vmi, kvm_instance_t *kvm)
         kvm_events_destroy(vmi);
     }
 
+    if (kvm->sstep_enabled) {
+        g_free(kvm->sstep_enabled);
+        kvm->sstep_enabled = NULL;
+    }
+
     if (kvm->pause_events_list) {
         g_free(kvm->pause_events_list);
         kvm->pause_events_list = NULL;
@@ -535,6 +540,11 @@ kvm_init_vmi(
     // init pause events array
     kvm->pause_events_list = g_try_new0(struct kvmi_dom_event*, vmi->num_vcpus);
     if (!kvm->pause_events_list)
+        goto err_exit;
+
+    // init singlestep enabled array
+    kvm->sstep_enabled = g_try_new0(bool, vmi->num_vcpus);
+    if (!kvm->sstep_enabled)
         goto err_exit;
 
     // events ?
