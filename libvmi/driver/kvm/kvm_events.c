@@ -39,6 +39,39 @@ struct kvm_event_pf_reply_packet {
     struct kvmi_event_pf_reply pf;
 };
 
+// start singlestep on a single VCPU
+status_t
+kvm_start_single_step_vcpu(
+    vmi_instance_t vmi,
+    uint32_t vcpu)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    assert(vcpu < vmi->num_vcpus);
+    // toggle singlestepping
+    dbprint(VMI_DEBUG_KVM, "--Setting MTF flag on vcpu %" PRIu32 "\n", vcpu);
+    if (kvm->libkvmi.kvmi_control_singlestep(kvm->kvmi_dom, vcpu, true)) {
+        errprint("%s: kvmi_control_singlestep failed: %s\n", __func__, strerror(errno));
+        kvm->sstep_enabled[vcpu] = false;
+        return VMI_FAILURE;
+    }
+
+    kvm->sstep_enabled[vcpu] = true;
+
+    return VMI_SUCCESS;
+}
+
 // helper function to wait and pop the next event from the queue
 status_t
 kvm_get_next_event(
@@ -149,7 +182,11 @@ process_cb_response(
     }
 #endif
 
-    registers_t regs;
+    unsigned int vcpu = kvmi_event->event.common.vcpu;
+    assert(vcpu < vmi->num_vcpus);
+    status_t status = VMI_FAILURE;
+    registers_t regs = {0};
+
     // loop over all possible responses
     for (uint32_t i = VMI_EVENT_RESPONSE_NONE+1; i <=__VMI_EVENT_RESPONSE_MAX; i++) {
         event_response_t candidate = 1u << i;
@@ -162,6 +199,19 @@ process_cb_response(
                     regs.x86 = (*libvmi_event->x86_regs);
                     if (VMI_FAILURE == kvm_set_vcpuregs(vmi, &regs, libvmi_event->vcpu_id)) {
                         errprint("%s: KVM: failed to set registers in callback response\n", __func__);
+                        return VMI_FAILURE;
+                    }
+                    break;
+                case VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP:
+                    if (kvm->sstep_enabled[vcpu]) {
+                        // disable
+                        status = kvm_stop_single_step(vmi, vcpu);
+                    } else {
+                        // enable
+                        status = kvm_start_single_step_vcpu(vmi, vcpu);
+                    }
+                    if (status == VMI_FAILURE) {
+                        errprint("--Failed to toggle singlestep on VCPU %u\n", vcpu);
                         return VMI_FAILURE;
                     }
                     break;
@@ -1209,14 +1259,9 @@ kvm_start_single_step(
     if ( event->vcpus && event->enable ) {
         for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
             if ( CHECK_VCPU_SINGLESTEP(*event, vcpu) ) {
-                dbprint(VMI_DEBUG_KVM, "--Setting MTF flag on vcpu %" PRIu32 "\n", vcpu);
-
-                // toggle singlestepping
-                if (kvm->libkvmi.kvmi_control_singlestep(kvm->kvmi_dom, vcpu, true)) {
-                    errprint("%s: kvmi_control_singlestep failed: %s\n", __func__, strerror(errno));
+                if (VMI_FAILURE == kvm_start_single_step_vcpu(vmi, vcpu)) {
                     goto rewind;
                 }
-                kvm->sstep_enabled[vcpu] = true;
             }
         }
     }
