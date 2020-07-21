@@ -27,6 +27,8 @@
 
 #include "private.h"
 
+struct kvm_instance;
+
 // wrapper struct
 typedef struct {
 

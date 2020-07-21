@@ -29,16 +29,17 @@
 #ifndef KVM_PRIVATE_H
 #define KVM_PRIVATE_H
 
+// config.h is parsed in private.h (ENABLE_KVM_LEGACY)
+#include "private.h"
+
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
 #ifndef ENABLE_KVM_LEGACY
 # include <libkvmi.h>
+# include "libkvmi_wrapper.h"
 #endif
 
-
-#include "private.h"
 #include "libvirt_wrapper.h"
-#include "libkvmi_wrapper.h"
 
 typedef struct kvm_instance {
     virConnectPtr conn;
