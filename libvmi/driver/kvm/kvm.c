@@ -44,7 +44,7 @@
 #include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
-#include <kvmi/libkvmi.h>
+#include <libkvmi.h>
 
 #include "private.h"
 #include "msr-index.h"

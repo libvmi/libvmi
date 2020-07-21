@@ -23,7 +23,7 @@
 #define LIBKVMI_WRAPPER_H
 
 #include <stdint.h>
-#include <kvmi/libkvmi.h>
+#include <libkvmi.h>
 
 #include "private.h"
 

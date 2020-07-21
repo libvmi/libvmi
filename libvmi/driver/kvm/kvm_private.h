@@ -32,7 +32,7 @@
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
 #ifndef ENABLE_KVM_LEGACY
-# include <kvmi/libkvmi.h>
+# include <libkvmi.h>
 #endif
 
 
