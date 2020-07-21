@@ -317,7 +317,7 @@ PKG_CHECK_MODULES([JSONC], [json-c], [have_jsonc='yes'], [have_jsonc='no'])
         AC_DEFINE([ENABLE_KVM_LEGACY], [1],
                   [Define to 1 to enable legacy KVM driver support.])
     [else]
-        AC_CHECK_HEADER([kvmi/libkvmi.h], [],
+        PKG_CHECK_MODULES([LIBKVMI], [libkvmi], [],
             [AC_MSG_ERROR([No libkvmi headers found. Install the library or
              enable the legacy KVM driver with --enable-kvm-legacy])])
     [fi]
