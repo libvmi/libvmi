@@ -89,7 +89,8 @@ static status_t sanity_check(xen_instance_t *xen)
                 break;
         /* Fall-through */
         case 10:
-            if ( !w->xc_monitor_descriptor_access || !w->xc_monitor_write_ctrlreg2 )
+            if ( !w->xc_monitor_descriptor_access || !w->xc_monitor_write_ctrlreg2 ||
+                    !w->xc_monitor_guest_request2)
                 break;
         /* Fall-through */
         case 9:
@@ -204,6 +205,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_monitor_singlestep = dlsym(wrapper->handle, "xc_monitor_singlestep");
     wrapper->xc_monitor_software_breakpoint = dlsym(wrapper->handle, "xc_monitor_software_breakpoint");
     wrapper->xc_monitor_guest_request = dlsym(wrapper->handle, "xc_monitor_guest_request");
+    wrapper->xc_monitor_guest_request2 = dlsym(wrapper->handle, "xc_monitor_guest_request");
     wrapper->xc_monitor_privileged_call = dlsym(wrapper->handle, "xc_monitor_privileged_call");
     wrapper->xc_monitor_descriptor_access = dlsym(wrapper->handle, "xc_monitor_descriptor_access");
     wrapper->xc_monitor_emul_unimplemented = dlsym(wrapper->handle, "xc_monitor_emul_unimplemented");
