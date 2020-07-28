@@ -57,6 +57,7 @@ if ENABLE_REKALL_PROFILES
     h_private   += libvmi/json_profiles/rekall.h
 endif
 
+drivers_AM_CPPFLAGS =
 drivers =
 if WITH_FILE
     drivers     += libvmi/driver/file/file.h \
@@ -93,8 +94,9 @@ if WITH_BAREFLANK
 drivers     += libvmi/driver/bareflank/bareflank.h \
                libvmi/driver/bareflank/bareflank_private.h \
                libvmi/driver/bareflank/bareflank.c \
-               libvmi/driver/bareflank/hypercall.h \
-               libvmi/driver/bareflank/hypercall.S
+               libvmi/driver/bareflank/bfsdk/src/intrinsics.S \
+               libvmi/driver/bareflank/bfsdk/include/bfhypercall.h
+drivers_AM_CPPFLAGS += -I$(top_srcdir)/libvmi/driver/bareflank/bfsdk/include
 endif
 
 os =
@@ -121,13 +123,13 @@ os          += libvmi/os/freebsd/freebsd.h \
                libvmi/os/freebsd/symbols.c
 endif
 
-library_includedir=$(includedir)/libvmi
+library_includedir = $(includedir)/libvmi
 library_include_HEADERS = $(h_public)
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvmi.pc
 
-AM_CPPFLAGS = -I$(top_srcdir)/libvmi
+AM_CPPFLAGS = -I$(top_srcdir)/libvmi $(drivers_AM_CPPFLAGS)
 AM_YFLAGS = -y -d
 AM_LDFLAGS = $(LDFLAGS)
 
