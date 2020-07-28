@@ -14,7 +14,6 @@ find_library(JSON-C_LIBRARY NAMES json-c libjson-c
 
 set(JSON-C_LIBRARIES ${PC_JSON-C_LIBRARIES})
 set(JSON-C_INCLUDE_DIRS ${JSON-C_INCLUDE_DIR})
-set(JSON-C_VERSION ${PC_JSON-C_VERSION})
 
 include(FindPackageHandleStandardArgs)
 
