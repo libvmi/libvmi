@@ -259,7 +259,6 @@ AM_CONDITIONAL([MAKE_TESTS], [test x$have_check = xyes])
 
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16],[],[AC_MSG_ERROR(GLib 2.16 or newer not found. Install missing package and re-run)])
 PKG_CHECK_MODULES([JSONC], [json-c], [have_jsonc='yes'], [have_jsonc='no'])
-PKG_CHECK_MODULES([JSONC_VER], [json-c >= 0.14], [have_jsonc_0_14_or_above='yes'], [have_jsonc_0_14_or_above='no'])
 
 [if test "$enable_xen" = "yes" || test "$enable_kvm" = "yes"]
 [then]
@@ -314,10 +313,6 @@ PKG_CHECK_MODULES([JSONC_VER], [json-c >= 0.14], [have_jsonc_0_14_or_above='yes'
     [if test "$have_jsonc" = "no"]
     [then]
         AC_MSG_ERROR(No json-c library found. Install missing package or re-run with --disable-bareflank)
-    [fi]
-    [if test "$have_jsonc_0_14_or_above" = "no"]
-    [then]
-        AC_MSG_ERROR(json-c library is older than 0.14. Install a newer version or re-run with --disable-bareflank)
     [fi]
     AC_DEFINE([ENABLE_BAREFLANK], [1], [Define to 1 to enable Bareflank support.])
 [fi]
