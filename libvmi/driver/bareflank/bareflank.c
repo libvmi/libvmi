@@ -5,6 +5,7 @@
  * This file is part of LibVMI.
  *
  * Author: Tamas K Lengyel <lengyelt@ainfosec.com>
+ * Author: Christopher Pelloux <git@chp.io>
  *
  * LibVMI is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
@@ -36,153 +37,281 @@
 #include "driver/memory_cache.h"
 #include "driver/bareflank/bareflank.h"
 #include "driver/bareflank/bareflank_private.h"
-#include "driver/bareflank/hypercall.h"
 
-static bool get_registers(vmi_instance_t vmi, uint64_t vcpu, json_object **jobj, void *buffer)
+static bool libvmi_to_microv_reg(reg_t reg, mv_uint64_t *mv_reg)
 {
-    uint64_t status;
-    size_t size = vmi->page_size;
+    switch (reg) {
+        case RAX:
+            *mv_reg = mv_reg_t_rax;
+            break;
+        case RBX:
+            *mv_reg = mv_reg_t_rbx;
+            break;
+        case RCX:
+            *mv_reg = mv_reg_t_rcx;
+            break;
+        case RDX:
+            *mv_reg = mv_reg_t_rdx;
+            break;
+        case RDI:
+            *mv_reg = mv_reg_t_rdi;
+            break;
+        case RSI:
+            *mv_reg = mv_reg_t_rsi;
+            break;
+        case R8:
+            *mv_reg = mv_reg_t_r8;
+            break;
+        case R9:
+            *mv_reg = mv_reg_t_r9;
+            break;
+        case R10:
+            *mv_reg = mv_reg_t_r10;
+            break;
+        case R11:
+            *mv_reg = mv_reg_t_r11;
+            break;
+        case R12:
+            *mv_reg = mv_reg_t_r12;
+            break;
+        case R13:
+            *mv_reg = mv_reg_t_r13;
+            break;
+        case R14:
+            *mv_reg = mv_reg_t_r14;
+            break;
+        case R15:
+            *mv_reg = mv_reg_t_r15;
+            break;
+        case RBP:
+            *mv_reg = mv_reg_t_rbp;
+            break;
+        case RSP:
+            *mv_reg = mv_reg_t_rsp;
+            break;
+        case RIP:
+            *mv_reg = mv_reg_t_rip;
+            break;
+        case CR0:
+            *mv_reg = mv_reg_t_cr0;
+            break;
+        case CR2:
+            *mv_reg = mv_reg_t_cr2;
+            break;
+        case CR3:
+            *mv_reg = mv_reg_t_cr3;
+            break;
+        case CR4:
+            *mv_reg = mv_reg_t_cr4;
+            break;
+        // case CR8: *mv_reg = mv_reg_t_cr8; break;
+        case DR0:
+            *mv_reg = mv_reg_t_dr0;
+            break;
+        case DR1:
+            *mv_reg = mv_reg_t_dr1;
+            break;
+        case DR2:
+            *mv_reg = mv_reg_t_dr2;
+            break;
+        case DR3:
+            *mv_reg = mv_reg_t_dr3;
+            break;
+        // case DR4: *mv_reg = mv_reg_t_dr4; break;
+        // case DR5: *mv_reg = mv_reg_t_dr5; break;
+        case DR6:
+            *mv_reg = mv_reg_t_dr6;
+            break;
+        case DR7:
+            *mv_reg = mv_reg_t_dr7;
+            break;
+        case RFLAGS:
+            *mv_reg = mv_reg_t_rflags;
+            break;
+        case ES_SEL:
+            *mv_reg = mv_reg_t_es;
+            break;
+        case ES_BASE:
+            *mv_reg = mv_reg_t_es_base_addr;
+            break;
+        case ES_LIMIT:
+            *mv_reg = mv_reg_t_es_limit;
+            break;
+        case ES_ARBYTES:
+            *mv_reg = mv_reg_t_es_attributes;
+            break;
+        case CS_SEL:
+            *mv_reg = mv_reg_t_cs;
+            break;
+        case CS_BASE:
+            *mv_reg = mv_reg_t_cs_base_addr;
+            break;
+        case CS_LIMIT:
+            *mv_reg = mv_reg_t_cs_limit;
+            break;
+        case CS_ARBYTES:
+            *mv_reg = mv_reg_t_cs_attributes;
+            break;
+        case SS_SEL:
+            *mv_reg = mv_reg_t_ss;
+            break;
+        case SS_BASE:
+            *mv_reg = mv_reg_t_ss_base_addr;
+            break;
+        case SS_LIMIT:
+            *mv_reg = mv_reg_t_ss_limit;
+            break;
+        case SS_ARBYTES:
+            *mv_reg = mv_reg_t_ss_attributes;
+            break;
+        case DS_SEL:
+            *mv_reg = mv_reg_t_ds;
+            break;
+        case DS_BASE:
+            *mv_reg = mv_reg_t_ds_base_addr;
+            break;
+        case DS_LIMIT:
+            *mv_reg = mv_reg_t_ds_limit;
+            break;
+        case DS_ARBYTES:
+            *mv_reg = mv_reg_t_ds_attributes;
+            break;
+        case FS_SEL:
+            *mv_reg = mv_reg_t_fs;
+            break;
+        case FS_BASE:
+            *mv_reg = mv_reg_t_fs_base_addr;
+            break;
+        case FS_LIMIT:
+            *mv_reg = mv_reg_t_fs_limit;
+            break;
+        case FS_ARBYTES:
+            *mv_reg = mv_reg_t_fs_attributes;
+            break;
+        case GS_SEL:
+            *mv_reg = mv_reg_t_gs;
+            break;
+        case GS_BASE:
+            *mv_reg = mv_reg_t_gs_base_addr;
+            break;
+        case GS_LIMIT:
+            *mv_reg = mv_reg_t_gs_limit;
+            break;
+        case GS_ARBYTES:
+            *mv_reg = mv_reg_t_gs_attributes;
+            break;
+        case LDTR_SEL:
+            *mv_reg = mv_reg_t_ldtr;
+            break;
+        case LDTR_BASE:
+            *mv_reg = mv_reg_t_ldtr_base_addr;
+            break;
+        case LDTR_LIMIT:
+            *mv_reg = mv_reg_t_ldtr_limit;
+            break;
+        case LDTR_ARBYTES:
+            *mv_reg = mv_reg_t_ldtr_attributes;
+            break;
+        case TR_SEL:
+            *mv_reg = mv_reg_t_tr;
+            break;
+        case TR_BASE:
+            *mv_reg = mv_reg_t_tr_base_addr;
+            break;
+        case TR_LIMIT:
+            *mv_reg = mv_reg_t_tr_limit;
+            break;
+        case TR_ARBYTES:
+            *mv_reg = mv_reg_t_tr_attributes;
+            break;
+        // case GDTR: *mv_reg = mv_reg_t_gdtr; break;
+        case GDTR_BASE:
+            *mv_reg = mv_reg_t_gdtr_base_addr;
+            break;
+        case GDTR_LIMIT:
+            *mv_reg = mv_reg_t_gdtr_limit;
+            break;
+        // case GDTR: *mv_reg = mv_reg_t_gdtr_attributes; break;
+        // case IDTR: *mv_reg = mv_reg_t_idtr; break;
+        case IDTR_BASE:
+            *mv_reg = mv_reg_t_idtr_base_addr;
+            break;
+        case IDTR_LIMIT:
+            *mv_reg = mv_reg_t_idtr_limit;
+            break;
+        // case IDTR: *mv_reg = mv_reg_t_idtr_attributes; break;
+        default:
+            return false;
+    }
 
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-    CPU_SET(vcpu,&mask);
+    return true;
+}
 
-    if ( -1 == sched_setaffinity(0, sizeof(mask), &mask) )
-        return 0;
+static bool libvmi_to_microv_msr(reg_t reg, mv_uint32_t *mv_msr)
+{
+    switch (reg) {
+        case MSR_IA32_SYSENTER_CS:
+            *mv_msr = 0x174;
+            break;
+        case MSR_IA32_SYSENTER_EIP:
+            *mv_msr = 0x176;
+            break;
+        case MSR_IA32_SYSENTER_ESP:
+            *mv_msr = 0x175;
+            break;
+        case MSR_EFER:
+            *mv_msr = 0xC0000080;
+            break;
+        case MSR_STAR:
+            *mv_msr = 0xC0000081;
+            break;
+        case MSR_LSTAR:
+            *mv_msr = 0xC0000082;
+            break;
+        case MSR_CSTAR:
+            *mv_msr = 0xC0000083;
+            break;
+        case MSR_SYSCALL_MASK:
+            *mv_msr = 0xC0000084;
+            break;
+        default:
+            return false;
+    }
 
-    status = hcall_get_registers(buffer, size, bareflank_get_instance(vmi)->domainid);
-
-    CPU_SET(~0ul,&mask);
-    sched_setaffinity(0, sizeof(mask), &mask);
-
-    if ( !status )
-        *jobj = json_tokener_parse((char *)buffer);
-
-    return !!status;
+    return true;
 }
 
 /*************************************************************/
 
-static inline uint64_t parse_reg_value(const char *reg, json_object *root)
-{
-    // parse the json and get the value of the key
-    json_object *return_obj = NULL;
-    json_object_object_get_ex(root,reg,&return_obj);
-    return (uint64_t) json_object_get_uint64(return_obj);
-}
-
-static inline status_t getkeyfrom_json(json_object *root, reg_t reg, uint64_t *value)
-{
-
-    status_t ret = VMI_SUCCESS;
-    //TODO: get segment registers
-    switch (reg) {
-        case CR0:
-            *value = parse_reg_value("CR0", root);
-            break;
-        case CR2:
-            *value = parse_reg_value("CR2", root);
-            break;
-        case CR3:
-            *value = parse_reg_value("CR3", root);
-            break;
-        case CR4:
-            *value = parse_reg_value("CR4", root);
-            break;
-        case RAX:
-            *value = parse_reg_value("RAX", root);
-            break;
-        case RBX:
-            *value = parse_reg_value("RBX", root);
-            break;
-        case RCX:
-            *value = parse_reg_value("RCX", root);
-            break;
-        case RDX:
-            *value = parse_reg_value("RDX", root);
-            break;
-        case RBP:
-            *value = parse_reg_value("RBP", root);
-            break;
-        case RSI:
-            *value = parse_reg_value("RSI", root);
-            break;
-        case RDI:
-            *value = parse_reg_value("RDI", root);
-            break;
-        case RSP:
-            *value = parse_reg_value("RSP", root);
-            break;
-        case R8:
-            *value = parse_reg_value("R08", root);
-            break;
-        case R9:
-            *value = parse_reg_value("R09", root);
-            break;
-        case R10:
-            *value = parse_reg_value("R10", root);
-            break;
-        case R11:
-            *value = parse_reg_value("R11", root);
-            break;
-        case R12:
-            *value = parse_reg_value("R12", root);
-            break;
-        case R13:
-            *value = parse_reg_value("R13", root);
-            break;
-        case R14:
-            *value = parse_reg_value("R14", root);
-            break;
-        case R15:
-            *value = parse_reg_value("R15", root);
-            break;
-        case RIP:
-            *value = parse_reg_value("RIP", root);
-            break;
-        case RFLAGS:
-            *value = parse_reg_value("RFL", root);
-            break;
-        case MSR_EFER:
-            *value = parse_reg_value("MSR_EFER", root);
-            break;
-        case GS_BASE:
-            *value = parse_reg_value("GS_BASE", root);
-            break;
-        case MSR_LSTAR:
-            *value = parse_reg_value("MSR_LSTAR", root);
-            break;
-        case MSR_CSTAR:
-            *value = parse_reg_value("MSR_CSTAR", root);
-            break;
-        case IDTR_BASE:
-            *value = parse_reg_value("IDTR_BASE", root);
-            break;
-        default:
-            dbprint(VMI_DEBUG_BAREFLANK, "** Register not yet implemented id = %ld\n", reg);
-            ret = VMI_FAILURE;
-            break;
-    }
-    return ret;
-}
-
 status_t bareflank_get_vcpureg(
     vmi_instance_t vmi,
-    uint64_t *value,
+    uint64_t *reg_val,
     reg_t reg,
     unsigned long vcpu)
 {
+    mv_status_t ret;
     bareflank_instance_t *bf = bareflank_get_instance(vmi);
+    mv_uint64_t mv_reg;
+    mv_uint32_t mv_msr;
+    mv_uint64_t vpid = MV_VPID_PARENT; // multi-vcpu not yet supported
 
-    json_object *j_regs = NULL;
-    if (get_registers(vmi, vcpu, &j_regs, bf->buffer_space))
-        return VMI_FAILURE;
+    if (vcpu != 0) {
+        BF_DEBUG("Requested vcpu id %ld not yet supported\n", vcpu);
+    }
 
-    if ( !j_regs )
+    if (libvmi_to_microv_reg(reg, &mv_reg)) {
+        ret = mv_vp_state_op_reg_val(&bf->handle, vpid, mv_reg, reg_val);
+    } else if (libvmi_to_microv_msr(reg, &mv_msr)) {
+        ret = mv_vp_state_op_msr_val(&bf->handle, vpid, mv_msr, reg_val);
+    } else {
+        BF_DEBUG("Register not yet implemented id = %ld\n", reg);
         return VMI_FAILURE;
+    }
 
-    if (VMI_SUCCESS != getkeyfrom_json(j_regs, reg, value))
+    if (ret != MV_STATUS_SUCCESS) {
+        BF_DEBUG("mv_vp_state_op failed: REG:%ld ret:0x%lx\n", reg, ret);
         return VMI_FAILURE;
+    }
 
     return VMI_SUCCESS;
 }
@@ -193,35 +322,54 @@ bareflank_get_memory(
     addr_t pa,
     uint32_t UNUSED(length))
 {
+    mv_status_t ret;
     void *space = NULL;
-    addr_t original_pa = 0;
+    bareflank_instance_t *bf = bareflank_get_instance(vmi);
+    mv_uint64_t ptt_gpa = 0;
+    gpa_remap_t map = { .src.gpa = pa };
 
-    if ( posix_memalign(&space, 4096, 4096) )
+    if (posix_memalign(&space, 4096, 4096)) {
+        BF_DEBUG("posix_memalign failed\n");
         return NULL;
+    }
 
     /* The memory might not be marked present yet in the pagetable
      * so we force a write to it to make sure it's available */
+    *(uint64_t*)space = 0xabcdef0123456789;
 
-    *(uint64_t*)space = 0;
+    // Mark the page as non-pageable
+    if (mlock2(space, 4096, MLOCK_ONFAULT) != 0) {
+        BF_DEBUG("warning: mlock2 failed\n");
+        return NULL;
+    }
 
-    if ( hcall_v2p((uint64_t)space, &original_pa, BF_DOMID_SELF) ) {
-        dbprint(VMI_DEBUG_BAREFLANK, "Failed to translate %p to physical address\n", space);
+    ret = mv_vm_state_op_gva_to_gpa(&bf->handle, MV_VMID_SELF, ptt_gpa,
+                                    (mv_uint64_t) space, &map.dst.gpa, &map.dst.flags);
+    if (ret != MV_STATUS_SUCCESS) {
+        BF_DEBUG("mv_vm_state_op_gva_to_gpa failed 0x%lx\n", ret);
+        free(space);
+        return NULL;
+    }
+    BF_DEBUG("mv_vm_state_op_gva_to_gpa %p: 0x%lx\n", space, map.dst.gpa);
+
+    assert((map.dst.flags & 0x00000000FFFFFFFF) == 0);
+    map.dst.flags |= 1ULL; /* only 1 4k gpa */
+    map.src.flags = map.dst.flags;
+    map.src.flags |= (MV_GPA_FLAG_READ_ACCESS | MV_GPA_FLAG_WRITE_ACCESS);
+
+    ret = mv_vm_state_op_map_range(&bf->handle, bf->domainid, map.src.gpa,
+                                   MV_VMID_SELF, map.dst.gpa, map.dst.flags);
+    if (ret != MV_STATUS_SUCCESS) {
+        BF_DEBUG("mv_vm_state_op_map_range failed 0x%lx\n", ret);
         free(space);
         return NULL;
     }
 
-    if ( hcall_map_pa((uint64_t)space, pa, bareflank_get_instance(vmi)->domainid) ) {
-        dbprint(VMI_DEBUG_BAREFLANK, "Failed to remap at 0x%lx\n", original_pa);
-        free(space);
-        return NULL;
-    }
+    BF_DEBUG("get_memory: remapped %p: 0x%lx -> 0x%lx\n", space, map.dst.gpa, map.src.gpa);
 
-    dbprint(VMI_DEBUG_BAREFLANK, "Bareflank remapped GPA 0x%lx to 0x%lx for GVA %p\n",
-            original_pa, pa, space);
-
-    g_hash_table_insert(bareflank_get_instance(vmi)->remaps,
+    g_hash_table_insert(bf->remaps,
                         g_memdup(&space, sizeof(void*)),
-                        g_memdup(&original_pa, sizeof(addr_t)));
+                        g_memdup(&map, sizeof(gpa_remap_t)));
 
     return space;
 }
@@ -232,17 +380,37 @@ bareflank_release_memory(
     void *memory,
     size_t UNUSED(length))
 {
+    mv_status_t ret;
     bareflank_instance_t *bf = bareflank_get_instance(vmi);
-    addr_t *pa = g_hash_table_lookup(bf->remaps, &memory);
+    gpa_remap_t *map = g_hash_table_lookup(bf->remaps, &memory);
 
     /* Reverse the EPT remapping */
-    if ( pa ) {
-        if ( hcall_map_pa((uint64_t)memory, *pa, bareflank_get_instance(vmi)->domainid) )
-            dbprint(VMI_DEBUG_BAREFLANK, "Bareflank failed to remap back GPA 0x%p for GVA %ld\n", memory, *pa);
-
-        g_hash_table_remove(bf->remaps, memory);
+    if (!map) {
+        BF_DEBUG("release_memory: table lookup failed for gva 0x%p\n", memory);
+        goto free;
     }
 
+    assert((map->dst.flags & 0x00000000FFFFFFFF) == 1);
+    // map->src.flags |= MV_GPA_FLAG_ZOMBIE;
+
+    ret = mv_vm_state_op_unmap_range(&bf->handle, bf->domainid, map->src.gpa,
+                                     MV_VMID_SELF, map->dst.gpa, map->dst.flags);
+    if (ret != MV_STATUS_SUCCESS) {
+        BF_DEBUG("mv_vm_state_op_map_range failed (0x%lx): %p: 0x%lx <- 0x%lx\n", ret, memory, map->src.gpa, map->src.gpa);
+    }
+
+    BF_DEBUG("release_memory: restored %p: 0x%lx <- 0x%lx\n", memory, map->src.gpa, map->src.gpa);
+
+#ifdef VMI_DEBUG
+    if (*(uint64_t*) memory != 0xabcdef0123456789) {
+        BF_DEBUG("release_memory: magic not present 0x%lx !!!\n", *(uint64_t*) memory);
+    }
+#endif
+
+    g_hash_table_remove(bf->remaps, memory);
+
+free:
+    munlock(memory, 4096);
     free(memory);
 }
 
@@ -379,15 +547,10 @@ bareflank_test(
     uint64_t UNUSED(init_flags),
     void *UNUSED(init_data))
 {
-    uint64_t rax = 0, rbx = 0, rcx = 0, rdx = 0;
-
-    rax = bareflank_cpuid(&rbx, &rcx, &rdx, NULL);
-
-    dbprint(VMI_DEBUG_BAREFLANK, "Running Bareflank CPUID signature: %i %i %i %i\n",
-            (int)rax, (int)rbx, (int)rcx, (int)rdx);
-
-    if ( (int)rax != 42 || (int)rbx != 42 || (int)rcx != 42 || (int)rdx != 42 )
+    if (!mv_present(MV_SPEC_ID1_VAL)) {
+        BF_DEBUG("mv_present failed\n");
         return VMI_FAILURE;
+    }
 
     return VMI_SUCCESS;
 }
@@ -399,8 +562,14 @@ bareflank_init(
     vmi_init_data_t* UNUSED(init_data))
 {
     bareflank_instance_t *bf = g_try_malloc0(sizeof(bareflank_instance_t));
+
     if ( !bf )
         return VMI_FAILURE;
+
+    if (mv_handle_op_open_handle(MV_SPEC_ID1_VAL, &bf->handle) != MV_STATUS_SUCCESS) {
+        BF_DEBUG("mv_handle_op_open failed\n");
+        return VMI_FAILURE;
+    }
 
     bf->buffer_space = g_try_malloc0(vmi->page_size);
     if ( !bf->buffer_space ) {
@@ -411,7 +580,7 @@ bareflank_init(
     vmi->driver.driver_data = (void*)bf;
     vmi->vm_type = NORMAL;
 
-    dbprint(VMI_DEBUG_BAREFLANK, "Bareflank driver init finished\n");
+    BF_DEBUG("Bareflank driver init finished\n");
 
     return VMI_SUCCESS;
 }
@@ -423,7 +592,7 @@ status_t bareflank_init_vmi(
 {
     bareflank_instance_t *bf = bareflank_get_instance(vmi);
 
-    dbprint(VMI_DEBUG_BAREFLANK, "--bareflank: setup live mode\n");
+    BF_DEBUG("--bareflank: setup live mode\n");
     memory_cache_destroy(vmi);
     memory_cache_init(vmi, bareflank_get_memory, bareflank_release_memory, 0);
 
@@ -440,7 +609,11 @@ bareflank_destroy(
 
     if (!bf) return;
 
-    dbprint(VMI_DEBUG_BAREFLANK, "--bareflank: shutting down driver\n");
+    BF_DEBUG("--bareflank: shutting down driver\n");
+
+    if (mv_handle_op_close_handle(&bf->handle) != MV_STATUS_SUCCESS) {
+        BF_DEBUG("mv_handle_op_close failed\n");
+    }
 
     memory_cache_destroy(vmi);
 

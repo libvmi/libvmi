@@ -23,19 +23,28 @@
 #ifndef BAREFLANK_PRIVATE_H
 #define BAREFLANK_PRIVATE_H
 
+#include <bfhypercall.h>
+
+#define BF_DEBUG(...) dbprint(VMI_DEBUG_BAREFLANK, "--BF: " __VA_ARGS__)
 #define BF_PAGE_SIZE 4096
 
+/* GPA remapping helper structs */
+typedef struct gpa_flags {
+    mv_uint64_t gpa;
+    mv_uint64_t flags;
+} gpa_flags_t;
+typedef struct gpa_remap {
+    gpa_flags_t src;
+    gpa_flags_t dst;
+} gpa_remap_t;
+
 typedef struct bareflank_instance {
+    struct mv_handle_t handle;
     char *name;
     uint64_t domainid;
     void *buffer_space;
     GHashTable *remaps;
 } bareflank_instance_t;
-
-extern int bareflank_cpuid(uint64_t *rbx, uint64_t *rcx, uint64_t *rdx, void *__placeholder);
-extern bool hcall_get_registers(void *buffer, size_t size, uint64_t domainid);
-extern bool hcall_v2p(uint64_t va, uint64_t *pa, uint64_t domainid);
-extern bool hcall_map_pa(uint64_t va, uint64_t pa, uint64_t domainid);
 
 static inline
 bareflank_instance_t *bareflank_get_instance(
