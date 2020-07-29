@@ -160,5 +160,5 @@ error_exit:
         free(init_data);
     }
 
-    return 0;
+    return retcode;
 }
