@@ -14,10 +14,20 @@ This section will give an implementation status of the LibVMI API on the new KVM
 - [x] r/w physical memory
 - [ ] VCPU registers (x86 only)
     - [ ] read
-        - only essential MSRs are retrieved
-        - `DR6`/`DR7` not available in libkvmi
+        - [x] general purpose registers
+        - [x] control registers
+        - [ ] debug registers
+        - [x] segment registers
+        - [ ] MSR
+            - only essential MSRs are retrieved
+        - [ ] IDTR/GDTR
     - [ ] write
-        - only general purpose registers
+        - [x] general purpose registers
+        - [ ] control registers
+        - [ ] debug registers
+        - [ ] segment registers
+        - [ ] MSR
+        - [ ] IDTR/GDTR
 - [x] memory size
 - [x] pause / resume
 - [x] request page fault
