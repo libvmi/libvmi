@@ -109,6 +109,7 @@ int main(int argc, char **argv)
 {
     int c;
     int retcode = 1;
+    memory_map_t *memmap = NULL;
     vmi_init_data_t *init_data = NULL;
     while ((c = getopt_long(argc, argv, "psk:h", long_opts, NULL)) != -1) {
         switch (c) {
@@ -151,7 +152,6 @@ int main(int argc, char **argv)
     }
 
     /* for bareflank we have to pass-in the actual memory map of the machine. */
-    memory_map_t *memmap = NULL;
     if (mode == VMI_BAREFLANK && bareflank_setup(&init_data, &memmap) != 0) {
         goto free_setup_info;
     }
