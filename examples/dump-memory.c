@@ -122,7 +122,12 @@ int main(int argc, char **argv)
                 progress_flag = 1;
                 break;
             case 'k':
-                init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                // in case we have multiple '-k' argument, avoid memory leak
+                if (init_data) {
+                    free(init_data->entry[0].data);
+                } else {
+                    init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                }
                 init_data->count = 1;
                 init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
                 init_data->entry[0].data = strdup(optarg);
