@@ -108,6 +108,7 @@ static const struct option long_opts[] = {
 int main(int argc, char **argv)
 {
     int c;
+    int retcode = 1;
     vmi_init_data_t *init_data = NULL;
     while ((c = getopt_long(argc, argv, "psk:h", long_opts, NULL)) != -1) {
         switch (c) {
@@ -128,14 +129,14 @@ int main(int argc, char **argv)
             case 'h':
             default:
                 usage(argv[0]);
-                return 1;
+                goto free_setup_info;
         }
     }
 
     /* two other arguments required */
     if (argc - optind != 2) {
         usage(argv[0]);
-        return 1;
+        goto free_setup_info;
     }
 
     /* this is the VM or file that we are looking at */
@@ -217,6 +218,7 @@ int main(int argc, char **argv)
         }
     }
 
+    retcode = 0;
 resume_vm:
     if (pause_vm_flag) {
         vmi_resume_vm(vmi);
@@ -234,5 +236,5 @@ free_setup_info:
         free(init_data->entry[0].data);
         free(init_data);
     }
-    return 0;
+    return retcode;
 }

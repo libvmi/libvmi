@@ -96,6 +96,10 @@ int main (int argc, char **argv)
                     break;
                 default:
                     printf("Unknown option\n");
+                    if (init_data) {
+                        free(init_data->entry[0].data);
+                        free(init_data);
+                    }
                     return retcode;
             }
     }
