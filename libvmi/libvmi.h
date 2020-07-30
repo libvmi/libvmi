@@ -212,7 +212,9 @@ typedef enum page_size {
 typedef enum {
     VMI_INIT_DATA_XEN_EVTCHN, /**< Xen file descriptor */
 
-    VMI_INIT_DATA_MEMMAP     /**< memory_map_t pointer */
+    VMI_INIT_DATA_MEMMAP,    /**< memory_map_t pointer */
+
+    VMI_INIT_DATA_KVMI_SOCKET     /**< kvmi socket path */
 } vmi_init_data_type_t;
 
 /**

@@ -9,6 +9,7 @@ set(libvmi_src
     slat.c
     strmatch.c
     write.c
+    msr-index.c
     arch/arch_interface.c
     arch/intel.c
     arch/amd64.c
@@ -115,18 +116,38 @@ if (ENABLE_CONFIGFILE)
 endif ()
 
 if (ENABLE_KVM)
-    find_package(JSON-C)
-    set_package_properties(JSON-C PROPERTIES
-        PURPOSE "Dependency for KVM driver")
+    # common dependencies
     find_package(Libvirt)
-    if (NOT JSON-C_FOUND OR NOT Libvirt_FOUND)
+    if (NOT Libvirt_FOUND)
         set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
-        message(WARNING "Cannot find JSON or Libvirt: disabling KVM driver")
+        message(WARNING "Cannot find libvirt: disabling KVM driver")
     else ()
-        find_package(LibvmiRequest)
+        if (ENABLE_KVM_LEGACY)
+            # legacy KVM driver
+            find_package(JSON-C)
+            set_package_properties(JSON-C PROPERTIES
+                PURPOSE "Dependency for KVM driver")
+            if (NOT JSON-C_FOUND)
+                set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
+                message(WARNING "Cannot find JSON: disabling KVM driver")
+            else ()
+                find_package(LibvmiRequest)
+            endif ()
+        else ()
+            # KVM driver based on KVMi series, API is exposed via libkvmi
+            pkg_search_module(Libkvmi libkvmi)
+            if (NOT Libkvmi_FOUND)
+                set(ENABLE_KVM OFF CACHE BOOL "Build KVM driver" FORCE)
+                message(WARNING "Cannot find libkvmi: disabling KVM driver")
+            else ()
+                message("Found libkvmi headers: ${Libkvmi_INCLUDE_DIRS}")
+                target_include_directories(vmi_shared PRIVATE ${Libkvmi_INCLUDE_DIRS})
+            endif ()
+        endif ()
         target_include_directories(vmi_shared PRIVATE ${JSON-C_INCLUDE_DIRS})
         # CMAKE_DL_LIBS -> dlopen* lib
         target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+        list(APPEND VMI_PUBLIC_HEADERS events.h)
         list(APPEND VMI_PUBLIC_DEPS ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
     endif ()
 endif ()

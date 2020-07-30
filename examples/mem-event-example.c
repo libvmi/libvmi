@@ -2,7 +2,7 @@
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * Author: Steven Maresca (steven.maresca@zentific.com)
+ * Author: Mathieu Tarral (mathieu.tarral@ssi.gouv.fr)
  *
  * This file is part of LibVMI.
  *
@@ -31,48 +31,36 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-vmi_event_t interrupt_event;
+static bool interrupted = false;
 
-event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
-{
-    vmi = vmi;
-    printf("Int 3 happened: GFN=%"PRIx64" RIP=%"PRIx64" Length: %"PRIu32"\n",
-           event->interrupt_event.gfn, event->interrupt_event.gla,
-           event->interrupt_event.insn_length);
-
-    /* This callback assumes that all INT3 events are caused by
-     *  a debugger or similar inside the guest, and therefore
-     *  unconditionally reinjects the interrupt.
-     */
-    event->interrupt_event.reinject = 1;
-
-    /*
-     * By default int3 instructions have length of 1 byte unless
-     * there are prefixes attached. As adding prefixes to int3 have
-     * no effect, under normal circumstances no legitimate compiler/debugger
-     * would add any. However, a malicious guest could add prefixes to change
-     * the instruction length. Older Xen versions (prior to 4.8) don't include this
-     * information and thus this length is reported as 0. In those cases the length
-     * have to be established manually, or assume a non-malicious guest as we do here.
-     */
-    if ( !event->interrupt_event.insn_length )
-        event->interrupt_event.insn_length = 1;
-
-    return 0;
-}
-
-static int interrupted = 0;
 static void close_handler(int sig)
 {
-    interrupted = sig;
+    (void)sig;
+    interrupted = true;
+}
+
+event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    (void)vmi;
+
+    char str_access[4] = {'_', '_', '_', '\0'};
+    if (event->mem_event.out_access & VMI_MEMACCESS_R) str_access[0] = 'R';
+    if (event->mem_event.out_access & VMI_MEMACCESS_W) str_access[1] = 'W';
+    if (event->mem_event.out_access & VMI_MEMACCESS_X) str_access[2] = 'X';
+
+    printf("%s: at 0x%"PRIx64", on frame 0x%"PRIx64", permissions: %s\n",
+           __func__, event->x86_regs->rip, event->mem_event.gfn, str_access);
+
+    return VMI_EVENT_RESPONSE_NONE;
 }
 
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi = {0};
     vmi_mode_t mode = {0};
+    vmi_event_t mem_event = {0};
+    struct sigaction act = {0};
     vmi_init_data_t *init_data = NULL;
-    struct sigaction act;
     int retcode = 1;
 
     act.sa_handler = close_handler;
@@ -83,21 +71,20 @@ int main (int argc, char **argv)
     sigaction(SIGINT,  &act, NULL);
     sigaction(SIGALRM, &act, NULL);
 
-    char *name = NULL;
-
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <name of VM> [<socket path>]\n", argv[0]);
         return retcode;
     }
 
     // Arg 1 is the VM name.
-    name = argv[1];
+    char *name = argv[1];
+
 
     // kvmi socket ?
     if (argc == 3) {
         char *path = argv[2];
 
-        init_data = malloc(sizeof(vmi_init_data_t)+ sizeof(vmi_init_data_entry_t));
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
         init_data->count = 1;
         init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
         init_data->entry[0].data = strdup(path);
@@ -114,16 +101,53 @@ int main (int argc, char **argv)
         goto error_exit;
     }
 
+    vmi_init_paging(vmi, 0);
     printf("LibVMI init succeeded!\n");
 
-    /* Register event to track INT3 interrupts */
-    memset(&interrupt_event, 0, sizeof(vmi_event_t));
-    interrupt_event.version = VMI_EVENTS_VERSION;
-    interrupt_event.type = VMI_EVENT_INTERRUPT;
-    interrupt_event.interrupt_event.intr = INT3;
-    interrupt_event.callback = int3_cb;
+    // pause vm
+    if (VMI_FAILURE ==  vmi_pause_vm(vmi)) {
+        fprintf(stderr, "Failed to pause vm\n");
+        goto error_exit;
+    }
 
-    vmi_register_event(vmi, &interrupt_event);
+    // get rip
+    uint64_t rip;
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &rip, RIP, 0)) {
+        fprintf(stderr, "Failed to get current RIP\n");
+        goto error_exit;
+    }
+
+    // get dtb
+    uint64_t cr3;
+    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cr3, CR3, 0)) {
+        fprintf(stderr, "Failed to get current CR3\n");
+        goto error_exit;
+    }
+    uint64_t dtb = cr3 & ~(0xfff);
+
+    // get gpa
+    uint64_t paddr;
+    if (VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, rip, &paddr)) {
+        fprintf(stderr, "Failed to find current paddr\n");
+        goto error_exit;
+    }
+
+    uint64_t gfn = paddr >> 12;
+    /* register a mem event */
+    SETUP_MEM_EVENT(&mem_event, gfn, VMI_MEMACCESS_X, mem_cb, false);
+
+    printf("Setting X memory event at RIP 0x%"PRIx64", GPA 0x%"PRIx64", GFN 0x%"PRIx64"\n",
+           rip, paddr, gfn);
+    if (VMI_FAILURE == vmi_register_event(vmi, &mem_event)) {
+        fprintf(stderr, "Failed to register mem event\n");
+        goto error_exit;
+    }
+
+    // resuming
+    if (VMI_FAILURE == vmi_resume_vm(vmi)) {
+        fprintf(stderr, "Failed to resume vm\n");
+        goto error_exit;
+    }
 
     printf("Waiting for events...\n");
     while (!interrupted) {
@@ -133,6 +157,10 @@ int main (int argc, char **argv)
 
     retcode = 0;
 error_exit:
+    vmi_clear_event(vmi, &mem_event, NULL);
+
+    vmi_resume_vm(vmi);
+
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
 

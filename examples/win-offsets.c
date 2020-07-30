@@ -37,12 +37,14 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <getopt.h>
 #include <glib.h>
 #include <signal.h>
 #include <unistd.h>
 #include <getopt.h>
 
 vmi_instance_t vmi;
+vmi_init_data_t *init_data;
 GHashTable* config;
 vmi_event_t cr3_event;
 
@@ -72,6 +74,11 @@ void clean_up(void)
     vmi_destroy(vmi);
     if (config)
         g_hash_table_destroy(config);
+
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
 }
 
 void sigint_handler()
@@ -181,6 +188,7 @@ void show_usage(char *arg0)
     fprintf(stderr, "Optional input:\n");
     fprintf(stderr, "    -v, --verbose        Enable verbose mode\n");
     fprintf(stderr, "    -k, --only-kpgd      Only print KPGD value\n");
+    fprintf(stderr, "    -s, --kvmi-socket    Specify KVMi socket for KVM driver\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "Example:\n");
     fprintf(stderr, "    %s -n win7vm -r /opt/kernel.json\n", arg0);
@@ -206,10 +214,11 @@ int main(int argc, char **argv)
         {"domid", required_argument, NULL, 'd'},
         {"json-kernel", required_argument, NULL, 'r'},
         {"verbose", no_argument, NULL, 'v'},
-        {"only-kpgd", no_argument, NULL, 'k'}
+        {"only-kpgd", no_argument, NULL, 'k'},
+        {"kvmi-socket", required_argument, NULL, 's'},
     };
 
-    while ((c = getopt_long (argc, argv, "n:d:kvr:", long_opts, &long_index)) != -1)
+    while ((c = getopt_long (argc, argv, "n:d:kvr:s:", long_opts, &long_index)) != -1)
         switch (c) {
             case 'n':
                 domain = (void *)optarg;
@@ -228,6 +237,12 @@ int main(int argc, char **argv)
                 break;
             case 'r':
                 kernel_profile = optarg;
+                break;
+            case 's':
+                init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                init_data->count = 1;
+                init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+                init_data->entry[0].data = strdup(optarg);
                 break;
             default:
                 show_usage(argv[0]);
@@ -258,13 +273,15 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (VMI_FAILURE == vmi_get_access_mode(vmi, domain, init_flags, NULL, &mode) )
-        return 1;
+    if (VMI_FAILURE == vmi_get_access_mode(vmi, domain, init_flags, init_data, &mode)) {
+        printf("Failed to get access mode\n");
+        goto done;
+    }
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags | VMI_INIT_EVENTS, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags | VMI_INIT_EVENTS, init_data, NULL)) {
         fprintf(stderr, "Failed to init LibVMI library.\n");
-        return 1;
+        goto done;
     }
 
     signal(SIGINT, sigint_handler);
@@ -430,8 +447,8 @@ int main(int argc, char **argv)
 
     rc = 0;
 
-    /* cleanup any memory associated with the LibVMI instance */
 done:
     clean_up();
+
     return rc;
 }

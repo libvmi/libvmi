@@ -28,6 +28,9 @@
 /* Define to enable KVM support. */
 #cmakedefine ENABLE_KVM
 
+/* Define to enable KVM legacy driver support */
+#cmakedefine ENABLE_KVM_LEGACY
+
 /* Define to Linux support. */
 #cmakedefine ENABLE_LINUX
 

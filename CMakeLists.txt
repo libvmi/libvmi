@@ -75,6 +75,7 @@ option(VMI_DEBUG "Debug output level" OFF)
 # hardening flags that causes overhead, disabled by default
 option(HARDENING "Enable hardening flags (with overhead)" OFF)
 option(ENV_DEBUG "Toggle the debug output via LIBVMI_DEBUG environment variable" OFF)
+option(ENABLE_KVM_LEGACY "Build KVM legacy driver" OFF)
 
 # json
 # for some reason it's impossible to override the default options that get defined here
@@ -125,11 +126,13 @@ configure_file(libvmi.pc.in ${PROJECT_BINARY_DIR}/libvmi.pc)
 install(FILES ${PROJECT_BINARY_DIR}/libvmi.pc DESTINATION
     "${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig")
 
-configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
 # include <libvmi/libvmi.h> "config.h", "private.h" and <glib.h>
 include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} libvmi ${GLIB_INCLUDE_DIRS})
 add_definitions(-DHAVE_CONFIG_H)
 add_subdirectory(libvmi)
+# configure config.h after processing libvmi subdir
+# as it may have disabled some features due to unmet dependencies
+configure_file(libvmi/config.h.in ${PROJECT_BINARY_DIR}/config.h)
 add_subdirectory(tools)
 if (ENABLE_TESTING)
     # this command should always be called in the root CMakeLists.txt
@@ -165,6 +168,7 @@ add_feature_info(VOLATILITY_IST VOLATILITY_IST "Support Volatility's JSON ISTs")
 add_feature_info(ENABLE_SAFETY_CHECKS ENABLE_SAFETY_CHECKS "Enable API safety checks")
 add_feature_info(ENABLE_TESTING ENABLE_TESTING "Enable LibVMI test suite")
 add_feature_info(BUILD_EXAMPLES BUILD_EXAMPLES "Build the examples")
+add_feature_info(ENABLE_KVM_LEGACY ENABLE_KVM_LEGACY "Build KVM legacy driver")
 message(STATUS " ↳ Compiler     → ${CMAKE_C_COMPILER}")
 message(STATUS " ↳ C Flags      → ${CMAKE_C_FLAGS}")
 message(STATUS " ↳ Prefix       → ${CMAKE_INSTALL_PREFIX}")

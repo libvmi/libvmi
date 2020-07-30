@@ -86,21 +86,32 @@ event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event)
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi = NULL;
+    vmi_instance_t vmi = {0};
     status_t status = VMI_SUCCESS;
-
     struct sigaction act;
+    int retcode = 1;
+    vmi_init_data_t *init_data = NULL;
 
     char *name = NULL;
     va_pages = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: events_example <name of VM>\n");
-        exit(1);
+        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        return retcode;
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
+
+    // KVMi socket ?
+    if (argc == 3) {
+        char *path = argv[2];
+
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(path);
+    }
 
     /* for a clean exit */
     act.sa_handler = close_handler;
@@ -114,9 +125,9 @@ int main (int argc, char **argv)
     // Initialize the libvmi library.
     if (VMI_FAILURE ==
             vmi_init_complete(&vmi, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                              NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
+                              init_data, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     printf("LibVMI init succeeded!\n");
@@ -139,8 +150,15 @@ int main (int argc, char **argv)
     printf("Finished with test.\n");
 
     free_va_pages();
+    retcode = 0;
+error_exit:
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
 
-    return 0;
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
+
+    return retcode;
 }

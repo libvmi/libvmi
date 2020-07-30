@@ -6,6 +6,7 @@ h_public =  libvmi/libvmi.h \
 h_private = \
     libvmi/private.h \
     libvmi/debug.h \
+    libvmi/msr-index.h \
     libvmi/glib_compat.h \
     libvmi/arch/arch_interface.h \
     libvmi/arch/intel.h \
@@ -28,6 +29,7 @@ c_sources = \
     libvmi/slat.c \
     libvmi/strmatch.c \
     libvmi/write.c \
+    libvmi/msr-index.c \
     libvmi/arch/arch_interface.c \
     libvmi/arch/intel.c \
     libvmi/arch/amd64.c \
@@ -66,9 +68,21 @@ endif
 if WITH_KVM
     drivers     += libvmi/driver/kvm/kvm.h \
                    libvmi/driver/kvm/kvm_private.h \
-                   libvmi/driver/kvm/kvm.c \
+                   libvmi/driver/kvm/kvm_common.c \
                    libvmi/driver/kvm/libvirt_wrapper.c \
                    libvmi/driver/kvm/libvirt_wrapper.h
+
+if WITH_KVM_LEGACY
+    drivers += libvmi/driver/kvm/kvm_legacy.c
+
+else
+    drivers += libvmi/driver/kvm/kvm.c \
+               libvmi/driver/kvm/kvm_events.c \
+               libvmi/driver/kvm/kvm_events.h \
+               libvmi/driver/kvm/libkvmi_wrapper.c \
+               libvmi/driver/kvm/libkvmi_wrapper.h
+
+endif
 endif
 
 if WITH_XEN
@@ -82,7 +96,6 @@ if WITH_XEN
                    libvmi/driver/xen/xen_events.h \
                    libvmi/driver/xen/xen_events_abi.h \
                    libvmi/driver/xen/xen_events_private.h \
-                   libvmi/driver/xen/msr-index.h \
                    libvmi/driver/xen/libxc_wrapper.c \
                    libvmi/driver/xen/libxc_wrapper.h \
                    libvmi/driver/xen/libxs_wrapper.c \
@@ -136,6 +149,10 @@ libvmi_libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
 libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS)
 libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
+
+if WITH_KVM
+    libvmi_libvmi_la_CFLAGS += $(LIBKVMI_CFLAGS)
+endif
 
 if ENABLE_CONFIGFILE
     config_h_sources = libvmi/config/config_parser.h

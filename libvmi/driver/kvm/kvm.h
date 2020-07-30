@@ -32,64 +32,111 @@ status_t kvm_init(
     vmi_instance_t vmi,
     uint32_t init_flags,
     vmi_init_data_t *init_data);
+
 status_t kvm_init_vmi(
     vmi_instance_t vmi,
     uint32_t init_flags,
     vmi_init_data_t *init_data);
+
 void kvm_destroy(
     vmi_instance_t vmi);
 uint64_t kvm_get_id_from_name(
     vmi_instance_t vmi,
     const char *name);
+
 status_t kvm_get_name_from_id(
     vmi_instance_t vmi,
     uint64_t domainid,
     char **name);
+
 uint64_t kvm_get_id(
     vmi_instance_t vmi);
+
 void kvm_set_id(
     vmi_instance_t vmi,
     uint64_t domainid);
+
 status_t kvm_check_id(
     vmi_instance_t vmi,
     uint64_t domainid);
-status_t kvm_get_name(
-    vmi_instance_t vmi,
-    char **name);
-void kvm_set_name(
-    vmi_instance_t vmi,
-    const char *name);
-status_t kvm_get_memsize(
-    vmi_instance_t vmi,
-    uint64_t *allocate_ram_size,
-    addr_t *maximum_physical_address);
-status_t kvm_get_vcpureg(
-    vmi_instance_t vmi,
-    uint64_t *value,
-    reg_t reg,
-    unsigned long vcpu);
-addr_t kvm_pfn_to_mfn(
-    vmi_instance_t vmi,
-    addr_t pfn);
-void *kvm_read_page(
-    vmi_instance_t vmi,
-    addr_t page);
+
 status_t kvm_write(
     vmi_instance_t vmi,
     addr_t paddr,
     void *buf,
     uint32_t length);
+
+status_t kvm_get_name(
+    vmi_instance_t vmi,
+    char **name);
+
+void kvm_set_name(
+    vmi_instance_t vmi,
+    const char *name);
+
+status_t kvm_get_memsize(
+    vmi_instance_t vmi,
+    uint64_t *allocate_ram_size,
+    addr_t *maximum_physical_address);
+
+status_t kvm_request_page_fault(
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    uint64_t virtual_address,
+    uint32_t error_code);
+
+status_t kvm_get_tsc_info(
+    vmi_instance_t vmi,
+    uint32_t *tsc_mode,
+    uint64_t *elapsed_nsec,
+    uint32_t *gtsc_khz,
+    uint32_t *incarnation);
+
+addr_t kvm_pfn_to_mfn(
+    vmi_instance_t vmi,
+    addr_t pfn);
+
+void *kvm_read_page(
+    vmi_instance_t vmi,
+    addr_t page);
+
 int kvm_is_pv(
     vmi_instance_t vmi);
+
 status_t kvm_test(
     uint64_t domainid,
     const char *name,
     uint64_t init_flags,
     vmi_init_data_t* init_data);
+
+// pause & resume
 status_t kvm_pause_vm(
     vmi_instance_t vmi);
+
 status_t kvm_resume_vm(
     vmi_instance_t vmi);
+
+// registers
+status_t kvm_get_vcpureg(
+    vmi_instance_t vmi,
+    uint64_t *value,
+    reg_t reg,
+    unsigned long vcpu);
+
+status_t kvm_get_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *regs,
+    unsigned long vcpu);
+
+status_t kvm_set_vcpureg(
+    vmi_instance_t vmi,
+    uint64_t value,
+    reg_t reg,
+    unsigned long vcpu);
+status_t kvm_set_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *registers,
+    unsigned long vcpu);
 
 static inline status_t
 driver_kvm_setup(vmi_instance_t vmi)
@@ -106,13 +153,20 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.check_id_ptr = &kvm_check_id;
     driver.get_name_ptr = &kvm_get_name;
     driver.set_name_ptr = &kvm_set_name;
+    driver.write_ptr = &kvm_write;
     driver.get_memsize_ptr = &kvm_get_memsize;
     driver.get_vcpureg_ptr = &kvm_get_vcpureg;
     driver.read_page_ptr = &kvm_read_page;
-    driver.write_ptr = &kvm_write;
     driver.is_pv_ptr = &kvm_is_pv;
     driver.pause_vm_ptr = &kvm_pause_vm;
     driver.resume_vm_ptr = &kvm_resume_vm;
+# ifndef ENABLE_KVM_LEGACY
+    driver.request_page_fault_ptr = &kvm_request_page_fault;
+    driver.get_tsc_info_ptr = &kvm_get_tsc_info;
+    driver.get_vcpuregs_ptr = &kvm_get_vcpuregs;
+    driver.set_vcpureg_ptr = &kvm_set_vcpureg;
+    driver.set_vcpuregs_ptr = &kvm_set_vcpuregs;
+# endif
     vmi->driver = driver;
     return VMI_SUCCESS;
 }

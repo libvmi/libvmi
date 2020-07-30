@@ -32,18 +32,10 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-static vmi_event_t single_event = {0};
-static vmi_instance_t vmi = {0};
-
 static int interrupted = 0;
 static void close_handler(int sig)
 {
     interrupted = sig;
-}
-
-void exit_cleanup()
-{
-    vmi_destroy(vmi);
 }
 
 event_response_t single_step_callback(vmi_instance_t vmi, vmi_event_t *event)
@@ -59,17 +51,32 @@ event_response_t single_step_callback(vmi_instance_t vmi, vmi_event_t *event)
 
 int main (int argc, char **argv)
 {
-    struct sigaction act;
+    struct sigaction act = {0};
+    vmi_instance_t vmi = {0};
+    vmi_event_t single_event = {0};
+    vmi_mode_t mode = {0};
+    vmi_init_data_t *init_data = NULL;
+    int retcode = 1;
 
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> \n", argv[0]);
-        exit(1);
+        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        return retcode;
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
+
+    // KVMi socket ?
+    if (argc == 3) {
+        char *path = argv[2];
+
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(path);
+    }
 
     /* for a clean exit */
     act.sa_handler = close_handler;
@@ -80,15 +87,19 @@ int main (int argc, char **argv)
     sigaction(SIGINT,  &act, NULL);
     sigaction(SIGALRM, &act, NULL);
 
+    /* get access mode */
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, &mode)) {
+        fprintf(stderr, "Failed to get access mode\n");
+        goto error_exit;
+    }
+
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, VMI_XEN, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     printf("LibVMI init succeeded!\n");
-    // register cleanup routine
-    atexit(&exit_cleanup);
 
     // get number of vcpus
     unsigned int num_vcpus = vmi_get_num_vcpus(vmi);
@@ -104,7 +115,7 @@ int main (int argc, char **argv)
     // register
     if (VMI_FAILURE == vmi_register_event(vmi, &single_event)) {
         fprintf(stderr, "Failed to register singlestep event\n");
-        return 1;
+        goto error_exit;
     }
 
     // event loop
@@ -112,7 +123,7 @@ int main (int argc, char **argv)
         printf("Waiting for events...\n");
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
             fprintf(stderr, "Failed to listen on events\n");
-            return 1;
+            goto error_exit;
         }
     }
 
@@ -122,25 +133,25 @@ int main (int argc, char **argv)
     // this prevents new events from being queued
     if (VMI_FAILURE == vmi_pause_vm(vmi)) {
         fprintf(stderr, "Failed to pause VM\n");
-        return 1;
+        goto error_exit;
     }
     // clean event ring
     if (VMI_FAILURE == vmi_events_listen(vmi, 0)) {
         fprintf(stderr, "Failed to pause VM\n");
-        return 1;
+        goto error_exit;
     }
 
     // disable singlestep on all vcpus
     for (unsigned int vcpu=0; vcpu < num_vcpus; vcpu++) {
         if (VMI_FAILURE == vmi_toggle_single_step_vcpu(vmi, &single_event, vcpu, false)) {
             fprintf(stderr, "Failed to stop singlestepping on VCPU %d\n", vcpu);
-            return 1;
+            goto error_exit;
         }
     }
     printf("Singlestep stopped\n");
     if (VMI_FAILURE == vmi_resume_vm(vmi)) {
         fprintf(stderr, "Failed to resume VM\n");
-        return 1;
+        goto error_exit;
     }
 
     // VM should be running
@@ -150,31 +161,37 @@ int main (int argc, char **argv)
     // pause before changing VM state
     if (VMI_FAILURE == vmi_pause_vm(vmi)) {
         fprintf(stderr, "Failed to pause VM\n");
-        return 1;
+        goto error_exit;
     }
     printf("Restarting singlestep\n");
     for (unsigned int vcpu=0; vcpu < num_vcpus; vcpu++) {
         if (VMI_FAILURE == vmi_toggle_single_step_vcpu(vmi, &single_event, vcpu, true)) {
             fprintf(stderr, "Failed to enable singlestep on VCPU %d\n", vcpu);
-            return 1;
+            goto error_exit;
         }
     }
     if (VMI_FAILURE == vmi_resume_vm(vmi)) {
         fprintf(stderr, "Failed to resume VM\n");
-        return 1;
+        goto error_exit;
     }
     // process a few more singlestep events
     for (int i=0; i < 5; i++) {
         printf("Waiting for events...\n");
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
             fprintf(stderr, "Failed to listen on events\n");
-            return 1;
+            goto error_exit;
         }
     }
     printf("Finished with test.\n");
 
-    // singlestep event will be cleared by vmi_destroy(), called
-    // by exit_cleanup() routine configured earlier upon exit
+    retcode = 0;
+error_exit:
+    vmi_destroy(vmi);
 
-    return 0;
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
+
+    return retcode;
 }

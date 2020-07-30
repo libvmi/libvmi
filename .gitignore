@@ -58,3 +58,6 @@ configure
 depcomp
 install-sh
 **/.libs/*
+
+# IDE
+/.vscode

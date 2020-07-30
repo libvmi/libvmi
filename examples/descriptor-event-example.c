@@ -2,7 +2,7 @@
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * Author: Steven Maresca (steven.maresca@zentific.com)
+ * Author: Mathieu Tarral (mathieu.tarral@ssi.gouv.fr)
  *
  * This file is part of LibVMI.
  *
@@ -31,34 +31,45 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
-vmi_event_t interrupt_event;
-
-event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
+event_response_t desc_cb(
+    __attribute__((unused)) vmi_instance_t vmi,
+    vmi_event_t *event)
 {
-    vmi = vmi;
-    printf("Int 3 happened: GFN=%"PRIx64" RIP=%"PRIx64" Length: %"PRIu32"\n",
-           event->interrupt_event.gfn, event->interrupt_event.gla,
-           event->interrupt_event.insn_length);
+    if (!event || !event->data) {
+        fprintf(stderr, "%s: invalid parameters\n", __func__);
+        return VMI_EVENT_RESPONSE_NONE;
+    }
+    int *stats = (int*)event->data;
+    char *desc_str = NULL;
+    switch (event->descriptor_event.descriptor) {
+        case VMI_DESCRIPTOR_IDTR:
+            desc_str = "IDTR";
+            stats[VMI_DESCRIPTOR_IDTR] += 1;
+            break;
+        case VMI_DESCRIPTOR_GDTR:
+            desc_str = "GDTR";
+            stats[VMI_DESCRIPTOR_GDTR] += 1;
+            break;
+        case VMI_DESCRIPTOR_LDTR:
+            desc_str = "LDTR";
+            stats[VMI_DESCRIPTOR_LDTR] += 1;
+            break;
+        case VMI_DESCRIPTOR_TR:
+            desc_str = "TR";
+            stats[VMI_DESCRIPTOR_TR] += 1;
+            break;
+        default:
+            fprintf(stderr, "Unexpected descriptor ID %d\n",
+                    event->descriptor_event.descriptor);
+            return VMI_EVENT_RESPONSE_NONE;
+    }
 
-    /* This callback assumes that all INT3 events are caused by
-     *  a debugger or similar inside the guest, and therefore
-     *  unconditionally reinjects the interrupt.
-     */
-    event->interrupt_event.reinject = 1;
+    printf("[%d] Descriptor event: %s access on %s\n",
+           event->vcpu_id,
+           (event->descriptor_event.is_write) ? "write" : "read",
+           desc_str);
 
-    /*
-     * By default int3 instructions have length of 1 byte unless
-     * there are prefixes attached. As adding prefixes to int3 have
-     * no effect, under normal circumstances no legitimate compiler/debugger
-     * would add any. However, a malicious guest could add prefixes to change
-     * the instruction length. Older Xen versions (prior to 4.8) don't include this
-     * information and thus this length is reported as 0. In those cases the length
-     * have to be established manually, or assume a non-malicious guest as we do here.
-     */
-    if ( !event->interrupt_event.insn_length )
-        event->interrupt_event.insn_length = 1;
-
-    return 0;
+    return VMI_EVENT_RESPONSE_NONE;
 }
 
 static int interrupted = 0;
@@ -72,7 +83,8 @@ int main (int argc, char **argv)
     vmi_instance_t vmi = {0};
     vmi_mode_t mode = {0};
     vmi_init_data_t *init_data = NULL;
-    struct sigaction act;
+    vmi_event_t descriptor_event = {0};
+    struct sigaction act = {0};
     int retcode = 1;
 
     act.sa_handler = close_handler;
@@ -116,20 +128,31 @@ int main (int argc, char **argv)
 
     printf("LibVMI init succeeded!\n");
 
-    /* Register event to track INT3 interrupts */
-    memset(&interrupt_event, 0, sizeof(vmi_event_t));
-    interrupt_event.version = VMI_EVENTS_VERSION;
-    interrupt_event.type = VMI_EVENT_INTERRUPT;
-    interrupt_event.interrupt_event.intr = INT3;
-    interrupt_event.callback = int3_cb;
+    /* Register event to track descriptor events */
+    memset(&descriptor_event, 0, sizeof(vmi_event_t));
+    descriptor_event.version = VMI_EVENTS_VERSION;
+    descriptor_event.type = VMI_EVENT_DESCRIPTOR_ACCESS;
+    descriptor_event.callback = &desc_cb;
+    // record stats
+    // VMI_DESCRIPTOR_TR is MAX value
+    int stats[VMI_DESCRIPTOR_TR+1] = {0};
+    descriptor_event.data = (void*)&stats;
 
-    vmi_register_event(vmi, &interrupt_event);
+    vmi_register_event(vmi, &descriptor_event);
 
     printf("Waiting for events...\n");
     while (!interrupted) {
-        vmi_events_listen(vmi,500);
+        if (VMI_FAILURE == vmi_events_listen(vmi,500))
+            goto error_exit;
     }
     printf("Finished with test.\n");
+
+    // display stats
+    printf("Statistics:\n");
+    printf("\tIDTR access: %d\n", stats[VMI_DESCRIPTOR_IDTR]);
+    printf("\tGDTR access: %d\n", stats[VMI_DESCRIPTOR_GDTR]);
+    printf("\tLDTR access: %d\n", stats[VMI_DESCRIPTOR_LDTR]);
+    printf("\tTR access: %d\n", stats[VMI_DESCRIPTOR_TR]);
 
     retcode = 0;
 error_exit:

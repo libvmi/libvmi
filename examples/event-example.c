@@ -180,13 +180,24 @@ int main (int argc, char **argv)
 
     char *name = NULL;
 
+    vmi_init_data_t *init_data = NULL;
+
     if (argc < 2) {
-        fprintf(stderr, "Usage: events_example <name of VM>\n");
+        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
         exit(1);
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
+
+    if (argc == 3) {
+        char *path = argv[2];
+
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(path);
+    }
 
     /* for a clean exit */
     act.sa_handler = close_handler;
@@ -200,7 +211,7 @@ int main (int argc, char **argv)
     /* initialize the libvmi library */
     if (VMI_FAILURE ==
             vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                              NULL, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
+                              init_data, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
@@ -330,6 +341,11 @@ int main (int argc, char **argv)
 
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
+
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
 
     return 0;
 }

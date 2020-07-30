@@ -36,23 +36,26 @@
 
 int main (int argc, char **argv)
 {
-    vmi_instance_t vmi;
+    vmi_instance_t vmi = {0};
     addr_t list_head = 0, cur_list_entry = 0, next_list_entry = 0;
     addr_t current_process = 0;
     char *procname = NULL;
     vmi_pid_t pid = 0;
     unsigned long tasks_offset = 0, pid_offset = 0, name_offset = 0;
-    status_t status;
+    status_t status = VMI_FAILURE;
+    vmi_init_data_t *init_data = NULL;
     uint64_t domid = 0;
     uint8_t init = VMI_INIT_DOMAINNAME, config_type = VMI_CONFIG_GLOBAL_FILE_ENTRY;
     void *input = NULL, *config = NULL;
+    int retcode = 1;
 
     if ( argc < 2 ) {
         printf("Usage: %s\n", argv[0]);
         printf("\t -n/--name <domain name>\n");
         printf("\t -d/--domid <domain id>\n");
         printf("\t -j/--json <path to kernel's json profile>\n");
-        return 1;
+        printf("\t -s/--socket <path to KVMI socket>\n");
+        return retcode;
     }
 
     // left for compatibility
@@ -64,9 +67,10 @@ int main (int argc, char **argv)
             {"name", required_argument, NULL, 'n'},
             {"domid", required_argument, NULL, 'd'},
             {"json", required_argument, NULL, 'j'},
+            {"socket", optional_argument, NULL, 's'},
             {NULL, 0, NULL, 0}
         };
-        const char* opts = "n:d:j:";
+        const char* opts = "n:d:j:s:";
         int c;
         int long_index = 0;
 
@@ -84,16 +88,31 @@ int main (int argc, char **argv)
                     config_type = VMI_CONFIG_JSON_PATH;
                     config = (void*)optarg;
                     break;
+                case 's':
+                    // in case we have multiple '-s' argument, avoid memory leak
+                    if (init_data) {
+                        free(init_data->entry[0].data);
+                    } else {
+                        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                    }
+                    init_data->count = 1;
+                    init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+                    init_data->entry[0].data = strdup(optarg);
+                    break;
                 default:
                     printf("Unknown option\n");
-                    return 1;
+                    if (init_data) {
+                        free(init_data->entry[0].data);
+                        free(init_data);
+                    }
+                    return retcode;
             }
     }
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init_complete(&vmi, input, init, NULL, config_type, config, NULL)) {
+    if (VMI_FAILURE == vmi_init_complete(&vmi, input, init, init_data, config_type, config, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     /* init the offset values */
@@ -239,6 +258,7 @@ int main (int argc, char **argv)
         }
     };
 
+    retcode = 0;
 error_exit:
     /* resume the vm */
     vmi_resume_vm(vmi);
@@ -246,5 +266,10 @@ error_exit:
     /* cleanup any memory associated with the LibVMI instance */
     vmi_destroy(vmi);
 
-    return 0;
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
+
+    return retcode;
 }

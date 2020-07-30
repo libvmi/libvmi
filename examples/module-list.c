@@ -37,21 +37,37 @@ main(
     int argc,
     char **argv)
 {
-    vmi_instance_t vmi;
-    addr_t next_module, list_head;
+    vmi_instance_t vmi = {0};
+    addr_t next_module = 0;
+    addr_t list_head = 0;
+    // init_data for KVM socket, if needed
+    vmi_init_data_t *init_data = NULL;
+    int retcode = 1;
 
-    if ( argc != 2 )
-        return 1;
+    if ( argc < 2 ) {
+        fprintf(stderr, "Usage: %s <Name of VM> [socket]", argv[0]);
+        return retcode;
+    }
 
     /* this is the VM or file that we are looking at */
     char *name = argv[1];
 
+    /* KVMi socket ? */
+    if (argc == 3) {
+        char *path = argv[2];
+
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(path);
+    }
+
     /* initialize the libvmi library */
     if (VMI_FAILURE ==
-            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, NULL,
+            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME, init_data,
                               VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     /* pause the vm for consistent memory access */
@@ -132,6 +148,7 @@ main(
         next_module = tmp_next;
     }
 
+    retcode = 0;
 error_exit:
     /* resume the vm */
     vmi_resume_vm(vmi);
@@ -139,5 +156,10 @@ error_exit:
     /* cleanup any memory associated with the libvmi instance */
     vmi_destroy(vmi);
 
-    return 0;
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
+
+    return retcode;
 }
