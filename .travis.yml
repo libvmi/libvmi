@@ -142,9 +142,10 @@ jobs:
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get install clang-tools-10
       script:
         - mkdir build && cd build
-        - cmake ..
+        - cmake -DSCAN_BUILD='scan-build-10' ..
         - make static_analysis_test
 
 #
