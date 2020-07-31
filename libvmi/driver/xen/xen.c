@@ -461,13 +461,12 @@ xen_get_version(
     status_t status = VMI_FAILURE;
     char *line = NULL;
     size_t len = 0;
-    ssize_t read;
 
     FILE *fp = fopen("/sys/hypervisor/type", "r");
     if ( !fp )
         goto done;
 
-    if ((read = getline(&line, &len, fp)) == -1)
+    if (getline(&line, &len, fp) == -1)
         goto done;
 
     if ( strncmp("xen", line, 3) )
@@ -482,7 +481,7 @@ xen_get_version(
     if ( !fp )
         goto done;
 
-    if ((read = getline(&line, &len, fp)) == -1)
+    if (getline(&line, &len, fp) == -1)
         goto done;
 
     xen->major_version = atoi(line);
@@ -496,7 +495,7 @@ xen_get_version(
     if ( !fp )
         goto done;
 
-    if ((read = getline(&line, &len, fp)) == -1)
+    if (getline(&line, &len, fp) == -1)
         goto done;
 
     xen->minor_version = atoi(line);
