@@ -20,7 +20,7 @@ This section will give an implementation status of the LibVMI API on the new KVM
         - [x] segment registers
         - [ ] MSR
             - only essential MSRs are retrieved
-        - [ ] IDTR/GDTR
+        - [x] IDTR/GDTR
     - [ ] write
         - [x] general purpose registers
         - [ ] control registers

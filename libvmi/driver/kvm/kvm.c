@@ -714,13 +714,13 @@ kvm_get_vcpureg(
         case GS_BASE:
             *value = regs.x86.gs_base;
             break;
-        case MSR_IA32_SYSENTER_CS:
+        case SYSENTER_CS:
             *value = regs.x86.sysenter_cs;
             break;
-        case MSR_IA32_SYSENTER_ESP:
+        case SYSENTER_ESP:
             *value = regs.x86.sysenter_esp;
             break;
-        case MSR_IA32_SYSENTER_EIP:
+        case SYSENTER_EIP:
             *value = regs.x86.sysenter_eip;
             break;
         case MSR_EFER:

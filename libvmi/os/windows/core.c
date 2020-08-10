@@ -784,8 +784,10 @@ static status_t kpcr_find3(vmi_instance_t vmi, windows_instance_t windows)
     uint32_t int0_high = 0;
     uint16_t int0_low = 0, int0_middle = 0;
 
-    if ( VMI_FAILURE == json_profile_lookup(vmi, "KiDivideErrorFault", NULL, &int0_rva) )
-        return VMI_FAILURE;
+    if ( VMI_FAILURE == json_profile_lookup(vmi, "KiDivideErrorFault", NULL, &int0_rva) ) {
+        if ( VMI_FAILURE == json_profile_lookup(vmi, "KiTrap00", NULL, &int0_rva) )
+            return VMI_FAILURE;
+    }
 
     // Some Windows10+ JSON profiles don't have KiInitialPCR defined so we use the IDT route
     // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
