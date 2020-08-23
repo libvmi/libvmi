@@ -91,7 +91,9 @@ volatility_ist_find_offset(
         subname1 = json_object_iter_peek_name(&iter);
 
 #define UNNAMED_PREFIX "unnamed_field_"
-        if (0 != strncmp (subname1, UNNAMED_PREFIX, sizeof(UNNAMED_PREFIX)-1))
+#define UNNAMED_PREFIX_SIZE (sizeof(UNNAMED_PREFIX) - 1)
+
+        if (0 != strncmp (subname1, UNNAMED_PREFIX, UNNAMED_PREFIX_SIZE))
             goto next;
 
         // get the type dict for the subfield, e.g. "type": {"kind": "struct", "name": "unnamed_8216149fbf604e93" },
