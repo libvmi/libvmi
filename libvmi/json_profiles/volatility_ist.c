@@ -24,6 +24,118 @@
 #include <stdio.h>
 #include <json-c/json.h>
 
+// Perform recursive search for subsymbol under symbol
+static status_t
+volatility_ist_find_offset(
+    json_object *json,
+    const char *symbol,
+    const char *subsymbol,
+    addr_t *rva)
+{
+    status_t ret = VMI_FAILURE;
+    json_object *user_types = NULL, *jstruct = NULL, *jstruct2 = NULL, *jmember = NULL, *jvalue = NULL;
+    struct json_object_iterator iter, iend;
+
+    if (!json_object_object_get_ex(json, "user_types", &user_types)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: no user_types section found\n");
+        goto exit;
+    }
+    if (!json_object_object_get_ex(user_types, symbol, &jstruct)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: no %s found\n", symbol);
+        goto exit;
+    }
+
+    if (!json_object_object_get_ex(jstruct, "fields", &jstruct2)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: struct %s has no fields element\n", symbol);
+        goto exit;
+    }
+
+    // check for terminal success case
+    if (json_object_object_get_ex(jstruct2, subsymbol, &jmember)) {
+        if (!json_object_object_get_ex(jmember, "offset", &jvalue)) {
+            dbprint(VMI_DEBUG_MISC, "Volatility IST profile: %s.%s has no offset\n", symbol, subsymbol);
+            goto exit;
+        }
+        ret = VMI_SUCCESS;
+        *rva += json_object_get_int64(jvalue);
+        goto exit;
+    }
+
+    // subsymbol not found; search down all anonymous structures embedded in symbol.
+    // example:
+    // "mm_struct": {
+    //   "size": 1032,
+    //   "fields": {
+    //     ...
+    //     "unnamed_field_0": {
+    //       "type": {
+    //         "kind": "struct",
+    //         "name": "unnamed_8216149fbf604e93"
+    //       },
+    //       "offset": 0,
+    //       "anonymous": true
+    //     }
+    //   },
+    //   "kind": "struct"
+    // },
+
+    iter = json_object_iter_begin (jstruct2);
+    iend = json_object_iter_end (jstruct2);
+
+    while (!json_object_iter_equal(&iter, &iend)) {
+        json_object *subval = NULL, *subval2 = NULL, *subval3 = NULL;
+        const char *subname1 = NULL;
+        const char *embedded = NULL;
+
+        subval = json_object_iter_peek_value(&iter);
+        subname1 = json_object_iter_peek_name(&iter);
+
+#define UNNAMED_PREFIX "unnamed_field_"
+#define UNNAMED_PREFIX_SIZE (sizeof(UNNAMED_PREFIX) - 1)
+
+        if (0 != strncmp (subname1, UNNAMED_PREFIX, UNNAMED_PREFIX_SIZE))
+            goto next;
+
+        // get the type dict for the subfield, e.g. "type": {"kind": "struct", "name": "unnamed_8216149fbf604e93" },
+        if (!json_object_object_get_ex (subval, "type", &subval2))
+            goto next;
+
+        // get the name
+        if (!json_object_object_get_ex (subval2, "name", &subval3))
+            goto next;
+
+        // finally, convert the object to a name
+        embedded = json_object_get_string (subval3);
+        if (!embedded)
+            goto next;
+
+        // now recurse into embedded, still looking for original subsymbol
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: exploring anonymous struct %s (%s) for offset for %s\n",
+                subname1, embedded, subsymbol);
+        ret = volatility_ist_find_offset(json, embedded, subsymbol, rva);
+        if (VMI_SUCCESS == ret) {
+            // the field was found in the anonymous struct. tack on that struct's offset; in example: 0.
+            json_object *jofs = NULL;
+            if (!json_object_object_get_ex(subval, "offset", &jofs)) {
+                ret = VMI_FAILURE;
+                dbprint(VMI_DEBUG_MISC, "Volatility IST profile: anonymous struct %s has no offset in %s\n", subname1, symbol);
+                goto exit;
+            }
+
+            *rva += json_object_get_int64(jofs);
+            dbprint(VMI_DEBUG_MISC, "Volatility IST profile: %s.%s @ offset %ld\n", symbol, subname1, *rva);
+            goto exit;
+        }
+
+next:
+        json_object_iter_next (&iter);
+    }
+
+
+exit:
+    return ret;
+}
+
 status_t
 volatility_ist_symbol_to_rva(
     json_object *json,
@@ -56,7 +168,7 @@ volatility_ist_symbol_to_rva(
         *rva = json_object_get_int64(address);
         ret = VMI_SUCCESS;
     } else {
-        json_object *user_types = NULL, *jstruct = NULL, *jstruct2 = NULL, *jmember = NULL, *jvalue = NULL;
+        json_object *user_types = NULL, *jstruct = NULL;
         if (!json_object_object_get_ex(json, "user_types", &user_types)) {
             dbprint(VMI_DEBUG_MISC, "Volatility IST profile: no user_types section found\n");
             goto exit;
@@ -80,23 +192,9 @@ volatility_ist_symbol_to_rva(
             goto exit;
         }
 
-        if (!json_object_object_get_ex(jstruct, "fields", &jstruct2)) {
-            dbprint(VMI_DEBUG_MISC, "Volatility IST profile: struct %s has no fields element\n", symbol);
-            goto exit;
-        }
-
-        if (!json_object_object_get_ex(jstruct2, subsymbol, &jmember)) {
-            dbprint(VMI_DEBUG_MISC, "Volatility IST profile: %s has no %s member\n", symbol, subsymbol);
-            goto exit;
-        }
-
-        if (!json_object_object_get_ex(jmember, "offset", &jvalue)) {
-            dbprint(VMI_DEBUG_MISC, "Volatility IST profile: %s.%s has no offset defined\n", symbol, subsymbol);
-            goto exit;
-        }
-
-        *rva = json_object_get_int64(jvalue);
-        ret = VMI_SUCCESS;
+        // look for offset by performing recursive search for subsymbol under symbol
+        *rva = 0;
+        ret = volatility_ist_find_offset(json, symbol, subsymbol, rva);
     }
 
 exit:
