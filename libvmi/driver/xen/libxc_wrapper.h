@@ -249,6 +249,9 @@ typedef struct {
     int (*xc_monitor_write_ctrlreg2)
     (xc_interface *xch, uint32_t domain_id, uint16_t index, bool enable, bool sync, uint64_t bitmask, bool onchangeonly);
 
+    int (*xc_monitor_guest_request2)
+    (xc_interface *xch, uint32_t domain_id, bool enable, bool sync, bool allow_userspace);
+
     /* Xen 4.11+ */
     int (*xc_monitor_emul_unimplemented)
     (xc_interface *xch, uint32_t domain_id, bool enable);

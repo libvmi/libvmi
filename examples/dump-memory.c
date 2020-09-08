@@ -108,6 +108,8 @@ static const struct option long_opts[] = {
 int main(int argc, char **argv)
 {
     int c;
+    int retcode = 1;
+    memory_map_t *memmap = NULL;
     vmi_init_data_t *init_data = NULL;
     while ((c = getopt_long(argc, argv, "psk:h", long_opts, NULL)) != -1) {
         switch (c) {
@@ -120,7 +122,12 @@ int main(int argc, char **argv)
                 progress_flag = 1;
                 break;
             case 'k':
-                init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                // in case we have multiple '-k' argument, avoid memory leak
+                if (init_data) {
+                    free(init_data->entry[0].data);
+                } else {
+                    init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                }
                 init_data->count = 1;
                 init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
                 init_data->entry[0].data = strdup(optarg);
@@ -128,14 +135,14 @@ int main(int argc, char **argv)
             case 'h':
             default:
                 usage(argv[0]);
-                return 1;
+                goto free_setup_info;
         }
     }
 
     /* two other arguments required */
     if (argc - optind != 2) {
         usage(argv[0]);
-        return 1;
+        goto free_setup_info;
     }
 
     /* this is the VM or file that we are looking at */
@@ -150,7 +157,6 @@ int main(int argc, char **argv)
     }
 
     /* for bareflank we have to pass-in the actual memory map of the machine. */
-    memory_map_t *memmap = NULL;
     if (mode == VMI_BAREFLANK && bareflank_setup(&init_data, &memmap) != 0) {
         goto free_setup_info;
     }
@@ -217,6 +223,7 @@ int main(int argc, char **argv)
         }
     }
 
+    retcode = 0;
 resume_vm:
     if (pause_vm_flag) {
         vmi_resume_vm(vmi);
@@ -234,5 +241,5 @@ free_setup_info:
         free(init_data->entry[0].data);
         free(init_data);
     }
-    return 0;
+    return retcode;
 }

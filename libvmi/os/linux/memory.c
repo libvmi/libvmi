@@ -59,7 +59,7 @@ linux_get_taskstruct_addr_from_pid(
      * the actual task struct, not to the linked list entry.
      */
     curr_proc = vmi->init_task;
-    vmi_read_addr_va(vmi, curr_proc + tasks_offset, 0, &curr_entry);
+    curr_entry = curr_proc + tasks_offset;
 
     list_head = curr_entry;
 

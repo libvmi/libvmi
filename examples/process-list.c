@@ -89,13 +89,22 @@ int main (int argc, char **argv)
                     config = (void*)optarg;
                     break;
                 case 's':
-                    init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                    // in case we have multiple '-s' argument, avoid memory leak
+                    if (init_data) {
+                        free(init_data->entry[0].data);
+                    } else {
+                        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                    }
                     init_data->count = 1;
                     init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
                     init_data->entry[0].data = strdup(optarg);
                     break;
                 default:
                     printf("Unknown option\n");
+                    if (init_data) {
+                        free(init_data->entry[0].data);
+                        free(init_data);
+                    }
                     return retcode;
             }
     }

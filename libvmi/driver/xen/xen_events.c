@@ -408,9 +408,16 @@ status_t xen_set_guest_requested_event(vmi_instance_t vmi, bool enabled)
     if ( !enabled && !vmi->guest_requested_event )
         return VMI_SUCCESS;
 
-    rc  = xen->libxcw.xc_monitor_guest_request(xen_get_xchandle(vmi),
-            xen_get_domainid(vmi),
-            enabled, 1);
+    if ( xen->minor_version < 10 ) {
+        rc  = xen->libxcw.xc_monitor_guest_request(xen_get_xchandle(vmi),
+                xen_get_domainid(vmi),
+                enabled, 1);
+    } else {
+        rc  = xen->libxcw.xc_monitor_guest_request2(xen_get_xchandle(vmi),
+                xen_get_domainid(vmi),
+                enabled, 1, 1);
+    }
+
     if ( rc < 0 ) {
         errprint("Error %i setting guest request monitor\n", rc);
         return VMI_FAILURE;

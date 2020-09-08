@@ -44,7 +44,7 @@
 #include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
-#include <kvmi/libkvmi.h>
+#include <libkvmi.h>
 
 #include "private.h"
 #include "msr-index.h"
@@ -754,13 +754,13 @@ kvm_get_vcpureg(
         case GS_BASE:
             *value = regs.x86.gs_base;
             break;
-        case MSR_IA32_SYSENTER_CS:
+        case SYSENTER_CS:
             *value = regs.x86.sysenter_cs;
             break;
-        case MSR_IA32_SYSENTER_ESP:
+        case SYSENTER_ESP:
             *value = regs.x86.sysenter_esp;
             break;
-        case MSR_IA32_SYSENTER_EIP:
+        case SYSENTER_EIP:
             *value = regs.x86.sysenter_eip;
             break;
         case MSR_EFER:
@@ -771,6 +771,18 @@ kvm_get_vcpureg(
             break;
         case MSR_LSTAR:
             *value = regs.x86.msr_lstar;
+            break;
+        case GDTR_BASE:
+            *value = regs.x86.gdtr_base;
+            break;
+        case GDTR_LIMIT:
+            *value = regs.x86.gdtr_limit;
+            break;
+        case IDTR_BASE:
+            *value = regs.x86.idtr_base;
+            break;
+        case IDTR_LIMIT:
+            *value = regs.x86.idtr_limit;
             break;
         default:
             dbprint(VMI_DEBUG_KVM, "--Reading register %"PRIu64" not implemented\n", reg);
@@ -817,6 +829,10 @@ kvm_get_vcpuregs(
     x86->msr_efer = msrs.entries[3].data;
     x86->msr_star = msrs.entries[4].data;
     x86->msr_lstar = msrs.entries[5].data;
+    x86->gdtr_base = sregs.gdt.base;
+    x86->gdtr_limit = sregs.gdt.limit;
+    x86->idtr_base = sregs.idt.base;
+    x86->idtr_limit = sregs.idt.limit;
 
     return VMI_SUCCESS;
 }

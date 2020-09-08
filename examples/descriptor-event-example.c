@@ -37,6 +37,7 @@ event_response_t desc_cb(
 {
     if (!event || !event->data) {
         fprintf(stderr, "%s: invalid parameters\n", __func__);
+        return VMI_EVENT_RESPONSE_NONE;
     }
     int *stats = (int*)event->data;
     char *desc_str = NULL;

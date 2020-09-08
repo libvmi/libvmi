@@ -169,6 +169,13 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.is_pv_ptr = &kvm_is_pv;
     driver.pause_vm_ptr = &kvm_pause_vm;
     driver.resume_vm_ptr = &kvm_resume_vm;
+# ifndef ENABLE_KVM_LEGACY
+    driver.request_page_fault_ptr = &kvm_request_page_fault;
+    driver.get_tsc_info_ptr = &kvm_get_tsc_info;
+    driver.get_vcpuregs_ptr = &kvm_get_vcpuregs;
+    driver.set_vcpureg_ptr = &kvm_set_vcpureg;
+    driver.set_vcpuregs_ptr = &kvm_set_vcpuregs;
+# endif
     vmi->driver = driver;
     return VMI_SUCCESS;
 }

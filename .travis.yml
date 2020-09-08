@@ -4,13 +4,15 @@ language: c
 
 # install libkvmi for all tests
 before_install:
-  # install in /tmp/kvm to avoid breaking astyle test
-  - git clone https://github.com/KVM-VMI/kvm --branch kvmi --depth 1 /tmp/kvm
-  - pushd /tmp/kvm/tools/kvm/kvmi
+  # install in /tmp/libkvmi to avoid breaking astyle test
+  - git clone https://github.com/bitdefender/libkvmi --branch kvmi-v6 /tmp/libkvmi
+  - pushd /tmp/libkvmi
+  - ./bootstrap
+  - ./configure
   - make
   - sudo make install
   - popd
-  - rm -rf kvm
+  - rm -rf /tmp/libkvmi
 
 jobs:
     include:
@@ -153,9 +155,10 @@ jobs:
       install:
         - sudo apt-get update
         - sudo apt-get -q -y install bison flex libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get install clang-tools-10
       script:
         - mkdir build && cd build
-        - cmake ..
+        - cmake -DSCAN_BUILD='scan-build-10' ..
         - make static_analysis_test
 
 #
@@ -172,7 +175,7 @@ jobs:
         - make
 
 #
-# KVM legcy build (autotools)
+# KVM legacy build (autotools)
 #
     - env:
         - TEST="KVM legacy build (autotools)"

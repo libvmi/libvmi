@@ -150,6 +150,10 @@ libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS)
 libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
 
+if WITH_KVM
+    libvmi_libvmi_la_CFLAGS += $(LIBKVMI_CFLAGS)
+endif
+
 if ENABLE_CONFIGFILE
     config_h_sources = libvmi/config/config_parser.h
     config_c_sources = libvmi/config/grammar.y libvmi/config/lexicon.l

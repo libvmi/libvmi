@@ -2,10 +2,6 @@
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * Copyright 2011 Sandia Corporation. Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
- * retains certain rights in this software.
- *
  * Author: Mathieu Tarral (mathieu.tarral@ssi.gouv.fr)
  *
  * This file is part of LibVMI.
@@ -905,10 +901,11 @@ kvm_events_listen(
             goto error_exit;
         }
 #endif
-        // call handler
-        if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
-            goto error_exit;
-
+        if (!vmi->shutting_down) {
+            // call handler
+            if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
+                goto error_exit;
+        }
         // free event
         if (event)
             free(event);

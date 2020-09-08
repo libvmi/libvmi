@@ -57,7 +57,6 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
 
     wrapper->handle = dlopen("libkvmi.so", RTLD_NOW | RTLD_GLOBAL);
 
-
     if (!wrapper->handle) {
         dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libkvmi\n");
         return VMI_FAILURE;
