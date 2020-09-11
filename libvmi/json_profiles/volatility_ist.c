@@ -87,9 +87,9 @@ volatility_ist_find_offset(
         const char *subname1 = NULL;
         const char *embedded = NULL;
 
-        (void) subname1; // only used in dprint
         subval = json_object_iter_peek_value(&iter);
         subname1 = json_object_iter_peek_name(&iter);
+        (void) subname1; // only used in dprint
 
         // get the type dict for the subfield, e.g. "type": {"kind": "struct", "name": "unnamed_8216149fbf604e93" },
         if (!json_object_object_get_ex (subval, "type", &subval2))

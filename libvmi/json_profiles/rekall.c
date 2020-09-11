@@ -81,9 +81,9 @@ rekall_find_offset(
         const char *subname1 = NULL;
         const char *embedded = NULL;
 
-        (void) subname1; // only used in dbprint()
         subval = json_object_iter_peek_value(&iter);
         subname1 = json_object_iter_peek_name(&iter);
+        (void) subname1; // only used in dbprint()
 
         // get the top-level array from the value, e.g. ["__unnamed_178927"]
         subval2 = json_object_array_get_idx(subval, 1);
