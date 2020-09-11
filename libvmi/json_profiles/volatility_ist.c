@@ -61,7 +61,7 @@ volatility_ist_find_offset(
         goto exit;
     }
 
-    // subsymbol not found; search down all anonymous structures embedded in symbol.
+    // subsymbol not found; search down all anonymous or embedded structures in symbol.
     // example:
     // "mm_struct": {
     //   "size": 1032,
@@ -87,14 +87,9 @@ volatility_ist_find_offset(
         const char *subname1 = NULL;
         const char *embedded = NULL;
 
+        (void) subname1; // only used in dprint
         subval = json_object_iter_peek_value(&iter);
         subname1 = json_object_iter_peek_name(&iter);
-
-#define UNNAMED_PREFIX "unnamed_field_"
-#define UNNAMED_PREFIX_SIZE (sizeof(UNNAMED_PREFIX) - 1)
-
-        if (0 != strncmp (subname1, UNNAMED_PREFIX, UNNAMED_PREFIX_SIZE))
-            goto next;
 
         // get the type dict for the subfield, e.g. "type": {"kind": "struct", "name": "unnamed_8216149fbf604e93" },
         if (!json_object_object_get_ex (subval, "type", &subval2))
@@ -110,7 +105,7 @@ volatility_ist_find_offset(
             goto next;
 
         // now recurse into embedded, still looking for original subsymbol
-        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: exploring anonymous struct %s (%s) for offset for %s\n",
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: exploring anonymous/embedded struct %s (%s) for offset for %s\n",
                 subname1, embedded, subsymbol);
         ret = volatility_ist_find_offset(json, embedded, subsymbol, rva);
         if (VMI_SUCCESS == ret) {
