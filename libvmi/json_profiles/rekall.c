@@ -65,7 +65,7 @@ rekall_find_offset(
         goto exit;
     }
 
-    // subsymbol not found; search down all anonymous structures embedded in symbol.
+    // subsymbol not found; search down all anonymous or embedded structures in symbol.
     // example: "mm_struct": [1032, {
     //                           ....
     //                        "u1": [0, ["__unnamed_178927"]] .... }]
@@ -83,9 +83,7 @@ rekall_find_offset(
 
         subval = json_object_iter_peek_value(&iter);
         subname1 = json_object_iter_peek_name(&iter);
-
-        if (subname1[0] != 'u')
-            goto next;
+        (void) subname1; // only used in dbprint()
 
         // get the top-level array from the value, e.g. ["__unnamed_178927"]
         subval2 = json_object_array_get_idx(subval, 1);
@@ -110,7 +108,7 @@ rekall_find_offset(
             jofs = json_object_array_get_idx(subval, 0);
             if (!jofs) {
                 ret = VMI_FAILURE;
-                dbprint(VMI_DEBUG_MISC, "Rekall profile: anonymous struct %s has no offset in %s\n", subname1, symbol);
+                dbprint(VMI_DEBUG_MISC, "Rekall profile: anonymous/embedded struct %s has no offset in %s\n", subname1, symbol);
                 goto exit;
             }
 
@@ -122,7 +120,6 @@ rekall_find_offset(
 next:
         json_object_iter_next (&iter);
     }
-
 
 exit:
     return ret;
