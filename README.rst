@@ -126,9 +126,9 @@ currently hosting this new API:
 
 https://github.com/KVM-VMI/kvm-vmi
 
-Follow this wiki page to setup KVM-VMI:
+The installation guide can be found at the following link:
 
-https://github.com/KVM-VMI/kvm-vmi/wiki/KVM-VMI-setup
+https://kvm-vmi.github.io/kvm-vmi/kvmi-v6/setup.html
 
 KVM legacy driver support:
 
