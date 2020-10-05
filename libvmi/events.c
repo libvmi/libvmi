@@ -344,7 +344,7 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
     if (VMI_SUCCESS == driver_set_mem_access(vmi, event->mem_event.gfn,
             event->mem_event.in_access,
             event->slat_id)) {
-        g_hash_table_insert(vmi->mem_events_on_gfn, g_memdup(&event->mem_event.gfn, sizeof(addr_t)), event);
+        g_hash_table_insert(vmi->mem_events_on_gfn, g_slice_dup(addr_t, &event->mem_event.gfn), event);
 
         if ( event->mem_event.gfn > (vmi->max_physical_address >> vmi->page_shift) )
             vmi->max_physical_address = event->mem_event.gfn << vmi->page_shift;
@@ -644,7 +644,7 @@ status_t swap_events(vmi_instance_t vmi, vmi_event_t *swap_from, vmi_event_t *sw
     if (rc == VMI_FAILURE)
         return rc;
 
-    g_hash_table_replace(vmi->mem_events_on_gfn, g_memdup(&swap_to->mem_event.gfn, sizeof(addr_t)), swap_to);
+    g_hash_table_replace(vmi->mem_events_on_gfn, g_slice_dup(addr_t, &swap_to->mem_event.gfn), swap_to);
 
     if ( free_routine )
         free_routine(swap_from, rc);
@@ -892,7 +892,7 @@ status_t vmi_clear_event(
 
         if (!g_hash_table_lookup(vmi->clear_events, &event)) {
             g_hash_table_insert(vmi->clear_events,
-                                g_memdup(&event, sizeof(void*)),
+                                g_slice_dup(vmi_event_t*, &event),
                                 free_routine);
             return VMI_SUCCESS;
         }
