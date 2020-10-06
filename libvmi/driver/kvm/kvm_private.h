@@ -40,7 +40,6 @@
 #endif
 
 #include "libvirt_wrapper.h"
-#include "libkvmi_wrapper.h"
 
 typedef struct kvm_instance {
     virConnectPtr conn;
