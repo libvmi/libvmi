@@ -19,25 +19,30 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
+#define _GNU_SOURCE
+#include <link.h>
+#include <dlfcn.h>
+
 #include "kvm_private.h"
 #include "libkvmi_wrapper.h"
 
 static status_t sanity_check(kvm_instance_t *kvm)
 {
-    libkvmi_wrapper_t *w =
-        &kvm->libkvmi;
+    libkvmi_wrapper_t *w = &kvm->libkvmi;
 
     if ( !w->kvmi_init_unix_socket || !w->kvmi_uninit || !w->kvmi_close ||
             !w->kvmi_domain_close || !w->kvmi_connection_fd ||
             !w->kvmi_get_version || !w->kvmi_control_events ||
-            !w->kvmi_control_vm_events || !w->kvmi_control_cr ||
+            !w->kvmi_control_vm_events || !w->kvmi_control_cr || !w->kvmi_control_singlestep ||
             !w->kvmi_control_msr || !w->kvmi_pause_all_vcpus ||
-            !w->kvmi_get_page_access || !w->kvmi_set_page_access || !w->kvmi_get_tsc_speed ||
+            !w->kvmi_set_page_access || !w->kvmi_get_tsc_speed ||
             !w->kvmi_get_vcpu_count || !w->kvmi_inject_exception ||
             !w->kvmi_read_physical || !w->kvmi_write_physical ||
             !w->kvmi_get_registers || !w->kvmi_set_registers ||
             !w->kvmi_reply_event || !w->kvmi_pop_event || !w->kvmi_wait_event ||
-            !w->kvmi_set_log_cb || !w->kvmi_get_maximum_gfn ) {
+            !w->kvmi_set_log_cb || !w->kvmi_get_maximum_gfn ||
+            !w->kvmi_spp_support || !w->kvmi_ve_support ||
+            !w->kvmi_vmfunc_support || !w->kvmi_eptp_support || !w->kvmi_get_pending_events) {
         dbprint(VMI_DEBUG_KVM, "--failed to find the required functions in libkvmi\n");
         return VMI_FAILURE;
     }
@@ -56,6 +61,12 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
         dbprint(VMI_DEBUG_KVM, "--failed to open a handle to libkvmi\n");
         return VMI_FAILURE;
     }
+    struct link_map *map = NULL;
+    if (dlinfo(wrapper->handle, RTLD_DI_LINKMAP, &map)) {
+        dbprint(VMI_DEBUG_KVM, "--failed to get dlopen handle info\n");
+        return VMI_FAILURE;
+    }
+    dbprint(VMI_DEBUG_KVM, "--libkvmi path: %s\n", map->l_name);
 
     wrapper->kvmi_init_unix_socket = dlsym(wrapper->handle, "kvmi_init_unix_socket");
     wrapper->kvmi_uninit = dlsym(wrapper->handle, "kvmi_uninit");
@@ -67,8 +78,8 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
     wrapper->kvmi_control_vm_events = dlsym(wrapper->handle, "kvmi_control_vm_events");
     wrapper->kvmi_control_cr = dlsym(wrapper->handle, "kvmi_control_cr");
     wrapper->kvmi_control_msr = dlsym(wrapper->handle, "kvmi_control_msr");
+    wrapper->kvmi_control_singlestep = dlsym(wrapper->handle, "kvmi_control_singlestep");
     wrapper->kvmi_pause_all_vcpus = dlsym(wrapper->handle, "kvmi_pause_all_vcpus");
-    wrapper->kvmi_get_page_access = dlsym(wrapper->handle, "kvmi_get_page_access");
     wrapper->kvmi_set_page_access = dlsym(wrapper->handle, "kvmi_set_page_access");
     wrapper->kvmi_get_tsc_speed = dlsym(wrapper->handle, "kvmi_get_tsc_speed");
     wrapper->kvmi_get_vcpu_count = dlsym(wrapper->handle, "kvmi_get_vcpu_count");
@@ -82,6 +93,11 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
     wrapper->kvmi_wait_event = dlsym(wrapper->handle, "kvmi_wait_event");
     wrapper->kvmi_set_log_cb = dlsym(wrapper->handle, "kvmi_set_log_cb");
     wrapper->kvmi_get_maximum_gfn = dlsym(wrapper->handle, "kvmi_get_maximum_gfn");
+    wrapper->kvmi_spp_support = dlsym(wrapper->handle, "kvmi_spp_support");
+    wrapper->kvmi_ve_support = dlsym(wrapper->handle, "kvmi_ve_support");
+    wrapper->kvmi_vmfunc_support = dlsym(wrapper->handle, "kvmi_vmfunc_support");
+    wrapper->kvmi_eptp_support = dlsym(wrapper->handle, "kvmi_eptp_support");
+    wrapper->kvmi_get_pending_events = dlsym(wrapper->handle, "kvmi_get_pending_events");
 
     status_t ret = sanity_check(kvm);
     if ( ret != VMI_SUCCESS ) {

@@ -128,7 +128,7 @@ https://github.com/KVM-VMI/kvm-vmi
 
 The installation guide can be found at the following link:
 
-https://kvm-vmi.github.io/kvm-vmi/kvmi-v6/setup.html
+https://kvm-vmi.github.io/kvm-vmi/kvmi-v7/setup.html
 
 KVM legacy driver support:
 

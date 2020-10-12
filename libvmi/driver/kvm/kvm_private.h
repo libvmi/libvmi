@@ -68,6 +68,9 @@ typedef struct kvm_instance {
     bool monitor_msr_all_on;
     bool monitor_intr_on;
     bool monitor_desc_on;
+    // array of [VCPU] -> [boolean]
+    // whether singlstep is enabled on a given VCPU
+    bool *sstep_enabled;
 #endif
 } kvm_instance_t;
 

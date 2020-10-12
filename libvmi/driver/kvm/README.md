@@ -95,7 +95,7 @@ This section will give an implementation status of the LibVMI API on the new KVM
     - [ ] `VMI_EVENT_RESPONSE_EMULATE_NOWRITE`
     - [x] `VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA` (only for memory access events)
     - [ ] `VMI_EVENT_RESPONSE_DENY`
-    - [ ] `VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP`
+    - [x] `VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP`
     - [ ] `VMI_EVENT_RESPONSE_SLAT_ID`
     - [ ] `VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID`
     - [x] `VMI_EVENT_RESPONSE_SET_REGISTERS`

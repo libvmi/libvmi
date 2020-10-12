@@ -5,7 +5,7 @@ language: c
 # install libkvmi for all tests
 before_install:
   # install in /tmp/libkvmi to avoid breaking astyle test
-  - git clone https://github.com/bitdefender/libkvmi --branch kvmi-v6 /tmp/libkvmi
+  - git clone https://github.com/bitdefender/libkvmi /tmp/libkvmi
   - pushd /tmp/libkvmi
   - ./bootstrap
   - ./configure

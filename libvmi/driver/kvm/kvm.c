@@ -267,6 +267,8 @@ new_guest_cb(
     uuid_str[current_size] = '\0';
     // get fd
     int fd = kvm->libkvmi.kvmi_connection_fd(dom);
+    // remove unused variable if no debug
+    (void)fd;
 
     // get version
     unsigned int version = 0;
@@ -275,9 +277,10 @@ new_guest_cb(
         return 1;
     }
     // print infos
-    // silence unused variables if no debug
-    (void)fd;
-    dbprint(VMI_DEBUG_KVM, "--KVMi new guest - UUID: %s, FD: %d, protocol version: %d\n", uuid_str, fd, version);
+    dbprint(VMI_DEBUG_KVM, "--KVMi new guest:\n");
+    dbprint(VMI_DEBUG_KVM, "--    UUID: %s\n", uuid_str);
+    dbprint(VMI_DEBUG_KVM, "--    FD: %d\n", fd);
+    dbprint(VMI_DEBUG_KVM, "--    Protocol version: %u\n", version);
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
     /*
      * If kvmi_dom is not NULL it means this is a reconnection.
@@ -297,10 +300,20 @@ static int handshake_cb(
     struct kvmi_introspector2qemu *intro,
     void *ctx)
 {
-    (void)qemu;
     (void)intro;
     (void)ctx;
-    dbprint(VMI_DEBUG_KVM, "--KVMi handshake\n");
+    dbprint(VMI_DEBUG_KVM, "--KVMi handshake:\n");
+    dbprint(VMI_DEBUG_KVM, "--    VM name: %s\n", qemu->name);
+    char start_date[64];
+    const char *format = "%H:%M:%S - %a %b %d %Y";
+    time_t starttime = (time_t) qemu->start_time;
+    struct tm *tm = NULL;
+    tm = localtime(&starttime);
+    if (strftime(start_date, sizeof(start_date), format, tm) <= 0) {
+        errprint("Failed to convert time to string\n");
+    } else {
+        dbprint(VMI_DEBUG_KVM, "--    VM start time: %s\n", start_date);
+    }
     return 0;
 }
 
@@ -366,6 +379,21 @@ init_kvmi(
         return false;
     }
 
+    // query and display supported features
+    struct kvmi_features features = {0};
+    kvm->libkvmi.kvmi_spp_support(kvm->kvmi_dom, (bool*)&features.spp);
+    kvm->libkvmi.kvmi_vmfunc_support(kvm->kvmi_dom, (bool*)&features.vmfunc);
+    kvm->libkvmi.kvmi_eptp_support(kvm->kvmi_dom, (bool*)&features.eptp);
+    kvm->libkvmi.kvmi_ve_support(kvm->kvmi_dom, (bool*)&features.ve);
+
+    dbprint(VMI_DEBUG_KVM, "--KVMi features:\n");
+    // available in 2013 on Intel Haswell
+    dbprint(VMI_DEBUG_KVM, "--    VMFUNC: %s\n", features.vmfunc ? "Yes" : "No");
+    dbprint(VMI_DEBUG_KVM, "--    EPTP: %s\n", features.eptp ? "Yes" : "No");
+    dbprint(VMI_DEBUG_KVM, "--    VE: %s\n", features.ve ? "Yes" : "No");
+    // available in 2019 on Intel Ice Lake
+    dbprint(VMI_DEBUG_KVM, "--    SPP: %s\n", features.spp ? "Yes" : "No");
+
     return true;
 }
 
@@ -412,6 +440,11 @@ kvm_close_vmi(vmi_instance_t vmi, kvm_instance_t *kvm)
     // events ?
     if (vmi->init_flags & VMI_INIT_EVENTS) {
         kvm_events_destroy(vmi);
+    }
+
+    if (kvm->sstep_enabled) {
+        g_free(kvm->sstep_enabled);
+        kvm->sstep_enabled = NULL;
     }
 
     if (kvm->pause_events_list) {
@@ -509,6 +542,11 @@ kvm_init_vmi(
     if (!kvm->pause_events_list)
         goto err_exit;
 
+    // init singlestep enabled array
+    kvm->sstep_enabled = g_try_new0(bool, vmi->num_vcpus);
+    if (!kvm->sstep_enabled)
+        goto err_exit;
+
     // events ?
     if (init_flags & VMI_INIT_EVENTS) {
         if (VMI_FAILURE == kvm_events_init(vmi, init_flags, init_data))
@@ -528,12 +566,14 @@ kvm_destroy(
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver\n");
 
-    kvm_close_vmi(vmi, kvm);
+    if (kvm) {
+        kvm_close_vmi(vmi, kvm);
 
-    dlclose(kvm->libkvmi.handle);
-    dlclose(kvm->libvirt.handle);
-    dlclose(kvm->libvirt.handle_qemu);
-    g_free(kvm);
+        dlclose(kvm->libkvmi.handle);
+        dlclose(kvm->libvirt.handle);
+        dlclose(kvm->libvirt.handle_qemu);
+        g_free(kvm);
+    }
 }
 
 status_t

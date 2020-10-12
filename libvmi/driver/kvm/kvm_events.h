@@ -43,6 +43,10 @@ kvm_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout);
 
+int
+kvm_are_events_pending(
+    vmi_instance_t vmi);
+
 status_t
 kvm_set_reg_access(
     vmi_instance_t vmi,
@@ -61,9 +65,24 @@ kvm_set_mem_access(
     vmi_mem_access_t page_access_flag,
     uint16_t vmm_pagetable_id);
 
-status_t kvm_set_desc_access_event(
+status_t
+kvm_set_desc_access_event(
     vmi_instance_t,
     bool enabled);
+
+status_t
+kvm_start_single_step(
+    vmi_instance_t vmi,
+    single_step_event_t *event);
+
+status_t
+kvm_stop_single_step(
+    vmi_instance_t vmi,
+    uint32_t vcpu);
+
+status_t
+kvm_shutdown_single_step(
+    vmi_instance_t vmi);
 
 status_t
 kvm_get_next_event(

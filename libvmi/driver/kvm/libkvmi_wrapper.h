@@ -64,14 +64,16 @@ typedef struct {
     int (*kvmi_control_msr)
     (void *dom, unsigned short vcpu, unsigned int msr, bool enable);
 
+    // singlestep only in KVMi-v7
+    int (*kvmi_control_singlestep)
+    (void *dom, unsigned short vcpu, bool enable);
+
     int (*kvmi_pause_all_vcpus)
     (void *dom, unsigned int count);
 
-    int (*kvmi_get_page_access)
-    (void *dom, unsigned long long int gpa, unsigned char *access);
-
     int (*kvmi_set_page_access)
-    (void *dom, unsigned long long int *gpa, unsigned char *access, unsigned short count);
+    (void *dom, unsigned long long int *gpa, unsigned char *access, unsigned short count,
+     unsigned short view);
 
     int (*kvmi_get_tsc_speed)
     (void *dom, unsigned long long int *speed);
@@ -109,6 +111,22 @@ typedef struct {
 
     int (*kvmi_get_maximum_gfn)
     (void *dom, unsigned long long *gfn);
+
+    // only on KVMi-v7
+    int (*kvmi_spp_support)
+    (void *dom, bool *supported);
+
+    int (*kvmi_ve_support)
+    (void *dom, bool *supported);
+
+    int (*kvmi_vmfunc_support)
+    (void *dom, bool *supported);
+
+    int (*kvmi_eptp_support)
+    (void *dom, bool *supported);
+
+    size_t (*kvmi_get_pending_events)
+    (void *dom);
 
 } libkvmi_wrapper_t;
 

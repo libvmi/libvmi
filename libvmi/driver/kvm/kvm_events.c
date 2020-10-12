@@ -35,6 +35,39 @@ struct kvm_event_pf_reply_packet {
     struct kvmi_event_pf_reply pf;
 };
 
+// start singlestep on a single VCPU
+status_t
+kvm_start_single_step_vcpu(
+    vmi_instance_t vmi,
+    uint32_t vcpu)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    assert(vcpu < vmi->num_vcpus);
+    // toggle singlestepping
+    dbprint(VMI_DEBUG_KVM, "--Setting MTF flag on vcpu %" PRIu32 "\n", vcpu);
+    if (kvm->libkvmi.kvmi_control_singlestep(kvm->kvmi_dom, vcpu, true)) {
+        errprint("%s: kvmi_control_singlestep failed: %s\n", __func__, strerror(errno));
+        kvm->sstep_enabled[vcpu] = false;
+        return VMI_FAILURE;
+    }
+
+    kvm->sstep_enabled[vcpu] = true;
+
+    return VMI_SUCCESS;
+}
+
 // helper function to wait and pop the next event from the queue
 status_t
 kvm_get_next_event(
@@ -135,13 +168,21 @@ process_cb_response(
         errprint("%s: invalid kvm or kvmi handles\n", __func__);
         return VMI_FAILURE;
     }
-    if (!libvmi_event || !kvmi_event || !rpl) {
-        errprint("%s: invalid libvmi/kvmi/rpl handles\n", __func__);
+    // Note: libvmi_event can be NULL
+    // this indicates that we are shutting down libvmi, and that vmi_events_listen(0) has been called
+    // to process the rest of the events in the queue.
+    // the libvmi event has already been cleared at this point.
+    if (!kvmi_event || !rpl) {
+        errprint("%s: invalid kvmi/rpl handles\n", __func__);
         return VMI_FAILURE;
     }
 #endif
 
-    registers_t regs;
+    unsigned int vcpu = kvmi_event->event.common.vcpu;
+    assert(vcpu < vmi->num_vcpus);
+    status_t status = VMI_FAILURE;
+    registers_t regs = {0};
+
     // loop over all possible responses
     for (uint32_t i = VMI_EVENT_RESPONSE_NONE+1; i <=__VMI_EVENT_RESPONSE_MAX; i++) {
         event_response_t candidate = 1u << i;
@@ -154,6 +195,19 @@ process_cb_response(
                     regs.x86 = (*libvmi_event->x86_regs);
                     if (VMI_FAILURE == kvm_set_vcpuregs(vmi, &regs, libvmi_event->vcpu_id)) {
                         errprint("%s: KVM: failed to set registers in callback response\n", __func__);
+                        return VMI_FAILURE;
+                    }
+                    break;
+                case VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP:
+                    if (kvm->sstep_enabled[vcpu]) {
+                        // disable
+                        status = kvm_stop_single_step(vmi, vcpu);
+                    } else {
+                        // enable
+                        status = kvm_start_single_step_vcpu(vmi, vcpu);
+                    }
+                    if (status == VMI_FAILURE) {
+                        errprint("--Failed to toggle singlestep on VCPU %u\n", vcpu);
                         return VMI_FAILURE;
                     }
                     break;
@@ -576,6 +630,60 @@ process_pause_event(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     return VMI_FAILURE;
 }
 
+status_t
+process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !kvmi_event)
+        return VMI_FAILURE;
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Received single step event\n");
+    event_response_t response = VMI_EVENT_RESPONSE_NONE;
+    vmi_event_t *libvmi_event = NULL;
+
+    if (!vmi->shutting_down) {
+        // lookup vmi_event
+        gint key = (gint)kvmi_event->event.common.vcpu;
+        libvmi_event = g_hash_table_lookup(vmi->ss_events, &key);
+#ifdef ENABLE_SAFETY_CHECKS
+        if ( !libvmi_event ) {
+            errprint("%s error: no single step event handler is registered in LibVMI\n", __func__);
+            return VMI_FAILURE;
+        }
+#endif
+
+        // assign VCPU id
+        libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
+        // assign regs
+        x86_registers_t libvmi_regs = {0};
+        libvmi_event->x86_regs = &libvmi_regs;
+        struct kvm_regs *regs = &kvmi_event->event.common.arch.regs;
+        struct kvm_sregs *sregs = &kvmi_event->event.common.arch.sregs;
+        kvmi_regs_to_libvmi(regs, sregs, libvmi_event->x86_regs);
+
+        // TODO ss_event
+        // gfn
+        // offset
+        libvmi_event->ss_event.gla = libvmi_event->x86_regs->rip;
+
+        // call user callback
+        response = call_event_callback(vmi, libvmi_event);
+    }
+
+    // reply struct
+    struct {
+        struct kvmi_vcpu_hdr hdr;
+        struct kvmi_event_reply common;
+    } rpl = {0};
+
+    // set reply action
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
+}
+
 /*
  * kvm_events.h API
  */
@@ -599,10 +707,14 @@ kvm_events_init(
 
     // bind driver functions
     vmi->driver.events_listen_ptr = &kvm_events_listen;
+    vmi->driver.are_events_pending_ptr = &kvm_are_events_pending;
     vmi->driver.set_reg_access_ptr = &kvm_set_reg_access;
     vmi->driver.set_intr_access_ptr = &kvm_set_intr_access;
     vmi->driver.set_mem_access_ptr = &kvm_set_mem_access;
     vmi->driver.set_desc_access_event_ptr = &kvm_set_desc_access_event;
+    vmi->driver.start_single_step_ptr = &kvm_start_single_step;
+    vmi->driver.stop_single_step_ptr = &kvm_stop_single_step;
+    vmi->driver.shutdown_single_step_ptr = &kvm_shutdown_single_step;
 
     // fill event dispatcher
     kvm->process_event[KVMI_EVENT_CR] = &process_register;
@@ -611,12 +723,15 @@ kvm_events_init(
     kvm->process_event[KVMI_EVENT_PF] = &process_pagefault;
     kvm->process_event[KVMI_EVENT_DESCRIPTOR] = &process_descriptor;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
+    kvm->process_event[KVMI_EVENT_SINGLESTEP] = &process_singlestep;
 
     // enable interception of CR/MSR/PF for all VCPUs by default
     // since this has no performance cost
-    // the interception will trigger VM-Exists only when specific registers
-    // have been defined via kvmi_control_cr(), kvmi_control_msr(),
-    // or kvmi_set_page_access() for pagefault events
+    // the interception will trigger VM-Exists only when using these functions to specify what to intercept
+    //  CR:         kvmi_control_cr()
+    //  MSR:        kvmi_control_msr()
+    //  PF:         kvmi_set_page_access
+    //  singlestep: kvmi_control_singlestep()
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, true)) {
             errprint("--Failed to enable CR interception\n");
@@ -630,15 +745,21 @@ kvm_events_init(
             errprint("--Failed to enable page fault interception\n");
             goto err_exit;
         }
+
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, true)) {
+            errprint("--Failed to enable singlestep monitoring\n");
+            goto err_exit;
+        }
     }
 
     return VMI_SUCCESS;
 err_exit:
-    // disable CR/MSR/PF monitoring
+    // disable CR/MSR/PF/singlestep monitoring
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false);
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_MSR, false);
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false);
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, false);
     }
     return VMI_FAILURE;
 }
@@ -696,7 +817,10 @@ kvm_events_destroy(
         kvm_set_desc_access_event(vmi, false);
     }
 
-    // disable CR/MSR/PF interception
+    if (VMI_FAILURE == kvm_shutdown_single_step(vmi))
+        errprint("--Failed to shutdown singlestep\n");
+
+    // disable CR/MSR/PF/singlestep interception
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CR, false))
             errprint("--Failed to disable CR interception\n");
@@ -704,12 +828,16 @@ kvm_events_destroy(
             errprint("--Failed to disable MSR interception\n");
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_PF, false))
             errprint("--Failed to disable PF interception\n");
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_SINGLESTEP, false))
+            errprint("--Failed to disable singlestep monitoring\n");
     }
 
     // clean event queue
-    dbprint(VMI_DEBUG_KVM, "--Cleanup event queue\n");
-    if (VMI_FAILURE == vmi_events_listen(vmi, 0))
-        errprint("--Failed to clean event queue\n");
+    if (kvm_are_events_pending(vmi)) {
+        dbprint(VMI_DEBUG_KVM, "--Cleanup event queue\n");
+        if (VMI_FAILURE == vmi_events_listen(vmi, 0))
+            errprint("--Failed to clean event queue\n");
+    }
 
     // resume VM
     dbprint(VMI_DEBUG_KVM, "--Resume VM\n");
@@ -788,6 +916,26 @@ error_exit:
     if (event)
         free(event);
     return VMI_FAILURE;
+}
+
+int
+kvm_are_events_pending(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("Invalid VMI handle\n");
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("Invalid kvm or kvmi_dom handles\n");
+        return VMI_FAILURE;
+    }
+#endif
+    return kvm->libkvmi.kvmi_get_pending_events(kvm->kvmi_dom);
 }
 
 status_t
@@ -972,7 +1120,7 @@ kvm_set_mem_access(
     vmi_instance_t vmi,
     addr_t gpfn,
     vmi_mem_access_t page_access_flag,
-    uint16_t UNUSED(vmm_pagetable_id))
+    uint16_t vmm_pagetable_id)
 {
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
@@ -980,7 +1128,7 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 #endif
-    unsigned char kvmi_access, kvmi_orig_access;
+    unsigned char kvmi_access = KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 #ifdef ENABLE_SAFETY_CHECKS
     if (!kvm || !kvm->kvmi_dom) {
@@ -988,31 +1136,25 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 #endif
-    // get previous access type
-    if (kvm->libkvmi.kvmi_get_page_access(kvm->kvmi_dom, gpfn, &kvmi_orig_access)) {
-        errprint("%s: kvmi_get_page_access failed: %s\n", __func__, strerror(errno));
-        return VMI_FAILURE;
-    }
-
     // check access type and convert to KVMI
     switch (page_access_flag) {
         case VMI_MEMACCESS_N:
             kvmi_access = KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X;
             break;
         case VMI_MEMACCESS_R:
-            kvmi_access = kvmi_orig_access & ~KVMI_PAGE_ACCESS_R;
+            kvmi_access = kvmi_access & ~KVMI_PAGE_ACCESS_R;
             break;
         case VMI_MEMACCESS_W:
-            kvmi_access = kvmi_orig_access & ~KVMI_PAGE_ACCESS_W;
+            kvmi_access = kvmi_access & ~KVMI_PAGE_ACCESS_W;
             break;
         case VMI_MEMACCESS_X:
-            kvmi_access = kvmi_orig_access & ~KVMI_PAGE_ACCESS_X;
+            kvmi_access = kvmi_access & ~KVMI_PAGE_ACCESS_X;
             break;
         case VMI_MEMACCESS_RW:
-            kvmi_access = kvmi_orig_access & ~(KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W);
+            kvmi_access = kvmi_access & ~(KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W);
             break;
         case VMI_MEMACCESS_WX:
-            kvmi_access = kvmi_orig_access & ~(KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X);
+            kvmi_access = kvmi_access & ~(KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X);
             break;
         case VMI_MEMACCESS_RWX:
             kvmi_access = 0;
@@ -1022,9 +1164,15 @@ kvm_set_mem_access(
             return VMI_FAILURE;
     }
 
+    dbprint(VMI_DEBUG_KVM, "--%s: setting page access to %c%c%c on GPFN 0x%" PRIx64 "\n", __func__,
+            (kvmi_access & KVMI_PAGE_ACCESS_R) ? 'R' : '_',
+            (kvmi_access & KVMI_PAGE_ACCESS_W) ? 'W' : '_',
+            (kvmi_access & KVMI_PAGE_ACCESS_X) ? 'X' : '_',
+            gpfn);
+
     // set page access
     long long unsigned int gpa = gpfn << vmi->page_shift;
-    if (kvm->libkvmi.kvmi_set_page_access(kvm->kvmi_dom, &gpa, &kvmi_access, 1)) {
+    if (kvm->libkvmi.kvmi_set_page_access(kvm->kvmi_dom, &gpa, &kvmi_access, 1, vmm_pagetable_id)) {
         errprint("%s: unable to set page access on GPFN 0x%" PRIx64 ": %s\n",
                  __func__, gpfn, strerror(errno));
         return VMI_FAILURE;
@@ -1051,8 +1199,13 @@ status_t kvm_set_desc_access_event(
         return VMI_FAILURE;
     }
 #endif
-
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
 
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, enabled)) {
@@ -1065,11 +1218,107 @@ status_t kvm_set_desc_access_event(
     kvm->monitor_desc_on = enabled;
 
     return VMI_SUCCESS;
-
 error_exit:
     // disable monitoring
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_DESCRIPTOR, false);
     }
     return VMI_FAILURE;
+}
+
+status_t
+kvm_start_single_step(
+    vmi_instance_t vmi,
+    single_step_event_t *event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+    if (!event) {
+        errprint("%s: invalid event handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
+    if ( !event->vcpus ) {
+        errprint("%s: --no VCPUs selected for singlestepping\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    if ( event->vcpus && event->enable ) {
+        for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+            if ( CHECK_VCPU_SINGLESTEP(*event, vcpu) ) {
+                if (VMI_FAILURE == kvm_start_single_step_vcpu(vmi, vcpu)) {
+                    goto rewind;
+                }
+            }
+        }
+    }
+
+    return VMI_SUCCESS;
+rewind:
+    // disable singlestep
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
+        if ( CHECK_VCPU_SINGLESTEP(*event, vcpu) )
+            kvm_stop_single_step(vmi, vcpu);
+    return VMI_FAILURE;
+}
+
+status_t
+kvm_stop_single_step(
+    vmi_instance_t vmi,
+    uint32_t vcpu)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    dbprint(VMI_DEBUG_KVM, "--Disable MTF flag on vcpu %" PRIu32 "\n", vcpu);
+
+    if (kvm->libkvmi.kvmi_control_singlestep(kvm->kvmi_dom, vcpu, false)) {
+        errprint("%s: kvmi_control_singlestep failed: %s\n", __func__, strerror(errno));
+        return VMI_FAILURE;
+    }
+
+    kvm->sstep_enabled[vcpu] = false;
+
+    return VMI_SUCCESS;
+}
+
+status_t
+kvm_shutdown_single_step(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    dbprint(VMI_DEBUG_KVM, "--Shutting down single step\n");
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
+        if (kvm_stop_single_step(vmi, vcpu))
+            return VMI_FAILURE;
+
+    // disabling singlestep monitoring is done at driver destroy
+    return VMI_SUCCESS;
 }

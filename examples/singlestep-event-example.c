@@ -110,7 +110,9 @@ int main (int argc, char **argv)
     single_event.type = VMI_EVENT_SINGLESTEP;
     single_event.callback = single_step_callback;
     single_event.ss_event.enable = 1;
-    SET_VCPU_SINGLESTEP(single_event.ss_event, 0);
+    // enable singlestep on all VCPUs
+    for (unsigned int vcpu=0; vcpu < num_vcpus; vcpu++)
+        SET_VCPU_SINGLESTEP(single_event.ss_event, vcpu);
 
     // register
     if (VMI_FAILURE == vmi_register_event(vmi, &single_event)) {
@@ -137,7 +139,7 @@ int main (int argc, char **argv)
     }
     // clean event ring
     if (VMI_FAILURE == vmi_events_listen(vmi, 0)) {
-        fprintf(stderr, "Failed to pause VM\n");
+        fprintf(stderr, "Failed to listen on VM events\n");
         goto error_exit;
     }
 
