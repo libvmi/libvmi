@@ -1,0 +1,28 @@
+name: make-deb
+on:
+  push:
+    branches: [ master ]
+jobs:
+  compile:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - 'ubuntu-20.04'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          # Install packages
+          sudo apt-get update -q
+          sudo apt-get install -y build-essential autoconf-archive flex bison libjson-c-dev libxen-dev debhelper
+      - name: make-deb
+        run: |
+          dpkg-buildpackage -B
+          mv ../*.deb ~
+      - name: save
+        uses: actions/upload-artifact@v2
+        if: github.ref == 'refs/heads/master'
+        with:
+          name: libvmi-deb
+          path: ~/*.deb
