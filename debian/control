@@ -2,13 +2,8 @@ Source: libvmi
 Priority: optional
 Maintainer: Tamas K Lengyel <tamas@tklengyel.com>
 Build-Depends: debhelper (>= 10),
- libvirt-dev,
- libtool,
- cmake,
- flex,
- bison,
  libglib2.0-dev,
- libjson-c-dev
+ libjson-c-dev,
 Standards-Version: 3.9.8
 Section: libs
 Homepage: https://github.com/libvmi/libvmi
