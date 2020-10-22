@@ -772,6 +772,9 @@ kvm_get_vcpureg(
         case MSR_LSTAR:
             *value = regs.x86.msr_lstar;
             break;
+        case MSR_CSTAR:
+            *value = regs.x86.msr_cstar;
+            break;
         case GDTR_BASE:
             *value = regs.x86.gdtr_base;
             break;
@@ -802,7 +805,7 @@ kvm_get_vcpuregs(
     struct kvm_sregs sregs = {0};
     struct {
         struct kvm_msrs msrs;
-        struct kvm_msr_entry entries[6];
+        struct kvm_msr_entry entries[7];
     } msrs = { 0 };
     unsigned int mode = {0};
     x86_registers_t *x86 = &registers->x86;
@@ -815,6 +818,7 @@ kvm_get_vcpuregs(
     msrs.entries[3].index = msr_index[MSR_EFER];
     msrs.entries[4].index = msr_index[MSR_STAR];
     msrs.entries[5].index = msr_index[MSR_LSTAR];
+    msrs.entries[6].index = msr_index[MSR_CSTAR];
 
     if (!kvm->kvmi_dom)
         return VMI_FAILURE;
@@ -829,6 +833,7 @@ kvm_get_vcpuregs(
     x86->msr_efer = msrs.entries[3].data;
     x86->msr_star = msrs.entries[4].data;
     x86->msr_lstar = msrs.entries[5].data;
+    x86->msr_cstar = msrs.entries[6].data;
     x86->gdtr_base = sregs.gdt.base;
     x86->gdtr_limit = sregs.gdt.limit;
     x86->idtr_base = sregs.idt.base;
