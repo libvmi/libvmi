@@ -30,6 +30,7 @@ add_executable(breakpoint-emulate-example breakpoint-emulate-example.c)
 target_link_libraries(breakpoint-emulate-example vmi_shared)
 
 add_executable(breakpoint-recoil-example breakpoint-recoil-example.c)
+set_property(TARGET breakpoint-recoil-example PROPERTY C_STANDARD 99)
 target_link_libraries(breakpoint-recoil-example vmi_shared)
 
 add_executable(wait-for-domain-example wait-for-domain-example.c)
