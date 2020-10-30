@@ -14,7 +14,7 @@ index 474cc5e..2d569d9 100644
 -install: all $(if $(BUILD_DOCS),install-doc) install-datadir install-localstatedir
 +install: all $(if $(BUILD_DOCS),install-doc) install-datadir install-localstatedir install-headers
  ifneq ($(TOOLS),)
- 	$(call install-prog,$(subst qemu-ga,qemu-ga$(EXESUF),$(TOOLS)),$(DESTDIR)$(bindir))
+	$(call install-prog,$(subst qemu-ga,qemu-ga$(EXESUF),$(TOOLS)),$(DESTDIR)$(bindir))
  endif
 diff --git a/Makefile.target b/Makefile.target
 index 7a5080e..a2f55df 100644
