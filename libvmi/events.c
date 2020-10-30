@@ -893,8 +893,8 @@ status_t vmi_clear_event(
 
         if (!g_hash_table_lookup(vmi->clear_events, &event)) {
             g_hash_table_insert_compat(vmi->clear_events,
-                                g_slice_dup(vmi_event_t*, &event),
-                                free_routine);
+                                       g_slice_dup(vmi_event_t*, &event),
+                                       free_routine);
             return VMI_SUCCESS;
         }
 
