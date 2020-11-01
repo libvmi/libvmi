@@ -57,7 +57,11 @@ volatility_ist_find_offset(
             goto exit;
         }
         ret = VMI_SUCCESS;
+#ifdef JSONC_UINT64_SUPPORT
+        *rva += json_object_get_uint64(jvalue);
+#else
         *rva += json_object_get_int64(jvalue);
+#endif
         goto exit;
     }
 
@@ -117,7 +121,11 @@ volatility_ist_find_offset(
                 goto exit;
             }
 
+#ifdef JSONC_UINT64_SUPPORT
+            *rva += json_object_get_uint64(jofs);
+#else
             *rva += json_object_get_int64(jofs);
+#endif
             dbprint(VMI_DEBUG_MISC, "Volatility IST profile: %s.%s @ offset %ld\n", symbol, subname1, *rva);
             goto exit;
         }
@@ -160,7 +168,11 @@ volatility_ist_symbol_to_rva(
             goto exit;
         }
 
+#ifdef JSONC_UINT64_SUPPORT
+        *rva = json_object_get_uint64(address);
+#else
         *rva = json_object_get_int64(address);
+#endif
         ret = VMI_SUCCESS;
     } else {
         json_object *user_types = NULL, *jstruct = NULL;
@@ -181,8 +193,11 @@ volatility_ist_symbol_to_rva(
                 goto exit;
             }
 
+#ifdef JSONC_UINT64_SUPPORT
+            *size = json_object_get_uint64(jsize);
+#else
             *size = json_object_get_int64(jsize);
-
+#endif
             ret = VMI_SUCCESS;
             goto exit;
         }
@@ -248,7 +263,11 @@ volatility_profile_bitfield_offset_and_size(
         goto exit;
     }
 
+#ifdef JSONC_UINT64_SUPPORT
+    *rva = json_object_get_uint64(jvalue);
+#else
     *rva = json_object_get_int64(jvalue);
+#endif
 
     if (!json_object_object_get_ex(jmember, "type", &type)) {
         dbprint(VMI_DEBUG_MISC, "Volatility profile: no type found\n");
@@ -259,13 +278,24 @@ volatility_profile_bitfield_offset_and_size(
         dbprint(VMI_DEBUG_MISC, "Volatility profile: %s.%s has no member bit_position\n", symbol, subsymbol);
         goto exit;
     }
+
+#ifdef JSONC_UINT64_SUPPORT
+    *start_bit = json_object_get_uint64(jvalue);
+#else
     *start_bit = json_object_get_int64(jvalue);
+#endif
 
     if (!json_object_object_get_ex(type, "bit_length", &jvalue)) {
         dbprint(VMI_DEBUG_MISC, "Volatility profile: %s.%s has no member bit_length\n", symbol, subsymbol);
         goto exit;
     }
+
+#ifdef JSONC_UINT64_SUPPORT
+    size_t bit_length = json_object_get_uint64(jvalue);
+#else
     size_t bit_length = json_object_get_int64(jvalue);
+#endif
+
     *end_bit = *start_bit + bit_length;
 
     ret = VMI_SUCCESS;
