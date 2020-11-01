@@ -20,6 +20,7 @@ add_executable(event-example event-example.c)
 target_link_libraries(event-example vmi_shared)
 
 add_executable(fool-patchguard fool-patchguard.c)
+set_property(TARGET fool-patchguard PROPERTY C_STANDARD 99)
 target_link_libraries(fool-patchguard vmi_shared)
 
 add_executable(interrupt-event-example interrupt-event-example.c)
@@ -29,6 +30,7 @@ add_executable(breakpoint-emulate-example breakpoint-emulate-example.c)
 target_link_libraries(breakpoint-emulate-example vmi_shared)
 
 add_executable(breakpoint-recoil-example breakpoint-recoil-example.c)
+set_property(TARGET breakpoint-recoil-example PROPERTY C_STANDARD 99)
 target_link_libraries(breakpoint-recoil-example vmi_shared)
 
 add_executable(wait-for-domain-example wait-for-domain-example.c)
@@ -38,6 +40,7 @@ add_executable(msr-event-example msr-event-example.c)
 target_link_libraries(msr-event-example vmi_shared)
 
 add_executable(singlestep-event-example singlestep-event-example.c)
+set_property(TARGET singlestep-event-example PROPERTY C_STANDARD 99)
 target_link_libraries(singlestep-event-example vmi_shared)
 
 add_executable(step-event-example step-event-example.c)
@@ -50,6 +53,7 @@ add_executable(vmi-process-list process-list.c)
 target_link_libraries(vmi-process-list vmi_shared)
 
 add_executable(vmi-dump-memory dump-memory.c)
+set_property(TARGET vmi-dump-memory PROPERTY C_STANDARD 99)
 target_link_libraries(vmi-dump-memory vmi_shared)
 
 add_executable(vmi-module-list module-list.c)
