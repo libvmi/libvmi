@@ -23,7 +23,6 @@ c_sources = \
     libvmi/convenience.c \
     libvmi/core.c \
     libvmi/events.c \
-    libvmi/performance.c \
     libvmi/pretty_print.c \
     libvmi/read.c \
     libvmi/slat.c \

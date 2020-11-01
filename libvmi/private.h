@@ -322,14 +322,6 @@ int boyer_moore(
     unsigned char *y,
     int n);
 
-/*-----------------------------------------
- * performance.c
- */
-void timer_start(
-);
-void timer_stop(
-    const char *id);
-
 /*----------------------------------------------
  * events.c
  */
