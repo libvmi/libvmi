@@ -3,7 +3,6 @@ set(libvmi_src
     convenience.c
     core.c
     events.c
-    performance.c
     pretty_print.c
     read.c
     slat.c
@@ -35,9 +34,6 @@ set(VMI_PUBLIC_DEPS "")
 
 # create libvmi.so
 add_library (vmi_shared SHARED $<TARGET_OBJECTS:vmi>)
-# performance.c uses math.h in implementation
-target_link_libraries(vmi_shared PRIVATE m)
-list(APPEND VMI_PUBLIC_DEPS m)
 # one libvmi_extra.h function returns a GSList*
 target_link_libraries(vmi_shared PUBLIC ${GLIB_LDFLAGS})
 # cleanup GLIB_LDFLAGS (remove -l prefix)
