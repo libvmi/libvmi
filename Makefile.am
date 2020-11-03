@@ -213,6 +213,11 @@ if WINDOWS
     examples_vmi_win_guid_LDADD = $(GLIB_LIBS) libvmi/libvmi.la
 endif
 
+if LINUX
+    bin_PROGRAMS += examples/vmi-dmesg
+    examples_vmi_dmesg_SOURCES = examples/dmesg.c
+endif
+
     examples_vmi_process_list_SOURCES = examples/process-list.c
     examples_vmi_module_list_SOURCES = examples/module-list.c
     examples_vmi_dump_memory_SOURCES = examples/dump-memory.c

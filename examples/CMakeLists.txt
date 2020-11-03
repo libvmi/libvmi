@@ -67,6 +67,11 @@ if (ENABLE_WINDOWS)
     target_link_libraries(vmi-win-offsets vmi_shared)
 endif ()
 
+if (ENABLE_LINUX)
+    add_executable(vmi-dmesg dmesg.c)
+    target_link_libraries(vmi-dmesg vmi_shared)
+endif ()
+
 install(TARGETS
     vmi-process-list
     vmi-module-list
@@ -77,5 +82,11 @@ if (ENABLE_WINDOWS)
     install(TARGETS
         vmi-win-guid
         vmi-win-offsets
+        DESTINATION bin)
+endif ()
+
+if (ENABLE_LINUX)
+    install(TARGETS
+        vmi-dmesg
         DESTINATION bin)
 endif ()
