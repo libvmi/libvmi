@@ -14,12 +14,13 @@ find_library(JSON-C_LIBRARY NAMES json-c libjson-c
 
 set(JSON-C_LIBRARIES ${PC_JSON-C_LIBRARIES})
 set(JSON-C_INCLUDE_DIRS ${JSON-C_INCLUDE_DIR})
+set(JSON-C_VERSION ${PC_JSON-C_VERSION})
 
 include(FindPackageHandleStandardArgs)
 
 find_package_handle_standard_args(JSON-C DEFAULT_MSG JSON-C_LIBRARY JSON-C_INCLUDE_DIR)
 
-mark_as_advanced(JSON-C_INCLUDE_DIR JSON-C_LIBRARY)
+mark_as_advanced(JSON-C_INCLUDE_DIR JSON-C_LIBRARY JSON-C_VERSION)
 
 set_package_properties(JSON-C PROPERTIES
     DESCRIPTION "JSON parsing library for C"
