@@ -97,6 +97,9 @@
 /* Defined when working JSON library was found */
 #cmakedefine ENABLE_JSON_PROFILES
 
+/* JSON-C supports uint64_t */
+#cmakedefine JSONC_UINT64_SUPPORT
+
 /* Defined when working JSON-C library was found to parse Rekall
    profiles. */
 #cmakedefine REKALL_PROFILES
