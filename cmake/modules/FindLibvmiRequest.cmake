@@ -12,7 +12,7 @@ find_package_handle_standard_args(LibvmiRequest
 
 if (LibvmiRequest_FOUND)
     set(LibvmiRequest_INCLUDE_DIRS ${LibvmiRequest_INCLUDE_DIR})
-    set(HAVE_LIBVMI_REQUEST 1)
+    set(HAVE_LIBVMI_REQUEST ON)
 endif ()
 
 mark_as_advanced(LibvmiRequest_INCLUDE_DIR)
