@@ -77,26 +77,33 @@ option(HARDENING "Enable hardening flags (with overhead)" OFF)
 option(ENV_DEBUG "Toggle the debug output via LIBVMI_DEBUG environment variable" OFF)
 option(ENABLE_KVM_LEGACY "Build KVM legacy driver" OFF)
 
-# json
+# jsonc
+# check JSONC_UINT64_SUPPORT
 # for some reason it's impossible to override the default options that get defined here
 # further down in the chain (ie. in libvmi/CMakeLists.txt)
 find_package(JSON-C)
 if (JSON-C_FOUND)
-if(JSON-C_VERSION VERSION_EQUAL 0.15 OR JSON-C_VERSION VERSION_GREATER 0.15)
-    set(JSONC_UINT64_SUPPORT ON)
-endif()
-option(ENABLE_KVM "Build KVM driver" ON)
-option(ENABLE_BAREFLANK "Build Bareflank driver" ON)
-option(ENABLE_JSON_PROFILES "Enable JSON profiles" ON)
-option(REKALL_PROFILES "Support Rekall's JSON profiles" ON)
-option(VOLATILITY_IST "Support Volatility's JSON ISTs" ON)
+    if (JSON-C_VERSION VERSION_EQUAL 0.15 OR JSON-C_VERSION VERSION_GREATER 0.15)
+        set(JSONC_UINT64_SUPPORT ON)
+    endif ()
+    option(ENABLE_KVM "Build KVM driver" ON)
+    option(ENABLE_BAREFLANK "Build Bareflank driver" ON)
+    option(ENABLE_JSON_PROFILES "Enable JSON profiles" ON)
+    option(REKALL_PROFILES "Support Rekall's JSON profiles" ON)
+    option(VOLATILITY_IST "Support Volatility's JSON ISTs" ON)
+    # check HAVE_LIBVMI_REQUEST
+    # for some reason it's impossible to override the default options that get defined here
+    # further down in the chain (ie. in libvmi/CMakeLists.txt)
+    if (ENABLE_KVM AND ENABLE_KVM_LEGACY)
+        find_package(LibvmiRequest)
+    endif ()
 else ()
-message(STATUS "JSON-C library was not found, KVM, Bareflank & JSON profile support is disabled")
-option(ENABLE_KVM "Build KVM driver" OFF)
-option(ENABLE_BAREFLANK "Build Bareflank driver" OFF)
-option(ENABLE_JSON_PROFILES "Enable JSON profiles" OFF)
-option(REKALL_PROFILES "Support Rekall's JSON profiles" OFF)
-option(VOLATILITY_IST "Support Volatility's JSON ISTs" OFF)
+    message(STATUS "JSON-C library was not found, KVM, Bareflank & JSON profile support is disabled")
+    option(ENABLE_KVM "Build KVM driver" OFF)
+    option(ENABLE_BAREFLANK "Build Bareflank driver" OFF)
+    option(ENABLE_JSON_PROFILES "Enable JSON profiles" OFF)
+    option(REKALL_PROFILES "Support Rekall's JSON profiles" OFF)
+    option(VOLATILITY_IST "Support Volatility's JSON ISTs" OFF)
 endif ()
 
 # default values
