@@ -43,7 +43,7 @@ static void close_handler(int sig)
     interrupted = sig;
 }
 
-event_response_t read_callback(vmi_instance_t vmi, vmi_event_t *event)
+event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
 {
     (void)vmi;
     cb_data_t *cb_data = (cb_data_t*)event->data;
@@ -56,6 +56,11 @@ event_response_t read_callback(vmi_instance_t vmi, vmi_event_t *event)
 
     printf("%s: at 0x%"PRIx64", on frame 0x%"PRIx64", permissions: %s\n",
            __func__, event->x86_regs->rip, event->mem_event.gfn, str_access);
+
+    if (!(event->mem_event.out_access & VMI_MEMACCESS_R)) {
+        // not a read event. skip.
+        return rsp;
+    }
 
     if (event->x86_regs->rip == cb_data->ntload_driver_entry_addr) {
         printf("READ attempt on NtLoadDriver SSDT entry !\n");
@@ -235,7 +240,7 @@ int main (int argc, char **argv)
     // get Guest Frame Number (gfn)
     uint64_t syscall_entry_gfn = syscall_entry_paddr >> 12;
     vmi_event_t read_event = {0};
-    SETUP_MEM_EVENT(&read_event, syscall_entry_gfn, VMI_MEMACCESS_R, read_callback, 0);
+    SETUP_MEM_EVENT(&read_event, syscall_entry_gfn, VMI_MEMACCESS_RW, cb_on_rw_access, 0);
     // add cb_data
     cb_data_t cb_data = {0};
     cb_data.ntload_driver_entry_addr = ntload_driver_entry_addr;
