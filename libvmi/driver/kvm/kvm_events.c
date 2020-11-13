@@ -137,7 +137,7 @@ process_cb_response_emulate(
                             rpl->pf.ctx_size = libvmi_event->emul_read->size;
                             // set linear address
                             // TODO: ARM support
-                            rpl->pf.ctx_addr = libvmi_event->x86_regs->rip;
+                            rpl->pf.ctx_addr = libvmi_event->mem_event.gla;
                             // copy libvmi buffer into kvm reply event
                             memcpy(rpl->pf.ctx_data, libvmi_event->emul_read->data, libvmi_event->emul_read->size);
                         }
