@@ -81,6 +81,8 @@ int main (int argc, char **argv)
     bool is_corrupted = false;
     addr_t ntload_driver_entry_addr = 0;
     int retcode = 1;
+    // whether our Windows guest is 64 bits
+    bool is64 = false;
 
     act.sa_handler = close_handler;
     act.sa_flags = 0;
@@ -120,6 +122,8 @@ int main (int argc, char **argv)
 
     printf("LibVMI init succeeded!\n");
     uint8_t addr_width = vmi_get_address_width(vmi);
+    if (addr_width == sizeof(uint64_t))
+        is64 = true;
 
     // pause
     printf("Pausing VM\n");
@@ -179,33 +183,43 @@ int main (int argc, char **argv)
     }
     printf("SSDT.NumberOfServices: 0x%" PRIx64 "\n", nb_services);
 
-    // find NtAddrDriverEntry index in SSDT
-
-    int ntload_driver_index = -1;
+    // find NtLoadDriverEntry index in SSDT
+    int ntload_service_table_index = -1;
+    uint32_t ntload_service_table_val = 0;
     for (int i = 0; i < (int)nb_services; i++) {
-        addr_t syscall_addr_entry = ki_sv_table_addr + (addr_width * i);
-        addr_t syscall_addr = 0;
-        if (VMI_FAILURE == vmi_read_addr_va(vmi, syscall_addr_entry, 0, &syscall_addr)) {
+        addr_t ki_service_entry_addr = ki_sv_table_addr + (sizeof(uint32_t) * i);
+        uint32_t ki_service_entry_val = 0;
+        if (VMI_FAILURE == vmi_read_32_va(vmi, ki_service_entry_addr, 0, &ki_service_entry_val)) {
             fprintf(stderr, "Failed to read syscall address\n");
             goto error_exit;
         }
+        // 32 bits: KiServiceTable entries are absolute addresses to the syscall handlers
+        addr_t syscall_addr = ki_service_entry_val;
+        // 64 bits: KiServiceTable entries are offsets
+        //      https://www.ired.team/miscellaneous-reversing-forensics/windows-kernel-internals/glimpse-into-ssdt-in-windows-x64-kernel
+        //      RoutineAbsoluteAddress = KiServiceTableAddress + ( routineOffset >>> 4 )
+        if (is64) {
+            syscall_addr = ki_sv_table_addr + (ki_service_entry_val >> 4);
+        }
+
         // Debug
         // printf("Syscall[%d]: 0x%" PRIx64 "\n", i, syscall_addr);
         // find NtLoadDriver
         if (syscall_addr == ntload_driver_addr) {
             printf("Found NtLoadDriver SSDT entry: %d\n", i);
-            ntload_driver_index = i;
+            ntload_service_table_index = i;
+            ntload_service_table_val = ki_service_entry_val;
             break;
         }
     }
-    if (ntload_driver_index == -1) {
+    if (ntload_service_table_index == -1) {
         fprintf(stderr, "Failed to find NtLoadDriver SSDT entry\n");
         goto error_exit;
     }
 
     // corrupting pointer
     printf("Corrupting NtLoadDriver SSDT entry\n");
-    ntload_driver_entry_addr = ki_sv_table_addr + (addr_width * ntload_driver_index);
+    ntload_driver_entry_addr = ki_sv_table_addr + (sizeof(uint32_t) * ntload_service_table_index);
     addr_t corrupted_value = 0;
     if (VMI_FAILURE == vmi_write_addr_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
         fprintf(stderr, "Failed to corrupt NtLoadDriver SSDT entry\n");
