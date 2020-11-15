@@ -29,4 +29,8 @@
 
 status_t intel_init(vmi_instance_t vmi);
 
+/* checks for EPT misconfiguration in page_access_flag */
+status_t
+intel_mem_access_sanity_check(vmi_mem_access_t page_access_flag);
+
 #endif

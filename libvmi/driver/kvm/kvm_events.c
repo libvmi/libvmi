@@ -23,9 +23,11 @@
 
 #include "private.h"
 #include "msr-index.h"
+#include "arch/intel.h"
 #include "kvm.h"
 #include "kvm_events.h"
 #include "kvm_private.h"
+
 
 // helper struct for process_cb_response_emulate to avoid ugly
 // pointer arithmetic to find back pf field in process_cb_response_emulate()
@@ -1136,6 +1138,10 @@ kvm_set_mem_access(
         return VMI_FAILURE;
     }
 #endif
+    // sanity check access type
+    if (VMI_FAILURE == intel_mem_access_sanity_check(page_access_flag))
+        return VMI_FAILURE;
+
     // check access type and convert to KVMI
     switch (page_access_flag) {
         case VMI_MEMACCESS_N:
