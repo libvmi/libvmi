@@ -290,7 +290,7 @@ error_exit:
     if (is_corrupted) {
         printf("Restoring NtLoadDriver SSDT entry\n");
         // restore SSDT entry
-        if (VMI_FAILURE == vmi_write_addr_va(vmi, ntload_driver_entry_addr, 0, &ntload_driver_addr)) {
+        if (VMI_FAILURE == vmi_write_32_va(vmi, ntload_driver_entry_addr, 0, &ntload_service_table_val)) {
             fprintf(stderr, "Failed to restore SSDT entry\n");
         }
     }
