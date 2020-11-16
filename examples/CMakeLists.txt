@@ -26,9 +26,6 @@ target_link_libraries(fool-patchguard vmi_shared)
 add_executable(interrupt-event-example interrupt-event-example.c)
 target_link_libraries(interrupt-event-example vmi_shared)
 
-add_executable(breakpoint-emulate-example breakpoint-emulate-example.c)
-target_link_libraries(breakpoint-emulate-example vmi_shared)
-
 add_executable(breakpoint-recoil-example breakpoint-recoil-example.c)
 set_property(TARGET breakpoint-recoil-example PROPERTY C_STANDARD 99)
 target_link_libraries(breakpoint-recoil-example vmi_shared)
@@ -58,6 +55,16 @@ target_link_libraries(vmi-dump-memory vmi_shared)
 
 add_executable(vmi-module-list module-list.c)
 target_link_libraries(vmi-module-list vmi_shared)
+
+# breakpoint-emulate-example requires bddisasm disassembler
+find_package(bddisasm CONFIG)
+if (BDDISASM_FOUND)
+    add_executable(breakpoint-emulate-example breakpoint-emulate-example.c)
+    target_include_directories(breakpoint-emulate-example PRIVATE ${BDDISASM_INCLUDE_DIRECTORIES})
+    target_link_libraries(breakpoint-emulate-example vmi_shared ${BDDISASM_LIBRARIES})
+else ()
+    message("Cannot find libbddisasm. Example breakpoint-emulate-example will be disabled")
+endif ()
 
 if (ENABLE_WINDOWS)
     add_executable(vmi-win-guid win-guid.c)
