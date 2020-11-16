@@ -31,6 +31,28 @@
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
+// maximum size of an x86 instruction
+#define MAX_SIZE_X86_INSN 15
+
+// These definitions are required by libbddisasm
+int nd_vsnprintf_s(
+    char *buffer,
+    size_t sizeOfBuffer,
+    size_t count,
+    const char *format,
+    va_list argptr
+    )
+{
+    (void)count;
+    return vsnprintf(buffer, sizeOfBuffer, format, argptr);
+}
+
+void* nd_memset(void *s, int c, size_t n)
+{
+    return memset(s, c, n);
+}
+
+// Data struct to be passed as void* to the callback
 typedef struct cb_data {
     addr_t ntload_driver_entry_addr;
     emul_read_t emul_read;
@@ -61,6 +83,21 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
         // not a read event. skip.
         return rsp;
     }
+
+    // read a buffer of an x86 insn max size at RIP (15 Bytes)
+    uint8_t insn_buffer[MAX_SIZE_X86_INSN] = {0};
+    size_t bytes_read = 0;
+    if (VMI_FAILURE == vmi_read_va(vmi, event->x86_regs->rip, 0, MAX_SIZE_X86_INSN, insn_buffer, &bytes_read)) {
+        fprintf(stderr, "Failed to read buffer at RIP\n");
+        return rsp;
+    }
+
+    // check bytes_read
+    if (bytes_read != MAX_SIZE_X86_INSN) {
+        fprintf(stderr, "Failed to read enough bytes at RIP\n");
+        return rsp;
+    }
+
 
     if (event->x86_regs->rip == cb_data->ntload_driver_entry_addr) {
         printf("READ attempt on NtLoadDriver SSDT entry !\n");
