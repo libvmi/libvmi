@@ -220,8 +220,8 @@ int main (int argc, char **argv)
     // corrupting pointer
     printf("Corrupting NtLoadDriver SSDT entry\n");
     ntload_driver_entry_addr = ki_sv_table_addr + (sizeof(uint32_t) * ntload_service_table_index);
-    addr_t corrupted_value = 0;
-    if (VMI_FAILURE == vmi_write_addr_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
+    uint32_t corrupted_value = 0;
+    if (VMI_FAILURE == vmi_write_32_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
         fprintf(stderr, "Failed to corrupt NtLoadDriver SSDT entry\n");
         goto error_exit;
     }
@@ -231,11 +231,11 @@ int main (int argc, char **argv)
     vmi_pagecache_flush(vmi);
 
     // reread NtLoadDriver SSDT entry
-    if (VMI_FAILURE == vmi_read_addr_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
+    if (VMI_FAILURE == vmi_read_32_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
         fprintf(stderr, "Failed to read NtLoadDriver SSDT entry\n");
         goto error_exit;
     }
-    printf("New NtLoadDriver SSDT entry value: 0x%" PRIx64 "\n", corrupted_value);
+    printf("New NtLoadDriver SSDT entry value: 0x%" PRIx32 "\n", corrupted_value);
 
     // protect corrupted SSDT entry using memory access event
     //   get dtb
