@@ -19,9 +19,6 @@ target_link_libraries(va-pages vmi_shared)
 add_executable(event-example event-example.c)
 target_link_libraries(event-example vmi_shared)
 
-add_executable(fool-patchguard fool-patchguard.c)
-set_property(TARGET fool-patchguard PROPERTY C_STANDARD 99)
-target_link_libraries(fool-patchguard vmi_shared)
 
 add_executable(interrupt-event-example interrupt-event-example.c)
 target_link_libraries(interrupt-event-example vmi_shared)
@@ -58,6 +55,17 @@ target_link_libraries(vmi-dump-memory vmi_shared)
 
 add_executable(vmi-module-list module-list.c)
 target_link_libraries(vmi-module-list vmi_shared)
+
+# fool-patchguard requires bddisasm disassembler
+find_package(Bddisasm)
+if (Bddisasm_FOUND)
+    add_executable(fool-patchguard fool-patchguard.c)
+    set_property(TARGET fool-patchguard PROPERTY C_STANDARD 99)
+    target_include_directories(fool-patchguard PRIVATE ${Bddisasm_INCLUDE_DIRECTORIES})
+    target_link_libraries(fool-patchguard vmi_shared ${Bddisasm_LIBRARIES})
+else ()
+    message("Cannot find libbddisasm. Example fool-patchguard will be disabled")
+endif ()
 
 if (ENABLE_WINDOWS)
     add_executable(vmi-win-guid win-guid.c)
