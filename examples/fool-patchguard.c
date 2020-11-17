@@ -28,6 +28,9 @@
 #include <inttypes.h>
 #include <signal.h>
 
+#include <bddisasm/disasmtypes.h>
+#include <bddisasm/bddisasm.h>
+
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
 
@@ -54,6 +57,7 @@ void* nd_memset(void *s, int c, size_t n)
 
 // Data struct to be passed as void* to the callback
 typedef struct cb_data {
+    bool is64;
     addr_t ntload_driver_entry_addr;
     emul_read_t emul_read;
 } cb_data_t;
@@ -98,6 +102,26 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
         return rsp;
     }
 
+    // disassemble next instruction with libbdisasm
+    uint8_t defcode = ND_CODE_32;
+    uint8_t defdata = ND_DATA_32;
+    if (cb_data->is64) {
+        defcode = ND_CODE_64;
+        defdata = ND_DATA_64;
+    }
+
+    INSTRUX rip_insn;
+    NDSTATUS status = NdDecodeEx(&rip_insn, insn_buffer, sizeof(insn_buffer), defcode, defdata);
+    if (!ND_SUCCESS(status)) {
+        fprintf(stderr, "Failed to decode instruction with libbdisasm: %x\n", status);
+        return rsp;
+    }
+
+    // display instruction
+    char rip_insn_str[ND_MIN_BUF_SIZE];
+    NdToText(&rip_insn, 0, sizeof(rip_insn_str), rip_insn_str);
+
+    printf("INSN: %s\n", rip_insn_str);
 
     if (event->x86_regs->rip == cb_data->ntload_driver_entry_addr) {
         printf("READ attempt on NtLoadDriver SSDT entry !\n");
@@ -294,6 +318,7 @@ int main (int argc, char **argv)
     SETUP_MEM_EVENT(&read_event, syscall_entry_gfn, VMI_MEMACCESS_RW, cb_on_rw_access, 0);
     // add cb_data
     cb_data_t cb_data = {0};
+    cb_data.is64 = is64;
     cb_data.ntload_driver_entry_addr = ntload_driver_entry_addr;
     cb_data.emul_read.dont_free = 1;
     cb_data.emul_read.size = sizeof(ntload_driver_addr);
