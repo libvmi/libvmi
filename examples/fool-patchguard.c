@@ -69,6 +69,36 @@ static void close_handler(int sig)
     interrupted = sig;
 }
 
+bool mem_access_size_from_insn(INSTRUX *insn, size_t *size)
+{
+    // This function returns the memory access size of a given insn
+
+    // checks that the insn is a memory access
+    if (ND_ACCESS_READ != (insn->MemoryAccess & ND_ACCESS_READ)) {
+        fprintf(stderr, "bddisasm: Access is not read\n");
+        return false;
+    }
+
+    char insn_str[ND_MIN_BUF_SIZE];
+    switch (insn->Instruction)
+    {
+        case ND_INS_MOVZX:  // fall-through
+        case ND_INS_MOVSXD: // fall-through
+        case ND_INS_MOV:
+        {
+            *size = insn->Operands[0].Size;
+            break;
+        }
+        default:
+            // display instruction
+            NdToText(insn, 0, sizeof(insn_str), insn_str);
+            fprintf(stderr, "Unimplemented insn: %s\n", insn_str);
+            return false;
+    }
+
+    return true;
+}
+
 event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
 {
     (void)vmi;
@@ -117,11 +147,12 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
         return rsp;
     }
 
-    // display instruction
-    char rip_insn_str[ND_MIN_BUF_SIZE];
-    NdToText(&rip_insn, 0, sizeof(rip_insn_str), rip_insn_str);
-
-    printf("INSN: %s\n", rip_insn_str);
+    // determine memory access size
+    size_t access_size = 0;
+    if (!mem_access_size_from_insn(&rip_insn, &access_size)) {
+        return rsp;
+    }
+    printf("Read access size: %ld\n", access_size);
 
     if (event->x86_regs->rip == cb_data->ntload_driver_entry_addr) {
         printf("READ attempt on NtLoadDriver SSDT entry !\n");
