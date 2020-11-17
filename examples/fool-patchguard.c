@@ -36,6 +36,7 @@
 
 // maximum size of an x86 instruction
 #define MAX_SIZE_X86_INSN 15
+#define KISERVICE_ENTRY_SIZE sizeof(uint32_t)
 
 // These definitions are required by libbddisasm
 int nd_vsnprintf_s(
@@ -207,8 +208,8 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
     };
     range_t ntload_entry_zone = {
         .start = cb_data->ntload_driver_entry_paddr,
-        .size = sizeof(uint32_t),
-        .end = cb_data->ntload_driver_entry_paddr + sizeof(uint32_t)
+        .size = KISERVICE_ENTRY_SIZE,
+        .end = cb_data->ntload_driver_entry_paddr + KISERVICE_ENTRY_SIZE
     };
     range_t overlap = {0};
     if (is_zone_read(&read_zone, &ntload_entry_zone, &overlap)) {
@@ -332,7 +333,7 @@ int main (int argc, char **argv)
     int ntload_service_table_index = -1;
     uint32_t ntload_service_table_val = 0;
     for (int i = 0; i < (int)nb_services; i++) {
-        addr_t ki_service_entry_addr = ki_sv_table_addr + (sizeof(uint32_t) * i);
+        addr_t ki_service_entry_addr = ki_sv_table_addr + (KISERVICE_ENTRY_SIZE * i);
         uint32_t ki_service_entry_val = 0;
         if (VMI_FAILURE == vmi_read_32_va(vmi, ki_service_entry_addr, 0, &ki_service_entry_val)) {
             fprintf(stderr, "Failed to read syscall address\n");
@@ -364,7 +365,7 @@ int main (int argc, char **argv)
 
     // corrupting pointer
     printf("Corrupting NtLoadDriver SSDT entry\n");
-    ntload_driver_entry_addr = ki_sv_table_addr + (sizeof(uint32_t) * ntload_service_table_index);
+    ntload_driver_entry_addr = ki_sv_table_addr + (KISERVICE_ENTRY_SIZE * ntload_service_table_index);
     uint32_t corrupted_value = 0;
     if (VMI_FAILURE == vmi_write_32_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
         fprintf(stderr, "Failed to corrupt NtLoadDriver SSDT entry\n");
