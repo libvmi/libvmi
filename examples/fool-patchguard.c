@@ -90,7 +90,7 @@ bool is_zone_read(range_t *ref, range_t *target, range_t *overlap)
     if (!ref || !target || !overlap)
         return false;
 
-    if (ref->start <= target->end && ref->end >= target->start) {
+    if (ref->start < target->end && ref->end > target->start) {
         // overlap
         // find range
         // max(ref->start, target->start)
