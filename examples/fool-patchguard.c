@@ -38,6 +38,10 @@
 #define MAX_SIZE_X86_INSN 15
 #define KISERVICE_ENTRY_SIZE sizeof(uint32_t)
 
+// we use emul_read with 'dont_free' so it can't be allocated on the stack
+// as it could be corrupted
+static emul_read_t g_emul_read = { .dont_free = 1 };
+
 // These definitions are required by libbddisasm
 int nd_vsnprintf_s(
     char *buffer,
@@ -45,7 +49,7 @@ int nd_vsnprintf_s(
     size_t count,
     const char *format,
     va_list argptr
-    )
+)
 {
     (void)count;
     return vsnprintf(buffer, sizeOfBuffer, format, argptr);
@@ -59,6 +63,7 @@ void* nd_memset(void *s, int c, size_t n)
 // Data struct to be passed as void* to the callback
 typedef struct cb_data {
     bool is64;
+    uint32_t ntload_service_table_val;
     addr_t ntload_driver_gfn;
     addr_t ntload_driver_entry_addr;
     addr_t ntload_driver_entry_paddr;
@@ -109,12 +114,10 @@ bool mem_access_size_from_insn(INSTRUX *insn, size_t *size)
     }
 
     char insn_str[ND_MIN_BUF_SIZE];
-    switch (insn->Instruction)
-    {
+    switch (insn->Instruction) {
         case ND_INS_MOVZX:  // fall-through
         case ND_INS_MOVSXD: // fall-through
-        case ND_INS_MOV:
-        {
+        case ND_INS_MOV: {
             *size = insn->Operands[0].Size;
             break;
         }
@@ -214,6 +217,31 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
     range_t overlap = {0};
     if (is_zone_read(&read_zone, &ntload_entry_zone, &overlap)) {
         // overlap !
+        printf("Read on KiServiceTable NtLoadDriver entry - size: %ld !\n", overlap.size);
+        // set data to be emulated
+        g_emul_read.size = access_size;
+        // read actual buffer at from physical memory
+        bytes_read = 0;
+        if (VMI_FAILURE == vmi_read_pa(vmi, read_zone.start, access_size, &g_emul_read.data, &bytes_read)) {
+            fprintf(stderr, "Failed to read buffer from read start paddr\n");
+            return rsp;
+        }
+
+        if (bytes_read != access_size) {
+            fprintf(stderr, "Failed to read enough bytes\n");
+            return rsp;
+        }
+        // overwrite part of the read buffer with fake NtLoadDruver entry's presence
+        int overwrite_start = overlap.start - read_zone.start;
+        memcpy(&g_emul_read.data + overwrite_start, &cb_data->ntload_service_table_val, KISERVICE_ENTRY_SIZE);
+        // assign emul_read ptr
+        event->emul_read = &g_emul_read;
+        printf("emul_read content:\n");
+        for (size_t i = 0; i < g_emul_read.size; i++) {
+            printf("\tbuffer[%ld] = %02X\n", i, g_emul_read.data[i]);
+        }
+        // set response to emulate read data
+        rsp |= VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA;
     }
 
     return rsp;
@@ -404,6 +432,7 @@ int main (int argc, char **argv)
     // add cb_data
     cb_data_t cb_data = {0};
     cb_data.is64 = is64;
+    cb_data.ntload_service_table_val = ntload_service_table_val;
     cb_data.ntload_driver_gfn = syscall_entry_gfn;
     cb_data.ntload_driver_entry_addr = ntload_driver_entry_addr;
     cb_data.ntload_driver_entry_paddr = syscall_entry_paddr;
