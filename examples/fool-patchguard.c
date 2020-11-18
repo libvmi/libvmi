@@ -121,6 +121,11 @@ bool mem_access_size_from_insn(INSTRUX *insn, size_t *size)
             *size = insn->Operands[0].Size;
             break;
         }
+        case ND_INS_XOR:
+        {
+            *size = insn->Operands[0].Size;
+            break;
+        }
         default:
             // display instruction
             NdToText(insn, 0, sizeof(insn_str), insn_str);
@@ -218,6 +223,12 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
     if (is_zone_read(&read_zone, &ntload_entry_zone, &overlap)) {
         // overlap !
         printf("Read on KiServiceTable NtLoadDriver entry - size: %ld !\n", overlap.size);
+
+        // assume PatchGuard if read with a XOR
+        if (rip_insn.Instruction == ND_INS_XOR) {
+            printf("Patchguard check\n");
+        }
+
         // set data to be emulated
         g_emul_read.size = access_size;
         // read actual buffer at from physical memory
