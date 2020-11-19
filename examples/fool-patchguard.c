@@ -121,8 +121,7 @@ bool mem_access_size_from_insn(INSTRUX *insn, size_t *size)
             *size = insn->Operands[0].Size;
             break;
         }
-        case ND_INS_XOR:
-        {
+        case ND_INS_XOR: {
             *size = insn->Operands[0].Size;
             break;
         }
@@ -224,9 +223,15 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
         // overlap !
         printf("Read on KiServiceTable NtLoadDriver entry - size: %ld !\n", overlap.size);
 
+        // get insn string
+        char insn_str[ND_MIN_BUF_SIZE];
+        NdToText(&rip_insn, 0, sizeof(insn_str), insn_str);
+        printf("Read on KiServiceTable NtLoadDriver entry (size: %ld)\n", overlap.size);
+        printf("\t0x%"PRIx64": %s\n", event->x86_regs->rip, insn_str);
+
         // assume PatchGuard if read with a XOR
         if (rip_insn.Instruction == ND_INS_XOR) {
-            printf("Patchguard check\n");
+            printf("\tXOR read: Patchguard check !\n");
         }
 
         // set data to be emulated
@@ -247,9 +252,9 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
         memcpy(&g_emul_read.data + overwrite_start, &cb_data->ntload_service_table_val, KISERVICE_ENTRY_SIZE);
         // assign emul_read ptr
         event->emul_read = &g_emul_read;
-        printf("emul_read content:\n");
+        printf("\tEmulated read content:\n");
         for (size_t i = 0; i < g_emul_read.size; i++) {
-            printf("\tbuffer[%ld] = %02X\n", i, g_emul_read.data[i]);
+            printf("\t\t0x%"PRIx64": %02X\n", read_zone.start + i, g_emul_read.data[i]);
         }
         // set response to emulate read data
         rsp |= VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA;
