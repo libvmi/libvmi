@@ -57,7 +57,7 @@ while detecting PatchGuard checks.
 
 ### How it works
 
-It will find the index of `nt!NtLoadDriver` routine in the `SSDT` (`KiServiceTable`), and corrupt the entry.
+It will find the index of the syscall symbol passed as parameter in the `SSDT` (`KiServiceTable`), and corrupt the entry.
 
 Then it configures a read/write interception on the `GFN` (`Guest Frame Number`) where this entry is located in physical memory.
 

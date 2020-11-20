@@ -399,9 +399,15 @@ int main (int argc, char **argv)
         // printf("Syscall[%d]: 0x%" PRIx64 "\n", i, syscall_addr);
         // find target
         if (syscall_addr == target_syscall_addr) {
-            printf("Found %s SSDT entry: %d (0x%"PRIX32")\n", target, i, i);
             target_service_table_index = i;
             target_service_table_val = ki_service_entry_val;
+            uint8_t entry_val_buf[KISERVICE_ENTRY_SIZE] = {0};
+            memcpy(entry_val_buf, (void*)&ki_service_entry_val, KISERVICE_ENTRY_SIZE);
+            printf("Found %s SSDT entry: %d (0x%"PRIX32") -- ", target, i, i);
+            for (unsigned int i = 0; i < KISERVICE_ENTRY_SIZE; i++) {
+                printf("%02X ", entry_val_buf[i]);
+            }
+            printf("\n");
             break;
         }
     }
