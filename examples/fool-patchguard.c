@@ -63,10 +63,11 @@ void* nd_memset(void *s, int c, size_t n)
 // Data struct to be passed as void* to the callback
 typedef struct cb_data {
     bool is64;
-    uint32_t ntload_service_table_val;
-    addr_t ntload_driver_gfn;
-    addr_t ntload_driver_entry_addr;
-    addr_t ntload_driver_entry_paddr;
+    char *target;
+    uint32_t target_service_table_val;
+    addr_t target_gfn;
+    addr_t target_entry_addr;
+    addr_t target_entry_paddr;
     emul_read_t emul_read;
 } cb_data_t;
 
@@ -153,7 +154,7 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
 
     // this check is useless since we configured the callback only on a specific GFN
     // however, if the read event was generic, we should filter early on the GFN we are expecting to intercept
-    if (!(event->mem_event.gfn == cb_data->ntload_driver_gfn)) {
+    if (!(event->mem_event.gfn == cb_data->target_gfn)) {
         // not in the gfn we are looking for
         return rsp;
     }
@@ -213,20 +214,18 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
         .size = access_size,
         .end = read_paddr + access_size
     };
-    range_t ntload_entry_zone = {
-        .start = cb_data->ntload_driver_entry_paddr,
+    range_t syscall_entry_zone = {
+        .start = cb_data->target_entry_paddr,
         .size = KISERVICE_ENTRY_SIZE,
-        .end = cb_data->ntload_driver_entry_paddr + KISERVICE_ENTRY_SIZE
+        .end = cb_data->target_entry_paddr + KISERVICE_ENTRY_SIZE
     };
     range_t overlap = {0};
-    if (is_zone_read(&read_zone, &ntload_entry_zone, &overlap)) {
+    if (is_zone_read(&read_zone, &syscall_entry_zone, &overlap)) {
         // overlap !
-        printf("Read on KiServiceTable NtLoadDriver entry - size: %ld !\n", overlap.size);
-
         // get insn string
         char insn_str[ND_MIN_BUF_SIZE];
         NdToText(&rip_insn, 0, sizeof(insn_str), insn_str);
-        printf("Read on KiServiceTable NtLoadDriver entry (size: %ld)\n", overlap.size);
+        printf("Read on KiServiceTable %s entry (size: %ld)\n", cb_data->target, overlap.size);
         printf("\t0x%"PRIx64": %s\n", event->x86_regs->rip, insn_str);
 
         // assume PatchGuard if read with a XOR
@@ -247,9 +246,9 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
             fprintf(stderr, "Failed to read enough bytes\n");
             return rsp;
         }
-        // overwrite part of the read buffer with fake NtLoadDruver entry's presence
+        // overwrite part of the read buffer with fake syscall entry's presence
         int overwrite_start = overlap.start - read_zone.start;
-        memcpy(&g_emul_read.data + overwrite_start, &cb_data->ntload_service_table_val, KISERVICE_ENTRY_SIZE);
+        memcpy(&g_emul_read.data + overwrite_start, &cb_data->target_service_table_val, KISERVICE_ENTRY_SIZE);
         // assign emul_read ptr
         event->emul_read = &g_emul_read;
         printf("\tEmulated read content:\n");
@@ -269,7 +268,7 @@ int main (int argc, char **argv)
     struct sigaction act = {0};
     vmi_init_data_t *init_data = NULL;
     bool is_corrupted = false;
-    addr_t ntload_driver_entry_addr = 0;
+    addr_t target_syscall_entry_addr = 0;
     int retcode = 1;
     // whether our Windows guest is 64 bits
     bool is64 = false;
@@ -283,17 +282,21 @@ int main (int argc, char **argv)
     sigaction(SIGALRM, &act, NULL);
 
     char *name = NULL;
+    char *target = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <name of VM> <Windows Nt syscall> [<socket>]\n", argv[0]);
         return retcode;
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
 
-    if (argc == 3) {
-        char *path = argv[2];
+    // Arg 2 is the syscall name
+    target = argv[2];
+
+    if (argc == 4) {
+        char *path = argv[3];
 
         // fill init_data
         init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
@@ -338,13 +341,13 @@ int main (int argc, char **argv)
     }
     printf("nt!KiServiceTable: 0x%" PRIx64 "\n", ki_sv_table_addr);
 
-    // read nt!NtLoadDriver
-    addr_t ntload_driver_addr = 0;
-    if (VMI_FAILURE == vmi_translate_ksym2v(vmi, "NtLoadDriver", &ntload_driver_addr)) {
-        fprintf(stderr, "Failed to translate NtAddDriverEntry symbol\n");
+    // read target syscall address
+    addr_t target_syscall_addr = 0;
+    if (VMI_FAILURE == vmi_translate_ksym2v(vmi, target, &target_syscall_addr)) {
+        fprintf(stderr, "Failed to translate %s symbol\n", target);
         goto error_exit;
     }
-    printf("nt!NtLoadDriver: 0x%" PRIx64 "\n", ntload_driver_addr);
+    printf("%s: 0x%" PRIx64 "\n", target, target_syscall_addr);
 
     /*
      * Table's structure looks like the following
@@ -371,11 +374,11 @@ int main (int argc, char **argv)
         fprintf(stderr, "Failed to read SSDT.NumberOfServices field\n");
         goto error_exit;
     }
-    printf("SSDT.NumberOfServices: 0x%" PRIx64 "\n", nb_services);
+    printf("SSDT.NumberOfServices: %lu (0x%" PRIX64 ")\n", nb_services, nb_services);
 
-    // find NtLoadDriverEntry index in SSDT
-    int ntload_service_table_index = -1;
-    uint32_t ntload_service_table_val = 0;
+    // find target syscall index in SSDT
+    int target_service_table_index = -1;
+    uint32_t target_service_table_val = 0;
     for (int i = 0; i < (int)nb_services; i++) {
         addr_t ki_service_entry_addr = ki_sv_table_addr + (KISERVICE_ENTRY_SIZE * i);
         uint32_t ki_service_entry_val = 0;
@@ -394,25 +397,25 @@ int main (int argc, char **argv)
 
         // Debug
         // printf("Syscall[%d]: 0x%" PRIx64 "\n", i, syscall_addr);
-        // find NtLoadDriver
-        if (syscall_addr == ntload_driver_addr) {
-            printf("Found NtLoadDriver SSDT entry: %d\n", i);
-            ntload_service_table_index = i;
-            ntload_service_table_val = ki_service_entry_val;
+        // find target
+        if (syscall_addr == target_syscall_addr) {
+            printf("Found %s SSDT entry: %d (0x%"PRIX32")\n", target, i, i);
+            target_service_table_index = i;
+            target_service_table_val = ki_service_entry_val;
             break;
         }
     }
-    if (ntload_service_table_index == -1) {
-        fprintf(stderr, "Failed to find NtLoadDriver SSDT entry\n");
+    if (target_service_table_index == -1) {
+        fprintf(stderr, "Failed to find %s SSDT entry\n", target);
         goto error_exit;
     }
 
     // corrupting pointer
-    printf("Corrupting NtLoadDriver SSDT entry\n");
-    ntload_driver_entry_addr = ki_sv_table_addr + (KISERVICE_ENTRY_SIZE * ntload_service_table_index);
+    printf("Corrupting %s SSDT entry\n", target);
+    target_syscall_entry_addr = ki_sv_table_addr + (KISERVICE_ENTRY_SIZE * target_service_table_index);
     uint32_t corrupted_value = 0;
-    if (VMI_FAILURE == vmi_write_32_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
-        fprintf(stderr, "Failed to corrupt NtLoadDriver SSDT entry\n");
+    if (VMI_FAILURE == vmi_write_32_va(vmi, target_syscall_entry_addr, 0, &corrupted_value)) {
+        fprintf(stderr, "Failed to corrupt %s SSDT entry\n", target);
         goto error_exit;
     }
     is_corrupted = true;
@@ -420,12 +423,12 @@ int main (int argc, char **argv)
     // flush page cache after write
     vmi_pagecache_flush(vmi);
 
-    // reread NtLoadDriver SSDT entry
-    if (VMI_FAILURE == vmi_read_32_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
-        fprintf(stderr, "Failed to read NtLoadDriver SSDT entry\n");
+    // reread target SSDT entry
+    if (VMI_FAILURE == vmi_read_32_va(vmi, target_syscall_entry_addr, 0, &corrupted_value)) {
+        fprintf(stderr, "Failed to read %s SSDT entry\n", target);
         goto error_exit;
     }
-    printf("New NtLoadDriver SSDT entry value: 0x%" PRIx32 "\n", corrupted_value);
+    printf("New %s SSDT entry value: 0x%" PRIx32 "\n", target, corrupted_value);
 
     // protect corrupted SSDT entry using memory access event
     //   get dtb
@@ -437,7 +440,7 @@ int main (int argc, char **argv)
     uint64_t dtb = cr3 & ~(0xfff);
     // get paddr
     uint64_t syscall_entry_paddr;
-    if (VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, ntload_driver_entry_addr, &syscall_entry_paddr)) {
+    if (VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, target_syscall_entry_addr, &syscall_entry_paddr)) {
         fprintf(stderr, "Failed to find current paddr\n");
         goto error_exit;
     }
@@ -448,13 +451,14 @@ int main (int argc, char **argv)
     // add cb_data
     cb_data_t cb_data = {0};
     cb_data.is64 = is64;
-    cb_data.ntload_service_table_val = ntload_service_table_val;
-    cb_data.ntload_driver_gfn = syscall_entry_gfn;
-    cb_data.ntload_driver_entry_addr = ntload_driver_entry_addr;
-    cb_data.ntload_driver_entry_paddr = syscall_entry_paddr;
+    cb_data.target = target;
+    cb_data.target_service_table_val = target_service_table_val;
+    cb_data.target_gfn = syscall_entry_gfn;
+    cb_data.target_entry_addr = target_syscall_entry_addr;
+    cb_data.target_entry_paddr = syscall_entry_paddr;
     cb_data.emul_read.dont_free = 1;
-    cb_data.emul_read.size = sizeof(ntload_driver_addr);
-    memcpy(&cb_data.emul_read.data, &ntload_driver_addr, cb_data.emul_read.size);
+    cb_data.emul_read.size = sizeof(target_syscall_addr);
+    memcpy(&cb_data.emul_read.data, &target_syscall_addr, cb_data.emul_read.size);
     // set event callback data
     read_event.data = (void*)&cb_data;
 
@@ -482,9 +486,9 @@ int main (int argc, char **argv)
     retcode = 0;
 error_exit:
     if (is_corrupted) {
-        printf("Restoring NtLoadDriver SSDT entry\n");
+        printf("Restoring %s SSDT entry\n", target);
         // restore SSDT entry
-        if (VMI_FAILURE == vmi_write_32_va(vmi, ntload_driver_entry_addr, 0, &ntload_service_table_val)) {
+        if (VMI_FAILURE == vmi_write_32_va(vmi, target_syscall_entry_addr, 0, &target_service_table_val)) {
             fprintf(stderr, "Failed to restore SSDT entry\n");
         }
     }
