@@ -24,22 +24,7 @@
  * This example sets a software breakpoint on a given symbol, and when the callback is called,
  * it requests to emulate a given opcode, read before placing the breakpoint,
  * which is significantly faster than singlestepping
- *
- * You have to specify the opcode size.
- *
- * For example for NtOpenFile on a Windows 7, the opcode size is 3
- *
- * [0x1403690dc]> pd 10
-            ;-- ntoskrnl.exe_NtOpenFile:
-            ;-- pdb.NtOpenFile:
-            0x1403690dc      4c8bdc         mov r11, rsp
-            0x1403690df      4881ec880000.  sub rsp, 0x88
-            0x1403690e6      8b8424b80000.  mov eax, dword
-            0x1403690ed      4533d2         xor r10d, r10d
-
- * In this case, 0x4c8bdc will be the opcode to be emulated.
- */
-
+*/
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -48,8 +33,35 @@
 #include <inttypes.h>
 #include <signal.h>
 
+#include <bddisasm/disasmtypes.h>
+#include <bddisasm/bddisasm.h>
+
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
+
+
+// maximum size of an x86 instruction
+#define MAX_SIZE_X86_INSN 15
+
+
+// required by bddisasm
+int nd_vsnprintf_s(
+    char *buffer,
+    size_t sizeOfBuffer,
+    size_t count,
+    const char *format,
+    va_list argptr
+)
+{
+    (void)count;
+    return vsnprintf(buffer, sizeOfBuffer, format, argptr);
+}
+
+void* nd_memset(void *s, int c, size_t n)
+{
+    return memset(s, c, n);
+}
+
 
 struct cb_data {
     char *symbol;
@@ -114,9 +126,9 @@ int main (int argc, char **argv)
     vmi_event_t interrupt_event = {0};
     struct sigaction act = {0};
     struct cb_data data = {0};
-    int opcode_size = 0;
     vmi_init_data_t *init_data = NULL;
     int retcode = 1;
+    bool is64 = false;
 
     act.sa_handler = close_handler;
     act.sa_flags = 0;
@@ -128,15 +140,23 @@ int main (int argc, char **argv)
 
     char *name = NULL;
 
-    if (argc < 4) {
-        fprintf(stderr, "Usage: %s <name of VM> <symbol> <opcode size> [<socket>]\n", argv[0]);
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <name of VM> <symbol> <32|64> [<socket>]\n", argv[0]);
         return retcode;
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
     data.symbol = argv[2];
-    opcode_size = atoi(argv[3]);
+    // whether guest is 64 bits
+    if (!strncmp(argv[3], "64", 2)) {
+        is64 = true;
+    } else if (!strncmp(argv[3], "32", 2)) {
+        is64 = false;
+    } else {
+        fprintf(stderr, "Usage: %s <name of VM> <symbol> <32|64> [<socket>]\n", argv[0]);
+        return retcode;
+    }
 
     if (argc == 5) {
         char *path = argv[4];
@@ -177,11 +197,34 @@ int main (int argc, char **argv)
 
     data.vaddr = vaddr;
 
-    // read previous opcode
-    if (VMI_FAILURE == vmi_read_va(vmi, vaddr, 0, opcode_size, &data.emul.data, NULL)) {
+    // disassemble previous opcode
+    // read a buffer of an x86 insn max size at RIP (15 Bytes)
+    uint8_t insn_buffer[MAX_SIZE_X86_INSN] = {0};
+    size_t bytes_read = 0;
+    if (VMI_FAILURE == vmi_read_va(vmi, vaddr, 0, MAX_SIZE_X86_INSN, insn_buffer, &bytes_read) || bytes_read != MAX_SIZE_X86_INSN) {
         fprintf(stderr, "Failed to read opcode\n");
         goto error_exit;
     }
+    // disassemble with libddisasm (hardcoded for 64 bits)
+    uint8_t defcode = ND_CODE_32;
+    uint8_t defdata = ND_DATA_32;
+    if (is64) {
+        defcode = ND_CODE_64;
+        defdata = ND_DATA_64;
+    }
+    INSTRUX insn = {0};
+    NDSTATUS status = NdDecodeEx(&insn, insn_buffer, sizeof(insn_buffer), defcode, defdata);
+    if (!ND_SUCCESS(status)) {
+        fprintf(stderr, "Failed to decode instruction with libbdisasm: %x\n", status);
+        goto error_exit;
+    }
+    // convert opcode to text
+    char insn_str[ND_MIN_BUF_SIZE];
+    NdToText(&insn, 0, sizeof(insn_str), insn_str);
+    printf("Opcode at 0x%"PRIx64": %s (Length: %d)\n", vaddr, insn_str, insn.Length);
+
+    // copy opcode into emul read buffer
+    memcpy(&data.emul.data, insn_buffer, insn.Length);
     data.emul.dont_free = 1;
 
     // write breakpoint
@@ -218,8 +261,10 @@ int main (int argc, char **argv)
     retcode = 0;
 error_exit:
     // restore opcode
-    if (data.emul.data[0])
-        vmi_write_va(vmi, vaddr, 0, opcode_size, &data.emul.data, NULL);
+    if (data.emul.data[0]) {
+        printf("Restoring opcodes\n");
+        vmi_write_va(vmi, vaddr, 0, insn.Length, insn_buffer, NULL);
+    }
     vmi_resume_vm(vmi);
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
