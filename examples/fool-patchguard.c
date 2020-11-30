@@ -33,6 +33,7 @@
 
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
+#include <glib.h>
 
 // maximum size of an x86 instruction
 #define MAX_SIZE_X86_INSN 15
@@ -41,6 +42,8 @@
 // we use emul_read with 'dont_free' so it can't be allocated on the stack
 // as it could be corrupted
 static emul_read_t g_emul_read = { .dont_free = 1 };
+// x86 breakpoint opcode
+static uint8_t x86_bp[] = { 0xCC };
 
 // These definitions are required by libbddisasm
 int nd_vsnprintf_s(
@@ -60,6 +63,21 @@ void* nd_memset(void *s, int c, size_t n)
     return memset(s, c, n);
 }
 
+void free_gint64(gpointer p)
+{
+    g_slice_free(gint64, p);
+}
+
+// Data struct to define a breakpointed syscall
+typedef struct _bp_syscall {
+    // did we managed to breakpoint this syscall
+    bool present;
+    // syscall virtual address
+    addr_t syscall_addr;
+    // saved opcode
+    uint8_t saved_ctxt[sizeof(x86_bp)];
+} bp_syscall_t;
+
 // Data struct to be passed as void* to the callback
 typedef struct cb_data {
     bool is64;
@@ -70,6 +88,12 @@ typedef struct cb_data {
     addr_t target_entry_paddr;
     emul_read_t emul_read;
 } cb_data_t;
+
+// Data struct to pass a context to the breakpoint callback
+typedef struct _bp_cb_data {
+    // hash [syscall address: addr_t] -> [breakpoint context: bp_syscall_t*]
+    GHashTable* hash_syscall_to_ctxt;
+} bp_cb_data_t;
 
 // Data stuct to define a memory range or zone
 typedef struct _range {
@@ -134,6 +158,29 @@ bool mem_access_size_from_insn(INSTRUX *insn, size_t *size)
     }
 
     return true;
+}
+
+event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    event_response_t rsp = VMI_EVENT_RESPONSE_NONE;
+    interrupt_event_t* int_event = &event->interrupt_event;
+    bp_cb_data_t* cb_data = event->data;
+    if (!cb_data) {
+        fprintf(stderr, "No callback data received in %s\n", __func__);
+        return rsp;
+    }
+    // set default reinject behavior ("pass-through")
+    int_event->reinject = 1;
+
+    printf("Breakpoint hit at 0x%"PRIx64"\n", int_event->gla);
+    // get breakpoint ctxt
+    bp_syscall_t* bp_syscall = (bp_syscall_t*)g_hash_table_lookup(cb_data->hash_syscall_to_ctxt, &int_event->gla);
+    if (!bp_syscall) {
+        fprintf(stderr, "Failed to get breakpoint context!\n");
+        return rsp;
+    }
+
+    return rsp;
 }
 
 event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
@@ -272,6 +319,11 @@ int main (int argc, char **argv)
     int retcode = 1;
     // whether our Windows guest is 64 bits
     bool is64 = false;
+    // our breakpointed ssdt
+    bp_syscall_t* bp_ssdt = NULL;
+    // hash [syscall addr] -> [syscall breakpoint context]
+    GHashTable* hash_syscall_to_ctxt = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
+    addr_t nb_services = 0;
 
     act.sa_handler = close_handler;
     act.sa_flags = 0;
@@ -285,18 +337,15 @@ int main (int argc, char **argv)
     char *target = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> <Windows Nt syscall> [<socket>]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
         return retcode;
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
 
-    // Arg 2 is the syscall name
-    target = argv[2];
-
-    if (argc == 4) {
-        char *path = argv[3];
+    if (argc == 3) {
+        char *path = argv[2];
 
         // fill init_data
         init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
@@ -341,14 +390,6 @@ int main (int argc, char **argv)
     }
     printf("nt!KiServiceTable: 0x%" PRIx64 "\n", ki_sv_table_addr);
 
-    // read target syscall address
-    addr_t target_syscall_addr = 0;
-    if (VMI_FAILURE == vmi_translate_ksym2v(vmi, target, &target_syscall_addr)) {
-        fprintf(stderr, "Failed to translate %s symbol\n", target);
-        goto error_exit;
-    }
-    printf("%s: 0x%" PRIx64 "\n", target, target_syscall_addr);
-
     /*
      * Table's structure looks like the following
      * (source: https://m0uk4.gitbook.io/notebooks/mouka/windowsinternal/ssdt-hook)
@@ -366,20 +407,20 @@ int main (int argc, char **argv)
         };
     */
 
-
     //  read NumberOfServices
     addr_t nb_services_addr = ke_sd_table_addr + (addr_width * 2);
-    addr_t nb_services = 0;
     if (VMI_FAILURE == vmi_read_addr_va(vmi, nb_services_addr, 0, &nb_services)) {
         fprintf(stderr, "Failed to read SSDT.NumberOfServices field\n");
         goto error_exit;
     }
     printf("SSDT.NumberOfServices: %lu (0x%" PRIX64 ")\n", nb_services, nb_services);
 
-    // find target syscall index in SSDT
-    int target_service_table_index = -1;
-    uint32_t target_service_table_val = 0;
-    for (int i = 0; i < (int)nb_services; i++) {
+    bp_ssdt = calloc(nb_services, sizeof(bp_syscall_t));
+    if (!bp_ssdt) {
+        fprintf(stderr, "calloc failed\n");
+        goto error_exit;
+    }
+    for (unsigned int i = 0; i < nb_services; i++) {
         addr_t ki_service_entry_addr = ki_sv_table_addr + (KISERVICE_ENTRY_SIZE * i);
         uint32_t ki_service_entry_val = 0;
         if (VMI_FAILURE == vmi_read_32_va(vmi, ki_service_entry_addr, 0, &ki_service_entry_val)) {
@@ -395,84 +436,89 @@ int main (int argc, char **argv)
             syscall_addr = ki_sv_table_addr + (ki_service_entry_val >> 4);
         }
 
-        // Debug
-        // printf("Syscall[%d]: 0x%" PRIx64 "\n", i, syscall_addr);
-        // find target
-        if (syscall_addr == target_syscall_addr) {
-            target_service_table_index = i;
-            target_service_table_val = ki_service_entry_val;
-            uint8_t entry_val_buf[KISERVICE_ENTRY_SIZE] = {0};
-            memcpy(entry_val_buf, (void*)&ki_service_entry_val, KISERVICE_ENTRY_SIZE);
-            printf("Found %s SSDT entry: %d (0x%"PRIX32") -- ", target, i, i);
-            for (unsigned int i = 0; i < KISERVICE_ENTRY_SIZE; i++) {
-                printf("%02X ", entry_val_buf[i]);
-            }
-            printf("\n");
-            break;
+        // check if syscall is already in hashtable
+        if (g_hash_table_lookup(hash_syscall_to_ctxt, &syscall_addr)) {
+            printf("[%d] Already breakpointed (0x%"PRIx64")\n", i, syscall_addr);
+            continue;
+        }
+
+        // read previous opcode before placing breakpoint
+        if (VMI_FAILURE == vmi_read_va(vmi, syscall_addr, 0, sizeof(x86_bp), bp_ssdt[i].saved_ctxt, NULL)) {
+            fprintf(stderr, "Failed to read opcode for syscall index %d\n", i);
+            continue;
+        }
+
+        // insert breakpoint
+        printf("[%d] Insert breakpoint at 0x%"PRIx64"\n", i, syscall_addr);
+        if (VMI_FAILURE == vmi_write_va(vmi, syscall_addr, 0, sizeof(x86_bp), x86_bp, NULL)) {
+            fprintf(stderr, "Failed to write breakpoint for syscall index %d\n", i);
+            continue;
+        }
+        bp_ssdt[i].present = true;
+        bp_ssdt[i].syscall_addr = syscall_addr;
+        // add to hash
+        bp_syscall_t* bp_syscall = calloc(sizeof(bp_syscall), 1);
+        if (!bp_syscall) {
+            fprintf(stderr,"Failed to allocate memory\n");
+            goto error_exit;
+        }
+        if (!g_hash_table_insert(hash_syscall_to_ctxt, g_slice_dup(addr_t, &syscall_addr), bp_syscall)) {
+            fprintf(stderr, "Duplicated entry in GHashTable\n");
+            goto error_exit;
         }
     }
-    if (target_service_table_index == -1) {
-        fprintf(stderr, "Failed to find %s SSDT entry\n", target);
-        goto error_exit;
-    }
 
-    // corrupting pointer
-    printf("Corrupting %s SSDT entry\n", target);
-    target_syscall_entry_addr = ki_sv_table_addr + (KISERVICE_ENTRY_SIZE * target_service_table_index);
-    uint32_t corrupted_value = 0;
-    if (VMI_FAILURE == vmi_write_32_va(vmi, target_syscall_entry_addr, 0, &corrupted_value)) {
-        fprintf(stderr, "Failed to corrupt %s SSDT entry\n", target);
-        goto error_exit;
-    }
-    is_corrupted = true;
-
-    // flush page cache after write
+    // flush LibVMI page cache after write
     vmi_pagecache_flush(vmi);
 
-    // reread target SSDT entry
-    if (VMI_FAILURE == vmi_read_32_va(vmi, target_syscall_entry_addr, 0, &corrupted_value)) {
-        fprintf(stderr, "Failed to read %s SSDT entry\n", target);
+    // register int3 interrupt callback
+    vmi_event_t bp_event = {0};
+    SETUP_INTERRUPT_EVENT(&bp_event, breakpoint_cb);
+    // pass cb data
+    bp_cb_data_t bp_cb_data = { .hash_syscall_to_ctxt = hash_syscall_to_ctxt  };
+    bp_event.data = &bp_cb_data;
+    if (VMI_FAILURE == vmi_register_event(vmi, &bp_event)) {
+        fprintf(stderr, "Failed to register breakpoint event\n");
         goto error_exit;
     }
-    printf("New %s SSDT entry value: 0x%" PRIx32 "\n", target, corrupted_value);
 
-    // protect corrupted SSDT entry using memory access event
-    //   get dtb
-    uint64_t cr3;
-    if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cr3, CR3, 0)) {
-        fprintf(stderr, "Failed to get current CR3\n");
-        goto error_exit;
-    }
-    uint64_t dtb = cr3 & ~(0xfff);
-    // get paddr
-    uint64_t syscall_entry_paddr;
-    if (VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, target_syscall_entry_addr, &syscall_entry_paddr)) {
-        fprintf(stderr, "Failed to find current paddr\n");
-        goto error_exit;
-    }
-    // get Guest Frame Number (gfn)
-    uint64_t syscall_entry_gfn = syscall_entry_paddr >> 12;
-    vmi_event_t read_event = {0};
-    SETUP_MEM_EVENT(&read_event, syscall_entry_gfn, VMI_MEMACCESS_RW, cb_on_rw_access, 0);
-    // add cb_data
-    cb_data_t cb_data = {0};
-    cb_data.is64 = is64;
-    cb_data.target = target;
-    cb_data.target_service_table_val = target_service_table_val;
-    cb_data.target_gfn = syscall_entry_gfn;
-    cb_data.target_entry_addr = target_syscall_entry_addr;
-    cb_data.target_entry_paddr = syscall_entry_paddr;
-    cb_data.emul_read.dont_free = 1;
-    cb_data.emul_read.size = sizeof(target_syscall_addr);
-    memcpy(&cb_data.emul_read.data, &target_syscall_addr, cb_data.emul_read.size);
-    // set event callback data
-    read_event.data = (void*)&cb_data;
+    // // protect corrupted SSDT entry using memory access event
+    // //   get dtb
+    // uint64_t cr3;
+    // if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cr3, CR3, 0)) {
+    //     fprintf(stderr, "Failed to get current CR3\n");
+    //     goto error_exit;
+    // }
+    // uint64_t dtb = cr3 & ~(0xfff);
+    // // get paddr
+    // uint64_t syscall_entry_paddr;
+    // if (VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, target_syscall_entry_addr, &syscall_entry_paddr)) {
+    //     fprintf(stderr, "Failed to find current paddr\n");
+    //     goto error_exit;
+    // }
+    // // get Guest Frame Number (gfn)
+    // uint64_t syscall_entry_gfn = syscall_entry_paddr >> 12;
+    // vmi_event_t read_event = {0};
+    // SETUP_MEM_EVENT(&read_event, syscall_entry_gfn, VMI_MEMACCESS_RW, cb_on_rw_access, 0);
+    // // add cb_data
+    // cb_data_t cb_data = {0};
+    // cb_data.is64 = is64;
+    // cb_data.target = target;
+    // cb_data.target_service_table_val = target_service_table_val;
+    // cb_data.target_gfn = syscall_entry_gfn;
+    // cb_data.target_entry_addr = target_syscall_entry_addr;
+    // cb_data.target_entry_paddr = syscall_entry_paddr;
+    // cb_data.emul_read.dont_free = 1;
+    // cb_data.emul_read.size = sizeof(target_syscall_addr);
+    // memcpy(&cb_data.emul_read.data, &target_syscall_addr, cb_data.emul_read.size);
+    // // set event callback data
+    // read_event.data = (void*)&cb_data;
 
-    printf("Registering read event on GFN 0x%" PRIx64 "\n", syscall_entry_gfn);
-    if (VMI_FAILURE == vmi_register_event(vmi, &read_event)) {
-        fprintf(stderr, "Failed to register event\n");
-        goto error_exit;
-    }
+    // printf("Registering read event on GFN 0x%" PRIx64 "\n", syscall_entry_gfn);
+    // if (VMI_FAILURE == vmi_register_event(vmi, &read_event)) {
+    //     fprintf(stderr, "Failed to register event\n");
+    //     goto error_exit;
+    // }
 
     // resume
     printf("Resuming VM\n");
@@ -491,16 +537,28 @@ int main (int argc, char **argv)
 
     retcode = 0;
 error_exit:
-    if (is_corrupted) {
-        printf("Restoring %s SSDT entry\n", target);
-        // restore SSDT entry
-        if (VMI_FAILURE == vmi_write_32_va(vmi, target_syscall_entry_addr, 0, &target_service_table_val)) {
-            fprintf(stderr, "Failed to restore SSDT entry\n");
+    // restore ssdt
+    vmi_pause_vm(vmi);
+    for (unsigned int i=0; i < nb_services; i++) {
+        if (bp_ssdt && bp_ssdt[i].present) {
+            if (VMI_FAILURE == vmi_write_va(vmi, bp_ssdt[i].syscall_addr, 0, sizeof(x86_bp), bp_ssdt[i].saved_ctxt, NULL)) {
+                fprintf(stderr, "Failed to restore syscall opcode for entry %d", i);
+                continue;
+            }
         }
     }
+
     vmi_resume_vm(vmi);
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
+
+    if (hash_syscall_to_ctxt) {
+        g_hash_table_destroy(hash_syscall_to_ctxt);
+    }
+
+    if (bp_ssdt) {
+        free(bp_ssdt);
+    }
 
     if (init_data) {
         free(init_data->entry[0].data);
