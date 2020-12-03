@@ -7,13 +7,26 @@ Note: some of them take an optional `[<socket>]` parameter. This refers to the
 
 ## breakpoint-emulate-example
 
+### Requirements
+
+- [bddisasm](https://github.com/bitdefender/bddisasm)
+
+### overview
+
 Recoiling on a software breakpoint via instruction emulation.
 
-Reads the opcode at the specified location in memory (using the `opcode_size`
-parameter) and sets a software breakpoint by writing `int3` interrupt.
+### Description
 
-When the breakpoint is hit, use the `VMI_EVENT_RESPONSE_SET_EMUL_INSN` event response
-to emulate the instruction stored in `event->emul_insn`.
+- disassembles the opcode at the specified symbol, and inserts a software breakpoint.
+- on breakpoint hit, emulates the saved opcode using `VMI_EVENT_RESPONSE_SET_EMUL_INSN`
+
+### Usage
+
+~~~
+./build/examples/breakpoint-emulate-example <name of VM> <symbol> <32|64> [<socket>]
+~~~
+
+![demo](https://user-images.githubusercontent.com/964610/101028400-08ce8800-3579-11eb-9ca8-6fd6083fa84d.png)
 
 ## breakpoint-recoil-example
 
