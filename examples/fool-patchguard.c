@@ -75,7 +75,7 @@ typedef struct _bp_syscall {
     // syscall virtual address
     addr_t syscall_addr;
     // saved opcode
-    uint8_t saved_ctxt[sizeof(x86_bp)];
+    emul_insn_t emul;
 } bp_syscall_t;
 
 // Data struct to be passed as void* to the callback
@@ -176,9 +176,19 @@ event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
     // get breakpoint ctxt
     bp_syscall_t* bp_syscall = (bp_syscall_t*)g_hash_table_lookup(cb_data->hash_syscall_to_ctxt, &int_event->gla);
     if (!bp_syscall) {
-        fprintf(stderr, "Failed to get breakpoint context!\n");
+        // not our breakpoint
+        // reinject interrupt
+        printf("\tReinjecting breakpoint\n");
+        // (or issue with GHashTable insertion)
         return rsp;
     }
+
+    // don't reinject
+    event->interrupt_event.reinject = 0;
+    // set previous opcode for emulation
+    event->emul_insn = &bp_syscall->emul;
+    // set response to emulate instruction
+    rsp |= VMI_EVENT_RESPONSE_SET_EMUL_INSN;
 
     return rsp;
 }
@@ -442,8 +452,15 @@ int main (int argc, char **argv)
             continue;
         }
 
+        bp_syscall_t* bp_syscall = calloc(1, sizeof(bp_syscall_t));
+        if (!bp_syscall) {
+            fprintf(stderr,"Failed to allocate memory\n");
+            goto error_exit;
+        }
+        bp_syscall->emul.dont_free = 1;
+
         // read previous opcode before placing breakpoint
-        if (VMI_FAILURE == vmi_read_va(vmi, syscall_addr, 0, sizeof(x86_bp), bp_ssdt[i].saved_ctxt, NULL)) {
+        if (VMI_FAILURE == vmi_read_va(vmi, syscall_addr, 0, sizeof(x86_bp), bp_syscall->emul.data, NULL)) {
             fprintf(stderr, "Failed to read opcode for syscall index %d\n", i);
             continue;
         }
@@ -452,16 +469,13 @@ int main (int argc, char **argv)
         printf("[%d] Insert breakpoint at 0x%"PRIx64"\n", i, syscall_addr);
         if (VMI_FAILURE == vmi_write_va(vmi, syscall_addr, 0, sizeof(x86_bp), x86_bp, NULL)) {
             fprintf(stderr, "Failed to write breakpoint for syscall index %d\n", i);
+            free(bp_syscall);
             continue;
         }
         bp_ssdt[i].present = true;
         bp_ssdt[i].syscall_addr = syscall_addr;
+
         // add to hash
-        bp_syscall_t* bp_syscall = calloc(sizeof(bp_syscall), 1);
-        if (!bp_syscall) {
-            fprintf(stderr,"Failed to allocate memory\n");
-            goto error_exit;
-        }
         if (!g_hash_table_insert(hash_syscall_to_ctxt, g_slice_dup(addr_t, &syscall_addr), bp_syscall)) {
             fprintf(stderr, "Duplicated entry in GHashTable\n");
             goto error_exit;
@@ -541,8 +555,8 @@ error_exit:
     vmi_pause_vm(vmi);
     for (unsigned int i=0; i < nb_services; i++) {
         if (bp_ssdt && bp_ssdt[i].present) {
-            if (VMI_FAILURE == vmi_write_va(vmi, bp_ssdt[i].syscall_addr, 0, sizeof(x86_bp), bp_ssdt[i].saved_ctxt, NULL)) {
-                fprintf(stderr, "Failed to restore syscall opcode for entry %d", i);
+            if (VMI_FAILURE == vmi_write_va(vmi, bp_ssdt[i].syscall_addr, 0, sizeof(x86_bp), bp_ssdt[i].emul.data, NULL)) {
+                fprintf(stderr, "[%d] Failed to restore syscall opcode\n", i);
                 continue;
             }
         }
