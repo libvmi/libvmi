@@ -74,8 +74,12 @@ typedef struct _bp_syscall {
     bool present;
     // syscall virtual address
     addr_t syscall_addr;
+    // syscall number
+    unsigned int syscall_number;
     // saved opcode
     emul_insn_t emul;
+    // instruction as string
+    char insn_str[ND_MIN_BUF_SIZE];
 } bp_syscall_t;
 
 // Data struct to be passed as void* to the callback
@@ -172,7 +176,7 @@ event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
     // set default reinject behavior ("pass-through")
     int_event->reinject = 1;
 
-    printf("Breakpoint hit at 0x%"PRIx64"\n", int_event->gla);
+    printf("[%d] Breakpoint hit at 0x%"PRIx64"\n", event->vcpu_id, int_event->gla);
     // get breakpoint ctxt
     bp_syscall_t* bp_syscall = (bp_syscall_t*)g_hash_table_lookup(cb_data->hash_syscall_to_ctxt, &int_event->gla);
     if (!bp_syscall) {
@@ -182,6 +186,8 @@ event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
         // (or issue with GHashTable insertion)
         return rsp;
     }
+    printf("\tSyscall %d:\n", bp_syscall->syscall_number);
+    printf("\t\tEmulating insn: %s\n", bp_syscall->insn_str);
 
     // don't reinject
     event->interrupt_event.reinject = 0;
@@ -324,8 +330,6 @@ int main (int argc, char **argv)
     vmi_instance_t vmi = {0};
     struct sigaction act = {0};
     vmi_init_data_t *init_data = NULL;
-    bool is_corrupted = false;
-    addr_t target_syscall_entry_addr = 0;
     int retcode = 1;
     // whether our Windows guest is 64 bits
     bool is64 = false;
@@ -344,18 +348,37 @@ int main (int argc, char **argv)
     sigaction(SIGALRM, &act, NULL);
 
     char *name = NULL;
-    char *target = NULL;
 
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <name of VM> <32|64> [<socket>]\n", argv[0]);
         return retcode;
     }
 
     // Arg 1 is the VM name.
     name = argv[1];
+    // Arg 2 is the guest architecture
+    char* arch = argv[2];
 
-    if (argc == 3) {
-        char *path = argv[2];
+    // whether guest is 64 bits
+    if (!strncmp(arch, "64", 2)) {
+        is64 = true;
+    } else if (!strncmp(arch, "32", 2)) {
+        is64 = false;
+    } else {
+        fprintf(stderr, "Usage: %s <name of VM> <32|64> [<socket>]\n", argv[0]);
+        return retcode;
+    }
+
+    // bddisasm settings
+    uint8_t defcode = ND_CODE_32;
+    uint8_t defdata = ND_DATA_32;
+    if (is64) {
+        defcode = ND_CODE_64;
+        defdata = ND_DATA_64;
+    }
+
+    if (argc == 4) {
+        char *path = argv[3];
 
         // fill init_data
         init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
@@ -458,12 +481,29 @@ int main (int argc, char **argv)
             goto error_exit;
         }
         bp_syscall->emul.dont_free = 1;
+        bp_syscall->syscall_number = i;
 
-        // read previous opcode before placing breakpoint
-        if (VMI_FAILURE == vmi_read_va(vmi, syscall_addr, 0, sizeof(x86_bp), bp_syscall->emul.data, NULL)) {
-            fprintf(stderr, "Failed to read opcode for syscall index %d\n", i);
+        // read max size x86 insn
+        uint8_t insn_buffer[15];
+        if (VMI_FAILURE == vmi_read_va(vmi, syscall_addr, 0, sizeof(insn_buffer), insn_buffer, NULL)) {
+            fprintf(stderr, "Failed to read at addr 0x%"PRIx64"\n", syscall_addr);
             continue;
         }
+
+        // disassemble insn
+        INSTRUX insn = {0};
+        NDSTATUS status = NdDecodeEx(&insn, insn_buffer, sizeof(insn_buffer), defcode, defdata);
+        if (!ND_SUCCESS(status)) {
+            fprintf(stderr, "Failed to decode instruction with bddisasm: %x\n", status);
+            free(bp_syscall);
+            continue;
+        }
+
+        // convert insn to string
+        NdToText(&insn, 0, sizeof(bp_syscall->insn_str), bp_syscall->insn_str);
+
+        // copy first insn in emulation buffer
+        memcpy(bp_syscall->emul.data, insn_buffer, insn.Length);
 
         // insert breakpoint
         printf("[%d] Insert breakpoint at 0x%"PRIx64"\n", i, syscall_addr);
