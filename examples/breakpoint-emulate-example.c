@@ -141,7 +141,7 @@ int main (int argc, char **argv)
 
     char *name = NULL;
 
-    if (argc < 3) {
+    if (argc < 4) {
         fprintf(stderr, "Usage: %s <name of VM> <symbol> <32|64> [<socket>]\n", argv[0]);
         return retcode;
     }
