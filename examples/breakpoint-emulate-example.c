@@ -40,10 +40,6 @@
 #include <libvmi/events.h>
 
 
-// maximum size of an x86 instruction
-#define MAX_SIZE_X86_INSN 15
-
-
 // required by bddisasm
 int nd_vsnprintf_s(
     char *buffer,
@@ -67,6 +63,8 @@ struct cb_data {
     char *symbol;
     addr_t vaddr;
     emul_insn_t emul;
+    // instruction as string
+    char insn_str[ND_MIN_BUF_SIZE];
 };
 
 event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
@@ -80,24 +78,27 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
         return rsp;
     }
     data = (struct cb_data*)event->data;
-    printf("Int 3 happened: GFN=%"PRIx64" RIP=%"PRIx64" Length: %"PRIu32"\n",
-           event->interrupt_event.gfn, event->interrupt_event.gla,
+    printf("[%d] Breakpoint hit: GFN=%"PRIx64" RIP=%"PRIx64" Length: %"PRIu32"\n",
+           event->vcpu_id,
+           event->interrupt_event.gfn,
+           event->interrupt_event.gla,
            event->interrupt_event.insn_length);
 
     // set default behavior: reinject
     event->interrupt_event.reinject = 1;
 
-    if (data->vaddr == event->interrupt_event.gla) {
-        // our breakpoint !
-        printf("We hit our breakpoint on %s, setting emulation buffer to 0x%"PRIx64"\n",
-               data->symbol, *(uint64_t*)data->emul.data);
-        // don't reinject
-        event->interrupt_event.reinject = 0;
-        // set previous opcode for emulation
-        event->emul_insn = &data->emul;
-        // set response to emulate instruction
-        rsp |= VMI_EVENT_RESPONSE_SET_EMUL_INSN;
+    if (data->vaddr != event->interrupt_event.gla) {
+        printf("\tReinjecting\n");
     }
+    // our breakpoint !
+    printf("\tWe hit our breakpoint on %s\n", data->symbol);
+    printf("\tEmulating instruction: %s\n", data->insn_str);
+    // don't reinject
+    event->interrupt_event.reinject = 0;
+    // set previous opcode for emulation
+    event->emul_insn = &data->emul;
+    // set response to emulate instruction
+    rsp |= VMI_EVENT_RESPONSE_SET_EMUL_INSN;
 
     /*
      * By default int3 instructions have length of 1 byte unless
@@ -199,9 +200,8 @@ int main (int argc, char **argv)
 
     // disassemble previous opcode
     // read a buffer of an x86 insn max size at RIP (15 Bytes)
-    uint8_t insn_buffer[MAX_SIZE_X86_INSN] = {0};
     size_t bytes_read = 0;
-    if (VMI_FAILURE == vmi_read_va(vmi, vaddr, 0, MAX_SIZE_X86_INSN, insn_buffer, &bytes_read) || bytes_read != MAX_SIZE_X86_INSN) {
+    if (VMI_FAILURE == vmi_read_va(vmi, vaddr, 0, sizeof(data.emul.data), &data.emul.data, &bytes_read) || bytes_read != sizeof(data.emul.data)) {
         fprintf(stderr, "Failed to read opcode\n");
         goto error_exit;
     }
@@ -213,18 +213,16 @@ int main (int argc, char **argv)
         defdata = ND_DATA_64;
     }
     INSTRUX insn = {0};
-    NDSTATUS status = NdDecodeEx(&insn, insn_buffer, sizeof(insn_buffer), defcode, defdata);
+    NDSTATUS status = NdDecodeEx(&insn, data.emul.data, sizeof(data.emul.data), defcode, defdata);
     if (!ND_SUCCESS(status)) {
         fprintf(stderr, "Failed to decode instruction with libbdisasm: %x\n", status);
         goto error_exit;
     }
     // convert opcode to text
     char insn_str[ND_MIN_BUF_SIZE];
-    NdToText(&insn, 0, sizeof(insn_str), insn_str);
-    printf("Opcode at 0x%"PRIx64": %s (Length: %d)\n", vaddr, insn_str, insn.Length);
+    NdToText(&insn, 0, sizeof(insn_str), data.insn_str);
+    printf("Opcode at 0x%"PRIx64": %s (Length: %d)\n", vaddr, data.insn_str, insn.Length);
 
-    // copy opcode into emul read buffer
-    memcpy(&data.emul.data, insn_buffer, insn.Length);
     data.emul.dont_free = 1;
 
     // write breakpoint
@@ -263,7 +261,7 @@ error_exit:
     // restore opcode
     if (data.emul.data[0]) {
         printf("Restoring opcodes\n");
-        vmi_write_va(vmi, vaddr, 0, insn.Length, insn_buffer, NULL);
+        vmi_write_va(vmi, vaddr, 0, insn.Length, data.emul.data, NULL);
     }
     vmi_resume_vm(vmi);
     // cleanup any memory associated with the libvmi instance
