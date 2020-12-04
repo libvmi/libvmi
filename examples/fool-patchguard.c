@@ -158,6 +158,10 @@ bool mem_access_size_from_insn(INSTRUX *insn, size_t *size)
             *size = insn->Operands[0].Size;
             break;
         }
+        case ND_INS_JMPE: {
+            *size = insn->Operands[0].Size;
+            break;
+        }
         default:
             // display instruction
             NdToText(insn, 0, sizeof(insn_str), insn_str);
