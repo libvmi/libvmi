@@ -39,9 +39,6 @@
 #define MAX_SIZE_X86_INSN 15
 #define KISERVICE_ENTRY_SIZE sizeof(uint32_t)
 
-// we use emul_read with 'dont_free' so it can't be allocated on the stack
-// as it could be corrupted
-static emul_read_t g_emul_read = { .dont_free = 1 };
 // x86 breakpoint opcode
 static uint8_t x86_bp[] = { 0xCC };
 
@@ -63,6 +60,7 @@ void* nd_memset(void *s, int c, size_t n)
     return memset(s, c, n);
 }
 
+// free helper for ghastable
 void free_gint64(gpointer p)
 {
     g_slice_free(gint64, p);
@@ -80,8 +78,9 @@ typedef struct _bp_syscall {
     addr_t syscall_gfn;
     // syscall number
     unsigned int syscall_number;
-    // saved opcode
-    emul_insn_t emul;
+    // saved opcode to be emulated
+    emul_insn_t emul_insn;
+    emul_read_t emul_read;
     // instruction as string
     char insn_str[ND_MIN_BUF_SIZE];
 } bp_syscall_t;
@@ -93,6 +92,8 @@ typedef struct _mem_cb_data {
     bp_syscall_t* bp_ssdt;
     // number of entries in ssdt
     unsigned int nb_services;
+    // hash [gfn] -> [syscall list]
+    GHashTable* hash_gfn_to_syscalls;
 } mem_cb_data_t;
 
 // Data struct to pass a context to the breakpoint callback
@@ -168,6 +169,7 @@ bool mem_access_size_from_insn(INSTRUX *insn, size_t *size)
 
 event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
+    (void)vmi;  // unused
     event_response_t rsp = VMI_EVENT_RESPONSE_NONE;
     interrupt_event_t* int_event = &event->interrupt_event;
     bp_cb_data_t* cb_data = event->data;
@@ -194,7 +196,7 @@ event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
     // don't reinject
     event->interrupt_event.reinject = 0;
     // set previous opcode for emulation
-    event->emul_insn = &bp_syscall->emul;
+    event->emul_insn = &bp_syscall->emul_insn;
     // set response to emulate instruction
     rsp |= VMI_EVENT_RESPONSE_SET_EMUL_INSN;
 
@@ -224,116 +226,112 @@ event_response_t cb_on_rw_access(vmi_instance_t vmi, vmi_event_t *event)
         return rsp;
     }
 
-    // our syscall's gfns ?
+    // get [gfn] -> [syscall list]
+    GSList* syscall_list = (GSList*)g_hash_table_lookup(cb_data->hash_gfn_to_syscalls, &mem_event->gfn);
+    if (!syscall_list) {
+        fprintf(stderr, "No syscalls associated with GFN 0x%"PRIx64"\n", mem_event->gfn);
+        return rsp;
+    }
 
+    // read a buffer of an x86 insn max size at RIP (15 Bytes)
+    uint8_t insn_buffer[MAX_SIZE_X86_INSN] = {0};
+    size_t bytes_read = 0;
+    if (VMI_FAILURE == vmi_read_va(vmi, event->x86_regs->rip, 0, MAX_SIZE_X86_INSN, insn_buffer, &bytes_read)) {
+        fprintf(stderr, "Failed to read buffer at RIP\n");
+        return rsp;
+    }
 
-    // // this check is useless since we configured the callback only on a specific GFN
-    // // however, if the read event was generic, we should filter early on the GFN we are expecting to intercept
-    // if (!(event->mem_event.gfn == cb_data->target_gfn)) {
-    //     // not in the gfn we are looking for
-    //     return rsp;
-    // }
+    // check bytes_read
+    if (bytes_read != MAX_SIZE_X86_INSN) {
+        fprintf(stderr, "Failed to read enough bytes at RIP\n");
+        return rsp;
+    }
 
-    // if (!(event->mem_event.out_access & VMI_MEMACCESS_R)) {
-    //     // not a read event. skip.
-    //     return rsp;
-    // }
+    // disassemble next instruction with libbdisasm
+    uint8_t defcode = ND_CODE_32;
+    uint8_t defdata = ND_DATA_32;
+    if (cb_data->is64) {
+        defcode = ND_CODE_64;
+        defdata = ND_DATA_64;
+    }
 
-    // // read a buffer of an x86 insn max size at RIP (15 Bytes)
-    // uint8_t insn_buffer[MAX_SIZE_X86_INSN] = {0};
-    // size_t bytes_read = 0;
-    // if (VMI_FAILURE == vmi_read_va(vmi, event->x86_regs->rip, 0, MAX_SIZE_X86_INSN, insn_buffer, &bytes_read)) {
-    //     fprintf(stderr, "Failed to read buffer at RIP\n");
-    //     return rsp;
-    // }
+    INSTRUX rip_insn;
+    NDSTATUS status = NdDecodeEx(&rip_insn, insn_buffer, sizeof(insn_buffer), defcode, defdata);
+    if (!ND_SUCCESS(status)) {
+        fprintf(stderr, "Failed to decode instruction with libbdisasm: %x\n", status);
+        return rsp;
+    }
 
-    // // check bytes_read
-    // if (bytes_read != MAX_SIZE_X86_INSN) {
-    //     fprintf(stderr, "Failed to read enough bytes at RIP\n");
-    //     return rsp;
-    // }
+    // determine memory access size
+    size_t access_size = 0;
+    if (!mem_access_size_from_insn(&rip_insn, &access_size)) {
+        return rsp;
+    }
+    // Debug
+    // printf("Read access size: %ld\n", access_size);
 
-    // // disassemble next instruction with libbdisasm
-    // uint8_t defcode = ND_CODE_32;
-    // uint8_t defdata = ND_DATA_32;
-    // if (cb_data->is64) {
-    //     defcode = ND_CODE_64;
-    //     defdata = ND_DATA_64;
-    // }
+    // find read guest physical addr
+    addr_t read_paddr = 0;
+    if (VMI_FAILURE == vmi_translate_kv2p(vmi, event->mem_event.gla, &read_paddr)) {
+        fprintf(stderr, "Failed to translate read virtual address\n");
+        return rsp;
+    }
 
-    // INSTRUX rip_insn;
-    // NDSTATUS status = NdDecodeEx(&rip_insn, insn_buffer, sizeof(insn_buffer), defcode, defdata);
-    // if (!ND_SUCCESS(status)) {
-    //     fprintf(stderr, "Failed to decode instruction with libbdisasm: %x\n", status);
-    //     return rsp;
-    // }
+    range_t read_zone = {
+        .start = read_paddr,
+        .size = access_size,
+        .end = read_paddr + access_size
+    };
 
-    // // determine memory access size
-    // size_t access_size = 0;
-    // if (!mem_access_size_from_insn(&rip_insn, &access_size)) {
-    //     return rsp;
-    // }
-    // // Debug
-    // // printf("Read access size: %ld\n", access_size);
+    // iterate over syscall list to find out if the read access could fetch the breakpoints we inserted
+    for (GSList* cur_item = syscall_list; cur_item; cur_item = g_slist_next(cur_item)) {
+        bp_syscall_t* bp_syscall = (bp_syscall_t*)cur_item->data;
+        // check if zones are overlapping
+        range_t syscall_bp_zone = {
+            .start = bp_syscall->syscall_paddr,
+            .size = sizeof(x86_bp),
+            .end = bp_syscall->syscall_paddr + sizeof(x86_bp)
+        };
+        range_t overlap = {0};
+        if (is_zone_read(&read_zone, &syscall_bp_zone, &overlap)) {
+            // overlap !
+            // get insn string
+            char insn_str[ND_MIN_BUF_SIZE];
+            NdToText(&rip_insn, 0, sizeof(insn_str), insn_str);
+            printf("Read on syscall %d (size: %ld)\n", bp_syscall->syscall_number, overlap.size);
+            printf("\t0x%"PRIx64": %s\n", event->x86_regs->rip, insn_str);
 
-    // // find read guest physical addr
-    // addr_t read_paddr = 0;
-    // if (VMI_FAILURE == vmi_translate_kv2p(vmi, event->mem_event.gla, &read_paddr)) {
-    //     fprintf(stderr, "Failed to translate read virtual address\n");
-    //     return rsp;
-    // }
+            // assume PatchGuard if read with a XOR
+            if (rip_insn.Instruction == ND_INS_XOR) {
+                printf("\tXOR read: Patchguard check !\n");
+            }
 
-    // // check if zones are overlapping
-    // range_t read_zone = {
-    //     .start = read_paddr,
-    //     .size = access_size,
-    //     .end = read_paddr + access_size
-    // };
-    // range_t syscall_entry_zone = {
-    //     .start = cb_data->target_entry_paddr,
-    //     .size = KISERVICE_ENTRY_SIZE,
-    //     .end = cb_data->target_entry_paddr + KISERVICE_ENTRY_SIZE
-    // };
-    // range_t overlap = {0};
-    // if (is_zone_read(&read_zone, &syscall_entry_zone, &overlap)) {
-    //     // overlap !
-    //     // get insn string
-    //     char insn_str[ND_MIN_BUF_SIZE];
-    //     NdToText(&rip_insn, 0, sizeof(insn_str), insn_str);
-    //     printf("Read on KiServiceTable %s entry (size: %ld)\n", cb_data->target, overlap.size);
-    //     printf("\t0x%"PRIx64": %s\n", event->x86_regs->rip, insn_str);
+            // read actual buffer at from physical memory
+            bytes_read = 0;
+            if (VMI_FAILURE == vmi_read_pa(vmi, read_zone.start, access_size, &bp_syscall->emul_read.data, &bytes_read)) {
+                fprintf(stderr, "Failed to read buffer from read start paddr\n");
+                return rsp;
+            }
 
-    //     // assume PatchGuard if read with a XOR
-    //     if (rip_insn.Instruction == ND_INS_XOR) {
-    //         printf("\tXOR read: Patchguard check !\n");
-    //     }
+            if (bytes_read != access_size) {
+                fprintf(stderr, "Failed to read enough bytes\n");
+                return rsp;
+            }
+            // overwrite part of the read buffer to hide
+            int overwrite_start = overlap.start - read_zone.start;
+            memcpy(&bp_syscall->emul_read.data + overwrite_start, &bp_syscall->emul_insn.data, sizeof(x86_bp));
+            // assign emul_read ptr
+            event->emul_read = &bp_syscall->emul_read;
+            printf("\tEmulated read content:\n");
+            for (size_t i = 0; i < bp_syscall->emul_read.size; i++) {
+                printf("\t\t0x%"PRIx64": %02X\n", read_zone.start + i, bp_syscall->emul_read.data[i]);
+            }
+            // set response to emulate read data
+            rsp |= VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA;
+        }
+    }
 
-    //     // set data to be emulated
-    //     g_emul_read.size = access_size;
-    //     // read actual buffer at from physical memory
-    //     bytes_read = 0;
-    //     if (VMI_FAILURE == vmi_read_pa(vmi, read_zone.start, access_size, &g_emul_read.data, &bytes_read)) {
-    //         fprintf(stderr, "Failed to read buffer from read start paddr\n");
-    //         return rsp;
-    //     }
-
-    //     if (bytes_read != access_size) {
-    //         fprintf(stderr, "Failed to read enough bytes\n");
-    //         return rsp;
-    //     }
-    //     // overwrite part of the read buffer with fake syscall entry's presence
-    //     int overwrite_start = overlap.start - read_zone.start;
-    //     memcpy(&g_emul_read.data + overwrite_start, &cb_data->target_service_table_val, KISERVICE_ENTRY_SIZE);
-    //     // assign emul_read ptr
-    //     event->emul_read = &g_emul_read;
-    //     printf("\tEmulated read content:\n");
-    //     for (size_t i = 0; i < g_emul_read.size; i++) {
-    //         printf("\t\t0x%"PRIx64": %02X\n", read_zone.start + i, g_emul_read.data[i]);
-    //     }
-    //     // set response to emulate read data
-    //     rsp |= VMI_EVENT_RESPONSE_SET_EMUL_READ_DATA;
-    // }
-
+    rsp |= VMI_EVENT_RESPONSE_EMULATE;
     return rsp;
 }
 
@@ -347,8 +345,12 @@ int main (int argc, char **argv)
     bool is64 = false;
     // our breakpointed ssdt
     bp_syscall_t* bp_ssdt = NULL;
-    // hash [syscall addr] -> [syscall breakpoint context]
+    // hash [syscall addr: addr_t] -> [syscall breakpoint context: bp_syscall_t*]
+    // used in breakpoint callback to find the syscall context
     GHashTable* hash_syscall_to_ctxt = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
+    // hash [gfn: addr_t] -> [syscall_list: GSList*]
+    // used in memory read/write callback to search if a syscall's modified code might have been read
+    GHashTable* hash_gfn_to_syscalls = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
     addr_t nb_services = 0;
 
     act.sa_handler = close_handler;
@@ -473,6 +475,7 @@ int main (int argc, char **argv)
     mem_cb_data_t cb_data = {0};
     cb_data.is64 = is64;
     cb_data.nb_services = nb_services;
+    cb_data.hash_gfn_to_syscalls = hash_gfn_to_syscalls;
     cb_data.bp_ssdt = bp_ssdt;
     // set event callback data
     read_event.data = (void*)&cb_data;
@@ -510,8 +513,9 @@ int main (int argc, char **argv)
             fprintf(stderr,"Failed to allocate memory\n");
             goto error_exit;
         }
-        bp_syscall->emul.dont_free = 1;
+        bp_syscall->emul_insn.dont_free = 1;
         bp_syscall->syscall_number = i;
+        bp_syscall->emul_read.dont_free = 1;
 
         // translate to physical address
         if (VMI_FAILURE == vmi_translate_kv2p(vmi, syscall_addr, &bp_syscall->syscall_paddr)) {
@@ -521,6 +525,14 @@ int main (int argc, char **argv)
         }
         // set gfn
         bp_syscall->syscall_gfn = bp_syscall->syscall_paddr >> 12;
+
+        // get syscall list for this GFN and add
+        // [gfn] -> [syscall list]
+        GSList* syscall_list = g_hash_table_lookup(hash_gfn_to_syscalls, &bp_syscall->syscall_gfn);
+        // insert element in list
+        syscall_list = g_slist_append(syscall_list, (gpointer)bp_syscall);
+        // (re)insert in hashtable (list head may have changed)
+        g_hash_table_insert(hash_gfn_to_syscalls, g_slice_dup(addr_t, &bp_syscall->syscall_gfn), syscall_list);
 
         // watch this gfn
         if (VMI_FAILURE == vmi_set_mem_event(vmi, bp_syscall->syscall_gfn, VMI_MEMACCESS_RW, 0)) {
@@ -549,7 +561,7 @@ int main (int argc, char **argv)
         NdToText(&insn, 0, sizeof(bp_syscall->insn_str), bp_syscall->insn_str);
 
         // copy first insn in emulation buffer
-        memcpy(bp_syscall->emul.data, insn_buffer, insn.Length);
+        memcpy(bp_syscall->emul_insn.data, insn_buffer, insn.Length);
 
         // insert breakpoint
         printf("[%d] Insert breakpoint at 0x%"PRIx64"\n", i, syscall_addr);
@@ -605,12 +617,15 @@ error_exit:
     vmi_pause_vm(vmi);
     for (unsigned int i=0; i < nb_services; i++) {
         if (bp_ssdt && bp_ssdt[i].present) {
-            if (VMI_FAILURE == vmi_write_va(vmi, bp_ssdt[i].syscall_addr, 0, sizeof(x86_bp), bp_ssdt[i].emul.data, NULL)) {
+            if (VMI_FAILURE == vmi_write_va(vmi, bp_ssdt[i].syscall_addr, 0, sizeof(x86_bp), bp_ssdt[i].emul_insn.data, NULL)) {
                 fprintf(stderr, "[%d] Failed to restore syscall opcode\n", i);
                 continue;
             }
         }
     }
+
+    vmi_clear_event(vmi, &bp_event, NULL);
+    vmi_clear_event(vmi, &read_event, NULL);
 
     vmi_resume_vm(vmi);
     // cleanup any memory associated with the libvmi instance
@@ -618,6 +633,11 @@ error_exit:
 
     if (hash_syscall_to_ctxt) {
         g_hash_table_destroy(hash_syscall_to_ctxt);
+    }
+
+    if (hash_gfn_to_syscalls) {
+        // free lists
+        g_hash_table_destroy(hash_gfn_to_syscalls);
     }
 
     if (bp_ssdt) {
