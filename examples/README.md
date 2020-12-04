@@ -52,32 +52,33 @@ A demo of the event API using `MSRs`, `memory access` and `CR3` events.
 
 ### Overview
 
-The goal is to intercept read accesses on a syscall entry in the `SSDT` and return custom values,
-while detecting PatchGuard checks.
+This example will insert breakpoint in every Nt syscall and protect them from
+Patchguard read by returning fake data.
 
 ### How it works
 
-It will find the index of the syscall symbol passed as parameter in the `SSDT` (`KiServiceTable`), and corrupt the entry.
+It iterates through the syscall by locating the `KiServiceTable`, inserting a
+breakpoint on the syscall handler and protecting the frame by a read / write
+event
 
-Then it configures a read/write interception on the `GFN` (`Guest Frame Number`) where this entry is located in physical memory.
+When a breakpoint is hit, simply emulate the original instruction via `VMI_EVENT_RESPONSE_SET_EMUL_INSN`
 
-Upon read/write events, the following actions are made:
+When a read /write access is received:
 
 1. filter on read events
 2. disassemble the instruction that caused the read
 3. determine the read size from the instruction
-4. check if the read operation affects the `KiServiceTable` entry we have corrupted
+4. check if this read access affects one of the breakpoints we inserted
 5. if that's the case, display which instruction is responsible for it
 6. if the instruction is a `XOR`, assume that PatchGuard was checking the memory
 7. finally emulate the read by responding with a custom input buffer where the syscall entry's content is present
 
 Example output:
 
-![fool-patchguard_output](https://user-images.githubusercontent.com/964610/99801854-fabf4700-2b36-11eb-8cb7-ea5de3786f84.png)
+![fool-patchguard_output](https://user-images.githubusercontent.com/964610/101176653-12262600-3647-11eb-93ea-e31bf7fc2bc3.png)
+![fool-patchguard_output2](https://user-images.githubusercontent.com/964610/101176776-3f72d400-3647-11eb-895d-c5cf8c872787.png)
 
-The first read access is made by WinDBG. The second is likely to be a PatchGuard check.
-
-To display the entry in `WinDBG` (Win7 64 bits):
+To display a syscall `KiServiceTable` in `WinDBG` (Win7 64 bits):
 
 - Note the entry index: `Found NtLoadDriver SSDT entry: 220 (0xDC)` -> `0xDC` here
 - `lkd: dd /c1 KiServiceTable+4*<syscall_index>` -> this will trigger a read access
