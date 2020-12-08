@@ -718,6 +718,10 @@ kvm_destroy(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+    if (!kvm) {
+        return;
+    }
+    
     destroy_domain_socket(kvm);
 
     if (kvm->dom) {
