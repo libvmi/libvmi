@@ -721,7 +721,7 @@ kvm_destroy(
     if (!kvm) {
         return;
     }
-    
+
     destroy_domain_socket(kvm);
 
     if (kvm->dom) {
