@@ -268,6 +268,10 @@ PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16],[],[AC_MSG_ERROR(GLib 2.16 or newer
 PKG_CHECK_MODULES([JSONC], [json-c], [have_jsonc='yes'], [have_jsonc='no'])
 AC_CHECK_LIB(json-c, json_object_get_uint64, [AC_DEFINE([JSONC_UINT64_SUPPORT], [1], [json-c supports unsigned 64-bit values])], [])
 
+# Some examples depends on libddisasm disassembler
+PKG_CHECK_MODULES([BDDISASM], [libbddisasm], [have_bddisasm="yes"], [have_bddisasm="no"])
+AM_CONDITIONAL([HAVE_BDDISASM], [test x"$have_bddisasm" = xyes])
+
 [if test "$enable_xen" = "yes" || test "$enable_kvm" = "yes"]
 [then]
     AC_CHECK_LIB(dl, dlopen, [],

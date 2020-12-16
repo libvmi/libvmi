@@ -231,8 +231,8 @@ endif
                        examples/singlestep-event-example \
                        examples/interrupt-event-example \
                        examples/step-event-example \
-                       examples/xen-emulate-response \
-                       examples/breakpoint-emulate-example
+                       examples/xen-emulate-response
+
 
     examples_map_symbol_SOURCES = examples/map-symbol.c
     examples_map_addr_SOURCES = examples/map-addr.c
@@ -242,7 +242,15 @@ endif
     examples_interrupt_event_example_SOURCES = examples/interrupt-event-example.c
     examples_step_event_example_SOURCES = examples/step-event-example.c
     examples_xen_emulate_response_SOURCES = examples/xen-emulate-response.c
+
+
+# examples depending on libbddisasm
+if HAVE_BDDISASM
     examples_breakpoint_emulate_example_SOURCES = examples/breakpoint-emulate-example.c
+    examples_breakpoint_emulate_example_CFLAGS = $(BDDISASM_CFLAGS)
+    examples_breakpoint_emulate_example_LDADD = $(BDDISASM_LIBS) libvmi/libvmi.la
+    noinst_PROGRAMS += examples/breakpoint-emulate-example
+endif
 
     noinst_PROGRAMS += examples/va-pages
     examples_va_pages_SOURCES = examples/va-pages.c
