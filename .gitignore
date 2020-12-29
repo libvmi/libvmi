@@ -36,6 +36,7 @@ libvmi/config/lexicon.c
 **/*.lo
 **/*.Plo
 **/*.Po
+**/*.Tpo
 **/.dirstamp
 build
 autom4te.cache/*
@@ -54,6 +55,7 @@ compile
 config.guess
 config.h
 config.h.in
+config.h.in~
 config.log
 config.status
 config.sub

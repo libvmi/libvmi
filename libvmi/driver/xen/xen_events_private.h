@@ -75,6 +75,7 @@ typedef struct vm_event_compat {
     uint32_t flags;
     uint32_t reason;
     uint32_t vcpu_id;
+    page_mode_t pm;
     uint16_t altp2m_idx;
 
     union {
@@ -123,6 +124,7 @@ typedef struct {
         vm_event_4_back_ring_t back_ring_4;
         vm_event_5_back_ring_t back_ring_5;
         vm_event_6_back_ring_t back_ring_6;
+        vm_event_7_back_ring_t back_ring_7;
     };
     xen_pfn_t max_gpfn;
     uint32_t monitor_capabilities;

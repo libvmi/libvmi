@@ -63,11 +63,10 @@ windows_kernel_symbol_to_address(
     dbprint(VMI_DEBUG_MISC, "--trying kernel PE export table\n");
 
     /* check exports */
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_PROCESS_PID,
-        .addr = windows->ntoskrnl_va,
-        .pid = 0
-    };
+    ACCESS_CONTEXT(ctx,
+                   .pm = vmi->page_mode,
+                   .translate_mechanism = VMI_TM_PROCESS_PID,
+                   .addr = windows->ntoskrnl_va);
 
     if (VMI_SUCCESS == windows_export_to_rva(vmi, &ctx, symbol, &rva)) {
         *address = windows->ntoskrnl_va + rva;

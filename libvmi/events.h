@@ -33,7 +33,7 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
-#define VMI_EVENTS_VERSION 0x00000007
+#define VMI_EVENTS_VERSION 0x00000008
 
 #ifdef __cplusplus
 extern "C" {
@@ -326,6 +326,9 @@ typedef struct {
              *   Set reinject to 0 to swallow it silently without
              */
             int8_t reinject;
+            addr_t gla;         /**< (Global Linear Address) == RIP of the trapped instruction */
+            addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
+            addr_t offset;      /**< Offset in bytes (relative to GFN) */
 
             uint16_t _pad1;
         };
@@ -340,11 +343,6 @@ typedef struct {
             uint64_t cr2;
         };
     };
-
-    /* OUT */
-    addr_t gla;         /**< (Global Linear Address) == RIP of the trapped instruction */
-    addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
-    addr_t offset;      /**< Offset in bytes (relative to GFN) */
 } interrupt_event_t;
 
 typedef struct {
@@ -512,10 +510,13 @@ struct vmi_event {
     /* OUT */
     uint32_t vcpu_id; /**< The VCPU relative to which the event occurred. */
 
+    /* OUT */
+    page_mode_t page_mode;
+
     /**
      * Reserved for future use
      */
-    uint32_t _reserved[7];
+    uint32_t _reserved[6];
 
     union {
         reg_event_t reg_event;

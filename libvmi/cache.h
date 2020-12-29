@@ -35,8 +35,6 @@ typedef struct key_128 *key_128_t;
 uint64_t hash128to64(uint64_t low, uint64_t high);
 guint key_128_hash(gconstpointer key);
 gboolean key_128_equals(gconstpointer key1, gconstpointer key2);
-void key_128_init(vmi_instance_t vmi, key_128_t key, uint64_t low, uint64_t high);
-key_128_t key_128_build (vmi_instance_t vmi, uint64_t low, uint64_t high);
 
 #ifdef ENABLE_ADDRESS_CACHE
 
@@ -63,10 +61,10 @@ status_t rva_cache_del(vmi_instance_t vmi, addr_t base_addr, addr_t dtb, addr_t 
 
 void v2p_cache_init(vmi_instance_t vmi);
 void v2p_cache_destroy(vmi_instance_t vmi);
-void v2p_cache_set(vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t pa);
-void v2p_cache_flush(vmi_instance_t vmi, addr_t dtb);
-status_t v2p_cache_get(vmi_instance_t vmi, addr_t va, addr_t dtb, addr_t *pa);
-status_t v2p_cache_del(vmi_instance_t vmi, addr_t va, addr_t dtb);
+void v2p_cache_set(vmi_instance_t vmi, addr_t va, addr_t pt, addr_t npt, addr_t pa);
+void v2p_cache_flush(vmi_instance_t vmi, addr_t pt, addr_t npt);
+status_t v2p_cache_get(vmi_instance_t vmi, addr_t va, addr_t pt, addr_t npt, addr_t *pa);
+status_t v2p_cache_del(vmi_instance_t vmi, addr_t va, addr_t np, addr_t npt);
 
 #else
 

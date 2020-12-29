@@ -889,9 +889,7 @@ find_kdbg_address_faster(
     // then switch to the upper part if needed
     int step = -VMI_PS_4KB;
     addr_t page_paddr;
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_NONE,
-    };
+    ACCESS_CONTEXT(ctx);
 
 scan:
     if ( VMI_FAILURE == vmi_pagetable_lookup(vmi, cr3, fsgs, &page_paddr) )
@@ -1120,14 +1118,14 @@ init_from_kdbg(
      * but can't verify if there is no arch for doing translations.
      */
     if (windows->kdbg_va && windows->kdbg_offset && windows->ntoskrnl
-            && !vmi->arch_interface) {
+            && VMI_PM_UNKNOWN == vmi->page_mode) {
         /* All values were user specified, so set them, but we can't use
          * translations to verify them */
         windows->ntoskrnl_va = windows->kdbg_va - windows->kdbg_offset;
         goto done;
     }
 
-    if (!vmi->arch_interface) {
+    if (VMI_PM_UNKNOWN == vmi->page_mode) {
         /* nothing that requires a virtual-to-physical translation will work
          * so skip straight to the physical only methods. */
         goto find_kdbg;

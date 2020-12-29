@@ -23,22 +23,52 @@
 
 #include "private.h"
 
-typedef status_t (*arch_v2p_t)
+typedef status_t (*arch_lookup_t)
 (vmi_instance_t vmi,
- addr_t dtb,
- addr_t vaddr,
+ addr_t npt,
+ page_mode_t npm,
+ addr_t pt,
+ addr_t addr,
  page_info_t *info);
-typedef GSList* (*arch_get_va_pages_t)
+typedef GSList* (*arch_get_pages_t)
 (vmi_instance_t vmi,
+ addr_t npt,
+ page_mode_t npm,
  addr_t dtb);
 
-struct arch_interface {
-    arch_v2p_t v2p;
-    arch_get_va_pages_t get_va_pages;
-};
-typedef struct arch_interface *arch_interface_t;
+typedef struct arch_interface {
+    arch_lookup_t lookup[VMI_PM_EPT_5L + 1];
+    arch_get_pages_t get_pages[VMI_PM_EPT_5L + 1];
+} arch_interface_t;
 
 status_t get_vcpu_page_mode(vmi_instance_t vmi, unsigned long vcpu, page_mode_t *out_pm);
 status_t arch_init(vmi_instance_t vmi);
+
+static inline bool valid_npm(page_mode_t npm)
+{
+    return npm == VMI_PM_EPT_4L;
+}
+
+static inline bool valid_pm(page_mode_t pm)
+{
+    return pm >= VMI_PM_LEGACY && pm < VMI_PM_EPT_5L;
+}
+
+static inline
+page_mode_t get_page_mode_x86(reg_t cr0, reg_t cr4, reg_t efer)
+{
+    if (!VMI_GET_BIT(cr0, 31))
+        return VMI_PM_NONE;
+
+    if (!VMI_GET_BIT(cr4, 5))
+        return VMI_PM_LEGACY;
+
+    if (!VMI_GET_BIT(efer, 8))
+        return VMI_PM_PAE;
+
+    return VMI_PM_IA32E;
+}
+
+void arch_init_lookup_tables(vmi_instance_t vmi);
 
 #endif /* ARCH_INTERFACE_H_ */
