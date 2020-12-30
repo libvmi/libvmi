@@ -17,6 +17,7 @@ examples/step-event-example
 examples/va-pages
 examples/xen-emulate-response
 examples/breakpoint-emulate-example
+examples/vmi-dmesg
 libtool
 libvmi.pc
 tests/check_libvmi
@@ -27,6 +28,7 @@ tools/linux-offset-finder/.tmp_versions/
 tools/linux-offset-finder/findoffsets.ko
 tools/linux-offset-finder/findoffsets.mod.c
 tools/linux-offset-finder/modules.order
+tools/vmifs/vmifs
 libvmi/config/grammar.c
 libvmi/config/grammar.h
 libvmi/config/lexicon.c
@@ -51,6 +53,7 @@ ylwrap
 compile
 config.guess
 config.h
+config.h.in
 config.log
 config.status
 config.sub
