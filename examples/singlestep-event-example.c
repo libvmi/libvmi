@@ -40,7 +40,7 @@ static void close_handler(int sig)
 
 event_response_t single_step_callback(vmi_instance_t vmi, vmi_event_t *event)
 {
-    vmi = vmi;
+    (void)vmi;
     printf("Single-step event: VCPU:%u  GFN %"PRIx64" GLA %016"PRIx64"\n",
            event->vcpu_id,
            event->ss_event.gfn,
