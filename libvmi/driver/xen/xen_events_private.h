@@ -193,6 +193,4 @@ convert_vmi_flags_to_xenmem(vmi_mem_access_t page_access_flag, xenmem_access_t *
     return VMI_SUCCESS;
 }
 
-typedef struct xen_instance xen_instance_t;
-
 #endif
