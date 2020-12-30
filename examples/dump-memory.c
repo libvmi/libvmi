@@ -189,8 +189,9 @@ int main(int argc, char **argv)
     char zeros[FRAME_SIZE];
     memset(zeros, 0, FRAME_SIZE);
     addr_t addr_max = vmi_get_max_physical_address(vmi);
+    addr_t address;
 
-    for (addr_t address = 0; address < addr_max && !interrupted; address += FRAME_SIZE) {
+    for (address = 0; address < addr_max && !interrupted; address += FRAME_SIZE) {
         if (progress_flag && (address % PROGRESS_STRIDE == 0)) {
             printf("Progress: %lu%%\n", (address * 100) / addr_max);
         }
