@@ -1,0 +1,13 @@
+--enable-kvm-legacy
+CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL --enable-debug
+--disable-address-cache --disable-page-cache
+--without-xenstore
+--disable-configfile --disable-examples
+--disable-rekall-profiles --disable-examples
+--disable-volatility-ist --disable-examples
+--disable-kvm --disable-bareflank --disable-volatility-ist --disable-rekall-profiles --disable-examples
+--disable-safety-checks
+--disable-kvm --disable-bareflank --disable-file
+--disable-kvm --disable-bareflank --disable-xen
+--disable-xen --disable-bareflank --disable-file
+--disable-kvm --disable-xen --disable-file

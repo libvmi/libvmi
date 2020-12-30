@@ -45,14 +45,6 @@
 
 #ifndef ENABLE_CONFIGFILE
 static inline status_t
-read_config_file(vmi_instance_t UNUSED(vmi),
-                 FILE* UNUSED(config_file),
-                 GHashTable** UNUSED(_config))
-{
-    return VMI_FAILURE;
-}
-
-static inline status_t
 read_config_string(vmi_instance_t UNUSED(vmi),
                    const char* UNUSED(config),
                    GHashTable** UNUSED(_config),
