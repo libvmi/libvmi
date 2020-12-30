@@ -35,6 +35,7 @@ jobs:
         yum install -y autoconf-archive flex bison json-c-devel xen-devel libvirt-devel fuse-devel clang gcc cmake git libtool glib2-devel file make
 
     - name: Install libkvmi
+      if: startsWith(matrix.container,'debian') || startsWith(matrix.container,'ubuntu')
       run: |
         git clone --depth=2 https://github.com/libvmi/libkvmi
         cd libkvmi
@@ -52,8 +53,14 @@ jobs:
     - name: Compile (autotools)
       env:
         CC: ${{ matrix.compiler }}
+        CONTAINER: ${{ matrix.container }}
       run: |
         while IFS= read -r options; do
+
+          if [ $CONTAINER == 'centos:centos7' ]; then
+            options="$options --disable-kvm"
+          fi
+
           echo "Building with '$options'"
           autoreconf -vif
           ./configure $options
