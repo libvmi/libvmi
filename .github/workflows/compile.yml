@@ -38,6 +38,7 @@ jobs:
         env:
           CC: ${{ matrix.compiler }}
         if: matrix.builder == 'cmake'
+        continue-on-error: true
         run: |
           while IFS= read -r options; do
             echo "Building with '$options'"
