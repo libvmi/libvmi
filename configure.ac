@@ -193,6 +193,7 @@ dnl -----------------------------------------------
 
 AC_PROG_CC
 AM_PROG_CC_C_O
+AC_PROG_CC_C99
 AM_SANITY_CHECK
 AM_PROG_AS
 
@@ -222,8 +223,8 @@ HARDEN_LDFLAGS=""
 AS_IF([test x"$hardening" != x"no"], [
   check_cc_flag([-fno-strict-overflow], [HARDEN_CFLAGS="$HARDEN_CFLAGS -fno-strict-overflow"])
 
-# This one will likely succeed, even on platforms where it does nothing.
-  check_cc_flag([-D_FORTIFY_SOURCE=2], [HARDEN_CFLAGS="$HARDEN_CFLAGS -D_FORTIFY_SOURCE=2"])
+  # This one will likely succeed, even on platforms where it does nothing.
+  check_cc_flag([-D_FORTIFY_SOURCE=2 -O2], [HARDEN_CFLAGS="$HARDEN_CFLAGS -D_FORTIFY_SOURCE=2 -O2"])
 
   check_cc_flag([-fstack-protector-all],
    [check_link_flag([-fstack-protector-all],
