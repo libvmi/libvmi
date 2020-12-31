@@ -58,7 +58,7 @@ jobs:
         while IFS= read -r options; do
 
           if [ $CONTAINER == 'centos:centos7' ]; then
-            options="$options --disable-kvm --disable-hardening"
+            options="$options --disable-kvm"
           fi
 
           echo "Building with '$options'"
