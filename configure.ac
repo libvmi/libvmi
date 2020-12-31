@@ -193,6 +193,7 @@ dnl -----------------------------------------------
 
 AC_PROG_CC
 AM_PROG_CC_C_O
+AC_PROG_CC_C99
 AM_SANITY_CHECK
 AM_PROG_AS
 
