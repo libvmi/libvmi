@@ -3,7 +3,7 @@ dnl Initialization macros.
 dnl --------------------------------
 
 AC_PREREQ([2.60])
-AC_INIT([libvmi], [0.13.0])
+AC_INIT([libvmi], [0.15.0])
 AM_INIT_AUTOMAKE([1.10 no-define foreign subdir-objects])
 
 LT_INIT
@@ -16,7 +16,7 @@ AC_CANONICAL_HOST
 
 LIBRARY_NAME=libvmi
 MAJOR_VERSION=0
-MINOR_VERSION=13
+MINOR_VERSION=15
 MICRO_VERSION=0
 VERSION=$MAJOR_VERSION:$MINOR_VERSION:$MICRO_VERSION
 RELEASE=$MAJOR_VERSION.$MINOR_VERSION
@@ -193,6 +193,7 @@ dnl -----------------------------------------------
 
 AC_PROG_CC
 AM_PROG_CC_C_O
+AC_PROG_CC_C99
 AM_SANITY_CHECK
 AM_PROG_AS
 
@@ -222,8 +223,8 @@ HARDEN_LDFLAGS=""
 AS_IF([test x"$hardening" != x"no"], [
   check_cc_flag([-fno-strict-overflow], [HARDEN_CFLAGS="$HARDEN_CFLAGS -fno-strict-overflow"])
 
-# This one will likely succeed, even on platforms where it does nothing.
-  check_cc_flag([-D_FORTIFY_SOURCE=2], [HARDEN_CFLAGS="$HARDEN_CFLAGS -D_FORTIFY_SOURCE=2"])
+  # This one will likely succeed, even on platforms where it does nothing.
+  check_cc_flag([-D_FORTIFY_SOURCE=2 -O2], [HARDEN_CFLAGS="$HARDEN_CFLAGS -D_FORTIFY_SOURCE=2 -O2"])
 
   check_cc_flag([-fstack-protector-all],
    [check_link_flag([-fstack-protector-all],

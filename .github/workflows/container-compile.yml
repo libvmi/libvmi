@@ -1,0 +1,70 @@
+name: container-compile
+on:
+  pull_request:
+    branches: [ master ]
+jobs:
+  compile:
+    strategy:
+      matrix:
+        container:
+          - 'debian:buster-slim'
+          - 'debian:bullseye-slim'
+          - 'ubuntu:rolling'
+          - 'centos:centos7'
+        compiler:
+          - 'gcc'
+          - 'clang'
+
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+    - name: Install dependencies
+      if: startsWith(matrix.container,'debian') || startsWith(matrix.container,'ubuntu')
+      run: |
+        apt-get update -q
+        apt-get install -y autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev clang build-essential cmake git libtool autotools-dev libglib2.0-dev
+        apt-get clean
+
+    - name: Install dependencies
+      if: startsWith(matrix.container,'centos')
+      run: |
+        yum update -y
+        yum install -y centos-release-xen-412
+        yum install -y autoconf-archive flex bison json-c-devel xen-devel libvirt-devel fuse-devel clang gcc cmake git libtool glib2-devel file make
+
+    - name: Install libkvmi
+      if: startsWith(matrix.container,'debian') || startsWith(matrix.container,'ubuntu')
+      run: |
+        git clone --depth=2 https://github.com/libvmi/libkvmi
+        cd libkvmi
+        ./bootstrap
+        ./configure
+        make
+        make install
+        cd ..
+        rm -rf libkvmi
+
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
+
+    - name: Compile (autotools)
+      env:
+        CC: ${{ matrix.compiler }}
+        CONTAINER: ${{ matrix.container }}
+      run: |
+        while IFS= read -r options; do
+
+          if [ $CONTAINER == 'centos:centos7' ]; then
+            options="$options --disable-kvm"
+          fi
+
+          echo "Building with '$options'"
+          autoreconf -vif
+          ./configure $options
+          make
+          make clean
+          echo "Done building with '$options'"
+        done < .github/configure_options.txt

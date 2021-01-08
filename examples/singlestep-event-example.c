@@ -40,7 +40,7 @@ static void close_handler(int sig)
 
 event_response_t single_step_callback(vmi_instance_t vmi, vmi_event_t *event)
 {
-    vmi = vmi;
+    (void)vmi;
     printf("Single-step event: VCPU:%u  GFN %"PRIx64" GLA %016"PRIx64"\n",
            event->vcpu_id,
            event->ss_event.gfn,
@@ -110,8 +110,10 @@ int main (int argc, char **argv)
     single_event.type = VMI_EVENT_SINGLESTEP;
     single_event.callback = single_step_callback;
     single_event.ss_event.enable = 1;
+
     // enable singlestep on all VCPUs
-    for (unsigned int vcpu=0; vcpu < num_vcpus; vcpu++)
+    unsigned int vcpu;
+    for (vcpu=0; vcpu < num_vcpus; vcpu++)
         SET_VCPU_SINGLESTEP(single_event.ss_event, vcpu);
 
     // register
@@ -144,7 +146,7 @@ int main (int argc, char **argv)
     }
 
     // disable singlestep on all vcpus
-    for (unsigned int vcpu=0; vcpu < num_vcpus; vcpu++) {
+    for (vcpu=0; vcpu < num_vcpus; vcpu++) {
         if (VMI_FAILURE == vmi_toggle_single_step_vcpu(vmi, &single_event, vcpu, false)) {
             fprintf(stderr, "Failed to stop singlestepping on VCPU %d\n", vcpu);
             goto error_exit;
@@ -156,17 +158,15 @@ int main (int argc, char **argv)
         goto error_exit;
     }
 
-    // VM should be running
-    // sleep(5);
-
     // toggle singlestep back ON
     // pause before changing VM state
     if (VMI_FAILURE == vmi_pause_vm(vmi)) {
         fprintf(stderr, "Failed to pause VM\n");
         goto error_exit;
     }
+
     printf("Restarting singlestep\n");
-    for (unsigned int vcpu=0; vcpu < num_vcpus; vcpu++) {
+    for (vcpu=0; vcpu < num_vcpus; vcpu++) {
         if (VMI_FAILURE == vmi_toggle_single_step_vcpu(vmi, &single_event, vcpu, true)) {
             fprintf(stderr, "Failed to enable singlestep on VCPU %d\n", vcpu);
             goto error_exit;
@@ -176,8 +176,10 @@ int main (int argc, char **argv)
         fprintf(stderr, "Failed to resume VM\n");
         goto error_exit;
     }
+
     // process a few more singlestep events
-    for (int i=0; i < 5; i++) {
+    int i;
+    for (i=0; i < 5; i++) {
         printf("Waiting for events...\n");
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
             fprintf(stderr, "Failed to listen on events\n");

@@ -120,6 +120,7 @@ if (ENABLE_KVM)
     else ()
         if (ENABLE_KVM_LEGACY)
             # legacy KVM driver
+            target_link_libraries(vmi_shared PRIVATE m)
             find_package(JSON-C)
             set_package_properties(JSON-C PROPERTIES
                 PURPOSE "Dependency for KVM driver")

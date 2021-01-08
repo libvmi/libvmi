@@ -5,8 +5,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 #-----------------------------------------------------------------------------
 #                           GENERAL CONFIGURATION
 #-----------------------------------------------------------------------------
-project(LibVMI VERSION 0.13.0 LANGUAGES C ASM)
-set(VERSION "0.13.0")
+project(LibVMI VERSION 0.15.0 LANGUAGES C ASM)
+set(VERSION "0.15.0")
 
 # build type
 set(default_build_type "Debug")

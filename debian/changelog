@@ -1,3 +1,15 @@
+libvmi (0.15) unstable; urgency=low
+
+  * Bump version.
+
+ -- Tamas K Lengyel <tamas@tklengyel.com>  Tue, 29 Dec 2020 12:34:16 -0700
+
+libvmi (0.14) unstable; urgency=low
+
+  * Bump version.
+
+ -- Tamas K Lengyel <tamas@tklengyel.com>  Tue, 29 Dec 2020 12:34:16 -0700
+
 libvmi (0.13) unstable; urgency=low
 
   * Bump version.

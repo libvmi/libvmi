@@ -35,7 +35,7 @@ vmi_event_t interrupt_event;
 
 event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    vmi = vmi;
+    (void)vmi;
     printf("Int 3 happened: GFN=%"PRIx64" RIP=%"PRIx64" Length: %"PRIu32"\n",
            event->interrupt_event.gfn, event->interrupt_event.gla,
            event->interrupt_event.insn_length);

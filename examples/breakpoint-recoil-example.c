@@ -57,6 +57,9 @@ event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
     }
     // get back callback data struct
     struct bp_cb_data *cb_data = (struct bp_cb_data*)event->data;
+
+    // default reinjection behavior
+    event->interrupt_event.reinject = 1;
     // printf("INT3 event: GFN=%"PRIx64" RIP=%"PRIx64" Length: %"PRIu32"\n",
     //        event->interrupt_event.gfn, event->interrupt_event.gla,
     //        event->interrupt_event.insn_length);
@@ -75,10 +78,12 @@ event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
 
     if (event->x86_regs->rip != cb_data->sym_vaddr) {
         // not our breakpoint
-        event->interrupt_event.reinject = 1;
         printf("Not our breakpoint. Reinjecting INT3\n");
         return VMI_EVENT_RESPONSE_NONE;
     } else {
+        // our breakpoint
+        // do not reinject
+        event->interrupt_event.reinject = 0;
         printf("[%"PRIu32"] Breakpoint hit at %s. Count: %"PRIu64"\n", event->vcpu_id, cb_data->symbol, cb_data->hit_count);
         cb_data->hit_count++;
         // recoil
