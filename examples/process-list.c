@@ -187,7 +187,7 @@ int main (int argc, char **argv)
 
     cur_list_entry = list_head;
     if (VMI_FAILURE == vmi_read_addr_va(vmi, cur_list_entry, 0, &next_list_entry)) {
-        printf("Failed to read next pointer in loop at %"PRIx64"\n", cur_list_entry);
+        printf("Failed to read next pointer at %"PRIx64"\n", cur_list_entry);
         goto error_exit;
     }
 
@@ -197,7 +197,7 @@ int main (int argc, char **argv)
         // Advance the pointer once
         status = vmi_read_addr_va(vmi, cur_list_entry, 0, &cur_list_entry);
         if (status == VMI_FAILURE) {
-            printf("Failed to read next pointer in loop at %"PRIx64"\n", cur_list_entry);
+            printf("Failed to read next pointer at %"PRIx64"\n", cur_list_entry);
             goto error_exit;
         }
     }

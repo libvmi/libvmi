@@ -43,12 +43,12 @@ vmi_mmap_guest(
     void **access_ptrs)
 {
     status_t ret = VMI_FAILURE;
-    addr_t dtb = ctx->dtb;
-    addr_t addr = ctx->addr;
+    addr_t dtb = 0;
+    addr_t vaddr;
     addr_t paddr;
     addr_t naddr;
     addr_t npt = ctx->npt;
-    page_mode_t pm = ctx->pm;
+    page_mode_t pm = (ctx->pm != VMI_PM_UNKNOWN) ? ctx->pm : vmi->page_mode;
     page_mode_t npm = ctx->npm;
     size_t buf_offset = 0;
     unsigned long *pfns = NULL;
@@ -60,14 +60,9 @@ vmi_mmap_guest(
             if (!vmi->os_interface || !vmi->kpgd)
                 goto done;
 #endif
-            if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &addr) )
-                goto done;
-
-            if (!pm)
-                pm = vmi->page_mode;
-
             dtb = vmi->kpgd;
-
+            if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &vaddr) )
+                goto done;
             break;
         case VMI_TM_PROCESS_PID:
 #ifdef ENABLE_SAFETY_CHECKS
@@ -82,14 +77,14 @@ vmi_mmap_guest(
                     goto done;
             }
 
-            if (!pm)
-                pm = vmi->page_mode;
             if (!dtb)
                 goto done;
+
+            vaddr = ctx->addr;
             break;
         case VMI_TM_PROCESS_DTB:
-            if (!pm)
-                pm = vmi->page_mode;
+            dtb = ctx->dtb;
+            vaddr = ctx->addr;
             break;
         default:
             errprint("%s error: translation mechanism is not defined or unsupported.\n", __FUNCTION__);
@@ -101,7 +96,7 @@ vmi_mmap_guest(
         goto done;
 
     for (i = 0; i < num_pages; i++) {
-        if (VMI_SUCCESS == vmi_nested_pagetable_lookup(vmi, npt, npm, dtb, pm, addr + buf_offset, &paddr, &naddr)) {
+        if (VMI_SUCCESS == vmi_nested_pagetable_lookup(vmi, npt, npm, dtb, pm, vaddr + buf_offset, &paddr, &naddr)) {
 
             if (valid_npm(npm))
                 paddr = naddr;
@@ -157,15 +152,19 @@ vmi_read(
     size_t *bytes_read)
 {
     status_t ret = VMI_FAILURE;
+    unsigned char *memory = NULL;
+    const char *ksym;
+    addr_t start_addr = 0;
+    addr_t paddr = 0;
+    addr_t naddr = 0;
+    addr_t pfn = 0;
+    addr_t offset = 0;
+    addr_t dtb = 0;
     size_t buf_offset = 0;
-    unsigned char *memory;
-    addr_t start_addr;
-    addr_t paddr;
-    addr_t naddr;
-    addr_t pfn;
-    addr_t offset;
-    addr_t pt;
-    page_mode_t pm;
+    page_mode_t pm, npm;
+    addr_t npt;
+    vmi_pid_t pid;
+    translation_mechanism_t tm;
 
 #ifdef ENABLE_SAFETY_CHECKS
     if (NULL == vmi) {
@@ -182,41 +181,57 @@ vmi_read(
         dbprint(VMI_DEBUG_READ, "--%s: buf passed as NULL, returning without read\n", __FUNCTION__);
         goto done;
     }
-
-    if (ctx->version != ACCESS_CONTEXT_VERSION) {
-        if (!vmi->actx_version_warn_once)
-            errprint("--%s: access context version mismatch, please update your code\n", __FUNCTION__);
-        vmi->actx_version_warn_once = 1;
-
-        // TODO: for compatibility reasons we still accept code compiled
-        //       without the ABI version field initialized.
-        //       Turn this check into enforcement after appropriate amount of
-        //       time passed (in ~2023 or after).
-    }
 #endif
 
-    // Set defaults
-    pt = ctx->pt;
-    pm = ctx->pm;
-    start_addr = ctx->addr;
+    if (ctx->signature != ACCESS_CONTEXT_SIGNATURE) {
+        dbprint(VMI_DEBUG_READ, "--%s: access context signature missing, falling back to compatibility\n", __FUNCTION__);
 
-    switch (ctx->tm) {
+        deprecated_access_context_t *dctx = (deprecated_access_context_t*)ctx;
+        tm = dctx->translate_mechanism;
+        pt = dctx->dtb;
+        pm = vmi->page_mode;
+        start_addr = dctx->addr;
+        ksym = dctx->ksym;
+        pid = dctx->pid;
+        npt = 0;
+        npm = 0;
+    } else if (ctx->version > ACCESS_CONTEXT_VERSION) {
+        errprint("--%s: access context version mismatch\n", __FUNCTION__);
+        goto done;
+    } else {
+        tm = ctx->translate_mechanism;
+        pt = ctx->dtb;
+        start_addr = ctx->addr;
+        ksym = ctx->ksym;
+        pid = ctx->pid;
+        npt = ctx->npt;
+        npm = ctx->npm;
+    }
+
+    if (pt && !valid_pm(ctx->pm)) {
+        dbprint(VMI_DEBUG_READ, "--%s: pagetable specified with no page mode\n", __FUNCTION__);
+        goto done;
+    }
+
+    if (npt && !valid_npm(ctx->npm)) {
+        dbprint(VMI_DEBUG_READ, "--%s: nested pagetable specified with no nested page mode\n", __FUNCTION__);
+        goto done;
+    }
+
+    switch (tm) {
         case VMI_TM_NONE:
             pm = VMI_PM_NONE;
-            pt = 0;
+            start_addr = ctx->addr;
             break;
         case VMI_TM_KERNEL_SYMBOL:
 #ifdef ENABLE_SAFETY_CHECKS
             if (!vmi->os_interface || !vmi->kpgd)
                 goto done;
 #endif
+            pm = vmi->page_mode;
+            dtb = vmi->kpgd;
             if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &start_addr) )
                 goto done;
-
-            pt = vmi->kpgd;
-            if (!pm)
-                pm = vmi->page_mode;
-
             break;
         case VMI_TM_PROCESS_PID:
 #ifdef ENABLE_SAFETY_CHECKS
@@ -225,52 +240,48 @@ vmi_read(
 #endif
 
             if ( !ctx->pid )
-                pt = vmi->kpgd;
+                dtb = vmi->kpgd;
             else if (ctx->pid > 0) {
-                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &pt) )
+                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
                     goto done;
             }
-            if (!pm)
-                pm = vmi->page_mode;
-            if (!pt)
+
+            if (!dtb)
                 goto done;
+
+            pm = vmi->page_mode;
+            start_addr = ctx->addr;
             break;
         case VMI_TM_PROCESS_DTB:
-            if (!pm)
-                pm = vmi->page_mode;
+            pm = vmi->page_mode;
+            dtb = ctx->dtb;
+            start_addr = ctx->addr;
+            break;
+        case VMI_TM_PT_WITH_PM:
+            pm = ctx->pm;
+            dtb = ctx->pt;
+            start_addr = ctx->addr;
             break;
         default:
             errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
             goto done;
     }
 
-#ifdef ENABLE_SAFETY_CHECKS
-    if (pt && !valid_pm(pm)) {
-        dbprint(VMI_DEBUG_READ, "--%s: pagetable specified with no page mode\n", __FUNCTION__);
-        goto done;
-    }
-
-    if (ctx->npt && !valid_npm(ctx->npm)) {
-        dbprint(VMI_DEBUG_READ, "--%s: nested pagetable specified with no nested page mode\n", __FUNCTION__);
-        goto done;
-    }
-#endif
-
     while (count > 0) {
         size_t read_len = 0;
 
-        if (valid_pm(pm)) {
-            if (VMI_SUCCESS != vmi_nested_pagetable_lookup(vmi, ctx->npt, ctx->npm, pt, pm, start_addr + buf_offset, &paddr, &naddr))
+        if (dtb) {
+            if (VMI_SUCCESS != vmi_nested_pagetable_lookup(vmi, npt, npm, dtb, pm, start_addr + buf_offset, &paddr, &naddr))
                 goto done;
 
-            if (valid_npm(ctx->npm)) {
+            if (valid_npm(npm)) {
                 dbprint(VMI_DEBUG_READ, "--Setting paddr to nested address 0x%lx\n", naddr);
                 paddr = naddr;
             }
         } else {
             paddr = start_addr + buf_offset;
 
-            if (valid_npm(ctx->npm) && VMI_SUCCESS != vmi_nested_pagetable_lookup(vmi, 0, 0, ctx->npt, ctx->npm, paddr, &paddr, NULL) )
+            if (valid_npm(npm) && VMI_SUCCESS != vmi_nested_pagetable_lookup(vmi, 0, 0, npt, npm, paddr, &paddr, NULL) )
                 goto done;
         }
 
@@ -330,9 +341,9 @@ vmi_read_va(
     size_t *bytes_read)
 {
     ACCESS_CONTEXT(ctx,
-                   .translate_mechanism = VMI_TM_PROCESS_PID,
-                   .addr = vaddr,
-                   .pid = pid);
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid);
 
     return vmi_read(vmi, &ctx, count, buf, bytes_read);
 }
@@ -346,9 +357,9 @@ vmi_read_ksym(
     size_t *bytes_read)
 {
     ACCESS_CONTEXT(ctx,
-                   .translate_mechanism = VMI_TM_KERNEL_SYMBOL,
-                   .pm = vmi->page_mode,
-                   .ksym = sym);
+        .translate_mechanism = VMI_TM_KERNEL_SYMBOL,
+        .pm = vmi->page_mode,
+        .ksym = sym);
 
     return vmi_read(vmi, &ctx, count, buf, bytes_read);
 }
@@ -431,50 +442,106 @@ vmi_read_str(
     vmi_instance_t vmi,
     const access_context_t *ctx)
 {
-    access_context_t _ctx = *ctx;
-    addr_t len = 0;
-    uint8_t buf[VMI_PS_4KB];
-    size_t bytes_read;
-    bool read_more = 1;
-    char *ret = NULL;
+    unsigned char *memory = NULL;
+    char *rtnval = NULL;
+    addr_t addr = 0;
+    addr_t dtb = 0;
+    addr_t paddr = 0;
+    addr_t pfn = 0;
+    addr_t offset = 0;
+    int len = 0;
+    size_t read_len = 0;
+    int read_more = 1;
 
-    do {
-        size_t offset = _ctx.addr & VMI_BIT_MASK(0,11);
-        size_t read_size = VMI_PS_4KB - offset;
+    rtnval = NULL;
 
-        dbprint(VMI_DEBUG_READ, "--start to read string from 0x%lx, page offset 0x%lx, read: %lu\n",
-                _ctx.addr, offset, read_size);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        dbprint(VMI_DEBUG_READ, "--%s: vmi passed as NULL, returning without read",
+                __FUNCTION__);
+        return NULL;
+    }
+    if (!ctx) {
+        dbprint(VMI_DEBUG_READ, "--%s: ctx passed as NULL, returning without read",
+                __FUNCTION__);
+        return NULL;
+    }
+#endif
 
-        if (VMI_FAILURE == vmi_read(vmi, &_ctx, read_size, (void*)&buf, &bytes_read) &&
-                !bytes_read) {
-            return ret;
+    switch (ctx->translate_mechanism) {
+        case VMI_TM_NONE:
+            addr = ctx->addr;
+            break;
+        case VMI_TM_KERNEL_SYMBOL:
+            if (!vmi->os_interface || !vmi->kpgd)
+                return NULL;
+
+            dtb = vmi->kpgd;
+            if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &addr) )
+                return NULL;
+            break;
+        case VMI_TM_PROCESS_PID:
+            if ( !ctx->pid )
+                dtb = vmi->kpgd;
+            else if ( ctx->pid > 0) {
+                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                    return NULL;
+            }
+
+            if (!dtb)
+                return NULL;
+
+            addr = ctx->addr;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            dtb = ctx->dtb;
+            addr = ctx->addr;
+            break;
+        default:
+            errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
+            return NULL;
+    }
+
+    while (read_more) {
+
+        addr += len;
+        if (dtb) {
+            if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, addr, &paddr)) {
+                return rtnval;
+            }
+        } else {
+            paddr = addr;
+        }
+
+        /* access the memory */
+        pfn = paddr >> vmi->page_shift;
+        offset = (vmi->page_size - 1) & paddr;
+        memory = vmi_read_page(vmi, pfn);
+        if (NULL == memory) {
+            return rtnval;
         }
 
         /* Count new non-null characters */
-        size_t read_len = 0;
-        for (read_len = 0; read_len < bytes_read; read_len++) {
-            if (buf[read_len] == '\0') {
+        read_len = 0;
+        while (offset + read_len < vmi->page_size) {
+            if (memory[offset + read_len] == '\0') {
                 read_more = 0;
                 break;
             }
+
+            read_len++;
         }
 
-        /*
-         * Realloc, tack on the '\0' in case of errors and
+        /* Otherwise, realloc, tack on the '\0' in case of errors and
          * get ready to read the next page.
          */
-        char *_ret = realloc(ret, len + read_len + 1);
-        if ( !_ret )
-            return ret;
-
-        ret = _ret;
-        memcpy(&ret[len], &buf, read_len);
+        rtnval = realloc(rtnval, len + 1 + read_len);
+        memcpy(&rtnval[len], &memory[offset], read_len);
         len += read_len;
-        ret[len] = '\0';
-        _ctx.addr += offset;
-    } while (read_more);
+        rtnval[len] = '\0';
+    }
 
-    return ret;
+    return rtnval;
 }
 
 unicode_string_t*
@@ -691,9 +758,9 @@ vmi_read_str_va(
     vmi_pid_t pid)
 {
     ACCESS_CONTEXT(ctx,
-                   .translate_mechanism = VMI_TM_PROCESS_PID,
-                   .addr = vaddr,
-                   .pid = pid);
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid);
 
     return vmi_read_str(vmi, &ctx);
 }
@@ -702,9 +769,9 @@ unicode_string_t *
 vmi_read_unicode_str_va(vmi_instance_t vmi, addr_t vaddr, vmi_pid_t pid)
 {
     ACCESS_CONTEXT(ctx,
-                   .translate_mechanism = VMI_TM_PROCESS_PID,
-                   .addr = vaddr,
-                   .pid = pid);
+        .translate_mechanism = VMI_TM_PROCESS_PID,
+        .addr = vaddr,
+        .pid = pid);
 
     return vmi_read_unicode_str(vmi, &ctx);
 }

@@ -94,6 +94,8 @@ struct vmi_instance {
 
     addr_t init_task;       /**< address of task struct for init */
 
+    bool actx_version_warn_once; /**< print warning about actx version mismatch once only */
+
     union {
         struct {
             bool pse;        /**< true if PSE is enabled */
@@ -114,7 +116,7 @@ struct vmi_instance {
 
     page_mode_t page_mode;  /**< paging mode in use */
 
-    arch_interface_t arch_interface; /**< architecture specific functions */
+    arch_interface_t arch_interface; /**< pagetable translation functions */
 
     memory_map_t *memmap;   /**< memory map of available addresses */
 
@@ -232,6 +234,15 @@ typedef struct _windows_unicode_string64 {
     uint64_t pBuffer;   // pointer to string contents
 } __attribute__ ((packed))
 win64_unicode_string_t;
+
+typedef struct {
+    translation_mechanism_t translate_mechanism;
+
+    addr_t addr;      /**< specify iff using VMI_TM_NONE, VMI_TM_PROCESS_DTB or VMI_TM_PROCESS_PID */
+    const char *ksym; /**< specify iff using VMI_TM_KERNEL_SYMBOL */
+    addr_t dtb;       /**< specify iff using VMI_TM_PROCESS_DTB */
+    vmi_pid_t pid;    /**< specify iff using VMI_TM_PROCESS_PID */
+} deprecated_access_context_t;
 
 /*----------------------------------------------
  * Misc functions

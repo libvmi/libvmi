@@ -27,6 +27,7 @@
 #include "arch/amd64.h"
 #include "arch/arm_aarch32.h"
 #include "arch/arm_aarch64.h"
+#include "arch/ept.h"
 
 /*
  * check that this vm uses a paging method that we support
@@ -57,7 +58,7 @@ static status_t get_vcpu_page_mode_x86(vmi_instance_t vmi, unsigned long vcpu, p
     /* PG Flag --> CR0, bit 31 == 1 --> paging enabled */
     if (!VMI_GET_BIT(cr0, 31)) {
         dbprint(VMI_DEBUG_PTLOOKUP, "Paging disabled for this VM, only physical addresses supported.\n");
-        vmi->page_mode = VMI_PM_UNKNOWN;
+        vmi->page_mode = VMI_PM_NONE;
         vmi->x86.pse = 0;
 
         ret = VMI_SUCCESS;
@@ -213,45 +214,28 @@ status_t get_vcpu_page_mode(vmi_instance_t vmi, unsigned long vcpu, page_mode_t 
     return VMI_FAILURE;
 }
 
+void arch_init_lookup_tables(vmi_instance_t vmi)
+{
+    vmi->arch_interface.lookup[VMI_PM_LEGACY] = v2p_nopae;
+    vmi->arch_interface.lookup[VMI_PM_PAE] = v2p_pae;
+    vmi->arch_interface.lookup[VMI_PM_IA32E] = v2p_ia32e;
+    vmi->arch_interface.lookup[VMI_PM_AARCH32] = v2p_aarch32;
+    vmi->arch_interface.lookup[VMI_PM_AARCH64] = v2p_aarch64;
+    vmi->arch_interface.lookup[VMI_PM_EPT_4L] = v2p_ept_4l;
+
+    vmi->arch_interface.get_pages[VMI_PM_LEGACY] = get_pages_nopae;
+    vmi->arch_interface.get_pages[VMI_PM_PAE] = get_pages_pae;
+    vmi->arch_interface.get_pages[VMI_PM_IA32E] = get_pages_ia32e;
+    vmi->arch_interface.get_pages[VMI_PM_EPT_4L] = get_pages_ept_4l;
+}
+
 status_t arch_init(vmi_instance_t vmi)
 {
+    if (vmi->page_mode != VMI_PM_UNKNOWN)
+        return VMI_SUCCESS;
 
-    status_t ret = VMI_FAILURE;
+    if (VMI_FAILURE == get_vcpu_page_mode(vmi, 0, &vmi->page_mode))
+        return VMI_FAILURE;
 
-    if (vmi->arch_interface != NULL) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "-- Clearing and setting new architecture interface\n");
-        bzero(vmi->arch_interface, sizeof(struct arch_interface));
-    }
-
-    if (vmi->page_mode == VMI_PM_UNKNOWN) {
-        if (VMI_FAILURE == get_vcpu_page_mode(vmi, 0, NULL)) {
-            return ret;
-        }
-    }
-
-    switch (vmi->page_mode) {
-        case VMI_PM_LEGACY: /* fallthrough */
-        case VMI_PM_PAE:
-            ret = intel_init(vmi);
-            break;
-        case VMI_PM_IA32E:
-            ret = amd64_init(vmi);
-            break;
-        case VMI_PM_AARCH32:
-            ret = aarch32_init(vmi);
-            break;
-        case VMI_PM_AARCH64:
-            ret = aarch64_init(vmi);
-            break;
-        case VMI_PM_UNKNOWN: /* fallthrough */
-        default:
-            ret = VMI_FAILURE;
-            break;
-    }
-
-    if (VMI_FAILURE == ret) {
-        vmi->page_mode = VMI_PM_UNKNOWN;
-    }
-
-    return ret;
+    return VMI_SUCCESS;
 }

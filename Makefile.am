@@ -13,6 +13,7 @@ h_private = \
     libvmi/arch/amd64.h \
     libvmi/arch/arm_aarch32.h \
     libvmi/arch/arm_aarch64.h \
+    libvmi/arch/ept.h \
     libvmi/os/os_interface.h \
     libvmi/driver/driver_interface.h \
     libvmi/driver/driver_wrapper.h \
@@ -34,6 +35,7 @@ c_sources = \
     libvmi/arch/amd64.c \
     libvmi/arch/arm_aarch32.c \
     libvmi/arch/arm_aarch64.c \
+    libvmi/arch/ept.c \
     libvmi/driver/driver_interface.c \
     libvmi/driver/memory_cache.c \
     libvmi/os/os_interface.c

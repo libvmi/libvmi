@@ -38,10 +38,12 @@ vmi_write(
     size_t *bytes_written)
 {
     status_t ret = VMI_FAILURE;
-    addr_t start_addr = 0;
-    addr_t dtb = 0;
-    addr_t paddr = 0;
-    addr_t offset = 0;
+    addr_t start_addr;
+    addr_t pt;
+    addr_t paddr;
+    addr_t naddr;
+    addr_t offset;
+    page_mode_t pm;
     size_t buf_offset = 0;
 
 #ifdef ENABLE_SAFETY_CHECKS
@@ -62,49 +64,62 @@ vmi_write(
                 __FUNCTION__);
         goto done;
     }
+
+    if (ctx->version != ACCESS_CONTEXT_VERSION) {
+        if ( !vmi->actx_version_warn_once )
+            errprint("--%s: access context version mismatch, please update your code\n", __FUNCTION__);
+        vmi->actx_version_warn_once = 1;
+
+        // TODO: for compatibility reasons we still accept code compiled
+        //       without the ABI signature and version fields initialized.
+        //       Turn this check into enforcement after appropriate amount of
+        //       time passed (in ~2023 or after).
+    }
 #endif
 
-    switch (ctx->translate_mechanism) {
+    // Set defaults
+    pt = ctx->pt;
+    pm = vmi->page_mode;
+    start_addr = ctx->addr;
+
+    switch (ctx->tm) {
         case VMI_TM_NONE:
-            start_addr = ctx->addr;
+            pm = VMI_PM_NONE;
+            pt = 0;
             break;
         case VMI_TM_KERNEL_SYMBOL:
 #ifdef ENABLE_SAFETY_CHECKS
-            if (!vmi->arch_interface || !vmi->os_interface || !vmi->kpgd)
+            if (!vmi->os_interface || !vmi->kpgd)
                 goto done;
 #endif
-
-            dtb = vmi->kpgd;
             if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &start_addr) )
                 goto done;
+            if (!pm)
+                pm = vmi->page_mode;
+            pt = vmi->kpgd;
 
             break;
         case VMI_TM_PROCESS_PID:
 #ifdef ENABLE_SAFETY_CHECKS
-            if (!vmi->arch_interface || !vmi->os_interface)
+            if (!vmi->os_interface)
                 goto done;
 #endif
 
             if (!ctx->pid)
-                dtb = vmi->kpgd;
+                pt = vmi->kpgd;
             else if (ctx->pid > 0) {
-                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &pt) )
                     goto done;
             }
 
-            if (!dtb)
+            if (!pm)
+                pm = vmi->page_mode;
+            if (!pt)
                 goto done;
-
-            start_addr = ctx->addr;
             break;
         case VMI_TM_PROCESS_DTB:
-#ifdef ENABLE_SAFETY_CHECKS
-            if (!vmi->arch_interface)
-                goto done;
-#endif
-
-            dtb = ctx->dtb;
-            start_addr = ctx->addr;
+            if (!pm)
+                pm = vmi->page_mode;
             break;
         default:
             errprint("%s error: translation mechanism is not defined.\n", __FUNCTION__);
@@ -114,11 +129,19 @@ vmi_write(
     while (count > 0) {
         size_t write_len = 0;
 
-        if (dtb) {
-            if (VMI_SUCCESS != vmi_pagetable_lookup_cache(vmi, dtb, start_addr + buf_offset, &paddr))
+        if (valid_pm(pm)) {
+            if (VMI_SUCCESS != vmi_nested_pagetable_lookup(vmi, ctx->npt, ctx->npm, pt, pm, start_addr + buf_offset, &paddr, &naddr))
                 goto done;
-        } else
+
+            if (valid_npm(ctx->npm))
+                paddr = naddr;
+
+        } else {
             paddr = start_addr + buf_offset;
+
+            if (valid_npm(ctx->npm) && VMI_SUCCESS != vmi_nested_pagetable_lookup(vmi, 0, 0, ctx->npt, ctx->npm, paddr, &paddr, NULL))
+                goto done;
+        }
 
         /* determine how much we can write to this page */
         offset = (vmi->page_size - 1) & paddr;
@@ -158,10 +181,7 @@ vmi_write_pa(
     void *buf,
     size_t *bytes_written)
 {
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_NONE,
-        .addr = paddr,
-    };
+    ACCESS_CONTEXT(ctx, .addr = paddr);
     return vmi_write(vmi, &ctx, count, buf, bytes_written);
 }
 
@@ -174,11 +194,11 @@ vmi_write_va(
     void *buf,
     size_t *bytes_written)
 {
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_PROCESS_PID,
-        .addr = vaddr,
-        .pid = pid
-    };
+    ACCESS_CONTEXT(ctx,
+                   .translate_mechanism = VMI_TM_PROCESS_PID,
+                   .addr = vaddr,
+                   .pid = pid);
+
     return vmi_write(vmi, &ctx, count, buf, bytes_written);
 }
 
@@ -314,11 +334,7 @@ vmi_write_addr_pa(
     addr_t paddr,
     addr_t * value)
 {
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_NONE,
-        .addr = paddr
-    };
-
+    ACCESS_CONTEXT(ctx, .addr = paddr);
     return vmi_write_addr(vmi, &ctx, value);
 }
 
@@ -371,11 +387,11 @@ vmi_write_addr_va(
     vmi_pid_t pid,
     addr_t * value)
 {
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_PROCESS_PID,
-        .addr = vaddr,
-        .pid = pid
-    };
+    ACCESS_CONTEXT(ctx,
+                   .translate_mechanism = VMI_TM_PROCESS_PID,
+                   .addr = vaddr,
+                   .pid = pid);
+
     return vmi_write_addr(vmi, &ctx, value);
 }
 
@@ -423,10 +439,9 @@ vmi_write_addr_ksym(
     const char *sym,
     addr_t * value)
 {
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_KERNEL_SYMBOL,
-        .ksym = sym
-    };
+    ACCESS_CONTEXT(ctx,
+                   .translate_mechanism = VMI_TM_KERNEL_SYMBOL,
+                   .ksym = sym);
 
     return vmi_write_addr(vmi, &ctx, value);
 }

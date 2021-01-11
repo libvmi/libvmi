@@ -158,13 +158,15 @@ void get_third_level_64kb_descriptor(vmi_instance_t vmi, uint64_t vaddr, page_in
 // D4.3 ARM ARMv8-A VMSAv8-64 translation table format descriptors
 // K7.1.2 ARM ARMv8-A Full translation flows for VMSAv8-64 address translation
 status_t v2p_aarch64 (vmi_instance_t vmi,
-                      addr_t dtb,
+                      addr_t UNUSED(npt),
+                      page_mode_t UNUSED(npm),
+                      addr_t pt,
                       addr_t vaddr,
                       page_info_t *info)
 {
     status_t status = VMI_FAILURE;
 
-    dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch64 PTLookup: vaddr = 0x%.16"PRIx64", dtb = 0x%.16"PRIx64"\n", vaddr, dtb);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch64 PTLookup: vaddr = 0x%.16"PRIx64", pt = 0x%.16"PRIx64"\n", vaddr, pt);
 
     /*
      * TODO: Fixme
@@ -172,18 +174,18 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
      * Right now we can deduce this for Linux by comparing to vmi->kpgd which is
      * TTBR1. However, this means V2P translation only works with complete init.
      * To make this OS neutral we will likely have to extend the API so the user
-     * can specify the dtb type.
+     * can specify the pt type.
      */
 
-    bool is_dtb_ttbr1 = false;
+    bool is_pt_ttbr1 = false;
     page_size_t ps;
     uint8_t levels;
     uint8_t va_width;
 
-    if (dtb == vmi->kpgd)
-        is_dtb_ttbr1 = true;
+    if (pt == vmi->kpgd)
+        is_pt_ttbr1 = true;
 
-    if ( is_dtb_ttbr1 ) {
+    if ( is_pt_ttbr1 ) {
         ps = vmi->arm64.tg1;
         va_width = 64 - vmi->arm64.t1sz;
     } else {
@@ -202,7 +204,7 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
 
     if ( 4 == levels ) {
         /* Only true when ps == VMI_PS_4KB */
-        get_zero_level_4kb_descriptor(vmi, dtb, vaddr, info);
+        get_zero_level_4kb_descriptor(vmi, pt, vaddr, info);
         dbprint(VMI_DEBUG_PTLOOKUP,
                 "--ARM AArch64 PTLookup: zld_value = 0x%"PRIx64"\n",
                 info->arm_aarch64.zld_value);
@@ -210,20 +212,20 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
         if ( (info->arm_aarch64.zld_value & VMI_BIT_MASK(0,1)) != 0b11)
             goto done;
 
-        dtb = info->arm_aarch64.zld_value & VMI_BIT_MASK(12,47);
+        pt = info->arm_aarch64.zld_value & VMI_BIT_MASK(12,47);
         --levels;
     }
 
     if ( 3 == levels) {
         if ( VMI_PS_4KB == ps ) {
-            get_first_level_4kb_descriptor(vmi, dtb, vaddr, info);
+            get_first_level_4kb_descriptor(vmi, pt, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
                     "--ARM AArch64 4kb PTLookup: fld_value = 0x%"PRIx64"\n",
                     info->arm_aarch64.fld_value);
 
             switch (info->arm_aarch64.fld_value & VMI_BIT_MASK(0,1)) {
                 case 0b11:
-                    dtb = info->arm_aarch64.fld_value & VMI_BIT_MASK(12,47);
+                    pt = info->arm_aarch64.fld_value & VMI_BIT_MASK(12,47);
                     --levels;
                     break;
                 case 0b01:
@@ -237,14 +239,14 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
 
         }
         if ( VMI_PS_64KB == ps ) {
-            get_first_level_64kb_descriptor(vmi, dtb, vaddr, info);
+            get_first_level_64kb_descriptor(vmi, pt, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
                     "--ARM AArch64 64kb PTLookup: fld_value = 0x%"PRIx64"\n",
                     info->arm_aarch64.fld_value);
 
             switch (info->arm_aarch64.fld_value & VMI_BIT_MASK(0,1)) {
                 case 0b11:
-                    dtb = info->arm_aarch64.fld_value & VMI_BIT_MASK(16,47);
+                    pt = info->arm_aarch64.fld_value & VMI_BIT_MASK(16,47);
                     --levels;
                     break;
                 default:
@@ -255,7 +257,7 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
 
     if ( 2 == levels ) {
         if ( VMI_PS_4KB == ps ) {
-            get_second_level_4kb_descriptor(vmi, dtb, vaddr, info);
+            get_second_level_4kb_descriptor(vmi, pt, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
                     "--ARM AArch64 4kb PTLookup: sld_value = 0x%"PRIx64"\n",
                     info->arm_aarch64.sld_value);
@@ -281,7 +283,7 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
             }
         }
         if ( VMI_PS_64KB == ps ) {
-            get_second_level_64kb_descriptor(vmi, dtb, vaddr, info);
+            get_second_level_64kb_descriptor(vmi, pt, vaddr, info);
             dbprint(VMI_DEBUG_PTLOOKUP,
                     "--ARM AArch64 64kb PTLookup: sld_value = 0x%"PRIx64"\n",
                     info->arm_aarch64.sld_value);
@@ -317,19 +319,4 @@ GSList* get_va_pages_aarch64(vmi_instance_t UNUSED(vmi), addr_t UNUSED(dtb))
 {
     //TODO: investigate best method to loop over all tables
     return NULL;
-}
-
-status_t aarch64_init(vmi_instance_t vmi)
-{
-
-    if (!vmi->arch_interface) {
-        vmi->arch_interface = g_try_malloc0(sizeof(struct arch_interface));
-        if ( !vmi->arch_interface )
-            return VMI_FAILURE;
-    }
-
-    vmi->arch_interface->v2p = v2p_aarch64;
-    vmi->arch_interface->get_va_pages = get_va_pages_aarch64;
-
-    return VMI_SUCCESS;
 }

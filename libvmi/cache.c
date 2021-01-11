@@ -74,22 +74,19 @@ gboolean key_128_equals(gconstpointer key1, gconstpointer key2)
     return cache_key1->low == cache_key2->low && cache_key1->high == cache_key2->high;
 }
 
-/*
- * Initialize an already allocated key with the given values.
- * This is for performance!
- */
-void key_128_init(vmi_instance_t vmi, key_128_t key, uint64_t low, uint64_t high)
+static inline
+void key_128_init(key_128_t key, uint64_t low, uint64_t high)
 {
-    low = (low & ~((uint64_t)vmi->page_size - 1));
     key->low = low;
     key->high = high;
 }
 
-key_128_t key_128_build (vmi_instance_t vmi, uint64_t low, uint64_t high)
+static inline
+key_128_t key_128_build (uint64_t low, uint64_t high)
 {
     key_128_t key = (key_128_t) g_malloc(sizeof(struct key_128));
     if ( key )
-        key_128_init(vmi, key, low, high);
+        key_128_init(key, low, high);
     return key;
 }
 
@@ -306,7 +303,7 @@ sym_cache_get(
 
     struct key_128 local_key;
     key_128_t key = &local_key;
-    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)pid);
+    key_128_init(key, (uint64_t)base_addr, (uint64_t)pid);
 
     if ((symbol_table = g_hash_table_lookup(vmi->sym_cache, key)) == NULL) {
         return ret;
@@ -334,7 +331,7 @@ sym_cache_set(
     gboolean new_symbol_table = FALSE;
     sym_cache_entry_t entry = NULL;
 
-    key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)pid);
+    key_128_t key = key_128_build((uint64_t)base_addr, (uint64_t)pid);
     if ( !key ) {
         goto cleanup;
     }
@@ -393,7 +390,7 @@ sym_cache_del(
     GHashTable *symbol_table=NULL;
     struct key_128 local_key;
     key_128_t key = &local_key;
-    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)pid);
+    key_128_init(key, (uint64_t)base_addr, (uint64_t)pid);
 
     if ((symbol_table = g_hash_table_lookup(vmi->sym_cache, key)) == NULL) {
         return ret;
@@ -452,7 +449,7 @@ rva_cache_get(
 
     struct key_128 local_key;
     key_128_t key = &local_key;
-    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)dtb);
+    key_128_init(key, (uint64_t)base_addr, (uint64_t)dtb);
 
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
         return ret;
@@ -479,7 +476,7 @@ rva_cache_set(
     GHashTable *rva_table = NULL;
     sym_cache_entry_t entry = NULL;
 
-    key_128_t key = key_128_build(vmi, (uint64_t)base_addr, (uint64_t)dtb);
+    key_128_t key = key_128_build((uint64_t)base_addr, (uint64_t)dtb);
     if ( !key ) {
         goto cleanup;
     }
@@ -526,7 +523,7 @@ rva_cache_del(
     GHashTable *rva_table=NULL;
     struct key_128 local_key;
     key_128_t key = &local_key;
-    key_128_init(vmi, key, (uint64_t)base_addr, (uint64_t)dtb);
+    key_128_init(key, (uint64_t)base_addr, (uint64_t)dtb);
 
     if ((rva_table = g_hash_table_lookup(vmi->rva_cache, key)) == NULL) {
         return ret;
@@ -558,7 +555,7 @@ void
 v2p_cache_init(
     vmi_instance_t vmi)
 {
-    vmi->v2p_cache = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free,
+    vmi->v2p_cache = g_hash_table_new_full((GHashFunc)key_128_hash, key_128_equals, g_free,
                                            (GDestroyNotify)g_hash_table_destroy);
 }
 
@@ -574,108 +571,130 @@ status_t
 v2p_cache_get(
     vmi_instance_t vmi,
     addr_t va,
-    addr_t dtb,
+    addr_t pt,
+    addr_t npt,
     addr_t *pa)
 {
-    GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, &dtb);
+    struct key_128 local_key;
+    key_128_t key = &local_key;
+    key_128_init(key, pt, npt);
 
-    if (v) {
-        addr_t *_pa = g_hash_table_lookup(v, &va);
-
-        if ( _pa ) {
-            *pa = *_pa | (VMI_BIT_MASK(0,11) & va);
-            dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache hit 0x%.16"PRIx64" -- 0x%.16"PRIx64"\n",
-                    va, *pa);
-            return VMI_SUCCESS;
-        }
+    GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, key);
+    if ( !v ) {
+        dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache miss (no address space) 0x%.16"PRIx64" 0x%.16"PRIx64"\n", pt, npt);
+        return VMI_FAILURE;
     }
 
-    return VMI_FAILURE;
+    addr_t offset = VMI_BIT_MASK(0,11) & va;
+    va = (va >> 12) << 12;
+
+    gpointer _pa = g_hash_table_lookup(v, &va);
+    if ( !_pa ) {
+        dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache miss (no page) 0x%.16"PRIx64"\n", va);
+        return VMI_FAILURE;
+    }
+
+    *pa = GPOINTER_TO_SIZE(_pa);
+    *pa |= offset;
+    dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache hit 0x%.16"PRIx64" -- 0x%.16"PRIx64"\n",
+            va | offset, *pa);
+
+    return VMI_SUCCESS;
 }
 
 void
 v2p_cache_set(
     vmi_instance_t vmi,
     addr_t va,
-    addr_t dtb,
+    addr_t pt,
+    addr_t npt,
     addr_t pa)
 {
-    if (!va || !dtb || !pa)
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!va || !pt || !pa)
+        return;
+#endif
+
+    key_128_t key = key_128_build(pt, npt);
+    if ( !key )
         return;
 
-    GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, &dtb);
+    GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, key);
     gboolean new_process_space = FALSE;
     addr_t * _va = NULL;
-    addr_t * _pa = NULL;
 
     if ( !v ) {
         new_process_space = TRUE;
 
-        v = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, g_free);
-        if ( !v ) {
+        v = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, NULL);
+        if ( !v )
             goto cleanup;
-        }
 
-        addr_t *_dtb = g_memdup(&dtb, sizeof(addr_t));
-        if ( !_dtb ) {
-            goto cleanup;
-        }
-        (void) g_hash_table_insert_compat(vmi->v2p_cache, _dtb, v);
+        (void) g_hash_table_insert_compat(vmi->v2p_cache, key, v);
+    } else {
+        g_free(key);
+        key = NULL;
     }
+
+    /* bundle the cache entries per page */
+    va = (va >> 12) << 12;
+    pa = (pa >> 12) << 12;
 
     _va = g_memdup(&va, sizeof(addr_t));
-    if ( !_va ) {
-        goto cleanup;
-    }
-    _pa = g_malloc(sizeof(addr_t));
-    if ( !_pa )
+    if ( !_va )
         goto cleanup;
 
-    *_pa = pa & ~VMI_BIT_MASK(0,11);
+    (void) g_hash_table_insert_compat(v, _va, GSIZE_TO_POINTER(pa));
 
-    (void) g_hash_table_insert_compat(v, _va, _pa);
-    dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache set 0x%.16"PRIx64" -- 0x%.16"PRIx64"\n",
+    dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache set for page 0x%.16"PRIx64" -- 0x%.16"PRIx64"\n",
             va, pa);
     return;
 
 cleanup:
-    if ( new_process_space ) {
-        g_hash_table_remove(vmi->v2p_cache, &dtb);
-    }
-    g_free(_pa);
-    g_free(_va);
+    if ( new_process_space )
+        g_hash_table_remove(vmi->v2p_cache, key);
+    g_free(key);
 }
 
 status_t
 v2p_cache_del(
     vmi_instance_t vmi,
     addr_t va,
-    addr_t dtb)
+    addr_t pt,
+    addr_t npt)
 {
-    GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, &dtb);
-    if ( v && g_hash_table_remove(v, &va)) {
-        if ( !g_hash_table_size(v) )
-            g_hash_table_remove(vmi->v2p_cache, &dtb);
+    struct key_128 local_key;
+    key_128_t key = &local_key;
+    key_128_init(key, npt, pt);
 
-        dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache del 0x%.16"PRIx64"\n", va);
-
+    GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, key);
+    if ( !v )
         return VMI_SUCCESS;
-    }
 
-    return VMI_FAILURE;
+    va = (va >> 12) << 12;
+    (void) g_hash_table_remove(v, &va);
+
+    if (!g_hash_table_size(v))
+        g_hash_table_remove(vmi->v2p_cache, key);
+
+    dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache del 0x%.16"PRIx64"\n", va);
+
+    return VMI_SUCCESS;
 }
 
 void
 v2p_cache_flush(
     vmi_instance_t vmi,
-    addr_t dtb)
+    addr_t pt,
+    addr_t npt)
 {
-    if ( ~0ull == dtb )
+    if ( ~0ull == pt )
         g_hash_table_remove_all(vmi->v2p_cache);
     else {
-        GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, &dtb);
-        if ( v )
-            g_hash_table_remove_all(v);
+        struct key_128 local_key;
+        key_128_t key = &local_key;
+        key_128_init(key, npt, pt);
+        (void) g_hash_table_remove(vmi->v2p_cache, key);
     }
     dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache flushed\n");
 }

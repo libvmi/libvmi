@@ -57,19 +57,19 @@ void free_va_pages()
 
 event_response_t cr3_callback(vmi_instance_t vmi, vmi_event_t *event)
 {
-
     va_pages = vmi_get_va_pages(vmi, event->reg_event.value);
+
+    printf("CR3: 0x%lx. Pages: %u\n", event->reg_event.value, g_slist_length(va_pages));
 
     GSList *loop = va_pages;
     while (loop) {
         page_info_t *page = loop->data;
 
         // Demonstrate using access_context_t
-        access_context_t ctx = {
-            .translate_mechanism = VMI_TM_PROCESS_DTB,
-            .addr = page->vaddr,
-            .dtb = event->reg_event.value,
-        };
+        ACCESS_CONTEXT(ctx,
+                       .translate_mechanism = VMI_TM_PROCESS_DTB,
+                       .addr = page->vaddr,
+                       .pt = event->reg_event.value);
 
         uint64_t test;
         if (VMI_FAILURE == vmi_read_64(vmi, &ctx, &test)) {

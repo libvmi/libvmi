@@ -74,10 +74,8 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t* major, ui
     struct optional_header_pe32 *oh32 = NULL;
     struct optional_header_pe32plus *oh32plus = NULL;
     uint8_t pe[VMI_PS_4KB];
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_NONE,
-        .addr = kernbase_pa
-    };
+
+    ACCESS_CONTEXT(ctx, .addr = kernbase_pa);
 
     if ( VMI_FAILURE == peparse_get_image(vmi, &ctx, VMI_PS_4KB, pe) ) {
         return VMI_OS_WINDOWS_NONE;
@@ -159,10 +157,7 @@ get_ntoskrnl_base(
     addr_t page_paddr)
 {
     addr_t ret = 0;
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_NONE,
-        .addr = page_paddr
-    };
+    ACCESS_CONTEXT(ctx, .addr = page_paddr);
 
     for (; ctx.addr + VMI_PS_4KB < vmi->max_physical_address; ctx.addr += VMI_PS_4KB) {
 
