@@ -47,6 +47,7 @@ Makefile.in
 **/*.lai
 **/*.so*
 **/*.m4
+**/*.save
 ltmain.sh
 missing
 stamp-h1
