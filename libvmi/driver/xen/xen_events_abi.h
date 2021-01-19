@@ -94,6 +94,7 @@ typedef enum {
 #define VM_EVENT_FLAG_GET_NEXT_INTERRUPT (1 << 10)
 #define VM_EVENT_FLAG_FAST_SINGLESTEP    (1 << 11)
 #define VM_EVENT_FLAG_NESTED_P2M         (1 << 12)
+#define VM_EVENT_FLAG_RESET_VMTRACE      (1 << 13)
 
 #define VM_EVENT_REASON_UNKNOWN                 0
 #define VM_EVENT_REASON_MEM_ACCESS              1
@@ -320,6 +321,7 @@ struct regs_x86_7 {
     uint64_t msr_lstar;
     uint64_t gdtr_base;
     uint64_t npt_base;
+    uint64_t vmtrace_pos;
     uint32_t cs_base;
     uint32_t ss_base;
     uint32_t ds_base;

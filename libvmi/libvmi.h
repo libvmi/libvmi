@@ -548,7 +548,7 @@ typedef struct x86_regs {
     uint64_t cs_base;
     uint64_t cs_limit;
     uint64_t cs_sel;
-    uint32_t cs_arbytes;
+    uint64_t cs_arbytes;
     uint64_t ss_base;
     uint64_t ss_limit;
     uint64_t ss_sel;
@@ -567,8 +567,7 @@ typedef struct x86_regs {
     uint64_t gdtr_base;
     uint64_t gdtr_limit;
     uint64_t npt_base;
-
-    uint32_t _pad;
+    uint64_t vmtrace_pos;
 } x86_registers_t;
 
 typedef struct arm_registers {

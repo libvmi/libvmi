@@ -436,7 +436,8 @@ typedef uint32_t event_response_flags_t;
 #define VMI_EVENT_RESPONSE_SET_EMUL_INSN        (1u << 8)
 #define VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT   (1u << 9)
 #define VMI_EVENT_RESPONSE_NEXT_SLAT_ID         (1u << 10)
-#define __VMI_EVENT_RESPONSE_MAX                10
+#define VMI_EVENT_RESPONSE_RESET_VMTRACE        (1u << 11)
+#define __VMI_EVENT_RESPONSE_MAX                11
 
 /**
  * Bitmap holding event_reponse_flags_t values returned by callback
