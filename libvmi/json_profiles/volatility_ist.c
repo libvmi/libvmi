@@ -208,7 +208,8 @@ volatility_ist_symbol_to_rva(
     }
 
 exit:
-    dbprint(VMI_DEBUG_MISC, "Volatility IST profile lookup %s %s: 0x%lx\n", symbol ?: NULL, subsymbol ?: NULL, *rva);
+    dbprint(VMI_DEBUG_MISC, "Volatility IST profile lookup %s %s: 0x%lx\n",
+            symbol ?: NULL, subsymbol ?: NULL, rva ? *rva : 0);
     return ret;
 }
 
