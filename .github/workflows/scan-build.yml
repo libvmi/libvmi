@@ -25,5 +25,5 @@ jobs:
           cd ..
           # scan-build
           autoreconf -vif
-          scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers -disable-checker deadcode.DeadStores ./configure --enable-debug --disable-config-file
+          scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers -disable-checker deadcode.DeadStores ./configure CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL --enable-debug --disable-config-file
           scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers -disable-checker deadcode.DeadStores make
