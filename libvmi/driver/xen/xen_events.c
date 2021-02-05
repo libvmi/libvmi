@@ -2979,6 +2979,7 @@ status_t process_requests_7(vmi_instance_t vmi, uint32_t *requests_processed)
         vmec.data.regs.x86.ss_sel = req->data.regs.x86.ss_sel;
         vmec.data.regs.x86.ss_limit = req->data.regs.x86.ss.limit;
         vmec.data.regs.x86.ss_arbytes = req->data.regs.x86.ss.ar;
+        vmec.data.regs.x86.vmtrace_pos = req->data.regs.x86.vmtrace_pos;
 
         if ( !(vmec.flags & VM_EVENT_FLAG_NESTED_P2M) )
             vmec.data.regs.x86.npt_base = 0;
