@@ -2,7 +2,7 @@ name: libvmi
 version: '0.15.0'
 summary: LibVMI
 description: |
-	LibVMI is a C library with Python bindings that makes it easy to monitor the low-level details of
+    LibVMI is a C library with Python bindings that makes it easy to monitor the low-level details of
     a running virtual machine by viewing its memory, trapping on hardware events, and accessing the
     vCPU registers. This is called virtual machine introspection.
 
@@ -12,6 +12,13 @@ confinement: devmode
 parts:
   libvmi:
     source: .
-    build-packages: [autoconf-archive flex bison libjson-c-dev libxen-dev libfuse-dev build-essential]
+    build-packages:
+        - autoconf-archive
+        - flex
+        - bison
+        - libjson-c-dev
+        - libxen-dev
+        - libfuse-dev
+        - build-essential
     plugin: autotools
     configflags: [--disable-kvm]
