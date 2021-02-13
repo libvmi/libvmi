@@ -8,7 +8,6 @@ description: |
 
 grade: devel
 confinement: devmode
-base: core20
 
 parts:
   libvmi:
@@ -24,7 +23,7 @@ parts:
         - pkg-config
         - libglib2.0-dev
     stage-packages:
-        - libjson-c4
+        - libjson-c-dev
         - libglib2.0-0
     plugin: autotools
     configflags: [--disable-kvm]
