@@ -20,5 +20,6 @@ parts:
         - libxen-dev
         - libfuse-dev
         - build-essential
+        - pkg-config
     plugin: autotools
     configflags: [--disable-kvm]
