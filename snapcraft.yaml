@@ -28,9 +28,14 @@ parts:
         - libjson-c-dev
         - libglib2.0-0
     plugin: autotools
-    configflags: [--disable-kvm --prefix=/snap/libvmi/latest]
     override-build: |
-      snapcraftctl build
+      autoreconf -vif
+      ./configure --disable-kvm --prefix=${SNAPCRAFT_PART_INSTALL}
+      make
+      # override pkg-config prefix
+      sed -i "1s/.*/prefix=\/snap\/${SNAPCRAFT_PROJECT_NAME}\/current" libvmi.pc
+      make install
+      rm -f ${SNAPCRAFT_PART_INSTALL}/lib/libvmi.la
       # set version
       VERSION="$(grep AC_INIT configure.ac | sed 's/^.*\[//;s/\].*$//')"
       echo "setting version to $VERSION"
