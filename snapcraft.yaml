@@ -21,5 +21,9 @@ parts:
         - libfuse-dev
         - build-essential
         - pkg-config
+        - libglib2.0-dev
+    stage-packages:
+        - libjson-c4
+        - libglib2.0-0
     plugin: autotools
     configflags: [--disable-kvm]
