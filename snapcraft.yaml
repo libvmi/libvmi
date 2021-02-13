@@ -1,4 +1,5 @@
 name: libvmi
+adopt-info: libvmi
 summary: LibVMI
 description: |
     LibVMI is a C library with Python bindings that makes it easy to monitor the low-level details of
