@@ -1,5 +1,4 @@
 name: libvmi
-version: '0.15.0'
 summary: LibVMI
 description: |
     LibVMI is a C library with Python bindings that makes it easy to monitor the low-level details of
@@ -8,6 +7,8 @@ description: |
 
 grade: devel
 confinement: devmode
+architectures:
+  - build-on: [amd64, i386, armhf, arm64]
 
 parts:
   libvmi:
@@ -26,4 +27,10 @@ parts:
         - libjson-c-dev
         - libglib2.0-0
     plugin: autotools
-    configflags: [--disable-kvm]
+    configflags: [--disable-kvm --prefix=/snap/libvmi/latest]
+    override-build: |
+      snapcraftctl build
+      # set version
+      VERSION="$(grep AC_INIT configure.ac | sed 's/^.*\[//;s/\].*$//')"
+      echo "setting version to $VERSION"
+      snapcraftctl set-version $VERSION
