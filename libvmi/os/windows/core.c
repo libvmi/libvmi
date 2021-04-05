@@ -1135,6 +1135,7 @@ status_t windows_teardown(vmi_instance_t vmi)
 
     g_free(vmi->os_data);
     vmi->os_data = NULL;
+    vmi->kpgd = 0;
 
 done:
     return ret;

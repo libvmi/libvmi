@@ -58,5 +58,7 @@ typedef struct json_interface {
 
 bool json_profile_init(vmi_instance_t vmi, const char* path);
 
+void json_profile_destroy(vmi_instance_t vmi);
+
 #endif
 #endif /* LIBVMI_JSON_PROFILES_H */

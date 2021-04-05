@@ -672,6 +672,7 @@ GHashTable *init_config(vmi_instance_t vmi, vmi_config_t config_mode, void *conf
             }
             _config = (GHashTable*)config;
             break;
+#ifdef ENABLE_JSON_PROFILES
         case VMI_CONFIG_JSON_PATH:
             if (!config) {
 
@@ -683,6 +684,7 @@ GHashTable *init_config(vmi_instance_t vmi, vmi_config_t config_mode, void *conf
             _config = g_hash_table_new(g_str_hash, g_str_equal);
             g_hash_table_insert(_config, "volatility_ist", config);
             break;
+#endif
         default:
             return NULL;
     }
@@ -784,8 +786,14 @@ os_t vmi_init_os(
     };
 
 error_exit:
-    if ( VMI_CONFIG_JSON_PATH == config_mode )
+#ifdef ENABLE_JSON_PROFILES
+    if ( VMI_CONFIG_JSON_PATH == config_mode ) {
         g_hash_table_destroy(_config);
+
+        if ( VMI_OS_UNKNOWN == vmi->os_type )
+            json_profile_destroy(vmi);
+    }
+#endif
 
     return vmi->os_type;
 }
@@ -855,9 +863,7 @@ vmi_destroy(
     vmi->os_data = NULL;
 
 #ifdef ENABLE_JSON_PROFILES
-    g_free((char*)vmi->json.path);
-    if ( vmi->json.root )
-        json_object_put(vmi->json.root);
+    json_profile_destroy(vmi);
 #endif
 
     pid_cache_destroy(vmi);
