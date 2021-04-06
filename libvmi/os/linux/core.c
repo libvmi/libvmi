@@ -612,8 +612,7 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
     return VMI_SUCCESS;
 
 _exit:
-    g_free(vmi->os_data);
-    vmi->os_data = NULL;
+    linux_teardown(vmi);
     return VMI_FAILURE;
 }
 
@@ -729,6 +728,7 @@ status_t linux_teardown(vmi_instance_t vmi)
     g_free(linux_instance);
 
     vmi->os_data = NULL;
+    vmi->kpgd = 0;
 
     return VMI_SUCCESS;
 }

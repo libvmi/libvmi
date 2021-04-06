@@ -76,6 +76,16 @@ bool json_profile_init(vmi_instance_t vmi, const char* path)
     return true;
 }
 
+void json_profile_destroy(vmi_instance_t vmi)
+{
+    g_free((char*)vmi->json.path);
+    if ( vmi->json.root )
+        json_object_put(vmi->json.root);
+
+    vmi->json.path = NULL;
+    vmi->json.root = NULL;
+}
+
 json_object* vmi_get_kernel_json(vmi_instance_t vmi)
 {
     return vmi->json.root;
