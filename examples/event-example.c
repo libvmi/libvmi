@@ -146,10 +146,8 @@ event_response_t syscall_lm_cb(vmi_instance_t vmi, vmi_event_t *event)
 
 event_response_t cr3_all_tasks_callback(vmi_instance_t vmi, vmi_event_t *event)
 {
-    vmi_pid_t pid = -1;
-    vmi_dtb_to_pid(vmi, event->reg_event.value, &pid);
-    printf("PID %i with CR3=%"PRIx64" executing on vcpu %"PRIu32". Previous CR3=%"PRIx64"\n",
-           pid, event->reg_event.value, event->vcpu_id, event->reg_event.previous);
+    printf("CR3=%"PRIx64" executing on vcpu %"PRIu32". Previous CR3=%"PRIx64"\n",
+           event->reg_event.value, event->vcpu_id, event->reg_event.previous);
     return 0;
 }
 
@@ -208,10 +206,14 @@ int main (int argc, char **argv)
     sigaction(SIGINT,  &act, NULL);
     sigaction(SIGALRM, &act, NULL);
 
+    vmi_mode_t mode;
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, name, VMI_INIT_DOMAINNAME, init_data, &mode)) {
+        printf("Failed to find a supported hypervisor with LibVMI\n");
+        return 1;
+    }
+
     /* initialize the libvmi library */
-    if (VMI_FAILURE ==
-            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
-                              init_data, VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
