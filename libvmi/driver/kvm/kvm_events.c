@@ -1401,7 +1401,7 @@ kvm_set_cpuid_event(vmi_instance_t vmi, bool enabled)
         }
 
     dbprint(VMI_DEBUG_KVM, "--%s CPUID monitoring\n",
-            (enabled) ? "Enabled" : "Disabled", event->intr);
+            (enabled) ? "Enabled" : "Disabled");
 
     return VMI_SUCCESS;
 error_exit:
