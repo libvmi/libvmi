@@ -686,6 +686,55 @@ process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
 }
 
+static status_t
+process_cpuid(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !kvmi_event) {
+        errprint("%s: Invalid vmi or kvmi event handles\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Received CPUID event\n");
+
+    // lookup vmi event
+    vmi_event_t *libvmi_event = vmi->cpuid_event;
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!libvmi_event) {
+        errprint("%s error: no CPUID event handler is registered in LibVMI\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    // fill libvmi_event struct
+    x86_registers_t regs = {0};
+    libvmi_event->x86_regs = &regs;
+    struct kvm_regs *kvmi_regs = &kvmi_event->event.common.arch.regs;
+    struct kvm_sregs *kvmi_sregs = &kvmi_event->event.common.arch.sregs;
+    kvmi_regs_to_libvmi(kvmi_regs, kvmi_sregs, libvmi_event->x86_regs);
+
+    libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
+    libvmi_event->cpuid_event.leaf = kvmi_event->event.cpuid.function;
+    libvmi_event->cpuid_event.subleaf = kvmi_event->event.cpuid.index;
+
+    // call user callback
+    event_response_t response = call_event_callback(vmi, libvmi_event);
+
+    // reply struct
+    struct {
+        struct kvmi_vcpu_hdr hdr;
+        struct kvmi_event_reply common;
+    } rpl = {0};
+
+    // set reply action
+    rpl.hdr.vcpu = kvmi_event->event.common.vcpu;
+    rpl.common.event = kvmi_event->event.common.event;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+
+    return process_cb_response(vmi, response, libvmi_event, kvmi_event, &rpl, sizeof(rpl));
+}
+
+
 /*
  * kvm_events.h API
  */
@@ -717,6 +766,7 @@ kvm_events_init(
     vmi->driver.start_single_step_ptr = &kvm_start_single_step;
     vmi->driver.stop_single_step_ptr = &kvm_stop_single_step;
     vmi->driver.shutdown_single_step_ptr = &kvm_shutdown_single_step;
+    vmi->driver.set_cpuid_event_ptr = &kvm_set_cpuid_event;
 
     // fill event dispatcher
     kvm->process_event[KVMI_EVENT_CR] = &process_register;
@@ -726,6 +776,7 @@ kvm_events_init(
     kvm->process_event[KVMI_EVENT_DESCRIPTOR] = &process_descriptor;
     kvm->process_event[KVMI_EVENT_PAUSE_VCPU] = &process_pause_event;
     kvm->process_event[KVMI_EVENT_SINGLESTEP] = &process_singlestep;
+    kvm->process_event[KVMI_EVENT_CPUID] = &process_cpuid;
 
     // enable interception of CR/MSR/PF for all VCPUs by default
     // since this has no performance cost
@@ -1327,4 +1378,35 @@ kvm_shutdown_single_step(
 
     // disabling singlestep monitoring is done at driver destroy
     return VMI_SUCCESS;
+}
+
+status_t
+kvm_set_cpuid_event(vmi_instance_t vmi, bool enabled)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return VMI_FAILURE;
+#endif
+
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom)
+        return VMI_FAILURE;
+#endif
+
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++)
+        if (kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, vcpu, KVMI_EVENT_CPUID, enabled)) {
+            errprint("%s: failed to set event on VCPU %u: %s\n", __func__, vcpu, strerror(errno));
+            goto error_exit;
+        }
+
+    dbprint(VMI_DEBUG_KVM, "--%s CPUID monitoring\n",
+            (enabled) ? "Enabled" : "Disabled");
+
+    return VMI_SUCCESS;
+error_exit:
+    // disable monitoring for all vcpus
+    for (unsigned int i = 0; i < vmi->num_vcpus; i++)
+        kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, i, KVMI_EVENT_CPUID, false);
+    return VMI_FAILURE;
 }
