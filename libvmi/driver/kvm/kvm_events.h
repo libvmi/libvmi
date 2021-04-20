@@ -90,4 +90,9 @@ kvm_get_next_event(
     struct kvmi_dom_event **event,
     kvmi_timeout_t timeout);
 
+status_t
+kvm_set_cpuid_event(
+    vmi_instance_t vmi,
+    bool enable);
+
 #endif // KVM_EVENTS_H
