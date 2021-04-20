@@ -84,8 +84,7 @@ event_response_t msr_syscall_sysenter_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     print_event(*event);
 
-    if ( event->x86_regs->rip != sysenter_ip )
-    {
+    if ( event->x86_regs->rip != sysenter_ip ) {
         vmi_clear_event(vmi, event, NULL);
         vmi_step_event(vmi, event, event->vcpu_id, 1, NULL);
         return 0;
@@ -97,7 +96,7 @@ event_response_t msr_syscall_sysenter_cb(vmi_instance_t vmi, vmi_event_t *event)
     vmi_get_vcpureg(vmi, &rdi, RDI, event->vcpu_id);
 
     printf("SYSENTER_IP Syscall happened: RAX(syscall#)=%u RDI(1st argument)=%u\n",
-        (unsigned int)rax, (unsigned int)rdi);
+           (unsigned int)rax, (unsigned int)rdi);
 
     vmi_clear_event(vmi, event, NULL);
     return 0;
@@ -127,8 +126,7 @@ event_response_t syscall_lm_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     print_event(*event);
 
-    if ( event->mem_event.offset != (VMI_BIT_MASK(0,11) & lstar) )
-    {
+    if ( event->mem_event.offset != (VMI_BIT_MASK(0,11) & lstar) ) {
         vmi_clear_event(vmi, event, NULL);
         vmi_step_event(vmi, event, event->vcpu_id, 1, NULL);
         return 0;
