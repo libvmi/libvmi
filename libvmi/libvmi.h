@@ -554,6 +554,7 @@ typedef struct x86_regs {
     uint64_t msr_lstar;
     uint64_t msr_pat;
     uint64_t msr_cstar;
+
     uint64_t fs_base;
     uint64_t fs_limit;
     uint64_t fs_sel;
@@ -596,6 +597,21 @@ typedef struct x86_regs {
         uint64_t es_arbytes;
         x86_segment_flags_t es_flags;
     };
+    uint64_t tr_base;
+    uint64_t tr_limit;
+    uint64_t tr_sel;
+    union {
+        uint64_t tr_arbytes;
+        x86_segment_flags_t tr_flags;
+    };
+    uint64_t ldt_base;
+    uint64_t ldt_limit;
+    uint64_t ldt_sel;
+    union {
+        uint64_t ldt_arbytes;
+        x86_segment_flags_t ldt_flags;
+    };
+
     uint64_t shadow_gs;
     uint64_t idtr_base;
     uint64_t idtr_limit;
