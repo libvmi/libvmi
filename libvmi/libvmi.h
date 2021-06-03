@@ -502,6 +502,23 @@ typedef struct x86_mtrr_regs {
 } mtrr_regs_t;
 
 /*
+ * The format used for x86 segment flags by LibVMI.
+ */
+typedef struct x86_segment_flags {
+    uint16_t type:4; // 0-3
+    uint16_t s:   1; // 4
+    uint16_t dpl: 2; // 5-6
+    uint16_t p:   1; // 7
+    uint16_t avl: 1; // 8
+    uint16_t l:   1; // 9
+    uint16_t db:  1; // 10
+    uint16_t g:   1; // 11
+    uint16_t pad: 4; // 12-15
+    uint16_t pad2;   // 16-31
+    uint32_t pad3;   // 32-63
+} x86_segment_flags_t;
+
+/*
  * Commonly used x86 registers
  */
 typedef struct x86_regs {
@@ -540,27 +557,45 @@ typedef struct x86_regs {
     uint64_t fs_base;
     uint64_t fs_limit;
     uint64_t fs_sel;
-    uint64_t fs_arbytes;
+    union {
+        uint64_t fs_arbytes;
+        x86_segment_flags_t fs_flags;
+    };
     uint64_t gs_base;
     uint64_t gs_limit;
     uint64_t gs_sel;
-    uint64_t gs_arbytes;
+    union {
+        uint64_t gs_arbytes;
+        x86_segment_flags_t gs_flags;
+    };
     uint64_t cs_base;
     uint64_t cs_limit;
     uint64_t cs_sel;
-    uint64_t cs_arbytes;
+    union {
+        uint64_t cs_arbytes;
+        x86_segment_flags_t cs_flags;
+    };
     uint64_t ss_base;
     uint64_t ss_limit;
     uint64_t ss_sel;
-    uint64_t ss_arbytes;
+    union {
+        uint64_t ss_arbytes;
+        x86_segment_flags_t ss_flags;
+    };
     uint64_t ds_base;
     uint64_t ds_limit;
     uint64_t ds_sel;
-    uint64_t ds_arbytes;
+    union {
+        uint64_t ds_arbytes;
+        x86_segment_flags_t ds_flags;
+    };
     uint64_t es_base;
     uint64_t es_limit;
     uint64_t es_sel;
-    uint64_t es_arbytes;
+    union {
+        uint64_t es_arbytes;
+        x86_segment_flags_t es_flags;
+    };
     uint64_t shadow_gs;
     uint64_t idtr_base;
     uint64_t idtr_limit;
