@@ -87,6 +87,17 @@ reply_continue(kvm_instance_t *kvm, struct kvmi_dom_event *ev)
     return VMI_SUCCESS;
 }
 
+static void kvm_segment_flags(const struct kvm_segment *s, x86_segment_flags_t *flags)
+{
+    flags->type = s->type;
+    flags->s = s->s;
+    flags->dpl = s->dpl;
+    flags->p = s->present;
+    flags->avl = s->avl;
+    flags->l = s->l;
+    flags->db = s->db;
+    flags->g = s->g;
+}
 
 void
 kvmi_regs_to_libvmi(
@@ -124,26 +135,42 @@ kvmi_regs_to_libvmi(
     x86_regs.cs_base = kvmi_sregs->cs.base;
     x86_regs.cs_limit = kvmi_sregs->cs.limit;
     x86_regs.cs_sel = kvmi_sregs->cs.selector;
+    kvm_segment_flags(&kvmi_sregs->cs, &x86_regs.cs_flags);
     //          DS
     x86_regs.ds_base = kvmi_sregs->ds.base;
     x86_regs.ds_limit = kvmi_sregs->ds.limit;
     x86_regs.ds_sel = kvmi_sregs->ds.selector;
+    kvm_segment_flags(&kvmi_sregs->ds, &x86_regs.ds_flags);
     //          SS
     x86_regs.ss_base = kvmi_sregs->ss.base;
     x86_regs.ss_limit = kvmi_sregs->ss.limit;
     x86_regs.ss_sel = kvmi_sregs->ss.selector;
+    kvm_segment_flags(&kvmi_sregs->ss, &x86_regs.ss_flags);
     //          ES
     x86_regs.es_base = kvmi_sregs->es.base;
     x86_regs.es_limit = kvmi_sregs->es.limit;
     x86_regs.es_sel = kvmi_sregs->es.selector;
+    kvm_segment_flags(&kvmi_sregs->es, &x86_regs.es_flags);
     //          FS
     x86_regs.fs_base = kvmi_sregs->fs.base;
     x86_regs.fs_limit = kvmi_sregs->fs.limit;
     x86_regs.fs_sel = kvmi_sregs->fs.selector;
+    kvm_segment_flags(&kvmi_sregs->fs, &x86_regs.fs_flags);
     //          GS
     x86_regs.gs_base = kvmi_sregs->gs.base;
     x86_regs.gs_limit = kvmi_sregs->gs.limit;
     x86_regs.gs_sel = kvmi_sregs->gs.selector;
+    kvm_segment_flags(&kvmi_sregs->gs, &x86_regs.gs_flags);
+    //          TR
+    x86_regs.tr_base = kvmi_sregs->tr.base;
+    x86_regs.tr_limit = kvmi_sregs->tr.limit;
+    x86_regs.tr_sel = kvmi_sregs->tr.selector;
+    kvm_segment_flags(&kvmi_sregs->tr, &x86_regs.tr_flags);
+    //          LDT
+    x86_regs.ldt_base = kvmi_sregs->ldt.base;
+    x86_regs.ldt_limit = kvmi_sregs->ldt.limit;
+    x86_regs.ldt_sel = kvmi_sregs->ldt.selector;
+    kvm_segment_flags(&kvmi_sregs->ldt, &x86_regs.ldt_flags);
     // assign
     (*libvmi_regs) = x86_regs;
 }

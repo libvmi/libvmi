@@ -1291,6 +1291,14 @@ xen_get_vcpuregs_hvm(
     regs->x86.es_limit = hvm_cpu->es_limit;
     regs->x86.es_sel = hvm_cpu->es_sel;
     regs->x86.es_arbytes = hvm_cpu->es_arbytes;
+    regs->x86.tr_base = hvm_cpu->tr_base;
+    regs->x86.tr_limit = hvm_cpu->tr_limit;
+    regs->x86.tr_sel = hvm_cpu->tr_sel;
+    regs->x86.tr_arbytes = hvm_cpu->tr_arbytes;
+    regs->x86.ldt_base = hvm_cpu->ldtr_base;
+    regs->x86.ldt_limit = hvm_cpu->ldtr_limit;
+    regs->x86.ldt_sel = hvm_cpu->ldtr_sel;
+    regs->x86.ldt_arbytes = hvm_cpu->ldtr_arbytes;
     regs->x86.shadow_gs = hvm_cpu->shadow_gs;
     regs->x86.idtr_base = hvm_cpu->idtr_base;
     regs->x86.idtr_limit = hvm_cpu->idtr_limit;
