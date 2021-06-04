@@ -9,7 +9,7 @@ jobs:
         container:
           - 'debian:buster-slim'
           - 'debian:bullseye-slim'
-          - 'ubuntu:rolling'
+          - 'ubuntu:focal'
           - 'centos:centos7'
         compiler:
           - 'gcc'
