@@ -530,7 +530,8 @@ kvm_put_memory(vmi_instance_t vmi,
             goto error_exit;
         }
     }
-
+    
+    paddr = (paddr >> vmi->page_shift) << vmi->page_shift;
     /* Remove page from cache as cached contents are now stale */
     memory_cache_remove(vmi, paddr);
 
