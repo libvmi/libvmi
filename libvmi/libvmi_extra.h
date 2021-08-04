@@ -174,12 +174,14 @@ status_t vmi_get_bitfield_offset_and_size_from_json(vmi_instance_t vmi, json_obj
  * anonymous structure.
  * The returned string is managed by json_object and should not be freed by the user.
  *
- * @param[in] drakvuf Drakvuf instance.
- * @param[in] struct_name Name of the struct containing `field_name`.
- * @param[in] field_name Name of the field that we want to retrieve type name.
- * @return string or NULL on failure
+ * @param[in] vmi Instance.
+ * @param[in] json The open json_object* to use
+ * @param[in] struct_name Name of the struct containing `struct_member`.
+ * @param[in] struct_member The structure's member that we want to retrieve type name for.
+ * @param[out] member_type_name Type name of `struct_member`.
+ * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_get_struct_field_type_name(
+status_t vmi_get_struct_field_type_name_from_json(
     vmi_instance_t vmi,
     json_object *json,
     const char *struct_name,
