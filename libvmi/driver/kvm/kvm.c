@@ -382,7 +382,12 @@ init_kvmi(
     kvm->kvmi_dom = NULL;
 
     pthread_mutex_lock(&kvm->kvm_connect_mutex);
-    kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, new_guest_cb, handshake_cb, kvm);
+    if (atoi(sock_path) > 0) {
+        kvm->kvmi = kvm->libkvmi.kvmi_init_vsock(atoi(sock_path), new_guest_cb, handshake_cb, kvm);
+    } else {
+        kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, new_guest_cb, handshake_cb, kvm);
+    }
+
     if (kvm->kvmi) {
         struct timeval now;
         if (gettimeofday(&now, NULL) == 0) {
