@@ -168,6 +168,23 @@ status_t vmi_get_bitfield_offset_and_size_from_json(vmi_instance_t vmi, json_obj
         const char *struct_member,
         addr_t *offset, size_t *start_bit,
         size_t *end_bit);
+
+/**
+ * Useful when one wants to find rva of typedef as compiler will treat it as an
+ * anonymous structure.
+ * The returned string is managed by json_object and should not be freed by the user.
+ *
+ * @param[in] drakvuf Drakvuf instance.
+ * @param[in] struct_name Name of the struct containing `field_name`.
+ * @param[in] field_name Name of the field that we want to retrieve type name.
+ * @return string or NULL on failure
+ */
+status_t vmi_get_struct_field_type_name(
+    vmi_instance_t vmi,
+    json_object *json,
+    const char *struct_name,
+    const char *struct_member,
+    const char **member_type_name) NOEXCEPT;
 #endif
 
 #pragma GCC visibility pop
