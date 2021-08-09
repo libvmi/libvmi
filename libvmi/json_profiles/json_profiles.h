@@ -52,6 +52,13 @@ typedef struct json_interface {
         size_t *start_bit,
         size_t *end_bit);
 
+    status_t
+    (*struct_field_type_name)(
+        json_object *json,
+        const char *struct_name,
+        const char *struct_member,
+        const char **member_type_name);
+
     const char* (*get_os_type)(
         vmi_instance_t vmi);
 } json_interface_t;
