@@ -37,6 +37,9 @@ typedef struct {
     void* (*kvmi_init_unix_socket)
     (const char *socket, kvmi_new_guest_cb accept_cb, kvmi_handshake_cb hsk_cb, void *cb_ctx);
 
+    void* (*kvmi_init_vsock)
+    (unsigned int port, kvmi_new_guest_cb accept_cb, kvmi_handshake_cb hsk_cb, void *cb_ctx);
+
     void (*kvmi_uninit)
     (void* ctx);
 

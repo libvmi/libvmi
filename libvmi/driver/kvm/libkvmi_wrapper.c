@@ -30,7 +30,7 @@ static status_t sanity_check(kvm_instance_t *kvm)
 {
     libkvmi_wrapper_t *w = &kvm->libkvmi;
 
-    if ( !w->kvmi_init_unix_socket || !w->kvmi_uninit || !w->kvmi_close ||
+    if ( !w->kvmi_init_unix_socket || !w->kvmi_init_vsock || !w->kvmi_uninit || !w->kvmi_close ||
             !w->kvmi_domain_close || !w->kvmi_connection_fd ||
             !w->kvmi_get_version || !w->kvmi_control_events ||
             !w->kvmi_control_vm_events || !w->kvmi_control_cr || !w->kvmi_control_singlestep ||
@@ -69,6 +69,7 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
     dbprint(VMI_DEBUG_KVM, "--libkvmi path: %s\n", map->l_name);
 
     wrapper->kvmi_init_unix_socket = dlsym(wrapper->handle, "kvmi_init_unix_socket");
+    wrapper->kvmi_init_vsock = dlsym(wrapper->handle, "kvmi_init_vsock");
     wrapper->kvmi_uninit = dlsym(wrapper->handle, "kvmi_uninit");
     wrapper->kvmi_close = dlsym(wrapper->handle, "kvmi_close");
     wrapper->kvmi_domain_close = dlsym(wrapper->handle, "kvmi_domain_close");
