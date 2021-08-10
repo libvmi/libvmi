@@ -42,13 +42,10 @@
 #include <unistd.h>
 
 vmi_instance_t vmi;
-GHashTable* config;
 
 void clean_up(void)
 {
     vmi_destroy(vmi);
-    if (config)
-        g_hash_table_destroy(config);
 
 }
 
@@ -156,33 +153,22 @@ int main(int argc, char **argv)
 
     signal(SIGINT, sigint_handler);
 
-    config = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
-    if (!config) {
-        fprintf(stderr, "Failed to create GHashTable!\n");
-        goto done;
-    }
-
-    g_hash_table_insert(config, g_strdup("os_type"), g_strdup("Linux"));
-    g_hash_table_insert(config, g_strdup("rekall_profile"), g_strdup(kernel_profile));
-
     if (VMI_PM_UNKNOWN == vmi_init_paging(vmi, VMI_PM_INITFLAG_TRANSITION_PAGES) ) {
         fprintf(stderr, "Failed to init LibVMI paging.\n");
         goto done;
     }
 
-    os_t os = vmi_init_profile(vmi, VMI_CONFIG_GHASHTABLE, config);
+    os_t os = vmi_init_profile(vmi, VMI_CONFIG_JSON_PATH, kernel_profile);
     if (VMI_OS_LINUX != os) {
         fprintf(stderr, "OS is not Linux\n");
         goto done;
     }
 
-    g_hash_table_remove(config, "rekall_profile");
-
     if ( vmi_are_events_pending(vmi) > 0 )
         vmi_events_listen(vmi, 0);
 
     // the vm is already paused if we've got here
-    os = vmi_init_os(vmi, VMI_CONFIG_GHASHTABLE, config, NULL);
+    os = vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, kernel_profile, NULL);
     if (VMI_OS_LINUX != os) {
         fprintf(stderr, "Failed to init LibVMI library.\n");
         goto done;
