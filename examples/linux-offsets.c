@@ -46,7 +46,6 @@ vmi_instance_t vmi;
 void clean_up(void)
 {
     vmi_destroy(vmi);
-
 }
 
 void sigint_handler()
@@ -75,9 +74,6 @@ void show_usage(char *arg0)
 
 int main(int argc, char **argv)
 {
-    vmi_mode_t mode;
-    int rc = 1;
-
     void *domain = NULL;
     uint64_t domid = VMI_INVALID_DOMID;
     uint64_t init_flags = 0;
@@ -140,32 +136,25 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    vmi_mode_t mode;
+
     if (VMI_FAILURE == vmi_get_access_mode(vmi, domain, init_flags, NULL, &mode)) {
         printf("Failed to get access mode\n");
         goto done;
     }
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags | VMI_INIT_EVENTS, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, NULL, NULL)) {
         fprintf(stderr, "Failed to init LibVMI library.\n");
         goto done;
     }
 
     signal(SIGINT, sigint_handler);
 
-    os_t os = vmi_init_profile(vmi, VMI_CONFIG_JSON_PATH, kernel_profile);
+    os_t os = vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, kernel_profile, NULL);
+
     if (VMI_OS_LINUX != os) {
         fprintf(stderr, "OS is not Linux\n");
-        goto done;
-    }
-
-    if ( vmi_are_events_pending(vmi) > 0 )
-        vmi_events_listen(vmi, 0);
-
-    // the vm is already paused if we've got here
-    os = vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, kernel_profile, NULL);
-    if (VMI_OS_LINUX != os) {
-        fprintf(stderr, "Failed to init LibVMI library.\n");
         goto done;
     }
 
@@ -231,10 +220,10 @@ int main(int argc, char **argv)
 
     vmi_resume_vm(vmi);
 
-    rc = 0;
+    return 0;
 
 done:
     clean_up();
 
-    return rc;
+    return 1;
 }
