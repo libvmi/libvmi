@@ -153,11 +153,6 @@ int main(int argc, char **argv)
 
     signal(SIGINT, sigint_handler);
 
-    if (VMI_PM_UNKNOWN == vmi_init_paging(vmi, VMI_PM_INITFLAG_TRANSITION_PAGES) ) {
-        fprintf(stderr, "Failed to init LibVMI paging.\n");
-        goto done;
-    }
-
     os_t os = vmi_init_profile(vmi, VMI_CONFIG_JSON_PATH, kernel_profile);
     if (VMI_OS_LINUX != os) {
         fprintf(stderr, "OS is not Linux\n");
