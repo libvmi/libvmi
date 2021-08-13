@@ -28,6 +28,10 @@
 #ifndef LIBVMI_EXTRA_H
 #define LIBVMI_EXTRA_H
 
+#ifdef LIBVMI_EXTRA_GLIB
+#include <glib.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #define NOEXCEPT noexcept
@@ -38,7 +42,6 @@ extern "C" {
 #pragma GCC visibility push(default)
 
 #ifdef LIBVMI_EXTRA_GLIB
-#include <glib.h>
 
 /**
  * Retrieve the pages mapped into the address space of a process.
