@@ -39,13 +39,13 @@ windows_read_unicode_struct_pm(
 {
     access_context_t _ctx = *ctx;
     unicode_string_t *us = 0;   // return val
-    size_t struct_size = 0;
     addr_t buffer_va = 0;
     uint16_t buffer_len = 0;
+    uint16_t max_buffer_len = 0;
 
     if (VMI_PM_IA32E == page_mode) {   // 64 bit guest
         win64_unicode_string_t us64 = { 0 };
-        struct_size = sizeof(us64);
+        size_t struct_size = sizeof(us64);
         // read the UNICODE_STRING struct
         if ( VMI_FAILURE == vmi_read(vmi, ctx, struct_size, &us64, NULL) ) {
             dbprint(VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING\n",__FUNCTION__);
@@ -53,9 +53,10 @@ windows_read_unicode_struct_pm(
         }   // if
         buffer_va = us64.pBuffer;
         buffer_len = us64.length;
+        max_buffer_len = us64.maximum_length;
     } else {
         win32_unicode_string_t us32 = { 0 };
-        struct_size = sizeof(us32);
+        size_t struct_size = sizeof(us32);
         // read the UNICODE_STRING struct
         if ( VMI_FAILURE == vmi_read(vmi, ctx, struct_size, &us32, NULL) ) {
             dbprint(VMI_DEBUG_READ, "--%s: failed to read UNICODE_STRING\n",__FUNCTION__);
@@ -63,11 +64,12 @@ windows_read_unicode_struct_pm(
         }   // if
         buffer_va = us32.pBuffer;
         buffer_len = us32.length;
+        max_buffer_len = us32.maximum_length;
     }   // if-else
 
-    if ( buffer_len > VMI_PS_4KB ) {
-        dbprint(VMI_DEBUG_READ, "--%s: the length of %" PRIu16 " in the UNICODE_STRING at 0x%" PRIx64 " is excessive, bailing out.\n",
-                __FUNCTION__, buffer_len, ctx->addr);
+    if ( buffer_len > max_buffer_len ) {
+        dbprint(VMI_DEBUG_READ, "--%s: the length of %" PRIu16 " in the UNICODE_STRING at 0x%" PRIx64 " is greater that max_length %" PRIu16 ", bailing out.\n",
+                __FUNCTION__, buffer_len, ctx->addr, max_buffer_len);
         return NULL;
     }
 
@@ -99,7 +101,7 @@ windows_read_unicode_struct_pm(
 out_error:
     if (us) g_free(us->contents);
     g_free(us);
-    return 0;
+    return NULL;
 }
 
 unicode_string_t *windows_read_unicode_struct( vmi_instance_t vmi, const access_context_t *ctx )
