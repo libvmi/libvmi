@@ -22,6 +22,8 @@ jobs:
     steps:
     - name: Install dependencies
       if: startsWith(matrix.container,'debian') || startsWith(matrix.container,'ubuntu')
+      env:
+        DEBIAN_FRONTEND: noninteractive
       run: |
         apt-get update -q
         apt-get install -y autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev clang build-essential cmake git libtool autotools-dev libglib2.0-dev
