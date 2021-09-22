@@ -125,11 +125,12 @@ static struct fuse_operations vmifs_oper = {
 int main(int argc, char *argv[])
 {
     /* this is the VM or file that we are looking at */
-    if (argc != 4) {
-        printf("Usage: %s name|domid <name|domid> <path>\n", argv[0]);
+    if (argc != 4 && argc != 5) {
+        printf("Usage: %s name|domid <name|domid> <path> [<socket>]\n", argv[0]);
         return 1;
     }
 
+    vmi_init_data_t *init_data = NULL;
     vmi_mode_t mode;
     uint64_t init_flags;
     uint64_t domid = VMI_INVALID_DOMID;
@@ -147,11 +148,18 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init_flags, NULL, &mode))
+    if (argc == 5) {
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(argv[4]);
+    }
+
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init_flags, init_data, &mode))
         return 1;
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
         return 1;
     }
