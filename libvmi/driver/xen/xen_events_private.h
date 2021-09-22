@@ -61,6 +61,7 @@
 #include <xenctrl.h>
 #include <libvmi/events.h>
 
+#include "arch/intel.h"
 #include "xen_events_abi.h"
 
 /*
@@ -74,6 +75,7 @@ typedef struct vm_event_compat {
     uint32_t flags;
     uint32_t reason;
     uint32_t vcpu_id;
+    page_mode_t pm;
     uint16_t altp2m_idx;
 
     union {
@@ -122,6 +124,7 @@ typedef struct {
         vm_event_4_back_ring_t back_ring_4;
         vm_event_5_back_ring_t back_ring_5;
         vm_event_6_back_ring_t back_ring_6;
+        vm_event_7_back_ring_t back_ring_7;
     };
     xen_pfn_t max_gpfn;
     uint32_t monitor_capabilities;
@@ -151,32 +154,13 @@ static const unsigned int event_response_conversion[] = {
     [VMI_EVENT_RESPONSE_SET_EMUL_INSN] = VM_EVENT_FLAG_SET_EMUL_INSN_DATA,
     [VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT] = VM_EVENT_FLAG_GET_NEXT_INTERRUPT,
     [VMI_EVENT_RESPONSE_NEXT_SLAT_ID] = VM_EVENT_FLAG_FAST_SINGLESTEP,
+    [VMI_EVENT_RESPONSE_RESET_VMTRACE] = VM_EVENT_FLAG_RESET_VMTRACE,
 };
-
-static inline status_t
-vmi_flags_sanity_check(vmi_mem_access_t page_access_flag)
-{
-    /*
-     * Setting a page write-only or write-execute in EPT triggers and EPT misconfiguration error
-     * which is unhandled by Xen (at least up to 4.3) and instantly crashes the domain on the first trigger.
-     *
-     * See Intel® 64 and IA-32 Architectures Software Developer’s Manual
-     * 28.2.3.1 EPT Misconfigurations
-     * AN EPT misconfiguration occurs if any of the following is identified while translating a guest-physical address:
-     * * The value of bits 2:0 of an EPT paging-structure entry is either 010b (write-only) or 110b (write/execute).
-     */
-    if (page_access_flag == VMI_MEMACCESS_R || page_access_flag == VMI_MEMACCESS_RX) {
-        errprint("%s error: can't set requested memory access, unsupported by EPT.\n", __FUNCTION__);
-        return VMI_FAILURE;
-    }
-
-    return VMI_SUCCESS;
-}
 
 static inline status_t
 convert_vmi_flags_to_xenmem(vmi_mem_access_t page_access_flag, xenmem_access_t *access)
 {
-    if ( VMI_FAILURE == vmi_flags_sanity_check(page_access_flag) )
+    if ( VMI_FAILURE == intel_mem_access_sanity_check(page_access_flag) )
         return VMI_FAILURE;
 
     switch ( page_access_flag ) {
@@ -211,7 +195,5 @@ convert_vmi_flags_to_xenmem(vmi_mem_access_t page_access_flag, xenmem_access_t *
 
     return VMI_SUCCESS;
 }
-
-typedef struct xen_instance xen_instance_t;
 
 #endif

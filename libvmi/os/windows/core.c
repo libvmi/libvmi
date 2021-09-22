@@ -54,6 +54,7 @@ win_ver_t ntbuild2version(uint16_t ntbuildnumber)
         case 10586:
         case 14393:
         case 18432:
+        case 19041:
             return VMI_OS_WINDOWS_10;
         default:
             break;
@@ -73,10 +74,8 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t* major, ui
     struct optional_header_pe32 *oh32 = NULL;
     struct optional_header_pe32plus *oh32plus = NULL;
     uint8_t pe[VMI_PS_4KB];
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_NONE,
-        .addr = kernbase_pa
-    };
+
+    ACCESS_CONTEXT(ctx, .addr = kernbase_pa);
 
     if ( VMI_FAILURE == peparse_get_image(vmi, &ctx, VMI_PS_4KB, pe) ) {
         return VMI_OS_WINDOWS_NONE;
@@ -158,10 +157,7 @@ get_ntoskrnl_base(
     addr_t page_paddr)
 {
     addr_t ret = 0;
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_NONE,
-        .addr = page_paddr
-    };
+    ACCESS_CONTEXT(ctx, .addr = page_paddr);
 
     for (; ctx.addr + VMI_PS_4KB < vmi->max_physical_address; ctx.addr += VMI_PS_4KB) {
 
@@ -784,8 +780,10 @@ static status_t kpcr_find3(vmi_instance_t vmi, windows_instance_t windows)
     uint32_t int0_high = 0;
     uint16_t int0_low = 0, int0_middle = 0;
 
-    if ( VMI_FAILURE == json_profile_lookup(vmi, "KiDivideErrorFault", NULL, &int0_rva) )
-        return VMI_FAILURE;
+    if ( VMI_FAILURE == json_profile_lookup(vmi, "KiDivideErrorFault", NULL, &int0_rva) ) {
+        if ( VMI_FAILURE == json_profile_lookup(vmi, "KiTrap00", NULL, &int0_rva) )
+            return VMI_FAILURE;
+    }
 
     // Some Windows10+ JSON profiles don't have KiInitialPCR defined so we use the IDT route
     // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
@@ -1137,6 +1135,7 @@ status_t windows_teardown(vmi_instance_t vmi)
 
     g_free(vmi->os_data);
     vmi->os_data = NULL;
+    vmi->kpgd = 0;
 
 done:
     return ret;

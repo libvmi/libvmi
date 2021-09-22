@@ -8,6 +8,7 @@
  *
  * Author: Bryan D. Payne (bdpayne@acm.org)
  * Author: Tamas K Lengyel (tamas.lengyel@zentific.com)
+ * Author: Mathieu Tarral (mathieu.tarral@ssi.gouv.fr)
  *
  * This file is part of LibVMI.
  *
@@ -35,6 +36,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <glib.h>
@@ -42,29 +44,18 @@
 #include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>
-#include <libvirt/libvirt-qemu.h>
-#include <json-c/json.h>
+#include <libkvmi.h>
 
 #include "private.h"
+#include "msr-index.h"
 #include "driver/driver_wrapper.h"
 #include "driver/memory_cache.h"
 #include "driver/kvm/kvm.h"
 #include "driver/kvm/kvm_private.h"
+#include "driver/kvm/kvm_events.h"
 
-#define QMP_CMD_LENGTH 256
-
-#ifdef HAVE_LIBVMI_REQUEST
-# include <qemu/libvmi_request.h>
-#else
-
-// request struct matches a definition in qemu source code
-struct request {
-    uint64_t type;   // 0 quit, 1 read, 2 write, ... rest reserved
-    uint64_t address;   // address to read from OR write to
-    uint64_t length;    // number of bytes to read OR write
-};
-
-#endif
+// 2 chars for each hex + 1 space + 1 \0
+#define UUID_HEX_STR_LEN (16 * 3 + 1)
 
 enum segment_type {
     SEGMENT_SELECTOR,
@@ -76,415 +67,156 @@ enum segment_type {
 //----------------------------------------------------------------------------
 // Helper functions
 
-//
-// QMP Command Interactions
-static char *
-exec_qmp_cmd(
-    kvm_instance_t *kvm,
-    char *query)
-{
-    char *output = NULL;
-
-    dbprint(VMI_DEBUG_KVM, "--qmp: %s\n", query);
-
-    int ret = kvm->libvirt.virDomainQemuMonitorCommand(kvm->dom, query, &output, VIR_DOMAIN_QEMU_MONITOR_COMMAND_DEFAULT);
-    if (ret < 0) {
-        errprint("Failed to execute qemu monitor command\n");
-        return NULL;
-    }
-
-    return output;
-}
-
-static char *
-exec_info_registers(
-    kvm_instance_t *kvm)
-{
-    char *query =
-        "{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info registers\"}}";
-    return exec_qmp_cmd(kvm, query);
-}
-
-static struct json_object *
-exec_info_version(
-    kvm_instance_t *kvm)
-{
-    char *query =
-        "{\"execute\": \"query-version\"}";
-    char *output = exec_qmp_cmd(kvm, query);
-    struct json_object *jobj = NULL;
-
-    if (output) {
-        jobj = json_tokener_parse(output);
-        free(output);
-    }
-
-    return jobj;
-}
-
-static char *
-exec_info_mtree(
-    kvm_instance_t *kvm)
-{
-    char *query =
-        "{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info mtree\"}}";
-    return exec_qmp_cmd(kvm, query);
-}
-
-static char *
-exec_memory_access(
-    kvm_instance_t *kvm)
-{
-    char *tmpfile = tempnam("/tmp", "vmi");
-    char *query = (char *) g_try_malloc0(QMP_CMD_LENGTH);
-
-    if ( !query )
-        return NULL;
-
-    int rc = snprintf(query,
-                      QMP_CMD_LENGTH,
-                      "{\"execute\": \"pmemaccess\", \"arguments\": {\"path\": \"%s\"}}",
-                      tmpfile);
-    if (rc < 0 || rc >= QMP_CMD_LENGTH) {
-        g_free(query);
-        errprint("Failed to properly format `pmemaccess` command\n");
-        return NULL;
-    }
-    kvm->ds_path = strdup(tmpfile);
-    free(tmpfile);
-
-    char *output = exec_qmp_cmd(kvm, query);
-
-    g_free(query);
-    return output;
-}
-
-static char *
-exec_xp(
-    kvm_instance_t *kvm,
-    int numwords,
-    addr_t paddr)
-{
-    char *query = (char *) g_try_malloc0(QMP_CMD_LENGTH);
-    if ( !query )
-        return NULL;
-
-    int rc = snprintf(query,
-                      QMP_CMD_LENGTH,
-                      "{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"xp /%dwx 0x%lx\"}}",
-                      numwords, paddr);
-    if (rc < 0 || rc >= QMP_CMD_LENGTH) {
-        g_free(query);
-        errprint("Failed to properly format `human-monitor-command` command\n");
-        return NULL;
-    }
-
-    char *output = exec_qmp_cmd(kvm, query);
-
-    g_free(query);
-    return output;
-}
-
-static reg_t
-parse_reg_value(
-    char *regname,
-    char *ir_output)
-{
-    if (NULL == ir_output || NULL == regname) {
-        return 0;
-    }
-
-    char *ptr = strcasestr(ir_output, regname);
-
-    if (NULL != ptr) {
-        ptr += strlen(regname) + 1;
-        return (reg_t) strtoull(ptr, (char **) NULL, 16);
-    } else {
-        return 0;
-    }
-}
-
-static reg_t
-parse_seg_reg_value(
-    char *regname,
-    char *ir_output,
-    int type)
-{
-    int offset;
-    char *ptr, *tmp_ptr;
-    char keyword[5] = { [0 ... 4] = '\0' };
-
-    if (NULL == ir_output || NULL == regname) {
-        return 0;
-    }
-
-    strncpy(keyword, regname, 3);
-    if (strlen(regname) == 2)
-        strcat(keyword, " =");
-    else
-        strcat(keyword, "=");
-
-    if (NULL == (ptr = strcasestr(ir_output, keyword)))
-        return 0;
-
-    tmp_ptr = ptr;
-    switch (type) {
-        case SEGMENT_SELECTOR:
-            offset = 4;
-            break;
-        case SEGMENT_BASE:
-            offset = 9;
-            break;
-        case SEGMENT_LIMIT:
-            tmp_ptr += 9;
-            if (8 == strlen(tmp_ptr))
-                offset = 18;
-            else
-                offset = 26;
-            break;
-        case SEGMENT_ATTR:
-            tmp_ptr += 9;
-            if (8 == strlen(tmp_ptr))
-                offset = 27;
-            else
-                offset = 35;
-            break;
-        default:
-            return 0;
-    }
-
-    ptr += offset;
-    return (reg_t) strtoull(ptr, (char **) NULL, 16);
-}
-
-static addr_t
-parse_mtree(char *mtree_output)
-{
-    char *ptr = NULL;
-    char *tmp = NULL;
-    char *line = NULL;
-    const char *line_delim = "\\";
-    const char *above_4g_delim = "-";
-    const char *above_4g = "alias ram-above-4g";
-    char *above_4g_line = NULL;
-    addr_t value = 0;
-
-    // for each line
-    line = strtok_r(mtree_output, line_delim, &tmp);
-    do {
-        // check for above 4g
-        if (strstr(line, above_4g) != NULL) {
-            above_4g_line = strdup(line);
-            break;
-        }
-        // consume r\n
-        line = strtok_r(NULL, "n", &tmp);
-        if (line == NULL)
-            return 0;
-    } while ((line = strtok_r(NULL, line_delim, &tmp)) != NULL);
-
-    // did we find above 4g ?
-    if (above_4g_line == NULL)
-        goto out_error;
-
-    // example of content for above_4g_str:
-    //    0000000100000000-000000013fffffff (prio 0, RW): alias ram-above-4g @pc.ram 00000000c0000000-00000000ffffffff
-    // we want to extract 000000013fffffff
-    tmp = NULL;
-    ptr = strtok_r(above_4g_line, above_4g_delim, &tmp);
-    if (ptr == NULL)
-        goto out_error;
-
-    // ptr: 0000000100000000
-    ptr = strtok_r(NULL, above_4g_delim, &tmp);
-    if (ptr == NULL)
-        goto out_error;
-    // ptr: 000000013fffffff (prio 0, RW): alias ram
-    value = (addr_t) strtoll(ptr, (char **) NULL, 16) + 1;
-out_error:
-    if (above_4g_line)
-        free(above_4g_line);
-    return value;
-}
-
-status_t
-exec_memory_access_success(
-    char *status)
-{
-    if (NULL == status) {
-        return VMI_FAILURE;
-    }
-
-    char *ptr = strcasestr(status, "CommandNotFound");
-
-    if (NULL == ptr) {
-        return VMI_SUCCESS;
-    } else {
-        return VMI_FAILURE;
-    }
-}
-
-/**
- * note:
- * "kvm_patch" here means the feature in pmemaccess patch (kvm-physmem-access_x.x.x.patch);
- */
 static status_t
-test_using_kvm_patch(
-    kvm_instance_t *kvm)
+reply_continue(kvm_instance_t *kvm, struct kvmi_dom_event *ev)
 {
-    if (kvm->socket_fd) {
-        return VMI_SUCCESS;
-    } else {
+    void *dom = kvm->kvmi_dom;
+
+    struct {
+        struct kvmi_vcpu_hdr hdr;
+        struct kvmi_event_reply common;
+    } rpl = {0};
+
+    rpl.hdr.vcpu = ev->event.common.vcpu;
+    rpl.common.action = KVMI_EVENT_ACTION_CONTINUE;
+    rpl.common.event = ev->event.common.event;
+
+    if (kvm->libkvmi.kvmi_reply_event(dom, ev->seq, &rpl, sizeof(rpl)))
         return VMI_FAILURE;
-    }
-}
 
-//
-// Domain socket interactions (for memory access from KVM-QEMU)
-static status_t
-init_domain_socket(
-    kvm_instance_t *kvm)
-{
-    struct sockaddr_un address;
-    int socket_fd;
-    size_t address_length;
-
-    socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    if (socket_fd < 0) {
-        dbprint(VMI_DEBUG_KVM, "--socket() failed\n");
-        return VMI_FAILURE;
-    }
-
-    address.sun_family = AF_UNIX;
-    address_length =
-        sizeof(address.sun_family) + sprintf(address.sun_path, "%s",
-                kvm->ds_path);
-
-    if (connect(socket_fd, (struct sockaddr *) &address, address_length)
-            != 0) {
-        dbprint(VMI_DEBUG_KVM, "--connect() failed to %s, %s\n", kvm->ds_path, strerror(errno));
-        close(socket_fd);
-        return VMI_FAILURE;
-    }
-
-    kvm->socket_fd = socket_fd;
     return VMI_SUCCESS;
 }
 
-static void
-destroy_domain_socket(
-    kvm_instance_t *kvm)
+static void kvm_segment_flags(const struct kvm_segment *s, x86_segment_flags_t *flags)
 {
-    if (VMI_SUCCESS == test_using_kvm_patch(kvm)) {
-        struct request req;
-
-        req.type = 0;   // quit
-        req.address = 0;
-        req.length = 0;
-        if (write(kvm->socket_fd, &req, sizeof(struct request)) < 0)
-            dbprint(VMI_DEBUG_KVM, "--failed to write to socket (%s)\n", strerror(errno));
-        close(kvm->socket_fd);
-    }
+    flags->type = s->type;
+    flags->s = s->s;
+    flags->dpl = s->dpl;
+    flags->p = s->present;
+    flags->avl = s->avl;
+    flags->l = s->l;
+    flags->db = s->db;
+    flags->g = s->g;
 }
 
-//----------------------------------------------------------------------------
-// KVM-Specific Interface Functions (no direction mapping to driver_*)
+void
+kvmi_regs_to_libvmi(
+    struct kvm_regs *kvmi_regs,
+    struct kvm_sregs *kvmi_sregs,
+    x86_registers_t *libvmi_regs)
+{
+    x86_registers_t x86_regs = {0};
+    //      standard regs
+    x86_regs.rax = kvmi_regs->rax;
+    x86_regs.rbx = kvmi_regs->rbx;
+    x86_regs.rcx = kvmi_regs->rcx;
+    x86_regs.rdx = kvmi_regs->rdx;
+    x86_regs.rsi = kvmi_regs->rsi;
+    x86_regs.rdi = kvmi_regs->rdi;
+    x86_regs.rip = kvmi_regs->rip;
+    x86_regs.rsp = kvmi_regs->rsp;
+    x86_regs.rbp = kvmi_regs->rbp;
+    x86_regs.rflags = kvmi_regs->rflags;
+    x86_regs.r8 = kvmi_regs->r8;
+    x86_regs.r9 = kvmi_regs->r9;
+    x86_regs.r10 = kvmi_regs->r10;
+    x86_regs.r11 = kvmi_regs->r11;
+    x86_regs.r12 = kvmi_regs->r12;
+    x86_regs.r13 = kvmi_regs->r13;
+    x86_regs.r14 = kvmi_regs->r14;
+    x86_regs.r15 = kvmi_regs->r15;
+    //      special regs
+    //          Control Registers
+    x86_regs.cr0 = kvmi_sregs->cr0;
+    x86_regs.cr2 = kvmi_sregs->cr2;
+    x86_regs.cr3 = kvmi_sregs->cr3;
+    x86_regs.cr4 = kvmi_sregs->cr4;
+    //          CS
+    x86_regs.cs_base = kvmi_sregs->cs.base;
+    x86_regs.cs_limit = kvmi_sregs->cs.limit;
+    x86_regs.cs_sel = kvmi_sregs->cs.selector;
+    kvm_segment_flags(&kvmi_sregs->cs, &x86_regs.cs_flags);
+    //          DS
+    x86_regs.ds_base = kvmi_sregs->ds.base;
+    x86_regs.ds_limit = kvmi_sregs->ds.limit;
+    x86_regs.ds_sel = kvmi_sregs->ds.selector;
+    kvm_segment_flags(&kvmi_sregs->ds, &x86_regs.ds_flags);
+    //          SS
+    x86_regs.ss_base = kvmi_sregs->ss.base;
+    x86_regs.ss_limit = kvmi_sregs->ss.limit;
+    x86_regs.ss_sel = kvmi_sregs->ss.selector;
+    kvm_segment_flags(&kvmi_sregs->ss, &x86_regs.ss_flags);
+    //          ES
+    x86_regs.es_base = kvmi_sregs->es.base;
+    x86_regs.es_limit = kvmi_sregs->es.limit;
+    x86_regs.es_sel = kvmi_sregs->es.selector;
+    kvm_segment_flags(&kvmi_sregs->es, &x86_regs.es_flags);
+    //          FS
+    x86_regs.fs_base = kvmi_sregs->fs.base;
+    x86_regs.fs_limit = kvmi_sregs->fs.limit;
+    x86_regs.fs_sel = kvmi_sregs->fs.selector;
+    kvm_segment_flags(&kvmi_sregs->fs, &x86_regs.fs_flags);
+    //          GS
+    x86_regs.gs_base = kvmi_sregs->gs.base;
+    x86_regs.gs_limit = kvmi_sregs->gs.limit;
+    x86_regs.gs_sel = kvmi_sregs->gs.selector;
+    kvm_segment_flags(&kvmi_sregs->gs, &x86_regs.gs_flags);
+    //          TR
+    x86_regs.tr_base = kvmi_sregs->tr.base;
+    x86_regs.tr_limit = kvmi_sregs->tr.limit;
+    x86_regs.tr_sel = kvmi_sregs->tr.selector;
+    kvm_segment_flags(&kvmi_sregs->tr, &x86_regs.tr_flags);
+    //          LDT
+    x86_regs.ldt_base = kvmi_sregs->ldt.base;
+    x86_regs.ldt_limit = kvmi_sregs->ldt.limit;
+    x86_regs.ldt_sel = kvmi_sregs->ldt.selector;
+    kvm_segment_flags(&kvmi_sregs->ldt, &x86_regs.ldt_flags);
+    // assign
+    (*libvmi_regs) = x86_regs;
+}
+
 void *
 kvm_get_memory_patch(
     vmi_instance_t vmi,
     addr_t paddr,
     uint32_t length)
 {
-    char *buf = g_try_malloc0(length + 1);
-    if ( !buf )
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    if (!kvm->kvmi_dom)
         return NULL;
 
-    struct request req;
+    char* buffer = g_try_malloc0(length);
+    if (!buffer)
+        return NULL;
 
-    req.type = 1;   // read request
-    req.address = (uint64_t) paddr;
-    req.length = (uint64_t) length;
-
-    int nbytes =
-        write(kvm_get_instance(vmi)->socket_fd, &req,
-              sizeof(struct request));
-    if (nbytes != sizeof(struct request)) {
-        goto error_exit;
-    } else {
-        // get the data from kvm
-        nbytes = read(kvm_get_instance(vmi)->socket_fd, buf, length + 1);
-        if ( nbytes <= 0 )
-            goto error_exit;
-
-        if ( (uint32_t)nbytes != (length + 1) )
-            goto error_exit;
-
-        // check that kvm thinks everything is ok by looking at the last byte
-        // of the buffer, 0 is failure and 1 is success
-        if (buf[length]) {
-            // success, return pointer to buf
-            return buf;
-        }
+    if (kvm->libkvmi.kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
+        g_free(buffer);
+        return NULL;
     }
 
-    // default failure
-error_exit:
-    if (buf)
-        free(buf);
-    return NULL;
+    return buffer;
 }
 
 void *
-kvm_get_memory_native(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    uint32_t length)
+kvm_get_memory_kvmi(vmi_instance_t vmi, addr_t paddr, uint32_t length)
 {
-    int numwords = ceil(length / 4);
-    char *buf = g_try_malloc0(numwords * 4);
-    char *bufstr = exec_xp(kvm_get_instance(vmi), numwords, paddr);
-    char *paddrstr = g_try_malloc0(32);
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    void *buffer;
 
-    if ( !buf || !bufstr || !paddrstr )
-        goto error;
+    if (!kvm->kvmi_dom)
+        return NULL;
 
-    int rc = snprintf(paddrstr, 32, "%.16lx", paddr);
-    if (rc < 0 || rc >= 32) {
-        errprint("Failed to properly format physical address\n");
-        goto error;
+    buffer = g_try_malloc0(length);
+    if (!buffer)
+        return NULL;
+
+    if (kvm->libkvmi.kvmi_read_physical(kvm->kvmi_dom, paddr, buffer, length) < 0) {
+        g_free(buffer);
+        return NULL;
     }
 
-    char *ptr = strcasestr(bufstr, paddrstr);
-    int i = 0, j = 0;
-
-    while (i < numwords && NULL != ptr) {
-        ptr += strlen(paddrstr) + 2;
-
-        for (j = 0; j < 4; ++j) {
-            uint32_t value = strtol(ptr, (char **) NULL, 16);
-
-            memcpy(buf + i * 4, &value, 4);
-            ptr += 11;
-            i++;
-        }
-
-        rc = snprintf(paddrstr, 32, "%.16lx", paddr + i * 4);
-        if (rc < 0 || rc >= 32) {
-            errprint("Failed to properly format physical address\n");
-            goto error;
-        }
-        ptr = strcasestr(ptr, paddrstr);
-    }
-
-    g_free(bufstr);
-    g_free(paddrstr);
-    return buf;
-
-error:
-    g_free(buf);
-    g_free(bufstr);
-    g_free(paddrstr);
-    return NULL;
+    return buffer;
 }
 
 void
@@ -498,43 +230,20 @@ kvm_release_memory(
 }
 
 status_t
-kvm_put_memory(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    uint32_t length,
-    void *buf)
+kvm_put_memory(vmi_instance_t vmi,
+               addr_t paddr,
+               uint32_t length,
+               void *buf)
 {
-    struct request req;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    req.type = 2;   // write request
-    req.address = (uint64_t) paddr;
-    req.length = (uint64_t) length;
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
 
-    int nbytes =
-        write(kvm_get_instance(vmi)->socket_fd, &req,
-              sizeof(struct request));
-    if (nbytes != sizeof(struct request)) {
-        goto error_exit;
-    } else {
-        uint8_t status = 0;
-
-        if ( length != write(kvm_get_instance(vmi)->socket_fd, buf, length) )
-            goto error_exit;
-
-        if ( 1 != read(kvm_get_instance(vmi)->socket_fd, &status, 1) )
-            goto error_exit;
-
-        if (0 == status) {
-            goto error_exit;
-        }
-    }
-
-    /* Remove page from cache as cached contents are now stale */
-    memory_cache_remove(vmi, paddr);
+    if (kvm->libkvmi.kvmi_write_physical(kvm->kvmi_dom, paddr, buf, length) < 0)
+        return VMI_FAILURE;
 
     return VMI_SUCCESS;
-error_exit:
-    return VMI_FAILURE;
 }
 
 /**
@@ -547,40 +256,177 @@ status_t
 kvm_setup_live_mode(
     vmi_instance_t vmi)
 {
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    memory_cache_destroy(vmi);
+    memory_cache_init(vmi, kvm_get_memory_kvmi, kvm_release_memory, 1);
+    return VMI_SUCCESS;
+}
 
-    if (VMI_SUCCESS == test_using_kvm_patch(kvm)) {
-        dbprint(VMI_DEBUG_KVM, "--kvm: resume custom patch for fast memory access\n");
+//----------------------------------------------------------------------------
+// KVMI-Specific Interface Functions (no direction mapping to driver_*)
 
-        pid_cache_flush(vmi);
-        sym_cache_flush(vmi);
-        rva_cache_flush(vmi);
-        v2p_cache_flush(vmi, ~0ull);
-        memory_cache_destroy(vmi);
-        memory_cache_init(vmi, kvm_get_memory_patch, kvm_release_memory,
-                          1);
-        return VMI_SUCCESS;
+static int
+new_guest_cb(
+    void *dom,
+    unsigned char (*uuid)[16],
+    void *ctx)
+{
+    if (!dom || !uuid || !ctx) {
+        errprint("Invalid parameters in KVMi new guest callback");
+        return 1;
     }
 
-    char *status = exec_memory_access(kvm_get_instance(vmi));
-    if (VMI_SUCCESS == exec_memory_access_success(status)) {
-        dbprint(VMI_DEBUG_KVM, "--kvm: using custom patch for fast memory access\n");
-        memory_cache_destroy(vmi);
-        memory_cache_init(vmi, kvm_get_memory_patch, kvm_release_memory,
-                          1);
-        if (status)
-            free(status);
-        return init_domain_socket(kvm_get_instance(vmi));
+    kvm_instance_t *kvm = ctx;
+    char uuid_str[UUID_HEX_STR_LEN] = {0};
+    memset(uuid_str, 0, UUID_HEX_STR_LEN);
+
+    // convert UUID hex to string
+    unsigned int current_size = 0;
+    for (long unsigned int k = 0; k < sizeof(*uuid); k++ ) {
+        if (k < sizeof(*uuid) - 1 ) {
+            sprintf(&uuid_str[current_size], "%02X ", ( *uuid )[k] );
+            current_size += 3;
+        } else {
+            // no space
+            sprintf(&uuid_str[current_size], "%02X", ( *uuid )[k] );
+            current_size += 2;
+        }
+    }
+    uuid_str[current_size] = '\0';
+    // get fd
+    int fd = kvm->libkvmi.kvmi_connection_fd(dom);
+    // remove unused variable if no debug
+    (void)fd;
+
+    // get version
+    unsigned int version = 0;
+    if (kvm->libkvmi.kvmi_get_version(dom, &version) != 0) {
+        errprint("Failed to get KVMi version\n");
+        return 1;
+    }
+    // print infos
+    dbprint(VMI_DEBUG_KVM, "--KVMi new guest:\n");
+    dbprint(VMI_DEBUG_KVM, "--    UUID: %s\n", uuid_str);
+    dbprint(VMI_DEBUG_KVM, "--    FD: %d\n", fd);
+    dbprint(VMI_DEBUG_KVM, "--    Protocol version: %u\n", version);
+    pthread_mutex_lock(&kvm->kvm_connect_mutex);
+    /*
+     * If kvmi_dom is not NULL it means this is a reconnection.
+     * The previous connection was closed somehow.
+     */
+    if (kvm->kvmi_dom)
+        kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
+    kvm->kvmi_dom = dom;
+    pthread_cond_signal(&kvm->kvm_start_cond);
+    pthread_mutex_unlock(&kvm->kvm_connect_mutex);
+
+    return 0;
+}
+
+static int handshake_cb(
+    const struct kvmi_qemu2introspector *qemu,
+    struct kvmi_introspector2qemu *intro,
+    void *ctx)
+{
+    (void)intro;
+    (void)ctx;
+    dbprint(VMI_DEBUG_KVM, "--KVMi handshake:\n");
+    dbprint(VMI_DEBUG_KVM, "--    VM name: %s\n", qemu->name);
+    char start_date[64];
+    const char *format = "%H:%M:%S - %a %b %d %Y";
+    time_t starttime = (time_t) qemu->start_time;
+    struct tm *tm = NULL;
+    tm = localtime(&starttime);
+    if (strftime(start_date, sizeof(start_date), format, tm) <= 0) {
+        errprint("Failed to convert time to string\n");
     } else {
-        dbprint
-        (VMI_DEBUG_KVM, "--kvm: didn't find patch, falling back to slower native access\n");
-        memory_cache_destroy(vmi);
-        memory_cache_init(vmi, kvm_get_memory_native,
-                          kvm_release_memory, 1);
-        if (status)
-            free(status);
-        return VMI_SUCCESS;
+        dbprint(VMI_DEBUG_KVM, "--    VM start time: %s\n", start_date);
     }
+    return 0;
+}
+
+static void
+log_cb(
+    kvmi_log_level level,
+    const char *s,
+    void *ctx)
+{
+    (void)ctx;
+    (void)s;
+    switch (level) {
+        case KVMI_LOG_LEVEL_ERROR:
+            dbprint(VMI_DEBUG_KVM, "--KVMi Error: %s\n", s);
+            break;
+        case KVMI_LOG_LEVEL_WARNING:
+            dbprint(VMI_DEBUG_KVM, "--KVMi Warning: %s\n", s);
+            break;
+        case KVMI_LOG_LEVEL_INFO:
+            dbprint(VMI_DEBUG_KVM, "--KVMi Info: %s\n", s);
+            break;
+        case KVMI_LOG_LEVEL_DEBUG:
+            dbprint(VMI_DEBUG_KVM, "--KVMi Debug: %s\n", s);
+            break;
+        default:
+            errprint("Unhandled KVMi log level %d\n", level);
+    }
+}
+
+static bool
+init_kvmi(
+    kvm_instance_t *kvm,
+    const char *sock_path)
+{
+    int err = -1;
+
+    pthread_mutex_init(&kvm->kvm_connect_mutex, NULL);
+    pthread_cond_init(&kvm->kvm_start_cond, NULL);
+    kvm->kvmi_dom = NULL;
+
+    pthread_mutex_lock(&kvm->kvm_connect_mutex);
+    if (atoi(sock_path) > 0) {
+        kvm->kvmi = kvm->libkvmi.kvmi_init_vsock(atoi(sock_path), new_guest_cb, handshake_cb, kvm);
+    } else {
+        kvm->kvmi = kvm->libkvmi.kvmi_init_unix_socket(sock_path, new_guest_cb, handshake_cb, kvm);
+    }
+
+    if (kvm->kvmi) {
+        struct timeval now;
+        if (gettimeofday(&now, NULL) == 0) {
+            struct timespec t = {};
+            t.tv_sec = now.tv_sec + 10;
+            err = pthread_cond_timedwait(&kvm->kvm_start_cond, &kvm->kvm_connect_mutex, &t);
+        }
+    }
+    pthread_mutex_unlock(&kvm->kvm_connect_mutex);
+
+    if (err) {
+        /*
+         * The libkvmi may accept the connection after timeout
+         * and our callback can set kvm->kvmi_dom. So, we must
+         * stop the accepting thread first.
+         */
+        kvm->libkvmi.kvmi_uninit(kvm->kvmi);
+        kvm->kvmi = NULL;
+        /* From this point, kvm->kvmi_dom won't be touched. */
+        kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
+        return false;
+    }
+
+    // query and display supported features
+    struct kvmi_features features = {0};
+    kvm->libkvmi.kvmi_spp_support(kvm->kvmi_dom, (bool*)&features.spp);
+    kvm->libkvmi.kvmi_vmfunc_support(kvm->kvmi_dom, (bool*)&features.vmfunc);
+    kvm->libkvmi.kvmi_eptp_support(kvm->kvmi_dom, (bool*)&features.eptp);
+    kvm->libkvmi.kvmi_ve_support(kvm->kvmi_dom, (bool*)&features.ve);
+
+    dbprint(VMI_DEBUG_KVM, "--KVMi features:\n");
+    // available in 2013 on Intel Haswell
+    dbprint(VMI_DEBUG_KVM, "--    VMFUNC: %s\n", features.vmfunc ? "Yes" : "No");
+    dbprint(VMI_DEBUG_KVM, "--    EPTP: %s\n", features.eptp ? "Yes" : "No");
+    dbprint(VMI_DEBUG_KVM, "--    VE: %s\n", features.ve ? "Yes" : "No");
+    // available in 2019 on Intel Ice Lake
+    dbprint(VMI_DEBUG_KVM, "--    SPP: %s\n", features.spp ? "Yes" : "No");
+
+    return true;
 }
 
 //----------------------------------------------------------------------------
@@ -593,6 +439,14 @@ kvm_init(
     vmi_init_data_t* UNUSED(init_data))
 {
     kvm_instance_t *kvm = g_try_malloc0(sizeof(kvm_instance_t));
+    if (!kvm)
+        return VMI_FAILURE;
+
+    if ( VMI_FAILURE == create_libkvmi_wrapper(kvm) ) {
+        g_free(kvm);
+        return VMI_FAILURE;
+    }
+
     if ( VMI_FAILURE == create_libvirt_wrapper(kvm) ) {
         g_free(kvm);
         return VMI_FAILURE;
@@ -612,16 +466,77 @@ kvm_init(
     return VMI_SUCCESS;
 }
 
+static void
+kvm_close_vmi(vmi_instance_t vmi, kvm_instance_t *kvm)
+{
+    // events ?
+    if (vmi->init_flags & VMI_INIT_EVENTS) {
+        kvm_events_destroy(vmi);
+    }
+
+    if (kvm->sstep_enabled) {
+        g_free(kvm->sstep_enabled);
+        kvm->sstep_enabled = NULL;
+    }
+
+    if (kvm->pause_events_list) {
+        g_free(kvm->pause_events_list);
+        kvm->pause_events_list = NULL;
+    }
+
+    if (kvm->kvmi_dom) {
+        kvm->libkvmi.kvmi_domain_close(kvm->kvmi_dom, true);
+        kvm->kvmi_dom = NULL;
+    }
+
+    if (kvm->kvmi) {
+        kvm->libkvmi.kvmi_uninit(kvm->kvmi);
+        kvm->kvmi = NULL;
+    }
+
+    if (kvm->dom) {
+        kvm->libvirt.virDomainFree(kvm->dom);
+        kvm->dom = NULL;
+    }
+
+    if (kvm->conn) {
+        kvm->libvirt.virConnectClose(kvm->conn);
+        kvm->conn = NULL;
+    }
+}
+
 status_t
 kvm_init_vmi(
     vmi_instance_t vmi,
-    uint32_t UNUSED(init_flags),
-    vmi_init_data_t* UNUSED(init_data))
+    uint32_t init_flags,
+    vmi_init_data_t* init_data)
 {
+    (void)init_flags; // unused
+    vmi_init_data_entry_t init_entry;
+    char *socket_path = NULL;
+
+    // a socket path is required to init kvmi
+    if (!init_data) {
+        dbprint(VMI_DEBUG_KVM, "--kvmi need a socket path to be specified\n");
+        return VMI_FAILURE;
+    }
+    // check we have at least on entry
+    if (init_data->count < 1) {
+        dbprint(VMI_DEBUG_KVM, "--empty init data\n");
+        return VMI_FAILURE;
+    }
+    init_entry = init_data->entry[0];
+    // check init_data type
+    if (init_entry.type != VMI_INIT_DATA_KVMI_SOCKET) {
+        dbprint(VMI_DEBUG_KVM, "--wrong init data type\n");
+        return VMI_FAILURE;
+    }
+    socket_path = (char*) init_entry.data;
+    dbprint(VMI_DEBUG_KVM, "--KVMi socket path: %s\n", socket_path);
+
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    virDomainInfo info;
-    virDomainPtr dom = kvm->libvirt.virDomainLookupByID(kvm->conn, kvm->id);
-    if (NULL == dom) {
+    kvm->dom = kvm->libvirt.virDomainLookupByID(kvm->conn, kvm->id);
+    if (NULL == kvm->dom) {
         dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
         return VMI_FAILURE;
     }
@@ -631,81 +546,49 @@ kvm_init_vmi(
 
     if (kvm->libvirt.virConnectGetLibVersion(kvm->conn, &libVer) != 0) {
         dbprint(VMI_DEBUG_KVM, "--failed to get libvirt version\n");
-        return VMI_FAILURE;
+        goto err_exit;
     }
     dbprint(VMI_DEBUG_KVM, "--libvirt version %lu\n", libVer);
 
-    kvm->dom = dom;
-    kvm->socket_fd = 0;
     vmi->vm_type = NORMAL;
 
-    //get the VCPU count from virDomainInfo structure
-    if (-1 == kvm->libvirt.virDomainGetInfo(kvm->dom, &info)) {
-        dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
-        return VMI_FAILURE;
+    // configure log cb before connecting
+    kvm->libkvmi.kvmi_set_log_cb(log_cb, (void*)vmi);
+
+    dbprint(VMI_DEBUG_KVM, "--Connecting to KVMI...\n");
+    if (!init_kvmi(kvm,  socket_path)) {
+        dbprint(VMI_DEBUG_KVM, "--KVMI failed\n");
+        goto err_exit;
     }
-    vmi->num_vcpus = info.nrVirtCpu;
+    dbprint(VMI_DEBUG_KVM, "--KVMI connected\n");
 
-#ifndef HAVE_LIBVMI_REQUEST
-    struct json_object *qemu_version_obj = exec_info_version(kvm);
-    dbprint(VMI_DEBUG_KVM, "--Checking QEMU version string...\n");
-    // qemu_version JSON string :
-    // {
-    //   "return": {
-    //     "qemu": {
-    //       "micro": 0,
-    //       "minor": 8,
-    //       "major": 2
-    //     },
-    //     "package": ""
-    //   },
-    //   "id": "libvirt-42"
-    // }
-
-    struct json_object *return_obj= NULL;
-    struct json_object *qemu_obj = NULL;
-    struct json_object *major_obj = NULL;
-    struct json_object *minor_obj = NULL;
-
-    // get "return" object
-    if (FALSE == json_object_object_get_ex(qemu_version_obj, "return", &return_obj))
-        goto out_error;
-
-    // get "qemu" object
-    if (FALSE == json_object_object_get_ex(return_obj, "qemu", &qemu_obj))
-        goto out_error;
-
-    // get "major" object
-    if (FALSE == json_object_object_get_ex(qemu_obj, "major", &major_obj))
-        goto out_error;
-
-    // get major int number
-    int major = json_object_get_int(major_obj);
-
-    // get "minor" object
-    if (FALSE == json_object_object_get_ex(qemu_obj, "minor", &minor_obj))
-        goto out_error;
-
-    // get major int number
-    int minor = json_object_get_int(minor_obj);
-    // QEMU should be < 2.8.0
-    if (major >= 2 && minor >= 8) {
-        dbprint(VMI_DEBUG_KVM, "--Fail: incompatibility between libvmi and QEMU request definition detected\n");
-        goto out_error;
+    // get VCPU count
+    if (kvm->libkvmi.kvmi_get_vcpu_count(kvm->kvmi_dom, &vmi->num_vcpus)) {
+        dbprint(VMI_DEBUG_KVM, "--Fail to get VCPU count: %s\n", strerror(errno));
+        goto err_exit;
     }
-    goto success;
-out_error:
-    free(qemu_version_obj);
-    free(return_obj);
-    free(qemu_obj);
-    free(major_obj);
-    free(minor_obj);
-    return VMI_FAILURE;
-success:
-    dbprint(VMI_DEBUG_KVM, "--SUCCESS\n");
-#endif
+    dbprint(VMI_DEBUG_KVM, "--VCPU count: %d\n", vmi->num_vcpus);
+
+    // init pause events array
+    kvm->pause_events_list = g_try_new0(struct kvmi_dom_event*, vmi->num_vcpus);
+    if (!kvm->pause_events_list)
+        goto err_exit;
+
+    // init singlestep enabled array
+    kvm->sstep_enabled = g_try_new0(bool, vmi->num_vcpus);
+    if (!kvm->sstep_enabled)
+        goto err_exit;
+
+    // events ?
+    if (init_flags & VMI_INIT_EVENTS) {
+        if (VMI_FAILURE == kvm_events_init(vmi, init_flags, init_data))
+            return VMI_FAILURE;
+    }
 
     return kvm_setup_live_mode(vmi);
+err_exit:
+    kvm_close_vmi(vmi, kvm);
+    return VMI_FAILURE;
 }
 
 void
@@ -713,140 +596,16 @@ kvm_destroy(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    destroy_domain_socket(kvm);
+    dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver\n");
 
-    if (kvm->dom) {
-        kvm->libvirt.virDomainFree(kvm->dom);
+    if (kvm) {
+        kvm_close_vmi(vmi, kvm);
+
+        dlclose(kvm->libkvmi.handle);
+        dlclose(kvm->libvirt.handle);
+        dlclose(kvm->libvirt.handle_qemu);
+        g_free(kvm);
     }
-    if (kvm->conn) {
-        kvm->libvirt.virConnectClose(kvm->conn);
-    }
-
-    dlclose(kvm->libvirt.handle);
-    g_free(kvm);
-}
-
-uint64_t
-kvm_get_id_from_name(
-    vmi_instance_t vmi,
-    const char *name)
-{
-    virDomainPtr dom = NULL;
-    uint64_t domainid = VMI_INVALID_DOMID;
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
-    dom = kvm->libvirt.virDomainLookupByName(kvm->conn, name);
-    if (NULL == dom) {
-        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
-        domainid = VMI_INVALID_DOMID;
-    } else {
-
-        domainid = (uint64_t) kvm->libvirt.virDomainGetID(dom);
-        if (domainid == (uint64_t)-1) {
-            dbprint(VMI_DEBUG_KVM, "--requested kvm domain may not be running\n");
-            domainid = VMI_INVALID_DOMID;
-        }
-    }
-
-    if (dom)
-        kvm->libvirt.virDomainFree(dom);
-
-    return domainid;
-}
-
-status_t
-kvm_get_name_from_id(
-    vmi_instance_t vmi,
-    uint64_t domainid,
-    char **name)
-{
-    virDomainPtr dom = NULL;
-    const char* temp_name = NULL;
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
-    dom = kvm->libvirt.virDomainLookupByID(kvm->conn, domainid);
-    if (NULL == dom) {
-        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
-        return VMI_FAILURE;
-    }
-
-    temp_name = kvm->libvirt.virDomainGetName(dom);
-    if (temp_name) {
-        *name = strndup(temp_name, QMP_CMD_LENGTH);
-    } else {
-        *name = NULL;
-    }
-
-    if (dom)
-        kvm->libvirt.virDomainFree(dom);
-
-    if (*name) {
-        return VMI_SUCCESS;
-    }
-
-    return VMI_FAILURE;
-}
-
-uint64_t
-kvm_get_id(
-    vmi_instance_t vmi)
-{
-    return kvm_get_instance(vmi)->id;
-}
-
-void
-kvm_set_id(
-    vmi_instance_t vmi,
-    uint64_t domainid)
-{
-    kvm_get_instance(vmi)->id = domainid;
-}
-
-status_t
-kvm_check_id(
-    vmi_instance_t vmi,
-    uint64_t domainid)
-{
-    virDomainPtr dom = NULL;
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
-    dom = kvm->libvirt.virDomainLookupByID(kvm->conn, domainid);
-    if (NULL == dom) {
-        dbprint(VMI_DEBUG_KVM, "--failed to find kvm domain\n");
-        return VMI_FAILURE;
-    }
-
-    if (dom)
-        kvm->libvirt.virDomainFree(dom);
-
-    return VMI_SUCCESS;
-}
-
-status_t
-kvm_get_name(
-    vmi_instance_t vmi,
-    char **name)
-{
-    kvm_instance_t *kvm = kvm_get_instance(vmi);
-
-    const char *tmpname = kvm->libvirt.virDomainGetName(kvm->dom);
-
-    // don't need to deallocate the name, it will go away with the domain object
-
-    if (NULL != tmpname) {
-        *name = strdup(tmpname);
-        return VMI_SUCCESS;
-    } else {
-        return VMI_FAILURE;
-    }
-}
-
-void
-kvm_set_name(
-    vmi_instance_t vmi,
-    const char *name)
-{
-    kvm_get_instance(vmi)->name = strndup(name, 500);
 }
 
 status_t
@@ -855,25 +614,85 @@ kvm_get_memsize(
     uint64_t *allocated_ram_size,
     addr_t *maximum_physical_address)
 {
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!allocated_ram_size || !maximum_physical_address)
+        return VMI_FAILURE;
+#endif
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    virDomainInfo info;
-
-    if (-1 == kvm->libvirt.virDomainGetInfo(kvm->dom, &info)) {
-        dbprint(VMI_DEBUG_KVM, "--failed to get vm info\n");
-        goto error_exit;
+    unsigned long long max_gfn;
+    if (kvm->libkvmi.kvmi_get_maximum_gfn(kvm->kvmi_dom, &max_gfn)) {
+        errprint("--failed to get maximum gfn\n");
+        return VMI_FAILURE;
     }
-    *allocated_ram_size = info.maxMem * 1024; // convert KBytes to bytes
-    char *bufstr = exec_info_mtree(kvm_get_instance(vmi));
-    addr_t parsed_max = parse_mtree(bufstr);
 
-    if (parsed_max != 0)
-        *maximum_physical_address = (addr_t) parsed_max;
-    else
-        *maximum_physical_address = *allocated_ram_size;
+    *allocated_ram_size = max_gfn * vmi->page_size;
+    *maximum_physical_address = max_gfn << vmi->page_shift;
+    return VMI_SUCCESS;
+}
+
+status_t kvm_request_page_fault (
+    vmi_instance_t vmi,
+    unsigned long vcpu,
+    uint64_t virtual_address,
+    uint32_t error_code)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("Invalid vmi handle\n");
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("Invalid kvm/kvmi handles\n");
+        return VMI_FAILURE;
+    }
+#endif
+    if (kvm->libkvmi.kvmi_inject_exception(kvm->kvmi_dom, vcpu, virtual_address, error_code, PF_VECTOR))
+        return VMI_FAILURE;
+
+    dbprint(VMI_DEBUG_KVM, "--Page fault injected at 0x%"PRIx64"\n", virtual_address);
+    return VMI_SUCCESS;
+}
+
+status_t kvm_get_tsc_info(
+    vmi_instance_t vmi,
+    __attribute__((unused)) uint32_t *tsc_mode,
+    __attribute__((unused)) uint64_t *elapsed_nsec,
+    uint32_t *gtsc_khz,
+    __attribute__((unused)) uint32_t *incarnation)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("Invalid vmi handle\n");
+        return VMI_FAILURE;
+    }
+#endif
+    // checking only gtsc_khz parameter
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!gtsc_khz) {
+        errprint("Invalid gtsc_khz pointer\n");
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("Invalid kvm/kvmi handles\n");
+        return VMI_FAILURE;
+    }
+#endif
+    dbprint(VMI_DEBUG_KVM, "--Get TSC info\n");
+
+    unsigned long long speed = 0;
+    if (kvm->libkvmi.kvmi_get_tsc_speed(kvm->kvmi_dom, &speed))
+        return VMI_FAILURE;
+
+    // convert to KHz and assign gtsc_khz
+    (*gtsc_khz) = speed / 1000;
 
     return VMI_SUCCESS;
-error_exit:
-    return VMI_FAILURE;
 }
 
 status_t
@@ -881,322 +700,302 @@ kvm_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,
     reg_t reg,
-    unsigned long UNUSED(vcpu))
+    unsigned long vcpu)
 {
-    // TODO: vCPU specific registers
-    char *regs = NULL;
-
-    if (NULL == regs)
-        regs = exec_info_registers(kvm_get_instance(vmi));
-
-    status_t ret = VMI_SUCCESS;
-
-    switch (reg) {
-        case CR0:
-            *value = parse_reg_value("CR0", regs);
-            break;
-        case CR2:
-            *value = parse_reg_value("CR2", regs);
-            break;
-        case CR3:
-            *value = parse_reg_value("CR3", regs);
-            break;
-        case CR4:
-            *value = parse_reg_value("CR4", regs);
-            break;
-        case DR0:
-            *value = parse_reg_value("DR0", regs);
-            break;
-        case DR1:
-            *value = parse_reg_value("DR1", regs);
-            break;
-        case DR2:
-            *value = parse_reg_value("DR2", regs);
-            break;
-        case DR3:
-            *value = parse_reg_value("DR3", regs);
-            break;
-        case DR6:
-            *value = parse_reg_value("DR6", regs);
-            break;
-        case DR7:
-            *value = parse_reg_value("DR7", regs);
-            break;
-        case CS_SEL:
-            *value = parse_seg_reg_value("CS", regs, SEGMENT_SELECTOR);
-            break;
-        case DS_SEL:
-            *value = parse_seg_reg_value("DS", regs, SEGMENT_SELECTOR);
-            break;
-        case ES_SEL:
-            *value = parse_seg_reg_value("ES", regs, SEGMENT_SELECTOR);
-            break;
-        case FS_SEL:
-            *value = parse_seg_reg_value("FS", regs, SEGMENT_SELECTOR);
-            break;
-        case GS_SEL:
-            *value = parse_seg_reg_value("GS", regs, SEGMENT_SELECTOR);
-            break;
-        case SS_SEL:
-            *value = parse_seg_reg_value("SS", regs, SEGMENT_SELECTOR);
-            break;
-        case TR_SEL:
-            *value = parse_seg_reg_value("TR", regs, SEGMENT_SELECTOR);
-            break;
-        case LDTR_SEL:
-            *value = parse_seg_reg_value("LDT", regs, SEGMENT_SELECTOR);
-            break;
-        case CS_LIMIT:
-            *value = parse_seg_reg_value("CS", regs, SEGMENT_LIMIT);
-            break;
-        case DS_LIMIT:
-            *value = parse_seg_reg_value("DS", regs, SEGMENT_LIMIT);
-            break;
-        case ES_LIMIT:
-            *value = parse_seg_reg_value("ES", regs, SEGMENT_LIMIT);
-            break;
-        case FS_LIMIT:
-            *value = parse_seg_reg_value("FS", regs, SEGMENT_LIMIT);
-            break;
-        case GS_LIMIT:
-            *value = parse_seg_reg_value("GS", regs, SEGMENT_LIMIT);
-            break;
-        case SS_LIMIT:
-            *value = parse_seg_reg_value("SS", regs, SEGMENT_LIMIT);
-            break;
-        case TR_LIMIT:
-            *value = parse_seg_reg_value("TR", regs, SEGMENT_LIMIT);
-            break;
-        case LDTR_LIMIT:
-            *value = parse_seg_reg_value("LDTR", regs, SEGMENT_LIMIT);
-            break;
-        case IDTR_LIMIT:
-            *value = parse_seg_reg_value("IDTR", regs, SEGMENT_LIMIT);
-            break;
-        case GDTR_LIMIT:
-            *value = parse_seg_reg_value("GDTR", regs, SEGMENT_LIMIT);
-            break;
-        case CS_BASE:
-            *value = parse_seg_reg_value("CS", regs, SEGMENT_BASE);
-            break;
-        case DS_BASE:
-            *value = parse_seg_reg_value("DS", regs, SEGMENT_BASE);
-            break;
-        case ES_BASE:
-            *value = parse_seg_reg_value("ES", regs, SEGMENT_BASE);
-            break;
-        case FS_BASE:
-            *value = parse_seg_reg_value("FS", regs, SEGMENT_BASE);
-            break;
-        case GS_BASE:
-            *value = parse_seg_reg_value("GS", regs, SEGMENT_BASE);
-            break;
-        case SS_BASE:
-            *value = parse_seg_reg_value("SS", regs, SEGMENT_BASE);
-            break;
-        case TR_BASE:
-            *value = parse_seg_reg_value("TR", regs, SEGMENT_BASE);
-            break;
-        case LDTR_BASE:
-            *value = parse_seg_reg_value("LDT", regs, SEGMENT_BASE);
-            break;
-        case IDTR_BASE:
-            *value = parse_seg_reg_value("IDT", regs, SEGMENT_BASE);
-            break;
-        case GDTR_BASE:
-            *value = parse_seg_reg_value("GDT", regs, SEGMENT_BASE);
-            break;
-        case CS_ARBYTES:
-            *value = parse_seg_reg_value("CS", regs, SEGMENT_ATTR);
-            break;
-        case DS_ARBYTES:
-            *value = parse_seg_reg_value("DS", regs, SEGMENT_ATTR);
-            break;
-        case ES_ARBYTES:
-            *value = parse_seg_reg_value("ES", regs, SEGMENT_ATTR);
-            break;
-        case FS_ARBYTES:
-            *value = parse_seg_reg_value("FS", regs, SEGMENT_ATTR);
-            break;
-        case GS_ARBYTES:
-            *value = parse_seg_reg_value("GS", regs, SEGMENT_ATTR);
-            break;
-        case SS_ARBYTES:
-            *value = parse_seg_reg_value("SS", regs, SEGMENT_ATTR);
-            break;
-        case TR_ARBYTES:
-            *value = parse_seg_reg_value("TR", regs, SEGMENT_ATTR);
-            break;
-        case LDTR_ARBYTES:
-            *value = parse_seg_reg_value("LDT", regs, SEGMENT_ATTR);
-            break;
-        case MSR_EFER:
-            *value = parse_reg_value("EFER", regs);
-            break;
-        default:
-            if ( VMI_PM_IA32E == vmi->page_mode) {
-                switch (reg) {
-                    case RAX:
-                        *value = parse_reg_value("RAX", regs);
-                        break;
-                    case RBX:
-                        *value = parse_reg_value("RBX", regs);
-                        break;
-                    case RCX:
-                        *value = parse_reg_value("RCX", regs);
-                        break;
-                    case RDX:
-                        *value = parse_reg_value("RDX", regs);
-                        break;
-                    case RBP:
-                        *value = parse_reg_value("RBP", regs);
-                        break;
-                    case RSI:
-                        *value = parse_reg_value("RSI", regs);
-                        break;
-                    case RDI:
-                        *value = parse_reg_value("RDI", regs);
-                        break;
-                    case RSP:
-                        *value = parse_reg_value("RSP", regs);
-                        break;
-                    case R8:
-                        *value = parse_reg_value("R8", regs);
-                        break;
-                    case R9:
-                        *value = parse_reg_value("R9", regs);
-                        break;
-                    case R10:
-                        *value = parse_reg_value("R10", regs);
-                        break;
-                    case R11:
-                        *value = parse_reg_value("R11", regs);
-                        break;
-                    case R12:
-                        *value = parse_reg_value("R12", regs);
-                        break;
-                    case R13:
-                        *value = parse_reg_value("R13", regs);
-                        break;
-                    case R14:
-                        *value = parse_reg_value("R14", regs);
-                        break;
-                    case R15:
-                        *value = parse_reg_value("R15", regs);
-                        break;
-                    case RIP:
-                        *value = parse_reg_value("RIP", regs);
-                        break;
-                    case RFLAGS:
-                        *value = parse_reg_value("RFL", regs);
-                        break;
-                    default:
-                        ret = VMI_FAILURE;
-                        break;
-                }
-            } else {
-                switch (reg) {
-                    case RAX:
-                        *value = parse_reg_value("EAX", regs);
-                        break;
-                    case RBX:
-                        *value = parse_reg_value("EBX", regs);
-                        break;
-                    case RCX:
-                        *value = parse_reg_value("ECX", regs);
-                        break;
-                    case RDX:
-                        *value = parse_reg_value("EDX", regs);
-                        break;
-                    case RBP:
-                        *value = parse_reg_value("EBP", regs);
-                        break;
-                    case RSI:
-                        *value = parse_reg_value("ESI", regs);
-                        break;
-                    case RDI:
-                        *value = parse_reg_value("EDI", regs);
-                        break;
-                    case RSP:
-                        *value = parse_reg_value("ESP", regs);
-                        break;
-                    case RIP:
-                        *value = parse_reg_value("EIP", regs);
-                        break;
-                    case RFLAGS:
-                        *value = parse_reg_value("EFL", regs);
-                        break;
-                    default:
-                        ret = VMI_FAILURE;
-                        break;
-                }
-            }
-
-            break;
+    if (!value) {
+        errprint("%s: value is invalid\n", __func__);
+        return VMI_FAILURE;
     }
 
-    if (regs)
-        free(regs);
-    return ret;
-}
-
-void *
-kvm_read_page(
-    vmi_instance_t vmi,
-    addr_t page)
-{
-    addr_t paddr = page << vmi->page_shift;
-
-    return memory_cache_insert(vmi, paddr);
-}
-
-status_t
-kvm_write(
-    vmi_instance_t vmi,
-    addr_t paddr,
-    void *buf,
-    uint32_t length)
-{
-    return kvm_put_memory(vmi, paddr, length, buf);
-}
-
-int
-kvm_is_pv(
-    vmi_instance_t UNUSED(vmi))
-{
-    return 0;
-}
-
-status_t
-kvm_test(
-    uint64_t domainid,
-    const char *name,
-    uint64_t UNUSED(init_flags),
-    vmi_init_data_t* UNUSED(init_data))
-{
-    struct vmi_instance _vmi = {0};
-    vmi_instance_t vmi = &_vmi;
-
-    if ( VMI_FAILURE == kvm_init(vmi, 0, NULL) )
+    // TODO: add some sort of caching to avoir fetching
+    // all registers everytime ?
+    registers_t regs = {0};
+    if (VMI_FAILURE == kvm_get_vcpuregs(vmi, &regs, (unsigned short)vcpu))
         return VMI_FAILURE;
 
-    if (name) {
-        domainid = kvm_get_id_from_name(vmi, name);
-        if (domainid != VMI_INVALID_DOMID)
-            return VMI_SUCCESS;
+    switch (reg) {
+        case RAX:
+            *value = regs.x86.rax;
+            break;
+        case RBX:
+            *value = regs.x86.rbx;
+            break;
+        case RCX:
+            *value = regs.x86.rcx;
+            break;
+        case RDX:
+            *value = regs.x86.rdx;
+            break;
+        case RBP:
+            *value = regs.x86.rbp;
+            break;
+        case RSI:
+            *value = regs.x86.rsi;
+            break;
+        case RDI:
+            *value = regs.x86.rdi;
+            break;
+        case RSP:
+            *value = regs.x86.rsp;
+            break;
+        case R8:
+            *value = regs.x86.r8;
+            break;
+        case R9:
+            *value = regs.x86.r9;
+            break;
+        case R10:
+            *value = regs.x86.r10;
+            break;
+        case R11:
+            *value = regs.x86.r11;
+            break;
+        case R12:
+            *value = regs.x86.r12;
+            break;
+        case R13:
+            *value = regs.x86.r13;
+            break;
+        case R14:
+            *value = regs.x86.r14;
+            break;
+        case R15:
+            *value = regs.x86.r15;
+            break;
+        case RIP:
+            *value = regs.x86.rip;
+            break;
+        case RFLAGS:
+            *value = regs.x86.rflags;
+            break;
+        case CR0:
+            *value = regs.x86.cr0;
+            break;
+        case CR2:
+            *value = regs.x86.cr2;
+            break;
+        case CR3:
+            *value = regs.x86.cr3;
+            break;
+        case CR4:
+            *value = regs.x86.cr4;
+            break;
+        case FS_BASE:
+            *value = regs.x86.fs_base;
+            break;
+        case GS_BASE:
+            *value = regs.x86.gs_base;
+            break;
+        case SYSENTER_CS:
+            *value = regs.x86.sysenter_cs;
+            break;
+        case SYSENTER_ESP:
+            *value = regs.x86.sysenter_esp;
+            break;
+        case SYSENTER_EIP:
+            *value = regs.x86.sysenter_eip;
+            break;
+        case MSR_EFER:
+            *value = regs.x86.msr_efer;
+            break;
+        case MSR_STAR:
+            *value = regs.x86.msr_star;
+            break;
+        case MSR_LSTAR:
+            *value = regs.x86.msr_lstar;
+            break;
+        case MSR_CSTAR:
+            *value = regs.x86.msr_cstar;
+            break;
+        case GDTR_BASE:
+            *value = regs.x86.gdtr_base;
+            break;
+        case GDTR_LIMIT:
+            *value = regs.x86.gdtr_limit;
+            break;
+        case IDTR_BASE:
+            *value = regs.x86.idtr_base;
+            break;
+        case IDTR_LIMIT:
+            *value = regs.x86.idtr_limit;
+            break;
+        default:
+            dbprint(VMI_DEBUG_KVM, "--Reading register %"PRIu64" not implemented\n", reg);
+            return VMI_FAILURE;
     }
 
-    if (domainid != VMI_INVALID_DOMID) {
-        char *_name = NULL;
-        status_t rc = kvm_get_name_from_id(vmi, domainid, &_name);
-        free(_name);
+    return VMI_SUCCESS;
+}
 
-        if ( VMI_SUCCESS == rc )
-            return rc;
+status_t
+kvm_get_vcpuregs(
+    vmi_instance_t vmi,
+    registers_t *registers,
+    unsigned long vcpu)
+{
+    struct kvm_regs regs = {0};
+    struct kvm_sregs sregs = {0};
+    struct {
+        struct kvm_msrs msrs;
+        struct kvm_msr_entry entries[7];
+    } msrs = { 0 };
+    unsigned int mode = {0};
+    x86_registers_t *x86 = &registers->x86;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
+    msrs.entries[0].index = msr_index[MSR_IA32_SYSENTER_CS];
+    msrs.entries[1].index = msr_index[MSR_IA32_SYSENTER_ESP];
+    msrs.entries[2].index = msr_index[MSR_IA32_SYSENTER_EIP];
+    msrs.entries[3].index = msr_index[MSR_EFER];
+    msrs.entries[4].index = msr_index[MSR_STAR];
+    msrs.entries[5].index = msr_index[MSR_LSTAR];
+    msrs.entries[6].index = msr_index[MSR_CSTAR];
+
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+
+    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode))
+        return VMI_FAILURE;
+
+    kvmi_regs_to_libvmi(&regs, &sregs, x86);
+    x86->sysenter_cs = msrs.entries[0].data;
+    x86->sysenter_esp = msrs.entries[1].data;
+    x86->sysenter_eip = msrs.entries[2].data;
+    x86->msr_efer = msrs.entries[3].data;
+    x86->msr_star = msrs.entries[4].data;
+    x86->msr_lstar = msrs.entries[5].data;
+    x86->msr_cstar = msrs.entries[6].data;
+    x86->gdtr_base = sregs.gdt.base;
+    x86->gdtr_limit = sregs.gdt.limit;
+    x86->idtr_base = sregs.idt.base;
+    x86->idtr_limit = sregs.idt.limit;
+
+    return VMI_SUCCESS;
+}
+
+status_t
+kvm_set_vcpureg(vmi_instance_t vmi,
+                uint64_t value,
+                reg_t reg,
+                unsigned long vcpu)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+    unsigned int mode = 0;
+    struct kvm_regs regs = {0};
+    struct kvm_sregs sregs = {0};
+    struct {
+        struct kvm_msrs msrs;
+        struct kvm_msr_entry entries[0];
+    } msrs = {0};
+    msrs.msrs.nmsrs = 0;
+
+    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode) < 0) {
+        return VMI_FAILURE;
     }
 
-    kvm_destroy(vmi);
-    return VMI_FAILURE;
+    // This could use a macro or something
+    switch (reg) {
+        case RAX:
+            regs.rax = value;
+            break;
+        case RBX:
+            regs.rbx = value;
+            break;
+        case RCX:
+            regs.rcx = value;
+            break;
+        case RDX:
+            regs.rdx = value;
+            break;
+        case RSI:
+            regs.rsi = value;
+            break;
+        case RDI:
+            regs.rdi = value;
+            break;
+        case RSP:
+            regs.rsp = value;
+            break;
+        case RBP:
+            regs.rbp = value;
+            break;
+        case R8:
+            regs.r8 = value;
+            break;
+        case R9:
+            regs.r9 = value;
+            break;
+        case R10:
+            regs.r10 = value;
+            break;
+        case R11:
+            regs.r11 = value;
+            break;
+        case R12:
+            regs.r12 = value;
+            break;
+        case R13:
+            regs.r13 = value;
+            break;
+        case R14:
+            regs.r14 = value;
+            break;
+        case R15:
+            regs.r15 = value;
+            break;
+        case RIP:
+            regs.rip = value;
+            break;
+        case RFLAGS:
+            regs.rflags = value;
+            break;
+        default:
+            return VMI_FAILURE;
+    }
+
+    if (kvm->libkvmi.kvmi_set_registers(kvm->kvmi_dom, vcpu, &regs) < 0) {
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t
+kvm_set_vcpuregs(vmi_instance_t vmi,
+                 registers_t *registers,
+                 unsigned long vcpu)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+    struct x86_regs *x86 = &registers->x86;
+    struct kvm_regs regs = {
+        .rax = x86->rax,
+        .rbx = x86->rbx,
+        .rcx = x86->rcx,
+        .rdx = x86->rdx,
+        .rsi = x86->rsi,
+        .rdi = x86->rdi,
+        .rsp = x86->rsp,
+        .rbp = x86->rbp,
+        .r8  = x86->r8,
+        .r9  = x86->r9,
+        .r10 = x86->r10,
+        .r11 = x86->r11,
+        .r12 = x86->r12,
+        .r13 = x86->r13,
+        .r14 = x86->r14,
+        .r15 = x86->r15,
+        .rip = x86->rip,
+        .rflags = x86->rflags
+    };
+    if (kvm->libkvmi.kvmi_set_registers(kvm->kvmi_dom, vcpu, &regs) < 0) {
+        return VMI_FAILURE;
+    }
+    return VMI_SUCCESS;
 }
 
 status_t
@@ -1204,10 +1003,20 @@ kvm_pause_vm(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
+    // already paused ?
+    if (kvm->expected_pause_count)
+        return VMI_SUCCESS;
 
-    if (-1 == kvm->libvirt.virDomainSuspend(kvm->dom)) {
+    // pause vcpus
+    if (kvm->libkvmi.kvmi_pause_all_vcpus(kvm->kvmi_dom, vmi->num_vcpus)) {
+        errprint("%s: Failed to pause domain: %s\n", __func__, strerror(errno));
         return VMI_FAILURE;
     }
+
+    kvm->expected_pause_count = vmi->num_vcpus;
+
+    dbprint(VMI_DEBUG_KVM, "--We should receive %u pause events\n", kvm->expected_pause_count);
+
     return VMI_SUCCESS;
 }
 
@@ -1217,8 +1026,55 @@ kvm_resume_vm(
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    if (-1 == kvm->libvirt.virDomainResume(kvm->dom)) {
-        return VMI_FAILURE;
+    // already resumed ?
+    if (!kvm->expected_pause_count)
+        return VMI_SUCCESS;
+
+    // wait to receive pause events
+    while (kvm->expected_pause_count) {
+        struct kvmi_dom_event *ev = NULL;
+        unsigned int ev_id = 0;
+
+        // check pause events poped by vmi_events_listen first
+        for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
+            if (kvm->pause_events_list[vcpu]) {
+                dbprint(VMI_DEBUG_KVM, "--Removing PAUSE_VCPU event from the buffer\n");
+                ev = kvm->pause_events_list[vcpu];
+                kvm->pause_events_list[vcpu] = NULL;
+                break;
+            }
+        }
+
+        // if no pause event is waiting in the list, pop next one
+        if (!ev) {
+            if (VMI_FAILURE == kvm_get_next_event(kvm, &ev, 1000)) {
+                errprint("Failed to get next KVMi event\n");
+            }
+            if (!ev) {
+                // no new events
+                // report error
+                return VMI_FAILURE;
+            }
+        }
+        // handle event
+        ev_id = ev->event.common.event;
+        switch (ev_id) {
+            case KVMI_EVENT_PAUSE_VCPU:
+                dbprint(VMI_DEBUG_KVM, "--Received VCPU pause event\n");
+                kvm->expected_pause_count--;
+                if (reply_continue(kvm, ev) == VMI_FAILURE) {
+                    errprint("%s: Fail to send continue reply", __func__);
+                    free(ev);
+                    return VMI_FAILURE;
+                }
+                free(ev);
+                break;
+            default:
+                errprint("%s: Unexpected event %u\n", __func__, ev_id);
+                free(ev);
+                return VMI_FAILURE;
+        }
     }
+
     return VMI_SUCCESS;
 }

@@ -1,0 +1,29 @@
+name: scan-build
+on:
+  pull_request:
+    branches: [ master ]
+jobs:
+  scan-build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: scan-build
+        run: |
+          # Install packages
+          sudo apt-get update -q
+          sudo apt-get install -y clang clang-tools autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev
+          git clone --depth=2 https://github.com/libvmi/libkvmi
+          cd libkvmi
+          ./bootstrap
+          ./configure
+          make
+          sudo make install
+          cd ..
+          # scan-build
+          autoreconf -vif
+          scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers -disable-checker deadcode.DeadStores ./configure CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL --enable-debug --disable-config-file
+          scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers -disable-checker deadcode.DeadStores make

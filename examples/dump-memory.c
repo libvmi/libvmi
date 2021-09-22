@@ -90,23 +90,28 @@ static void usage(const char *argv0)
 {
     printf("Usage: %s [options] domain output_file\n", argv0);
     printf("Available options:\n");
-    printf("  -p, --progress print progress when dumping\n");
-    printf("  -s, --sparse   save dump as sparse file\n");
-    printf("      --no-pause don't pause the VM when dumping memory\n");
-    printf("  -h, --help     print help and exit\n");
+    printf("  -p, --progress        print progress when dumping\n");
+    printf("  -s, --sparse          save dump as sparse file\n");
+    printf("      --no-pause        don't pause the VM when dumping memory\n");
+    printf("  -k, --kvmi-socket     use the specified kvmi socket for KVM driver\n");
+    printf("  -h, --help            print help and exit\n");
 }
 
 static const struct option long_opts[] = {
     {"sparse",   no_argument, &sparse_flag,   1},
     {"progress", no_argument, &progress_flag, 1},
     {"no-pause", no_argument, &pause_vm_flag, 0},
+    {"kvmi-socket", required_argument, NULL, 'k'},
     {0, 0, 0, 0}
 };
 
 int main(int argc, char **argv)
 {
     int c;
-    while ((c = getopt_long(argc, argv, "psh", long_opts, NULL)) != -1) {
+    int retcode = 1;
+    memory_map_t *memmap = NULL;
+    vmi_init_data_t *init_data = NULL;
+    while ((c = getopt_long(argc, argv, "psk:h", long_opts, NULL)) != -1) {
         switch (c) {
             case 0:
                 break;
@@ -116,17 +121,28 @@ int main(int argc, char **argv)
             case 'p':
                 progress_flag = 1;
                 break;
+            case 'k':
+                // in case we have multiple '-k' argument, avoid memory leak
+                if (init_data) {
+                    free(init_data->entry[0].data);
+                } else {
+                    init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+                }
+                init_data->count = 1;
+                init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+                init_data->entry[0].data = strdup(optarg);
+                break;
             case 'h':
             default:
                 usage(argv[0]);
-                return 1;
+                goto free_setup_info;
         }
     }
 
     /* two other arguments required */
     if (argc - optind != 2) {
         usage(argv[0]);
-        return 1;
+        goto free_setup_info;
     }
 
     /* this is the VM or file that we are looking at */
@@ -136,15 +152,13 @@ int main(int argc, char **argv)
     const char *filename = argv[optind + 1];
 
     vmi_mode_t mode;
-    if (VMI_FAILURE == vmi_get_access_mode(NULL, name, VMI_INIT_DOMAINNAME, NULL, &mode) ) {
-        return 1;
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, name, VMI_INIT_DOMAINNAME, init_data, &mode) ) {
+        goto free_setup_info;
     }
 
     /* for bareflank we have to pass-in the actual memory map of the machine. */
-    vmi_init_data_t *init_data = NULL;
-    memory_map_t *memmap = NULL;
     if (mode == VMI_BAREFLANK && bareflank_setup(&init_data, &memmap) != 0) {
-        return 1;
+        goto free_setup_info;
     }
 
     /* initialize the libvmi library */
@@ -175,8 +189,9 @@ int main(int argc, char **argv)
     char zeros[FRAME_SIZE];
     memset(zeros, 0, FRAME_SIZE);
     addr_t addr_max = vmi_get_max_physical_address(vmi);
+    addr_t address;
 
-    for (addr_t address = 0; address < addr_max && !interrupted; address += FRAME_SIZE) {
+    for (address = 0; address < addr_max && !interrupted; address += FRAME_SIZE) {
         if (progress_flag && (address % PROGRESS_STRIDE == 0)) {
             printf("Progress: %lu%%\n", (address * 100) / addr_max);
         }
@@ -209,6 +224,7 @@ int main(int argc, char **argv)
         }
     }
 
+    retcode = 0;
 resume_vm:
     if (pause_vm_flag) {
         vmi_resume_vm(vmi);
@@ -222,6 +238,9 @@ destroy_vmi:
 
 free_setup_info:
     free(memmap);
-    free(init_data);
-    return 0;
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
+    return retcode;
 }

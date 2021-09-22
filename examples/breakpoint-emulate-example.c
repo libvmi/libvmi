@@ -115,6 +115,9 @@ int main (int argc, char **argv)
     struct sigaction act = {0};
     struct cb_data data = {0};
     int opcode_size = 0;
+    vmi_init_data_t *init_data = NULL;
+    int retcode = 1;
+
     act.sa_handler = close_handler;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
@@ -126,8 +129,8 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 4) {
-        fprintf(stderr, "Usage: %s <name of VM> <symbol> <opcode size>\n", argv[0]);
-        return 1;
+        fprintf(stderr, "Usage: %s <name of VM> <symbol> <opcode size> [<socket>]\n", argv[0]);
+        return retcode;
     }
 
     // Arg 1 is the VM name.
@@ -135,12 +138,22 @@ int main (int argc, char **argv)
     data.symbol = argv[2];
     opcode_size = atoi(argv[3]);
 
+    if (argc == 5) {
+        char *path = argv[4];
+
+        // fill init_data
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(path);
+    }
+
     // Initialize the libvmi library.
     if (VMI_FAILURE ==
-            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, NULL,
+            vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data,
                               VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     printf("LibVMI init succeeded!\n");
@@ -148,7 +161,7 @@ int main (int argc, char **argv)
     // pause
     if (VMI_FAILURE == vmi_pause_vm(vmi)) {
         fprintf(stderr, "Failed to pause vm\n");
-        return 1;
+        goto error_exit;
     }
 
     // translate symbol to paddr
@@ -202,7 +215,7 @@ int main (int argc, char **argv)
     }
     printf("Finished with test.\n");
 
-
+    retcode = 0;
 error_exit:
     // restore opcode
     if (data.emul.data[0])
@@ -211,5 +224,10 @@ error_exit:
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
 
-    return 0;
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
+
+    return retcode;
 }

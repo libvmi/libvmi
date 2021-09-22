@@ -28,6 +28,9 @@
 /* Define to enable KVM support. */
 #cmakedefine ENABLE_KVM
 
+/* Define to enable KVM legacy driver support */
+#cmakedefine ENABLE_KVM_LEGACY
+
 /* Define to Linux support. */
 #cmakedefine ENABLE_LINUX
 
@@ -93,6 +96,9 @@
 
 /* Defined when working JSON library was found */
 #cmakedefine ENABLE_JSON_PROFILES
+
+/* JSON-C supports uint64_t */
+#cmakedefine JSONC_UINT64_SUPPORT
 
 /* Defined when working JSON-C library was found to parse Rekall
    profiles. */

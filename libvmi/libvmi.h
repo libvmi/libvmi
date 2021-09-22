@@ -155,20 +155,16 @@ typedef struct {
     uint16_t minor;
 } win_build_info_t;
 
-typedef enum page_mode {
-
-    VMI_PM_UNKNOWN, /**< page mode unknown */
-
-    VMI_PM_LEGACY,  /**< x86 32-bit paging */
-
-    VMI_PM_PAE,     /**< x86 PAE paging */
-
-    VMI_PM_IA32E,   /**< x86 IA-32e paging */
-
-    VMI_PM_AARCH32, /**< ARM 32-bit paging */
-
-    VMI_PM_AARCH64  /**< ARM 64-bit paging */
-} page_mode_t;
+typedef uint32_t page_mode_t;
+#define VMI_PM_NONE     0   /**< no page mode */
+#define VMI_PM_UNKNOWN  1   /**< unknown paging mode */
+#define VMI_PM_LEGACY   2   /**< x86 32-bit paging */
+#define VMI_PM_PAE      3   /**< x86 PAE paging */
+#define VMI_PM_IA32E    4   /**< x86 IA-32e paging */
+#define VMI_PM_AARCH32  5   /**< ARM 32-bit paging */
+#define VMI_PM_AARCH64  6   /**< ARM 64-bit paging */
+#define VMI_PM_EPT_4L   7   /**< x86 4-level EPT */
+#define VMI_PM_EPT_5L   8   /**< x86 5-level EPT */
 
 /**
  * Allow the use of transition-pages when checking PTE.present bit. This is
@@ -212,7 +208,9 @@ typedef enum page_size {
 typedef enum {
     VMI_INIT_DATA_XEN_EVTCHN, /**< Xen file descriptor */
 
-    VMI_INIT_DATA_MEMMAP     /**< memory_map_t pointer */
+    VMI_INIT_DATA_MEMMAP,    /**< memory_map_t pointer */
+
+    VMI_INIT_DATA_KVMI_SOCKET     /**< kvmi socket path */
 } vmi_init_data_type_t;
 
 /**
@@ -504,6 +502,23 @@ typedef struct x86_mtrr_regs {
 } mtrr_regs_t;
 
 /*
+ * The format used for x86 segment flags by LibVMI.
+ */
+typedef struct x86_segment_flags {
+    uint16_t type:4; // 0-3
+    uint16_t s:   1; // 4
+    uint16_t dpl: 2; // 5-6
+    uint16_t p:   1; // 7
+    uint16_t avl: 1; // 8
+    uint16_t l:   1; // 9
+    uint16_t db:  1; // 10
+    uint16_t g:   1; // 11
+    uint16_t pad: 4; // 12-15
+    uint16_t pad2;   // 16-31
+    uint32_t pad3;   // 32-63
+} x86_segment_flags_t;
+
+/*
  * Commonly used x86 registers
  */
 typedef struct x86_regs {
@@ -539,37 +554,71 @@ typedef struct x86_regs {
     uint64_t msr_lstar;
     uint64_t msr_pat;
     uint64_t msr_cstar;
+
     uint64_t fs_base;
     uint64_t fs_limit;
     uint64_t fs_sel;
-    uint64_t fs_arbytes;
+    union {
+        uint64_t fs_arbytes;
+        x86_segment_flags_t fs_flags;
+    };
     uint64_t gs_base;
     uint64_t gs_limit;
     uint64_t gs_sel;
-    uint64_t gs_arbytes;
+    union {
+        uint64_t gs_arbytes;
+        x86_segment_flags_t gs_flags;
+    };
     uint64_t cs_base;
     uint64_t cs_limit;
     uint64_t cs_sel;
-    uint32_t cs_arbytes;
+    union {
+        uint64_t cs_arbytes;
+        x86_segment_flags_t cs_flags;
+    };
     uint64_t ss_base;
     uint64_t ss_limit;
     uint64_t ss_sel;
-    uint64_t ss_arbytes;
+    union {
+        uint64_t ss_arbytes;
+        x86_segment_flags_t ss_flags;
+    };
     uint64_t ds_base;
     uint64_t ds_limit;
     uint64_t ds_sel;
-    uint64_t ds_arbytes;
+    union {
+        uint64_t ds_arbytes;
+        x86_segment_flags_t ds_flags;
+    };
     uint64_t es_base;
     uint64_t es_limit;
     uint64_t es_sel;
-    uint64_t es_arbytes;
+    union {
+        uint64_t es_arbytes;
+        x86_segment_flags_t es_flags;
+    };
+    uint64_t tr_base;
+    uint64_t tr_limit;
+    uint64_t tr_sel;
+    union {
+        uint64_t tr_arbytes;
+        x86_segment_flags_t tr_flags;
+    };
+    uint64_t ldt_base;
+    uint64_t ldt_limit;
+    uint64_t ldt_sel;
+    union {
+        uint64_t ldt_arbytes;
+        x86_segment_flags_t ldt_flags;
+    };
+
     uint64_t shadow_gs;
     uint64_t idtr_base;
     uint64_t idtr_limit;
     uint64_t gdtr_base;
     uint64_t gdtr_limit;
-
-    uint32_t _pad;
+    uint64_t npt_base;
+    uint64_t vmtrace_pos;
 } x86_registers_t;
 
 typedef struct arm_registers {
@@ -609,9 +658,17 @@ typedef int32_t vmi_pid_t;
  */
 typedef struct page_info {
     addr_t vaddr;       /**< virtual address */
-    addr_t dtb;         /**< dtb used for translation */
     addr_t paddr;       /**< physical address */
+    addr_t naddr;       /**< nested address */
+
     page_size_t size;   /**< page size (VMI_PS_*) */
+    page_size_t nsize;  /**< nested page size (VMI_PS_*) */
+
+    addr_t pt;          /**< pagetable used for translation */
+    page_mode_t pm;     /**< page mode user for translation */
+
+    addr_t npt;         /**< nested pagetable used for translation */
+    page_mode_t npm;    /**< nested page mode user for translation */
 
     union {
         struct {
@@ -662,17 +719,6 @@ typedef struct page_info {
 } page_info_t;
 
 /**
- * Available translation mechanism for v2p conversion.
- */
-typedef enum translation_mechanism {
-    VMI_TM_INVALID,         /**< Invalid translation mechanism */
-    VMI_TM_NONE,            /**< No translation is required, address is physical address */
-    VMI_TM_PROCESS_DTB,     /**< Translate addr via specified directory table base. */
-    VMI_TM_PROCESS_PID,     /**< Translate addr by finding process first to use its DTB. */
-    VMI_TM_KERNEL_SYMBOL    /**< Find virtual address of kernel symbol and translate it via kernel DTB. */
-} translation_mechanism_t;
-
-/**
  * Supported architectures by LibVMI
  */
 typedef enum arch {
@@ -684,16 +730,65 @@ typedef enum arch {
 } vmi_arch_t;
 
 /**
+ * Available translation mechanism for v2p conversion.
+ */
+typedef uint32_t translation_mechanism_t;
+#define VMI_TM_NONE              0 /**< No translation is required, address is physical address */
+#define VMI_TM_PROCESS_DTB       1 /**< Translate addr via specified pagetable (aka. directory table base). */
+#define VMI_TM_PROCESS_PT        1 /**< Translate addr via specified pagetable. */
+#define VMI_TM_PROCESS_PID       2 /**< Translate addr by finding process first to use its DTB. */
+#define VMI_TM_KERNEL_SYMBOL     3 /**< Find virtual address of kernel symbol and translate it via kernel DTB. */
+
+/**
  * Structure to use as input to accessor functions
  * specifying how the access should be performed.
+ * Must specify ABI version.
  */
-typedef struct {
-    translation_mechanism_t translate_mechanism;
+#define ACCESS_CONTEXT_VERSION 0x1u
+#define ACCESS_CONTEXT(C, ...)                  \
+    access_context_t C = {                      \
+        .version = ACCESS_CONTEXT_VERSION,      \
+        __VA_ARGS__                             \
+    }
 
-    addr_t addr;      /**< specify iff using VMI_TM_NONE, VMI_TM_PROCESS_DTB or VMI_TM_PROCESS_PID */
-    const char *ksym; /**< specify iff using VMI_TM_KERNEL_SYMBOL */
-    addr_t dtb;       /**< specify iff using VMI_TM_PROCESS_DTB */
-    vmi_pid_t pid;    /**< specify iff using VMI_TM_PROCESS_PID */
+typedef struct {
+    uint32_t version;   /**< ABI struct version */
+    uint32_t _pad;
+
+    union {
+        page_mode_t pm; /**< paging mode to use for translation */
+        page_mode_t page_mode; /**< paging mode to use for translation */
+    };
+    union {
+        page_mode_t npm; /**< paging mode to use for nested translation */
+        page_mode_t nested_page_mode; /**< paging mode to use for nested translation */
+    };
+    union {
+        addr_t npt; /**< specify iff using nested translation */
+        addr_t nested_page_table; /**< specify iff using nested translation */
+    };
+    union {
+        translation_mechanism_t tm; /**< method to use for translation */
+        translation_mechanism_t translate_mechanism; /**< method to use for translation */
+    };
+
+    uint32_t _pad2;
+
+    union {
+        struct {
+            addr_t addr; /**< address to translate */
+
+            union {
+                addr_t pt;         /**< iff VMI_TM_PROCESS_DTB/PT */
+                addr_t page_table; /**< iff VMI_TM_PROCESS_DTB/PT */
+                addr_t dtb;        /**< iff VMI_TM_PROCESS_DTB/PT */
+                vmi_pid_t pid;     /**< iff VMI_TM_PROCESS_PID */
+            };
+        };
+
+        /* VMI_TM_KERNEL_SYMBOL */
+        const char *ksym; /**< kernel symbol to translate  */
+    };
 } access_context_t;
 
 /**
@@ -1010,7 +1105,7 @@ status_t vmi_dtb_to_pid(
  * Translates a virtual address to a physical address.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] dtb address of the relevant page directory base
+ * @param[in] pt address of the relevant pagetable
  * @param[in] vaddr virtual address to translate via dtb
  * @param[out] paddr Physical address
  * @return VMI_SUCCESS or VMI_FAILURE
@@ -1018,7 +1113,7 @@ status_t vmi_dtb_to_pid(
 
 status_t vmi_pagetable_lookup (
     vmi_instance_t vmi,
-    addr_t dtb,
+    addr_t pt,
     addr_t vaddr,
     addr_t *paddr) NOEXCEPT;
 
@@ -1028,14 +1123,67 @@ status_t vmi_pagetable_lookup (
  * depending on the page mode of the VM.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] dtb address of the relevant page directory base
+ * @param[in] pt address of the relevant pagetable
  * @param[in] vaddr virtual address to translate via dtb
  * @param[in,out] info Pointer to the struct to store the lookup information in
  * @return VMI_SUCCESS or VMI_FAILURE of the VA is invalid
  */
 status_t vmi_pagetable_lookup_extended(
     vmi_instance_t vmi,
-    addr_t dtb,
+    addr_t pt,
+    addr_t vaddr,
+    page_info_t *info) NOEXCEPT;
+
+/**
+ * Translates a virtual address to a physical address, supporting nested
+ * pagetables (ie. EPT). Can be called with npm set to VMI_PM_NONE, in which
+ * case this function is equivalent to vmi_pagetable_lookup.
+ *
+ * To perform only nested pagetable lookup of an l2 guest paddr use pt and pm
+ * with the nested pagetable address and mode.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] npt address of the nested pagetable
+ * @param[in] npm page mode to use for lookup in nested pagetable
+ * @param[in] pt address of the relevant pagetable
+ * @param[in] pm page mode to use for lookup.
+ * @param[in] vaddr virtual address to translate via dtb
+ * @param[out] paddr Guest physical address (l2)
+                     value is set to ~0ull if npm is set and translation was in
+                     the v2p cache
+ * @param[out] naddr Guest nested physical address (l1) if npm is set
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_nested_pagetable_lookup (
+    vmi_instance_t vmi,
+    addr_t npt,
+    page_mode_t npm,
+    addr_t pt,
+    page_mode_t pm,
+    addr_t vaddr,
+    addr_t *paddr,
+    addr_t *naddr) NOEXCEPT;
+
+/**
+ * Gets the physical address and page size of the VA
+ * as well as the addresses of other paging related structures
+ * depending on the page mode(s), supprting nested pagetables (ie. EPT).
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] npt address of the nested pagetable
+ * @param[in] npm page mode to use for lookup in nested pagetable
+ * @param[in] pt address of the relevant pagetable
+ * @param[in] pm page mode to use for lookup
+ * @param[in] vaddr virtual address to translate via dtb
+ * @param[in,out] info Pointer to the struct to store the lookup information in
+ * @return VMI_SUCCESS or VMI_FAILURE of the VA is invalid
+ */
+status_t vmi_nested_pagetable_lookup_extended(
+    vmi_instance_t vmi,
+    addr_t npt,
+    page_mode_t npm,
+    addr_t pt,
+    page_mode_t pm,
     addr_t vaddr,
     page_info_t *info) NOEXCEPT;
 
@@ -2268,12 +2416,7 @@ status_t vmi_get_vcpuregs(
 /**
  * Sets the current value of a VCPU register.  This currently only
  * supports control registers.  When LibVMI is accessing a raw
- * memory file, this function will fail. Operating upon an unpaused
- * vCPU with this function is likely to have unexpected results.
- *
- * On Xen HVM VMs the entire domain must be paused. Using this function in an event
- * callback where only the vCPU is paused will have unexpected results as this
- * function is not multi-vCPU safe.
+ * memory file, this function will fail.
  *
  * @param[in] vmi LibVMI instance
  * @param[in] value Value to assign to the register
@@ -2292,8 +2435,6 @@ status_t vmi_set_vcpureg(
  * a valid value in all registers when calling this function, so the user likely
  * wants to call vmi_get_vcpuregs before calling this function.
  * When LibVMI is accessing a raw memory file or KVM, this function will fail.
- * Operating upon an unpaused VM with this function is likely to have unexpected
- * results.
  *
  * @param[in] vmi LibVMI instance
  * @param[regs] regs The register struct holding the values to be set
@@ -2336,7 +2477,21 @@ status_t vmi_resume_vm(
  */
 void vmi_v2pcache_flush(
     vmi_instance_t vmi,
-    addr_t dtb) NOEXCEPT;
+    addr_t pt) NOEXCEPT;
+
+/**
+ * Removes all entries from LibVMI's internal virtual to physical address
+ * cache.  This is generally only useful if you believe that an entry in
+ * the cache is incorrect, or out of date.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] dtb The process address space to flush, or ~0ull for all.
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+void vmi_v2pcache_nested_flush(
+    vmi_instance_t vmi,
+    addr_t pt,
+    addr_t npt) NOEXCEPT;
 
 /**
  * Adds one entry to LibVMI's internal virtual to physical address
@@ -2351,7 +2506,24 @@ void vmi_v2pcache_flush(
 void vmi_v2pcache_add(
     vmi_instance_t vmi,
     addr_t va,
-    addr_t dtb,
+    addr_t pt,
+    addr_t pa) NOEXCEPT;
+
+/**
+ * Adds one entry to LibVMI's internal virtual to physical address
+ * cache.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] va Virtual address
+ * @param[in] dtb Directory table base for va
+ * @param[in] pa Physical address
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+void vmi_v2pcache_nested_add(
+    vmi_instance_t vmi,
+    addr_t va,
+    addr_t pt,
+    addr_t npt,
     addr_t pa) NOEXCEPT;
 
 /**

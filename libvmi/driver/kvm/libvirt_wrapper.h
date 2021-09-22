@@ -20,11 +20,11 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <libvirt/libvirt.h>
 #include <dlfcn.h>
 
 #include "libvmi.h"
+#include "private.h"
 
 struct kvm_instance;
 

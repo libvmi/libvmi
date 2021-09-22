@@ -1,0 +1,68 @@
+name: compile
+on:
+  pull_request:
+    branches: [ master ]
+jobs:
+  compile:
+    strategy:
+      matrix:
+        os:
+          - 'ubuntu-20.04'
+          - 'ubuntu-18.04'
+        compiler:
+          - 'gcc'
+          - 'clang'
+        builder:
+          - 'autotools'
+          - 'cmake'
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev clang build-essential cmake
+          git clone --depth=2 https://github.com/libvmi/libkvmi
+          cd libkvmi
+          ./bootstrap
+          ./configure
+          make
+          sudo make install
+          cd ..
+
+      - name: Compile (cmake)
+        env:
+          CC: ${{ matrix.compiler }}
+        if: matrix.builder == 'cmake'
+        continue-on-error: true
+        run: |
+          while IFS= read -r options; do
+            echo "Building with '$options'"
+            mkdir -p build
+            cd build
+            cmake $options ..
+            make
+            make clean
+            cd ..
+            git clean -xdf
+            echo "Done building with '$options'"
+          done < .github/cmake_options.txt
+
+      - name: Compile (autotools)
+        env:
+          CC: ${{ matrix.compiler }}
+        if: matrix.builder == 'autotools'
+        run: |
+          while IFS= read -r options; do
+            echo "Building with '$options'"
+            autoreconf -vif
+            ./configure $options
+            make
+            make clean
+            git clean -xdf
+            echo "Done building with '$options'"
+          done < .github/configure_options.txt

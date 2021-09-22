@@ -27,6 +27,7 @@
 
 #include "private.h"
 
-status_t amd64_init(vmi_instance_t vmi);
+status_t v2p_ia32e (vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, addr_t vaddr, page_info_t *info);
+GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb);
 
 #endif

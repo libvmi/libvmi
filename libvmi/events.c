@@ -31,6 +31,7 @@
 
 #include "private.h"
 #include "driver/driver_wrapper.h"
+#include "glib_compat.h"
 
 vmi_mem_access_t combine_mem_access(vmi_mem_access_t base, vmi_mem_access_t add)
 {
@@ -94,6 +95,8 @@ void step_event_free(vmi_event_t *event, status_t rc)
 status_t events_init(vmi_instance_t vmi)
 {
     switch (vmi->mode) {
+        case VMI_KVM:
+            break;
         case VMI_XEN:
             break;
         default:
@@ -186,7 +189,7 @@ status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
         gint *intr = g_slice_new(gint);
         *intr = event->interrupt_event.intr;
 
-        g_hash_table_insert(vmi->interrupt_events, intr, event);
+        g_hash_table_insert_compat(vmi->interrupt_events, intr, event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled event on interrupt: %d\n", event->interrupt_event.intr);
         rc = VMI_SUCCESS;
     }
@@ -205,7 +208,7 @@ static status_t register_msr_event(vmi_instance_t vmi, vmi_event_t *event)
         gint *msr = g_slice_new(gint);
         *msr = event->reg_event.msr;
 
-        g_hash_table_insert(vmi->msr_events, msr, event);
+        g_hash_table_insert_compat(vmi->msr_events, msr, event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled register event on MSR: %"PRIx32"\n", event->reg_event.msr);
         rc = VMI_SUCCESS;
     }
@@ -229,7 +232,7 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
         gint *reg = g_slice_new(gint);
         *reg = event->reg_event.reg;
 
-        g_hash_table_insert(vmi->reg_events, reg, event);
+        g_hash_table_insert_compat(vmi->reg_events, reg, event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled register event on reg: %"PRIu64"\n", event->reg_event.reg);
         rc = VMI_SUCCESS;
     }
@@ -314,7 +317,7 @@ static status_t register_mem_event_generic(vmi_instance_t vmi, vmi_event_t *even
     gint *access = g_slice_new(gint);
     *access = event->mem_event.in_access;
 
-    g_hash_table_insert(vmi->mem_events_generic, access, event);
+    g_hash_table_insert_compat(vmi->mem_events_generic, access, event);
     return VMI_SUCCESS;
 }
 
@@ -342,7 +345,7 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
     if (VMI_SUCCESS == driver_set_mem_access(vmi, event->mem_event.gfn,
             event->mem_event.in_access,
             event->slat_id)) {
-        g_hash_table_insert(vmi->mem_events_on_gfn, g_memdup(&event->mem_event.gfn, sizeof(addr_t)), event);
+        g_hash_table_insert_compat(vmi->mem_events_on_gfn, g_slice_dup(addr_t, &event->mem_event.gfn), event);
 
         if ( event->mem_event.gfn > (vmi->max_physical_address >> vmi->page_shift) )
             vmi->max_physical_address = event->mem_event.gfn << vmi->page_shift;
@@ -386,7 +389,7 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
             gint *key = g_slice_new(gint);
             *key = vcpu;
 
-            g_hash_table_insert(vmi->ss_events, key, event);
+            g_hash_table_insert_compat(vmi->ss_events, key, event);
         }
     }
 
@@ -642,7 +645,7 @@ status_t swap_events(vmi_instance_t vmi, vmi_event_t *swap_from, vmi_event_t *sw
     if (rc == VMI_FAILURE)
         return rc;
 
-    g_hash_table_replace(vmi->mem_events_on_gfn, g_memdup(&swap_to->mem_event.gfn, sizeof(addr_t)), swap_to);
+    g_hash_table_replace(vmi->mem_events_on_gfn, g_slice_dup(addr_t, &swap_to->mem_event.gfn), swap_to);
 
     if ( free_routine )
         free_routine(swap_from, rc);
@@ -889,9 +892,9 @@ status_t vmi_clear_event(
         }
 
         if (!g_hash_table_lookup(vmi->clear_events, &event)) {
-            g_hash_table_insert(vmi->clear_events,
-                                g_memdup(&event, sizeof(void*)),
-                                free_routine);
+            g_hash_table_insert_compat(vmi->clear_events,
+                                       g_slice_dup(vmi_event_t*, &event),
+                                       free_routine);
             return VMI_SUCCESS;
         }
 
@@ -1094,7 +1097,7 @@ vmi_toggle_single_step_vcpu(
         gint *key = g_slice_new(gint);
         *key = vcpu;
 
-        if (!g_hash_table_insert(vmi->ss_events, key, event)) {
+        if (!g_hash_table_insert_compat(vmi->ss_events, key, event)) {
             free_gint(key);
             return VMI_FAILURE;
         }

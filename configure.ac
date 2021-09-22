@@ -3,7 +3,7 @@ dnl Initialization macros.
 dnl --------------------------------
 
 AC_PREREQ([2.60])
-AC_INIT([libvmi], [0.13.0])
+AC_INIT([libvmi], [0.15.0])
 AM_INIT_AUTOMAKE([1.10 no-define foreign subdir-objects])
 
 LT_INIT
@@ -16,7 +16,7 @@ AC_CANONICAL_HOST
 
 LIBRARY_NAME=libvmi
 MAJOR_VERSION=0
-MINOR_VERSION=13
+MINOR_VERSION=15
 MICRO_VERSION=0
 VERSION=$MAJOR_VERSION:$MINOR_VERSION:$MICRO_VERSION
 RELEASE=$MAJOR_VERSION.$MINOR_VERSION
@@ -69,6 +69,13 @@ AC_ARG_ENABLE([kvm],
       [enable_kvm=$enableval],
       [enable_kvm=yes])
 AM_CONDITIONAL([WITH_KVM], [test x"$enable_kvm" = xyes])
+
+AC_ARG_ENABLE([kvm_legacy],
+      [AS_HELP_STRING([--disable-kvm-legacy],
+         [Enable support for legacy KVM driver @<:@no@:>@])],
+      [enable_kvm_legacy=$enableval],
+      [enable_kvm_legacy=no])
+AM_CONDITIONAL([WITH_KVM_LEGACY], [test x"$enable_kvm_legacy" = xyes])
 
 AC_ARG_ENABLE([bareflank],
       [AS_HELP_STRING([--disable-bareflank],
@@ -186,6 +193,7 @@ dnl -----------------------------------------------
 
 AC_PROG_CC
 AM_PROG_CC_C_O
+AC_PROG_CC_C99
 AM_SANITY_CHECK
 AM_PROG_AS
 
@@ -215,8 +223,8 @@ HARDEN_LDFLAGS=""
 AS_IF([test x"$hardening" != x"no"], [
   check_cc_flag([-fno-strict-overflow], [HARDEN_CFLAGS="$HARDEN_CFLAGS -fno-strict-overflow"])
 
-# This one will likely succeed, even on platforms where it does nothing.
-  check_cc_flag([-D_FORTIFY_SOURCE=2], [HARDEN_CFLAGS="$HARDEN_CFLAGS -D_FORTIFY_SOURCE=2"])
+  # This one will likely succeed, even on platforms where it does nothing.
+  check_cc_flag([-D_FORTIFY_SOURCE=2 -O2], [HARDEN_CFLAGS="$HARDEN_CFLAGS -D_FORTIFY_SOURCE=2 -O2"])
 
   check_cc_flag([-fstack-protector-all],
    [check_link_flag([-fstack-protector-all],
@@ -259,6 +267,7 @@ AM_CONDITIONAL([MAKE_TESTS], [test x$have_check = xyes])
 
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16],[],[AC_MSG_ERROR(GLib 2.16 or newer not found. Install missing package and re-run)])
 PKG_CHECK_MODULES([JSONC], [json-c], [have_jsonc='yes'], [have_jsonc='no'])
+AC_CHECK_LIB(json-c, json_object_get_uint64, [AC_DEFINE([JSONC_UINT64_SUPPORT], [1], [json-c supports unsigned 64-bit values])], [])
 
 [if test "$enable_xen" = "yes" || test "$enable_kvm" = "yes"]
 [then]
@@ -297,10 +306,23 @@ PKG_CHECK_MODULES([JSONC], [json-c], [have_jsonc='yes'], [have_jsonc='no'])
     AC_CHECK_HEADER(libvirt/libvirt.h, [],
         [AC_MSG_ERROR([No libvirt headers found. Install missing package or re-run with --disable-kvm])])
     AC_DEFINE([ENABLE_KVM], [1], [Define to 1 to enable KVM support.])
-    AC_CHECK_HEADER([qemu/libvmi_request.h],
+    [if test "$enable_kvm_legacy" = "yes"]
+    [then]
+        AC_CHECK_LIB(json-c, json_object_get_int64, [],
+                         [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
+        AC_CHECK_HEADER(json-c/json.h, [],
+                         [AC_MSG_ERROR(["No working JSON-C library found (libjson-c-dev)."])])
+        AC_CHECK_HEADER([qemu/libvmi_request.h],
         [AC_DEFINE([HAVE_LIBVMI_REQUEST], 1,
            [Define to 1 if you have <qemu/libvmi_request.h>.])],
         [])
+        AC_DEFINE([ENABLE_KVM_LEGACY], [1],
+                  [Define to 1 to enable legacy KVM driver support.])
+    [else]
+        PKG_CHECK_MODULES([LIBKVMI], [libkvmi], [],
+            [AC_MSG_ERROR([No libkvmi headers found. Install the library or
+             enable the legacy KVM driver with --enable-kvm-legacy])])
+    [fi]
 [fi]
 
 [if test "$enable_file" = "yes"]
@@ -438,32 +460,33 @@ Host system type: $host
 Build system type: $build
 Installation prefix: $prefix
 
-Hypervisor      | Option
-----------------|---------------------------
-Xen Support     | --enable-xen=$enable_xen
-KVM Support     | --enable-kvm=$enable_kvm
-File Support    | --enable-file=$enable_file
-Bareflank       | --enable-bareflank=$enable_bareflank
-----------------|---------------------------
+Hypervisor              | Option
+------------------------|---------------------------
+Xen Support             | --enable-xen=$enable_xen
+KVM Support             | --enable-kvm=$enable_kvm
+Legacy KVM Driver       | --enable-kvm-legacy=$enable_kvm_legacy
+File Support            | --enable-file=$enable_file
+Bareflank               | --enable-bareflank=$enable_bareflank
+------------------------|---------------------------
 
-OS              | Option
-----------------|---------------------------
-Windows         | --enable-windows=$enable_windows
-Linux           | --enable-linux=$enable_linux
-FreeBSD         | --enable-freebsd=$enable_freebsd
-----------------|---------------------------
+OS                      | Option
+------------------------|---------------------------
+Windows                 | --enable-windows=$enable_windows
+Linux                   | --enable-linux=$enable_linux
+FreeBSD                 | --enable-freebsd=$enable_freebsd
+------------------------|---------------------------
 
-Configuration   | Option
-----------------|---------------------------
-libvmi.conf     | --enable-config-file=$configfile
-Rekall profiles | --enable-rekall-profiles=$rekall
-Volatility IST  | --enable-volatility-ist=$volatility_ist
-----------------|---------------------------
+Configuration           | Option
+------------------------|---------------------------
+libvmi.conf             | --enable-config-file=$configfile
+Rekall profiles         | --enable-rekall-profiles=$rekall
+Volatility IST          | --enable-volatility-ist=$volatility_ist
+------------------------|---------------------------
 
-Tools           | Option
-----------------|---------------------------
-Examples        | --enable-examples=$enable_examples
-VMIFS           | --enable-vmifs=$enable_vmifs
+Tools                   | Option
+------------------------|---------------------------
+Examples                | --enable-examples=$enable_examples
+VMIFS                   | --enable-vmifs=$enable_vmifs
 
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.

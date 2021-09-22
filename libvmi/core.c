@@ -45,14 +45,6 @@
 
 #ifndef ENABLE_CONFIGFILE
 static inline status_t
-read_config_file(vmi_instance_t UNUSED(vmi),
-                 FILE* UNUSED(config_file),
-                 GHashTable** UNUSED(_config))
-{
-    return VMI_FAILURE;
-}
-
-static inline status_t
 read_config_string(vmi_instance_t UNUSED(vmi),
                    const char* UNUSED(config),
                    GHashTable** UNUSED(_config),
@@ -275,7 +267,7 @@ init_page_offset(
     //TODO need a better way to handle the page size issue
     /* assume 4k pages for now, update when 2M page is found */
     vmi->page_shift = 12;
-    vmi->page_size = 1 << vmi->page_shift;
+    vmi->page_size = VMI_PS_4KB;
 
     return VMI_SUCCESS;
 }
@@ -521,6 +513,9 @@ status_t vmi_init(
     dbprint(VMI_DEBUG_CORE, "LibVMI Driver Mode %d\n", _vmi->mode);
 
     _vmi->init_flags = init_flags;
+    _vmi->page_mode = VMI_PM_UNKNOWN;
+
+    arch_init_lookup_tables(_vmi);
 
     if ( init_data && init_data->count ) {
         uint64_t i;
@@ -677,6 +672,7 @@ GHashTable *init_config(vmi_instance_t vmi, vmi_config_t config_mode, void *conf
             }
             _config = (GHashTable*)config;
             break;
+#ifdef ENABLE_JSON_PROFILES
         case VMI_CONFIG_JSON_PATH:
             if (!config) {
 
@@ -688,6 +684,7 @@ GHashTable *init_config(vmi_instance_t vmi, vmi_config_t config_mode, void *conf
             _config = g_hash_table_new(g_str_hash, g_str_equal);
             g_hash_table_insert(_config, "volatility_ist", config);
             break;
+#endif
         default:
             return NULL;
     }
@@ -789,8 +786,14 @@ os_t vmi_init_os(
     };
 
 error_exit:
-    if ( VMI_CONFIG_JSON_PATH == config_mode )
+#ifdef ENABLE_JSON_PROFILES
+    if ( VMI_CONFIG_JSON_PATH == config_mode ) {
         g_hash_table_destroy(_config);
+
+        if ( VMI_OS_UNKNOWN == vmi->os_type )
+            json_profile_destroy(vmi);
+    }
+#endif
 
     return vmi->os_type;
 }
@@ -826,14 +829,18 @@ vmi_init_complete(
         if ( error )
             *error = VMI_INIT_ERROR_PAGING;
 
-        return VMI_FAILURE;
+        goto error_exit;
     }
 
     if ( VMI_OS_UNKNOWN == vmi_init_os(_vmi, config_mode, config, error) )
-        return VMI_FAILURE;
+        goto error_exit;
 
     *vmi = _vmi;
     return VMI_SUCCESS;
+error_exit:
+    if (_vmi)
+        g_free(_vmi);
+    return VMI_FAILURE;
 }
 
 status_t
@@ -853,14 +860,10 @@ vmi_destroy(
     }
 
     free(vmi->os_data);
-    free(vmi->arch_interface);
     vmi->os_data = NULL;
-    vmi->arch_interface = NULL;
 
 #ifdef ENABLE_JSON_PROFILES
-    g_free((char*)vmi->json.path);
-    if ( vmi->json.root )
-        json_object_put(vmi->json.root);
+    json_profile_destroy(vmi);
 #endif
 
     pid_cache_destroy(vmi);

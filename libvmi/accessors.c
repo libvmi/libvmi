@@ -708,19 +708,37 @@ GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb)
     if (!vmi)
         return NULL;
 
-    if (!vmi->arch_interface || !vmi->arch_interface->get_va_pages) {
+    if (!vmi->arch_interface.get_pages[vmi->page_mode]) {
         dbprint(VMI_DEBUG_PTLOOKUP, "Invalid or not supported paging mode during get_va_pages\n");
         return NULL;
     }
 #endif
 
-    return vmi->arch_interface->get_va_pages(vmi, dtb);
+    return vmi->arch_interface.get_pages[vmi->page_mode](vmi, 0, 0, dtb);
+}
+
+GSList* vmi_get_nested_va_pages(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, page_mode_t pm)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return NULL;
+
+    if (valid_npm(npm) && !npt)
+        return NULL;
+
+    if (!valid_pm(pm)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "Invalid or not supported paging mode during get_va_pages\n");
+        return NULL;
+    }
+#endif
+
+    return vmi->arch_interface.get_pages[pm](vmi, npt, npm, pt);
 }
 
 status_t
 vmi_pagetable_lookup(
     vmi_instance_t vmi,
-    addr_t dtb,
+    addr_t pt,
     addr_t vaddr,
     addr_t *paddr)
 {
@@ -729,8 +747,64 @@ vmi_pagetable_lookup(
         return VMI_FAILURE;
 #endif
 
-    return vmi_pagetable_lookup_cache(vmi, dtb, vaddr, paddr);
+    return vmi_pagetable_lookup_cache(vmi, pt, vaddr, paddr);
 }
+
+status_t vmi_nested_pagetable_lookup (
+    vmi_instance_t vmi,
+    addr_t npt,
+    page_mode_t npm,
+    addr_t pt,
+    page_mode_t pm,
+    addr_t vaddr,
+    addr_t *paddr,
+    addr_t *naddr)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi || !paddr)
+        return VMI_FAILURE;
+
+    if (valid_npm(npm) && !naddr)
+        return VMI_FAILURE;
+
+    if (!valid_pm(pm)) {
+        errprint("Invalid paging mode during vmi_nested_pagetable_lookup: %i\n", pm);
+        return VMI_FAILURE;
+    }
+#endif
+
+    /* check if entry exists in the cache */
+    if (VMI_SUCCESS == v2p_cache_get(vmi, vaddr, pt, npt, paddr)) {
+
+        /* verify that address is still valid */
+        uint8_t value = 0;
+        if (VMI_SUCCESS == vmi_read_8_pa(vmi, *paddr, &value)) {
+            if (valid_npm(npm)) {
+                *naddr = *paddr;
+                *paddr = ~0ull;
+            }
+
+            return VMI_SUCCESS;
+        }
+    }
+
+    page_info_t info;
+
+    if (VMI_FAILURE == vmi->arch_interface.lookup[pm](vmi, npt, npm, pt, vaddr, &info))
+        return VMI_FAILURE;
+
+    *paddr = info.paddr;
+
+    if (valid_npm(npm)) {
+        *naddr = info.naddr;
+        v2p_cache_set(vmi, vaddr, pt, npt, info.naddr);
+        return VMI_SUCCESS;
+    }
+
+    v2p_cache_set(vmi, vaddr, pt, 0, info.paddr);
+    return VMI_SUCCESS;
+}
+
 
 /*
  * Return a status when page_info is not needed, but also use the cache,
@@ -740,24 +814,29 @@ vmi_pagetable_lookup(
  */
 status_t vmi_pagetable_lookup_cache(
     vmi_instance_t vmi,
-    addr_t dtb,
+    addr_t pt,
     addr_t vaddr,
     addr_t *paddr)
 {
     status_t ret = VMI_FAILURE;
-    page_info_t info = { .vaddr = vaddr,
-                         .dtb = dtb
-                       };
+    page_info_t info = {
+        .vaddr = vaddr,
+        .pt = pt,
+        .pm = vmi->page_mode
+    };
 
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !paddr)
+        return ret;
+
+    if (!valid_pm(vmi->page_mode))
         return ret;
 #endif
 
     *paddr = 0;
 
     /* check if entry exists in the cache */
-    if (VMI_SUCCESS == v2p_cache_get(vmi, vaddr, dtb, paddr)) {
+    if (VMI_SUCCESS == v2p_cache_get(vmi, vaddr, pt, 0, paddr)) {
 
         /* verify that address is still valid */
         uint8_t value = 0;
@@ -765,13 +844,13 @@ status_t vmi_pagetable_lookup_cache(
         if (VMI_SUCCESS == vmi_read_8_pa(vmi, *paddr, &value)) {
             return VMI_SUCCESS;
         } else {
-            if ( VMI_FAILURE == v2p_cache_del(vmi, vaddr, dtb) )
+            if ( VMI_FAILURE == v2p_cache_del(vmi, vaddr, 0, pt) )
                 return VMI_FAILURE;
         }
     }
 
-    if (vmi->arch_interface && vmi->arch_interface->v2p) {
-        ret = vmi->arch_interface->v2p(vmi, dtb, vaddr, &info);
+    if (vmi->arch_interface.lookup[vmi->page_mode]) {
+        ret = vmi->arch_interface.lookup[vmi->page_mode](vmi, 0, 0, pt, vaddr, &info);
     } else {
         errprint("Invalid paging mode during vmi_pagetable_lookup\n");
         ret = VMI_FAILURE;
@@ -780,7 +859,7 @@ status_t vmi_pagetable_lookup_cache(
     /* add this to the cache */
     if (ret == VMI_SUCCESS) {
         *paddr = info.paddr;
-        v2p_cache_set(vmi, vaddr, dtb, info.paddr);
+        v2p_cache_set(vmi, vaddr, pt, 0, info.paddr);
     }
     return ret;
 }
@@ -788,7 +867,7 @@ status_t vmi_pagetable_lookup_cache(
 
 status_t vmi_pagetable_lookup_extended(
     vmi_instance_t vmi,
-    addr_t dtb,
+    addr_t pt,
     addr_t vaddr,
     page_info_t *info)
 {
@@ -797,21 +876,25 @@ status_t vmi_pagetable_lookup_extended(
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !info)
         return ret;
+
+    if (!valid_pm(vmi->page_mode))
+        return ret;
 #endif
 
     memset(info, 0, sizeof(page_info_t));
     info->vaddr = vaddr;
-    info->dtb = dtb;
+    info->pt = pt;
+    info->pm = vmi->page_mode;
 
-    if (vmi->arch_interface && vmi->arch_interface->v2p) {
-        ret = vmi->arch_interface->v2p(vmi, dtb, vaddr, info);
+    if (vmi->arch_interface.lookup[vmi->page_mode]) {
+        ret = vmi->arch_interface.lookup[vmi->page_mode](vmi, 0, 0, pt, vaddr, info);
     } else {
         errprint("Invalid paging mode during vmi_pagetable_lookup\n");
     }
 
     /* add this to the cache */
     if (ret == VMI_SUCCESS) {
-        v2p_cache_set(vmi, vaddr, dtb, info->paddr);
+        v2p_cache_set(vmi, vaddr, pt, 0, info->paddr);
     }
     return ret;
 }
@@ -1055,24 +1138,50 @@ void
 vmi_v2pcache_add(
     vmi_instance_t vmi,
     addr_t va,
-    addr_t dtb,
+    addr_t pt,
     addr_t pa)
 {
     if (!vmi)
         return;
 
-    return v2p_cache_set(vmi, va, dtb, pa);
+    return v2p_cache_set(vmi, va, pt, 0, pa);
+}
+
+void
+vmi_v2pcache_nested_add(
+    vmi_instance_t vmi,
+    addr_t va,
+    addr_t pt,
+    addr_t npt,
+    addr_t pa)
+{
+    if (!vmi)
+        return;
+
+    return v2p_cache_set(vmi, va, pt, npt, pa);
 }
 
 void
 vmi_v2pcache_flush(
     vmi_instance_t vmi,
-    addr_t dtb)
+    addr_t pt)
 {
     if (!vmi)
         return;
 
-    return v2p_cache_flush(vmi, dtb);
+    return v2p_cache_flush(vmi, pt, 0);
+}
+
+void
+vmi_v2pcache_nested_flush(
+    vmi_instance_t vmi,
+    addr_t pt,
+    addr_t npt)
+{
+    if (!vmi)
+        return;
+
+    return v2p_cache_flush(vmi, pt, npt);
 }
 
 void

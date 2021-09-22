@@ -10,9 +10,9 @@ DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 %:
 	dh $@ --with autoreconf
 
-# make sure we call autogen.sh to setup the build scripts
-override_dh_autoreconf:
-	dh_autoreconf ./autogen.sh
+# disable building kvm support for now
+override_dh_auto_configure:
+	dh_auto_configure -- --disable-kvm
 
 # skip running 'make check' since we don't have a running VM
 override_dh_auto_test:

@@ -85,15 +85,17 @@ void get_fine_second_level_descriptor(vmi_instance_t vmi, uint32_t vaddr, page_i
 // Chapter B4 Virtual Memory System Architecture
 // B4.7 Hardware page table translation
 status_t v2p_aarch32 (vmi_instance_t vmi,
-                      addr_t dtb,
+                      addr_t UNUSED(npt),
+                      page_mode_t UNUSED(npm),
+                      addr_t pt,
                       addr_t vaddr,
                       page_info_t *info)
 {
     status_t status = VMI_FAILURE;
 
-    dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch32 PTLookup: vaddr = 0x%.16"PRIx64", dtb = 0x%.16"PRIx64"\n", vaddr, dtb);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch32 PTLookup: vaddr = 0x%.16"PRIx64", pt = 0x%.16"PRIx64"\n", vaddr, pt);
 
-    get_first_level_descriptor(vmi, dtb, vaddr, info);
+    get_first_level_descriptor(vmi, pt, vaddr, info);
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch32 PTLookup: fld_location = 0x%"PRIx32"\n", info->arm_aarch32.fld_location);
     dbprint(VMI_DEBUG_PTLOOKUP, "--ARM AArch32 PTLookup: fld_value = 0x%"PRIx32"\n", info->arm_aarch32.fld_value);
@@ -191,19 +193,4 @@ GSList* get_va_pages_aarch32(vmi_instance_t UNUSED(vmi), addr_t UNUSED(dtb))
 {
     //TODO: investigate best method to loop over all tables
     return NULL;
-}
-
-status_t aarch32_init(vmi_instance_t vmi)
-{
-
-    if (!vmi->arch_interface) {
-        vmi->arch_interface = g_try_malloc0(sizeof(struct arch_interface));
-        if ( !vmi->arch_interface )
-            return VMI_FAILURE;
-    }
-
-    vmi->arch_interface->v2p = v2p_aarch32;
-    vmi->arch_interface->get_va_pages = get_va_pages_aarch32;
-
-    return VMI_SUCCESS;
 }

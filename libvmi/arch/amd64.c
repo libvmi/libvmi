@@ -42,18 +42,20 @@ addr_t get_pml4_index (addr_t vaddr)
 
 static inline
 status_t get_pml4e (vmi_instance_t vmi,
-                    addr_t vaddr,
-                    reg_t cr3,
-                    addr_t *pml4e_address,
-                    uint64_t *pml4e_value)
+                    access_context_t *ctx,
+                    page_info_t *info)
 {
-    *pml4e_value = 0;
-    *pml4e_address = (cr3 & VMI_BIT_MASK(12,51)) | get_pml4_index(vaddr);
-    if (VMI_FAILURE == vmi_read_64_pa(vmi, *pml4e_address, pml4e_value)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: error reading pml4e_address = 0x%.16"PRIx64"\n", *pml4e_address);
+    ctx->addr = (info->pt & VMI_BIT_MASK(12,51)) | get_pml4_index(info->vaddr);
+
+    if (VMI_FAILURE == vmi_read_64(vmi, ctx, &info->x86_ia32e.pml4e_value)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: error reading pml4e_location = 0x%.16"PRIx64"\n", ctx->addr);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pml4e_address = 0x%.16"PRIx64"\n", *pml4e_address);
+
+    info->x86_ia32e.pml4e_location = ctx->addr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pml4e_location = 0x%.16"PRIx64"\n", info->x86_ia32e.pml4e_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pml4e_value = 0x%.16"PRIx64"\n", info->x86_ia32e.pml4e_value);
     return VMI_SUCCESS;
 }
 
@@ -65,19 +67,20 @@ addr_t get_pdpt_index_ia32e (addr_t vaddr)
 
 static inline
 status_t get_pdpte_ia32e (vmi_instance_t vmi,
-                          addr_t vaddr,
-                          uint64_t pml4e,
-                          addr_t *pdpte_address,
-                          uint64_t *pdpte_value)
+                          access_context_t *ctx,
+                          page_info_t *info)
 {
-    *pdpte_value = 0;
-    *pdpte_address = (pml4e & VMI_BIT_MASK(12,51)) | get_pdpt_index_ia32e(vaddr);
-    if (VMI_FAILURE == vmi_read_64_pa(vmi, *pdpte_address, pdpte_value)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pdpte_address = 0x%.16"PRIx64"\n", *pdpte_address);
+    ctx->addr = (info->x86_ia32e.pml4e_value & VMI_BIT_MASK(12,51)) | get_pdpt_index_ia32e(info->vaddr);
+
+    if (VMI_FAILURE == vmi_read_64(vmi, ctx, &info->x86_ia32e.pdpte_value)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pdpte_location = 0x%.16"PRIx64"\n", ctx->addr);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpte_address = 0x%.16"PRIx64", pdpte_value = 0x%.16"PRIx64"\n",
-            *pdpte_address, *pdpte_value);
+
+    info->x86_ia32e.pdpte_location = ctx->addr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpte_location = 0x%.16"PRIx64"\n", info->x86_ia32e.pdpte_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpte_value = 0x%.16"PRIx64"\n", info->x86_ia32e.pdpte_value);
     return VMI_SUCCESS;
 }
 
@@ -89,19 +92,21 @@ uint64_t get_pd_index_ia32e (addr_t vaddr)
 
 static inline
 status_t get_pde_ia32e (vmi_instance_t vmi,
-                        addr_t vaddr,
-                        uint64_t pdpte,
-                        addr_t *pde_address,
-                        addr_t *pde_value)
+                        access_context_t *ctx,
+                        page_info_t *info)
 {
-    *pde_value = 0;
-    *pde_address = (pdpte & VMI_BIT_MASK(12,51)) | get_pd_index_ia32e(vaddr);
-    if (VMI_FAILURE == vmi_read_64_pa(vmi, *pde_address, pde_value)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pde_address = 0x%.16"PRIx64"\n", *pde_address);
+    ctx->addr = (info->x86_ia32e.pdpte_value & VMI_BIT_MASK(12,51)) | get_pd_index_ia32e(info->vaddr);
+
+    if (VMI_FAILURE == vmi_read_64(vmi, ctx, &info->x86_ia32e.pgd_value)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pde_location = 0x%.16"PRIx64"\n", ctx->addr);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_address = 0x%.16"PRIx64", pde_value= 0x%.16"PRIx64"\n",
-            *pde_address, *pde_value);
+
+    info->x86_ia32e.pgd_location = ctx->addr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_location = 0x%.16"PRIx64"\n", info->x86_ia32e.pgd_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_value= 0x%.16"PRIx64"\n", info->x86_ia32e.pgd_value);
+
     return VMI_SUCCESS;
 }
 
@@ -113,19 +118,21 @@ uint64_t get_pt_index_ia32e (addr_t vaddr)
 
 static inline
 status_t get_pte_ia32e (vmi_instance_t vmi,
-                        addr_t vaddr,
-                        uint64_t pde,
-                        addr_t *pte_address,
-                        uint64_t *pte_value)
+                        access_context_t *ctx,
+                        page_info_t *info)
 {
-    *pte_value = 0;
-    *pte_address = (pde & VMI_BIT_MASK(12,51)) | get_pt_index_ia32e(vaddr);
-    if (VMI_FAILURE == vmi_read_64_pa(vmi, *pte_address, pte_value)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pte_address = 0x%.16"PRIx64"\n", *pte_address);
+    ctx->addr = (info->x86_ia32e.pgd_value & VMI_BIT_MASK(12,51)) | get_pt_index_ia32e(info->vaddr);
+
+    if (VMI_FAILURE == vmi_read_64(vmi, ctx, &info->x86_ia32e.pte_value)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pte_location = 0x%.16"PRIx64"\n", ctx->addr);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_address = 0x%.16"PRIx64", pte_value = 0x%.16"PRIx64"\n",
-            *pte_address, *pte_value);
+
+    info->x86_ia32e.pte_location = ctx->addr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_location = 0x%.16"PRIx64"\n", info->x86_ia32e.pte_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_value = 0x%.16"PRIx64"\n", info->x86_ia32e.pte_value);
+
     return VMI_SUCCESS;
 }
 
@@ -148,36 +155,39 @@ uint64_t get_2megpage_ia32e (addr_t vaddr, uint64_t pde)
 }
 
 status_t v2p_ia32e (vmi_instance_t vmi,
-                    addr_t dtb,
+                    addr_t npt,
+                    page_mode_t npm,
+                    addr_t pt,
                     addr_t vaddr,
                     page_info_t *info)
 {
-    status_t status = VMI_FAILURE;
+    status_t status;
+    ACCESS_CONTEXT(ctx,
+                   .npt = npt,
+                   .npm = npm);
 
-    // are we in compatibility mode OR 64-bit mode ???
+    info->npt = npt;
+    info->npm = npm;
+    info->pt = pt;
+    info->pm = VMI_PM_IA32E;
+    info->vaddr = vaddr;
 
-    // validate address based on above (e.g., is it canonical?)
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup addr = 0x%.16"PRIx64"\n", vaddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: npt = 0x%.16"PRIx64" npm = %"PRIu32"\n", npt, npm);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pt = 0x%.16"PRIx64"\n", pt);
 
-    // determine what MAXPHYADDR is
-
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64"\n", vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: dtb = 0x%.16"PRIx64"\n", dtb);
-
-    status = get_pml4e(vmi, vaddr, dtb, &info->x86_ia32e.pml4e_location, &info->x86_ia32e.pml4e_value);
-    if (status != VMI_SUCCESS) {
+    status = get_pml4e(vmi, &ctx, info);
+    if (status != VMI_SUCCESS)
         goto done;
-    }
 
     if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pml4e_value)) {
         status = VMI_FAILURE;
         goto done;
     }
 
-    status = get_pdpte_ia32e(vmi, vaddr, info->x86_ia32e.pml4e_value, &info->x86_ia32e.pdpte_location,
-                             &info->x86_ia32e.pdpte_value);
-    if (status != VMI_SUCCESS) {
+    status = get_pdpte_ia32e(vmi, &ctx, info);
+    if (status != VMI_SUCCESS)
         goto done;
-    }
 
     if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pdpte_value)) {
         status = VMI_FAILURE;
@@ -192,11 +202,9 @@ status_t v2p_ia32e (vmi_instance_t vmi,
         goto done;
     }
 
-    status = get_pde_ia32e(vmi, vaddr, info->x86_ia32e.pdpte_value, &info->x86_ia32e.pgd_location,
-                           &info->x86_ia32e.pgd_value);
-    if (status != VMI_SUCCESS) {
+    status = get_pde_ia32e(vmi, &ctx, info);
+    if (status != VMI_SUCCESS)
         goto done;
-    }
 
     if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pgd_value)) {
         status = VMI_FAILURE;
@@ -211,11 +219,9 @@ status_t v2p_ia32e (vmi_instance_t vmi,
         goto done;
     }
 
-    status = get_pte_ia32e(vmi, vaddr, info->x86_ia32e.pgd_value, &info->x86_ia32e.pte_location,
-                           &info->x86_ia32e.pte_value);
-    if (status != VMI_SUCCESS) {
+    status = get_pte_ia32e(vmi, &ctx, info);
+    if (status != VMI_SUCCESS)
         goto done;
-    }
 
     if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pte_value)) {
         status = VMI_FAILURE;
@@ -228,10 +234,14 @@ status_t v2p_ia32e (vmi_instance_t vmi,
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
+
+    if (valid_npm(npm) && VMI_FAILURE == vmi_nested_pagetable_lookup(vmi, 0, 0, npt, npm, info->paddr, &info->naddr, NULL) )
+        return VMI_FAILURE;
+
     return status;
 }
 
-GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
+GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb)
 {
 
     GSList *ret = NULL;
@@ -249,7 +259,12 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
 
     addr_t pml4e_location = dtb & VMI_BIT_MASK(12,51);
 
-    if (VMI_FAILURE == vmi_read_pa(vmi, pml4e_location, VMI_PS_4KB, pml4_page, NULL))
+    ACCESS_CONTEXT(ctx,
+                   .npt = npt,
+                   .npm = npm);
+
+    ctx.addr = pml4e_location;
+    if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pml4_page, NULL))
         goto done;
 
     uint64_t pml4e_index;
@@ -263,7 +278,8 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
 
         uint64_t pdpte_location = pml4e_value & VMI_BIT_MASK(12,51);
 
-        if (VMI_FAILURE == vmi_read_pa(vmi, pdpte_location, VMI_PS_4KB, pdpt_page, NULL))
+        ctx.addr = pdpte_location;
+        if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pdpt_page, NULL))
             goto done;
 
         uint64_t pdpte_index;
@@ -281,7 +297,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
                     goto done;
 
                 info->vaddr = canonical_addr((pml4e_index << 39) | (pdpte_index << 30));
-                info->dtb = dtb;
+                info->pt = dtb;
                 info->paddr = get_gigpage_ia32e(info->vaddr, pdpte_value);
                 info->size = VMI_PS_1GB;
                 info->x86_ia32e.pml4e_location = pml4e_location;
@@ -294,7 +310,8 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
 
             uint64_t pgd_location = pdpte_value & VMI_BIT_MASK(12,51);
 
-            if (VMI_FAILURE == vmi_read_pa(vmi, pgd_location, VMI_PS_4KB, pgd_page, NULL))
+            ctx.addr = pgd_location;
+            if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pgd_page, NULL))
                 goto done;
 
             uint64_t pgde_index;
@@ -311,7 +328,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
 
                         info->vaddr = canonical_addr((pml4e_index << 39) | (pdpte_index << 30) |
                                                      (pgde_index << 21));
-                        info->dtb = dtb;
+                        info->pt = dtb;
                         info->paddr = get_2megpage_ia32e(info->vaddr, pgd_value);
                         info->size = VMI_PS_2MB;
                         info->x86_ia32e.pml4e_location = pml4e_location;
@@ -325,7 +342,8 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
                     }
 
                     uint64_t pte_location = (pgd_value & VMI_BIT_MASK(12,51));
-                    if (VMI_FAILURE == vmi_read_pa(vmi, pte_location, VMI_PS_4KB, pt_page, NULL))
+                    ctx.addr = pte_location;
+                    if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pt_page, NULL))
                         goto done;
 
                     uint64_t pte_index;
@@ -339,7 +357,7 @@ GSList* get_va_pages_ia32e(vmi_instance_t vmi, addr_t dtb)
 
                             info->vaddr = canonical_addr((pml4e_index << 39) | (pdpte_index << 30) |
                                                          (pgde_index << 21) | (pte_index << 12));
-                            info->dtb = dtb;
+                            info->pt = dtb;
                             info->paddr = get_paddr_ia32e(info->vaddr, pte_value);
                             info->size = VMI_PS_4KB;
                             info->x86_ia32e.pml4e_location = pml4e_location;
@@ -366,19 +384,4 @@ done:
     g_free(pml4_page);
 
     return ret;
-}
-
-status_t amd64_init(vmi_instance_t vmi)
-{
-
-    if (!vmi->arch_interface) {
-        vmi->arch_interface = g_try_malloc0(sizeof(struct arch_interface));
-        if ( !vmi->arch_interface )
-            return VMI_FAILURE;
-    }
-
-    vmi->arch_interface->v2p = v2p_ia32e;
-    vmi->arch_interface->get_va_pages = get_va_pages_ia32e;
-
-    return VMI_SUCCESS;
 }

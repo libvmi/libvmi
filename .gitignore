@@ -17,6 +17,7 @@ examples/step-event-example
 examples/va-pages
 examples/xen-emulate-response
 examples/breakpoint-emulate-example
+examples/vmi-dmesg
 libtool
 libvmi.pc
 tests/check_libvmi
@@ -27,6 +28,7 @@ tools/linux-offset-finder/.tmp_versions/
 tools/linux-offset-finder/findoffsets.ko
 tools/linux-offset-finder/findoffsets.mod.c
 tools/linux-offset-finder/modules.order
+tools/vmifs/vmifs
 libvmi/config/grammar.c
 libvmi/config/grammar.h
 libvmi/config/lexicon.c
@@ -34,6 +36,7 @@ libvmi/config/lexicon.c
 **/*.lo
 **/*.Plo
 **/*.Po
+**/*.Tpo
 **/.dirstamp
 build
 autom4te.cache/*
@@ -44,6 +47,7 @@ Makefile.in
 **/*.lai
 **/*.so*
 **/*.m4
+**/*.save
 ltmain.sh
 missing
 stamp-h1
@@ -51,6 +55,8 @@ ylwrap
 compile
 config.guess
 config.h
+config.h.in
+config.h.in~
 config.log
 config.status
 config.sub
@@ -58,3 +64,6 @@ configure
 depcomp
 install-sh
 **/.libs/*
+
+# IDE
+/.vscode

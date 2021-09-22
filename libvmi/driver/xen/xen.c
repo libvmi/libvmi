@@ -461,13 +461,12 @@ xen_get_version(
     status_t status = VMI_FAILURE;
     char *line = NULL;
     size_t len = 0;
-    ssize_t read;
 
     FILE *fp = fopen("/sys/hypervisor/type", "r");
     if ( !fp )
         goto done;
 
-    if ((read = getline(&line, &len, fp)) == -1)
+    if (getline(&line, &len, fp) == -1)
         goto done;
 
     if ( strncmp("xen", line, 3) )
@@ -482,7 +481,7 @@ xen_get_version(
     if ( !fp )
         goto done;
 
-    if ((read = getline(&line, &len, fp)) == -1)
+    if (getline(&line, &len, fp) == -1)
         goto done;
 
     xen->major_version = atoi(line);
@@ -496,7 +495,7 @@ xen_get_version(
     if ( !fp )
         goto done;
 
-    if ((read = getline(&line, &len, fp)) == -1)
+    if (getline(&line, &len, fp) == -1)
         goto done;
 
     xen->minor_version = atoi(line);
@@ -1292,6 +1291,14 @@ xen_get_vcpuregs_hvm(
     regs->x86.es_limit = hvm_cpu->es_limit;
     regs->x86.es_sel = hvm_cpu->es_sel;
     regs->x86.es_arbytes = hvm_cpu->es_arbytes;
+    regs->x86.tr_base = hvm_cpu->tr_base;
+    regs->x86.tr_limit = hvm_cpu->tr_limit;
+    regs->x86.tr_sel = hvm_cpu->tr_sel;
+    regs->x86.tr_arbytes = hvm_cpu->tr_arbytes;
+    regs->x86.ldt_base = hvm_cpu->ldtr_base;
+    regs->x86.ldt_limit = hvm_cpu->ldtr_limit;
+    regs->x86.ldt_sel = hvm_cpu->ldtr_sel;
+    regs->x86.ldt_arbytes = hvm_cpu->ldtr_arbytes;
     regs->x86.shadow_gs = hvm_cpu->shadow_gs;
     regs->x86.idtr_base = hvm_cpu->idtr_base;
     regs->x86.idtr_limit = hvm_cpu->idtr_limit;
@@ -1323,6 +1330,9 @@ xen_set_vcpureg_hvm(
     struct hvm_save_descriptor *desc = NULL;
     xen_instance_t *xen = xen_get_instance(vmi);
 
+    if ( VMI_FAILURE == xen_pause_vm(vmi) )
+        return VMI_FAILURE;
+
     /* calling with no arguments --> return is the size of buffer required
      *  for storing the HVM context
      */
@@ -1344,7 +1354,6 @@ xen_set_vcpureg_hvm(
     /* Locate runtime CPU registers in the context record, using the full
      *  version of xc_domain_hvm_getcontext rather than the partial
      *  variant, because there is no equivalent setcontext_partial.
-     * NOTE: to avoid inducing race conditions/errors, run while VM is paused.
      */
     if (xen->libxcw.xc_domain_hvm_getcontext(xen->xchandle,
             xen->domainid,
@@ -1638,6 +1647,7 @@ xen_set_vcpureg_hvm(
 _bail:
 
     free(buf);
+    xen_resume_vm(vmi);
 
     return ret;
 }
@@ -1655,6 +1665,9 @@ xen_set_vcpuregs_hvm(
     HVM_SAVE_TYPE(CPU) *cpu = NULL;
     struct hvm_save_descriptor *desc = NULL;
     xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( VMI_FAILURE == xen_pause_vm(vmi) )
+        return VMI_FAILURE;
 
     /* calling with no arguments --> return is the size of buffer required
      *  for storing the HVM context
@@ -1678,7 +1691,6 @@ xen_set_vcpuregs_hvm(
     /* Locate runtime CPU registers in the context record, using the full
      *  version of xc_domain_hvm_getcontext rather than the partial
      *  variant, because there is no equivalent setcontext_partial.
-     * NOTE: to avoid inducing race conditions/errors, run while VM is paused.
      */
     if (xen->libxcw.xc_domain_hvm_getcontext(xen->xchandle, xen->domainid,
             buf, size) < 0) {
@@ -1751,6 +1763,7 @@ xen_set_vcpuregs_hvm(
 
 _bail:
     free(buf);
+    xen_resume_vm(vmi);
 
     return ret;
 }

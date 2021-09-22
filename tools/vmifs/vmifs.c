@@ -44,7 +44,7 @@ static int vmifs_getattr(const char *path, struct stat *stbuf)
     } else if (strcmp(path, mem_path) == 0) {
         stbuf->st_mode = S_IFREG | 0444;
         stbuf->st_nlink = 1;
-        stbuf->st_size = vmi_get_memsize(vmi);
+        stbuf->st_size = vmi_get_max_physical_address(vmi);
     } else
         res = -ENOENT;
 
@@ -86,13 +86,16 @@ static int vmifs_read(const char *path, char *buf, size_t size, off_t offset,
     if (strcmp(path, mem_path) != 0)
         return -ENOENT;
 
-    uint64_t memsize = vmi_get_memsize(vmi);
+    uint64_t memsize = vmi_get_max_physical_address(vmi);
     if (offset >= 0 && ((uint64_t) offset) < memsize && size) {
         if (offset + size > memsize)
             size = memsize-offset;
 
         uint8_t *buffer = g_try_malloc0(sizeof(uint8_t)*size);
-        if ( VMI_FAILURE == vmi_read_pa(vmi, offset, size, buffer, NULL) ) {
+        size_t rsize = 0;
+        if ( VMI_FAILURE == vmi_read_pa(vmi, offset, size, buffer, &rsize) ) {
+            if (rsize > 0 && rsize <= size)
+                memcpy(buf, buffer, rsize);
             g_free(buffer);
         } else {
             memcpy(buf, buffer, size);

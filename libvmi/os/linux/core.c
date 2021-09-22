@@ -331,10 +331,10 @@ static status_t init_task_kaslr_test(vmi_instance_t vmi, addr_t page_vaddr)
     addr_t addr = ~0;
     addr_t init_task = page_vaddr + (vmi->init_task & VMI_BIT_MASK(0,11));
     linux_instance_t linux_instance = vmi->os_data;
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = vmi->kpgd
-    };
+    ACCESS_CONTEXT(ctx,
+                   .pm = vmi->page_mode,
+                   .translate_mechanism = VMI_TM_PROCESS_PT,
+                   .pt = vmi->kpgd);
 
     /* The pid should be 0 */
     ctx.addr = init_task + linux_instance->pid_offset;
@@ -400,11 +400,10 @@ static status_t init_kaslr(vmi_instance_t vmi)
      */
     uint32_t test;
     linux_instance_t linux_instance = vmi->os_data;
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .dtb = vmi->kpgd,
-        .addr = vmi->init_task
-    };
+    ACCESS_CONTEXT(ctx,
+                   .translate_mechanism = VMI_TM_PROCESS_DTB,
+                   .pt = vmi->kpgd,
+                   .addr = vmi->init_task);
 
     if ( VMI_SUCCESS == vmi_read_32(vmi, &ctx, &test) ) {
         /* Provided init_task works fine, let's calculate kaslr from it if necessary */
@@ -613,8 +612,7 @@ status_t linux_init(vmi_instance_t vmi, GHashTable *config)
     return VMI_SUCCESS;
 
 _exit:
-    g_free(vmi->os_data);
-    vmi->os_data = NULL;
+    linux_teardown(vmi);
     return VMI_FAILURE;
 }
 
@@ -730,6 +728,7 @@ status_t linux_teardown(vmi_instance_t vmi)
     g_free(linux_instance);
 
     vmi->os_data = NULL;
+    vmi->kpgd = 0;
 
     return VMI_SUCCESS;
 }
