@@ -31,7 +31,8 @@
 #include <libvmi/libvmi.h>
 
 static const char *mem_path = "/mem";
-vmi_instance_t vmi;
+vmi_instance_t vmi = NULL;
+vmi_init_data_t *init_data = NULL;
 
 static int vmifs_getattr(const char *path, struct stat *stbuf)
 {
@@ -111,7 +112,13 @@ static int vmifs_read(const char *path, char *buf, size_t size, off_t offset,
 
 void vmifs_destroy()
 {
-    vmi_destroy(vmi);
+    if (vmi)
+        vmi_destroy(vmi);
+
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
 }
 
 static struct fuse_operations vmifs_oper = {
@@ -130,7 +137,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    vmi_init_data_t *init_data = NULL;
     vmi_mode_t mode;
     uint64_t init_flags;
     uint64_t domid = VMI_INVALID_DOMID;
@@ -155,12 +161,15 @@ int main(int argc, char *argv[])
         init_data->entry[0].data = strdup(argv[4]);
     }
 
-    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init_flags, init_data, &mode))
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init_flags, init_data, &mode)) {
+        vmifs_destroy();
         return 1;
+    }
 
     /* initialize the libvmi library */
     if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
+        vmifs_destroy();
         return 1;
     }
 
