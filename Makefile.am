@@ -74,14 +74,15 @@ if WITH_KVM
                    libvmi/driver/kvm/libvirt_wrapper.h
 
 if WITH_KVM_LEGACY
-    drivers += libvmi/driver/kvm/kvm_legacy.c
+    drivers     += libvmi/driver/kvm/kvm_legacy.c
 
 else
-    drivers += libvmi/driver/kvm/kvm.c \
-               libvmi/driver/kvm/kvm_events.c \
-               libvmi/driver/kvm/kvm_events.h \
-               libvmi/driver/kvm/libkvmi_wrapper.c \
-               libvmi/driver/kvm/libkvmi_wrapper.h
+    h_public    += libvmi/events.h
+    drivers     += libvmi/driver/kvm/kvm.c \
+                   libvmi/driver/kvm/kvm_events.c \
+                   libvmi/driver/kvm/kvm_events.h \
+                   libvmi/driver/kvm/libkvmi_wrapper.c \
+                   libvmi/driver/kvm/libkvmi_wrapper.h
 
 endif
 endif
