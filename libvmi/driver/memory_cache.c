@@ -29,7 +29,6 @@
 #include <time.h>
 
 #include "private.h"
-#include "glib_compat.h"
 
 struct memory_cache_entry {
     vmi_instance_t vmi;

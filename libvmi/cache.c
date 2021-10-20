@@ -37,7 +37,6 @@
 
 #include "libvmi.h"
 #include "private.h"
-#include "glib_compat.h"
 
 #ifdef __clang_analyzer__
 #define g_free free
@@ -640,7 +639,7 @@ v2p_cache_set(
     va = (va >> 12) << 12;
     pa = (pa >> 12) << 12;
 
-    _va = g_memdup(&va, sizeof(addr_t));
+    _va = g_memdup_compat(&va, sizeof(addr_t));
     if ( !_va )
         goto cleanup;
 

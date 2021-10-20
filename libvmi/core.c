@@ -522,7 +522,7 @@ status_t vmi_init(
         for (i=0; i < init_data->count; i++) {
             switch (init_data->entry[i].type) {
                 case VMI_INIT_DATA_MEMMAP:
-                    _vmi->memmap = (memory_map_t*)g_memdup(init_data->entry[i].data, sizeof(memory_map_t));
+                    _vmi->memmap = (memory_map_t*)g_memdup_compat(init_data->entry[i].data, sizeof(memory_map_t));
                     if ( !_vmi->memmap )
                         goto error_exit;
                     break;
