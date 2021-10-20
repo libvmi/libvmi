@@ -70,4 +70,15 @@ g_hash_table_insert_compat(GHashTable *table,
 #endif
 }
 
+static inline gpointer
+g_memdup_compat(gconstpointer mem,
+                gsize byte_size)
+{
+#if GLIB_CHECK_VERSION(2,67,3)
+    return g_memdup2(mem, byte_size);
+#else
+    return g_memdup(mem, byte_size);
+#endif
+}
+
 #endif

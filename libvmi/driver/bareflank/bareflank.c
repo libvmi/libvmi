@@ -211,8 +211,8 @@ bareflank_get_memory(
             original_pa, pa);
 
     g_hash_table_insert(bareflank_get_instance(vmi)->remaps,
-                        g_memdup(&space, sizeof(void*)),
-                        g_memdup(&original_pa, sizeof(addr_t)));
+                        g_memdup_compat(&space, sizeof(void*)),
+                        g_memdup_compat(&original_pa, sizeof(addr_t)));
 
     return space;
 }

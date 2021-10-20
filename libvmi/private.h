@@ -50,6 +50,7 @@
 #include "events.h"
 #include "slat.h"
 #include "debug.h"
+#include "glib_compat.h"
 #include "json_profiles/json_profiles.h"
 #include "arch/arch_interface.h"
 #include "os/os_interface.h"
