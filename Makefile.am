@@ -218,8 +218,14 @@ if WINDOWS
 endif
 
 if LINUX
-    bin_PROGRAMS += examples/vmi-dmesg
+    bin_PROGRAMS += examples/vmi-dmesg \
+                    examples/vmi-linux-offsets
+
+    examples_vmi_linux_offsets_CFLAGS = $(GLIB_CFLAGS)
+    examples_vmi_linux_offsets_LDADD = $(GLIB_LIBS) libvmi/libvmi.la
+
     examples_vmi_dmesg_SOURCES = examples/dmesg.c
+    examples_vmi_linux_offsets_SOURCES = examples/linux-offsets.c
 endif
 
     examples_vmi_process_list_SOURCES = examples/process-list.c
