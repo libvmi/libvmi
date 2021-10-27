@@ -104,7 +104,7 @@ exec_info_registers(
     kvm_instance_t *kvm)
 {
     char *query =
-        "{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info registers\"}}";
+        "{\"execute\": \"human-monitor-command\", \"arguments\": {\"command-line\": \"info registers -a\"}}";
     return exec_qmp_cmd(kvm, query);
 }
 
@@ -774,15 +774,22 @@ kvm_get_vcpureg(
     vmi_instance_t vmi,
     uint64_t *value,
     reg_t reg,
-    unsigned long UNUSED(vcpu))
+    unsigned long vcpu)
 {
-    // TODO: vCPU specific registers
+    char *all_regs = NULL;
     char *regs = NULL;
-
-    if (NULL == regs)
-        regs = exec_info_registers(kvm_get_instance(vmi));
+    char specific_vcpu_regs_finder[16] = "";
 
     status_t ret = VMI_SUCCESS;
+
+    snprintf(specific_vcpu_regs_finder, sizeof(specific_vcpu_regs_finder), "CPU#%ld", vcpu);
+
+    all_regs = exec_info_registers(kvm_get_instance(vmi));
+    regs = strstr(all_regs, specific_vcpu_regs_finder);
+    if (NULL == regs) {
+        ret = VMI_FAILURE;
+        goto exit;
+    }
 
     switch (reg) {
         case CR0:
@@ -1028,6 +1035,7 @@ kvm_get_vcpureg(
             break;
     }
 
+exit:
     if (regs)
         free(regs);
     return ret;
