@@ -31,7 +31,8 @@
 #include <libvmi/libvmi.h>
 
 static const char *mem_path = "/mem";
-vmi_instance_t vmi;
+vmi_instance_t vmi = NULL;
+vmi_init_data_t *init_data = NULL;
 
 static int vmifs_getattr(const char *path, struct stat *stbuf)
 {
@@ -44,7 +45,7 @@ static int vmifs_getattr(const char *path, struct stat *stbuf)
     } else if (strcmp(path, mem_path) == 0) {
         stbuf->st_mode = S_IFREG | 0444;
         stbuf->st_nlink = 1;
-        stbuf->st_size = vmi_get_memsize(vmi);
+        stbuf->st_size = vmi_get_max_physical_address(vmi);
     } else
         res = -ENOENT;
 
@@ -86,13 +87,16 @@ static int vmifs_read(const char *path, char *buf, size_t size, off_t offset,
     if (strcmp(path, mem_path) != 0)
         return -ENOENT;
 
-    uint64_t memsize = vmi_get_memsize(vmi);
+    uint64_t memsize = vmi_get_max_physical_address(vmi);
     if (offset >= 0 && ((uint64_t) offset) < memsize && size) {
         if (offset + size > memsize)
             size = memsize-offset;
 
         uint8_t *buffer = g_try_malloc0(sizeof(uint8_t)*size);
-        if ( VMI_FAILURE == vmi_read_pa(vmi, offset, size, buffer, NULL) ) {
+        size_t rsize = 0;
+        if ( VMI_FAILURE == vmi_read_pa(vmi, offset, size, buffer, &rsize) ) {
+            if (rsize > 0 && rsize <= size)
+                memcpy(buf, buffer, rsize);
             g_free(buffer);
         } else {
             memcpy(buf, buffer, size);
@@ -108,7 +112,13 @@ static int vmifs_read(const char *path, char *buf, size_t size, off_t offset,
 
 void vmifs_destroy()
 {
-    vmi_destroy(vmi);
+    if (vmi)
+        vmi_destroy(vmi);
+
+    if (init_data) {
+        free(init_data->entry[0].data);
+        free(init_data);
+    }
 }
 
 static struct fuse_operations vmifs_oper = {
@@ -122,8 +132,8 @@ static struct fuse_operations vmifs_oper = {
 int main(int argc, char *argv[])
 {
     /* this is the VM or file that we are looking at */
-    if (argc != 4) {
-        printf("Usage: %s name|domid <name|domid> <path>\n", argv[0]);
+    if (argc != 4 && argc != 5) {
+        printf("Usage: %s name|domid <name|domid> <path> [<socket>]\n", argv[0]);
         return 1;
     }
 
@@ -144,12 +154,22 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init_flags, NULL, &mode))
+    if (argc == 5) {
+        init_data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
+        init_data->count = 1;
+        init_data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
+        init_data->entry[0].data = strdup(argv[4]);
+    }
+
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init_flags, init_data, &mode)) {
+        vmifs_destroy();
         return 1;
+    }
 
     /* initialize the libvmi library */
-    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, NULL, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
+        vmifs_destroy();
         return 1;
     }
 

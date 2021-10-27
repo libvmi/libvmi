@@ -1,0 +1,52 @@
+name: libvmi
+adopt-info: libvmi
+summary: LibVMI
+description: |
+    LibVMI is a C library with Python bindings that makes it easy to monitor the low-level details of
+    a running virtual machine by viewing its memory, trapping on hardware events, and accessing the
+    vCPU registers. This is called virtual machine introspection.
+
+grade: devel
+confinement: devmode
+base: core20
+architectures: [amd64, arm64]
+
+parts:
+  libvmi:
+    source: .
+    build-packages:
+        - autoconf-archive
+        - flex
+        - bison
+        - libjson-c-dev
+        - libxen-dev
+        - libfuse-dev
+        - build-essential
+        - pkg-config
+        - libglib2.0-dev
+        - autoconf
+        - automake
+        - libtool
+    stage-packages:
+        - libjson-c-dev
+        - libglib2.0-0
+        - libfuse2
+    plugin: autotools
+    autotools-configure-parameters: [--disable-kvm]
+    override-build: |
+      snapcraftctl build
+
+      # remove libvmi.la
+      rm -f ${SNAPCRAFT_PART_INSTALL}/usr/local/lib/libvmi.la
+
+      # set version
+      VERSION="$(grep AC_INIT configure.ac | sed 's/^.*\[//;s/\].*$//')"
+      echo "setting version to $VERSION"
+      snapcraftctl set-version $VERSION
+
+    override-stage: |
+      snapcraftctl stage
+
+      # fix pkg-config path
+      PC=${SNAPCRAFT_STAGE}/usr/local/lib/pkgconfig/${SNAPCRAFT_PROJECT_NAME}.pc
+      sed -i '1c\prefix=/snap/${SNAPCRAFT_PROJECT_NAME}/current/usr/local' $PC

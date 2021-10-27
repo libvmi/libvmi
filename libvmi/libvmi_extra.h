@@ -28,6 +28,10 @@
 #ifndef LIBVMI_EXTRA_H
 #define LIBVMI_EXTRA_H
 
+#ifdef LIBVMI_EXTRA_GLIB
+#include <glib.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #define NOEXCEPT noexcept
@@ -38,19 +42,37 @@ extern "C" {
 #pragma GCC visibility push(default)
 
 #ifdef LIBVMI_EXTRA_GLIB
-#include <glib.h>
 
 /**
  * Retrieve the pages mapped into the address space of a process.
  * @param[in] vmi Instance
- * @param[in] dtb The directory table base of the process
+ * @param[in] pt The pagetable the process (aka. dtb)
  *
  * @return GSList of page_info_t structures, or NULL on error.
  * The caller is responsible for freeing the list and the structs.
  */
 GSList* vmi_get_va_pages(
     vmi_instance_t vmi,
-    addr_t dtb) NOEXCEPT;
+    addr_t pt) NOEXCEPT;
+
+/**
+ * Retrieve the pages mapped into the address space of a process.
+ * @param[in] vmi Instance
+ * @param[in] npt The nested page table to use (if any)
+ * @param[in] npm The paging mode of the nested pagetable (if any)
+ * @param[in] pt The paging mode of the pagetable
+ * @param[in] pm The pagetable of the process
+ *
+ * @return GSList of page_info_t structures, or NULL on error.
+ * The caller is responsible for freeing the list and the structs.
+ */
+GSList* vmi_get_nested_va_pages(
+    vmi_instance_t vmi,
+    addr_t npt,
+    page_mode_t npm,
+    addr_t pt,
+    page_mode_t pm) NOEXCEPT;
+
 #endif
 
 #ifdef LIBVMI_EXTRA_JSON
@@ -149,6 +171,25 @@ status_t vmi_get_bitfield_offset_and_size_from_json(vmi_instance_t vmi, json_obj
         const char *struct_member,
         addr_t *offset, size_t *start_bit,
         size_t *end_bit);
+
+/**
+ * Useful when one wants to find rva of typedef as compiler will treat it as an
+ * anonymous structure.
+ * The returned string is managed by json_object and should not be freed by the user.
+ *
+ * @param[in] vmi Instance.
+ * @param[in] json The open json_object* to use
+ * @param[in] struct_name Name of the struct containing `struct_member`.
+ * @param[in] struct_member The structure's member that we want to retrieve type name for.
+ * @param[out] member_type_name Type name of `struct_member`.
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_get_struct_field_type_name_from_json(
+    vmi_instance_t vmi,
+    json_object *json,
+    const char *struct_name,
+    const char *struct_member,
+    const char **member_type_name) NOEXCEPT;
 #endif
 
 #pragma GCC visibility pop

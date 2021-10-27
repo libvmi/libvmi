@@ -48,18 +48,22 @@ uint32_t pdpi_index (uint32_t pdpi)
 
 static inline
 status_t get_pdpi (vmi_instance_t instance,
-                   uint32_t vaddr,
-                   addr_t dtb,
-                   addr_t *pdpi_entry,
-                   uint64_t *pdpi_value)
+                   access_context_t *ctx,
+                   page_info_t *info)
 {
-    *pdpi_entry = get_pdptb(dtb) + pdpi_index(vaddr);
-    if (VMI_FAILURE == vmi_read_64_pa(instance, *pdpi_entry, pdpi_value)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: failed to read pdpi_entry = 0x%.16"PRIx64"\n", *pdpi_entry);
+    ctx->addr = get_pdptb(info->pt) + pdpi_index(info->vaddr);
+
+    if (VMI_FAILURE == vmi_read_64(instance, ctx, &info->x86_pae.pdpe_value)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pdpi_location = 0x%.16"PRIx64"\n", ctx->addr);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pdpi_entry = 0x%.16"PRIx64", pdpi_value = 0x%.16"PRIx64"\n",
-            *pdpi_entry, *pdpi_value);
+
+    info->x86_pae.pdpe_location = ctx->addr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpe_location = 0x%.16"PRIx64"\n",
+            info->x86_pae.pdpe_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpe_value = 0x%.16"PRIx64"\n",
+            info->x86_pae.pdpe_value);
 
     return VMI_SUCCESS;
 }
@@ -91,39 +95,40 @@ uint64_t pdba_base_pae (uint64_t pdpe)
 
 static inline
 status_t get_pgd_nopae (vmi_instance_t instance,
-                        uint32_t vaddr,
-                        uint32_t pdpe,
-                        addr_t *pgd_entry,
-                        addr_t *pgd_value)
+                        access_context_t *ctx,
+                        page_info_t *info)
 {
-    uint32_t value = 0;
-    *pgd_value = 0;
-    *pgd_entry = pdba_base_nopae(pdpe) + pgd_index_nopae(vaddr);
-    if (VMI_FAILURE == vmi_read_32_pa(instance, *pgd_entry, &value)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pgd_entry at = 0x%.8"PRIx64"\n", *pgd_entry);
+    ctx->addr = pdba_base_nopae(ctx->pt) + pgd_index_nopae(info->vaddr);
+    info->x86_legacy.pgd_value = 0;
+
+    if (VMI_FAILURE == vmi_read_32(instance, ctx, (uint32_t*)&info->x86_legacy.pgd_value)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pgd_location at = 0x%.8"PRIx64"\n", ctx->addr);
         return VMI_FAILURE;
     }
-    *pgd_value = value;
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd_entry = 0x%.8"PRIx64", pgd_value = 0x%.8"PRIx64"\n",
-            *pgd_entry, *pgd_value);
+
+    info->x86_legacy.pgd_location = ctx->addr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd_entry = 0x%.8"PRIx64"\n", info->x86_legacy.pgd_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd_entry = 0x%.8"PRIx64"\n", info->x86_legacy.pgd_value);
     return VMI_SUCCESS;
 }
 
 static inline
 status_t get_pgd_pae (vmi_instance_t instance,
-                      uint32_t vaddr,
-                      uint64_t pdpe,
-                      addr_t *pgd_entry,
-                      addr_t *pgd_value)
+                      access_context_t *ctx,
+                      page_info_t *info)
 {
-    *pgd_value = 0;
-    *pgd_entry = pdba_base_pae(pdpe) + pgd_index_pae(vaddr);
-    if (VMI_FAILURE == vmi_read_64_pa(instance, *pgd_entry, pgd_value)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: failed to read pgd_entry = 0x%.8"PRIx64"\n", *pgd_entry);
+    ctx->addr = pdba_base_pae(info->x86_pae.pdpe_value) + pgd_index_pae(info->vaddr);
+
+    if (VMI_FAILURE == vmi_read_64(instance, ctx, &info->x86_pae.pgd_value)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pgd_entry = 0x%.8"PRIx64"\n", ctx->addr);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pgd_entry = 0x%.8"PRIx64", pgd_value = 0x%.8"PRIx64"\n",
-            *pgd_entry, *pgd_value);
+
+    info->x86_pae.pgd_location = ctx->addr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd_location = 0x%.8"PRIx64"\n", info->x86_pae.pgd_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd_value = 0x%.8"PRIx64"\n", info->x86_pae.pgd_value);
     return VMI_SUCCESS;
 }
 
@@ -154,40 +159,40 @@ uint64_t ptba_base_pae (uint64_t pde)
 
 static inline
 status_t get_pte_nopae (vmi_instance_t instance,
-                        uint32_t vaddr,
-                        uint32_t pgd,
-                        addr_t *pte_entry,
-                        addr_t *pte_value)
+                        access_context_t *ctx,
+                        page_info_t *info)
 {
-    uint32_t value = 0;
-    *pte_value = 0;
-    *pte_entry = ptba_base_nopae(pgd) + pte_index_nopae(vaddr);
-    if (VMI_FAILURE == vmi_read_32_pa(instance, *pte_entry, &value)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pte_entry = 0x%.8"PRIx64"\n", *pte_entry);
+    ctx->addr = ptba_base_nopae(info->x86_legacy.pgd_value) + pte_index_nopae(info->vaddr);
+    info->x86_legacy.pte_value = 0;
+
+    if (VMI_FAILURE == vmi_read_32(instance, ctx, (uint32_t*)&info->x86_legacy.pte_value)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pte_entry = 0x%.8"PRIx64"\n", ctx->addr);
         return VMI_FAILURE;
     }
-    *pte_value = value;
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_entry = 0x%.8"PRIx64", pte_value = 0x%.8"PRIx64"\n",
-            *pte_entry, *pte_value);
+
+    info->x86_legacy.pte_location = ctx->addr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_location = 0x%.8"PRIx64"\n", info->x86_legacy.pte_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_value = 0x%.8"PRIx64"\n", info->x86_legacy.pte_value);
     return VMI_SUCCESS;
 }
 
 static inline
 status_t get_pte_pae (vmi_instance_t instance,
-                      uint32_t vaddr,
-                      uint64_t pgd,
-                      addr_t *pte_entry,
-                      addr_t *pte_value)
+                      access_context_t *ctx,
+                      page_info_t *info)
 {
-    *pte_value = 0;
-    *pte_entry = ptba_base_pae(pgd) + pte_index_pae(vaddr);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pte_entry = 0x%.8"PRIx64"\n", *pte_entry);
-    if (VMI_FAILURE == vmi_read_64_pa(instance, *pte_entry, pte_value)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: failed to read pte_entry = 0x%.8"PRIx64"\n", *pte_entry);
+    ctx->addr = ptba_base_pae(info->x86_pae.pgd_value) + pte_index_pae(info->vaddr);
+
+    if (VMI_FAILURE == vmi_read_64(instance, ctx, &info->x86_pae.pte_value)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: failed to read pte_entry = 0x%.8"PRIx64"\n", ctx->addr);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pte_entry = 0x%.8"PRIx64", pte_value = 0x%.8"PRIx64"\n",
-            *pte_entry, *pte_value);
+
+    info->x86_pae.pte_location = ctx->addr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_location = 0x%.8"PRIx64"\n", info->x86_pae.pte_location);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte_value = 0x%.8"PRIx64"\n", info->x86_pae.pte_value);
     return VMI_SUCCESS;
 }
 
@@ -274,14 +279,25 @@ void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
 
 /* translation */
 status_t v2p_nopae (vmi_instance_t vmi,
-                    addr_t dtb,
+                    addr_t npt,
+                    page_mode_t npm,
+                    addr_t pt,
                     addr_t vaddr,
                     page_info_t *info)
 {
-    status_t status = VMI_FAILURE;
+    status_t status;
+    ACCESS_CONTEXT(ctx,
+                   .npt = npt,
+                   .npm = npm);
 
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64", dtb = 0x%.16"PRIx64"\n", vaddr, dtb);
-    status = get_pgd_nopae(vmi, vaddr, dtb, &info->x86_legacy.pgd_location, &info->x86_legacy.pgd_value);
+    info->npt = npt;
+    info->npm = npm;
+    info->pt = pt;
+    info->pm = VMI_PM_LEGACY;
+    info->vaddr = vaddr;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64", pt = 0x%.16"PRIx64"\n", vaddr, pt);
+    status = get_pgd_nopae(vmi, &ctx, info);
     if (status != VMI_SUCCESS) {
         goto done;
     }
@@ -302,7 +318,7 @@ status_t v2p_nopae (vmi_instance_t vmi,
         goto done;
     }
 
-    status = get_pte_nopae(vmi, vaddr, info->x86_legacy.pgd_value, &info->x86_legacy.pte_location, &info->x86_legacy.pte_value);
+    status = get_pte_nopae(vmi, &ctx, info);
     if (status != VMI_SUCCESS) {
         goto done;
     }
@@ -321,30 +337,49 @@ status_t v2p_nopae (vmi_instance_t vmi,
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
+
+    if (valid_npm(npm)) {
+        if ( VMI_FAILURE == vmi_nested_pagetable_lookup(vmi, 0, 0, npt, npm, info->paddr, &info->naddr, NULL) )
+            return VMI_FAILURE;
+
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: naddr = 0x%.16"PRIx64"\n", info->naddr);
+    }
+
     return status;
 }
 
 status_t v2p_pae (vmi_instance_t vmi,
-                  addr_t dtb,
+                  addr_t npt,
+                  page_mode_t npm,
+                  addr_t pt,
                   addr_t vaddr,
                   page_info_t *info)
 {
-    status_t status = VMI_FAILURE;
+    status_t status;
+    ACCESS_CONTEXT(ctx,
+                   .npt = npt,
+                   .npm = npm);
 
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: lookup vaddr = 0x%.16"PRIx64" dtb = 0x%.16"PRIx64"\n", vaddr, dtb);
-    status = get_pdpi(vmi, vaddr, dtb, &info->x86_pae.pdpe_location, &info->x86_pae.pdpe_value);
+    info->vaddr = vaddr;
+    info->pm = VMI_PM_PAE;
+    info->pt = pt,
+          info->npt = npt;
+    info->npm = npm;
+
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64" dtb = 0x%.16"PRIx64"\n", vaddr, pt);
+    status = get_pdpi(vmi, &ctx, info);
 
     if (status != VMI_SUCCESS) {
         goto done;
     }
 
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: pdpe = 0x%"PRIx64"\n", info->x86_pae.pdpe_value);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pdpe = 0x%"PRIx64"\n", info->x86_pae.pdpe_value);
 
     if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_pae.pdpe_value)) {
         goto done;
     }
 
-    status = get_pgd_pae(vmi, vaddr, info->x86_pae.pdpe_value, &info->x86_pae.pgd_location, &info->x86_pae.pgd_value);
+    status = get_pgd_pae(vmi, &ctx, info);
     if (status != VMI_SUCCESS) {
         goto done;
     }
@@ -358,11 +393,11 @@ status_t v2p_pae (vmi_instance_t vmi,
         info->paddr = get_large_paddr_pae(vaddr, info->x86_pae.pgd_value);
         info->size = VMI_PS_2MB;
         status = VMI_SUCCESS;
-        dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: 2MB page\n");
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 2MB page\n");
         goto done;
     }
 
-    status = get_pte_pae(vmi, vaddr, info->x86_pae.pgd_value, &info->x86_pae.pte_location, &info->x86_pae.pte_value);
+    status = get_pte_pae(vmi, &ctx, info);
     if (status != VMI_SUCCESS) {
         goto done;
     }
@@ -377,11 +412,19 @@ status_t v2p_pae (vmi_instance_t vmi,
     status = VMI_SUCCESS;
 
 done:
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PAE PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
+
+    if (valid_npm(npm)) {
+        if (VMI_FAILURE == vmi_nested_pagetable_lookup(vmi, 0, 0, npt, npm, info->paddr, &info->naddr, NULL) )
+            return VMI_FAILURE;
+
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: naddr = 0x%.16"PRIx64"\n", info->naddr);
+    }
+
     return status;
 }
 
-GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
+GSList* get_pages_nopae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb)
 {
 
     addr_t pgd_location = dtb;
@@ -392,7 +435,12 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
     uint32_t *pgd_page = g_try_malloc0(VMI_PS_4KB);
     uint32_t *pt_page = g_try_malloc0(entry_size * PTRS_PER_NOPAE_PGD);
 
-    if ( VMI_FAILURE == vmi_read_pa(vmi, dtb, VMI_PS_4KB, pgd_page, NULL)) {
+    ACCESS_CONTEXT(ctx,
+                   .npt = npt,
+                   .npm = npm);
+
+    ctx.addr = dtb;
+    if ( VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pgd_page, NULL)) {
         goto done;
     }
 
@@ -410,7 +458,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
                     goto done;
 
                 p->vaddr = pgd_base_vaddr;
-                p->dtb = dtb;
+                p->pt = dtb;
                 p->paddr = get_large_paddr_nopae(p->vaddr, pgd_base_vaddr);
                 p->size = VMI_PS_4MB;
                 p->x86_legacy.pgd_location = pgd_location;
@@ -421,7 +469,8 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
 
             uint32_t pte_location = ptba_base_nopae(pgd_entry);
 
-            if (VMI_FAILURE == vmi_read_pa(vmi, pte_location, VMI_PS_4KB, pt_page, NULL))
+            ctx.addr = pte_location;
+            if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pt_page, NULL))
                 goto done;
 
             uint32_t pte_index;
@@ -434,7 +483,7 @@ GSList* get_va_pages_nopae(vmi_instance_t vmi, addr_t dtb)
                         goto done;
 
                     p->vaddr = pgd_base_vaddr + pte_index * VMI_PS_4KB;
-                    p->dtb = dtb;
+                    p->pt = dtb;
                     p->paddr = get_paddr_nopae(p->vaddr, pte_entry);
                     p->size = VMI_PS_4KB;
                     p->x86_legacy.pgd_location = pgd_location;
@@ -454,7 +503,7 @@ done:
     return ret;
 }
 
-GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
+GSList* get_pages_pae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb)
 {
 
     uint32_t pdpi_base = get_pdptb(dtb);
@@ -466,7 +515,12 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
     uint64_t *page_directory = NULL;
     uint64_t *page_table = NULL;
 
-    if (VMI_FAILURE == vmi_read_pa(vmi, pdpi_base, sizeof(pdpi_table), pdpi_table, NULL))
+    ACCESS_CONTEXT(ctx,
+                   .npt = npt,
+                   .npm = npm);
+
+    ctx.addr = pdpi_base;
+    if (VMI_FAILURE == vmi_read(vmi, &ctx, sizeof(pdpi_table), pdpi_table, NULL))
         return ret;
 
     page_directory = g_malloc(VMI_PS_4KB);
@@ -490,7 +544,8 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
 
         uint64_t pde_location = pdba_base_pae(pdp_entry);
 
-        if (VMI_FAILURE == vmi_read_pa(vmi, pde_location, VMI_PS_4KB, page_directory, NULL))
+        ctx.addr = pde_location;
+        if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, page_directory, NULL))
             goto done;
 
         uint32_t pd_index = 0;
@@ -507,7 +562,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
                         goto done;
 
                     p->vaddr = pd_base_va;
-                    p->dtb = dtb;
+                    p->pt = dtb;
                     p->paddr = get_large_paddr_pae(p->vaddr, pd_entry);
                     p->size = VMI_PS_2MB;
                     p->x86_pae.pdpe_location = pdpi_location;
@@ -520,7 +575,8 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
 
                 uint64_t pte_location = ptba_base_pae(pd_entry);
 
-                if (VMI_FAILURE == vmi_read_pa(vmi, pte_location, VMI_PS_4KB, page_table, NULL))
+                ctx.addr = pte_location;
+                if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, page_table, NULL))
                     goto done;
 
                 uint32_t pt_index;
@@ -533,7 +589,7 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
                             goto done;
 
                         p->vaddr = pd_base_va + pt_index * VMI_PS_4KB;
-                        p->dtb = dtb;
+                        p->pt = dtb;
                         p->paddr = get_paddr_pae(p->vaddr, pte_entry);
                         p->size = VMI_PS_4KB;
                         p->x86_pae.pdpe_location = pdpi_location;
@@ -553,32 +609,6 @@ GSList* get_va_pages_pae(vmi_instance_t vmi, addr_t dtb)
 done:
     g_free(page_directory);
     g_free(page_table);
-
-    return ret;
-}
-
-status_t intel_init(vmi_instance_t vmi)
-{
-
-    status_t ret = VMI_SUCCESS;
-
-    if (!vmi->arch_interface) {
-        vmi->arch_interface = g_try_malloc0(sizeof(struct arch_interface));
-        if ( !vmi->arch_interface )
-            return VMI_FAILURE;
-    }
-
-    if (vmi->page_mode == VMI_PM_LEGACY) {
-        vmi->arch_interface->v2p = v2p_nopae;
-        vmi->arch_interface->get_va_pages = get_va_pages_nopae;
-    } else if (vmi->page_mode == VMI_PM_PAE) {
-        vmi->arch_interface->v2p = v2p_pae;
-        vmi->arch_interface->get_va_pages = get_va_pages_pae;
-    } else {
-        ret = VMI_FAILURE;
-        g_free(vmi->arch_interface);
-        vmi->arch_interface = NULL;
-    }
 
     return ret;
 }

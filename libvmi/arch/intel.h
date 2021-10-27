@@ -27,10 +27,13 @@
 
 #include "private.h"
 
-status_t intel_init(vmi_instance_t vmi);
+status_t v2p_nopae (vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, addr_t vaddr, page_info_t *info);
+status_t v2p_pae (vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, addr_t vaddr, page_info_t *info);
+
+GSList* get_pages_nopae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb);
+GSList* get_pages_pae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb);
 
 /* checks for EPT misconfiguration in page_access_flag */
-status_t
-intel_mem_access_sanity_check(vmi_mem_access_t page_access_flag);
+status_t intel_mem_access_sanity_check(vmi_mem_access_t page_access_flag);
 
 #endif

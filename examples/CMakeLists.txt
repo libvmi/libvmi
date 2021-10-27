@@ -70,6 +70,9 @@ endif ()
 if (ENABLE_LINUX)
     add_executable(vmi-dmesg dmesg.c)
     target_link_libraries(vmi-dmesg vmi_shared)
+
+    add_executable(vmi-linux-offsets linux-offsets.c)
+    target_link_libraries(vmi-linux-offsets vmi_shared)
 endif ()
 
 install(TARGETS

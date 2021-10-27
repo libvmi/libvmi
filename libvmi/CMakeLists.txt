@@ -14,6 +14,7 @@ set(libvmi_src
     arch/amd64.c
     arch/arm_aarch32.c
     arch/arm_aarch64.c
+    arch/ept.c
     driver/driver_interface.c
     driver/memory_cache.c
     os/os_interface.c

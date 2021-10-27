@@ -31,7 +31,6 @@
 
 #include "private.h"
 #include "driver/driver_wrapper.h"
-#include "glib_compat.h"
 
 vmi_mem_access_t combine_mem_access(vmi_mem_access_t base, vmi_mem_access_t add)
 {

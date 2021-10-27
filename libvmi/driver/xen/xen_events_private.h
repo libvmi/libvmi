@@ -75,6 +75,7 @@ typedef struct vm_event_compat {
     uint32_t flags;
     uint32_t reason;
     uint32_t vcpu_id;
+    page_mode_t pm;
     uint16_t altp2m_idx;
 
     union {
@@ -123,6 +124,7 @@ typedef struct {
         vm_event_4_back_ring_t back_ring_4;
         vm_event_5_back_ring_t back_ring_5;
         vm_event_6_back_ring_t back_ring_6;
+        vm_event_7_back_ring_t back_ring_7;
     };
     xen_pfn_t max_gpfn;
     uint32_t monitor_capabilities;
@@ -152,6 +154,7 @@ static const unsigned int event_response_conversion[] = {
     [VMI_EVENT_RESPONSE_SET_EMUL_INSN] = VM_EVENT_FLAG_SET_EMUL_INSN_DATA,
     [VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT] = VM_EVENT_FLAG_GET_NEXT_INTERRUPT,
     [VMI_EVENT_RESPONSE_NEXT_SLAT_ID] = VM_EVENT_FLAG_FAST_SINGLESTEP,
+    [VMI_EVENT_RESPONSE_RESET_VMTRACE] = VM_EVENT_FLAG_RESET_VMTRACE,
 };
 
 static inline status_t

@@ -394,9 +394,7 @@ int main(int argc, char **argv)
 
     /* the nice thing about the windows kernel is that it's page aligned */
     uint32_t found = 0;
-    access_context_t ctx = {
-        .translate_mechanism = VMI_TM_NONE,
-    };
+    ACCESS_CONTEXT(ctx);
 
     for (ctx.addr = 0; ctx.addr < max_mem; ctx.addr += PAGE_SIZE) {
 

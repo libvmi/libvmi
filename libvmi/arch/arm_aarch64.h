@@ -25,6 +25,7 @@
 
 #include "private.h"
 
-status_t aarch64_init(vmi_instance_t vmi);
+status_t v2p_aarch64 (vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, addr_t vaddr, page_info_t *info);
+GSList* get_va_pages_aarch64(vmi_instance_t UNUSED(vmi), addr_t UNUSED(dtb));
 
 #endif

@@ -13,6 +13,7 @@ h_private = \
     libvmi/arch/amd64.h \
     libvmi/arch/arm_aarch32.h \
     libvmi/arch/arm_aarch64.h \
+    libvmi/arch/ept.h \
     libvmi/os/os_interface.h \
     libvmi/driver/driver_interface.h \
     libvmi/driver/driver_wrapper.h \
@@ -34,6 +35,7 @@ c_sources = \
     libvmi/arch/amd64.c \
     libvmi/arch/arm_aarch32.c \
     libvmi/arch/arm_aarch64.c \
+    libvmi/arch/ept.c \
     libvmi/driver/driver_interface.c \
     libvmi/driver/memory_cache.c \
     libvmi/os/os_interface.c
@@ -72,14 +74,15 @@ if WITH_KVM
                    libvmi/driver/kvm/libvirt_wrapper.h
 
 if WITH_KVM_LEGACY
-    drivers += libvmi/driver/kvm/kvm_legacy.c
+    drivers     += libvmi/driver/kvm/kvm_legacy.c
 
 else
-    drivers += libvmi/driver/kvm/kvm.c \
-               libvmi/driver/kvm/kvm_events.c \
-               libvmi/driver/kvm/kvm_events.h \
-               libvmi/driver/kvm/libkvmi_wrapper.c \
-               libvmi/driver/kvm/libkvmi_wrapper.h
+    h_public    += libvmi/events.h
+    drivers     += libvmi/driver/kvm/kvm.c \
+                   libvmi/driver/kvm/kvm_events.c \
+                   libvmi/driver/kvm/kvm_events.h \
+                   libvmi/driver/kvm/libkvmi_wrapper.c \
+                   libvmi/driver/kvm/libkvmi_wrapper.h
 
 endif
 endif
@@ -201,7 +204,8 @@ if EXAMPLES
 
     bin_PROGRAMS += examples/vmi-process-list \
                     examples/vmi-module-list \
-                    examples/vmi-dump-memory
+                    examples/vmi-dump-memory \
+                    examples/vmi-cpuid
 
 if WINDOWS
     bin_PROGRAMS += examples/vmi-win-guid \
@@ -214,8 +218,14 @@ if WINDOWS
 endif
 
 if LINUX
-    bin_PROGRAMS += examples/vmi-dmesg
+    bin_PROGRAMS += examples/vmi-dmesg \
+                    examples/vmi-linux-offsets
+
+    examples_vmi_linux_offsets_CFLAGS = $(GLIB_CFLAGS)
+    examples_vmi_linux_offsets_LDADD = $(GLIB_LIBS) libvmi/libvmi.la
+
     examples_vmi_dmesg_SOURCES = examples/dmesg.c
+    examples_vmi_linux_offsets_SOURCES = examples/linux-offsets.c
 endif
 
     examples_vmi_process_list_SOURCES = examples/process-list.c
@@ -223,6 +233,7 @@ endif
     examples_vmi_dump_memory_SOURCES = examples/dump-memory.c
     examples_vmi_win_guid_SOURCES = examples/win-guid.c examples/win-guid.h
     examples_vmi_win_offsets_SOURCES = examples/win-offsets.c
+    examples_vmi_cpuid_SOURCES = examples/cpuid.c
 
     noinst_PROGRAMS += examples/map-symbol \
                        examples/map-addr \

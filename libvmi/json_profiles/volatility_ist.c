@@ -208,7 +208,8 @@ volatility_ist_symbol_to_rva(
     }
 
 exit:
-    dbprint(VMI_DEBUG_MISC, "Volatility IST profile lookup %s %s: 0x%lx\n", symbol ?: NULL, subsymbol ?: NULL, *rva);
+    dbprint(VMI_DEBUG_MISC, "Volatility IST profile lookup %s %s: 0x%lx\n",
+            symbol ?: NULL, subsymbol ?: NULL, rva ? *rva : 0);
     return ret;
 }
 
@@ -304,4 +305,99 @@ exit:
     dbprint(VMI_DEBUG_MISC, "Volatility profile lookup %s %s: offset 0x%lx, start bit %ld, end bit %ld\n", symbol ?: NULL, subsymbol ?: NULL, *rva, *start_bit, *end_bit);
 
     return ret;
+}
+
+status_t
+volatility_struct_field_type_name(
+    json_object *json_profile,
+    const char* struct_name,
+    const char* field_name,
+    const char** member_type_name)
+{
+    *member_type_name = NULL;
+
+    struct json_object* json_user_types;
+    if (!json_object_object_get_ex(json_profile, "user_types", &json_user_types)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility profile: no user_types section found.\n");
+        return VMI_FAILURE;
+    }
+
+    struct json_object* json_struct;
+    if (!json_object_object_get_ex(json_user_types, struct_name, &json_struct)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: no %s found\n", struct_name);
+        return VMI_FAILURE;
+    }
+
+    struct json_object* json_fields;
+    if (!json_object_object_get_ex(json_struct, "fields", &json_fields)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: %s has no `fields` key.\n", struct_name);
+        return VMI_FAILURE;
+    }
+
+    struct json_object* json_field = NULL;
+    if (!json_object_object_get_ex(json_fields, field_name, &json_field)) {
+        // Check recursively all unnamed structure fields aswell, as many fields in linux are wrapped in anonymous structures for structure randomization.
+        struct json_object_iterator it = json_object_iter_begin(json_fields);
+        struct json_object_iterator it_end = json_object_iter_end(json_fields);
+        for (; !json_object_iter_equal(&it, &it_end); json_object_iter_next(&it)) {
+            if (strncmp(json_object_iter_peek_name(&it), "unnamed", strlen("unnamed")) != 0)
+                continue;
+
+            json_object* json_field_val = json_object_iter_peek_value(&it);
+
+            struct json_object* json_field_subtype;
+            if (!json_object_object_get_ex(json_field_val, "type", &json_field_subtype)) {
+                dbprint(VMI_DEBUG_MISC, "Volatility IST profile: Failed to find `type` key.\n");
+                return VMI_FAILURE;
+            }
+
+            struct json_object* json_field_subkind;
+            if (!json_object_object_get_ex(json_field_subtype, "kind", &json_field_subkind)) {
+                dbprint(VMI_DEBUG_MISC, "Volatility IST profile: Failed to find `kind` key.\n");
+                return VMI_FAILURE;
+            }
+            if (strcmp(json_object_get_string(json_field_subkind), "struct") != 0)
+                continue;
+
+            struct json_object* json_anonymous_struct_name;
+            if (!json_object_object_get_ex(json_field_subtype, "name", &json_anonymous_struct_name)) {
+                dbprint(VMI_DEBUG_MISC, "Volatility IST profile: Failed to find `name` key\n");
+                return VMI_FAILURE;
+            }
+
+            struct json_object *json_anonymous_struct;
+            if (!json_object_object_get_ex(json_user_types, json_object_get_string(json_anonymous_struct_name), &json_anonymous_struct)) {
+                dbprint(VMI_DEBUG_MISC, "Volatility IST profile: Failed to find %s in user_types.\n", json_object_get_string(json_anonymous_struct_name));
+                return VMI_FAILURE;
+            }
+
+            struct json_object* json_anonymous_struct_fields;
+            if (!json_object_object_get_ex(json_anonymous_struct, "fields", &json_anonymous_struct_fields)) {
+                dbprint(VMI_DEBUG_MISC, "Volatility IST profile: Failed to find `fields` key.\n");
+                return VMI_FAILURE;
+            }
+
+            if (json_object_object_get_ex(json_anonymous_struct_fields, field_name, &json_field))
+                break;
+        }
+    }
+    if (!json_field) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: Failed to find %s\n", field_name);
+        return VMI_FAILURE;
+    }
+
+    struct json_object* json_struct_type;
+    if (!json_object_object_get_ex(json_field, "type", &json_struct_type)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: Failed to find `type` key.\n");
+        return VMI_FAILURE;
+    }
+
+    struct json_object* json_type_name;
+    if (!json_object_object_get_ex(json_struct_type, "name", &json_type_name)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: Failed to find `name` key.\n");
+        return VMI_FAILURE;
+    }
+
+    *member_type_name = json_object_get_string(json_type_name);
+    return VMI_SUCCESS;
 }
