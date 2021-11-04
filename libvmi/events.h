@@ -45,6 +45,7 @@ extern "C" {
 #pragma GCC visibility push(default)
 
 #include <stdbool.h>
+#include <libvmi/libvmi.h>
 
 /*---------------------------------------------------------
  * Event management
