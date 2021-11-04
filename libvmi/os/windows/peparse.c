@@ -437,7 +437,7 @@ peparse_get_export_table(
     size_t export_header_size = 0;
 
 #define MAX_HEADER_BYTES 1024   // keep under 1 page
-    uint8_t image[MAX_HEADER_BYTES];
+    uint8_t image[MAX_HEADER_BYTES] = {0};
 
     if (VMI_FAILURE == peparse_get_image(vmi, ctx, MAX_HEADER_BYTES, image)) {
         return VMI_FAILURE;
