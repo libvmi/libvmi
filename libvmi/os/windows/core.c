@@ -73,7 +73,7 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t* major, ui
     uint16_t optional_header_type = 0;
     struct optional_header_pe32 *oh32 = NULL;
     struct optional_header_pe32plus *oh32plus = NULL;
-    uint8_t pe[VMI_PS_4KB];
+    uint8_t pe[VMI_PS_4KB] = {0};
 
     ACCESS_CONTEXT(ctx, .addr = kernbase_pa);
 
