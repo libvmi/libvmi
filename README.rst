@@ -35,8 +35,8 @@ documentation online at http://www.libvmi.com.
    :alt: Join the chat at https://gitter.im/libvmi/Lobby
    :target: https://gitter.im/libvmi/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
-.. image:: https://travis-ci.org/libvmi/libvmi.svg?branch=master
-    :target: https://travis-ci.org/libvmi/libvmi
+.. image:: https://github.com/libvmi/libvmi/actions/workflows/compile.yml/badge.svg
+    :target: https://github.com/libvmi/libvmi/actions/workflows/compile.yml
 
 .. image:: https://scan.coverity.com/projects/14159/badge.svg
     :target: https://scan.coverity.com/projects/libvmi-libvmi
