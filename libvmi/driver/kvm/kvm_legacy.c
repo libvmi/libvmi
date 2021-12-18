@@ -1036,8 +1036,8 @@ kvm_get_vcpureg(
     }
 
 exit:
-    if (regs)
-        free(regs);
+    if (all_regs)
+        free(all_regs);
     return ret;
 
     return VMI_FAILURE;
