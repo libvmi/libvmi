@@ -118,21 +118,19 @@ linux_system_map_symbol_to_address(
         fprintf(stderr, "\t%s\n", linux_instance->sysmap);
         fprintf(stderr,
                 "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
-        address = 0;
         goto done;
     }
     if (get_symbol_row(f, row, symbol, 2) == VMI_FAILURE) {
-        address = 0;
         goto done;
     }
 
-    (*address) = (addr_t) strtoull(row, NULL, 16);
+    if (address)
+        *address = (addr_t) strtoull(row, NULL, 16);
 
     ret = VMI_SUCCESS;
 
 done:
-    if (row)
-        free(row);
+    g_free(row);
     if (f)
         fclose(f);
     return ret;

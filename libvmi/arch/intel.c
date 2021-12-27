@@ -444,7 +444,7 @@ GSList* get_pages_nopae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
         goto done;
     }
 
-    uint32_t pgd_index;
+    uint64_t pgd_index;
     for (pgd_index = 0; pgd_index < PTRS_PER_NOPAE_PGD; pgd_index++, pgd_location += entry_size) {
         uint64_t pgd_base_vaddr = pgd_index * PTRS_PER_NOPAE_PGD * PTRS_PER_NOPAE_PTE * entry_size;
 
@@ -531,7 +531,7 @@ GSList* get_pages_pae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dt
     if ( !page_table )
         goto done;
 
-    uint32_t pdp_index = 0;
+    uint64_t pdp_index = 0;
     uint64_t pdpi_location = pdpi_base;
     for (pdp_index = 0; pdp_index < PTRS_PER_PDPI; pdp_index++, pdpi_location += entry_size) {
 

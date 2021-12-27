@@ -93,12 +93,14 @@ static inline
 xc_interface* xen_get_xchandle(
     vmi_instance_t vmi)
 {
-    return xen_get_instance(vmi)->xchandle;
+    xen_instance_t *xen = xen_get_instance(vmi);
+    return xen ? xen->xchandle : NULL;
 }
 
 static inline xen_events_t*
 xen_get_events(vmi_instance_t vmi)
 {
-    return xen_get_instance(vmi)->events;
+    xen_instance_t *xen = xen_get_instance(vmi);
+    return xen ? xen->events : NULL;
 }
 #endif /* XEN_PRIVATE_H */

@@ -819,12 +819,6 @@ status_t vmi_pagetable_lookup_cache(
     addr_t *paddr)
 {
     status_t ret = VMI_FAILURE;
-    page_info_t info = {
-        .vaddr = vaddr,
-        .pt = pt,
-        .pm = vmi->page_mode
-    };
-
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi || !paddr)
         return ret;
@@ -832,6 +826,12 @@ status_t vmi_pagetable_lookup_cache(
     if (!valid_pm(vmi->page_mode))
         return ret;
 #endif
+
+    page_info_t info = {
+        .vaddr = vaddr,
+        .pt = pt,
+        .pm = vmi->page_mode
+    };
 
     *paddr = 0;
 

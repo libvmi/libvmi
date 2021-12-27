@@ -567,22 +567,22 @@ void windows_read_config_ghashtable_entries(char* key, gpointer value,
     }
 
     if (strncmp(key, "win_tasks", CONFIG_STR_LENGTH) == 0) {
-        windows_instance->tasks_offset = *(int *)value;
+        windows_instance->tasks_offset = *(unsigned int *)value;
         goto _done;
     }
 
     if (strncmp(key, "win_pdbase", CONFIG_STR_LENGTH) == 0) {
-        windows_instance->pdbase_offset = *(int *)value;
+        windows_instance->pdbase_offset = *(unsigned int *)value;
         goto _done;
     }
 
     if (strncmp(key, "win_pid", CONFIG_STR_LENGTH) == 0) {
-        windows_instance->pid_offset = *(int *)value;
+        windows_instance->pid_offset = *(unsigned int *)value;
         goto _done;
     }
 
     if (strncmp(key, "win_pname", CONFIG_STR_LENGTH) == 0) {
-        windows_instance->pname_offset = *(int *)value;
+        windows_instance->pname_offset = *(unsigned int *)value;
         goto _done;
     }
 

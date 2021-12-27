@@ -267,7 +267,9 @@ event_response_t step_and_reg_events(vmi_instance_t vmi, vmi_event_t *singlestep
             if (wrap->cb) {
                 wrap->cb(vmi, wrap->event);
             } else {
-                vmi_register_event(vmi, wrap->event);
+                int status = vmi_register_event(vmi, wrap->event);
+                if (status != VMI_SUCCESS)
+                    return status;
             }
 
             --(vmi->step_vcpus[wrap->vcpu_id]);
