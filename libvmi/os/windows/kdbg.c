@@ -957,8 +957,10 @@ scan:
             if ( !haystack )
                 goto done;
 
-            if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + section.virtual_address, section.size_of_raw_data, haystack, NULL) )
+            if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + section.virtual_address, section.size_of_raw_data, haystack, NULL) ) {
+                g_free(haystack);
                 continue;
+            }
 
             int match_offset = boyer_moore2(bm, haystack, section.size_of_raw_data);
 
@@ -990,6 +992,7 @@ scan:
                 }
             }
 
+            g_free(haystack);
             break;
         }
     }
