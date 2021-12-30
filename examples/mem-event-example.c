@@ -51,6 +51,12 @@ event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
     printf("%s: at 0x%"PRIx64", on frame 0x%"PRIx64", permissions: %s\n",
            __func__, event->x86_regs->rip, event->mem_event.gfn, str_access);
 
+    // Relax the memory permission by clearing the event,
+    // so that we can allow the CPU that triggered this event to continue execution
+    vmi_clear_event(vmi, event, NULL);
+    // One step forward and then this function will automatically re-register the event
+    vmi_step_event(vmi, event, event->vcpu_id, 1, NULL);
+
     return VMI_EVENT_RESPONSE_NONE;
 }
 
