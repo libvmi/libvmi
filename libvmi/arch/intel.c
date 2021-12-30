@@ -444,13 +444,13 @@ GSList* get_pages_nopae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
         goto done;
     }
 
-    uint32_t pgd_index;
+    uint64_t pgd_index;
     for (pgd_index = 0; pgd_index < PTRS_PER_NOPAE_PGD; pgd_index++, pgd_location += entry_size) {
         uint64_t pgd_base_vaddr = pgd_index * PTRS_PER_NOPAE_PGD * PTRS_PER_NOPAE_PTE * entry_size;
 
         uint32_t pgd_entry = pgd_page[pgd_index];
 
-        if (ENTRY_PRESENT(vmi->os_type, pgd_entry)) {
+        if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pgd_entry)) {
 
             if (PAGE_SIZE(pgd_entry) && (VMI_FILE == vmi->mode || vmi->x86.pse)) {
                 page_info_t *p = g_try_malloc0(sizeof(page_info_t));
@@ -477,7 +477,7 @@ GSList* get_pages_nopae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
             for (pte_index = 0; pte_index < PTRS_PER_NOPAE_PTE; pte_index++, pte_location += entry_size) {
                 uint32_t pte_entry = pt_page[pte_index];
 
-                if (ENTRY_PRESENT(vmi->os_type, pte_entry)) {
+                if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pte_entry)) {
                     page_info_t *p = g_try_malloc0(sizeof(page_info_t));
                     if ( !p )
                         goto done;
@@ -531,7 +531,7 @@ GSList* get_pages_pae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dt
     if ( !page_table )
         goto done;
 
-    uint32_t pdp_index = 0;
+    uint64_t pdp_index = 0;
     uint64_t pdpi_location = pdpi_base;
     for (pdp_index = 0; pdp_index < PTRS_PER_PDPI; pdp_index++, pdpi_location += entry_size) {
 
@@ -554,7 +554,7 @@ GSList* get_pages_pae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dt
 
             uint64_t pd_entry = page_directory[pd_index];
 
-            if (ENTRY_PRESENT(vmi->os_type, pd_entry)) {
+            if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pd_entry)) {
 
                 if (PAGE_SIZE(pd_entry)) {
                     page_info_t *p = g_try_malloc0(sizeof(page_info_t));
@@ -583,7 +583,7 @@ GSList* get_pages_pae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dt
                 for (pt_index = 0; pt_index < PTRS_PER_PAE_PTE; pt_index++, pte_location += entry_size) {
                     uint64_t pte_entry = page_table[pt_index];
 
-                    if (ENTRY_PRESENT(vmi->os_type, pte_entry)) {
+                    if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pte_entry)) {
                         page_info_t *p = g_try_malloc0(sizeof(page_info_t));
                         if ( !p )
                             goto done;

@@ -126,7 +126,7 @@ get_check_magic_func(
     return rtn;
 }
 
-int
+uint64_t
 find_pname_offset(
     vmi_instance_t vmi,
     check_magic_func check)
@@ -166,7 +166,7 @@ find_pname_offset(
 
                 int i = boyer_moore2(bm, haystack, 0x500);
 
-                if (-1 == i) {
+                if (i < 0) {
                     continue;
                 } else {
                     vmi->init_task = block_pa + offset;
@@ -245,7 +245,7 @@ windows_find_eprocess(
         if ( VMI_FAILURE == json_profile_lookup(vmi, "_EPROCESS", "ImageFileName", &windows->pname_offset) )
             windows->pname_offset = find_pname_offset(vmi, check);
 
-        if (!windows->pname_offset) {
+        if (windows->pname_offset == 0) {
             dbprint(VMI_DEBUG_MISC, "--failed to find pname_offset\n");
             return 0;
         } else {
