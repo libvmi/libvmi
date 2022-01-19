@@ -54,6 +54,15 @@ read_config_string(vmi_instance_t UNUSED(vmi),
 }
 
 static inline status_t
+read_config_file(vmi_instance_t UNUSED(vmi),
+                 const char* UNUSED(config_file),
+                 GHashTable** UNUSED(_config),
+                 vmi_init_error_t* UNUSED(error))
+{
+    return VMI_FAILURE;
+}
+
+static inline status_t
 read_config_file_entry(vmi_instance_t UNUSED(vmi),
                        GHashTable** UNUSED(config),
                        vmi_init_error_t* UNUSED(error))
@@ -119,8 +128,8 @@ static FILE *open_config_file()
 }
 
 static status_t
-read_config_file(vmi_instance_t vmi, FILE* config_file,
-                 GHashTable **config, vmi_init_error_t *error)
+read_config_file_impl(vmi_instance_t vmi, FILE* config_file,
+                      GHashTable **config, vmi_init_error_t *error)
 {
     status_t ret = VMI_FAILURE;
 
@@ -153,10 +162,11 @@ error_exit:
     return ret;
 }
 
-status_t read_config_string(vmi_instance_t vmi,
-                            const char *config,
-                            GHashTable **_config,
-                            vmi_init_error_t *error)
+static status_t
+read_config_string(vmi_instance_t vmi,
+                   const char *config,
+                   GHashTable **_config,
+                   vmi_init_error_t *error)
 {
     status_t ret = VMI_SUCCESS;
     FILE* config_file = NULL;
@@ -172,11 +182,31 @@ status_t read_config_string(vmi_instance_t vmi,
     gchar *config_str = g_strconcat(vmi->image_type, " ", config, NULL);
 
     config_file = fmemopen(config_str, strlen(config_str)+1, "r");
-    ret = read_config_file(vmi, config_file, _config, error);
+    ret = read_config_file_impl(vmi, config_file, _config, error);
 
     g_free(config_str);
 
     return ret;
+}
+
+static status_t
+read_config_file(vmi_instance_t vmi,
+                 const char *config_path,
+                 GHashTable **config,
+                 vmi_init_error_t *error)
+{
+    FILE* config_file = NULL;
+
+    if (config_path == NULL) {
+        if ( error )
+            *error = VMI_INIT_ERROR_NO_CONFIG;
+
+        errprint("VMI_ERROR: NULL file path passed for VMI_CONFIG_FILE_PATH\n");
+        return VMI_FAILURE;
+    }
+
+    config_file = fopen(config_path, "r");
+    return read_config_file_impl(vmi, config_file, config, error);
 }
 
 static status_t
@@ -191,7 +221,7 @@ read_config_file_entry(vmi_instance_t vmi, GHashTable **config, vmi_init_error_t
         return VMI_FAILURE;
     }
 
-    return read_config_file(vmi, config_file, config, error);
+    return read_config_file_impl(vmi, config_file, config, error);
 }
 
 #endif
@@ -652,6 +682,12 @@ GHashTable *init_config(vmi_instance_t vmi, vmi_config_t config_mode, void *conf
         case VMI_CONFIG_STRING:
             /* read and parse the config string */
             if (VMI_FAILURE == read_config_string(vmi, (const char*)config, &_config, error)) {
+                return NULL;
+            }
+            break;
+        case VMI_CONFIG_FILE_PATH:
+            /* read and parse the config string */
+            if (VMI_FAILURE == read_config_file(vmi, (const char*)config, &_config, error)) {
                 return NULL;
             }
             break;
