@@ -196,6 +196,19 @@ typedef struct driver_interface {
     status_t (*set_access_required_ptr)(
         vmi_instance_t vmi,
         bool required);
+    status_t (*read_disk_ptr)(
+        vmi_instance_t vmi,
+        const char *device_id,
+        uint64_t offset,
+        uint64_t count,
+        void *buffer);
+    char **(*get_disks_ptr)(
+        vmi_instance_t vmi,
+        unsigned int *num);
+    status_t (*disk_is_bootable_ptr)(
+        vmi_instance_t vmi,
+        const char *device_id,
+        bool *bootable);
 
     /* Driver-specific data storage. */
     void* driver_data;

@@ -33,6 +33,7 @@
 #include "driver/driver_interface.h"
 #include "driver/memory_cache.h"
 #include "driver/xen/altp2m_private.h"
+#include "driver/xen/vbd_private.h"
 
 //----------------------------------------------------------------------------
 // Helper functions
@@ -165,7 +166,39 @@ xen_put_memory(
     return VMI_SUCCESS;
 }
 
+/* Helper function. Read /local/domain/<domID>/device/vbd/state property.
+ * If it equals "1" return true.
+ */
+bool
+xen_get_vbd_state(
+    vmi_instance_t vmi,
+    const char* device_id)
+{
+    unsigned int len;
+    bool result = false;
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xs_transaction_t xth = XBT_NULL;
 
+    struct xs_handle *xsh = xen->libxsw.xs_open(0);
+
+    gchar *domainID = g_strdup_printf("%"PRIu64, xen->domainid);
+    gchar* tmp = g_strdup_printf("/local/domain/%s/device/vbd/%s/state", domainID, device_id);
+
+    char *state = xen->libxsw.xs_read(xsh, xth, tmp, &len);
+    if (state != NULL)
+    {
+        if (!g_strcmp0(state, "1"))
+        {
+            result = true;
+        }
+        free(state);
+    }
+    g_free(tmp);
+    g_free(domainID);
+    if (xsh)
+        xen->libxsw.xs_close(xsh);
+    return result;
+}
 
 //----------------------------------------------------------------------------
 // General Interface Functions (1-1 mapping to driver_* function)
@@ -2756,3 +2789,219 @@ xen_set_access_required(
 
     return VMI_SUCCESS;
 }
+
+/*
+ * This function is only usable with xenstore. Determine the type of disk identified
+ * by device_id, find its backend and perform read operation
+ */
+#ifndef HAVE_LIBXENSTORE
+status_t 
+xen_read_disk(
+    vmi_instance_t UNUSED(vmi),
+    const char* UNUSED(device_id),
+    uint64_t UNUSED(offset),
+    uint64_t UNUSED(count),
+    void* UNUSED(buffer))
+{
+    return VMI_FAILURE;
+}
+#else
+status_t
+xen_read_disk(
+    vmi_instance_t vmi,
+    const char *device_id,
+    uint64_t offset,
+    uint64_t count,
+    void *buffer)
+{
+    status_t ret = VMI_FAILURE;
+    vbd_device_type_t type;
+    vbd_backend_t backend;
+
+    if (device_id == NULL) {
+        errprint("VMI_ERROR: xen_read_disk: device_id must be specified\n");
+        return VMI_FAILURE;
+    }
+    if (count == 0) {
+        errprint("VMI_ERROR: xen_read_disk: zero count specified\n");
+        return VMI_FAILURE;
+    }
+    if (buffer == NULL) {
+        errprint("VMI_ERROR: xen_read_disk: output buffer must be specified\n");
+        return VMI_FAILURE;
+    }
+
+    if (!xen_get_vbd_state(vmi, device_id))
+    {
+        errprint("VMI_ERROR: xen_read_disk: vbd is inactive or error occured\n");
+        return VMI_FAILURE;
+    }
+    
+    type = xen_vbd_get_type(vmi, device_id);
+    backend = xen_vbd_get_backend(vmi, device_id);
+
+    switch (type)
+    {
+    case VBD_DEVICE_TYPE_DISK:
+        if (backend.type == VBD_BACKEND_TYPE_PHY && backend.format == VBD_BACKEND_FORMAT_RAW)
+        {
+            if (VMI_FAILURE == xen_vbd_read_raw_disk(vmi, backend.path, offset, count, buffer))
+            {
+                errprint("VMI_ERROR: xen_read_disk: failed to read raw phy disk\n");
+            }
+            else
+            {
+                ret = VMI_SUCCESS;
+            }
+            goto _bail;
+        }
+        else if (backend.type == VBD_BACKEND_TYPE_QDISK && backend.format == VBD_BACKEND_FORMAT_QCOW2)
+        {
+            if (VMI_FAILURE == xen_vbd_read_qcow2_disk(vmi, backend.path, offset, count, buffer))
+            {
+                errprint("VMI_ERROR: xen_read_disk: failed to read qcow2 disk\n");
+            }
+            else
+            {
+                ret = VMI_SUCCESS;
+            }
+            goto _bail;
+        }
+        else if (backend.format == VBD_BACKEND_FORMAT_VHD)
+        {
+            errprint("VMI_ERROR: xen_read_disk: vhd format reading not implemented\n");
+            goto _bail;
+        }
+        else
+        {
+            errprint("VMI_ERROR: xen_read_disk: unknown vbd type or format\n");
+            goto _bail;
+        }
+        break;
+    
+    case VBD_DEVICE_TYPE_CDROM:
+        errprint("VMI_ERROR: xen_read_disk: cdrom vbd is inacceptible for reading\n");
+        goto _bail;
+    case VBD_DEVICE_TYPE_UNKNOWN:
+        errprint("VMI_ERROR: xen_read_disk: vbd device type is unknown\n");
+        goto _bail;
+    }
+
+_bail:
+    
+    return ret;
+}
+#endif
+
+/*
+ * This function is only usable with xenstore. Enum vbd entries for given domain, return 
+ * list of vbd device identifiers.
+ */
+#ifndef HAVE_LIBXENSTORE
+char**
+xen_get_disks(
+    vmi_instance_t UNUSED(vmi),
+    unsigned int* UNUSUED(num))
+{
+    return NULL;
+}
+#else
+char **
+xen_get_disks(
+    vmi_instance_t vmi,
+    unsigned int *num)
+{
+    char **result = NULL;
+    unsigned int vbd_num, i, j, len;
+    char **tmp;
+
+    vbd_device_type_t type;
+
+    if (num == NULL) {
+        errprint("VMI_ERROR: xen_get_disks: num must be specified\n");
+        return NULL;
+    }
+
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xs_transaction_t xth = XBT_NULL;
+
+    struct xs_handle *xsh = xen->libxsw.xs_open(0);
+
+    if (!xsh)
+        return NULL;
+
+    gchar *vbd = g_strdup_printf("/local/domain/%"PRIu64"/device/vbd", xen->domainid);
+    char **vbds = xen->libxsw.xs_directory(xsh, xth, vbd, &vbd_num);
+
+    tmp = malloc(sizeof(char*) * vbd_num);
+
+    for(i = 0, j = 0; i < vbd_num; i++)
+    {
+        type = xen_vbd_get_type(vmi, vbds[i]);
+        if (type == VBD_DEVICE_TYPE_DISK)
+        {
+            len = strlen(vbds[i]);
+            tmp[j] = malloc(len);
+            g_stpcpy(tmp[j], vbds[i]);
+            j++;
+        }
+    }
+    result = malloc(sizeof(char*)*j);
+    if (result == NULL)
+    {
+        errprint("VMI_ERROR: xen_get_disks: failed to allocate memory for result data\n");
+        free(tmp);
+        free(vbds);
+        g_free(vbd);
+        return result;
+    }
+    for (i = 0; i < j; i++)
+    {
+        result[i] = tmp[i];
+    }
+    *num = j;
+    
+    free(tmp);
+    free(vbds);
+    g_free(vbd);
+    if (xsh)
+        xen->libxsw.xs_close(xsh);
+
+    return result;
+}
+#endif
+
+/*
+ * This function is only usable with xenstore. Read /local/domain/<domID>/device/vbd/bootable
+ * property. Return true if it has "1" value and false in other cases
+ */
+#ifndef HAVE_LIBXENSTORE
+status_t 
+xen_disk_is_bootable(
+    vmi_instance_t UNUSED(vmi),
+    const char* UNUSED(device_id),
+    bool* UNUSED(bootable))
+{
+    return VMI_FAILURE;
+}
+#else
+status_t 
+xen_disk_is_bootable(
+    vmi_instance_t vmi,
+    const char *device_id,
+    bool *bootable)
+{
+    vbd_backend_t backend = {0};
+
+    backend = xen_vbd_get_backend(vmi, device_id);
+    if (backend.type)
+    {
+        *bootable = backend.bootable;
+        return VMI_SUCCESS;
+    }
+    else
+    {
+        return VMI_FAILURE;
+    }
+}
+#endif

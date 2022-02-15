@@ -174,6 +174,19 @@ status_t xen_set_domain_debug_control(
 status_t xen_set_access_required(
     vmi_instance_t vmi,
     bool required);
+status_t xen_read_disk(
+    vmi_instance_t vmi,
+    const char *device_id,
+    uint64_t offset,
+    uint64_t count,
+    void *buffer);
+char **xen_get_disks(
+    vmi_instance_t vmi,
+    unsigned int *num);
+status_t xen_disk_is_bootable(
+    vmi_instance_t vmi,
+    const char *device_id,
+    bool *bootable);
 
 static inline status_t
 driver_xen_setup(vmi_instance_t vmi)
@@ -208,6 +221,9 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.pause_vm_ptr = &xen_pause_vm;
     driver.resume_vm_ptr = &xen_resume_vm;
     driver.set_access_required_ptr = &xen_set_access_required;
+    driver.read_disk_ptr = &xen_read_disk;
+    driver.get_disks_ptr = &xen_get_disks;
+    driver.disk_is_bootable_ptr = &xen_disk_is_bootable;
     vmi->driver = driver;
     return VMI_SUCCESS;
 }

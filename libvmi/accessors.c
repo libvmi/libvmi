@@ -1193,3 +1193,52 @@ vmi_pagecache_flush(
 
     return memory_cache_flush(vmi);
 }
+
+status_t vmi_read_disk(
+    vmi_instance_t vmi,
+    const char *device_id,
+    uint64_t offset,
+    uint64_t count,
+    void *buffer)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return 0;
+
+#endif
+
+    if ( vmi->mode != VMI_XEN)
+        return VMI_FAILURE;
+    if ( VMI_FAILURE == driver_read_disk(vmi, device_id, offset, count, buffer) )
+        return VMI_FAILURE;
+
+    return VMI_SUCCESS;
+}
+
+char **vmi_get_disks(
+    vmi_instance_t vmi,
+    unsigned int *num)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return 0;
+
+#endif
+
+    if ( vmi->mode != VMI_XEN)
+        return NULL;
+    return driver_get_disks(vmi, num);
+}
+
+status_t vmi_disk_is_bootable(
+    vmi_instance_t vmi,
+    const char *device_id,
+    bool *bootable)
+{
+    if ( vmi->mode != VMI_XEN)
+        return VMI_FAILURE;
+    if ( VMI_FAILURE == driver_disk_is_bootable(vmi, device_id, bootable) )
+         return VMI_FAILURE;
+
+    return VMI_SUCCESS;
+}
