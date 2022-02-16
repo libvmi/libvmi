@@ -18,6 +18,7 @@ set(libvmi_src
     driver/driver_interface.c
     driver/memory_cache.c
     os/os_interface.c
+    disk/vbd.c
 )
 
 add_library(vmi OBJECT ${libvmi_src})
@@ -165,6 +166,7 @@ endif ()
 
 add_subdirectory(driver)
 add_subdirectory(os)
+add_subdirectory(disk)
 
 
 if (ENABLE_XEN)

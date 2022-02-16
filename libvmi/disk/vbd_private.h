@@ -34,44 +34,6 @@
 
 #define QCOW2_MAGIC (('Q' << 24) | ('F' << 16) | ('I' << 8) | 0xfb)
 
-typedef enum vbd_device_type
-{
-    VBD_DEVICE_TYPE_DISK    = 1,
-    VBD_DEVICE_TYPE_CDROM   = 2,
-    VBD_DEVICE_TYPE_UNKNOWN = -1
-} vbd_device_type_t;
-
-typedef enum vbd_backend_type
-{
-    VBD_BACKEND_TYPE_PHY     = 1,
-    VBD_BACKEND_TYPE_QDISK   = 2,
-    VBD_BACKEND_TYPE_UNKNOWN = -1
-} vbd_backend_type_t;
-
-typedef enum vbd_backend_format
-{
-    VBD_BACKEND_FORMAT_RAW     = 1,
-    VBD_BACKEND_FORMAT_QCOW2   = 2,
-    VBD_BACKEND_FORMAT_VHD     = 3,
-    VBD_BACKEND_FORMAT_UNKNOWN = -1
-} vbd_backend_format_t;
-
-typedef struct
-{
-    vbd_backend_type_t    type;                   // phy, qdisk
-    vbd_backend_format_t  format;                 // raw, qcow2, vhd
-    bool                  bootable;               // is device bootable, according to XenStore item property
-    char                  path[0x1000];           // xs path /local/domain/<dom0_ID>/backend/<type>/<domId>/<devId>
-} vbd_backend_t;
-
-typedef struct
-{
-    vbd_device_type_t  type;                      // cdrom, disk...
-    vbd_backend_t      backend;                   // host device or file
-    char               devId[0x100];              // numeric str
-    char               path[0x1000];              // xs path - /local/domain/<domId>/device/vbd/<devId>
-} vbd_t;
-
 typedef struct QCowHeader 
 {
       uint32_t magic;
@@ -158,15 +120,11 @@ typedef struct QCowFile
       char     backing_file[0x1000];
 } QCowFile;
 
-vbd_device_type_t xen_vbd_get_type(vmi_instance_t vmi, const char* device_id);
-vbd_backend_t xen_vbd_get_backend(vmi_instance_t vmi, const char* device_id);
-status_t xen_vbd_read_raw_disk(vmi_instance_t vmi, const char* backend_path, uint64_t offset, uint64_t count, void *buffer);
-status_t xen_vbd_read_qcow2_disk(vmi_instance_t vmi, const char* backend_path, uint64_t offset, uint64_t count, void *buffer);
-
-
-status_t xen_vbd_qcow2_open(QCowFile *qcowfile, const char *filename);
-status_t xen_vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsigned char *buffer);
-int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsigned char *buffer);
-status_t xen_vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uint64_t *table);
+status_t vbd_read_raw_disk(vmi_instance_t vmi, const char* backend_path, uint64_t offset, uint64_t count, void *buffer);
+status_t vbd_read_qcow2_disk(vmi_instance_t vmi, const char* backend_path, uint64_t offset, uint64_t count, void *buffer);
+status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename);
+status_t vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsigned char *buffer);
+int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsigned char *buffer);
+status_t vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uint64_t *table);
 
 #endif

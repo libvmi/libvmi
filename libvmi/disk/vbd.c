@@ -25,139 +25,9 @@
 #include "driver/xen/xen_private.h"
 #include "vbd_private.h"
 
-/* Read "/local/domain/<domID>/device/vbd/<device_id>/device-type field to determine
- * whether the device_id is cdrom or hard disk.
- */
-
-vbd_device_type_t xen_vbd_get_type(vmi_instance_t vmi, const char* device_id)
-{
-    unsigned int len = 0;
-    vbd_device_type_t result;
-
-    xen_instance_t *xen = xen_get_instance(vmi);
-    xs_transaction_t xth = XBT_NULL;
-
-    struct xs_handle *xsh = xen->libxsw.xs_open(0);
-
-    if (!xsh)
-        return VBD_DEVICE_TYPE_UNKNOWN;
-    
-    gchar *key = g_strdup_printf("/local/domain/%"PRIu64"/device/vbd/%s/device-type", xen->domainid, device_id);
-
-    char *device_type = xen->libxsw.xs_read(xsh, xth, key, &len);
-    if (!g_strcmp0(device_type, "disk"))
-    {
-        result = VBD_DEVICE_TYPE_DISK;
-    }
-    else if(!g_strcmp0(device_type, "cdrom"))
-    {
-        result = VBD_DEVICE_TYPE_CDROM;
-    }
-    else
-    {
-        result = VBD_DEVICE_TYPE_UNKNOWN;
-    }
-
-    g_free(device_type);
-    g_free(key);
-    
-    xen->libxsw.xs_close(xsh);
-
-    return result;
-}
-
-/* Read /local/domain/<domID>/device/vbd/<device_id>/backend field to get device backend
- * location to determine whether the specified device is backed by physical device or
- * QEMU disk image and retrieve its format. Returns vbd_backend_t structure.
- */
-
-vbd_backend_t xen_vbd_get_backend(vmi_instance_t vmi, const char *device_id)
-{
-    unsigned int len = 0;
-    vbd_backend_t result = {0};
-
-    xen_instance_t *xen = xen_get_instance(vmi);
-    xs_transaction_t xth = XBT_NULL;
-
-    struct xs_handle *xsh = xen->libxsw.xs_open(0);
-
-    if (!xsh)
-    {
-        result.type = VBD_BACKEND_TYPE_UNKNOWN;
-        return result;
-    }
-    
-    gchar *vbd_backend = g_strdup_printf("/local/domain/%"PRIu64"/device/vbd/%s/backend", xen->domainid, device_id);
-    char *backend_path = xen->libxsw.xs_read(xsh, xth, vbd_backend, &len);
-
-    gchar *backend_type = g_strdup_printf("%s/type", backend_path);
-    char *type = xen->libxsw.xs_read(xsh, xth, backend_type, &len);
-
-    if(!g_strcmp0(type, "qdisk"))
-    {
-        result.type = VBD_BACKEND_TYPE_QDISK;
-    }
-    else if(!g_strcmp0(type, "phy"))
-    {
-        result.type = VBD_BACKEND_TYPE_PHY;
-    }
-    else
-    {
-        result.type = VBD_BACKEND_TYPE_UNKNOWN;
-    }
-
-    gchar *backend_params = g_strdup_printf("%s/params", backend_path);
-    char *params = xen->libxsw.xs_read(xsh, xth, backend_params, &len);
-
-    switch (result.type)
-    {
-    case VBD_BACKEND_TYPE_QDISK:
-        if(!strncmp(params, "qcow2:", 6))
-        {
-            result.format = VBD_BACKEND_FORMAT_QCOW2;
-            g_stpcpy(result.path, params+6);
-        }
-        break;
-    case VBD_BACKEND_TYPE_PHY:
-        result.format = VBD_BACKEND_FORMAT_RAW;
-        g_stpcpy(result.path, params);
-        break;
-    default:
-        break;
-    }
-
-    gchar *backend_bootable = g_strdup_printf("%s/bootable", backend_path);
-    char *bootable = xen->libxsw.xs_read(xsh, XBT_NULL, backend_bootable, &len);
-
-    if(!g_strcmp0(bootable, "1"))
-    {
-        result.bootable = true;
-    }
-    else
-    {
-        result.bootable = false;
-    }
-
-    g_free(bootable);
-    g_free(backend_bootable);
-
-    g_free(params);
-    g_free(backend_params);
-
-    g_free(type);
-    g_free(backend_type);
-
-    g_free(backend_path);
-    g_free(vbd_backend);
-    
-    xen->libxsw.xs_close(xsh);
-    
-    return result;
-}
-
 /* Open and read physical (or logical) drive as file.
 */
-status_t xen_vbd_read_raw_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
+status_t vbd_read_raw_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
 {
     FILE *f;
     size_t bytes_read;
@@ -165,7 +35,7 @@ status_t xen_vbd_read_raw_disk(vmi_instance_t UNUSED(vmi), const char* backend_p
     f = fopen(backend_path, "rb");
     if (!f)
     {
-        errprint("VMI_ERROR: xen_vbd_read_raw_disk: failed to open backend path\n");
+        errprint("VMI_ERROR: vbd_read_raw_disk: failed to open backend path\n");
         return VMI_FAILURE;
     }
 
@@ -173,7 +43,7 @@ status_t xen_vbd_read_raw_disk(vmi_instance_t UNUSED(vmi), const char* backend_p
     bytes_read = fread(buffer, 1, count, f);
     if (bytes_read != count || bytes_read == 0)
     {
-        errprint("VMI_ERROR: xen_vbd_read_raw_disk: failed to open backend path\n");
+        errprint("VMI_ERROR: vbd_read_raw_disk: failed to open backend path\n");
         fclose(f);
         return VMI_FAILURE;
     }
@@ -290,20 +160,20 @@ static status_t xen_vbd_qcow2_read_l1_table(QCowFile *qcowfile)
  * https://github.com/qemu/qemu/blob/master/docs/interop/qcow2.txt
  * https://people.gnome.org/~markmc/qcow-image-format.html
  */
-status_t xen_vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
+status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
 {
     strcpy(qcowfile->filename, filename);
     qcowfile->fp = fopen(filename, "rb");
     if(!qcowfile->fp)
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_open: failed to open qcow2 disk image file\n");
+        errprint("VMI_ERROR: vbd_qcow2_open: failed to open qcow2 disk image file\n");
         return VMI_FAILURE;
     }
 
     memset(&qcowfile->header, 0, sizeof(QCowHeader));
     if(VMI_FAILURE == xen_vbd_qcow2_read_header(qcowfile->fp, &qcowfile->header))
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_open: failed to read qcow2 disk image header\n");
+        errprint("VMI_ERROR: vbd_qcow2_open: failed to read qcow2 disk image header\n");
         fclose(qcowfile->fp);
         return VMI_FAILURE;
     }
@@ -316,7 +186,7 @@ status_t xen_vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
         memset(backing_file_name, 0, 0x1000);
         if (fread(backing_file_name, 1, qcowfile->header.backing_file_size, qcowfile->fp) == 0)
         {
-            errprint("VMI_ERROR: xen_vbd_qcow2_open: failed to read qcow2 backing image file name\n");
+            errprint("VMI_ERROR: vbd_qcow2_open: failed to read qcow2 backing image file name\n");
             fclose(qcowfile->fp);
             return VMI_FAILURE;
         }
@@ -337,7 +207,7 @@ status_t xen_vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
             }
             else
             {
-                errprint("VMI_ERROR: xen_vbd_qcow2_open: failed to reconstruct backing image file path\n");
+                errprint("VMI_ERROR: vbd_qcow2_open: failed to reconstruct backing image file path\n");
                 fclose(qcowfile->fp);
                 return VMI_FAILURE;
             }
@@ -349,7 +219,7 @@ status_t xen_vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
     qcowfile->cluster_size = 1 << qcowfile->header.cluster_bits;
     if(!qcowfile->cluster_size)
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_open: disk image cluster size is zero\n");
+        errprint("VMI_ERROR: vbd_qcow2_open: disk image cluster size is zero\n");
         fclose(qcowfile->fp);
         return VMI_FAILURE;
     }
@@ -358,14 +228,14 @@ status_t xen_vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
     qcowfile->l1_table = malloc(qcowfile->header.l1_size * sizeof(uint64_t));
     if(!qcowfile->l1_table)
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_open: failed to allocate memory for L1 table\n");
+        errprint("VMI_ERROR: vbd_qcow2_open: failed to allocate memory for L1 table\n");
         fclose(qcowfile->fp);
         return VMI_FAILURE;
     }
     memset(qcowfile->l1_table, 0, qcowfile->header.l1_size * sizeof(uint64_t));
     if (VMI_FAILURE == xen_vbd_qcow2_read_l1_table(qcowfile))
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_open: failed to read L1 table\n");
+        errprint("VMI_ERROR: vbd_qcow2_open: failed to read L1 table\n");
         fclose(qcowfile->fp);
         return VMI_FAILURE;
     }
@@ -378,19 +248,19 @@ status_t xen_vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
 }
 
 /* Read L2 table and convert entries from Big Endian */
-status_t xen_vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uint64_t *table)
+status_t vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uint64_t *table)
 {
     uint64_t *tmp = malloc(qcowfile->cluster_size);
     if(!tmp)
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_read_l2_table: failed to allocate temp buffer  L2 table\n");
+        errprint("VMI_ERROR: vbd_qcow2_read_l2_table: failed to allocate temp buffer  L2 table\n");
         return VMI_FAILURE;
     }
     memset(tmp, 0, qcowfile->cluster_size);
     fseek(qcowfile->fp, l2_offset, SEEK_SET);
     if(!fread(tmp, 1, qcowfile->cluster_size, qcowfile->fp))
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_read_l2_table: failed to read L2 table\n");
+        errprint("VMI_ERROR: vbd_qcow2_read_l2_table: failed to read L2 table\n");
         free(tmp);
         return VMI_FAILURE;
     }
@@ -404,7 +274,7 @@ status_t xen_vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uin
 }
 
 /* Perform reading https://github.com/qemu/qemu/blob/9aef0954195cc592e86846dbbe7f3c2c5603690a/docs/interop/qcow2.txt#L506 */
-int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsigned char *buffer)
+int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsigned char *buffer)
 {
     unsigned int l1_idx, l2_idx, offset_in_cluster;
     uint64_t  cluster_descriptor;
@@ -427,13 +297,13 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
     l1_idx = (offset / qcowfile->cluster_size) / (qcowfile->cluster_size / qcowfile->l2_entry_size);
     if (l1_idx > qcowfile->header.l1_size)
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: L1 index > L1 size\n");
+        errprint("VMI_ERROR: vbd_qcow2_read_chunk: L1 index > L1 size\n");
         return -1;
     }
     l2_idx = (offset / qcowfile->cluster_size) % (qcowfile->cluster_size / qcowfile->l2_entry_size);
     if (l2_idx > qcowfile->l2_size)
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: L2 index > L2 size\n");
+        errprint("VMI_ERROR: vbd_qcow2_read_chunk: L2 index > L2 size\n");
         return -1;
     }
     offset_in_cluster = offset % qcowfile->cluster_size;
@@ -453,17 +323,17 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
     {
         if (!*qcowfile->backing_file)
         {
-            errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: backing file is empty\n");
+            errprint("VMI_ERROR: vbd_qcow2_read_chunk: backing file is empty\n");
             return -1;
         }
-        if (VMI_FAILURE == xen_vbd_qcow2_open(&qcow_backingfile, qcowfile->backing_file))
+        if (VMI_FAILURE == vbd_qcow2_open(&qcow_backingfile, qcowfile->backing_file))
         {
-            errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to access backing file\n");
+            errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to access backing file\n");
             return -1;
         }
-        if(VMI_FAILURE == xen_vbd_qcow2_do_read(&qcow_backingfile, offset, num, buffer))
+        if(VMI_FAILURE == vbd_qcow2_do_read(&qcow_backingfile, offset, num, buffer))
         {
-            errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to read backing file\n");
+            errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to read backing file\n");
             return -1;
         }
         xen_vbd_qcow2_close(&qcow_backingfile);
@@ -473,14 +343,14 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
     l2_table = malloc(qcowfile->cluster_size);
     if(!l2_table)
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to allocate memory for L2 table\n");
+        errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to allocate memory for L2 table\n");
         return -1;
     }
 
     memset(l2_table, 0, qcowfile->cluster_size);
-    if(VMI_FAILURE == xen_vbd_qcow2_read_l2_table(qcowfile, l2_offset, l2_table))
+    if(VMI_FAILURE == vbd_qcow2_read_l2_table(qcowfile, l2_offset, l2_table))
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to read L2 table\n");
+        errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to read L2 table\n");
         free(l2_table);
         return -1;
     }
@@ -501,7 +371,7 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
         csize = nb_csectors * QCOW2_COMPRESSED_SECTOR_SIZE - (cluster_offset & ~QCOW2_COMPRESSED_SECTOR_MASK);
         if (csize <= 0)
         {
-            errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: compressed cluster size is negative or zero\n");
+            errprint("VMI_ERROR: vbd_qcow2_read_chunk: compressed cluster size is negative or zero\n");
             free(l2_table);
             return -1;
         }
@@ -517,19 +387,19 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
     {
         if (!*qcowfile->backing_file)
         {
-            errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: backing file is empty\n");
+            errprint("VMI_ERROR: vbd_qcow2_read_chunk: backing file is empty\n");
             free(l2_table);
             return -1;
         }
-        if (VMI_FAILURE == xen_vbd_qcow2_open(&qcow_backingfile, qcowfile->backing_file))
+        if (VMI_FAILURE == vbd_qcow2_open(&qcow_backingfile, qcowfile->backing_file))
         {
-            errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to access backing file\n");
+            errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to access backing file\n");
             free(l2_table);
             return -1;
         }
-        if(VMI_FAILURE == xen_vbd_qcow2_do_read(&qcow_backingfile, offset, num, buffer))
+        if(VMI_FAILURE == vbd_qcow2_do_read(&qcow_backingfile, offset, num, buffer))
         {
-            errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to read backing file\n");
+            errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to read backing file\n");
             free(l2_table);
             return -1;
         }
@@ -542,7 +412,7 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
 
     if ((num_bytes + offset_in_cluster) > qcowfile->cluster_size) // Number of bytes exceed size of cluster
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: requested read len exceeds size of cluster\n");
+        errprint("VMI_ERROR: vbd_qcow2_read_chunk: requested read len exceeds size of cluster\n");
         free(l2_table);
         return -1;
     }
@@ -552,14 +422,14 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
     unsigned char* cluster = malloc(qcowfile->cluster_size);
     if (!cluster)
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to allocate cluster temp buffer\n");
+        errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to allocate cluster temp buffer\n");
         free(l2_table);
         return -1;
     }
 
     if (!fread(cluster, 1, qcowfile->cluster_size, qcowfile->fp))
     {
-        errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to read cluster\n");
+        errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to read cluster\n");
         free(l2_table);
         free(cluster);
         return -1;
@@ -570,7 +440,7 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
         unsigned char *uncompressed = malloc(qcowfile->cluster_size);
         if (!uncompressed)
         {
-            errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to allocate buffer for uncompressed cluster\n");
+            errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to allocate buffer for uncompressed cluster\n");
             free(l2_table);
             return -1;
         }
@@ -586,7 +456,7 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
         {
             free(cluster);
             free(uncompressed);
-            errprint("VMI_ERROR: xen_vbd_qcow2_read_chunk: failed to uncompress cluster\n");
+            errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to uncompress cluster\n");
             free(l2_table);
             return -1;
         }
@@ -603,7 +473,7 @@ int xen_vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, 
 }
 
 /* Read data from disk chunk by chunk. */
-status_t xen_vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsigned char *buffer)
+status_t vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsigned char *buffer)
 {
     unsigned char *p_buf = buffer;
     uint64_t left = num;
@@ -612,7 +482,7 @@ status_t xen_vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, 
 
     while(left > 0)
     {
-        bytes_read = xen_vbd_qcow2_read_chunk(qcowfile, curr_offset, left, p_buf);
+        bytes_read = vbd_qcow2_read_chunk(qcowfile, curr_offset, left, p_buf);
         if( bytes_read < 0 || (unsigned int)bytes_read > qcowfile->cluster_size)
         {
             return VMI_FAILURE;
@@ -627,19 +497,19 @@ status_t xen_vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, 
 
 /* Open and QEMU disk image in QCow2 format
  */
-status_t xen_vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
+status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
 {
     QCowFile qcowfile;
     memset(&qcowfile, 0, sizeof(QCowFile));
 
-    if(VMI_FAILURE == xen_vbd_qcow2_open(&qcowfile, backend_path))
+    if(VMI_FAILURE == vbd_qcow2_open(&qcowfile, backend_path))
     {
-        errprint("VMI_ERROR: xen_vbd_read_qcow2_disk: failed to open disk image\n");
+        errprint("VMI_ERROR: vbd_read_qcow2_disk: failed to open disk image\n");
         return VMI_FAILURE;
     }
-    if(VMI_FAILURE == xen_vbd_qcow2_do_read(&qcowfile, offset, count, buffer))
+    if(VMI_FAILURE == vbd_qcow2_do_read(&qcowfile, offset, count, buffer))
     {
-        errprint("VMI_ERROR: xen_vbd_read_qcow2_disk: failed perform read operation\n");
+        errprint("VMI_ERROR: vbd_read_qcow2_disk: failed perform read operation\n");
         return VMI_FAILURE;
     }
     xen_vbd_qcow2_close(&qcowfile);

@@ -33,7 +33,7 @@
 #include "driver/driver_interface.h"
 #include "driver/memory_cache.h"
 #include "driver/xen/altp2m_private.h"
-#include "driver/xen/vbd_private.h"
+#include "disk/vbd_private.h"
 
 //----------------------------------------------------------------------------
 // Helper functions
@@ -169,7 +169,7 @@ xen_put_memory(
 /* Helper function. Read /local/domain/<domID>/device/vbd/state property.
  * If it equals "1" return true.
  */
-bool
+static bool
 xen_get_vbd_state(
     vmi_instance_t vmi,
     const char* device_id)
@@ -199,6 +199,158 @@ xen_get_vbd_state(
         xen->libxsw.xs_close(xsh);
     return result;
 }
+
+/* Read "/local/domain/<domID>/device/vbd/<device_id>/device-type field to determine
+ * whether the device_id is cdrom or hard disk.
+ */
+#ifndef HAVE_LIBXENSTORE
+static vbd_device_type_t xen_vbd_get_type(
+    vmi_instance_t vmi,
+    const char* device_id)
+{
+    return VBD_DEVICE_TYPE_UNKNOWN;
+}
+#else
+static vbd_device_type_t xen_vbd_get_type(
+    vmi_instance_t vmi,
+    const char* device_id)
+{
+    unsigned int len = 0;
+    vbd_device_type_t result;
+
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xs_transaction_t xth = XBT_NULL;
+
+    struct xs_handle *xsh = xen->libxsw.xs_open(0);
+
+    if (!xsh)
+        return VBD_DEVICE_TYPE_UNKNOWN;
+    
+    gchar *key = g_strdup_printf("/local/domain/%"PRIu64"/device/vbd/%s/device-type", xen->domainid, device_id);
+
+    char *device_type = xen->libxsw.xs_read(xsh, xth, key, &len);
+    if (!g_strcmp0(device_type, "disk"))
+    {
+        result = VBD_DEVICE_TYPE_DISK;
+    }
+    else if(!g_strcmp0(device_type, "cdrom"))
+    {
+        result = VBD_DEVICE_TYPE_CDROM;
+    }
+    else
+    {
+        result = VBD_DEVICE_TYPE_UNKNOWN;
+    }
+
+    g_free(device_type);
+    g_free(key);
+    
+    xen->libxsw.xs_close(xsh);
+
+    return result;
+}
+#endif
+
+/* Read /local/domain/<domID>/device/vbd/<device_id>/backend field to get device backend
+ * location to determine whether the specified device is backed by physical device or
+ * QEMU disk image and retrieve its format. Returns vbd_backend_t structure.
+ */
+
+#ifndef HAVE_LIBXENSTORE
+static vbd_backend_t xen_vbd_get_backend(
+    vmi_instance_t vmi,
+    const char *device_id)
+{
+    vbd_backend_t result = {0};
+    return result;
+}
+#else
+static vbd_backend_t xen_vbd_get_backend(
+    vmi_instance_t vmi,
+    const char *device_id)
+{
+    unsigned int len = 0;
+    vbd_backend_t result = {0};
+
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xs_transaction_t xth = XBT_NULL;
+
+    struct xs_handle *xsh = xen->libxsw.xs_open(0);
+
+    if (!xsh)
+    {
+        result.type = VBD_BACKEND_TYPE_UNKNOWN;
+        return result;
+    }
+    
+    gchar *vbd_backend = g_strdup_printf("/local/domain/%"PRIu64"/device/vbd/%s/backend", xen->domainid, device_id);
+    char *backend_path = xen->libxsw.xs_read(xsh, xth, vbd_backend, &len);
+
+    gchar *backend_type = g_strdup_printf("%s/type", backend_path);
+    char *type = xen->libxsw.xs_read(xsh, xth, backend_type, &len);
+
+    if(!g_strcmp0(type, "qdisk"))
+    {
+        result.type = VBD_BACKEND_TYPE_QDISK;
+    }
+    else if(!g_strcmp0(type, "phy"))
+    {
+        result.type = VBD_BACKEND_TYPE_PHY;
+    }
+    else
+    {
+        result.type = VBD_BACKEND_TYPE_UNKNOWN;
+    }
+
+    gchar *backend_params = g_strdup_printf("%s/params", backend_path);
+    char *params = xen->libxsw.xs_read(xsh, xth, backend_params, &len);
+
+    switch (result.type)
+    {
+    case VBD_BACKEND_TYPE_QDISK:
+        if(!strncmp(params, "qcow2:", 6))
+        {
+            result.format = VBD_BACKEND_FORMAT_QCOW2;
+            g_stpcpy(result.path, params+6);
+        }
+        break;
+    case VBD_BACKEND_TYPE_PHY:
+        result.format = VBD_BACKEND_FORMAT_RAW;
+        g_stpcpy(result.path, params);
+        break;
+    default:
+        break;
+    }
+
+    gchar *backend_bootable = g_strdup_printf("%s/bootable", backend_path);
+    char *bootable = xen->libxsw.xs_read(xsh, XBT_NULL, backend_bootable, &len);
+
+    if(!g_strcmp0(bootable, "1"))
+    {
+        result.bootable = true;
+    }
+    else
+    {
+        result.bootable = false;
+    }
+
+    g_free(bootable);
+    g_free(backend_bootable);
+
+    g_free(params);
+    g_free(backend_params);
+
+    g_free(type);
+    g_free(backend_type);
+
+    g_free(backend_path);
+    g_free(vbd_backend);
+    
+    xen->libxsw.xs_close(xsh);
+    
+    return result;
+}
+#endif
 
 //----------------------------------------------------------------------------
 // General Interface Functions (1-1 mapping to driver_* function)
@@ -2845,7 +2997,7 @@ xen_read_disk(
     case VBD_DEVICE_TYPE_DISK:
         if (backend.type == VBD_BACKEND_TYPE_PHY && backend.format == VBD_BACKEND_FORMAT_RAW)
         {
-            if (VMI_FAILURE == xen_vbd_read_raw_disk(vmi, backend.path, offset, count, buffer))
+            if (VMI_FAILURE == vbd_read_raw_disk(vmi, backend.path, offset, count, buffer))
             {
                 errprint("VMI_ERROR: xen_read_disk: failed to read raw phy disk\n");
             }
@@ -2857,7 +3009,7 @@ xen_read_disk(
         }
         else if (backend.type == VBD_BACKEND_TYPE_QDISK && backend.format == VBD_BACKEND_FORMAT_QCOW2)
         {
-            if (VMI_FAILURE == xen_vbd_read_qcow2_disk(vmi, backend.path, offset, count, buffer))
+            if (VMI_FAILURE == vbd_read_qcow2_disk(vmi, backend.path, offset, count, buffer))
             {
                 errprint("VMI_ERROR: xen_read_disk: failed to read qcow2 disk\n");
             }
