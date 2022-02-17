@@ -127,7 +127,7 @@ int main(int argc, char **argv)
         }
 
         if (bootable) {
-            if (VMI_SUCCESS == vmi_read_disk(vmi, devices_ids[i], 0x100000, SECTOR_SIZE, MBR)) {
+            if (VMI_SUCCESS == vmi_read_disk(vmi, devices_ids[i], 0, SECTOR_SIZE, MBR)) {
                 if (SECTOR_SIZE == fwrite(MBR, 1, SECTOR_SIZE, f)) {
                     printf("MBR successfuly dumped\n");
                     break;
