@@ -786,7 +786,7 @@ driver_disk_is_bootable(
         return VMI_FAILURE;
     }
 #endif
-    
+
     return vmi->driver.disk_is_bootable_ptr(vmi, device_id, bootable);
 }
 

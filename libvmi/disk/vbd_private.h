@@ -34,26 +34,25 @@
 
 #define QCOW2_MAGIC (('Q' << 24) | ('F' << 16) | ('I' << 8) | 0xfb)
 
-typedef struct QCowHeader 
-{
-      uint32_t magic;
-      uint32_t version;
+typedef struct QCowHeader {
+    uint32_t magic;
+    uint32_t version;
 
-      uint64_t backing_file_offset;
-      uint32_t backing_file_size;
+    uint64_t backing_file_offset;
+    uint32_t backing_file_size;
 
-      uint32_t cluster_bits;
-      uint64_t size; /* in bytes */
-      uint32_t crypt_method;
+    uint32_t cluster_bits;
+    uint64_t size; /* in bytes */
+    uint32_t crypt_method;
 
-      uint32_t l1_size;
-      uint64_t l1_table_offset;
+    uint32_t l1_size;
+    uint64_t l1_table_offset;
 
-      uint64_t refcount_table_offset;
-      uint32_t refcount_table_clusters;
+    uint64_t refcount_table_offset;
+    uint32_t refcount_table_clusters;
 
-      uint32_t nb_snapshots;
-      uint64_t snapshots_offset;
+    uint32_t nb_snapshots;
+    uint64_t snapshots_offset;
 } QCowHeader;
 
 #define QCOW2_L1_ENTRY_L2_TABLE_OFFSET        0x00fffffffffffe00ULL
@@ -107,17 +106,16 @@ typedef struct QCowHeader
 
 // } L2TableEntry;
 
-typedef struct QCowFile
-{
-      FILE*          fp;
-      QCowHeader     header;
-      unsigned int   cluster_size;
-      uint64_t       l2_size;
-      uint64_t       l2_bits;
-      uint64_t       l2_entry_size;
-      uint64_t*      l1_table;
-      char     filename[0x1000];
-      char     backing_file[0x1000];
+typedef struct QCowFile {
+    FILE*          fp;
+    QCowHeader     header;
+    unsigned int   cluster_size;
+    uint64_t       l2_size;
+    uint64_t       l2_bits;
+    uint64_t       l2_entry_size;
+    uint64_t*      l1_table;
+    char     filename[0x1000];
+    char     backing_file[0x1000];
 } QCowFile;
 
 status_t vbd_read_raw_disk(vmi_instance_t vmi, const char* backend_path, uint64_t offset, uint64_t count, void *buffer);

@@ -2,11 +2,7 @@
  * memory in a target virtual machine or in a file containing a dump of
  * a system's physical memory.  LibVMI is based on the XenAccess Library.
  *
- * Copyright 2011 Sandia Corporation. Under the terms of Contract
- * DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government
- * retains certain rights in this software.
- *
- * Author: Bryan D. Payne (bdpayne@acm.org)
+ * Author: Anton Belousov (blsvntntx@gmail.com)
  *
  * This file is part of LibVMI.
  *
@@ -32,6 +28,7 @@
 #include <limits.h>
 #include <getopt.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <config.h>
 #include <libvmi/libvmi.h>
 
@@ -48,7 +45,7 @@ int main(int argc, char **argv)
     unsigned int number_of_disks = 0;
     bool bootable = false;
     unsigned char MBR[SECTOR_SIZE] = {0};
-    
+
     if ( argc <= 2 ) {
         printf("Usage: %s\n", argv[0]);
         printf("\t -n/--name <domain name>\n");
@@ -102,8 +99,9 @@ int main(int argc, char **argv)
         goto free_setup_info;
     }
 
+    mode_t mask = umask(600);
     /* open the file for writing */
-    FILE *f = fopen(filename, "w+");
+    FILE *f = fopen(filename, "wb");
     if (f == NULL) {
         printf("Failed to open file for writing.\n");
         goto destroy_vmi;
@@ -120,7 +118,7 @@ int main(int argc, char **argv)
         printf("Failed to get VM disks list.\n");
         goto resume_vm;
     }
-    
+
     /* Iterate over disks to find bootable and read MBR sector */
     for (unsigned int i = 0; i < number_of_disks; i++) {
         if (VMI_FAILURE == vmi_disk_is_bootable(vmi, devices_ids[i], &bootable)) {
@@ -129,13 +127,12 @@ int main(int argc, char **argv)
         }
 
         if (bootable) {
-            if (VMI_SUCCESS == vmi_read_disk(vmi, devices_ids[i], 0, SECTOR_SIZE, MBR)) {
+            if (VMI_SUCCESS == vmi_read_disk(vmi, devices_ids[i], 0x100000, SECTOR_SIZE, MBR)) {
                 if (SECTOR_SIZE == fwrite(MBR, 1, SECTOR_SIZE, f)) {
                     printf("MBR successfuly dumped\n");
                     break;
                 }
-            }
-            else {
+            } else {
                 printf("Faied to read disk %u MBR.\n", i);
                 break;
             }

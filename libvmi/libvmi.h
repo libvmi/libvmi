@@ -2665,9 +2665,9 @@ const char *vmi_get_os_profile_path(
     vmi_instance_t vmi) NOEXCEPT;
 
 /**
- * Only for Xen-based VMs. Reads count bytes from disk (not cdrom) identified by device_id, which 
+ * Only for Xen-based VMs. Reads count bytes from disk (not cdrom) identified by device_id, which
  * can be retrieved with vmi_get_disks()
- * 
+ *
  * @param[in] vmi LibVMI instance
  * @param[in] device_id vbd device id
  * @param[in] offset Starting disk offset to read from
@@ -2683,9 +2683,9 @@ status_t vmi_read_disk(
     void *buffer) NOEXCEPT;
 
 /**
- * Only for Xen-based VMs. Retrieves list of available hard disks on VM. Caller must 
+ * Only for Xen-based VMs. Retrieves list of available hard disks on VM. Caller must
  * free() returned buffer after usage.
- * 
+ *
  * @param[in] vmi LibVMI instance
  * @param[out] num Pointer to number of returned items
  * @return Array pointers, consisting of num elements or NULL in case of error. Each element represents a string
@@ -2697,7 +2697,7 @@ char **vmi_get_disks(
 
 /**
  * Only for Xen-based VMs. Checks if disk identified by device_id is bootable.
- * 
+ *
  * @param[in] vmi LibVMI instance
  * @param[in] device_id Device identifier
  * @param[out] num Pointer to number of returned items

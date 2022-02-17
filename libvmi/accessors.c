@@ -1238,7 +1238,7 @@ status_t vmi_disk_is_bootable(
     if ( vmi->mode != VMI_XEN)
         return VMI_FAILURE;
     if ( VMI_FAILURE == driver_disk_is_bootable(vmi, device_id, bootable) )
-         return VMI_FAILURE;
+        return VMI_FAILURE;
 
     return VMI_SUCCESS;
 }
