@@ -82,7 +82,8 @@ static void vbd_qcow2_close(QCowFile *qcowfile)
 {
     if (qcowfile->l1_table)
         free(qcowfile->l1_table);
-    fclose(qcowfile->fp);
+    if (qcowfile->fp)
+        fclose(qcowfile->fp);
 }
 
 /* Read and parse QCow2 file header. All fields are Big Endian.
@@ -166,6 +167,7 @@ status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
     if (VMI_FAILURE == vbd_qcow2_read_header(qcowfile->fp, &qcowfile->header)) {
         errprint("VMI_ERROR: vbd_qcow2_open: failed to read qcow2 disk image header\n");
         fclose(qcowfile->fp);
+        qcowfile->fp = NULL;
         return VMI_FAILURE;
     }
 
@@ -174,15 +176,17 @@ status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
         if (qcowfile->header.backing_file_size > 0x1000) {
             errprint("VMI_ERROR: vbd_qcow2_open: backing file name size is too large");
             fclose(qcowfile->fp);
+            qcowfile->fp = NULL;
             return VMI_FAILURE;
         }
-        fseek(qcowfile->fp,qcowfile->header.backing_file_offset, SEEK_SET);
+        fseek(qcowfile->fp, qcowfile->header.backing_file_offset, SEEK_SET);
         char *backing_file_name = malloc(0x1000);
         memset(backing_file_name, 0, 0x1000);
         if (fread(backing_file_name, qcowfile->header.backing_file_size, 1, qcowfile->fp) == 0) {
             errprint("VMI_ERROR: vbd_qcow2_open: failed to read qcow2 backing image file name\n");
             free(backing_file_name);
             fclose(qcowfile->fp);
+            qcowfile->fp = NULL;
             return VMI_FAILURE;
         }
         /* Check if backing file has absolute path then simply copy it to structure */
@@ -199,12 +203,14 @@ status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
                     errprint("VMI_ERROR: vbd_qcow2_open: failed to reconstruct backing file path, resulting path is too large");
                     free(backing_file_name);
                     fclose(qcowfile->fp);
+                    qcowfile->fp = NULL;
                     return VMI_FAILURE;
                 }
                 strncat(qcowfile->backing_file, backing_file_name, qcowfile->header.backing_file_size);
             } else {
                 errprint("VMI_ERROR: vbd_qcow2_open: failed to reconstruct backing image file path\n");
                 fclose(qcowfile->fp);
+                qcowfile->fp = NULL;
                 free(backing_file_name);
                 return VMI_FAILURE;
             }
@@ -217,6 +223,7 @@ status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
     if (!qcowfile->cluster_size) {
         errprint("VMI_ERROR: vbd_qcow2_open: disk image cluster size is zero\n");
         fclose(qcowfile->fp);
+        qcowfile->fp = NULL;
         return VMI_FAILURE;
     }
     qcowfile->l2_entry_size = sizeof(uint64_t);
@@ -225,13 +232,16 @@ status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
     if (!qcowfile->l1_table) {
         errprint("VMI_ERROR: vbd_qcow2_open: failed to allocate memory for L1 table\n");
         fclose(qcowfile->fp);
+        qcowfile->fp = NULL;
         return VMI_FAILURE;
     }
     memset(qcowfile->l1_table, 0, qcowfile->header.l1_size * sizeof(uint64_t));
     if (VMI_FAILURE == vbd_qcow2_read_l1_table(qcowfile)) {
         errprint("VMI_ERROR: vbd_qcow2_open: failed to read L1 table\n");
         free(qcowfile->l1_table);
+        qcowfile->l1_table = NULL;
         fclose(qcowfile->fp);
+        qcowfile->fp = NULL;
         return VMI_FAILURE;
     }
 
@@ -315,7 +325,6 @@ int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsi
         }
         if (VMI_FAILURE == vbd_qcow2_open(&qcow_backingfile, qcowfile->backing_file)) {
             errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to access backing file\n");
-            vbd_qcow2_close(&qcow_backingfile);
             return -1;
         }
         if (VMI_FAILURE == vbd_qcow2_do_read(&qcow_backingfile, offset, num, buffer)) {
@@ -377,6 +386,7 @@ int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsi
         }
         if (VMI_FAILURE == vbd_qcow2_do_read(&qcow_backingfile, offset, num, buffer)) {
             errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to read backing file\n");
+            vbd_qcow2_close(&qcow_backingfile);
             free(l2_table);
             return -1;
         }
@@ -414,6 +424,7 @@ int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsi
         if (!uncompressed) {
             errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to allocate buffer for uncompressed cluster\n");
             free(l2_table);
+            free(cluster);
             return -1;
         }
 

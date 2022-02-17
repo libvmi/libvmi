@@ -99,7 +99,7 @@ int main(int argc, char **argv)
         goto free_setup_info;
     }
 
-    mode_t mask = umask(600);
+    mode_t mask = umask(0600);
     /* open the file for writing */
     FILE *f = fopen(filename, "wb");
     if (f == NULL) {
