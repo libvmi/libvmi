@@ -36,6 +36,14 @@
 
 #define SECTOR_SIZE 512
 
+void print_usage(char *arg0)
+{
+    printf("Usage: %s\n", arg0);
+    printf("\t -n/--name <domain name>\n");
+    printf("\t -d/--domid <domain id>\n\n");
+    printf("\t -f/--file <file name>\n");
+}
+
 int main(int argc, char **argv)
 {
     vmi_init_data_t *init_data = NULL;
@@ -49,10 +57,7 @@ int main(int argc, char **argv)
     unsigned char MBR[SECTOR_SIZE] = {0};
 
     if ( argc <= 2 ) {
-        printf("Usage: %s\n", argv[0]);
-        printf("\t -n/--name <domain name>\n");
-        printf("\t -d/--domid <domain id>\n\n");
-        printf("\t -f/--file <file name>");
+        print_usage(argv[0]);
         return false;
     }
 
@@ -83,6 +88,18 @@ int main(int argc, char **argv)
                 printf("Unknown option\n");
                 return false;
         }
+
+    if (!domain) {
+        fprintf(stderr, "You have to specify --name or --domid!\n");
+        print_usage(argv[0]);
+        return 1;
+    }
+
+    if (!filename) {
+        fprintf(stderr, "You have to specify --file to save result!\n");
+        print_usage(argv[0]);
+        return 1;
+    }
 
     vmi_mode_t mode;
     if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, VMI_INIT_DOMAINNAME, init_data, &mode) ) {
