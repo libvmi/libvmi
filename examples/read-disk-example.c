@@ -30,6 +30,8 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <config.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <libvmi/libvmi.h>
 
 #define SECTOR_SIZE 512
@@ -99,10 +101,9 @@ int main(int argc, char **argv)
         goto free_setup_info;
     }
 
-    mode_t mask = umask(0600);
     /* open the file for writing */
-    FILE *f = fopen(filename, "wb");
-    if (f == NULL) {
+    int fd = open(filename, O_CREAT | O_WRONLY, S_IRUSR);
+    if (fd == -1) {
         printf("Failed to open file for writing.\n");
         goto destroy_vmi;
     }
@@ -128,7 +129,7 @@ int main(int argc, char **argv)
 
         if (bootable) {
             if (VMI_SUCCESS == vmi_read_disk(vmi, devices_ids[i], 0, SECTOR_SIZE, MBR)) {
-                if (SECTOR_SIZE == fwrite(MBR, 1, SECTOR_SIZE, f)) {
+                if (SECTOR_SIZE == write(fd, MBR, SECTOR_SIZE)) {
                     printf("MBR successfuly dumped\n");
                     break;
                 }
@@ -148,7 +149,7 @@ resume_vm:
     vmi_resume_vm(vmi);
 
 close_file:
-    fclose(f);
+    close(fd);
 
 destroy_vmi:
     vmi_destroy(vmi);
