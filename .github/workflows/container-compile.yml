@@ -35,7 +35,7 @@ jobs:
       run: |
         yum update -y
         yum install -y centos-release-xen-412
-        yum install -y autoconf-archive flex bison json-c-devel xen-devel libvirt-devel fuse-devel clang gcc cmake git libtool glib2-devel file make
+        yum install -y autoconf-archive flex bison json-c-devel xen-devel libvirt-devel fuse-devel clang gcc cmake git libtool glib2-devel file make zlib-devel
 
     - name: Install libkvmi
       if: startsWith(matrix.container,'debian') || startsWith(matrix.container,'ubuntu')
