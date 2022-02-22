@@ -473,6 +473,13 @@ status_t vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsi
 
 /* Open and QEMU disk image in QCow2 format
  */
+#ifndef HAVE_ZLIB
+status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* UNUSED(backend_path), uint64_t UNUSED(offset), uint64_t UNUSED(count), void *UNUSED(buffer))
+{
+    errprint("VMI_ERROR: vbd_read_qcow2_disk: failed to read QCOW2 disk, ZLIB is required\n");
+    return VMI_FAILURE;
+}
+#else
 status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
 {
     QCowFile qcowfile;
@@ -491,3 +498,4 @@ status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* backend_pat
 
     return VMI_SUCCESS;
 }
+#endif
