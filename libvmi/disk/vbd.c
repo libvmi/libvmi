@@ -18,8 +18,6 @@
 * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <zlib.h>
-
 #include "private.h"
 #include "driver/xen/xen.h"
 #include "driver/xen/xen_private.h"
@@ -51,6 +49,8 @@ status_t vbd_read_raw_disk(vmi_instance_t UNUSED(vmi), const char* backend_path,
     return VMI_SUCCESS;
 }
 
+#ifdef HAVE_ZLIB
+#include <zlib.h>
 static int vbd_qcow2_uncompress_cluster(unsigned char *dest, size_t dest_size, unsigned char *src, size_t src_size)
 {
     int ret;
@@ -471,15 +471,6 @@ status_t vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsi
     return VMI_SUCCESS;
 }
 
-/* Open and QEMU disk image in QCow2 format
- */
-#ifndef HAVE_ZLIB
-status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* UNUSED(backend_path), uint64_t UNUSED(offset), uint64_t UNUSED(count), void *UNUSED(buffer))
-{
-    errprint("VMI_ERROR: vbd_read_qcow2_disk: failed to read QCOW2 disk, ZLIB is required\n");
-    return VMI_FAILURE;
-}
-#else
 status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
 {
     QCowFile qcowfile;
@@ -497,5 +488,14 @@ status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* backend_pat
     vbd_qcow2_close(&qcowfile);
 
     return VMI_SUCCESS;
+}
+#else
+
+/* Open and QEMU disk image in QCow2 format
+ */
+status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* UNUSED(backend_path), uint64_t UNUSED(offset), uint64_t UNUSED(count), void *UNUSED(buffer))
+{
+    errprint("VMI_ERROR: vbd_read_qcow2_disk: failed to read QCOW2 disk, ZLIB is required\n");
+    return VMI_FAILURE;
 }
 #endif

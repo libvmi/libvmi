@@ -145,31 +145,19 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvmi.pc
 
 AM_CPPFLAGS = -I$(top_srcdir)/libvmi
-if WITH_ZLIB
-    AM_CPPFLAGS += $(ZLIB_CFLAGS)
-endif
+AM_CPPFLAGS += $(ZLIB_CFLAGS)
 
 AM_CFLAGS = $(CFLAGS)
-if WITH_ZLIB
-    AM_CFLAGS += $(ZLIB_CFLAGS)
-endif
+AM_CFLAGS += $(ZLIB_CFLAGS)
 
 AM_YFLAGS = -y -d
 AM_LDFLAGS = $(LDFLAGS)
-if WITH_ZLIB
-    AM_LDFLAGS += $(ZLIB_LIBS)
-endif
+AM_LDFLAGS += $(ZLIB_LIBS)
 
 lib_LTLIBRARIES= libvmi/libvmi.la
 libvmi_libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
-libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS)
-if WITH_ZLIB
-    libvmi_libvmi_la_CFLAGS += $(ZLIB_CFLAGS)
-endif
-libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
-if WITH_ZLIB
-    libvmi_libvmi_la_LDFLAGS += $(ZLIB_LIBS)
-endif
+libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS) $(ZLIB_CFLAGS)
+libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) $(ZLIB_LIBS) -no-undefined
 
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
 
