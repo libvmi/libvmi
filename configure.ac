@@ -267,7 +267,7 @@ AM_CONDITIONAL([MAKE_TESTS], [test x$have_check = xyes])
 
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.16],[],[AC_MSG_ERROR(GLib 2.16 or newer not found. Install missing package and re-run)])
 PKG_CHECK_MODULES([JSONC], [json-c], [have_jsonc='yes'], [have_jsonc='no'])
-PKG_CHECK_MODULES([ZLIB], [zlib], [AC_DEFINE([HAVE_ZLIB], [1], [Found ZLIB])], [])
+PKG_CHECK_MODULES([ZLIB], [zlib], [AC_DEFINE([HAVE_ZLIB], [1], [Found ZLIB])], [AC_MSG_NOTICE(No zlib found)])
 AC_CHECK_LIB(json-c, json_object_get_uint64, [AC_DEFINE([JSONC_UINT64_SUPPORT], [1], [json-c supports unsigned 64-bit values])], [])
 
 [if test "$enable_xen" = "yes" || test "$enable_kvm" = "yes"]

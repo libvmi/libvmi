@@ -145,14 +145,11 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvmi.pc
 
 AM_CPPFLAGS = -I$(top_srcdir)/libvmi
-AM_CPPFLAGS += $(ZLIB_CFLAGS)
 
 AM_CFLAGS = $(CFLAGS)
-AM_CFLAGS += $(ZLIB_CFLAGS)
 
 AM_YFLAGS = -y -d
 AM_LDFLAGS = $(LDFLAGS)
-AM_LDFLAGS += $(ZLIB_LIBS)
 
 lib_LTLIBRARIES= libvmi/libvmi.la
 libvmi_libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
