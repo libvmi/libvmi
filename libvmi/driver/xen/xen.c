@@ -188,12 +188,10 @@ xen_get_vbd_state(
     xen_instance_t *xen = xen_get_instance(vmi);
     xs_transaction_t xth = XBT_NULL;
 
-    struct xs_handle *xsh = xen->libxsw.xs_open(0);
-
     gchar *domainID = g_strdup_printf("%"PRIu64, xen->domainid);
     gchar* tmp = g_strdup_printf("/local/domain/%s/device/vbd/%s/state", domainID, device_id);
 
-    char *state = xen->libxsw.xs_read(xsh, xth, tmp, &len);
+    char *state = xen->libxsw.xs_read(xen->xshandle, xth, tmp, &len);
     if (state != NULL) {
         if (!g_strcmp0(state, "1")) {
             result = true;
@@ -202,8 +200,7 @@ xen_get_vbd_state(
     }
     g_free(tmp);
     g_free(domainID);
-    if (xsh)
-        xen->libxsw.xs_close(xsh);
+
     return result;
 }
 #endif
@@ -229,14 +226,9 @@ static vbd_device_type_t xen_vbd_get_type(
     xen_instance_t *xen = xen_get_instance(vmi);
     xs_transaction_t xth = XBT_NULL;
 
-    struct xs_handle *xsh = xen->libxsw.xs_open(0);
-
-    if (!xsh)
-        return VBD_DEVICE_TYPE_UNKNOWN;
-
     gchar *key = g_strdup_printf("/local/domain/%"PRIu64"/device/vbd/%s/device-type", xen->domainid, device_id);
 
-    char *device_type = xen->libxsw.xs_read(xsh, xth, key, &len);
+    char *device_type = xen->libxsw.xs_read(xen->xshandle, xth, key, &len);
     if (!g_strcmp0(device_type, "disk")) {
         result = VBD_DEVICE_TYPE_DISK;
     } else if (!g_strcmp0(device_type, "cdrom")) {
@@ -247,8 +239,6 @@ static vbd_device_type_t xen_vbd_get_type(
 
     g_free(device_type);
     g_free(key);
-
-    xen->libxsw.xs_close(xsh);
 
     return result;
 }
@@ -278,18 +268,11 @@ static vbd_backend_t xen_vbd_get_backend(
     xen_instance_t *xen = xen_get_instance(vmi);
     xs_transaction_t xth = XBT_NULL;
 
-    struct xs_handle *xsh = xen->libxsw.xs_open(0);
-
-    if (!xsh) {
-        result.type = VBD_BACKEND_TYPE_UNKNOWN;
-        return result;
-    }
-
     gchar *vbd_backend = g_strdup_printf("/local/domain/%"PRIu64"/device/vbd/%s/backend", xen->domainid, device_id);
-    char *backend_path = xen->libxsw.xs_read(xsh, xth, vbd_backend, &len);
+    char *backend_path = xen->libxsw.xs_read(xen->xshandle, xth, vbd_backend, &len);
 
     gchar *backend_type = g_strdup_printf("%s/type", backend_path);
-    char *type = xen->libxsw.xs_read(xsh, xth, backend_type, &len);
+    char *type = xen->libxsw.xs_read(xen->xshandle, xth, backend_type, &len);
 
     if (!g_strcmp0(type, "qdisk")) {
         result.type = VBD_BACKEND_TYPE_QDISK;
@@ -300,7 +283,7 @@ static vbd_backend_t xen_vbd_get_backend(
     }
 
     gchar *backend_params = g_strdup_printf("%s/params", backend_path);
-    char *params = xen->libxsw.xs_read(xsh, xth, backend_params, &len);
+    char *params = xen->libxsw.xs_read(xen->xshandle, xth, backend_params, &len);
 
     switch (result.type) {
         case VBD_BACKEND_TYPE_QDISK:
@@ -318,7 +301,7 @@ static vbd_backend_t xen_vbd_get_backend(
     }
 
     gchar *backend_bootable = g_strdup_printf("%s/bootable", backend_path);
-    char *bootable = xen->libxsw.xs_read(xsh, XBT_NULL, backend_bootable, &len);
+    char *bootable = xen->libxsw.xs_read(xen->xshandle, XBT_NULL, backend_bootable, &len);
 
     if (!g_strcmp0(bootable, "1")) {
         result.bootable = true;
@@ -337,8 +320,6 @@ static vbd_backend_t xen_vbd_get_backend(
 
     g_free(backend_path);
     g_free(vbd_backend);
-
-    xen->libxsw.xs_close(xsh);
 
     return result;
 }
@@ -3054,13 +3035,8 @@ xen_get_disks(
     xen_instance_t *xen = xen_get_instance(vmi);
     xs_transaction_t xth = XBT_NULL;
 
-    struct xs_handle *xsh = xen->libxsw.xs_open(0);
-
-    if (!xsh)
-        return NULL;
-
     gchar *vbd = g_strdup_printf("/local/domain/%"PRIu64"/device/vbd", xen->domainid);
-    char **vbds = xen->libxsw.xs_directory(xsh, xth, vbd, &vbd_num);
+    char **vbds = xen->libxsw.xs_directory(xen->xshandle, xth, vbd, &vbd_num);
 
     tmp = malloc(sizeof(char*) * vbd_num);
 
@@ -3089,8 +3065,6 @@ xen_get_disks(
     free(tmp);
     free(vbds);
     g_free(vbd);
-    if (xsh)
-        xen->libxsw.xs_close(xsh);
 
     return result;
 }
