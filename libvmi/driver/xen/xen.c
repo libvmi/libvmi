@@ -33,7 +33,7 @@
 #include "driver/driver_interface.h"
 #include "driver/memory_cache.h"
 #include "driver/xen/altp2m_private.h"
-#include "disk/vbd_private.h"
+#include "disk/vbd.h"
 
 //----------------------------------------------------------------------------
 // Helper functions
