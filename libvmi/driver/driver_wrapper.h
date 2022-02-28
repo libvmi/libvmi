@@ -741,5 +741,54 @@ driver_set_access_listener_required(
     return vmi->driver.set_access_required_ptr (vmi, required);
 }
 
+static inline status_t
+driver_read_disk(
+    vmi_instance_t vmi,
+    const char *device_id,
+    uint64_t offset,
+    uint64_t count,
+    void *buffer)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.read_disk_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: read_disk_ptr function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.read_disk_ptr(vmi, device_id, offset, count, buffer);
+}
+
+static inline char**
+driver_get_disks(
+    vmi_instance_t vmi,
+    unsigned int *num)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.get_disks_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: get_disks_ptr function not implemented.\n");
+        return NULL;
+    }
+#endif
+
+    return vmi->driver.get_disks_ptr(vmi, num);
+}
+
+static inline status_t
+driver_disk_is_bootable(
+    vmi_instance_t vmi,
+    const char *device_id,
+    bool *bootable)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.disk_is_bootable_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_disk_is_bootable function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.disk_is_bootable_ptr(vmi, device_id, bootable);
+}
+
 #endif /* DRIVER_WRAPPER_H */
 

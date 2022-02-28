@@ -17,7 +17,8 @@ h_private = \
     libvmi/os/os_interface.h \
     libvmi/driver/driver_interface.h \
     libvmi/driver/driver_wrapper.h \
-    libvmi/driver/memory_cache.h
+    libvmi/driver/memory_cache.h \
+    libvmi/disk/vbd_private.h
 
 c_sources = \
     libvmi/accessors.c \
@@ -38,7 +39,8 @@ c_sources = \
     libvmi/arch/ept.c \
     libvmi/driver/driver_interface.c \
     libvmi/driver/memory_cache.c \
-    libvmi/os/os_interface.c
+    libvmi/os/os_interface.c \
+    libvmi/disk/vbd.c
 
 if ENABLE_ADDRESS_CACHE
     c_sources   += libvmi/cache.c
@@ -143,13 +145,17 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvmi.pc
 
 AM_CPPFLAGS = -I$(top_srcdir)/libvmi
+
+AM_CFLAGS = $(CFLAGS)
+
 AM_YFLAGS = -y -d
 AM_LDFLAGS = $(LDFLAGS)
 
 lib_LTLIBRARIES= libvmi/libvmi.la
 libvmi_libvmi_la_SOURCES= $(h_public) $(h_private) $(drivers) $(os) $(c_sources)
-libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS)
-libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) -no-undefined
+libvmi_libvmi_la_CFLAGS= -fvisibility=hidden $(GLIB_CFLAGS) $(JSONC_CFLAGS) $(ZLIB_CFLAGS)
+libvmi_libvmi_la_LDFLAGS= $(GLIB_LIBS) $(JSONC_LIBS) $(ZLIB_LIBS) -no-undefined
+
 libvmi_libvmi_la_LDFLAGS+= -version-info $(VERSION)
 
 if WITH_KVM
@@ -243,7 +249,8 @@ endif
                        examples/interrupt-event-example \
                        examples/step-event-example \
                        examples/xen-emulate-response \
-                       examples/breakpoint-emulate-example
+                       examples/breakpoint-emulate-example \
+                       examples/read-disk-example
 
     examples_map_symbol_SOURCES = examples/map-symbol.c
     examples_map_addr_SOURCES = examples/map-addr.c
@@ -254,6 +261,7 @@ endif
     examples_step_event_example_SOURCES = examples/step-event-example.c
     examples_xen_emulate_response_SOURCES = examples/xen-emulate-response.c
     examples_breakpoint_emulate_example_SOURCES = examples/breakpoint-emulate-example.c
+    examples_read_disk_example_SOURCES = examples/read-disk-example.c
 
     noinst_PROGRAMS += examples/va-pages
     examples_va_pages_SOURCES = examples/va-pages.c

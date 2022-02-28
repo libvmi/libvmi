@@ -37,6 +37,39 @@ static const char RELEASE_TOKEN[] = "release";
 static const char INTRODUCE_TOKEN[] = "introduce";
 #endif
 
+typedef enum vbd_device_type {
+    VBD_DEVICE_TYPE_DISK    = 1,
+    VBD_DEVICE_TYPE_CDROM   = 2,
+    VBD_DEVICE_TYPE_UNKNOWN = -1
+} vbd_device_type_t;
+
+typedef enum vbd_backend_type {
+    VBD_BACKEND_TYPE_PHY     = 1,
+    VBD_BACKEND_TYPE_QDISK   = 2,
+    VBD_BACKEND_TYPE_UNKNOWN = -1
+} vbd_backend_type_t;
+
+typedef enum vbd_backend_format {
+    VBD_BACKEND_FORMAT_RAW     = 1,
+    VBD_BACKEND_FORMAT_QCOW2   = 2,
+    VBD_BACKEND_FORMAT_VHD     = 3,
+    VBD_BACKEND_FORMAT_UNKNOWN = -1
+} vbd_backend_format_t;
+
+typedef struct {
+    vbd_backend_type_t    type;                   // phy, qdisk
+    vbd_backend_format_t  format;                 // raw, qcow2, vhd
+    bool                  bootable;               // is device bootable, according to XenStore item property
+    char                  path[0x1000];           // xs path /local/domain/<dom0_ID>/backend/<type>/<domId>/<devId>
+} vbd_backend_t;
+
+typedef struct {
+    vbd_device_type_t  type;                      // cdrom, disk...
+    vbd_backend_t      backend;                   // host device or file
+    char               devId[0x100];              // numeric str
+    char               path[0x1000];              // xs path - /local/domain/<domId>/device/vbd/<devId>
+} vbd_t;
+
 struct hvm_hw_cpu_xsave_46 {
     uint64_t xfeature_mask;        /* Ignored */
     uint64_t xcr0;                 /* Updated by XSETBV */
@@ -174,6 +207,19 @@ status_t xen_set_domain_debug_control(
 status_t xen_set_access_required(
     vmi_instance_t vmi,
     bool required);
+status_t xen_read_disk(
+    vmi_instance_t vmi,
+    const char *device_id,
+    uint64_t offset,
+    uint64_t count,
+    void *buffer);
+char **xen_get_disks(
+    vmi_instance_t vmi,
+    unsigned int *num);
+status_t xen_disk_is_bootable(
+    vmi_instance_t vmi,
+    const char *device_id,
+    bool *bootable);
 
 static inline status_t
 driver_xen_setup(vmi_instance_t vmi)
@@ -208,6 +254,9 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.pause_vm_ptr = &xen_pause_vm;
     driver.resume_vm_ptr = &xen_resume_vm;
     driver.set_access_required_ptr = &xen_set_access_required;
+    driver.read_disk_ptr = &xen_read_disk;
+    driver.get_disks_ptr = &xen_get_disks;
+    driver.disk_is_bootable_ptr = &xen_disk_is_bootable;
     vmi->driver = driver;
     return VMI_SUCCESS;
 }

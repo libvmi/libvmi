@@ -81,6 +81,10 @@ Displays the list of loaded modules, for Windows and linux.
 
 A simple MSR event interception.
 
+## read-disk-example
+
+Example reads bootable disk zero sector (MBR) and saves to file
+
 ## vmi-process-list
 
 Displays the VM's process list.

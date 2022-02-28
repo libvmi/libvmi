@@ -2664,6 +2664,50 @@ const char *vmi_get_rekall_path(
 const char *vmi_get_os_profile_path(
     vmi_instance_t vmi) NOEXCEPT;
 
+/**
+ * Only for Xen-based VMs. Reads count bytes from disk (not cdrom) identified by device_id, which
+ * can be retrieved with vmi_get_disks()
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] device_id vbd device id
+ * @param[in] offset Starting disk offset to read from
+ * @param[in] count Number of bytes to read
+ * @param[out] buffer Output buffer for storing read data. Must be allocated by caller
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_read_disk(
+    vmi_instance_t vmi,
+    const char *device_id,
+    uint64_t offset,
+    uint64_t count,
+    void *buffer) NOEXCEPT;
+
+/**
+ * Only for Xen-based VMs. Retrieves list of available hard disks on VM. Caller must
+ * free() returned buffer after usage.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[out] num Pointer to number of returned items
+ * @return Array pointers, consisting of num elements or NULL in case of error. Each element represents a string
+ * disk identifier
+ */
+char **vmi_get_disks(
+    vmi_instance_t vmi,
+    unsigned int *num) NOEXCEPT;
+
+/**
+ * Only for Xen-based VMs. Checks if disk identified by device_id is bootable.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] device_id Device identifier
+ * @param[out] num Pointer to number of returned items
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_disk_is_bootable(
+    vmi_instance_t vmi,
+    const char *device_id,
+    bool *bootable) NOEXCEPT;
+
 #pragma GCC visibility pop
 
 #ifdef __cplusplus
