@@ -28,9 +28,9 @@
 #ifndef VBD_PRIVATE_H
 #define VBD_PRIVATE_H
 
-#include "private.h"
-
 #define SECTOR_SIZE      0x00000200
+
+#ifdef HAVE_ZLIB
 
 #define QCOW2_MAGIC (('Q' << 24) | ('F' << 16) | ('I' << 8) | 0xfb)
 
@@ -118,11 +118,10 @@ typedef struct QCowFile {
     char     backing_file[0x1000];
 } QCowFile;
 
-status_t vbd_read_raw_disk(vmi_instance_t vmi, const char* backend_path, uint64_t offset, uint64_t count, void *buffer);
-status_t vbd_read_qcow2_disk(vmi_instance_t vmi, const char* backend_path, uint64_t offset, uint64_t count, void *buffer);
-status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename);
-status_t vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsigned char *buffer);
-int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsigned char *buffer);
-status_t vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uint64_t *table);
+static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename);
+static status_t vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsigned char *buffer);
+static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsigned char *buffer);
+static status_t vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uint64_t *table);
+#endif
 
 #endif

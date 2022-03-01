@@ -23,34 +23,9 @@
 #include "driver/xen/xen_private.h"
 #include "disk/vbd_private.h"
 
-/* Open and read physical (or logical) drive as file.
-*/
-status_t vbd_read_raw_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
-{
-    FILE *f;
-    size_t bytes_read;
-
-    f = fopen(backend_path, "rb");
-    if (!f) {
-        errprint("VMI_ERROR: vbd_read_raw_disk: failed to open backend path\n");
-        return VMI_FAILURE;
-    }
-
-    fseek(f, offset, SEEK_SET);
-    bytes_read = fread(buffer, 1, count, f);
-    if (bytes_read != count || bytes_read == 0) {
-        errprint("VMI_ERROR: vbd_read_raw_disk: failed to open backend path\n");
-        fclose(f);
-        return VMI_FAILURE;
-    }
-
-    fclose(f);
-
-    return VMI_SUCCESS;
-}
-
 #ifdef HAVE_ZLIB
 #include <zlib.h>
+
 static int vbd_qcow2_uncompress_cluster(unsigned char *dest, size_t dest_size, unsigned char *src, size_t src_size)
 {
     int ret;
@@ -154,7 +129,7 @@ static status_t vbd_qcow2_read_l1_table(QCowFile *qcowfile)
  * https://github.com/qemu/qemu/blob/master/docs/interop/qcow2.txt
  * https://people.gnome.org/~markmc/qcow-image-format.html
  */
-status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
+static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
 {
     strcpy(qcowfile->filename, filename);
     qcowfile->fp = fopen(filename, "rb");
@@ -253,7 +228,7 @@ status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
 }
 
 /* Read L2 table and convert entries from Big Endian */
-status_t vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uint64_t *table)
+static status_t vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uint64_t *table)
 {
     uint64_t *tmp = malloc(qcowfile->cluster_size);
     if (!tmp) {
@@ -275,8 +250,29 @@ status_t vbd_qcow2_read_l2_table(QCowFile *qcowfile, uint64_t l2_offset, uint64_
     return VMI_SUCCESS;
 }
 
+/* Read data from disk chunk by chunk. */
+static status_t vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsigned char *buffer)
+{
+    unsigned char *p_buf = buffer;
+    uint64_t left = num;
+    int bytes_read = 0;
+    uint64_t curr_offset = offset;
+
+    while (left > 0) {
+        bytes_read = vbd_qcow2_read_chunk(qcowfile, curr_offset, left, p_buf);
+        if ( bytes_read < 0 || (unsigned int)bytes_read > qcowfile->cluster_size) {
+            return VMI_FAILURE;
+        }
+        p_buf += bytes_read;
+        curr_offset += bytes_read;
+        left -= bytes_read;
+    }
+
+    return VMI_SUCCESS;
+}
+
 /* Perform reading https://github.com/qemu/qemu/blob/9aef0954195cc592e86846dbbe7f3c2c5603690a/docs/interop/qcow2.txt#L506 */
-int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsigned char *buffer)
+static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsigned char *buffer)
 {
     unsigned int l1_idx, l2_idx, offset_in_cluster;
     uint64_t  cluster_descriptor;
@@ -450,27 +446,6 @@ int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsi
     return num_bytes;
 }
 
-/* Read data from disk chunk by chunk. */
-status_t vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t num, unsigned char *buffer)
-{
-    unsigned char *p_buf = buffer;
-    uint64_t left = num;
-    int bytes_read = 0;
-    uint64_t curr_offset = offset;
-
-    while (left > 0) {
-        bytes_read = vbd_qcow2_read_chunk(qcowfile, curr_offset, left, p_buf);
-        if ( bytes_read < 0 || (unsigned int)bytes_read > qcowfile->cluster_size) {
-            return VMI_FAILURE;
-        }
-        p_buf += bytes_read;
-        curr_offset += bytes_read;
-        left -= bytes_read;
-    }
-
-    return VMI_SUCCESS;
-}
-
 status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
 {
     QCowFile qcowfile;
@@ -489,13 +464,31 @@ status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* backend_pat
 
     return VMI_SUCCESS;
 }
-#else
-
-/* Open and QEMU disk image in QCow2 format
- */
-status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* UNUSED(backend_path), uint64_t UNUSED(offset), uint64_t UNUSED(count), void *UNUSED(buffer))
-{
-    errprint("VMI_ERROR: vbd_read_qcow2_disk: failed to read QCOW2 disk, ZLIB is required\n");
-    return VMI_FAILURE;
-}
 #endif
+
+/*
+ * Open and read physical (or logical) drive as file.
+ */
+status_t vbd_read_raw_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
+{
+    FILE *f;
+    size_t bytes_read;
+
+    f = fopen(backend_path, "rb");
+    if (!f) {
+        errprint("VMI_ERROR: vbd_read_raw_disk: failed to open backend path\n");
+        return VMI_FAILURE;
+    }
+
+    fseek(f, offset, SEEK_SET);
+    bytes_read = fread(buffer, 1, count, f);
+    if (bytes_read != count || bytes_read == 0) {
+        errprint("VMI_ERROR: vbd_read_raw_disk: failed to open backend path\n");
+        fclose(f);
+        return VMI_FAILURE;
+    }
+
+    fclose(f);
+
+    return VMI_SUCCESS;
+}
