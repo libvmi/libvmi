@@ -90,6 +90,7 @@ typedef struct vm_event_compat {
         struct vm_event_debug_6               debug_exception;
         struct vm_event_cpuid                 cpuid;
         struct vm_event_interrupt_x86         x86_interrupt;
+        struct vm_event_vmexit                vmexit;
     };
 
     union {
@@ -160,6 +161,8 @@ static const unsigned int event_response_conversion[] = {
     [VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT] = VM_EVENT_FLAG_GET_NEXT_INTERRUPT,
     [VMI_EVENT_RESPONSE_NEXT_SLAT_ID] = VM_EVENT_FLAG_FAST_SINGLESTEP,
     [VMI_EVENT_RESPONSE_RESET_VMTRACE] = VM_EVENT_FLAG_RESET_VMTRACE,
+    [VMI_EVENT_RESPONSE_RESET_FORK_MEM] = VM_EVENT_FLAG_RESET_FORK_MEMORY,
+    [VMI_EVENT_RESPONSE_RESET_FORK_STATE] = VM_EVENT_FLAG_RESET_FORK_STATE,
 };
 
 static inline status_t

@@ -69,6 +69,7 @@ typedef uint16_t vmi_event_type_t;
 #define VMI_EVENT_DESCRIPTOR_ACCESS 9   /**< A descriptor table register was accessed */
 #define VMI_EVENT_FAILED_EMULATION  10  /**< Emulation failed when requested by VMI_EVENT_RESPONSE_EMULATE */
 #define VMI_EVENT_DOMAIN_WATCH      11  /**< Watch create/destroy events */
+#define VMI_EVENT_VMEXIT            12  /**< VMEXIT */
 
 /**
  * Max number of vcpus we can set single step on at one time for a domain
@@ -422,6 +423,12 @@ typedef struct desriptor_event {
     uint8_t _pad2[6];
 } descriptor_event_t;
 
+typedef struct vmexit_event {
+    uint8_t sync;           /* IN */
+    uint64_t reason;        /* OUT */
+    uint64_t qualification; /* OUT */
+} vmexit_event_t;
+
 struct vmi_event;
 typedef struct vmi_event vmi_event_t;
 
@@ -444,7 +451,9 @@ typedef uint32_t event_response_flags_t;
 #define VMI_EVENT_RESPONSE_GET_NEXT_INTERRUPT   (1u << 9)
 #define VMI_EVENT_RESPONSE_NEXT_SLAT_ID         (1u << 10)
 #define VMI_EVENT_RESPONSE_RESET_VMTRACE        (1u << 11)
-#define __VMI_EVENT_RESPONSE_MAX                11
+#define VMI_EVENT_RESPONSE_RESET_FORK_STATE     (1u << 12)
+#define VMI_EVENT_RESPONSE_RESET_FORK_MEM       (1u << 13)
+#define __VMI_EVENT_RESPONSE_MAX                13
 
 /**
  * Bitmap holding event_reponse_flags_t values returned by callback
@@ -536,6 +545,7 @@ struct vmi_event {
         debug_event_t debug_event;
         descriptor_event_t descriptor_event;
         watch_domain_event_t watch_event;
+        vmexit_event_t vmexit_event;
     };
 
     /*

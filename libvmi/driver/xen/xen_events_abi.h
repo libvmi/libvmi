@@ -95,6 +95,8 @@ typedef enum {
 #define VM_EVENT_FLAG_FAST_SINGLESTEP    (1 << 11)
 #define VM_EVENT_FLAG_NESTED_P2M         (1 << 12)
 #define VM_EVENT_FLAG_RESET_VMTRACE      (1 << 13)
+#define VM_EVENT_FLAG_RESET_FORK_STATE   (1 << 14)
+#define VM_EVENT_FLAG_RESET_FORK_MEMORY  (1 << 15)
 
 #define VM_EVENT_REASON_UNKNOWN                 0
 #define VM_EVENT_REASON_MEM_ACCESS              1
@@ -111,7 +113,8 @@ typedef enum {
 #define VM_EVENT_REASON_INTERRUPT               12
 #define VM_EVENT_REASON_DESCRIPTOR_ACCESS       13
 #define VM_EVENT_REASON_EMUL_UNIMPLEMENTED      14
-#define __VM_EVENT_REASON_MAX                   15
+#define VM_EVENT_REASON_VMEXIT                  15
+#define __VM_EVENT_REASON_MAX                   16
 
 #define VM_EVENT_X86_CR0    0
 #define VM_EVENT_X86_CR3    1
@@ -475,6 +478,15 @@ struct vm_event_interrupt_x86 {
     uint64_t cr2;
 };
 
+struct vm_event_vmexit {
+    struct {
+        struct {
+            uint64_t reason;
+            uint64_t qualification;
+        } vmx;
+    } arch;
+};
+
 typedef struct vm_event_st_1 {
     uint32_t version;
     uint32_t flags;
@@ -693,6 +705,7 @@ typedef struct vm_event_st_7 {
         struct vm_event_debug_6               software_breakpoint;
         struct vm_event_debug_6               debug_exception;
         struct vm_event_cpuid                 cpuid;
+        struct vm_event_vmexit                vmexit;
         union {
             struct vm_event_interrupt_x86     x86;
         } interrupt;

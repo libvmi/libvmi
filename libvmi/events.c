@@ -410,6 +410,19 @@ status_t register_cpuid_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
+status_t register_vmexit_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( !vmi->vmexit_event ) {
+        rc = driver_set_vmexit_event(vmi, 1, event->vmexit_event.sync);
+        if ( VMI_SUCCESS == rc )
+            vmi->vmexit_event = event;
+    };
+
+    return rc;
+}
+
 status_t register_debug_event(vmi_instance_t vmi, vmi_event_t *event)
 {
     status_t rc = VMI_FAILURE;
@@ -831,6 +844,9 @@ vmi_register_event(
             break;
         case VMI_EVENT_DOMAIN_WATCH:
             rc = register_watch_domain_event(vmi, event);
+            break;
+        case VMI_EVENT_VMEXIT:
+            rc = register_vmexit_event(vmi, event);
             break;
         default:
             dbprint(VMI_DEBUG_EVENTS, "Unknown event type: %d\n", event->type);
