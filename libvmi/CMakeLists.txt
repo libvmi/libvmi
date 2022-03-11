@@ -166,7 +166,6 @@ endif ()
 
 add_subdirectory(driver)
 add_subdirectory(os)
-add_subdirectory(disk)
 
 
 if (ENABLE_XEN)
