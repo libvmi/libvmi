@@ -63,6 +63,7 @@
 
 #include "arch/intel.h"
 #include "xen_events_abi.h"
+#include "xs_events.h"
 
 /*
  * We use the following structure to map all events to regardless
@@ -139,6 +140,10 @@ typedef struct {
 
     status_t (*process_requests)(vmi_instance_t vmi, uint32_t *requests_processed);
     status_t (*process_event[__VM_EVENT_REASON_MAX])(vmi_instance_t vmi, vm_event_compat_t *vmec);
+
+#ifdef HAVE_LIBXENSTORE
+    status_t (*process_xs_event[__XS_EVENT_REASON_MAX])(vmi_instance_t vmi);
+#endif
 
 } xen_events_t;
 

@@ -111,8 +111,7 @@ typedef enum {
 #define VM_EVENT_REASON_INTERRUPT               12
 #define VM_EVENT_REASON_DESCRIPTOR_ACCESS       13
 #define VM_EVENT_REASON_EMUL_UNIMPLEMENTED      14
-#define XS_EVENT_REASON_DOMAIN_WATCH            15
-#define __VM_EVENT_REASON_MAX                   16
+#define __VM_EVENT_REASON_MAX                   15
 
 #define VM_EVENT_X86_CR0    0
 #define VM_EVENT_X86_CR3    1
