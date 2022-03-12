@@ -1203,8 +1203,7 @@ static int check_domain_shutdown(
     return 1;
 }
 
-static
-status_t process_domain_watch(vmi_instance_t vmi, vm_event_compat_t* UNUSED(vmec))
+static status_t process_domain_watch(vmi_instance_t vmi)
 {
     xen_instance_t *xen = xen_get_instance(vmi);
     unsigned int num;
@@ -3263,7 +3262,7 @@ status_t xen_events_listen(vmi_instance_t vmi, uint32_t timeout)
 #ifdef HAVE_LIBXENSTORE
     if ( (xe->fd[1].revents & POLLIN) && (vmi->init_flags & VMI_INIT_DOMAINWATCH) ) {
         /* We have a domain watch event */
-        vrc = xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH](vmi, NULL);
+        vrc = xe->process_xs_event[XS_EVENT_REASON_DOMAIN_WATCH](vmi);
     }
 #endif
 
@@ -3375,7 +3374,7 @@ status_t xen_domainwatch_init_events(
     xe->fd[0].fd = -1; //ignore this fd
     *(uint16_t *)&xe->fd_size = 2;
 
-    xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
+    xe->process_xs_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
     vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
 #endif
 
@@ -3517,7 +3516,7 @@ status_t xen_init_events(
 
 #ifdef HAVE_LIBXENSTORE
     if ( !xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] )
-        xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
+        xe->process_xs_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
     if ( !vmi->driver.set_domain_watch_event_ptr )
         vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
 #endif
