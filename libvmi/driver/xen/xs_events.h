@@ -23,6 +23,6 @@
 
 #define XS_EVENT_REASON_UNKNOWN                 0
 #define XS_EVENT_REASON_DOMAIN_WATCH            1
-#define __XS_EVENT_REASON_MAX
+#define __XS_EVENT_REASON_MAX                   2
 
 #endif
