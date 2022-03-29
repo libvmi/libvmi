@@ -105,7 +105,7 @@ status_t events_init(vmi_instance_t vmi)
 
     vmi->interrupt_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
     vmi->mem_events_on_gfn = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
-    vmi->mem_events_generic = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
+    vmi->mem_events_generic = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->reg_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
     vmi->msr_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
     vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
@@ -310,15 +310,12 @@ static status_t register_mem_event_generic(vmi_instance_t vmi, vmi_event_t *even
         return VMI_FAILURE;
     }
 
-    if ( g_hash_table_lookup(vmi->mem_events_generic, &event->mem_event.in_access) ) {
+    if ( g_hash_table_lookup(vmi->mem_events_generic, GUINT_TO_POINTER(event->mem_event.in_access)) ) {
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered for this tpye of access violation\n");
         return VMI_FAILURE;
     }
 
-    gint *access = g_slice_new(gint);
-    *access = event->mem_event.in_access;
-
-    g_hash_table_insert_compat(vmi->mem_events_generic, access, event);
+    g_hash_table_insert_compat(vmi->mem_events_generic, GUINT_TO_POINTER(event->mem_event.in_access), event);
     return VMI_SUCCESS;
 }
 
@@ -547,7 +544,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     if ( event->mem_event.generic ) {
         /* No point if we are shutting down because we will just destroy the table anyway */
         if ( !vmi->shutting_down )
-            g_hash_table_remove(vmi->mem_events_generic, &event->mem_event.in_access);
+            g_hash_table_remove(vmi->mem_events_generic, GUINT_TO_POINTER(event->mem_event.in_access));
 
         return VMI_SUCCESS;
     }
@@ -670,7 +667,7 @@ vmi_event_t *vmi_get_mem_event(vmi_instance_t vmi, addr_t gfn, vmi_mem_access_t 
     if (!vmi)
         return NULL;
 
-    vmi_event_t *ret = g_hash_table_lookup(vmi->mem_events_generic, &access);
+    vmi_event_t *ret = g_hash_table_lookup(vmi->mem_events_generic, GUINT_TO_POINTER(access));
     if ( ret )
         return ret;
 
@@ -696,7 +693,7 @@ vmi_set_mem_event(
         vmi_event_t *event = NULL;
 
         ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
-            if ( (*key) & access ) {
+            if ( GPOINTER_TO_UINT(key) & access ) {
                 handler_found = 1;
                 break;
             }

@@ -944,7 +944,7 @@ status_t process_mem(vmi_instance_t vmi, vm_event_compat_t *vmec)
         bool cb_issued = 0;
 
         ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
-            if ( (*key) & out_access ) {
+            if ( GPOINTER_TO_UINT(key) & out_access ) {
                 event->x86_regs = &vmec->data.regs.x86;
                 event->slat_id = vmec->altp2m_idx;
                 event->vcpu_id = vmec->vcpu_id;

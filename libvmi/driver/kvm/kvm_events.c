@@ -513,7 +513,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         bool cb_issued = 0;
 
         ghashtable_foreach(vmi->mem_events_generic, i, &key, &libvmi_event) {
-            if ( (*key) & out_access ) {
+            if ( GPOINTER_TO_UINT(key) & out_access ) {
                 // fill libvmi_event struct
                 x86_registers_t regs = {0};
                 libvmi_event->x86_regs = &regs;
