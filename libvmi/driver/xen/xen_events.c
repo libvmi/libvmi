@@ -916,7 +916,7 @@ status_t process_mem(vmi_instance_t vmi, vm_event_compat_t *vmec)
     if (vmec->mem_access.flags & MEM_ACCESS_X) out_access |= VMI_MEMACCESS_X;
 
     if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
-        event = g_hash_table_lookup(vmi->mem_events_on_gfn, &vmec->mem_access.gfn);
+        event = g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(vmec->mem_access.gfn));
 
         if (event && (event->mem_event.in_access & out_access) ) {
             event->x86_regs = &vmec->data.regs.x86;

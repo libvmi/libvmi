@@ -104,7 +104,7 @@ status_t events_init(vmi_instance_t vmi)
     };
 
     vmi->interrupt_events = g_hash_table_new(g_direct_hash, g_direct_equal);
-    vmi->mem_events_on_gfn = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
+    vmi->mem_events_on_gfn = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->mem_events_generic = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->reg_events = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->msr_events = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -324,7 +324,7 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
     }
 
     // Page already has an event registered
-    if ( g_hash_table_lookup(vmi->mem_events_on_gfn, &event->mem_event.gfn) ) {
+    if ( g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(event->mem_event.gfn)) ) {
         dbprint(VMI_DEBUG_EVENTS,
                 "An event is already registered on this page: %"PRIu64"\n",
                 event->mem_event.gfn);
@@ -334,7 +334,7 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
     if (VMI_SUCCESS == driver_set_mem_access(vmi, event->mem_event.gfn,
             event->mem_event.in_access,
             event->slat_id)) {
-        g_hash_table_insert_compat(vmi->mem_events_on_gfn, g_slice_dup(addr_t, &event->mem_event.gfn), event);
+        g_hash_table_insert_compat(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(event->mem_event.gfn), event);
 
         if ( event->mem_event.gfn > (vmi->max_physical_address >> vmi->page_shift) )
             vmi->max_physical_address = event->mem_event.gfn << vmi->page_shift;
@@ -544,7 +544,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
             (rc == VMI_FAILURE) ? "failed" : "success");
 
     if ( !vmi->shutting_down && rc == VMI_SUCCESS )
-        g_hash_table_remove(vmi->mem_events_on_gfn, &event->mem_event.gfn);
+        g_hash_table_remove(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(event->mem_event.gfn));
 
     return rc;
 
@@ -629,7 +629,7 @@ status_t swap_events(vmi_instance_t vmi, vmi_event_t *swap_from, vmi_event_t *sw
     if (rc == VMI_FAILURE)
         return rc;
 
-    g_hash_table_replace(vmi->mem_events_on_gfn, g_slice_dup(addr_t, &swap_to->mem_event.gfn), swap_to);
+    g_hash_table_replace(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(swap_to->mem_event.gfn), swap_to);
 
     if ( free_routine )
         free_routine(swap_from, rc);
@@ -657,7 +657,7 @@ vmi_event_t *vmi_get_mem_event(vmi_instance_t vmi, addr_t gfn, vmi_mem_access_t 
     if ( ret )
         return ret;
 
-    return g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
+    return g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(gfn));
 }
 
 status_t
@@ -717,7 +717,7 @@ vmi_swap_events(
 #endif
 
     if (swap_from->type == swap_to->type && swap_from->type == VMI_EVENT_MEMORY) {
-        if (!g_hash_table_lookup(vmi->mem_events_on_gfn, &swap_from->mem_event.gfn)) {
+        if (!g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(swap_from->mem_event.gfn))) {
             dbprint(VMI_DEBUG_EVENTS, "The event to be swapped is not registered.\n");
             return VMI_FAILURE;
         }

@@ -468,7 +468,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     // lookup vmi_event
     //      standard ?
     if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
-        libvmi_event = g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
+        libvmi_event = g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(gfn));
         if (libvmi_event && (libvmi_event->mem_event.in_access & out_access)) {
             // fill libvmi_event struct
             x86_registers_t regs = {0};
