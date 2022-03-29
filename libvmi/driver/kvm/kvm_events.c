@@ -271,8 +271,7 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     }
 
     // lookup vmi event
-    gint key = (gint)libvmi_reg;
-    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->reg_events, &key);
+    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(libvmi_reg));
     if (!libvmi_event) {
         errprint("%s: No control register event handler is registered in LibVMI\n", __func__);
         return VMI_FAILURE;
@@ -329,20 +328,17 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     vmi_event_t *libvmi_event = NULL;
     if (g_hash_table_size(vmi->msr_events)) {
         // test for MSR_ANY in msr_events
-        gint key = kvmi_event->event.msr.msr;
-        libvmi_event = g_hash_table_lookup(vmi->msr_events, &key);
+        libvmi_event = g_hash_table_lookup(vmi->msr_events, GSIZE_TO_POINTER(kvmi_event->event.msr.msr));
     }
 
     if (!libvmi_event && g_hash_table_size(vmi->reg_events)) {
         // test for MSR_xxx in reg_events
-        gint key = kvmi_event->event.msr.msr;
-        libvmi_event = g_hash_table_lookup(vmi->reg_events, &key);
+        libvmi_event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(kvmi_event->event.msr.msr));
     }
 
     if (!libvmi_event) {
         // test for MSR_ALL in reg_events
-        gint key = MSR_ALL;
-        libvmi_event = g_hash_table_lookup(vmi->reg_events, &key);
+        libvmi_event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(MSR_ALL));
         if (libvmi_event) // fill msr field
             libvmi_event->reg_event.msr = kvmi_event->event.msr.msr;
     }
@@ -399,8 +395,7 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     dbprint(VMI_DEBUG_KVM, "--Received interrupt event\n");
 
     // lookup vmi_event
-    gint key = INT3;
-    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->interrupt_events, &key);
+    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(INT3));
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !libvmi_event ) {
         errprint("%s error: no interrupt event handler is registered in LibVMI\n", __func__);
@@ -473,7 +468,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     // lookup vmi_event
     //      standard ?
     if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
-        libvmi_event = g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
+        libvmi_event = g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(gfn));
         if (libvmi_event && (libvmi_event->mem_event.in_access & out_access)) {
             // fill libvmi_event struct
             x86_registers_t regs = {0};
@@ -513,7 +508,7 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
         bool cb_issued = 0;
 
         ghashtable_foreach(vmi->mem_events_generic, i, &key, &libvmi_event) {
-            if ( (*key) & out_access ) {
+            if ( GPOINTER_TO_UINT(key) & out_access ) {
                 // fill libvmi_event struct
                 x86_registers_t regs = {0};
                 libvmi_event->x86_regs = &regs;
@@ -645,8 +640,7 @@ process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 
     if (!vmi->shutting_down) {
         // lookup vmi_event
-        gint key = (gint)kvmi_event->event.common.vcpu;
-        libvmi_event = g_hash_table_lookup(vmi->ss_events, &key);
+        libvmi_event = g_hash_table_lookup(vmi->ss_events, GUINT_TO_POINTER(kvmi_event->event.common.vcpu));
 #ifdef ENABLE_SAFETY_CHECKS
         if ( !libvmi_event ) {
             errprint("%s error: no single step event handler is registered in LibVMI\n", __func__);

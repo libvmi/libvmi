@@ -65,7 +65,7 @@ gint swap_search_from(gconstpointer a, gconstpointer b)
 
 gboolean clear_events(gpointer key, gpointer value, gpointer UNUSED(data))
 {
-    vmi_event_t *event = *(vmi_event_t**) key;
+    vmi_event_t *event = (vmi_event_t*) key;
     vmi_event_free_t free_event = (vmi_event_free_t) value;
 
     if ( free_event )
@@ -76,7 +76,7 @@ gboolean clear_events(gpointer key, gpointer value, gpointer UNUSED(data))
 
 gboolean clear_events_full(gpointer key, gpointer value, gpointer data)
 {
-    vmi_event_t *event = *(vmi_event_t**) key;
+    vmi_event_t *event = (vmi_event_t*) key;
     vmi_event_free_t free_event = (vmi_event_free_t) value;
     vmi_instance_t vmi = (vmi_instance_t) data;
 
@@ -103,13 +103,13 @@ status_t events_init(vmi_instance_t vmi)
             return VMI_FAILURE;
     };
 
-    vmi->interrupt_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
-    vmi->mem_events_on_gfn = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
-    vmi->mem_events_generic = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
-    vmi->reg_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
-    vmi->msr_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
-    vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
-    vmi->clear_events = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
+    vmi->interrupt_events = g_hash_table_new(g_direct_hash, g_direct_equal);
+    vmi->mem_events_on_gfn = g_hash_table_new(g_direct_hash, g_direct_equal);
+    vmi->mem_events_generic = g_hash_table_new(g_direct_hash, g_direct_equal);
+    vmi->reg_events = g_hash_table_new(g_direct_hash, g_direct_equal);
+    vmi->msr_events = g_hash_table_new(g_direct_hash, g_direct_equal);
+    vmi->ss_events = g_hash_table_new(g_direct_hash, g_direct_equal);
+    vmi->clear_events = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     return VMI_SUCCESS;
 }
@@ -181,14 +181,11 @@ status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 
     status_t rc = VMI_FAILURE;
 
-    if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr))) {
+    if (NULL != g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(event->interrupt_event.intr))) {
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this interrupt: %d\n",
                 event->interrupt_event.intr);
     } else if (VMI_SUCCESS == driver_set_intr_access(vmi, &event->interrupt_event, 1)) {
-        gint *intr = g_slice_new(gint);
-        *intr = event->interrupt_event.intr;
-
-        g_hash_table_insert_compat(vmi->interrupt_events, intr, event);
+        g_hash_table_insert_compat(vmi->interrupt_events, GUINT_TO_POINTER(event->interrupt_event.intr), event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled event on interrupt: %d\n", event->interrupt_event.intr);
         rc = VMI_SUCCESS;
     }
@@ -200,14 +197,11 @@ static status_t register_msr_event(vmi_instance_t vmi, vmi_event_t *event)
 {
     status_t rc = VMI_FAILURE;
 
-    if (NULL != g_hash_table_lookup(vmi->msr_events, &(event->reg_event.msr))) {
+    if (NULL != g_hash_table_lookup(vmi->msr_events, GSIZE_TO_POINTER(event->reg_event.msr))) {
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this MSR: %"PRIx32"\n",
                 event->reg_event.msr);
     } else if (VMI_SUCCESS == driver_set_reg_access(vmi, &event->reg_event)) {
-        gint *msr = g_slice_new(gint);
-        *msr = event->reg_event.msr;
-
-        g_hash_table_insert_compat(vmi->msr_events, msr, event);
+        g_hash_table_insert_compat(vmi->msr_events, GSIZE_TO_POINTER(event->reg_event.msr), event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled register event on MSR: %"PRIx32"\n", event->reg_event.msr);
         rc = VMI_SUCCESS;
     }
@@ -224,14 +218,11 @@ status_t register_reg_event(vmi_instance_t vmi, vmi_event_t *event)
         return register_msr_event(vmi, event);
     }
 
-    if (NULL != g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg))) {
+    if (NULL != g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(event->reg_event.reg))) {
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this reg: %"PRIu64"\n",
                 event->reg_event.reg);
     } else if (VMI_SUCCESS == driver_set_reg_access(vmi, &event->reg_event)) {
-        gint *reg = g_slice_new(gint);
-        *reg = event->reg_event.reg;
-
-        g_hash_table_insert_compat(vmi->reg_events, reg, event);
+        g_hash_table_insert_compat(vmi->reg_events, GSIZE_TO_POINTER(event->reg_event.reg), event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled register event on reg: %"PRIu64"\n", event->reg_event.reg);
         rc = VMI_SUCCESS;
     }
@@ -310,15 +301,12 @@ static status_t register_mem_event_generic(vmi_instance_t vmi, vmi_event_t *even
         return VMI_FAILURE;
     }
 
-    if ( g_hash_table_lookup(vmi->mem_events_generic, &event->mem_event.in_access) ) {
+    if ( g_hash_table_lookup(vmi->mem_events_generic, GUINT_TO_POINTER(event->mem_event.in_access)) ) {
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered for this tpye of access violation\n");
         return VMI_FAILURE;
     }
 
-    gint *access = g_slice_new(gint);
-    *access = event->mem_event.in_access;
-
-    g_hash_table_insert_compat(vmi->mem_events_generic, access, event);
+    g_hash_table_insert_compat(vmi->mem_events_generic, GUINT_TO_POINTER(event->mem_event.in_access), event);
     return VMI_SUCCESS;
 }
 
@@ -336,7 +324,7 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
     }
 
     // Page already has an event registered
-    if ( g_hash_table_lookup(vmi->mem_events_on_gfn, &event->mem_event.gfn) ) {
+    if ( g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(event->mem_event.gfn)) ) {
         dbprint(VMI_DEBUG_EVENTS,
                 "An event is already registered on this page: %"PRIu64"\n",
                 event->mem_event.gfn);
@@ -346,7 +334,7 @@ static status_t register_mem_event_on_gfn(vmi_instance_t vmi, vmi_event_t *event
     if (VMI_SUCCESS == driver_set_mem_access(vmi, event->mem_event.gfn,
             event->mem_event.in_access,
             event->slat_id)) {
-        g_hash_table_insert_compat(vmi->mem_events_on_gfn, g_slice_dup(addr_t, &event->mem_event.gfn), event);
+        g_hash_table_insert_compat(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(event->mem_event.gfn), event);
 
         if ( event->mem_event.gfn > (vmi->max_physical_address >> vmi->page_shift) )
             vmi->max_physical_address = event->mem_event.gfn << vmi->page_shift;
@@ -372,7 +360,7 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
 
     for (vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu)) {
-            if (NULL != g_hash_table_lookup(vmi->ss_events, &vcpu)) {
+            if (NULL != g_hash_table_lookup(vmi->ss_events, GUINT_TO_POINTER(vcpu))) {
                 dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this vcpu: %u\n",
                         vcpu);
                 goto done;
@@ -386,12 +374,8 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
     dbprint(VMI_DEBUG_EVENTS, "Enabling single step\n");
 
     for (vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-        if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu)) {
-            gint *key = g_slice_new(gint);
-            *key = vcpu;
-
-            g_hash_table_insert_compat(vmi->ss_events, key, event);
-        }
+        if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu))
+            g_hash_table_insert_compat(vmi->ss_events, GUINT_TO_POINTER(vcpu), event);
     }
 
     rc = VMI_SUCCESS;
@@ -496,11 +480,11 @@ status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 
     status_t rc = VMI_FAILURE;
 
-    if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr))) {
+    if (NULL != g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(event->interrupt_event.intr))) {
         dbprint(VMI_DEBUG_EVENTS, "Disabling event on interrupt: %d\n", event->interrupt_event.intr);
         rc = driver_set_intr_access(vmi, &event->interrupt_event, 0);
         if (!vmi->shutting_down && rc == VMI_SUCCESS) {
-            g_hash_table_remove(vmi->interrupt_events, &(event->interrupt_event.intr));
+            g_hash_table_remove(vmi->interrupt_events, GUINT_TO_POINTER(event->interrupt_event.intr));
         }
     }
 
@@ -509,7 +493,7 @@ status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 
 status_t clear_reg_event(vmi_instance_t vmi, vmi_event_t *event)
 {
-    if (NULL != g_hash_table_lookup(vmi->reg_events, &(event->reg_event.reg))) {
+    if (NULL != g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(event->reg_event.reg))) {
         dbprint(VMI_DEBUG_EVENTS, "Disabling register event on reg: %"PRIu64"\n", event->reg_event.reg);
         vmi_reg_access_t original_in_access = event->reg_event.in_access;
         event->reg_event.in_access = VMI_REGACCESS_N;
@@ -517,14 +501,14 @@ status_t clear_reg_event(vmi_instance_t vmi, vmi_event_t *event)
         event->reg_event.in_access = original_in_access;
 
         if (!vmi->shutting_down && rc == VMI_SUCCESS) {
-            g_hash_table_remove(vmi->reg_events, &(event->reg_event.reg));
+            g_hash_table_remove(vmi->reg_events, GSIZE_TO_POINTER(event->reg_event.reg));
         }
 
         return rc;
     }
 
     if (MSR_UNDEFINED == event->reg_event.reg && event->reg_event.msr) {
-        if (NULL != g_hash_table_lookup(vmi->msr_events, &(event->reg_event.msr))) {
+        if (NULL != g_hash_table_lookup(vmi->msr_events, GSIZE_TO_POINTER(event->reg_event.msr))) {
             dbprint(VMI_DEBUG_EVENTS, "Disabling register event on reg: %"PRIu64"\n", event->reg_event.reg);
             vmi_reg_access_t original_in_access = event->reg_event.in_access;
             event->reg_event.in_access = VMI_REGACCESS_N;
@@ -532,7 +516,7 @@ status_t clear_reg_event(vmi_instance_t vmi, vmi_event_t *event)
             event->reg_event.in_access = original_in_access;
 
             if (!vmi->shutting_down && rc == VMI_SUCCESS)
-                g_hash_table_remove(vmi->msr_events, &(event->reg_event.msr));
+                g_hash_table_remove(vmi->msr_events, GSIZE_TO_POINTER(event->reg_event.msr));
 
             return rc;
         }
@@ -547,7 +531,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
     if ( event->mem_event.generic ) {
         /* No point if we are shutting down because we will just destroy the table anyway */
         if ( !vmi->shutting_down )
-            g_hash_table_remove(vmi->mem_events_generic, &event->mem_event.in_access);
+            g_hash_table_remove(vmi->mem_events_generic, GUINT_TO_POINTER(event->mem_event.in_access));
 
         return VMI_SUCCESS;
     }
@@ -560,7 +544,7 @@ status_t clear_mem_event(vmi_instance_t vmi, vmi_event_t *event)
             (rc == VMI_FAILURE) ? "failed" : "success");
 
     if ( !vmi->shutting_down && rc == VMI_SUCCESS )
-        g_hash_table_remove(vmi->mem_events_on_gfn, &event->mem_event.gfn);
+        g_hash_table_remove(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(event->mem_event.gfn));
 
     return rc;
 
@@ -576,9 +560,8 @@ status_t clear_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
         if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu)) {
             dbprint(VMI_DEBUG_EVENTS, "Disabling single step on vcpu: %u\n", vcpu);
             rc = driver_stop_single_step(vmi, vcpu);
-            if (!vmi->shutting_down && rc == VMI_SUCCESS) {
-                g_hash_table_remove(vmi->ss_events, &(vcpu));
-            }
+            if (!vmi->shutting_down && rc == VMI_SUCCESS)
+                g_hash_table_remove(vmi->ss_events, GUINT_TO_POINTER(vcpu));
         }
     }
 
@@ -646,7 +629,7 @@ status_t swap_events(vmi_instance_t vmi, vmi_event_t *swap_from, vmi_event_t *sw
     if (rc == VMI_FAILURE)
         return rc;
 
-    g_hash_table_replace(vmi->mem_events_on_gfn, g_slice_dup(addr_t, &swap_to->mem_event.gfn), swap_to);
+    g_hash_table_replace(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(swap_to->mem_event.gfn), swap_to);
 
     if ( free_routine )
         free_routine(swap_from, rc);
@@ -662,7 +645,7 @@ vmi_event_t *vmi_get_reg_event(vmi_instance_t vmi, reg_t reg)
     if (!vmi)
         return NULL;
 
-    return g_hash_table_lookup(vmi->reg_events, &reg);
+    return g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(reg));
 }
 
 vmi_event_t *vmi_get_mem_event(vmi_instance_t vmi, addr_t gfn, vmi_mem_access_t access)
@@ -670,11 +653,11 @@ vmi_event_t *vmi_get_mem_event(vmi_instance_t vmi, addr_t gfn, vmi_mem_access_t 
     if (!vmi)
         return NULL;
 
-    vmi_event_t *ret = g_hash_table_lookup(vmi->mem_events_generic, &access);
+    vmi_event_t *ret = g_hash_table_lookup(vmi->mem_events_generic, GUINT_TO_POINTER(access));
     if ( ret )
         return ret;
 
-    return g_hash_table_lookup(vmi->mem_events_on_gfn, &gfn);
+    return g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(gfn));
 }
 
 status_t
@@ -696,7 +679,7 @@ vmi_set_mem_event(
         vmi_event_t *event = NULL;
 
         ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
-            if ( (*key) & access ) {
+            if ( GPOINTER_TO_UINT(key) & access ) {
                 handler_found = 1;
                 break;
             }
@@ -734,7 +717,7 @@ vmi_swap_events(
 #endif
 
     if (swap_from->type == swap_to->type && swap_from->type == VMI_EVENT_MEMORY) {
-        if (!g_hash_table_lookup(vmi->mem_events_on_gfn, &swap_from->mem_event.gfn)) {
+        if (!g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(swap_from->mem_event.gfn))) {
             dbprint(VMI_DEBUG_EVENTS, "The event to be swapped is not registered.\n");
             return VMI_FAILURE;
         }
@@ -892,10 +875,8 @@ status_t vmi_clear_event(
             return VMI_FAILURE;
         }
 
-        if (!g_hash_table_lookup(vmi->clear_events, &event)) {
-            g_hash_table_insert_compat(vmi->clear_events,
-                                       g_slice_dup(vmi_event_t*, &event),
-                                       free_routine);
+        if (!g_hash_table_lookup(vmi->clear_events, event)) {
+            g_hash_table_insert_compat(vmi->clear_events, event, free_routine);
             return VMI_SUCCESS;
         }
 
@@ -1046,7 +1027,7 @@ vmi_event_t *vmi_get_singlestep_event(vmi_instance_t vmi, uint32_t vcpu)
     if (!vmi)
         return NULL;
 
-    return g_hash_table_lookup(vmi->ss_events, &vcpu);
+    return g_hash_table_lookup(vmi->ss_events, GUINT_TO_POINTER(vcpu));
 }
 
 status_t
@@ -1065,7 +1046,7 @@ vmi_stop_single_step_vcpu(
 #endif
 
     UNSET_VCPU_SINGLESTEP(event->ss_event, vcpu);
-    g_hash_table_remove(vmi->ss_events, &vcpu);
+    g_hash_table_remove(vmi->ss_events, GUINT_TO_POINTER(vcpu));
 
     return driver_stop_single_step(vmi, vcpu);
 }
@@ -1095,21 +1076,14 @@ vmi_toggle_single_step_vcpu(
     if (enabled) {
         SET_VCPU_SINGLESTEP(event->ss_event, vcpu);
 
-        gint *key = g_slice_new(gint);
-        *key = vcpu;
-
-        if (!g_hash_table_insert_compat(vmi->ss_events, key, event)) {
-            free_gint(key);
+        if (!g_hash_table_insert_compat(vmi->ss_events, GUINT_TO_POINTER(vcpu), event))
             return VMI_FAILURE;
-        }
 
         return driver_start_single_step(vmi, &event->ss_event);
     } else {
         UNSET_VCPU_SINGLESTEP(event->ss_event, vcpu);
 
-        gint key = vcpu;
-
-        if (!g_hash_table_remove(vmi->ss_events, &key))
+        if (!g_hash_table_remove(vmi->ss_events, GUINT_TO_POINTER(vcpu)))
             return VMI_FAILURE;
 
         return driver_stop_single_step(vmi, vcpu);
@@ -1133,7 +1107,7 @@ status_t vmi_shutdown_single_step(vmi_instance_t vmi)
          * Recreate hash table for possible future use.
          */
         g_hash_table_destroy(vmi->ss_events);
-        vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
+        vmi->ss_events = g_hash_table_new(g_direct_hash, g_direct_equal);
         return VMI_SUCCESS;
     }
 

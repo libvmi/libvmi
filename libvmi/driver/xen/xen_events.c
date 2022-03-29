@@ -675,9 +675,8 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
 static
 status_t process_software_breakpoint(vmi_instance_t vmi, vm_event_compat_t *vmec)
 {
-    gint lookup = INT3;
     xen_instance_t *xen = xen_get_instance(vmi);
-    vmi_event_t *event = g_hash_table_lookup(vmi->interrupt_events, &lookup);
+    vmi_event_t *event = g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(INT3));
 
     if ( !event )
         return VMI_FAILURE;
@@ -749,8 +748,7 @@ status_t process_software_breakpoint(vmi_instance_t vmi, vm_event_compat_t *vmec
 static
 status_t process_interrupt(vmi_instance_t vmi, vm_event_compat_t *vmec)
 {
-    gint lookup = INT_NEXT;
-    vmi_event_t *event = g_hash_table_lookup(vmi->interrupt_events, &lookup);
+    vmi_event_t *event = g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(INT_NEXT));
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {
@@ -786,8 +784,8 @@ status_t process_register(vmi_instance_t vmi, vm_event_compat_t *vmec)
         [VM_EVENT_X86_XCR0] = XCR0
     };
 
-    gint lookup = convert[vmec->write_ctrlreg.index];
-    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &lookup);
+    reg_t lookup = convert[vmec->write_ctrlreg.index];
+    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(lookup));
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {
@@ -830,13 +828,10 @@ status_t process_register(vmi_instance_t vmi, vm_event_compat_t *vmec)
 static
 status_t process_msr(vmi_instance_t vmi, vm_event_compat_t *vmec)
 {
-    gint lookup = MSR_ALL;
-    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &lookup);
+    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(MSR_ALL));
 
-    if ( !event ) {
-        lookup = vmec->mov_to_msr.msr;
-        event = g_hash_table_lookup(vmi->msr_events, &lookup);
-    }
+    if ( !event )
+        event = g_hash_table_lookup(vmi->msr_events, GSIZE_TO_POINTER(vmec->mov_to_msr.msr));
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {
@@ -864,8 +859,7 @@ status_t process_msr(vmi_instance_t vmi, vm_event_compat_t *vmec)
 static
 status_t process_singlestep(vmi_instance_t vmi, vm_event_compat_t *vmec)
 {
-    gint lookup = vmec->vcpu_id;
-    vmi_event_t * event = g_hash_table_lookup(vmi->ss_events, &lookup);
+    vmi_event_t * event = g_hash_table_lookup(vmi->ss_events, GUINT_TO_POINTER(vmec->vcpu_id));
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {
@@ -922,7 +916,7 @@ status_t process_mem(vmi_instance_t vmi, vm_event_compat_t *vmec)
     if (vmec->mem_access.flags & MEM_ACCESS_X) out_access |= VMI_MEMACCESS_X;
 
     if ( g_hash_table_size(vmi->mem_events_on_gfn) ) {
-        event = g_hash_table_lookup(vmi->mem_events_on_gfn, &vmec->mem_access.gfn);
+        event = g_hash_table_lookup(vmi->mem_events_on_gfn, GSIZE_TO_POINTER(vmec->mem_access.gfn));
 
         if (event && (event->mem_event.in_access & out_access) ) {
             event->x86_regs = &vmec->data.regs.x86;
@@ -944,7 +938,7 @@ status_t process_mem(vmi_instance_t vmi, vm_event_compat_t *vmec)
         bool cb_issued = 0;
 
         ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
-            if ( (*key) & out_access ) {
+            if ( GPOINTER_TO_UINT(key) & out_access ) {
                 event->x86_regs = &vmec->data.regs.x86;
                 event->slat_id = vmec->altp2m_idx;
                 event->vcpu_id = vmec->vcpu_id;
