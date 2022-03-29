@@ -859,8 +859,7 @@ status_t process_msr(vmi_instance_t vmi, vm_event_compat_t *vmec)
 static
 status_t process_singlestep(vmi_instance_t vmi, vm_event_compat_t *vmec)
 {
-    gint lookup = vmec->vcpu_id;
-    vmi_event_t * event = g_hash_table_lookup(vmi->ss_events, &lookup);
+    vmi_event_t * event = g_hash_table_lookup(vmi->ss_events, GUINT_TO_POINTER(vmec->vcpu_id));
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {

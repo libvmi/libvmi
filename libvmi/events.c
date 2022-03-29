@@ -108,7 +108,7 @@ status_t events_init(vmi_instance_t vmi)
     vmi->mem_events_generic = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->reg_events = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->msr_events = g_hash_table_new(g_direct_hash, g_direct_equal);
-    vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
+    vmi->ss_events = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->clear_events = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
 
     return VMI_SUCCESS;
@@ -360,7 +360,7 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
 
     for (vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu)) {
-            if (NULL != g_hash_table_lookup(vmi->ss_events, &vcpu)) {
+            if (NULL != g_hash_table_lookup(vmi->ss_events, GUINT_TO_POINTER(vcpu))) {
                 dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this vcpu: %u\n",
                         vcpu);
                 goto done;
@@ -374,12 +374,8 @@ status_t register_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
     dbprint(VMI_DEBUG_EVENTS, "Enabling single step\n");
 
     for (vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-        if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu)) {
-            gint *key = g_slice_new(gint);
-            *key = vcpu;
-
-            g_hash_table_insert_compat(vmi->ss_events, key, event);
-        }
+        if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu))
+            g_hash_table_insert_compat(vmi->ss_events, GUINT_TO_POINTER(vcpu), event);
     }
 
     rc = VMI_SUCCESS;
@@ -564,9 +560,8 @@ status_t clear_singlestep_event(vmi_instance_t vmi, vmi_event_t *event)
         if (CHECK_VCPU_SINGLESTEP(event->ss_event, vcpu)) {
             dbprint(VMI_DEBUG_EVENTS, "Disabling single step on vcpu: %u\n", vcpu);
             rc = driver_stop_single_step(vmi, vcpu);
-            if (!vmi->shutting_down && rc == VMI_SUCCESS) {
-                g_hash_table_remove(vmi->ss_events, &(vcpu));
-            }
+            if (!vmi->shutting_down && rc == VMI_SUCCESS)
+                g_hash_table_remove(vmi->ss_events, GUINT_TO_POINTER(vcpu));
         }
     }
 
@@ -1034,7 +1029,7 @@ vmi_event_t *vmi_get_singlestep_event(vmi_instance_t vmi, uint32_t vcpu)
     if (!vmi)
         return NULL;
 
-    return g_hash_table_lookup(vmi->ss_events, &vcpu);
+    return g_hash_table_lookup(vmi->ss_events, GUINT_TO_POINTER(vcpu));
 }
 
 status_t
@@ -1053,7 +1048,7 @@ vmi_stop_single_step_vcpu(
 #endif
 
     UNSET_VCPU_SINGLESTEP(event->ss_event, vcpu);
-    g_hash_table_remove(vmi->ss_events, &vcpu);
+    g_hash_table_remove(vmi->ss_events, GUINT_TO_POINTER(vcpu));
 
     return driver_stop_single_step(vmi, vcpu);
 }
@@ -1083,21 +1078,14 @@ vmi_toggle_single_step_vcpu(
     if (enabled) {
         SET_VCPU_SINGLESTEP(event->ss_event, vcpu);
 
-        gint *key = g_slice_new(gint);
-        *key = vcpu;
-
-        if (!g_hash_table_insert_compat(vmi->ss_events, key, event)) {
-            free_gint(key);
+        if (!g_hash_table_insert_compat(vmi->ss_events, GUINT_TO_POINTER(vcpu), event))
             return VMI_FAILURE;
-        }
 
         return driver_start_single_step(vmi, &event->ss_event);
     } else {
         UNSET_VCPU_SINGLESTEP(event->ss_event, vcpu);
 
-        gint key = vcpu;
-
-        if (!g_hash_table_remove(vmi->ss_events, &key))
+        if (!g_hash_table_remove(vmi->ss_events, GUINT_TO_POINTER(vcpu)))
             return VMI_FAILURE;
 
         return driver_stop_single_step(vmi, vcpu);
@@ -1121,7 +1109,7 @@ status_t vmi_shutdown_single_step(vmi_instance_t vmi)
          * Recreate hash table for possible future use.
          */
         g_hash_table_destroy(vmi->ss_events);
-        vmi->ss_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
+        vmi->ss_events = g_hash_table_new(g_direct_hash, g_direct_equal);
         return VMI_SUCCESS;
     }
 

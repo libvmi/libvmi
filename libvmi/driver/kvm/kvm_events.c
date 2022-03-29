@@ -640,8 +640,7 @@ process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 
     if (!vmi->shutting_down) {
         // lookup vmi_event
-        gint key = (gint)kvmi_event->event.common.vcpu;
-        libvmi_event = g_hash_table_lookup(vmi->ss_events, &key);
+        libvmi_event = g_hash_table_lookup(vmi->ss_events, GUINT_TO_POINTER(kvmi_event->event.common.vcpu));
 #ifdef ENABLE_SAFETY_CHECKS
         if ( !libvmi_event ) {
             errprint("%s error: no single step event handler is registered in LibVMI\n", __func__);
