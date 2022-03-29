@@ -65,7 +65,7 @@ gint swap_search_from(gconstpointer a, gconstpointer b)
 
 gboolean clear_events(gpointer key, gpointer value, gpointer UNUSED(data))
 {
-    vmi_event_t *event = *(vmi_event_t**) key;
+    vmi_event_t *event = (vmi_event_t*) key;
     vmi_event_free_t free_event = (vmi_event_free_t) value;
 
     if ( free_event )
@@ -76,7 +76,7 @@ gboolean clear_events(gpointer key, gpointer value, gpointer UNUSED(data))
 
 gboolean clear_events_full(gpointer key, gpointer value, gpointer data)
 {
-    vmi_event_t *event = *(vmi_event_t**) key;
+    vmi_event_t *event = (vmi_event_t*) key;
     vmi_event_free_t free_event = (vmi_event_free_t) value;
     vmi_instance_t vmi = (vmi_instance_t) data;
 
@@ -109,7 +109,7 @@ status_t events_init(vmi_instance_t vmi)
     vmi->reg_events = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->msr_events = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->ss_events = g_hash_table_new(g_direct_hash, g_direct_equal);
-    vmi->clear_events = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
+    vmi->clear_events = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     return VMI_SUCCESS;
 }
@@ -875,10 +875,8 @@ status_t vmi_clear_event(
             return VMI_FAILURE;
         }
 
-        if (!g_hash_table_lookup(vmi->clear_events, &event)) {
-            g_hash_table_insert_compat(vmi->clear_events,
-                                       g_slice_dup(vmi_event_t*, &event),
-                                       free_routine);
+        if (!g_hash_table_lookup(vmi->clear_events, event)) {
+            g_hash_table_insert_compat(vmi->clear_events, event, free_routine);
             return VMI_SUCCESS;
         }
 
