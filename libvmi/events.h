@@ -33,7 +33,7 @@
 #ifndef LIBVMI_EVENTS_H
 #define LIBVMI_EVENTS_H
 
-#define VMI_EVENTS_VERSION 0x00000008
+#define VMI_EVENTS_VERSION 0x00000009
 
 #ifdef __cplusplus
 extern "C" {
@@ -135,7 +135,7 @@ typedef struct emul_insn {
  *      IN fields that remain unchanged by LibVMI are marked CONST IN.
  */
 
-typedef struct {
+typedef struct reg_event {
     /**
      * CONST IN
      *
@@ -199,7 +199,7 @@ typedef struct {
      */
     vmi_reg_access_t out_access;
 
-    uint32_t _pad;
+    uint32_t _pad1;
 
     /**
      * OUT
@@ -228,9 +228,11 @@ typedef struct {
      * Unused for other register event types.
      */
     uint32_t msr;
+
+    uint32_t _pad2;
 } reg_event_t;
 
-typedef struct {
+typedef struct mem_access_event {
     /**
      * IN/OUT: Page number at which to set event (IN) or where event occurred (OUT)
      */
@@ -283,7 +285,7 @@ typedef struct {
 
 } mem_access_event_t;
 
-typedef struct {
+typedef struct watch_domain_event {
     char* uuid; /**< Domain uuid */
     uint32_t domain; /**< Domain id */
     bool created; /**< created/deleted state */
@@ -309,9 +311,11 @@ typedef uint8_t interrupts_t;
 #define INT3            1   /**< Software breakpoint (INT3/0xCC) */
 #define INT_NEXT        2   /**< Catch-all when next interrupt is reported */
 
-typedef struct {
+typedef struct interrupt_event {
     /* CONST IN */
     interrupts_t intr;  /**< Specific interrupt intended to trigger the event */
+
+    uint8_t _pad1[7];
 
     union {
         /* INT3 */
@@ -327,11 +331,13 @@ typedef struct {
              *   Set reinject to 0 to swallow it silently without
              */
             int8_t reinject;
+            uint8_t _pad2[3];
+
             addr_t gla;         /**< (Global Linear Address) == RIP of the trapped instruction */
             addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
             addr_t offset;      /**< Offset in bytes (relative to GFN) */
 
-            uint16_t _pad1;
+            uint16_t _pad3;
         };
 
         /* INT_NEXT */
@@ -340,20 +346,20 @@ typedef struct {
             uint32_t vector;
             uint32_t type;
             uint32_t error_code;
-            uint32_t _pad2;
+            uint32_t _pad4;
             uint64_t cr2;
         };
     };
 } interrupt_event_t;
 
-typedef struct {
+typedef struct privcall_event {
     /* OUT */
     addr_t gla;         /**< (Global Linear Address) == PC of the trapped instruction */
     addr_t gfn;         /**< (Guest Frame Number) == 'physical' page where trap occurred */
     addr_t offset;      /**< Offset in bytes (relative to GFN) */
 } privcall_event_t;
 
-typedef struct {
+typedef struct single_step_event {
     /* CONST IN */
     uint32_t vcpus;     /**< A bitfield corresponding to VCPU IDs. */
     uint8_t enable;     /**< Set to true to immediately turn vCPU to singlestep. */
@@ -366,7 +372,7 @@ typedef struct {
     addr_t offset;      /**< Offset in bytes (relative to GFN) */
 } single_step_event_t;
 
-typedef struct {
+typedef struct debug_event {
     addr_t gla;           /**< The IP of the current instruction */
     addr_t gfn;           /**< The physical page of the current instruction */
     addr_t offset;        /**< Offset in bytes (relative to GFN) */
@@ -390,7 +396,7 @@ typedef struct {
     uint16_t _pad;
 } debug_event_t;
 
-typedef struct {
+typedef struct cpuid_event {
     uint32_t insn_length; /**< Length of the reported instruction */
     uint32_t leaf;
     uint32_t subleaf;
@@ -406,7 +412,7 @@ typedef struct desriptor_event {
     union {
         struct {
             uint32_t instr_info;         /* VMX: VMCS Instruction-Information */
-            uint32_t _pad;
+            uint32_t _pad1;
             uint64_t exit_qualification; /* VMX: VMCS Exit Qualification */
         };
         uint64_t exit_info;              /* SVM: VMCB EXITINFO */
@@ -490,6 +496,11 @@ struct vmi_event {
     uint16_t next_slat_id;
 
     /**
+     * Reserved for future use
+     */
+    uint16_t _reserved[3];
+
+    /**
      * CONST IN
      *
      * An open-ended mechanism allowing a library user to
@@ -514,11 +525,6 @@ struct vmi_event {
 
     /* OUT */
     page_mode_t page_mode;
-
-    /**
-     * Reserved for future use
-     */
-    uint32_t _reserved[6];
 
     union {
         reg_event_t reg_event;
