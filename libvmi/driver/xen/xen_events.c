@@ -786,8 +786,8 @@ status_t process_register(vmi_instance_t vmi, vm_event_compat_t *vmec)
         [VM_EVENT_X86_XCR0] = XCR0
     };
 
-    gint lookup = convert[vmec->write_ctrlreg.index];
-    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &lookup);
+    reg_t lookup = convert[vmec->write_ctrlreg.index];
+    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(lookup));
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {
@@ -830,13 +830,10 @@ status_t process_register(vmi_instance_t vmi, vm_event_compat_t *vmec)
 static
 status_t process_msr(vmi_instance_t vmi, vm_event_compat_t *vmec)
 {
-    gint lookup = MSR_ALL;
-    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, &lookup);
+    vmi_event_t * event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(MSR_ALL));
 
-    if ( !event ) {
-        lookup = vmec->mov_to_msr.msr;
-        event = g_hash_table_lookup(vmi->msr_events, &lookup);
-    }
+    if ( !event )
+        event = g_hash_table_lookup(vmi->msr_events, GSIZE_TO_POINTER(vmec->mov_to_msr.msr));
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {

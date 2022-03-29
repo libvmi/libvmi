@@ -271,8 +271,7 @@ process_register(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     }
 
     // lookup vmi event
-    gint key = (gint)libvmi_reg;
-    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->reg_events, &key);
+    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(libvmi_reg));
     if (!libvmi_event) {
         errprint("%s: No control register event handler is registered in LibVMI\n", __func__);
         return VMI_FAILURE;
@@ -329,20 +328,17 @@ process_msr(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     vmi_event_t *libvmi_event = NULL;
     if (g_hash_table_size(vmi->msr_events)) {
         // test for MSR_ANY in msr_events
-        gint key = kvmi_event->event.msr.msr;
-        libvmi_event = g_hash_table_lookup(vmi->msr_events, &key);
+        libvmi_event = g_hash_table_lookup(vmi->msr_events, GSIZE_TO_POINTER(kvmi_event->event.msr.msr));
     }
 
     if (!libvmi_event && g_hash_table_size(vmi->reg_events)) {
         // test for MSR_xxx in reg_events
-        gint key = kvmi_event->event.msr.msr;
-        libvmi_event = g_hash_table_lookup(vmi->reg_events, &key);
+        libvmi_event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(kvmi_event->event.msr.msr));
     }
 
     if (!libvmi_event) {
         // test for MSR_ALL in reg_events
-        gint key = MSR_ALL;
-        libvmi_event = g_hash_table_lookup(vmi->reg_events, &key);
+        libvmi_event = g_hash_table_lookup(vmi->reg_events, GSIZE_TO_POINTER(MSR_ALL));
         if (libvmi_event) // fill msr field
             libvmi_event->reg_event.msr = kvmi_event->event.msr.msr;
     }
