@@ -103,7 +103,7 @@ status_t events_init(vmi_instance_t vmi)
             return VMI_FAILURE;
     };
 
-    vmi->interrupt_events = g_hash_table_new_full(g_int_hash, g_int_equal, free_gint, NULL);
+    vmi->interrupt_events = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->mem_events_on_gfn = g_hash_table_new_full(g_int64_hash, g_int64_equal, free_gint64, NULL);
     vmi->mem_events_generic = g_hash_table_new(g_direct_hash, g_direct_equal);
     vmi->reg_events = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -181,14 +181,11 @@ status_t register_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 
     status_t rc = VMI_FAILURE;
 
-    if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr))) {
+    if (NULL != g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(event->interrupt_event.intr))) {
         dbprint(VMI_DEBUG_EVENTS, "An event is already registered on this interrupt: %d\n",
                 event->interrupt_event.intr);
     } else if (VMI_SUCCESS == driver_set_intr_access(vmi, &event->interrupt_event, 1)) {
-        gint *intr = g_slice_new(gint);
-        *intr = event->interrupt_event.intr;
-
-        g_hash_table_insert_compat(vmi->interrupt_events, intr, event);
+        g_hash_table_insert_compat(vmi->interrupt_events, GUINT_TO_POINTER(event->interrupt_event.intr), event);
         dbprint(VMI_DEBUG_EVENTS, "Enabled event on interrupt: %d\n", event->interrupt_event.intr);
         rc = VMI_SUCCESS;
     }
@@ -487,11 +484,11 @@ status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 
     status_t rc = VMI_FAILURE;
 
-    if (NULL != g_hash_table_lookup(vmi->interrupt_events, &(event->interrupt_event.intr))) {
+    if (NULL != g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(event->interrupt_event.intr))) {
         dbprint(VMI_DEBUG_EVENTS, "Disabling event on interrupt: %d\n", event->interrupt_event.intr);
         rc = driver_set_intr_access(vmi, &event->interrupt_event, 0);
         if (!vmi->shutting_down && rc == VMI_SUCCESS) {
-            g_hash_table_remove(vmi->interrupt_events, &(event->interrupt_event.intr));
+            g_hash_table_remove(vmi->interrupt_events, GUINT_TO_POINTER(event->interrupt_event.intr));
         }
     }
 

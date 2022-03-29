@@ -675,9 +675,8 @@ void process_response ( event_response_t response, vmi_event_t *event, vm_event_
 static
 status_t process_software_breakpoint(vmi_instance_t vmi, vm_event_compat_t *vmec)
 {
-    gint lookup = INT3;
     xen_instance_t *xen = xen_get_instance(vmi);
-    vmi_event_t *event = g_hash_table_lookup(vmi->interrupt_events, &lookup);
+    vmi_event_t *event = g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(INT3));
 
     if ( !event )
         return VMI_FAILURE;
@@ -749,8 +748,7 @@ status_t process_software_breakpoint(vmi_instance_t vmi, vm_event_compat_t *vmec
 static
 status_t process_interrupt(vmi_instance_t vmi, vm_event_compat_t *vmec)
 {
-    gint lookup = INT_NEXT;
-    vmi_event_t *event = g_hash_table_lookup(vmi->interrupt_events, &lookup);
+    vmi_event_t *event = g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(INT_NEXT));
 
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !event ) {

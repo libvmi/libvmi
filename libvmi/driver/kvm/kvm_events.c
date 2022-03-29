@@ -395,8 +395,7 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     dbprint(VMI_DEBUG_KVM, "--Received interrupt event\n");
 
     // lookup vmi_event
-    gint key = INT3;
-    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->interrupt_events, &key);
+    vmi_event_t *libvmi_event = g_hash_table_lookup(vmi->interrupt_events, GUINT_TO_POINTER(INT3));
 #ifdef ENABLE_SAFETY_CHECKS
     if ( !libvmi_event ) {
         errprint("%s error: no interrupt event handler is registered in LibVMI\n", __func__);
