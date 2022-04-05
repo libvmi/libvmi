@@ -180,7 +180,7 @@ bareflank_get_memory(
     addr_t pa,
     uint32_t UNUSED(prot))
 {
-    void *space = NULL;
+    gpointer space = NULL;
     addr_t original_pa = 0;
 
     if ( posix_memalign(&space, 4096, 4096) )
@@ -211,8 +211,8 @@ bareflank_get_memory(
             original_pa, pa);
 
     g_hash_table_insert(bareflank_get_instance(vmi)->remaps,
-                        g_memdup_compat(&space, sizeof(void*)),
-                        g_memdup_compat(&original_pa, sizeof(addr_t)));
+                        space,
+                        GSIZE_TO_POINTER(original_pa));
 
     return space;
 }
@@ -224,13 +224,13 @@ bareflank_release_memory(
     size_t UNUSED(length))
 {
     bareflank_instance_t *bf = bareflank_get_instance(vmi);
-    addr_t *pa = g_hash_table_lookup(bf->remaps, &memory);
+    addr_t pa = GPOINTER_TO_SIZE(g_hash_table_lookup(bf->remaps, memory));
 
     /* Reverse the EPT remapping */
     if ( pa ) {
-        dbprint(VMI_DEBUG_BAREFLANK, "Bareflank release & remap %p -> 0x%lx\n", memory, *pa);
+        dbprint(VMI_DEBUG_BAREFLANK, "Bareflank release & remap %p -> 0x%lx\n", memory, pa);
 
-        if ( hcall_map_pa((uint64_t)memory, *pa, bareflank_get_instance(vmi)->domainid) )
+        if ( hcall_map_pa((uint64_t)memory, pa, bareflank_get_instance(vmi)->domainid) )
             dbprint(VMI_DEBUG_BAREFLANK, "Bareflank remap failed\n");
 
         g_hash_table_remove(bf->remaps, memory);
@@ -415,7 +415,7 @@ status_t bareflank_init_vmi(
     memory_cache_destroy(vmi);
     memory_cache_init(vmi, bareflank_get_memory, bareflank_release_memory, 0);
 
-    bf->remaps = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, g_free);
+    bf->remaps = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     return VMI_SUCCESS;
 }
