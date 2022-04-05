@@ -587,7 +587,7 @@ v2p_cache_get(
     addr_t offset = VMI_BIT_MASK(0,11) & va;
     va = (va >> 12) << 12;
 
-    gpointer _pa = g_hash_table_lookup(v, &va);
+    gpointer _pa = g_hash_table_lookup(v, GSIZE_TO_POINTER(va));
     if ( !_pa ) {
         dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache miss (no page) 0x%.16"PRIx64"\n", va);
         return VMI_FAILURE;
@@ -625,7 +625,7 @@ v2p_cache_set(
     if ( !v ) {
         new_process_space = TRUE;
 
-        v = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, NULL);
+        v = g_hash_table_new(g_direct_hash, g_direct_equal);
         if ( !v )
             goto cleanup;
 
@@ -639,11 +639,7 @@ v2p_cache_set(
     va = (va >> 12) << 12;
     pa = (pa >> 12) << 12;
 
-    _va = g_memdup_compat(&va, sizeof(addr_t));
-    if ( !_va )
-        goto cleanup;
-
-    (void) g_hash_table_insert_compat(v, _va, GSIZE_TO_POINTER(pa));
+    (void) g_hash_table_insert_compat(v, GSIZE_TO_POINTER(va), GSIZE_TO_POINTER(pa));
 
     dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache set for page 0x%.16"PRIx64" -- 0x%.16"PRIx64"\n",
             va, pa);
@@ -671,7 +667,7 @@ v2p_cache_del(
         return VMI_SUCCESS;
 
     va = (va >> 12) << 12;
-    (void) g_hash_table_remove(v, &va);
+    (void) g_hash_table_remove(v, GSIZE_TO_POINTER(va));
 
     if (!g_hash_table_size(v))
         g_hash_table_remove(vmi->v2p_cache, key);
