@@ -92,50 +92,12 @@ key_128_t key_128_build (uint64_t low, uint64_t high)
 //
 // PID --> DTB cache implementation
 // Note: DTB is a physical address
-struct pid_cache_entry {
-    vmi_pid_t pid;
-    addr_t dtb;
-};
-typedef struct pid_cache_entry *pid_cache_entry_t;
-
-static void
-pid_cache_key_free(
-    gpointer data)
-{
-    g_free(data);
-}
-
-static void
-pid_cache_entry_free(
-    gpointer data)
-{
-    pid_cache_entry_t entry = (pid_cache_entry_t) data;
-    g_free(entry);
-}
-
-static pid_cache_entry_t pid_cache_entry_create(
-    vmi_pid_t pid,
-    addr_t dtb)
-{
-    pid_cache_entry_t entry =
-        (pid_cache_entry_t) g_malloc(sizeof(struct pid_cache_entry));
-
-    if ( !entry ) {
-        return NULL;
-    }
-
-    entry->pid = pid;
-    entry->dtb = dtb;
-    return entry;
-}
 
 void
 pid_cache_init(
     vmi_instance_t vmi)
 {
-    vmi->pid_cache =
-        g_hash_table_new_full(g_int_hash, g_int_equal,
-                              pid_cache_key_free, pid_cache_entry_free);
+    vmi->pid_cache = g_hash_table_new(g_direct_hash, g_direct_equal);
 }
 
 void
@@ -152,11 +114,10 @@ pid_cache_get(
     vmi_pid_t pid,
     addr_t *dtb)
 {
-    pid_cache_entry_t entry = NULL;
-    gint key = (gint) pid;
+    gpointer _dtb = g_hash_table_lookup(vmi->pid_cache, GINT_TO_POINTER(pid));
 
-    if ((entry = g_hash_table_lookup(vmi->pid_cache, &key)) != NULL) {
-        *dtb = entry->dtb;
+    if ( _dtb ) {
+        *dtb = GPOINTER_TO_SIZE(_dtb);
         dbprint(VMI_DEBUG_PIDCACHE, "--PID cache hit %d -- 0x%.16"PRIx64"\n", pid, *dtb);
         return VMI_SUCCESS;
     }
@@ -170,26 +131,9 @@ pid_cache_set(
     vmi_pid_t pid,
     addr_t dtb)
 {
-    pid_cache_entry_t entry = NULL;
-
-    gint *key = (gint *) g_malloc(sizeof(gint));
-    if ( !key ) {
-        goto cleanup;
-    }
-    *key = pid;
-
-    entry = pid_cache_entry_create(pid, dtb);
-    if ( !entry ) {
-        goto cleanup;
-    }
-
-    (void) g_hash_table_insert_compat(vmi->pid_cache, key, entry);
+    (void) g_hash_table_insert_compat(vmi->pid_cache, GINT_TO_POINTER(pid), GSIZE_TO_POINTER(dtb));
     dbprint(VMI_DEBUG_PIDCACHE, "--PID cache set %d -- 0x%.16"PRIx64"\n", pid, dtb);
     return;
-
-cleanup:
-    g_free(key);
-    g_free(entry);
 }
 
 status_t
@@ -197,14 +141,11 @@ pid_cache_del(
     vmi_instance_t vmi,
     vmi_pid_t pid)
 {
-    gint key = (gint) pid;
-
     dbprint(VMI_DEBUG_PIDCACHE, "--PID cache del %d\n", pid);
-    if (TRUE == g_hash_table_remove(vmi->pid_cache, &key)) {
+    if (TRUE == g_hash_table_remove(vmi->pid_cache, GINT_TO_POINTER(pid)))
         return VMI_SUCCESS;
-    } else {
+    else
         return VMI_FAILURE;
-    }
 }
 
 void
