@@ -620,7 +620,6 @@ v2p_cache_set(
 
     GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, key);
     gboolean new_process_space = FALSE;
-    addr_t * _va = NULL;
 
     if ( !v ) {
         new_process_space = TRUE;
