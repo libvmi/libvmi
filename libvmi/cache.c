@@ -116,8 +116,7 @@ pid_cache_get(
 {
     gpointer _dtb = g_hash_table_lookup(vmi->pid_cache, GINT_TO_POINTER(pid));
 
-    if ( _dtb )
-    {
+    if ( _dtb ) {
         *dtb = GPOINTER_TO_SIZE(_dtb);
         dbprint(VMI_DEBUG_PIDCACHE, "--PID cache hit %d -- 0x%.16"PRIx64"\n", pid, *dtb);
         return VMI_SUCCESS;
