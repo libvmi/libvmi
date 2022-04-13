@@ -17,8 +17,7 @@ h_private = \
     libvmi/os/os_interface.h \
     libvmi/driver/driver_interface.h \
     libvmi/driver/driver_wrapper.h \
-    libvmi/driver/memory_cache.h \
-    libvmi/disk/vbd_private.h
+    libvmi/driver/memory_cache.h
 
 c_sources = \
     libvmi/accessors.c \
@@ -39,8 +38,7 @@ c_sources = \
     libvmi/arch/ept.c \
     libvmi/driver/driver_interface.c \
     libvmi/driver/memory_cache.c \
-    libvmi/os/os_interface.c \
-    libvmi/disk/vbd.c
+    libvmi/os/os_interface.c
 
 if ENABLE_ADDRESS_CACHE
     c_sources   += libvmi/cache.c
@@ -104,6 +102,8 @@ if WITH_XEN
                    libvmi/driver/xen/libxc_wrapper.h \
                    libvmi/driver/xen/libxs_wrapper.c \
                    libvmi/driver/xen/libxs_wrapper.h
+    h_private   += libvmi/disk/vbd_private.h
+    c_sources   += libvmi/disk/vbd.c
 endif
 
 if WITH_BAREFLANK

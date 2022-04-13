@@ -18,7 +18,6 @@ set(libvmi_src
     driver/driver_interface.c
     driver/memory_cache.c
     os/os_interface.c
-    disk/vbd.c
 )
 
 add_library(vmi OBJECT ${libvmi_src})
@@ -169,6 +168,7 @@ add_subdirectory(os)
 
 
 if (ENABLE_XEN)
+    list(APPEND libvmi_src disk/vbd.c)
     find_package(Xen REQUIRED)
     list(APPEND VMI_PUBLIC_HEADERS events.h)
     # CMAKE_DL_LIBS -> dlopen* lib
