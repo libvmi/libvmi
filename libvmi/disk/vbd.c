@@ -19,8 +19,6 @@
 */
 
 #include "private.h"
-#include "driver/xen/xen.h"
-#include "driver/xen/xen_private.h"
 #include "disk/vbd_private.h"
 
 #ifdef HAVE_ZLIB
