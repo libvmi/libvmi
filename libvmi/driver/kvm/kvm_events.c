@@ -892,6 +892,89 @@ kvm_events_destroy(
         errprint("--Failed to resume VM while destroying events\n");
 }
 
+static status_t
+process_single_event(vmi_instance_t vmi, struct kvmi_dom_event *event)
+{
+    unsigned int ev_reason = 0;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    // handle event
+    ev_reason = event->event.common.event;
+
+    // special case to handle PAUSE events
+    // since they have to managed by vmi_resume_vm(), we simply store them
+    // in the kvm_instance for later use by this function
+    if (KVMI_EVENT_PAUSE_VCPU == ev_reason) {
+#ifdef ENABLE_SAFETY_CHECKS
+        uint16_t vcpu = event->event.common.vcpu;
+        // silence unused variable warnings if not asserts
+        (void) vcpu;
+        assert(vcpu < vmi->num_vcpus);
+#endif
+        dbprint(VMI_DEBUG_KVM, "--Moving PAUSE_VPCU event in the buffer\n");
+        kvm->pause_events_list[event->event.common.vcpu] = event;
+        event = NULL;
+        return VMI_SUCCESS;
+    }
+#ifdef ENABLE_SAFETY_CHECKS
+    if (ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason]) {
+        errprint("Undefined handler for %u event reason\n", ev_reason);
+        return VMI_FAILURE;
+    }
+#endif
+    if (!vmi->shutting_down) {
+        // call handler
+        if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
+            return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
+
+static status_t
+process_pending_events(vmi_instance_t vmi)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    struct kvmi_dom_event *event = NULL;
+
+    while (kvm->libkvmi.kvmi_get_pending_events(kvm->kvmi_dom) > 0) {
+        if (kvm->libkvmi.kvmi_pop_event(kvm->kvmi_dom, &event)) {
+            errprint("%s: kvmi_pop_event failed: %s\n", __func__, strerror(errno));
+            return VMI_FAILURE;
+        }
+
+        process_single_event(vmi, event);
+
+        free(event);
+        event = NULL;
+    }
+
+    return VMI_SUCCESS;
+}
+
+static status_t
+process_events_with_timeout(vmi_instance_t vmi, uint32_t timeout)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    struct kvmi_dom_event *event = NULL;
+
+    if (kvm_get_next_event(kvm, &event, (kvmi_timeout_t) timeout) == VMI_FAILURE) {
+        errprint("%s: Failed to get next KVMi event: %s\n", __func__, strerror(errno));
+        return VMI_FAILURE;
+    }
+    if (!event) {
+        return VMI_SUCCESS;
+    }
+
+    process_single_event(vmi, event);
+
+    free(event);
+    event = NULL;
+
+    // make sure that all pending events are processed
+    return process_pending_events(vmi);
+}
+
 status_t
 kvm_events_listen(
     vmi_instance_t vmi,
@@ -900,69 +983,53 @@ kvm_events_listen(
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
         return VMI_FAILURE;
-#endif
-    struct kvmi_dom_event *event = NULL;
-    unsigned int ev_reason = 0;
-    // if timeout is 0, we have to process all leftover events on the ring
-    bool process_all_events = (timeout == 0) ? true : false;
 
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-#ifdef ENABLE_SAFETY_CHECKS
     if (!kvm || !kvm->kvmi_dom)
+        return VMI_FAILURE;
+
+    // kvmi_wait_event() takes a signed integer
+    if (timeout > INT_MAX)
         return VMI_FAILURE;
 #endif
 
-    do {
-        event = NULL;
-        if (VMI_FAILURE == kvm_get_next_event(kvm, &event, (kvmi_timeout_t)timeout)) {
-            errprint("%s: Failed to get next KVMi event: %s\n", __func__, strerror(errno));
-            goto error_exit;
-        }
-        // not events ?
-        if (!event) {
-            // no events. Skipping
-            return VMI_SUCCESS;
+    GSList *loop;
+
+    if (process_events_with_timeout(vmi, timeout) == VMI_FAILURE) {
+        return VMI_FAILURE;
+    }
+
+    /*
+     * The only way to gracefully handle vmi_swap_events and vmi_clear_event requests
+     * that were issued in a callback is to ensure no more kvmi_dom_events
+     * are pending. We do this by pausing the domain (all vCPUs)
+     * and processing all remaining events. Once no more kvmi_dom_events
+     * are pending we can remove/swap the events.
+     */
+    if (vmi->swap_events || (vmi->clear_events && g_hash_table_size(vmi->clear_events))) {
+        vmi_pause_vm(vmi);
+        if (process_pending_events(vmi) == VMI_FAILURE) {
+            return VMI_FAILURE;
         }
 
-        // handle event
-        ev_reason = event->event.common.event;
+        loop = vmi->swap_events;
+        while (loop) {
+            swap_wrapper_t *swap_wrapper = loop->data;
+            swap_events(vmi, swap_wrapper->swap_from, swap_wrapper->swap_to,
+                        swap_wrapper->free_routine);
+            g_slice_free(swap_wrapper_t, swap_wrapper);
+            loop = loop->next;
+        }
 
-        // special case to handle PAUSE events
-        // since they have to managed by vmi_resume_vm(), we simply store them
-        // in the kvm_instance for later use by this function
-        if (KVMI_EVENT_PAUSE_VCPU == ev_reason) {
-#ifdef ENABLE_SAFETY_CHECKS
-            uint16_t vcpu = event->event.common.vcpu;
-            // silence unused variable warnings if not asserts
-            (void)vcpu;
-            assert(vcpu < vmi->num_vcpus);
-#endif
-            dbprint(VMI_DEBUG_KVM, "--Moving PAUSE_VPCU event in the buffer\n");
-            kvm->pause_events_list[event->event.common.vcpu] = event;
-            event = NULL;
-            continue;
-        }
-#ifdef ENABLE_SAFETY_CHECKS
-        if ( ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason] ) {
-            errprint("Undefined handler for %u event reason\n", ev_reason);
-            goto error_exit;
-        }
-#endif
-        if (!vmi->shutting_down) {
-            // call handler
-            if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
-                goto error_exit;
-        }
-        // free event
-        if (event)
-            free(event);
-    } while (process_all_events);
+        g_slist_free(vmi->swap_events);
+        vmi->swap_events = NULL;
+
+        g_hash_table_foreach_remove(vmi->clear_events, clear_events_full, vmi);
+
+        vmi_resume_vm(vmi);
+    }
 
     return VMI_SUCCESS;
-error_exit:
-    if (event)
-        free(event);
-    return VMI_FAILURE;
 }
 
 int
