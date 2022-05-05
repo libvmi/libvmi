@@ -1135,6 +1135,8 @@ kvm_set_intr_access(
 #ifdef ENABLE_SAFETY_CHECKS
     if (!kvm || !kvm->kvmi_dom)
         return VMI_FAILURE;
+    if (kvm->monitor_intr_on == enabled)
+        return VMI_FAILURE;
 #endif
 
     switch (event->intr) {
@@ -1159,6 +1161,7 @@ error_exit:
     // disable monitoring for all vcpus
     for (unsigned int i = 0; i < vmi->num_vcpus; i++)
         kvm->libkvmi.kvmi_control_events(kvm->kvmi_dom, i, KVMI_EVENT_BREAKPOINT, false);
+    kvm->monitor_intr_on = false;
     return VMI_FAILURE;
 }
 
