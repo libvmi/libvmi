@@ -232,10 +232,15 @@ void arch_init_lookup_tables(vmi_instance_t vmi)
 status_t arch_init(vmi_instance_t vmi)
 {
     if (vmi->page_mode != VMI_PM_UNKNOWN)
+    {
         return VMI_SUCCESS;
-
-    if (VMI_FAILURE == get_vcpu_page_mode(vmi, 0, &vmi->page_mode))
-        return VMI_FAILURE;
-
-    return VMI_SUCCESS;
+    }
+    else
+    {
+        if (VMI_FAILURE == get_vcpu_page_mode(vmi, 0, NULL))
+        {
+            return VMI_FAILURE;
+        }
+        return VMI_SUCCESS;
+    }
 }
