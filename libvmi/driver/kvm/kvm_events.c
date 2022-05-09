@@ -821,7 +821,7 @@ kvm_events_destroy(
     dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver events\n");
     // pause VM
     dbprint(VMI_DEBUG_KVM, "--Ensure VM is paused\n");
-    if (VMI_FAILURE == vmi_pause_vm(vmi))
+    if (VMI_FAILURE == kvm_pause_vm(vmi))
         errprint("--Failed to pause VM while destroying events\n");
 
     reg_event_t regevent = { .in_access = VMI_REGACCESS_N };
@@ -878,13 +878,13 @@ kvm_events_destroy(
     // clean event queue
     if (kvm_are_events_pending(vmi)) {
         dbprint(VMI_DEBUG_KVM, "--Cleanup event queue\n");
-        if (VMI_FAILURE == vmi_events_listen(vmi, 0))
+        if (VMI_FAILURE == kvm_events_listen(vmi, 0))
             errprint("--Failed to clean event queue\n");
     }
 
     // resume VM
     dbprint(VMI_DEBUG_KVM, "--Resume VM\n");
-    if (VMI_FAILURE == vmi_resume_vm(vmi))
+    if (VMI_FAILURE == kvm_resume_vm(vmi))
         errprint("--Failed to resume VM while destroying events\n");
 }
 
