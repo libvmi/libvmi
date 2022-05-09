@@ -893,42 +893,49 @@ kvm_events_destroy(
 }
 
 static status_t
-process_single_event(vmi_instance_t vmi, struct kvmi_dom_event *event)
+process_single_event(vmi_instance_t vmi, struct kvmi_dom_event **event)
 {
+    status_t status = VMI_SUCCESS;
     unsigned int ev_reason = 0;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
     // handle event
-    ev_reason = event->event.common.event;
+    ev_reason = (*event)->event.common.event;
 
     // special case to handle PAUSE events
     // since they have to managed by vmi_resume_vm(), we simply store them
     // in the kvm_instance for later use by this function
     if (KVMI_EVENT_PAUSE_VCPU == ev_reason) {
 #ifdef ENABLE_SAFETY_CHECKS
-        uint16_t vcpu = event->event.common.vcpu;
+        uint16_t vcpu = (*event)->event.common.vcpu;
         // silence unused variable warnings if not asserts
         (void) vcpu;
         assert(vcpu < vmi->num_vcpus);
 #endif
         dbprint(VMI_DEBUG_KVM, "--Moving PAUSE_VPCU event in the buffer\n");
-        kvm->pause_events_list[event->event.common.vcpu] = event;
-        event = NULL;
+        kvm->pause_events_list[(*event)->event.common.vcpu] = (*event);
+        (*event) = NULL;
         return VMI_SUCCESS;
     }
 #ifdef ENABLE_SAFETY_CHECKS
     if (ev_reason >= KVMI_NUM_EVENTS || !kvm->process_event[ev_reason]) {
         errprint("Undefined handler for %u event reason\n", ev_reason);
-        return VMI_FAILURE;
+        status = VMI_FAILURE;
+        goto cleanup;
     }
 #endif
     if (!vmi->shutting_down) {
         // call handler
-        if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, event))
-            return VMI_FAILURE;
+        if (VMI_FAILURE == kvm->process_event[ev_reason](vmi, (*event))) {
+            status = VMI_FAILURE;
+            goto cleanup;
+        }
     }
 
-    return VMI_SUCCESS;
+cleanup:
+    free((*event));
+    (*event) = NULL;
+    return status;
 }
 
 static status_t
@@ -943,10 +950,7 @@ process_pending_events(vmi_instance_t vmi)
             return VMI_FAILURE;
         }
 
-        process_single_event(vmi, event);
-
-        free(event);
-        event = NULL;
+        process_single_event(vmi, &event);
     }
 
     return VMI_SUCCESS;
@@ -966,10 +970,7 @@ process_events_with_timeout(vmi_instance_t vmi, uint32_t timeout)
         return VMI_SUCCESS;
     }
 
-    process_single_event(vmi, event);
-
-    free(event);
-    event = NULL;
+    process_single_event(vmi, &event);
 
     // make sure that all pending events are processed
     return process_pending_events(vmi);
