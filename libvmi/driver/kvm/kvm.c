@@ -31,24 +31,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/un.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
 #include <sys/time.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <glib.h>
-#include <math.h>
-#include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
-#include <libvirt/virterror.h>
 #include <libkvmi.h>
 
 #include "private.h"
 #include "msr-index.h"
-#include "driver/driver_wrapper.h"
 #include "driver/memory_cache.h"
 #include "driver/kvm/kvm.h"
 #include "driver/kvm/kvm_private.h"
