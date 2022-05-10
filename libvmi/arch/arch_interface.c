@@ -147,7 +147,7 @@ static status_t get_vcpu_page_mode_arm(vmi_instance_t vmi, unsigned long vcpu, p
         } else {
             /* See ARM ARMv8-A D7.2.84 TCR_EL1, Translation Control Register (EL1) */
             reg_t tcr_el1;
-            if ( !out_pm && VMI_SUCCESS == driver_get_vcpureg(vmi, &tcr_el1, TCR_EL1, vcpu)) {
+            if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &tcr_el1, TCR_EL1, vcpu)) {
                 vmi->arm64.t0sz = tcr_el1 & VMI_BIT_MASK(0,5);
                 vmi->arm64.t1sz = (tcr_el1 & VMI_BIT_MASK(16,21)) >> 16;
                 switch ((tcr_el1 & VMI_BIT_MASK(14,15)) >> 14) {
