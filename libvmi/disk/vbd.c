@@ -165,6 +165,14 @@ static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
         /* Check if backing file has absolute path then simply copy it to structure */
         if (!strncmp(backing_file_name, "/", 1)) {
             g_stpcpy(qcowfile->backing_file, backing_file_name);
+        } else if (!strncmp(backing_file_name, "json:", 5)) {
+            char prefix[] = "\"filename\": \"";
+            char *filename = strstr(backing_file_name, prefix);
+            if (filename) {
+                filename += sizeof(prefix) - 1;
+                char *filename_end = strchr(filename, '"');
+                strncpy(qcowfile->backing_file, filename, filename_end - filename);
+            }
         }
         /* If backing file has relative path, let's assume that it is located in the same directory as main file*/
         else {
