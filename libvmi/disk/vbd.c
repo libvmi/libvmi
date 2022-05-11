@@ -24,7 +24,7 @@
 #ifdef HAVE_ZLIB
 #include <zlib.h>
 
-static bool vbd_read_qcow2_disk_impl(const char* backend_path, uint64_t offset, uint64_t count, void *buffer);
+static status_t vbd_read_qcow2_disk_impl(const char* backend_path, uint64_t offset, uint64_t count, void *buffer);
 
 static int vbd_qcow2_uncompress_cluster(unsigned char *dest, size_t dest_size, unsigned char *src, size_t src_size)
 {
@@ -316,7 +316,7 @@ static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t nu
             errprint("VMI_ERROR: vbd_qcow2_read_chunk: backing file is empty\n");
             return -1;
         }
-        if (!vbd_read_qcow2_disk_impl(qcowfile->backing_file, offset, num, buffer)) {
+        if (VMI_FAILURE == Vbd_read_qcow2_disk_impl(qcowfile->backing_file, offset, num, buffer)) {
             errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to access backing file\n");
             return -1;
         }
@@ -366,7 +366,7 @@ static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t nu
             free(l2_table);
             return -1;
         }
-        if (!vbd_read_qcow2_disk_impl(qcowfile->backing_file, offset, num, buffer)) {
+        if (VMI_FAILURE == vbd_read_qcow2_disk_impl(qcowfile->backing_file, offset, num, buffer)) {
             errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to access backing file\n");
             free(l2_table);
             return -1;
@@ -432,26 +432,26 @@ static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t nu
 
 status_t vbd_read_qcow2_disk(vmi_instance_t UNUSED(vmi), const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
 {
-    return vbd_read_qcow2_disk_impl(backend_path, offset, count, buffer) ? VMI_SUCCESS : VMI_FAILURE;
+    return vbd_read_qcow2_disk_impl(backend_path, offset, count, buffer);
 }
 
-static bool vbd_read_qcow2_disk_impl(const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
+static status_t vbd_read_qcow2_disk_impl(const char* backend_path, uint64_t offset, uint64_t count, void *buffer)
 {
     QCowFile qcowfile;
     memset(&qcowfile, 0, sizeof(QCowFile));
 
     if (VMI_FAILURE == vbd_qcow2_open(&qcowfile, backend_path)) {
         errprint("VMI_ERROR: %s: failed to open disk image\n", __FUNCTION__);
-        return false;
+        return VMI_FAILURE;
     }
     if (VMI_FAILURE == vbd_qcow2_do_read(&qcowfile, offset, count, buffer)) {
         errprint("VMI_ERROR: %s: failed perform read operation\n", __FUNCTION__);
         vbd_qcow2_close(&qcowfile);
-        return false;
+        return VMI_FAILURE;
     }
     vbd_qcow2_close(&qcowfile);
 
-    return true;
+    return VMI_SUCCESS;
 }
 #endif
 
