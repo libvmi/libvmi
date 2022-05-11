@@ -167,11 +167,11 @@ static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
             g_stpcpy(qcowfile->backing_file, backing_file_name);
         } else if (!strncmp(backing_file_name, "json:", 5)) {
             char prefix[] = "\"filename\": \"";
-            char *filename = strstr(backing_file_name, prefix);
-            if (filename) {
-                filename += sizeof(prefix) - 1;
-                char *filename_end = strchr(filename, '"');
-                strncpy(qcowfile->backing_file, filename, filename_end - filename);
+            char *p = strstr(backing_file_name, prefix);
+            if (p) {
+                p += sizeof(prefix) - 1;
+                char *end = strchr(p, '"');
+                strncpy(qcowfile->backing_file, p, end - p);
             }
         }
         /* If backing file has relative path, let's assume that it is located in the same directory as main file*/
