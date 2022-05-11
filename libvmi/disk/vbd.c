@@ -47,6 +47,8 @@ static int vbd_qcow2_uncompress_cluster(unsigned char *dest, size_t dest_size, u
         ret = -EIO;
     }
 
+    inflateEnd(&strm);
+
     return ret;
 }
 
