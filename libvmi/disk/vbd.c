@@ -316,7 +316,7 @@ static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t nu
             errprint("VMI_ERROR: vbd_qcow2_read_chunk: backing file is empty\n");
             return -1;
         }
-        if (VMI_FAILURE == Vbd_read_qcow2_disk_impl(qcowfile->backing_file, offset, num, buffer)) {
+        if (VMI_FAILURE == vbd_read_qcow2_disk_impl(qcowfile->backing_file, offset, num, buffer)) {
             errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to access backing file\n");
             return -1;
         }
