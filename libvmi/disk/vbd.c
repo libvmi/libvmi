@@ -285,16 +285,12 @@ static status_t vbd_qcow2_do_read(QCowFile *qcowfile, uint64_t offset, size_t nu
 static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t num, unsigned char *buffer)
 {
     unsigned int l1_idx, l2_idx, offset_in_cluster;
-    uint64_t  cluster_descriptor;
     uint64_t  cluster_offset;
     uint64_t  l2_offset;
     uint64_t* l2_table;
     uint64_t  l2_entry;
 
     unsigned int compressed = 0;
-    unsigned int csize_mask = 0;
-    unsigned int csize_shift = 0;
-    unsigned int nb_csectors = 0;
     unsigned int csize = 0;
     int uncompress_ret;
 
@@ -347,18 +343,21 @@ static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t nu
     }
 
     l2_entry = l2_table[l2_idx];
-    cluster_descriptor = l2_entry & QCOW2_L2_ENTRY_CLUSTER_DESCRIPTOR;
 
     if (l2_entry & QCOW2_L2_ENTRY_CLUSTER_TYPE_FLAG) {
+        unsigned int csize_mask;
+        unsigned int csize_shift;
+        unsigned int nb_csectors;
+
         compressed = 1;
 
         csize_mask = (1 << (qcowfile->header.cluster_bits - 8)) - 1;
         csize_shift = 62 - (qcowfile->header.cluster_bits - 8);
 
-        cluster_offset = cluster_descriptor & ((1 << csize_shift) - 1);
+        cluster_offset = l2_entry & ((1ULL << csize_shift) - 1);
 
-        nb_csectors = ((cluster_descriptor >> csize_shift) & csize_mask) + 1;
-        csize = nb_csectors * QCOW2_COMPRESSED_SECTOR_SIZE - (cluster_offset & ~QCOW2_COMPRESSED_SECTOR_MASK);
+        nb_csectors = ((l2_entry >> csize_shift) & csize_mask) + 1;
+        csize = nb_csectors * QCOW2_COMPRESSED_SECTOR_SIZE - (cluster_offset & QCOW2_COMPRESSED_SECTOR_MASK);
         if (csize <= 0) {
             errprint("VMI_ERROR: vbd_qcow2_read_chunk: compressed cluster size is negative or zero\n");
             free(l2_table);
@@ -366,6 +365,7 @@ static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t nu
         }
     } else {
         /* Standard cluster */
+        uint64_t cluster_descriptor = l2_entry & QCOW2_L2_ENTRY_CLUSTER_DESCRIPTOR;
         cluster_offset = cluster_descriptor & QCOW2_STANDARD_CLUSTER_CLUSTER_OFFSET;
     }
 
@@ -395,14 +395,15 @@ static int vbd_qcow2_read_chunk(QCowFile *qcowfile, uint64_t offset, uint64_t nu
 
     fseek(qcowfile->fp, cluster_offset, SEEK_SET);
 
-    unsigned char* cluster = malloc(qcowfile->cluster_size);
+    size_t cluster_len = compressed ? csize : qcowfile->cluster_size;
+    unsigned char* cluster = malloc(cluster_len);
     if (!cluster) {
         errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to allocate cluster temp buffer\n");
         free(l2_table);
         return -1;
     }
 
-    if (!fread(cluster, qcowfile->cluster_size, 1, qcowfile->fp)) {
+    if (!fread(cluster, cluster_len, 1, qcowfile->fp)) {
         errprint("VMI_ERROR: vbd_qcow2_read_chunk: failed to read cluster\n");
         free(l2_table);
         free(cluster);
