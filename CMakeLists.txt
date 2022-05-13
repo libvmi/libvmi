@@ -29,6 +29,7 @@ set_package_properties(PkgConfig PROPERTIES
     TYPE REQUIRED
     PURPOSE "Find and configure multiple LibVMI dependencies")
 pkg_search_module(GLIB REQUIRED glib-2.0)
+pkg_search_module(ZLIB REQUIRED zlib)
 
 include(DetectArchitecture)
 include(StaticAnalysis)
@@ -135,6 +136,10 @@ install(FILES ${PROJECT_BINARY_DIR}/libvmi.pc DESTINATION
 
 # include <libvmi/libvmi.h> "config.h", "private.h" and <glib.h>
 include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} libvmi ${GLIB_INCLUDE_DIRS})
+if (ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+    add_definitions(-DHAVE_ZLIB)
+endif (ZLIB_FOUND)
 add_definitions(-DHAVE_CONFIG_H)
 add_subdirectory(libvmi)
 # configure config.h after processing libvmi subdir

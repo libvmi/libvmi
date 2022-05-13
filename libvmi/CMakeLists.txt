@@ -52,6 +52,11 @@ if (ENABLE_STATIC)
     set_target_properties(vmi_static PROPERTIES OUTPUT_NAME "vmi")
 endif ()
 
+if (ZLIB_FOUND)
+    target_link_libraries(vmi_shared PUBLIC ${ZLIB_LIBRARIES})
+    list(APPEND VMI_PUBLIC_DEPS ${ZLIB_LIBRARIES})
+endif ()
+
 # workaround CMake bug
 # target_sources doesn't work with generated files in subdirectories
 if (ENABLE_CONFIGFILE)
