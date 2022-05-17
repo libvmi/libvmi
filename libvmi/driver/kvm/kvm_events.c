@@ -411,12 +411,8 @@ process_interrupt(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     kvmi_regs_to_libvmi(kvmi_regs, kvmi_sregs, libvmi_event->x86_regs);
     libvmi_event->vcpu_id = kvmi_event->event.common.vcpu;
 
-    //      interrupt_event
+    // interrupt_event
     libvmi_event->interrupt_event.gfn = kvmi_event->event.breakpoint.gpa >> vmi->page_shift;
-    // TODO: vector and type
-    // event->interrupt_event.vector =
-    // event->interrupt_event.type =
-    libvmi_event->interrupt_event.cr2 = kvmi_event->event.common.arch.sregs.cr2;
     libvmi_event->interrupt_event.offset = kvmi_event->event.common.arch.regs.rip & VMI_BIT_MASK(0,11);
     libvmi_event->interrupt_event.gla = kvmi_event->event.common.arch.regs.rip;
     // default reinject behavior: invalid
