@@ -243,6 +243,17 @@ kvm_put_memory(vmi_instance_t vmi,
     if (kvm->libkvmi.kvmi_write_physical(kvm->kvmi_dom, paddr, buf, length) < 0)
         return VMI_FAILURE;
 
+    /*
+     * We need to refresh the page cache after a page is written to
+     * because it might have been a copy-on-write page. After this
+     * write the mapping changes but the cached reference is to the
+     * old (origin) page.
+     */
+    int num_pages = ((paddr + length - 1) >> vmi->page_shift) - (paddr >> vmi->page_shift) + 1;
+    for (int i = 0; i < num_pages; i++) {
+        memory_cache_remove(vmi, ((paddr >> vmi->page_shift) + i) << vmi->page_shift);
+    }
+
     return VMI_SUCCESS;
 }
 
