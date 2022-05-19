@@ -560,6 +560,21 @@ driver_set_cpuid_event(
 }
 
 static inline status_t
+driver_set_vmexit_event(
+    vmi_instance_t vmi,
+    bool enabled, bool sync)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.set_vmexit_event_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_cpuid_event function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.set_vmexit_event_ptr(vmi, enabled, sync);
+}
+
+static inline status_t
 driver_set_debug_event(
     vmi_instance_t vmi,
     bool enabled)

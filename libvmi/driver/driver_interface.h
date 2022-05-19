@@ -158,6 +158,9 @@ typedef struct driver_interface {
     status_t (*set_cpuid_event_ptr)(
         vmi_instance_t,
         bool enabled);
+    status_t (*set_vmexit_event_ptr)(
+        vmi_instance_t,
+        bool enabled, bool sync);
     status_t (*set_debug_event_ptr)(
         vmi_instance_t,
         bool enabled);

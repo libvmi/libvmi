@@ -476,6 +476,30 @@ status_t xen_set_cpuid_event(vmi_instance_t vmi, bool enabled)
     return VMI_SUCCESS;
 }
 
+status_t xen_set_vmexit_event(vmi_instance_t vmi, bool enabled, bool sync)
+{
+    int rc;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 17 )
+        return VMI_FAILURE;
+
+    if ( !enabled && !vmi->vmexit_event )
+        return VMI_SUCCESS;
+
+    rc = xen->libxcw.xc_monitor_vmexit(xen_get_xchandle(vmi),
+                                       xen_get_domainid(vmi),
+                                       enabled, sync);
+    if ( rc < 0 ) {
+        errprint("Error %i setting VMEXIT event monitor\n", rc);
+        return VMI_FAILURE;
+    }
+
+    if ( !enabled )
+        vmi->vmexit_event = NULL;
+
+    return VMI_SUCCESS;
+}
 
 status_t xen_set_privcall_event(vmi_instance_t vmi, bool enabled)
 {
@@ -1049,6 +1073,34 @@ status_t process_cpuid(vmi_instance_t vmi, vm_event_compat_t *vmec)
     if ( !vmec->flags || vmec->flags == (1 << VM_EVENT_FLAG_VCPU_PAUSED) )
         dbprint(VMI_DEBUG_XEN, "%s warning: CPUID events require the callback to specify how to handle it, we are likely to be going into a CPUID loop right now\n",
                 __FUNCTION__);
+
+    return VMI_SUCCESS;
+}
+
+static
+status_t process_vmexit(vmi_instance_t vmi, vm_event_compat_t *vmec)
+{
+    vmi_event_t * event = vmi->vmexit_event;
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !event ) {
+        errprint("%s error: no VMEXIT event handler is registered in LibVMI\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    event->vmexit_event.reason = vmec->vmexit.arch.vmx.reason;
+    event->vmexit_event.qualification = vmec->vmexit.arch.vmx.qualification;
+
+    event->x86_regs = &vmec->data.regs.x86;
+    event->slat_id = vmec->altp2m_idx;
+    event->vcpu_id = vmec->vcpu_id;
+    event->page_mode = vmec->pm;
+
+    vmi->event_callback = 1;
+    process_response ( event->callback(vmi, event),
+                       event, vmec );
+    vmi->event_callback = 0;
 
     return VMI_SUCCESS;
 }
@@ -3019,6 +3071,10 @@ status_t process_requests_7(vmi_instance_t vmi, uint32_t *requests_processed)
             case VM_EVENT_REASON_DESCRIPTOR_ACCESS:
                 memcpy(&vmec.desc_access, &req->u.desc_access, sizeof(vmec.desc_access));
                 break;
+
+            case VM_EVENT_REASON_VMEXIT:
+                memcpy(&vmec.vmexit, &req->u.vmexit, sizeof(vmec.vmexit));
+                break;
         }
 
         vrc = process_request(vmi, &vmec);
@@ -3491,6 +3547,7 @@ status_t xen_init_events(
     xe->process_event[VM_EVENT_REASON_INTERRUPT] = &process_interrupt;
     xe->process_event[VM_EVENT_REASON_DESCRIPTOR_ACCESS] = &process_desc_access;
     xe->process_event[VM_EVENT_REASON_EMUL_UNIMPLEMENTED] = &process_unimplemented_emul;
+    xe->process_event[VM_EVENT_REASON_VMEXIT] = &process_vmexit;
 
     vmi->driver.events_listen_ptr = &xen_events_listen;
     vmi->driver.set_reg_access_ptr = &xen_set_reg_access;
@@ -3505,6 +3562,7 @@ status_t xen_init_events(
     vmi->driver.set_privcall_event_ptr = &xen_set_privcall_event;
     vmi->driver.set_desc_access_event_ptr = &xen_set_desc_access_event;
     vmi->driver.set_failed_emulation_event_ptr = &xen_set_failed_emulation_event;
+    vmi->driver.set_vmexit_event_ptr = &xen_set_vmexit_event;
 
     xen->libxcw.xc_monitor_get_capabilities(xch, dom, &xe->monitor_capabilities);
 
