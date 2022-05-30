@@ -41,10 +41,6 @@
 #include <time.h>
 #include <inttypes.h>
 #include "libvmi.h"
-#define LIBVMI_EXTRA_GLIB
-#ifdef ENABLE_JSON_PROFILES
-#define LIBVMI_EXTRA_JSON
-#endif
 #include "libvmi_extra.h"
 #include "cache.h"
 #include "events.h"

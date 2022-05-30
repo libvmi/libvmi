@@ -231,6 +231,7 @@ if LINUX
     examples_vmi_linux_offsets_LDADD = $(GLIB_LIBS) libvmi/libvmi.la
 
     examples_vmi_dmesg_SOURCES = examples/dmesg.c
+    examples_vmi_dmesg_CFLAGS = $(GLIB_CFLAGS)
     examples_vmi_linux_offsets_SOURCES = examples/linux-offsets.c
 endif
 

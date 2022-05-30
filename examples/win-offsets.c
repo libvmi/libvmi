@@ -22,8 +22,6 @@
 
 #define _GNU_SOURCE
 
-#define LIBVMI_EXTRA_JSON
-
 #include <libvmi/libvmi.h>
 #include <libvmi/peparse.h>
 #include <libvmi/events.h>

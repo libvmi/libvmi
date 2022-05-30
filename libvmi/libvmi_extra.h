@@ -22,15 +22,16 @@
  * @file libvmi_extra.h
  * @brief The Extra LibVMI API is defined here.
  *
- * To use GLib functions compile with -DLIBVMI_EXTRA_GLIB
- * To use JSON functions compile with -DLIBVMI_EXTRA_JSON
+ * To use JSON functions compile with -DENABLE_JSON_PROFILES
  */
 #ifndef LIBVMI_EXTRA_H
 #define LIBVMI_EXTRA_H
 
-#ifdef LIBVMI_EXTRA_GLIB
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 #include <glib.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,8 +41,6 @@ extern "C" {
 #endif
 
 #pragma GCC visibility push(default)
-
-#ifdef LIBVMI_EXTRA_GLIB
 
 /**
  * Retrieve the pages mapped into the address space of a process.
@@ -73,9 +72,7 @@ GSList* vmi_get_nested_va_pages(
     addr_t pt,
     page_mode_t pm) NOEXCEPT;
 
-#endif
-
-#ifdef LIBVMI_EXTRA_JSON
+#ifdef ENABLE_JSON_PROFILES
 #include <json-c/json.h>
 
 /**

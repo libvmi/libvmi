@@ -31,7 +31,6 @@
 
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
-#define LIBVMI_EXTRA_GLIB
 #include <libvmi/libvmi_extra.h>
 
 reg_t cr3;

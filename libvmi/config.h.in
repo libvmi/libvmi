@@ -1,3 +1,6 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
 /* Define for the ARM32 architecture. */
 #cmakedefine ARM32
 
@@ -110,3 +113,5 @@
 
 /* Version number of package */
 #define VERSION "${PROJECT_VERSION}"
+
+#endif // CONFIG_H

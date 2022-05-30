@@ -34,7 +34,6 @@
 #include <getopt.h>
 
 #include <libvmi/libvmi.h>
-#define LIBVMI_EXTRA_JSON
 #include <libvmi/libvmi_extra.h>
 
 static vmi_instance_t vmi;
