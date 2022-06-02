@@ -39,6 +39,11 @@ void
 kvm_events_destroy(vmi_instance_t vmi);
 
 status_t
+kvm_process_events_with_timeout(
+    vmi_instance_t vmi,
+    uint32_t timeout);
+
+status_t
 kvm_events_listen(
     vmi_instance_t vmi,
     uint32_t timeout);

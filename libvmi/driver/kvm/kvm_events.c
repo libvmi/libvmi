@@ -821,7 +821,7 @@ kvm_events_destroy(
     dbprint(VMI_DEBUG_KVM, "--Destroying KVM driver events\n");
     // pause VM
     dbprint(VMI_DEBUG_KVM, "--Ensure VM is paused\n");
-    if (VMI_FAILURE == vmi_pause_vm(vmi))
+    if (VMI_FAILURE == kvm_pause_vm(vmi))
         errprint("--Failed to pause VM while destroying events\n");
 
     reg_event_t regevent = { .in_access = VMI_REGACCESS_N };
@@ -878,13 +878,13 @@ kvm_events_destroy(
     // clean event queue
     if (kvm_are_events_pending(vmi)) {
         dbprint(VMI_DEBUG_KVM, "--Cleanup event queue\n");
-        if (VMI_FAILURE == vmi_events_listen(vmi, 0))
+        if (VMI_FAILURE == kvm_events_listen(vmi, 0))
             errprint("--Failed to clean event queue\n");
     }
 
     // resume VM
     dbprint(VMI_DEBUG_KVM, "--Resume VM\n");
-    if (VMI_FAILURE == vmi_resume_vm(vmi))
+    if (VMI_FAILURE == kvm_resume_vm(vmi))
         errprint("--Failed to resume VM while destroying events\n");
 }
 
@@ -952,8 +952,8 @@ process_pending_events(vmi_instance_t vmi)
     return VMI_SUCCESS;
 }
 
-static status_t
-process_events_with_timeout(vmi_instance_t vmi, uint32_t timeout)
+status_t
+kvm_process_events_with_timeout(vmi_instance_t vmi, uint32_t timeout)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     struct kvmi_dom_event *event = NULL;
@@ -992,7 +992,7 @@ kvm_events_listen(
 
     GSList *loop;
 
-    if (process_events_with_timeout(vmi, timeout) == VMI_FAILURE) {
+    if (kvm_process_events_with_timeout(vmi, timeout) == VMI_FAILURE) {
         return VMI_FAILURE;
     }
 
@@ -1004,7 +1004,9 @@ kvm_events_listen(
      * are pending we can remove/swap the events.
      */
     if (vmi->swap_events || (vmi->clear_events && g_hash_table_size(vmi->clear_events))) {
-        vmi_pause_vm(vmi);
+        if (kvm_pause_vm(vmi) == VMI_FAILURE) {
+            return VMI_FAILURE;
+        }
         if (process_pending_events(vmi) == VMI_FAILURE) {
             return VMI_FAILURE;
         }
@@ -1023,7 +1025,9 @@ kvm_events_listen(
 
         g_hash_table_foreach_remove(vmi->clear_events, clear_events_full, vmi);
 
-        vmi_resume_vm(vmi);
+        if (kvm_resume_vm(vmi) == VMI_FAILURE) {
+            return VMI_FAILURE;
+        }
     }
 
     return VMI_SUCCESS;

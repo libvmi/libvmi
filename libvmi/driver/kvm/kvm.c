@@ -31,24 +31,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/un.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
 #include <sys/time.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <glib.h>
-#include <math.h>
-#include <glib/gstdio.h>
 #include <libvirt/libvirt.h>
-#include <libvirt/virterror.h>
 #include <libkvmi.h>
 
 #include "private.h"
 #include "msr-index.h"
-#include "driver/driver_wrapper.h"
 #include "driver/memory_cache.h"
 #include "driver/kvm/kvm.h"
 #include "driver/kvm/kvm_private.h"
@@ -1015,7 +1004,7 @@ kvm_pause_vm(
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
     // already paused ?
-    if (kvm->expected_pause_count)
+    if (kvm->paused)
         return VMI_SUCCESS;
 
     // pause vcpus
@@ -1024,9 +1013,9 @@ kvm_pause_vm(
         return VMI_FAILURE;
     }
 
-    kvm->expected_pause_count = vmi->num_vcpus;
+    kvm->paused = true;
 
-    dbprint(VMI_DEBUG_KVM, "--We should receive %u pause events\n", kvm->expected_pause_count);
+    dbprint(VMI_DEBUG_KVM, "--We should receive %u pause events\n", vmi->num_vcpus);
 
     return VMI_SUCCESS;
 }
@@ -1038,54 +1027,36 @@ kvm_resume_vm(
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
     // already resumed ?
-    if (!kvm->expected_pause_count)
+    if (!kvm->paused)
         return VMI_SUCCESS;
 
-    // wait to receive pause events
-    while (kvm->expected_pause_count) {
+    // iterate over pause_events_list and unpause every single vcpu by sending a continue reply for each pause event
+    for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
         struct kvmi_dom_event *ev = NULL;
-        unsigned int ev_id = 0;
 
-        // check pause events poped by vmi_events_listen first
-        for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
-            if (kvm->pause_events_list[vcpu]) {
-                dbprint(VMI_DEBUG_KVM, "--Removing PAUSE_VCPU event from the buffer\n");
-                ev = kvm->pause_events_list[vcpu];
-                kvm->pause_events_list[vcpu] = NULL;
-                break;
-            }
-        }
-
-        // if no pause event is waiting in the list, pop next one
-        if (!ev) {
-            if (VMI_FAILURE == kvm_get_next_event(kvm, &ev, 1000)) {
-                errprint("Failed to get next KVMi event\n");
-            }
-            if (!ev) {
-                // no new events
-                // report error
+        // wait until the pause event for the current vcpu is received
+        while (!kvm->pause_events_list[vcpu]) {
+            dbprint(VMI_DEBUG_KVM, "--Waiting to receive PAUSE_VCPU event for vcpu %u\n", vcpu);
+            if (kvm_process_events_with_timeout(vmi, 100) == VMI_FAILURE) {
                 return VMI_FAILURE;
             }
         }
+
+        dbprint(VMI_DEBUG_KVM, "--Removing PAUSE_VCPU event from the buffer\n");
+        ev = kvm->pause_events_list[vcpu];
+        kvm->pause_events_list[vcpu] = NULL;
+
         // handle event
-        ev_id = ev->event.common.event;
-        switch (ev_id) {
-            case KVMI_EVENT_PAUSE_VCPU:
-                dbprint(VMI_DEBUG_KVM, "--Received VCPU pause event\n");
-                kvm->expected_pause_count--;
-                if (reply_continue(kvm, ev) == VMI_FAILURE) {
-                    errprint("%s: Fail to send continue reply", __func__);
-                    free(ev);
-                    return VMI_FAILURE;
-                }
-                free(ev);
-                break;
-            default:
-                errprint("%s: Unexpected event %u\n", __func__, ev_id);
-                free(ev);
-                return VMI_FAILURE;
+        dbprint(VMI_DEBUG_KVM, "--Sending continue reply\n");
+        if (reply_continue(kvm, ev) == VMI_FAILURE) {
+            errprint("%s: Failed to send continue reply\n", __func__);
+            free(ev);
+            return VMI_FAILURE;
         }
+        free(ev);
     }
+
+    kvm->paused = false;
 
     return VMI_SUCCESS;
 }

@@ -56,8 +56,8 @@ typedef struct kvm_instance {
     libkvmi_wrapper_t libkvmi;
     pthread_mutex_t kvm_connect_mutex;
     pthread_cond_t kvm_start_cond;
-    unsigned int expected_pause_count;
-    // store KVMI_EVENT_PAUSE_VCPU events poped by vmi_events_listen(vmi, 0)
+    bool paused;
+    // store KVMI_EVENT_PAUSE_VCPU events popped by vmi_events_listen(vmi, 0)
     // to be used by vmi_resume_vm()
     struct kvmi_dom_event** pause_events_list;
     // dispatcher to handle VM events in each process_xxx functions
