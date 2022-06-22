@@ -19,41 +19,42 @@ jobs:
         language: ['cpp']
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-      with:
-        # We must fetch at least the immediate parents so that if this is
-        # a pull request then we can checkout the head.
-        fetch-depth: 2
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          # We must fetch at least the immediate parents so that if this is
+          # a pull request then we can checkout the head.
+          fetch-depth: 2
 
-    # If this run was triggered by a pull request event, then checkout
-    # the head of the pull request instead of the merge commit.
-    - run: git checkout HEAD^2
-      if: ${{ github.event_name == 'pull_request' }}
+      # If this run was triggered by a pull request event, then checkout
+      # the head of the pull request instead of the merge commit.
+      - run: git checkout HEAD^2
+        if: ${{ github.event_name == 'pull_request' }}
 
-    # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v1
-      with:
-        languages: ${{ matrix.language }}
-        queries: security-and-quality
+      # Initializes the CodeQL tools for scanning.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v1
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update -q
-        sudo apt-get install -y autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev
-        git clone --depth=2 https://github.com/libvmi/libkvmi
-        cd libkvmi
-        ./bootstrap
-        ./configure
-        make
-        sudo make install
-        cd ..
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev
+          git clone https://github.com/bitdefender/libkvmi
+          cd libkvmi
+          git reset --hard "$(cat ../.github/variables/libkvmi_rev | tr -d '[:space:]')"
+          ./bootstrap
+          ./configure
+          make
+          sudo make install
+          cd ..
 
-    - run: |
-        autoreconf -vif
-        ./configure
-        make
+      - run: |
+          autoreconf -vif
+          ./configure
+          make
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v1
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v1

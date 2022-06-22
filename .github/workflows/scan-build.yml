@@ -16,8 +16,9 @@ jobs:
           # Install packages
           sudo apt-get update -q
           sudo apt-get install -y clang clang-tools autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev
-          git clone --depth=2 https://github.com/libvmi/libkvmi
+          git clone https://github.com/bitdefender/libkvmi
           cd libkvmi
+          git reset --hard "$(cat ../.github/variables/libkvmi_rev | tr -d '[:space:]')"
           ./bootstrap
           ./configure
           make
