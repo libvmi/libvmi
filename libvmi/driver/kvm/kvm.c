@@ -470,7 +470,7 @@ static void
 kvm_close_vmi(vmi_instance_t vmi, kvm_instance_t *kvm)
 {
     // events ?
-    if (vmi->init_flags & VMI_INIT_EVENTS) {
+    if (kvm->kvmi_dom && (vmi->init_flags & VMI_INIT_EVENTS)) {
         kvm_events_destroy(vmi);
     }
 
@@ -1003,9 +1003,12 @@ kvm_pause_vm(
     vmi_instance_t vmi)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    // already paused ?
-    if (kvm->paused)
+
+    if (kvm->pause_count > 0) {
+        kvm->pause_count++;
+        dbprint(VMI_DEBUG_KVM, "--Pause count: %d\n", kvm->pause_count);
         return VMI_SUCCESS;
+    }
 
     // pause vcpus
     if (kvm->libkvmi.kvmi_pause_all_vcpus(kvm->kvmi_dom, vmi->num_vcpus)) {
@@ -1013,7 +1016,7 @@ kvm_pause_vm(
         return VMI_FAILURE;
     }
 
-    kvm->paused = true;
+    kvm->pause_count = 1;
 
     dbprint(VMI_DEBUG_KVM, "--We should receive %u pause events\n", vmi->num_vcpus);
 
@@ -1026,9 +1029,15 @@ kvm_resume_vm(
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    // already resumed ?
-    if (!kvm->paused)
+    // already resumed?
+    if (kvm->pause_count <= 0)
         return VMI_SUCCESS;
+
+    if (kvm->pause_count > 1) {
+        kvm->pause_count--;
+        dbprint(VMI_DEBUG_KVM, "--Pause count: %d\n", kvm->pause_count);
+        return VMI_SUCCESS;
+    }
 
     // iterate over pause_events_list and unpause every single vcpu by sending a continue reply for each pause event
     for (unsigned int vcpu = 0; vcpu < vmi->num_vcpus; vcpu++) {
@@ -1056,7 +1065,7 @@ kvm_resume_vm(
         free(ev);
     }
 
-    kvm->paused = false;
+    kvm->pause_count = 0;
 
     return VMI_SUCCESS;
 }
