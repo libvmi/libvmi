@@ -573,17 +573,16 @@ process_pagefault(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 static status_t
 process_descriptor(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 {
-    status_t result = VMI_FAILURE;
-    vmi_event_t *libvmi_event = vmi->descriptor_access_event;
-
 #ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi || !kvmi_event || !libvmi_event) {
+    if (!vmi || !kvmi_event || !vmi->descriptor_access_event) {
         errprint("%s: invalid parameters\n", __func__);
         return VMI_FAILURE;
     }
 #endif
     dbprint(VMI_DEBUG_KVM, "--Received descriptor event\n");
 
+    status_t result = VMI_FAILURE;
+    vmi_event_t *libvmi_event = vmi->descriptor_access_event;
     // reply struct
     struct {
         struct kvmi_vcpu_hdr hdr;
