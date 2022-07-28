@@ -197,6 +197,13 @@ process_cb_response(
             continue;
         if (response & candidate) {
             switch (candidate) {
+                case VMI_EVENT_RESPONSE_VMM_PAGETABLE_ID:
+                    if (kvm->libkvmi.kvmi_switch_ept_view(kvm->kvmi_dom, vcpu, libvmi_event->slat_id)) {
+                        errprint("%s: unable to switch to view %d for vcpu %d\n", __func__, libvmi_event->slat_id,
+                                 vcpu);
+                        return VMI_FAILURE;
+                    }
+                    break;
                 case VMI_EVENT_RESPONSE_SET_REGISTERS:
                     regs.x86 = (*libvmi_event->x86_regs);
                     if (VMI_FAILURE == kvm_set_vcpuregs(vmi, &regs, libvmi_event->vcpu_id)) {

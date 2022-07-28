@@ -42,6 +42,7 @@
 #include "driver/kvm/kvm.h"
 #include "driver/kvm/kvm_private.h"
 #include "driver/kvm/kvm_events.h"
+#include "driver/kvm/kvm_slat.h"
 
 // 2 chars for each hex + 1 space + 1 \0
 #define UUID_HEX_STR_LEN (16 * 3 + 1)
@@ -584,6 +585,8 @@ kvm_init_vmi(
         if (VMI_FAILURE == kvm_events_init(vmi, init_flags, init_data))
             return VMI_FAILURE;
     }
+
+    kvm_init_slat(vmi);
 
     return kvm_setup_live_mode(vmi);
 err_exit:

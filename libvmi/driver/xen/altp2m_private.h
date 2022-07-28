@@ -49,8 +49,8 @@ xen_init_altp2m (
     xen_instance_t *xen = xen_get_instance ( vmi );
 
     if ( xen->major_version > 4 || ( xen->major_version == 4 && xen->minor_version >= 6 ) ) {
-        vmi->driver.slat_get_domain_state_ptr = &xen_altp2m_get_domain_state;
-        vmi->driver.slat_set_domain_state_ptr = &xen_altp2m_set_domain_state;
+        vmi->driver.slat_state_ptr = &xen_altp2m_get_domain_state;
+        vmi->driver.slat_control_ptr = &xen_altp2m_set_domain_state;
         vmi->driver.slat_create_ptr = &xen_altp2m_create_p2m;
         vmi->driver.slat_destroy_ptr = &xen_altp2m_destroy_p2m;
         vmi->driver.slat_switch_ptr = &xen_altp2m_switch_p2m;

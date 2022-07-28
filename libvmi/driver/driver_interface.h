@@ -189,10 +189,10 @@ typedef struct driver_interface {
     status_t (*set_io_event_ptr)(
         vmi_instance_t,
         bool enabled);
-    status_t (*slat_get_domain_state_ptr)(
+    status_t (*slat_state_ptr)(
         vmi_instance_t vmi,
         bool *state);
-    status_t (*slat_set_domain_state_ptr)(
+    status_t (*slat_control_ptr)(
         vmi_instance_t vmi,
         bool state);
     status_t (*slat_create_ptr)(

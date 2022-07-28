@@ -18,6 +18,7 @@ examples/va-pages
 examples/xen-emulate-response
 examples/breakpoint-emulate-example
 examples/vmi-dmesg
+examples/switch-view-example
 libtool
 libvmi.pc
 tests/check_libvmi

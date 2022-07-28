@@ -97,6 +97,10 @@ Displays the VM's process list.
 
 A simple singlestep event interception. Also demonstrate how to manually toggle the singlestep once enabled.
 
+## switch-view-example
+
+A simple example demonstrating how to use Second Level Address Translation (EPT/RVI) via LibVMI.
+
 ## va-pages
 
 Displays the current process page tables upon each `CR3` load.

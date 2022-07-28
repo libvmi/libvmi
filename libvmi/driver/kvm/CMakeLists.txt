@@ -9,5 +9,6 @@ else ()
     target_sources(vmi_shared PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/kvm.c
         ${CMAKE_CURRENT_SOURCE_DIR}/kvm_events.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/kvm_slat.c
         ${CMAKE_CURRENT_SOURCE_DIR}/libkvmi_wrapper.c)
 endif ()

@@ -712,33 +712,33 @@ driver_set_io_event(
 }
 
 static inline status_t
-driver_slat_get_domain_state (
+driver_slat_state (
     vmi_instance_t vmi,
     bool *state )
 {
 #ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi->driver.initialized || !vmi->driver.slat_get_domain_state_ptr ) {
-        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_get_domain_state function not implemented.\n");
+    if (!vmi->driver.initialized || !vmi->driver.slat_state_ptr ) {
+        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_state function not implemented.\n");
         return VMI_FAILURE;
     }
 #endif
 
-    return vmi->driver.slat_get_domain_state_ptr (vmi, state);
+    return vmi->driver.slat_state_ptr (vmi, state);
 }
 
 static inline status_t
-driver_slat_set_domain_state (
+driver_slat_control (
     vmi_instance_t vmi,
     bool state )
 {
 #ifdef ENABLE_SAFETY_CHECKS
-    if (!vmi->driver.initialized || !vmi->driver.slat_set_domain_state_ptr ) {
-        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_set_domain_state function not implemented.\n");
+    if (!vmi->driver.initialized || !vmi->driver.slat_control_ptr ) {
+        dbprint (VMI_DEBUG_DRIVER, "WARNING: driver_slat_control function not implemented.\n");
         return VMI_FAILURE;
     }
 #endif
 
-    return vmi->driver.slat_set_domain_state_ptr (vmi, state);
+    return vmi->driver.slat_control_ptr (vmi, state);
 }
 
 static inline status_t
