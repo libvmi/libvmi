@@ -225,9 +225,7 @@ void memory_cache_remove(
         return;
     }
 
-    gint64 *key = (gint64*)&paddr;
-
-    g_hash_table_remove(vmi->memory_cache, key);
+    g_hash_table_remove(vmi->memory_cache, GSIZE_TO_POINTER(paddr));
 }
 
 void
