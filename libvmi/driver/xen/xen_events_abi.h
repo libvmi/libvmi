@@ -114,7 +114,8 @@ typedef enum {
 #define VM_EVENT_REASON_DESCRIPTOR_ACCESS       13
 #define VM_EVENT_REASON_EMUL_UNIMPLEMENTED      14
 #define VM_EVENT_REASON_VMEXIT                  15
-#define __VM_EVENT_REASON_MAX                   16
+#define VM_EVENT_REASON_IO_INSTRUCTION          16
+#define __VM_EVENT_REASON_MAX                   17
 
 #define VM_EVENT_X86_CR0    0
 #define VM_EVENT_X86_CR3    1
@@ -407,6 +408,13 @@ struct vm_event_mov_to_msr_3 {
     uint64_t msr;
     uint64_t new_value;
     uint64_t old_value;
+};
+
+struct vm_event_io_instruction {
+    uint32_t data_size;
+    uint32_t port;
+    uint32_t input;
+    uint32_t string_ins;
 };
 
 #define VM_EVENT_DESC_IDTR           1
@@ -706,6 +714,7 @@ typedef struct vm_event_st_7 {
         struct vm_event_debug_6               debug_exception;
         struct vm_event_cpuid                 cpuid;
         struct vm_event_vmexit                vmexit;
+        struct vm_event_io_instruction        io_instruction;
         union {
             struct vm_event_interrupt_x86     x86;
         } interrupt;

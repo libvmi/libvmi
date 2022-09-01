@@ -1242,3 +1242,26 @@ status_t vmi_disk_is_bootable(
 
     return VMI_SUCCESS;
 }
+
+firmware_t vmi_get_firmware_type(
+    vmi_instance_t vmi)
+{
+    firmware_t result = VMI_FIRMWARE_UNKNOWN;
+    if ( vmi->mode != VMI_XEN)
+        return result;
+
+    char *bios = driver_get_bios(vmi);
+    if (bios) {
+        gchar *tmp = g_ascii_strdown(bios, -1);
+        if (!g_strcmp0(tmp, "ovmf"))
+            result = VMI_FIRMWARE_UEFI;
+        else if (!g_strcmp0(tmp, "seabios") || !g_strcmp0(tmp, "rombios"))
+            result = VMI_FIRMWARE_LEGACY;
+        else
+            result = VMI_FIRMWARE_UNKNOWN;
+        g_free(tmp);
+        free(bios);
+    }
+
+    return result;
+}

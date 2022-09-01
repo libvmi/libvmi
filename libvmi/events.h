@@ -70,6 +70,7 @@ typedef uint16_t vmi_event_type_t;
 #define VMI_EVENT_FAILED_EMULATION  10  /**< Emulation failed when requested by VMI_EVENT_RESPONSE_EMULATE */
 #define VMI_EVENT_DOMAIN_WATCH      11  /**< Watch create/destroy events */
 #define VMI_EVENT_VMEXIT            12  /**< VMEXIT */
+#define VMI_EVENT_IO                13  /**< I/O instruction event */
 
 /**
  * Max number of vcpus we can set single step on at one time for a domain
@@ -404,6 +405,13 @@ typedef struct cpuid_event {
     uint32_t _pad;
 } cpuid_event_t;
 
+typedef struct {
+    uint32_t data_size;
+    uint32_t port;
+    uint32_t input;
+    uint32_t string_ins;
+} io_event_t;
+
 #define VMI_DESCRIPTOR_IDTR           1
 #define VMI_DESCRIPTOR_GDTR           2
 #define VMI_DESCRIPTOR_LDTR           3
@@ -546,6 +554,7 @@ struct vmi_event {
         descriptor_event_t descriptor_event;
         watch_domain_event_t watch_event;
         vmexit_event_t vmexit_event;
+        io_event_t io_event;
     };
 
     /*
@@ -652,6 +661,13 @@ struct vmi_event {
         do { \
             (_event)->version = VMI_EVENTS_VERSION; \
             (_event)->type = VMI_EVENT_PRIVILEGED_CALL; \
+            (_event)->callback = _callback; \
+        } while(0)
+
+#define SETUP_IO_EVENT(_event, _callback) \
+        do { \
+            (_event)->version = VMI_EVENTS_VERSION; \
+            (_event)->type = VMI_EVENT_IO; \
             (_event)->callback = _callback; \
         } while(0)
 

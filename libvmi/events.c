@@ -488,6 +488,19 @@ status_t register_watch_domain_event(vmi_instance_t vmi, vmi_event_t *event)
     return rc;
 }
 
+status_t register_io_event(vmi_instance_t vmi, vmi_event_t *event)
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( !vmi->io_event ) {
+        rc = driver_set_io_event(vmi, 1);
+        if ( VMI_SUCCESS == rc )
+            vmi->io_event = event;
+    };
+
+    return rc;
+}
+
 status_t clear_interrupt_event(vmi_instance_t vmi, vmi_event_t *event)
 {
 
@@ -622,6 +635,20 @@ status_t clear_debug_event(vmi_instance_t vmi, vmi_event_t* UNUSED(event))
 
         if ( VMI_SUCCESS == rc )
             vmi->debug_event = NULL;
+    }
+
+    return rc;
+}
+
+status_t clear_io_event(vmi_instance_t vmi, vmi_event_t* UNUSED(event))
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( vmi->io_event ) {
+        rc = driver_set_io_event(vmi, 0);
+
+        if ( VMI_SUCCESS == rc)
+            vmi->io_event = NULL;
     }
 
     return rc;
@@ -847,6 +874,9 @@ vmi_register_event(
             break;
         case VMI_EVENT_VMEXIT:
             rc = register_vmexit_event(vmi, event);
+            break;
+        case VMI_EVENT_IO:
+            rc = register_io_event(vmi, event);
             break;
         default:
             dbprint(VMI_DEBUG_EVENTS, "Unknown event type: %d\n", event->type);

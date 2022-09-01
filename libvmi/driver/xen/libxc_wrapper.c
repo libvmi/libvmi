@@ -84,6 +84,10 @@ static status_t sanity_check(xen_instance_t *xen)
 
         default:
         /* Things start to be a bit saner from 4.6 */
+        case 16:
+            if ( !w->xc_monitor_io )
+                break;
+            __attribute__ ((fallthrough));
         case 11:
             if ( !w->xc_monitor_emul_unimplemented )
                 break;
@@ -220,6 +224,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_monitor_debug_exceptions = dlsym(wrapper->handle, "xc_monitor_debug_exceptions");
     wrapper->xc_monitor_cpuid = dlsym(wrapper->handle, "xc_monitor_cpuid");
     wrapper->xc_monitor_vmexit = dlsym(wrapper->handle, "xc_monitor_vmexit");
+    wrapper->xc_monitor_io = dlsym(wrapper->handle, "xc_monitor_io");
     wrapper->xc_hvm_param_get = dlsym(wrapper->handle, "xc_hvm_param_get");
     wrapper->xc_hvm_param_set = dlsym(wrapper->handle, "xc_hvm_param_set");
     wrapper->xc_get_hvm_param = dlsym(wrapper->handle, "xc_get_hvm_param");

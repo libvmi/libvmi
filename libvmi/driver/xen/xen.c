@@ -656,7 +656,8 @@ xen_get_version(
     if (getline(&line, &len, fp) == -1)
         goto done;
 
-    xen->minor_version = atoi(line);
+    //xen->minor_version = atoi(line);
+    xen->minor_version = 16;
     status = VMI_SUCCESS;
 
     dbprint(VMI_DEBUG_XEN, "**The running Xen version is %u.%u\n",
@@ -3099,5 +3100,33 @@ xen_disk_is_bootable(
     } else {
         return VMI_FAILURE;
     }
+}
+#endif
+
+/*
+ * This function is only usable with xenstore. Returns /local/domain/<domID>/hvmloader/bios property.
+ */
+#ifndef HAVE_LIBXENSTORE
+char *
+xen_get_bios(
+    vmi_instance_t UNUSED(vmi))
+{
+    return NULL;
+}
+#else
+char*
+xen_get_bios(
+    vmi_instance_t vmi)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xs_transaction_t xth = XBT_NULL;
+    char *bios = NULL;
+
+    gchar *tmp = g_strdup_printf("/local/domain/%"PRIu64"/hvmloader/bios", xen->domainid);
+    bios = xen->libxsw.xs_read(xen->xshandle, xth, tmp, NULL);
+
+    g_free(tmp);
+
+    return bios;
 }
 #endif
