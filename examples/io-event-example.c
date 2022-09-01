@@ -56,8 +56,7 @@ int main (int argc, char **argv)
     vmi_mode_t mode = {0};
     uint64_t domid = 0;
     uint8_t init = VMI_INIT_DOMAINNAME;
-    void *input = NULL, *config = NULL;
-    char *socket = NULL;
+    void *input = NULL;
     int retcode = 1;
 
     if ( argc <= 2 ) {

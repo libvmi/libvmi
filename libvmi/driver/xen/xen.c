@@ -656,8 +656,7 @@ xen_get_version(
     if (getline(&line, &len, fp) == -1)
         goto done;
 
-    //xen->minor_version = atoi(line);
-    xen->minor_version = 16;
+    xen->minor_version = atoi(line);
     status = VMI_SUCCESS;
 
     dbprint(VMI_DEBUG_XEN, "**The running Xen version is %u.%u\n",
