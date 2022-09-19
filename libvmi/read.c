@@ -471,7 +471,7 @@ vmi_read_str(
         memcpy(&ret[len], &buf, read_len);
         len += read_len;
         ret[len] = '\0';
-        _ctx.addr += offset;
+        _ctx.addr += read_len;
     } while (read_more);
 
     return ret;
