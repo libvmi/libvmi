@@ -22,11 +22,10 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <sys/mman.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <glib.h>
 
 #include <libvmi/libvmi.h>
 #include <libvmi/events.h>
@@ -39,10 +38,20 @@ static void close_handler(int sig)
     interrupted = true;
 }
 
+event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
+{
+    addr_t gfn = GPOINTER_TO_SIZE(event->data);
+    // Restore original memory permissions
+    if (vmi_set_mem_event(vmi, gfn, VMI_MEMACCESS_X, 0) == VMI_FAILURE) {
+        fprintf(stderr, "%s: Failed to set page permissions on gfn 0x%"PRIx64"\n", __func__, gfn);
+    }
+
+    // Toggle singlestepping off for current vcpu
+    return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
+}
+
 event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
-    (void)vmi;
-
     char str_access[4] = {'_', '_', '_', '\0'};
     if (event->mem_event.out_access & VMI_MEMACCESS_R) str_access[0] = 'R';
     if (event->mem_event.out_access & VMI_MEMACCESS_W) str_access[1] = 'W';
@@ -51,19 +60,23 @@ event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
     printf("%s: at 0x%"PRIx64", on frame 0x%"PRIx64", permissions: %s\n",
            __func__, event->x86_regs->rip, event->mem_event.gfn, str_access);
 
-    // Relax the memory permission by clearing the event,
-    // so that we can allow the CPU that triggered this event to continue execution
-    vmi_clear_event(vmi, event, NULL);
-    // One step forward and then this function will automatically re-register the event
-    vmi_step_event(vmi, event, event->vcpu_id, 1, NULL);
+    // Relax the memory permissions, so that we can allow the CPU that triggered this event to continue execution
+    if (vmi_set_mem_event(vmi, event->mem_event.gfn, VMI_MEMACCESS_N, 0) == VMI_FAILURE) {
+        fprintf(stderr, "%s: Failed to set page permissions on gfn 0x%"PRIx64"\n", __func__, event->mem_event.gfn);
+    }
+    vmi_event_t *singlestep_event = (vmi_event_t *) event->data;
+    // Store current gfn in singlestep event, so we are able to use it to restore memory permissions
+    singlestep_event->data = GSIZE_TO_POINTER(event->mem_event.gfn);
 
-    return VMI_EVENT_RESPONSE_NONE;
+    // Toggle singlestepping on for current vcpu
+    return VMI_EVENT_RESPONSE_TOGGLE_SINGLESTEP;
 }
 
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi = {0};
     vmi_mode_t mode = {0};
+    vmi_event_t singlestep_event = {0};
     vmi_event_t mem_event = {0};
     struct sigaction act = {0};
     vmi_init_data_t *init_data = NULL;
@@ -138,15 +151,25 @@ int main (int argc, char **argv)
         goto error_exit;
     }
 
+    SETUP_SINGLESTEP_EVENT(&singlestep_event, VMI_BIT_MASK(0, vmi_get_num_vcpus(vmi) - 1), singlestep_cb, false);
+    if (VMI_FAILURE == vmi_register_event(vmi, &singlestep_event)) {
+        goto error_exit;
+    }
+
     uint64_t gfn = paddr >> 12;
-    /* register a mem event */
-    SETUP_MEM_EVENT(&mem_event, gfn, VMI_MEMACCESS_X, mem_cb, false);
+    /* register a generic mem event */
+    SETUP_MEM_EVENT(&mem_event, ~0ULL, VMI_MEMACCESS_X, mem_cb, true);
+    // Store address of singlestep event in mem event, so we have access to it from within a callback
+    mem_event.data = (void *) &singlestep_event;
 
     printf("Setting X memory event at RIP 0x%"PRIx64", GPA 0x%"PRIx64", GFN 0x%"PRIx64"\n",
            rip, paddr, gfn);
     if (VMI_FAILURE == vmi_register_event(vmi, &mem_event)) {
         fprintf(stderr, "Failed to register mem event\n");
         goto error_exit;
+    }
+    if (vmi_set_mem_event(vmi, gfn, VMI_MEMACCESS_X, 0) == VMI_FAILURE) {
+        fprintf(stderr, "%s: Failed to set page permissions on gfn 0x%"PRIx64"\n", __func__, gfn);
     }
 
     // resuming
