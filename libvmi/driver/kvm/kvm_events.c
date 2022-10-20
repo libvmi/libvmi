@@ -634,7 +634,7 @@ process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
     event_response_t response = VMI_EVENT_RESPONSE_NONE;
     vmi_event_t *libvmi_event = NULL;
 
-    if (!vmi->shutting_down) {
+    if (!vmi->shutting_down && !kvmi_event->event.ss.failed) {
         // lookup vmi_event
         libvmi_event = g_hash_table_lookup(vmi->ss_events, GUINT_TO_POINTER(kvmi_event->event.common.vcpu));
 #ifdef ENABLE_SAFETY_CHECKS
