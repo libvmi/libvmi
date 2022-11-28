@@ -842,6 +842,9 @@ kvm_get_vcpuregs(
     x86_registers_t *x86 = &registers->x86;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
+    if ( !msrs )
+        return ret;
+
     msrs->nmsrs = 7;
     msr_entries[0].index = msr_index[MSR_IA32_SYSENTER_CS];
     msr_entries[1].index = msr_index[MSR_IA32_SYSENTER_ESP];
