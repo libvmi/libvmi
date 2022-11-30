@@ -836,7 +836,7 @@ kvm_get_vcpuregs(
     status_t ret = VMI_FAILURE;
     struct kvm_regs regs = {0};
     struct kvm_sregs sregs = {0};
-    struct kvm_msrs *msrs = (struct kvm_msrs*)calloc(sizeof(struct kvm_msrs) + sizeof(struct kvm_msr_entry) * 7);
+    struct kvm_msrs *msrs = (struct kvm_msrs*)calloc(1, sizeof(struct kvm_msrs) + sizeof(struct kvm_msr_entry) * 7);
     struct kvm_msr_entry *msr_entries = (struct kvm_msr_entry*)((unsigned char*)msrs + sizeof(struct kvm_msrs));
     unsigned int mode = 0;
     x86_registers_t *x86 = &registers->x86;
