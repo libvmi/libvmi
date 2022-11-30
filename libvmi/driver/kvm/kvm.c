@@ -856,7 +856,7 @@ kvm_get_vcpuregs(
         goto done;
 #endif
 
-    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode))
+    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, msrs, &mode))
         goto done;
 
     kvmi_regs_to_libvmi(&regs, &sregs, x86);
@@ -896,7 +896,7 @@ kvm_set_vcpureg(vmi_instance_t vmi,
         return VMI_FAILURE;
 #endif
 
-    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode) < 0) {
+    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs, &mode) < 0) {
         return VMI_FAILURE;
     }
 
