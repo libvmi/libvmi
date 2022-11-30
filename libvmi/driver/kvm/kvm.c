@@ -833,10 +833,11 @@ kvm_get_vcpuregs(
     registers_t *registers,
     unsigned long vcpu)
 {
+    status_t ret = VMI_FAILURE;
     struct kvm_regs regs = {0};
     struct kvm_sregs sregs = {0};
     struct kvm_msrs *msrs = (struct kvm_msrs*)calloc(sizeof(struct kvm_msrs) + sizeof(struct kvm_msr_entry) * 7);
-    struct kvm_msr_entry *msr_entries = (struct kvm_msr_entry*)((unsigned char*)msrs) + sizeof(struct kvm_msr_entry) * 7);
+    struct kvm_msr_entry *msr_entries = (struct kvm_msr_entry*)((unsigned char*)msrs + sizeof(struct kvm_msrs));
     unsigned int mode = 0;
     x86_registers_t *x86 = &registers->x86;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
@@ -850,11 +851,13 @@ kvm_get_vcpuregs(
     msr_entries[5].index = msr_index[MSR_LSTAR];
     msr_entries[6].index = msr_index[MSR_CSTAR];
 
+#ifdef ENABLE_SAFETY_CHECKS
     if (!kvm->kvmi_dom)
-        return VMI_FAILURE;
+        goto done;
+#endif
 
     if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode))
-        return VMI_FAILURE;
+        goto done;
 
     kvmi_regs_to_libvmi(&regs, &sregs, x86);
     x86->sysenter_cs = msr_entries[0].data;
@@ -869,7 +872,11 @@ kvm_get_vcpuregs(
     x86->idtr_base = sregs.idt.base;
     x86->idtr_limit = sregs.idt.limit;
 
-    return VMI_SUCCESS;
+    ret = VMI_SUCCESS;
+
+done:
+    free(msrs);
+    return ret;
 }
 
 status_t
@@ -879,16 +886,15 @@ kvm_set_vcpureg(vmi_instance_t vmi,
                 unsigned long vcpu)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    if (!kvm->kvmi_dom)
-        return VMI_FAILURE;
     unsigned int mode = 0;
     struct kvm_regs regs = {0};
     struct kvm_sregs sregs = {0};
-    struct {
-        struct kvm_msrs msrs;
-        struct kvm_msr_entry entries[0];
-    } msrs = {0};
-    msrs.msrs.nmsrs = 0;
+    struct kvm_msrs msrs = {0};
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+#endif
 
     if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode) < 0) {
         return VMI_FAILURE;
