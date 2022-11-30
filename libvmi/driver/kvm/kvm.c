@@ -833,45 +833,53 @@ kvm_get_vcpuregs(
     registers_t *registers,
     unsigned long vcpu)
 {
+    status_t ret = VMI_FAILURE;
     struct kvm_regs regs = {0};
     struct kvm_sregs sregs = {0};
-    struct {
-        struct kvm_msrs msrs;
-        struct kvm_msr_entry entries[7];
-    } msrs = { 0 };
-    unsigned int mode = {0};
+    struct kvm_msrs *msrs = (struct kvm_msrs*)calloc(1, sizeof(struct kvm_msrs) + sizeof(struct kvm_msr_entry) * 7);
+    struct kvm_msr_entry *msr_entries = (struct kvm_msr_entry*)((unsigned char*)msrs + sizeof(struct kvm_msrs));
+    unsigned int mode = 0;
     x86_registers_t *x86 = &registers->x86;
     kvm_instance_t *kvm = kvm_get_instance(vmi);
 
-    msrs.msrs.nmsrs = sizeof(msrs.entries)/sizeof(msrs.entries[0]);
-    msrs.entries[0].index = msr_index[MSR_IA32_SYSENTER_CS];
-    msrs.entries[1].index = msr_index[MSR_IA32_SYSENTER_ESP];
-    msrs.entries[2].index = msr_index[MSR_IA32_SYSENTER_EIP];
-    msrs.entries[3].index = msr_index[MSR_EFER];
-    msrs.entries[4].index = msr_index[MSR_STAR];
-    msrs.entries[5].index = msr_index[MSR_LSTAR];
-    msrs.entries[6].index = msr_index[MSR_CSTAR];
+    if ( !msrs )
+        return ret;
 
+    msrs->nmsrs = 7;
+    msr_entries[0].index = msr_index[MSR_IA32_SYSENTER_CS];
+    msr_entries[1].index = msr_index[MSR_IA32_SYSENTER_ESP];
+    msr_entries[2].index = msr_index[MSR_IA32_SYSENTER_EIP];
+    msr_entries[3].index = msr_index[MSR_EFER];
+    msr_entries[4].index = msr_index[MSR_STAR];
+    msr_entries[5].index = msr_index[MSR_LSTAR];
+    msr_entries[6].index = msr_index[MSR_CSTAR];
+
+#ifdef ENABLE_SAFETY_CHECKS
     if (!kvm->kvmi_dom)
-        return VMI_FAILURE;
+        goto done;
+#endif
 
-    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode))
-        return VMI_FAILURE;
+    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, msrs, &mode))
+        goto done;
 
     kvmi_regs_to_libvmi(&regs, &sregs, x86);
-    x86->sysenter_cs = msrs.entries[0].data;
-    x86->sysenter_esp = msrs.entries[1].data;
-    x86->sysenter_eip = msrs.entries[2].data;
-    x86->msr_efer = msrs.entries[3].data;
-    x86->msr_star = msrs.entries[4].data;
-    x86->msr_lstar = msrs.entries[5].data;
-    x86->msr_cstar = msrs.entries[6].data;
+    x86->sysenter_cs = msr_entries[0].data;
+    x86->sysenter_esp = msr_entries[1].data;
+    x86->sysenter_eip = msr_entries[2].data;
+    x86->msr_efer = msr_entries[3].data;
+    x86->msr_star = msr_entries[4].data;
+    x86->msr_lstar = msr_entries[5].data;
+    x86->msr_cstar = msr_entries[6].data;
     x86->gdtr_base = sregs.gdt.base;
     x86->gdtr_limit = sregs.gdt.limit;
     x86->idtr_base = sregs.idt.base;
     x86->idtr_limit = sregs.idt.limit;
 
-    return VMI_SUCCESS;
+    ret = VMI_SUCCESS;
+
+done:
+    free(msrs);
+    return ret;
 }
 
 status_t
@@ -881,18 +889,17 @@ kvm_set_vcpureg(vmi_instance_t vmi,
                 unsigned long vcpu)
 {
     kvm_instance_t *kvm = kvm_get_instance(vmi);
-    if (!kvm->kvmi_dom)
-        return VMI_FAILURE;
     unsigned int mode = 0;
     struct kvm_regs regs = {0};
     struct kvm_sregs sregs = {0};
-    struct {
-        struct kvm_msrs msrs;
-        struct kvm_msr_entry entries[0];
-    } msrs = {0};
-    msrs.msrs.nmsrs = 0;
+    struct kvm_msrs msrs = {0};
 
-    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs.msrs, &mode) < 0) {
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm->kvmi_dom)
+        return VMI_FAILURE;
+#endif
+
+    if (kvm->libkvmi.kvmi_get_registers(kvm->kvmi_dom, vcpu, &regs, &sregs, &msrs, &mode) < 0) {
         return VMI_FAILURE;
     }
 
