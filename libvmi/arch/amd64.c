@@ -241,6 +241,12 @@ done:
     return status;
 }
 
+static inline
+bool is_duplicate(vmi_instance_t vmi, uint64_t *page, uint64_t index)
+{
+    return vmi->os_type == VMI_OS_WINDOWS && index > 0 && page[index] == page[index - 1];
+}
+
 GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb)
 {
 
@@ -319,7 +325,8 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
 
                 uint64_t pgd_value = pgd_page[pgde_index];
 
-                if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pgd_value)) {
+                if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pgd_value) &&
+                        !is_duplicate(vmi, pgd_page, pgde_index)) {
 
                     if (PAGE_SIZE(pgd_value)) {
                         page_info_t *info = g_try_malloc0(sizeof(page_info_t));
@@ -350,7 +357,9 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
                     for (pte_index = 0; pte_index < IA32E_ENTRIES_PER_PAGE; pte_index++, pte_location += entry_size) {
                         uint64_t pte_value = pt_page[pte_index];
 
-                        if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pte_value)) {
+                        if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pte_value) &&
+                                !is_duplicate(vmi, pt_page, pte_index)) {
+
                             page_info_t *info = g_try_malloc0(sizeof(page_info_t));
                             if ( !info )
                                 goto done;
