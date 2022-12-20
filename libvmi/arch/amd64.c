@@ -283,7 +283,7 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
             goto done;
 
         uint64_t pdpte_index;
-        for (pdpte_index = 0; pdpte_index < IA32E_ENTRIES_PER_PAGE; pdpte_index++, pdpte_location++) {
+        for (pdpte_index = 0; pdpte_index < IA32E_ENTRIES_PER_PAGE; pdpte_index++, pdpte_location += entry_size) {
 
             uint64_t pdpte_value = pdpt_page[pdpte_index];
 
