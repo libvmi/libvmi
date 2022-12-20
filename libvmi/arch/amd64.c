@@ -25,12 +25,10 @@
  */
 
 #include <glib.h>
-#include <stdlib.h>
 #include <sys/mman.h>
 
 #include "private.h"
 #include "x86.h"
-#include "driver/driver_wrapper.h"
 #include "arch/amd64.h"
 
 /* PML4 Table  */
@@ -137,21 +135,21 @@ status_t get_pte_ia32e (vmi_instance_t vmi,
 }
 
 static inline
-uint64_t get_paddr_ia32e (addr_t vaddr, uint64_t pte)
+uint64_t get_paddr_ia32e (addr_t vaddr, uint64_t pte, uint max_bit_pfn)
 {
-    return (pte & VMI_BIT_MASK(12,51)) | (vaddr & VMI_BIT_MASK(0,11));
+    return (pte & VMI_BIT_MASK(12, max_bit_pfn)) | (vaddr & VMI_BIT_MASK(0, 11));
 }
 
 static inline
-uint64_t get_gigpage_ia32e (addr_t vaddr, uint64_t pdpte)
+uint64_t get_gigpage_ia32e (addr_t vaddr, uint64_t pdpte, uint max_bit_pfn)
 {
-    return (pdpte & VMI_BIT_MASK(30,51)) | (vaddr & VMI_BIT_MASK(0,29));
+    return (pdpte & VMI_BIT_MASK(30, max_bit_pfn)) | (vaddr & VMI_BIT_MASK(0, 29));
 }
 
 static inline
-uint64_t get_2megpage_ia32e (addr_t vaddr, uint64_t pde)
+uint64_t get_2megpage_ia32e (addr_t vaddr, uint64_t pde, uint max_bit_pfn)
 {
-    return (pde & VMI_BIT_MASK(21,51)) | (vaddr & VMI_BIT_MASK(0,20));
+    return (pde & VMI_BIT_MASK(21, max_bit_pfn)) | (vaddr & VMI_BIT_MASK(0, 20));
 }
 
 status_t v2p_ia32e (vmi_instance_t vmi,
@@ -162,6 +160,14 @@ status_t v2p_ia32e (vmi_instance_t vmi,
                     page_info_t *info)
 {
     status_t status;
+
+    uint max_bit_pfn = 51;
+    // On newer versions of Windows, some higher bits of the pfn value
+    // are used as flags for transition pages.
+    if (vmi->os_type == VMI_OS_WINDOWS) {
+        max_bit_pfn = 44;
+    }
+
     ACCESS_CONTEXT(ctx,
                    .npt = npt,
                    .npm = npm);
@@ -196,7 +202,7 @@ status_t v2p_ia32e (vmi_instance_t vmi,
 
     if (PAGE_SIZE(info->x86_ia32e.pdpte_value)) { // pdpte maps a 1GB page
         info->size = VMI_PS_1GB;
-        info->paddr = get_gigpage_ia32e(vaddr, info->x86_ia32e.pdpte_value);
+        info->paddr = get_gigpage_ia32e(vaddr, info->x86_ia32e.pdpte_value, max_bit_pfn);
         status = VMI_SUCCESS;
         dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 1GB page\n");
         goto done;
@@ -213,7 +219,7 @@ status_t v2p_ia32e (vmi_instance_t vmi,
 
     if (PAGE_SIZE(info->x86_ia32e.pgd_value)) { // pde maps a 2MB page
         info->size = VMI_PS_2MB;
-        info->paddr = get_2megpage_ia32e(vaddr, info->x86_ia32e.pgd_value);
+        info->paddr = get_2megpage_ia32e(vaddr, info->x86_ia32e.pgd_value, max_bit_pfn);
         status = VMI_SUCCESS;
         dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: 2MB page\n");
         goto done;
@@ -229,7 +235,7 @@ status_t v2p_ia32e (vmi_instance_t vmi,
     }
 
     info->size = VMI_PS_4KB;
-    info->paddr = get_paddr_ia32e(vaddr, info->x86_ia32e.pte_value);
+    info->paddr = get_paddr_ia32e(vaddr, info->x86_ia32e.pte_value, max_bit_pfn);
     status = VMI_SUCCESS;
 
 done:
@@ -248,6 +254,13 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
     uint8_t entry_size = 0x8;
 
 #define IA32E_ENTRIES_PER_PAGE 0x200 // 0x1000/0x8
+
+    uint max_bit_pfn = 51;
+    // On newer versions of Windows, some higher bits of the pfn value
+    // are used as flags for transition pages.
+    if (vmi->os_type == VMI_OS_WINDOWS) {
+        max_bit_pfn = 44;
+    }
 
     uint64_t *pml4_page = g_malloc(VMI_PS_4KB);
     uint64_t *pdpt_page = g_try_malloc0(VMI_PS_4KB);
@@ -298,7 +311,7 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
 
                 info->vaddr = canonical_addr((pml4e_index << 39) | (pdpte_index << 30));
                 info->pt = dtb;
-                info->paddr = get_gigpage_ia32e(info->vaddr, pdpte_value);
+                info->paddr = get_gigpage_ia32e(info->vaddr, pdpte_value, max_bit_pfn);
                 info->size = VMI_PS_1GB;
                 info->x86_ia32e.pml4e_location = pml4e_location;
                 info->x86_ia32e.pml4e_value = pml4e_value;
@@ -329,7 +342,7 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
                         info->vaddr = canonical_addr((pml4e_index << 39) | (pdpte_index << 30) |
                                                      (pgde_index << 21));
                         info->pt = dtb;
-                        info->paddr = get_2megpage_ia32e(info->vaddr, pgd_value);
+                        info->paddr = get_2megpage_ia32e(info->vaddr, pgd_value, max_bit_pfn);
                         info->size = VMI_PS_2MB;
                         info->x86_ia32e.pml4e_location = pml4e_location;
                         info->x86_ia32e.pml4e_value = pml4e_value;
@@ -358,7 +371,7 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
                             info->vaddr = canonical_addr((pml4e_index << 39) | (pdpte_index << 30) |
                                                          (pgde_index << 21) | (pte_index << 12));
                             info->pt = dtb;
-                            info->paddr = get_paddr_ia32e(info->vaddr, pte_value);
+                            info->paddr = get_paddr_ia32e(info->vaddr, pte_value, max_bit_pfn);
                             info->size = VMI_PS_4KB;
                             info->x86_ia32e.pml4e_location = pml4e_location;
                             info->x86_ia32e.pml4e_value = pml4e_value;
