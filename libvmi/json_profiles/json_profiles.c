@@ -76,7 +76,7 @@ bool json_profile_init(vmi_instance_t vmi, const char* path)
             return false;
     };
 
-    if (vmi->init_flags & VMI_INIT_SYMBOLLOOKUP) {
+    if (vmi->init_flags & VMI_INIT_V2SYM) {
         if (vmi->json.build_reverse_symbol_table == NULL) {
             dbprint(VMI_DEBUG_MISC, "Address to symbol translation not available for this json profile\n");
             return false;

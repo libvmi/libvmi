@@ -61,7 +61,7 @@ extern "C" {
 
 #define VMI_INIT_DOMAINWATCH (1u << 4) /**< initialize using a domain watcher */
 
-#define VMI_INIT_SYMBOLLOOKUP (1u << 5) /**< initialize address to kernel symbol translation for json profiles */
+#define VMI_INIT_V2SYM (1u << 5) /**< initialize address to kernel symbol translation for json profiles */
 
 typedef enum vmi_mode {
 
