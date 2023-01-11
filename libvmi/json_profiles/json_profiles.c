@@ -64,15 +64,28 @@ bool json_profile_init(vmi_instance_t vmi, const char* path)
             json->bitfield_offset_and_size = volatility_profile_bitfield_offset_and_size;
             json->get_os_type = volatility_get_os_type;
             json->struct_field_type_name = volatility_struct_field_type_name;
+            json->build_reverse_symbol_table = volatility_build_reverse_symbol_table;
             break;
         case JPT_REKALL_PROFILE:
             json->handler = rekall_profile_symbol_to_rva;
             json->bitfield_offset_and_size = rekall_profile_bitfield_offset_and_size;
             json->get_os_type = rekall_get_os_type;
+            json->build_reverse_symbol_table = NULL;
             break;
         default:
             return false;
     };
+
+    if (vmi->init_flags & VMI_INIT_SYMBOLLOOKUP) {
+        if (vmi->json.build_reverse_symbol_table == NULL) {
+            dbprint(VMI_DEBUG_MISC, "Address to symbol translation not available for this json profile\n");
+            return false;
+        }
+        if (vmi->json.build_reverse_symbol_table(vmi->json.root, &vmi->json.reverse_symbol_table) != VMI_SUCCESS) {
+            dbprint(VMI_DEBUG_MISC, "Reverse symbol table build failed\n");
+            return false;
+        }
+    }
 
     return true;
 }
@@ -85,6 +98,9 @@ void json_profile_destroy(vmi_instance_t vmi)
 
     vmi->json.path = NULL;
     vmi->json.root = NULL;
+
+    if (vmi->json.reverse_symbol_table != NULL)
+        g_hash_table_destroy(vmi->json.reverse_symbol_table);
 }
 
 json_object* vmi_get_kernel_json(vmi_instance_t vmi)

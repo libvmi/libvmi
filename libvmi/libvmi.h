@@ -61,6 +61,8 @@ extern "C" {
 
 #define VMI_INIT_DOMAINWATCH (1u << 4) /**< initialize using a domain watcher */
 
+#define VMI_INIT_SYMBOLLOOKUP (1u << 5) /**< initialize address to kernel symbol translation for json profiles */
+
 typedef enum vmi_mode {
 
     VMI_XEN, /**< libvmi is monitoring a Xen VM */

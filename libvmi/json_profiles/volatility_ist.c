@@ -213,6 +213,41 @@ exit:
     return ret;
 }
 
+status_t
+volatility_build_reverse_symbol_table(json_object *json, GHashTable** table)
+{
+    status_t ret = VMI_FAILURE;
+    json_object *symbols = NULL;
+    if (!json_object_object_get_ex(json, "symbols", &symbols)) {
+        dbprint(VMI_DEBUG_MISC, "Volatility IST profile: no symbols section found\n");
+        goto exit;
+    }
+
+    *table = g_hash_table_new(g_direct_hash, g_direct_equal);
+    struct json_object_iterator it = json_object_iter_begin(symbols);
+    struct json_object_iterator it_end = json_object_iter_end(symbols);
+    for (; !json_object_iter_equal(&it, &it_end); json_object_iter_next(&it)) {
+        json_object  *jsymbol = NULL, *address = NULL;
+        jsymbol = json_object_iter_peek_value(&it);
+        const char* symbol_name = json_object_iter_peek_name(&it);
+        if (!json_object_object_get_ex(jsymbol, "address", &address)) {
+            dbprint(VMI_DEBUG_MISC, "Volatility IST: no address found for %s\n", symbol_name);
+            continue;
+        }
+        addr_t rva;
+#ifdef JSONC_UINT64_SUPPORT
+        rva = json_object_get_uint64(address);
+#else
+        rva = json_object_get_int64(address);
+#endif
+        g_hash_table_insert(*table, GSIZE_TO_POINTER(rva), (gpointer)symbol_name);
+    }
+    ret = VMI_SUCCESS;
+
+exit:
+    return ret;
+}
+
 const char *volatility_get_os_type(vmi_instance_t vmi)
 {
     json_object *metadata = NULL, *os = NULL;
