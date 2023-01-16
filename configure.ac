@@ -182,9 +182,9 @@ AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
 
 AC_ARG_ENABLE([hardening],
   [AS_HELP_STRING([--enable-hardening],
-    [Enable compiler and linker options to frustrate memory corruption exploits @<:@yes@:>@])],
+    [Enable compiler and linker options to frustrate memory corruption exploits @<:@no@:>@])],
   [hardening="$enableval"],
-  [hardening="yes"])
+  [hardening="no"])
 AM_CONDITIONAL([HARDENING], [test x$hardening = xyes])
 
 dnl -----------------------------------------------
@@ -209,8 +209,7 @@ flag_wrap="$srcdir/wrap-compiler-for-flag-check"
 CC="$flag_wrap $CC"
 LD="$flag_wrap $LD"
 
-# We use the same hardening flags for C and C++.  We must check that each flag
-# is supported by both compilers.
+# We must check that each flag is supported by both compilers.
 AC_DEFUN([check_cc_flag],
   [AC_LANG_PUSH(C)
   AX_CHECK_COMPILE_FLAG([$1], [$2], [$3], [-Werror $4])
@@ -260,6 +259,32 @@ AC_SUBST([HARDEN_LDFLAGS])
 CC="$saved_CC"
 LD="$saved_LD"
 # AUTOHARDEN END
+#####################################################
+
+#####################################################
+# OPTIMIZATION LEVEL START
+
+saved_CC="$CC"
+saved_LD="$LD"
+flag_wrap="$srcdir/wrap-compiler-for-flag-check"
+CC="$flag_wrap $CC"
+LD="$flag_wrap $LD"
+
+OPTIMIZATION_CFLAGS=""
+
+AS_IF([test x"$hardening" != x"yes"], [
+  check_cc_flag([-O3], [OPTIMIZATION_CFLAGS="$OPTIMIZATION_CFLAGS -O3"])
+  check_cc_flag([-g -ggdb3], [OPTIMIZATION_CFLAGS="$OPTIMIZATION_CFLAGS -g -ggdb3"])
+# FIXME Fix linking error
+#   check_cc_flag([-flto], [OPTIMIZATION_CFLAGS="$OPTIMIZATION_CFLAGS -flto"])
+])
+
+AC_SUBST([OPTIMIZATION_CFLAGS])
+
+# End of flag tests.
+CC="$saved_CC"
+LD="$saved_LD"
+# OPTIMIZATION LEVEL END
 #####################################################
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
