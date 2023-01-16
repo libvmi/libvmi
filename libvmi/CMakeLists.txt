@@ -185,7 +185,7 @@ if (ENABLE_WINDOWS)
     list(APPEND VMI_PUBLIC_HEADERS peparse.h)
 endif ()
 
-if (ENABLE_ADDRESS_CACHE)
+if (ENABLE_ADDRESS_CACHE OR ENABLE_METADATA_CACHE)
     target_sources(vmi_shared PRIVATE cache.c)
 endif ()
 

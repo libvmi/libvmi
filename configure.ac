@@ -120,10 +120,21 @@ AC_ARG_ENABLE([vmifs],
 
 AC_ARG_ENABLE([address-cache],
       [AS_HELP_STRING([--disable-address-cache],
-         [Disable caching addresses (v2p, pid, etc) @<:@no@:>@])],
+         [Disable caching addresses (v2p) @<:@no@:>@])],
       [enable_address_cache=$enableval],
       [enable_address_cache=yes])
 AM_CONDITIONAL([ENABLE_ADDRESS_CACHE], [test x"$enable_address_cache" = "xyes"])
+AM_CONDITIONAL([ENABLE_CACHE], [test x"$enable_address_cache" = "xyes"])
+
+AC_ARG_ENABLE([metadata-cache],
+      [AS_HELP_STRING([--disable-metadata-cache],
+         [Disable caching metadata (PIDs, RVAs, symbols) @<:@no@:>@])],
+      [enable_metadata_cache=$enableval],
+      [enable_metadata_cache=yes])
+AM_CONDITIONAL([ENABLE_METADATA_CACHE], [test x"$enable_metadata_cache" = "xyes"])
+AM_CONDITIONAL([ENABLE_CACHE], [test x"$enable_metadata_cache" = "xyes"])
+
+# AM_CONDITIONAL([ENABLE_CACHE], [test x"$enable_address_cache" = "xyes" -o test x"$enable_metadata_cache" = "xyes"])
 
 AC_ARG_ENABLE([page-cache],
       [AS_HELP_STRING([--disable-page-cache],
@@ -422,7 +433,14 @@ AM_CONDITIONAL([ENABLE_VOLATILITY_IST], [test x"$volatility_ist" = "xyes"])
 
 [if test x"$enable_address_cache" = "xyes"]
 [then]
-        AC_DEFINE([ENABLE_ADDRESS_CACHE], [1], [Enable or disable the address cache (v2p, pid, etc)])
+        AC_DEFINE([ENABLE_ADDRESS_CACHE], [1], [Enable or disable the address cache (v2p)])
+        AC_DEFINE([ENABLE_CACHE], [1], [Meta target for build])
+[fi]
+
+[if test x"$enable_metadata_cache" = "xyes"]
+[then]
+        AC_DEFINE([ENABLE_METADATA_CACHE], [1], [Enable or disable the metadata cache (pid, RVAs, symbols)])
+        AC_DEFINE([ENABLE_CACHE], [1], [Meta target for build])
 [fi]
 
 [if test x"$enable_page_cache" != "xno"]
@@ -488,6 +506,11 @@ Tools                   | Option
 ------------------------|---------------------------
 Examples                | --enable-examples=$enable_examples
 VMIFS                   | --enable-vmifs=$enable_vmifs
+
+Misc                    | Options
+------------------------|---------------------------
+Address cache           | --enable-address-cache=$enable_address_cache
+Metadata cache          | --enable-metadata-cache=$enable_metadata_cache
 
 If everything is correct, you can now run 'make' and (optionally)
 'make install'.  Otherwise, you can run './configure' again.

@@ -36,7 +36,7 @@ uint64_t hash128to64(uint64_t low, uint64_t high);
 guint key_128_hash(gconstpointer key);
 gboolean key_128_equals(gconstpointer key1, gconstpointer key2);
 
-#ifdef ENABLE_ADDRESS_CACHE
+#ifdef ENABLE_METADATA_CACHE
 
 void pid_cache_init(vmi_instance_t vmi);
 void pid_cache_destroy(vmi_instance_t vmi);
@@ -59,14 +59,7 @@ void rva_cache_flush(vmi_instance_t vmi);
 status_t rva_cache_get(vmi_instance_t vmi, addr_t base_addr, addr_t dtb, addr_t rva, char **sym);
 status_t rva_cache_del(vmi_instance_t vmi, addr_t base_addr, addr_t dtb, addr_t rva);
 
-void v2p_cache_init(vmi_instance_t vmi);
-void v2p_cache_destroy(vmi_instance_t vmi);
-void v2p_cache_set(vmi_instance_t vmi, addr_t va, addr_t pt, addr_t npt, addr_t pa);
-void v2p_cache_flush(vmi_instance_t vmi, addr_t pt, addr_t npt);
-status_t v2p_cache_get(vmi_instance_t vmi, addr_t va, addr_t pt, addr_t npt, addr_t *pa);
-status_t v2p_cache_del(vmi_instance_t vmi, addr_t va, addr_t np, addr_t npt);
-
-#else
+#else // ENABLE_METADATA_CACHE
 
 #define pid_cache_init(...)     NOOP
 #define pid_cache_destroy(...)  NOOP
@@ -89,6 +82,19 @@ status_t v2p_cache_del(vmi_instance_t vmi, addr_t va, addr_t np, addr_t npt);
 #define rva_cache_get(...) VMI_FAILURE
 #define rva_cache_del(...) VMI_FAILURE
 
+#endif // ENABLE_METADATA_CACHE
+
+#ifdef ENABLE_ADDRESS_CACHE
+
+void v2p_cache_init(vmi_instance_t vmi);
+void v2p_cache_destroy(vmi_instance_t vmi);
+void v2p_cache_set(vmi_instance_t vmi, addr_t va, addr_t pt, addr_t npt, addr_t pa);
+void v2p_cache_flush(vmi_instance_t vmi, addr_t pt, addr_t npt);
+status_t v2p_cache_get(vmi_instance_t vmi, addr_t va, addr_t pt, addr_t npt, addr_t *pa);
+status_t v2p_cache_del(vmi_instance_t vmi, addr_t va, addr_t np, addr_t npt);
+
+#else
+
 #define v2p_cache_init(...)     NOOP
 #define v2p_cache_destroy(...)  NOOP
 #define v2p_cache_set(...)      NOOP
@@ -96,6 +102,6 @@ status_t v2p_cache_del(vmi_instance_t vmi, addr_t va, addr_t np, addr_t npt);
 #define v2p_cache_get(...) VMI_FAILURE
 #define v2p_cache_del(...) VMI_FAILURE
 
-#endif
+#endif // ENABLE_ADDRESS_CACHE
 
 #endif /* CACHE_H */

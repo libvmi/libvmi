@@ -42,7 +42,7 @@ c_sources = \
     libvmi/os/os_interface.c \
     libvmi/disk/vbd.c
 
-if ENABLE_ADDRESS_CACHE
+if ENABLE_CACHE
     c_sources   += libvmi/cache.c
     c_sources   += libvmi/cache.h
 endif

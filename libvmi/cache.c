@@ -93,6 +93,8 @@ key_128_t key_128_build (uint64_t low, uint64_t high)
 // PID --> DTB cache implementation
 // Note: DTB is a physical address
 
+#ifdef ENABLE_METADATA_CACHE
+
 void
 pid_cache_init(
     vmi_instance_t vmi)
@@ -491,6 +493,9 @@ rva_cache_flush(
     dbprint(VMI_DEBUG_RVACACHE, "--RVA cache flushed\n");
 }
 
+#endif // ENABLE_METADATA_CACHE
+
+#ifdef ENABLE_ADDRESS_CACHE
 void
 v2p_cache_init(
     vmi_instance_t vmi)
@@ -633,3 +638,4 @@ v2p_cache_flush(
     }
     dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache flushed\n");
 }
+#endif // ENABLE_ADDRESS_CACHE
