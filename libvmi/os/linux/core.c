@@ -397,8 +397,7 @@ static status_t init_kaslr(vmi_instance_t vmi)
 {
     linux_instance_t linux_instance = vmi->os_data;
 
-    if ( VMI_SUCCESS == init_task_kaslr_test(vmi, vmi->init_task & ~VMI_BIT_MASK(0,11)) )
-    {
+    if ( VMI_SUCCESS == init_task_kaslr_test(vmi, vmi->init_task & ~VMI_BIT_MASK(0,11)) ) {
         /* Provided init_task works fine, let's calculate kaslr from it if necessary */
         addr_t init_task_symbol_addr;
         if ( VMI_FAILURE == linux_symbol_to_address(vmi, "init_task", NULL, &init_task_symbol_addr) )
@@ -411,7 +410,7 @@ static status_t init_kaslr(vmi_instance_t vmi)
 
     if ( vmi->page_mode == VMI_PM_IA32E ) {
         if ( VMI_SUCCESS == get_kaslr_offset_ia32e(vmi) &&
-             VMI_SUCCESS == init_task_kaslr_test(vmi, vmi->init_task & ~VMI_BIT_MASK(0,11)) )
+                VMI_SUCCESS == init_task_kaslr_test(vmi, vmi->init_task & ~VMI_BIT_MASK(0,11)) )
             return VMI_SUCCESS;
     }
 
