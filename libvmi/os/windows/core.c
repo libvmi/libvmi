@@ -1047,7 +1047,7 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
     os_interface->os_ksym2v = windows_kernel_symbol_to_address;
     os_interface->os_usym2rva = windows_export_to_rva;
     os_interface->os_v2sym = windows_rva_to_export;
-    os_interface->os_v2ksym = NULL;
+    os_interface->os_v2ksym = windows_address_to_kernel_symbol;
     os_interface->os_read_unicode_struct = windows_read_unicode_struct;
     os_interface->os_read_unicode_struct_pm = windows_read_unicode_struct_pm;
     os_interface->os_teardown = windows_teardown;

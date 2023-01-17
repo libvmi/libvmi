@@ -36,6 +36,8 @@ typedef struct json_interface {
 
     json_object *root;
 
+    GHashTable* reverse_symbol_table;
+
     status_t (*handler)(
         json_object *json,
         const char *symbol,
@@ -58,6 +60,11 @@ typedef struct json_interface {
         const char *struct_name,
         const char *struct_member,
         const char **member_type_name);
+
+    status_t
+    (*build_reverse_symbol_table)(
+        json_object *json,
+        GHashTable** table);
 
     const char* (*get_os_type)(
         vmi_instance_t vmi);
