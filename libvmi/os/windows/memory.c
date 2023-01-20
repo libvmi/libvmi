@@ -89,6 +89,34 @@ exit:
     return ret;
 }
 
+/* finds kernel symbol for address, needs vmi_init(..) with VMI_INIT_V2SYM flag */
+char*
+windows_address_to_kernel_symbol(
+    vmi_instance_t vmi,
+    addr_t address,
+    const access_context_t* UNUSED(ctx))
+{
+    /* compute relative address */
+    windows_instance_t windows = vmi->os_data;
+    if (windows == NULL || !windows->ntoskrnl_va) {
+        return NULL;
+    }
+    addr_t rva = address - windows->ntoskrnl_va;
+
+    /* symbol lookup */
+    const char* symbol = NULL;
+#ifdef ENABLE_JSON_PROFILES
+    if (vmi->json.reverse_symbol_table == NULL) {
+        dbprint(VMI_DEBUG_MISC, "Address to symbol translation not initialized (set VMI_INIT_V2SYM)\n");
+        return NULL;
+    }
+    symbol = g_hash_table_lookup(vmi->json.reverse_symbol_table, GINT_TO_POINTER(rva));
+#else
+    dbprint(VMI_DEBUG_MISC, "Need ENABLE_JSON_PROFILES for windows_address_to_kernel_symbol\n");
+#endif
+    return symbol != NULL ? strdup(symbol) : NULL;
+}
+
 /* finds the address of the page global directory for a given pid */
 status_t
 windows_pid_to_pgd(

@@ -64,6 +64,10 @@ status_t
 windows_kernel_symbol_to_address(vmi_instance_t vmi, const char *symbol,
                                  addr_t *kernel_base_address, addr_t *address);
 
+char*
+windows_address_to_kernel_symbol(vmi_instance_t vmi, addr_t address,
+                                 const access_context_t *ctx);
+
 status_t windows_get_kernel_struct_offset(vmi_instance_t vmi,
         const char*  symbol, const char* member, addr_t *addr);
 

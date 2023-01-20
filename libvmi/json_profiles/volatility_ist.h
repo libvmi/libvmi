@@ -33,6 +33,11 @@ volatility_ist_symbol_to_rva(
     addr_t *rva,
     size_t *size);
 
+status_t
+volatility_build_reverse_symbol_table(
+    json_object *json,
+    GHashTable** table);
+
 const char* volatility_get_os_type(vmi_instance_t vmi);
 
 status_t
@@ -62,6 +67,14 @@ static inline status_t volatility_ist_symbol_to_rva(
 {
     return VMI_FAILURE;
 }
+
+static inline status_t volatility_build_reverse_symbol_table(
+    json_object *json,
+    GHashTable** table)
+{
+    return VMI_FAILURE;
+}
+
 static inline const char* volatility_get_os_type(vmi_instance_t vmi)
 {
     return NULL;
