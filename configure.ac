@@ -182,9 +182,9 @@ AM_CONDITIONAL([DEBUG], [test x$debug = xyes])
 
 AC_ARG_ENABLE([hardening],
   [AS_HELP_STRING([--enable-hardening],
-    [Enable compiler and linker options to frustrate memory corruption exploits @<:@no@:>@])],
+    [Enable compiler and linker options to frustrate memory corruption exploits @<:@yes@:>@])],
   [hardening="$enableval"],
-  [hardening="no"])
+  [hardening="yes"])
 AM_CONDITIONAL([HARDENING], [test x$hardening = xyes])
 
 dnl -----------------------------------------------
@@ -274,7 +274,7 @@ OPTIMIZATION_CFLAGS=""
 
 AS_IF([test x"$hardening" != x"yes"], [
   check_cc_flag([-O3], [OPTIMIZATION_CFLAGS="$OPTIMIZATION_CFLAGS -O3"])
-  check_cc_flag([-g -ggdb3], [OPTIMIZATION_CFLAGS="$OPTIMIZATION_CFLAGS -g -ggdb3"])
+  check_cc_flag([-g3], [OPTIMIZATION_CFLAGS="$OPTIMIZATION_CFLAGS -g3"])
 # FIXME Fix linking error
 #   check_cc_flag([-flto], [OPTIMIZATION_CFLAGS="$OPTIMIZATION_CFLAGS -flto"])
 ])

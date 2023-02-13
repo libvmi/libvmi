@@ -39,7 +39,7 @@ include(GNUInstallDirs)
 #-----------------------------------------------------------------------------
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -O0 -Wall -Wextra -Wno-missing-field-initializers -Wno-missing-braces -Wno-unused-result -Wno-ignored-attributes")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Werror -O2")
-string(REGEX REPLACE "O2 " "O3 " CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -g -ggdb3" )
+string(REGEX REPLACE "O2 " "O3 " CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -g3" )
 
 # default hardening flags that have no performance hit
 set(HARDENING_LINKER_FLAGS "-Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now")
