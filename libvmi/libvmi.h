@@ -68,79 +68,79 @@ extern "C" {
 
 typedef enum vmi_mode {
 
-  VMI_XEN, /**< libvmi is monitoring a Xen VM */
+    VMI_XEN, /**< libvmi is monitoring a Xen VM */
 
-  VMI_KVM, /**< libvmi is monitoring a KVM VM */
+    VMI_KVM, /**< libvmi is monitoring a KVM VM */
 
-  VMI_FILE, /**< libvmi is viewing a file on disk */
+    VMI_FILE, /**< libvmi is viewing a file on disk */
 
-  VMI_BAREFLANK /** <libvmi is monitoring a Bareflank VM */
+    VMI_BAREFLANK /** <libvmi is monitoring a Bareflank VM */
 } vmi_mode_t;
 
 typedef enum vmi_config {
 
-  VMI_CONFIG_GLOBAL_FILE_ENTRY, /**< config in file provided */
+    VMI_CONFIG_GLOBAL_FILE_ENTRY, /**< config in file provided */
 
-  VMI_CONFIG_STRING, /**< config string provided */
+    VMI_CONFIG_STRING, /**< config string provided */
 
-  VMI_CONFIG_GHASHTABLE, /**< config GHashTable provided */
+    VMI_CONFIG_GHASHTABLE, /**< config GHashTable provided */
 
-  VMI_CONFIG_JSON_PATH, /**< config in json file at the location provided */
+    VMI_CONFIG_JSON_PATH, /**< config in json file at the location provided */
 
-  VMI_CONFIG_FILE_PATH, /**< config file path provided */
+    VMI_CONFIG_FILE_PATH, /**< config file path provided */
 } vmi_config_t;
 
 typedef enum status {
 
-  VMI_SUCCESS, /**< return value indicating success */
+    VMI_SUCCESS, /**< return value indicating success */
 
-  VMI_FAILURE /**< return value indicating failure */
+    VMI_FAILURE /**< return value indicating failure */
 } status_t;
 
 typedef enum vmi_init_error {
 
-  VMI_INIT_ERROR_NONE, /**< No error */
+    VMI_INIT_ERROR_NONE, /**< No error */
 
-  VMI_INIT_ERROR_DRIVER_NOT_DETECTED, /**< Failed to auto-detect hypervisor */
+    VMI_INIT_ERROR_DRIVER_NOT_DETECTED, /**< Failed to auto-detect hypervisor */
 
-  VMI_INIT_ERROR_DRIVER, /**< Failed to initialize hypervisor-driver */
+    VMI_INIT_ERROR_DRIVER, /**< Failed to initialize hypervisor-driver */
 
-  VMI_INIT_ERROR_VM_NOT_FOUND, /**< Failed to find the specified VM */
+    VMI_INIT_ERROR_VM_NOT_FOUND, /**< Failed to find the specified VM */
 
-  VMI_INIT_ERROR_PAGING, /**< Failed to determine or initialize paging functions
+    VMI_INIT_ERROR_PAGING, /**< Failed to determine or initialize paging functions
                           */
 
-  VMI_INIT_ERROR_OS, /**< Failed to determine or initialize OS functions */
+    VMI_INIT_ERROR_OS, /**< Failed to determine or initialize OS functions */
 
-  VMI_INIT_ERROR_EVENTS, /**< Failed to initialize events */
+    VMI_INIT_ERROR_EVENTS, /**< Failed to initialize events */
 
-  VMI_INIT_ERROR_NO_CONFIG, /**< No configuration was found for OS
+    VMI_INIT_ERROR_NO_CONFIG, /**< No configuration was found for OS
                                initialization */
 
-  VMI_INIT_ERROR_NO_CONFIG_ENTRY, /**< Configuration contained no valid entry
+    VMI_INIT_ERROR_NO_CONFIG_ENTRY, /**< Configuration contained no valid entry
                                      for VM */
 } vmi_init_error_t;
 
 typedef enum firmware {
 
-  VMI_FIRMWARE_UNKNOWN, /**< Firmware type is undefined */
+    VMI_FIRMWARE_UNKNOWN, /**< Firmware type is undefined */
 
-  VMI_FIRMWARE_LEGACY, /**< Firmware type is BIOS */
+    VMI_FIRMWARE_LEGACY, /**< Firmware type is BIOS */
 
-  VMI_FIRMWARE_UEFI /**< Firmware type is UEFI (OVMF) */
+    VMI_FIRMWARE_UEFI /**< Firmware type is UEFI (OVMF) */
 } firmware_t;
 
 typedef enum os {
 
-  VMI_OS_UNKNOWN, /**< OS type is unknown */
+    VMI_OS_UNKNOWN, /**< OS type is unknown */
 
-  VMI_OS_LINUX, /**< OS type is Linux */
+    VMI_OS_LINUX, /**< OS type is Linux */
 
-  VMI_OS_WINDOWS, /**< OS type is Windows */
+    VMI_OS_WINDOWS, /**< OS type is Windows */
 
-  VMI_OS_FREEBSD, /**< OS type is FreeBSD */
+    VMI_OS_FREEBSD, /**< OS type is FreeBSD */
 
-  VMI_OS_OSX /**< OS type is OSX */
+    VMI_OS_OSX /**< OS type is OSX */
 } os_t;
 
 /**
@@ -148,32 +148,32 @@ typedef enum os {
  */
 typedef enum win_ver {
 
-  VMI_OS_WINDOWS_NONE, /**< Not Windows */
+    VMI_OS_WINDOWS_NONE, /**< Not Windows */
 
-  VMI_OS_WINDOWS_UNKNOWN, /**< Is Windows, not sure which */
+    VMI_OS_WINDOWS_UNKNOWN, /**< Is Windows, not sure which */
 
-  VMI_OS_WINDOWS_2000,
+    VMI_OS_WINDOWS_2000,
 
-  VMI_OS_WINDOWS_XP,
+    VMI_OS_WINDOWS_XP,
 
-  VMI_OS_WINDOWS_2003,
+    VMI_OS_WINDOWS_2003,
 
-  VMI_OS_WINDOWS_VISTA,
+    VMI_OS_WINDOWS_VISTA,
 
-  VMI_OS_WINDOWS_2008,
+    VMI_OS_WINDOWS_2008,
 
-  VMI_OS_WINDOWS_7,
+    VMI_OS_WINDOWS_7,
 
-  VMI_OS_WINDOWS_8,
+    VMI_OS_WINDOWS_8,
 
-  VMI_OS_WINDOWS_10,
+    VMI_OS_WINDOWS_10,
 } win_ver_t;
 
 typedef struct {
-  win_ver_t version;
-  uint16_t buildnumber;
-  uint16_t major;
-  uint16_t minor;
+    win_ver_t version;
+    uint16_t buildnumber;
+    uint16_t major;
+    uint16_t minor;
 } win_build_info_t;
 
 typedef uint32_t page_mode_t;
@@ -195,29 +195,29 @@ typedef uint32_t page_mode_t;
 
 typedef enum page_size {
 
-  VMI_PS_UNKNOWN = 0ULL, /**< page size unknown */
+    VMI_PS_UNKNOWN = 0ULL, /**< page size unknown */
 
-  VMI_PS_1KB = 0x400ULL, /**< 1KB */
+    VMI_PS_1KB = 0x400ULL, /**< 1KB */
 
-  VMI_PS_4KB = 0x1000ULL, /**< 4KB */
+    VMI_PS_4KB = 0x1000ULL, /**< 4KB */
 
-  VMI_PS_16KB = 0x4000ULL, /**< 16KB */
+    VMI_PS_16KB = 0x4000ULL, /**< 16KB */
 
-  VMI_PS_64KB = 0x10000ULL, /**< 64KB */
+    VMI_PS_64KB = 0x10000ULL, /**< 64KB */
 
-  VMI_PS_1MB = 0x100000ULL, /**< 1MB */
+    VMI_PS_1MB = 0x100000ULL, /**< 1MB */
 
-  VMI_PS_2MB = 0x200000ULL, /**< 2MB */
+    VMI_PS_2MB = 0x200000ULL, /**< 2MB */
 
-  VMI_PS_4MB = 0x400000ULL, /**< 4MB */
+    VMI_PS_4MB = 0x400000ULL, /**< 4MB */
 
-  VMI_PS_16MB = 0x1000000ULL, /**< 16MB */
+    VMI_PS_16MB = 0x1000000ULL, /**< 16MB */
 
-  VMI_PS_32MB = 0x2000000ULL, /**< 32MB */
+    VMI_PS_32MB = 0x2000000ULL, /**< 32MB */
 
-  VMI_PS_512MB = 0x20000000ULL, /**< 512MB */
+    VMI_PS_512MB = 0x20000000ULL, /**< 512MB */
 
-  VMI_PS_1GB = 0x40000000ULL, /**< 1GB */
+    VMI_PS_1GB = 0x40000000ULL, /**< 1GB */
 
 } page_size_t;
 
@@ -227,24 +227,24 @@ typedef enum page_size {
  * The types of initialization data that can be passed in
  */
 typedef enum {
-  VMI_INIT_DATA_XEN_EVTCHN, /**< Xen file descriptor */
+    VMI_INIT_DATA_XEN_EVTCHN, /**< Xen file descriptor */
 
-  VMI_INIT_DATA_MEMMAP, /**< memory_map_t pointer */
+    VMI_INIT_DATA_MEMMAP, /**< memory_map_t pointer */
 
-  VMI_INIT_DATA_KVMI_SOCKET /**< kvmi socket path */
+    VMI_INIT_DATA_KVMI_SOCKET /**< kvmi socket path */
 } vmi_init_data_type_t;
 
 /**
  * Structures used to pass initialization data to LibVMI
  */
 typedef struct {
-  uint64_t type; /**< type (VMI_INIT_DATA_*) */
-  void *data;    /**< the data being passed in */
+    uint64_t type; /**< type (VMI_INIT_DATA_*) */
+    void *data;    /**< the data being passed in */
 } vmi_init_data_entry_t;
 
 typedef struct {
-  uint64_t count;                /**< number of entries */
-  vmi_init_data_entry_t entry[]; /**< entry for each data being passed in */
+    uint64_t count;                /**< number of entries */
+    vmi_init_data_entry_t entry[]; /**< entry for each data being passed in */
 } vmi_init_data_t;
 
 /**
@@ -254,8 +254,8 @@ typedef struct {
  * to LibVMI so that accesses to invalid ranges can be skipped.
  */
 typedef struct {
-  uint64_t count;
-  uint64_t range[][2]; /**< start and end address of valid memory ranges */
+    uint64_t count;
+    uint64_t range[][2]; /**< start and end address of valid memory ranges */
 } memory_map_t;
 
 typedef uint64_t reg_t;
@@ -518,150 +518,150 @@ typedef uint64_t reg_t;
 #define TCR_EL1 TTBCR
 
 typedef struct x86_mtrr_regs {
-  uint64_t msr_pat_cr;
-  uint64_t msr_mtrr_cap;
+    uint64_t msr_pat_cr;
+    uint64_t msr_mtrr_cap;
 } mtrr_regs_t;
 
 /*
  * The format used for x86 segment flags by LibVMI.
  */
 typedef struct x86_segment_flags {
-  uint16_t type : 4; // 0-3
-  uint16_t s : 1;    // 4
-  uint16_t dpl : 2;  // 5-6
-  uint16_t p : 1;    // 7
-  uint16_t avl : 1;  // 8
-  uint16_t l : 1;    // 9
-  uint16_t db : 1;   // 10
-  uint16_t g : 1;    // 11
-  uint16_t pad : 4;  // 12-15
-  uint16_t pad2;     // 16-31
-  uint32_t pad3;     // 32-63
+    uint16_t type : 4; // 0-3
+    uint16_t s : 1;    // 4
+    uint16_t dpl : 2;  // 5-6
+    uint16_t p : 1;    // 7
+    uint16_t avl : 1;  // 8
+    uint16_t l : 1;    // 9
+    uint16_t db : 1;   // 10
+    uint16_t g : 1;    // 11
+    uint16_t pad : 4;  // 12-15
+    uint16_t pad2;     // 16-31
+    uint32_t pad3;     // 32-63
 } x86_segment_flags_t;
 
 /*
  * Commonly used x86 registers
  */
 typedef struct x86_regs {
-  uint64_t rax;
-  uint64_t rcx;
-  uint64_t rdx;
-  uint64_t rbx;
-  uint64_t rsp;
-  uint64_t rbp;
-  uint64_t rsi;
-  uint64_t rdi;
-  uint64_t r8;
-  uint64_t r9;
-  uint64_t r10;
-  uint64_t r11;
-  uint64_t r12;
-  uint64_t r13;
-  uint64_t r14;
-  uint64_t r15;
-  uint64_t rflags;
-  uint64_t dr6;
-  uint64_t dr7;
-  uint64_t rip;
-  uint64_t cr0;
-  uint64_t cr2;
-  uint64_t cr3;
-  uint64_t cr4;
-  uint64_t sysenter_cs;
-  uint64_t sysenter_esp;
-  uint64_t sysenter_eip;
-  uint64_t msr_efer;
-  uint64_t msr_star;
-  uint64_t msr_lstar;
-  uint64_t msr_pat;
-  uint64_t msr_cstar;
+    uint64_t rax;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rbx;
+    uint64_t rsp;
+    uint64_t rbp;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t rflags;
+    uint64_t dr6;
+    uint64_t dr7;
+    uint64_t rip;
+    uint64_t cr0;
+    uint64_t cr2;
+    uint64_t cr3;
+    uint64_t cr4;
+    uint64_t sysenter_cs;
+    uint64_t sysenter_esp;
+    uint64_t sysenter_eip;
+    uint64_t msr_efer;
+    uint64_t msr_star;
+    uint64_t msr_lstar;
+    uint64_t msr_pat;
+    uint64_t msr_cstar;
 
-  uint64_t fs_base;
-  uint64_t fs_limit;
-  uint64_t fs_sel;
-  union {
-    uint64_t fs_arbytes;
-    x86_segment_flags_t fs_flags;
-  };
-  uint64_t gs_base;
-  uint64_t gs_limit;
-  uint64_t gs_sel;
-  union {
-    uint64_t gs_arbytes;
-    x86_segment_flags_t gs_flags;
-  };
-  uint64_t cs_base;
-  uint64_t cs_limit;
-  uint64_t cs_sel;
-  union {
-    uint64_t cs_arbytes;
-    x86_segment_flags_t cs_flags;
-  };
-  uint64_t ss_base;
-  uint64_t ss_limit;
-  uint64_t ss_sel;
-  union {
-    uint64_t ss_arbytes;
-    x86_segment_flags_t ss_flags;
-  };
-  uint64_t ds_base;
-  uint64_t ds_limit;
-  uint64_t ds_sel;
-  union {
-    uint64_t ds_arbytes;
-    x86_segment_flags_t ds_flags;
-  };
-  uint64_t es_base;
-  uint64_t es_limit;
-  uint64_t es_sel;
-  union {
-    uint64_t es_arbytes;
-    x86_segment_flags_t es_flags;
-  };
-  uint64_t tr_base;
-  uint64_t tr_limit;
-  uint64_t tr_sel;
-  union {
-    uint64_t tr_arbytes;
-    x86_segment_flags_t tr_flags;
-  };
-  uint64_t ldt_base;
-  uint64_t ldt_limit;
-  uint64_t ldt_sel;
-  union {
-    uint64_t ldt_arbytes;
-    x86_segment_flags_t ldt_flags;
-  };
+    uint64_t fs_base;
+    uint64_t fs_limit;
+    uint64_t fs_sel;
+    union {
+        uint64_t fs_arbytes;
+        x86_segment_flags_t fs_flags;
+    };
+    uint64_t gs_base;
+    uint64_t gs_limit;
+    uint64_t gs_sel;
+    union {
+        uint64_t gs_arbytes;
+        x86_segment_flags_t gs_flags;
+    };
+    uint64_t cs_base;
+    uint64_t cs_limit;
+    uint64_t cs_sel;
+    union {
+        uint64_t cs_arbytes;
+        x86_segment_flags_t cs_flags;
+    };
+    uint64_t ss_base;
+    uint64_t ss_limit;
+    uint64_t ss_sel;
+    union {
+        uint64_t ss_arbytes;
+        x86_segment_flags_t ss_flags;
+    };
+    uint64_t ds_base;
+    uint64_t ds_limit;
+    uint64_t ds_sel;
+    union {
+        uint64_t ds_arbytes;
+        x86_segment_flags_t ds_flags;
+    };
+    uint64_t es_base;
+    uint64_t es_limit;
+    uint64_t es_sel;
+    union {
+        uint64_t es_arbytes;
+        x86_segment_flags_t es_flags;
+    };
+    uint64_t tr_base;
+    uint64_t tr_limit;
+    uint64_t tr_sel;
+    union {
+        uint64_t tr_arbytes;
+        x86_segment_flags_t tr_flags;
+    };
+    uint64_t ldt_base;
+    uint64_t ldt_limit;
+    uint64_t ldt_sel;
+    union {
+        uint64_t ldt_arbytes;
+        x86_segment_flags_t ldt_flags;
+    };
 
-  uint64_t shadow_gs;
-  uint64_t idtr_base;
-  uint64_t idtr_limit;
-  uint64_t gdtr_base;
-  uint64_t gdtr_limit;
-  uint64_t npt_base;
-  uint64_t vmtrace_pos;
+    uint64_t shadow_gs;
+    uint64_t idtr_base;
+    uint64_t idtr_limit;
+    uint64_t gdtr_base;
+    uint64_t gdtr_limit;
+    uint64_t npt_base;
+    uint64_t vmtrace_pos;
 } x86_registers_t;
 
 typedef struct arm_registers {
-  uint64_t ttbr0;
-  uint64_t ttbr1;
-  uint64_t ttbcr;
-  uint64_t pc;
-  uint32_t cpsr;
-  uint32_t _pad;
+    uint64_t ttbr0;
+    uint64_t ttbr1;
+    uint64_t ttbcr;
+    uint64_t pc;
+    uint32_t cpsr;
+    uint32_t _pad;
 } arm_registers_t;
 
 typedef struct registers {
-  union {
-    x86_registers_t x86;
-    arm_registers_t arm;
-  };
+    union {
+        x86_registers_t x86;
+        arm_registers_t arm;
+    };
 } registers_t;
 
 typedef struct xsave_area {
-  char fpu_sse[512];
-  uint64_t xstate_bv; /* Updated by XRSTOR */
-  uint64_t xcomp_bv;  /* Updated by XRSTOR{C,S} */
+    char fpu_sse[512];
+    uint64_t xstate_bv; /* Updated by XRSTOR */
+    uint64_t xcomp_bv;  /* Updated by XRSTOR{C,S} */
 } xsave_area_t;
 
 /**
@@ -678,100 +678,100 @@ typedef int32_t vmi_pid_t;
  * Struct for holding page lookup information
  */
 typedef struct page_info {
-  addr_t vaddr; /**< virtual address */
-  addr_t paddr; /**< physical address */
-  addr_t naddr; /**< nested address */
+    addr_t vaddr; /**< virtual address */
+    addr_t paddr; /**< physical address */
+    addr_t naddr; /**< nested address */
 
-  page_size_t size;  /**< page size (VMI_PS_*) */
-  page_size_t nsize; /**< nested page size (VMI_PS_*) */
+    page_size_t size;  /**< page size (VMI_PS_*) */
+    page_size_t nsize; /**< nested page size (VMI_PS_*) */
 
-  addr_t pt;      /**< pagetable used for translation */
-  page_mode_t pm; /**< page mode user for translation */
+    addr_t pt;      /**< pagetable used for translation */
+    page_mode_t pm; /**< page mode user for translation */
 
-  addr_t npt;      /**< nested pagetable used for translation */
-  page_mode_t npm; /**< nested page mode user for translation */
+    addr_t npt;      /**< nested pagetable used for translation */
+    page_mode_t npm; /**< nested page mode user for translation */
 
-  /**
-   *  Note: pte_value_prev value used in *_pte_values_*() getters/setters in the
-   * platform's PTE translation routines. The non-zero value represents the
-   * initial value of the PTE when handling nested PTE, as this is a case that
-   * needs to be handled separately.
-   */
+    /**
+     *  Note: pte_value_prev value used in *_pte_values_*() getters/setters in the
+     * platform's PTE translation routines. The non-zero value represents the
+     * initial value of the PTE when handling nested PTE, as this is a case that
+     * needs to be handled separately.
+     */
 
-  union {
-    struct {
-      addr_t pte_value_prev;
-      addr_t pte_location;
-      addr_t pte_value;
-      addr_t pgd_location;
-      addr_t pgd_value;
-    } x86_legacy;
+    union {
+        struct {
+            addr_t pte_value_prev;
+            addr_t pte_location;
+            addr_t pte_value;
+            addr_t pgd_location;
+            addr_t pgd_value;
+        } x86_legacy;
 
-    struct {
-      addr_t pte_value_prev;
-      addr_t pte_location;
-      addr_t pte_value;
-      addr_t pgd_location;
-      addr_t pgd_value;
-      addr_t pdpe_location;
-      addr_t pdpe_value;
-    } x86_pae;
+        struct {
+            addr_t pte_value_prev;
+            addr_t pte_location;
+            addr_t pte_value;
+            addr_t pgd_location;
+            addr_t pgd_value;
+            addr_t pdpe_location;
+            addr_t pdpe_value;
+        } x86_pae;
 
-    struct {
-      addr_t pte_value_prev;
-      addr_t pte_location;
-      addr_t pte_value;
-      addr_t pgd_location;
-      addr_t pgd_value;
-      addr_t pdpte_location;
-      addr_t pdpte_value;
-      addr_t pml4e_location;
-      addr_t pml4e_value;
-    } x86_ia32e;
+        struct {
+            addr_t pte_value_prev;
+            addr_t pte_location;
+            addr_t pte_value;
+            addr_t pgd_location;
+            addr_t pgd_value;
+            addr_t pdpte_location;
+            addr_t pdpte_value;
+            addr_t pml4e_location;
+            addr_t pml4e_value;
+        } x86_ia32e;
 
-    struct {
-      uint32_t fld_location;
-      uint32_t fld_value;
-      uint32_t sld_location;
-      uint32_t sld_value;
-    } arm_aarch32;
+        struct {
+            uint32_t fld_location;
+            uint32_t fld_value;
+            uint32_t sld_location;
+            uint32_t sld_value;
+        } arm_aarch32;
 
-    struct {
-      uint64_t zld_location;
-      uint64_t zld_value;
-      uint64_t fld_location;
-      uint64_t fld_value;
-      uint64_t sld_location;
-      uint64_t sld_value;
-      uint64_t tld_location;
-      uint64_t tld_value;
-    } arm_aarch64;
-  };
+        struct {
+            uint64_t zld_location;
+            uint64_t zld_value;
+            uint64_t fld_location;
+            uint64_t fld_value;
+            uint64_t sld_location;
+            uint64_t sld_value;
+            uint64_t tld_location;
+            uint64_t tld_value;
+        } arm_aarch64;
+    };
 } page_info_t;
 
 /**
  * Struct for holding information about a contiguous region of mapped pages
  */
 typedef struct mapped_region {
-  addr_t start_va;
-  size_t num_pages;
-  void *access_ptr;
+    addr_t start_va;
+    size_t num_pages;
+    void *access_ptr;
 } mapped_region_t;
 
 typedef struct mapped_regions {
-  size_t size;
-  mapped_region_t *regions;
+    size_t size;
+    mapped_region_t *regions;
 } mapped_regions_t;
 
 /**
  * Supported architectures by LibVMI
  */
 typedef enum arch {
-  VMI_ARCH_UNKNOWN, /**< Unknown architecture */
-  VMI_ARCH_X86,     /**< x86 32-bit architecture */
-  VMI_ARCH_X86_64,  /**< x86 64-bit architecture */
-  VMI_ARCH_ARM32,   /**< ARM 32-bit architecture */
-  VMI_ARCH_ARM64    /**< ARM 64-bit architecture */
+    VMI_ARCH_UNKNOWN, /**< Unknown architecture */
+    VMI_ARCH_X86,     /**< x86 32-bit architecture */
+    VMI_ARCH_X86_64,  /**< x86 64-bit architecture */
+    VMI_ARCH_ARM32,   /**< ARM 32-bit architecture */
+    VMI_ARCH_ARM64    /**< ARM 64-bit architecture */
 } vmi_arch_t;
 
 /**
@@ -800,45 +800,45 @@ typedef uint32_t translation_mechanism_t;
   access_context_t C = {.version = ACCESS_CONTEXT_VERSION, __VA_ARGS__}
 
 typedef struct {
-  uint32_t version; /**< ABI struct version */
-  uint32_t _pad;
+    uint32_t version; /**< ABI struct version */
+    uint32_t _pad;
 
-  union {
-    page_mode_t pm;        /**< paging mode to use for translation */
-    page_mode_t page_mode; /**< paging mode to use for translation */
-  };
-  union {
-    page_mode_t npm; /**< paging mode to use for nested translation */
-    page_mode_t
+    union {
+        page_mode_t pm;        /**< paging mode to use for translation */
+        page_mode_t page_mode; /**< paging mode to use for translation */
+    };
+    union {
+        page_mode_t npm; /**< paging mode to use for nested translation */
+        page_mode_t
         nested_page_mode; /**< paging mode to use for nested translation */
-  };
-  union {
-    addr_t npt;               /**< specify iff using nested translation */
-    addr_t nested_page_table; /**< specify iff using nested translation */
-  };
-  union {
-    translation_mechanism_t tm; /**< method to use for translation */
-    translation_mechanism_t
+    };
+    union {
+        addr_t npt;               /**< specify iff using nested translation */
+        addr_t nested_page_table; /**< specify iff using nested translation */
+    };
+    union {
+        translation_mechanism_t tm; /**< method to use for translation */
+        translation_mechanism_t
         translate_mechanism; /**< method to use for translation */
-  };
-
-  uint32_t _pad2;
-
-  union {
-    struct {
-      addr_t addr; /**< address to translate */
-
-      union {
-        addr_t pt;         /**< iff VMI_TM_PROCESS_DTB/PT */
-        addr_t page_table; /**< iff VMI_TM_PROCESS_DTB/PT */
-        addr_t dtb;        /**< iff VMI_TM_PROCESS_DTB/PT */
-        vmi_pid_t pid;     /**< iff VMI_TM_PROCESS_PID */
-      };
     };
 
-    /* VMI_TM_KERNEL_SYMBOL */
-    const char *ksym; /**< kernel symbol to translate  */
-  };
+    uint32_t _pad2;
+
+    union {
+        struct {
+            addr_t addr; /**< address to translate */
+
+            union {
+                addr_t pt;         /**< iff VMI_TM_PROCESS_DTB/PT */
+                addr_t page_table; /**< iff VMI_TM_PROCESS_DTB/PT */
+                addr_t dtb;        /**< iff VMI_TM_PROCESS_DTB/PT */
+                vmi_pid_t pid;     /**< iff VMI_TM_PROCESS_PID */
+            };
+        };
+
+        /* VMI_TM_KERNEL_SYMBOL */
+        const char *ksym; /**< kernel symbol to translate  */
+    };
 } access_context_t;
 
 /**
@@ -857,12 +857,12 @@ typedef struct {
  */
 typedef struct _ustring {
 
-  size_t length; /**< byte count of contents */
+    size_t length; /**< byte count of contents */
 
-  uint8_t *contents; /**< pointer to byte array holding string */
+    uint8_t *contents; /**< pointer to byte array holding string */
 
-  const char *
-      encoding; /**< holds iconv-compatible encoding of contents; do not free */
+    const char *
+    encoding; /**< holds iconv-compatible encoding of contents; do not free */
 } unicode_string_t;
 
 /**
@@ -872,12 +872,12 @@ typedef struct _ustring {
  * Fields that are false are set to 0.
  */
 typedef struct domain_status {
-  unsigned int dying : 1;    /**< Set if the domain is dying */
-  unsigned int shutdown : 1; /**< Set if the domain is shutdown */
-  unsigned int paused : 1;   /**< Set if the domain is paused */
-  unsigned int blocked : 1;  /**< Set if the domain is blocked */
-  unsigned int running : 1;  /**< Set if the domain is running */
-  unsigned int debugged : 1; /**< Set if the domain is being debugged */
+    unsigned int dying : 1;    /**< Set if the domain is dying */
+    unsigned int shutdown : 1; /**< Set if the domain is shutdown */
+    unsigned int paused : 1;   /**< Set if the domain is paused */
+    unsigned int blocked : 1;  /**< Set if the domain is blocked */
+    unsigned int running : 1;  /**< Set if the domain is running */
+    unsigned int debugged : 1; /**< Set if the domain is being debugged */
 } domain_status_t;
 
 /**
@@ -1207,9 +1207,9 @@ status_t vmi_nested_pagetable_lookup(vmi_instance_t vmi, addr_t npt,
  * @return VMI_SUCCESS or VMI_FAILURE of the VA is invalid
  */
 status_t vmi_nested_pagetable_lookup_extended(vmi_instance_t vmi, addr_t npt,
-                                              page_mode_t npm, addr_t pt,
-                                              page_mode_t pm, addr_t vaddr,
-                                              page_info_t *info) NOEXCEPT;
+        page_mode_t npm, addr_t pt,
+        page_mode_t pm, addr_t vaddr,
+        page_info_t *info) NOEXCEPT;
 
 /*---------------------------------------------------------
  * Memory access functions
@@ -1335,8 +1335,8 @@ unicode_string_t *vmi_read_unicode_str(vmi_instance_t vmi,
  *         will set the encoding field.
  */
 unicode_string_t *vmi_read_unicode_str_pm(vmi_instance_t vmi,
-                                          const access_context_t *ctx,
-                                          page_mode_t mode) NOEXCEPT;
+        const access_context_t *ctx,
+        page_mode_t mode) NOEXCEPT;
 
 /**
  * Reads count bytes from memory located at the kernel symbol sym
@@ -1618,7 +1618,7 @@ uint16_t *vmi_read_wstr_va(vmi_instance_t vmi, addr_t vaddr,
  *         will set the encoding field.
  */
 unicode_string_t *vmi_read_unicode_str_va(vmi_instance_t vmi, addr_t vaddr,
-                                          vmi_pid_t pid) NOEXCEPT;
+        vmi_pid_t pid) NOEXCEPT;
 
 /**
  * Converts character encoding from that in the input string to another
