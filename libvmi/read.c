@@ -24,9 +24,9 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
-#include <wchar.h>
 #include <errno.h>
+#include <iconv.h>
+#include <string.h>
 
 #include "private.h"
 #include "driver/driver_wrapper.h"
@@ -473,6 +473,109 @@ vmi_read_str(
         ret[len] = '\0';
         _ctx.addr += read_len;
     } while (read_more);
+
+    return ret;
+}
+
+char*
+vmi_read_w_str(
+    vmi_instance_t vmi,
+    const access_context_t *ctx)
+{
+    access_context_t _ctx = *ctx;
+    uint16_t *buf = NULL;
+    size_t buf_capacity = 0;
+    size_t wstring_len = 0;
+    uint16_t *partial_buf = NULL;
+    size_t read_size = VMI_PS_4KB / 4;
+    size_t bytes_read;
+    bool read_more = true;
+    char *ret = NULL;
+    iconv_t cd = (iconv_t) - 1;
+    bool success = false;
+
+    do {
+        buf_capacity += read_size;
+        void *_buf = realloc(buf, buf_capacity);
+        if (!_buf)
+            goto cleanup;
+
+        buf = _buf;
+
+        partial_buf = &buf[wstring_len];
+
+        if (VMI_FAILURE == vmi_read(vmi, &_ctx, read_size, partial_buf, &bytes_read) &&
+                !bytes_read) {
+            goto cleanup;
+        }
+
+        if (bytes_read != read_size) {
+            read_more = false;
+        }
+
+        // Search for null character
+        while (wstring_len < bytes_read / sizeof(uint16_t)) {
+            if (partial_buf[wstring_len++] == '\0') {
+                read_more = false;
+                break;
+            }
+        }
+
+        _ctx.addr += read_size;
+    } while (read_more);
+
+    // Allocate buffer for UTF-8 string. UTF-8 can be 4 bytes per character at most.
+    size_t ret_capacity = wstring_len * 4;
+    ret = malloc(ret_capacity);
+
+    cd = iconv_open("UTF-8", "UTF-16");
+    if (cd == (iconv_t) - 1) {
+        dbprint(VMI_DEBUG_READ, "%s: Unable to obtain iconv handle", __FUNCTION__);
+        goto cleanup;
+    }
+
+    char *inbuf = (char *) buf;
+    size_t inbytesleft = wstring_len * sizeof(uint16_t);
+    char *outbuf = ret;
+    size_t outbytesleft = ret_capacity;
+    size_t iconv_val = iconv(cd, &inbuf, &inbytesleft, &outbuf, &outbytesleft);
+
+    if (iconv_val == (size_t) - 1) {
+        dbprint(VMI_DEBUG_READ, "%s: iconv failed", __FUNCTION__);
+        switch (errno) {
+            case EILSEQ:
+                dbprint(VMI_DEBUG_READ, "invalid multibyte sequence");
+                break;
+            case EINVAL:
+                dbprint(VMI_DEBUG_READ, "incomplete multibyte sequence");
+                break;
+            case E2BIG:
+                dbprint(VMI_DEBUG_READ, "no more room");
+                break;
+            default:
+                dbprint(VMI_DEBUG_READ, "error: %s\n", strerror(errno));
+                break;
+        }
+
+        goto cleanup;
+    }
+
+    // Drop excess capacity
+    ret = realloc(ret, ret_capacity - outbytesleft + 1);
+
+    success = true;
+
+cleanup:
+    if (cd != (iconv_t) - 1) {
+        iconv_close(cd);
+    }
+
+    free(buf);
+
+    if (!success) {
+        free(ret);
+        ret = NULL;
+    }
 
     return ret;
 }

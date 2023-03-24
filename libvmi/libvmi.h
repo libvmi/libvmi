@@ -1293,6 +1293,19 @@ char *vmi_read_str(
     const access_context_t *ctx) NOEXCEPT;
 
 /**
+ * Reads a null terminated UTF-16 string from memory, starting at
+ * the given virtual address. The string will be converted to UTF-8.
+ * The returned value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @return String read from memory or NULL on error
+ */
+char *vmi_read_w_str(
+    vmi_instance_t vmi,
+    const access_context_t *ctx) NOEXCEPT;
+
+/**
  * Reads a Unicode string from the given address. If the guest is running
  * Windows, a UNICODE_STRING struct is read. Linux is not yet
  * supported. The returned value must be freed by the caller.
