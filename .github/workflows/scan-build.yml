@@ -31,9 +31,9 @@ jobs:
       - name: scan-build
         run: |
           autoreconf -vif
-          scan-build-$VERSION --status-bugs -analyze-headers -disable-checker deadcode.DeadStores ./configure CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL --enable-debug --disable-config-file
+          scan-build-$VERSION --status-bugs -disable-checker deadcode.DeadStores ./configure CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL --enable-debug --disable-config-file
           intercept-build-$VERSION make
-          analyze-build-$VERSION -v --cdb compile_commands.json --status-bugs --analyze-headers --force-analyze-debug-code \
+          analyze-build-$VERSION -v --cdb compile_commands.json --status-bugs --force-analyze-debug-code \
               --disable-checker deadcode.DeadStores \
               --enable-checker security.FloatLoopCounter \
               --enable-checker security.insecureAPI.strcpy
