@@ -223,9 +223,9 @@ parse_seg_reg_value(
 
     strncpy(keyword, regname, 3);
     if (strlen(regname) == 2)
-        strcat(keyword, " =");
+        g_strlcat(keyword, " =", 5);
     else
-        strcat(keyword, "=");
+        g_strlcat(keyword, "=", 5);
 
     if (NULL == (ptr = strcasestr(ir_output, keyword)))
         return 0;
