@@ -5,6 +5,10 @@ on:
 jobs:
   scan-build:
     runs-on: ubuntu-latest
+    env:
+      CC: clang-15
+      CXX: clang++-15
+      VERSION: 15
 
     steps:
       - uses: actions/checkout@v3
@@ -15,7 +19,7 @@ jobs:
         run: |
           # Install packages
           sudo apt-get update -q
-          sudo apt-get install -y clang clang-tools clang-tidy autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev
+          sudo apt-get install -y clang-$VERSION clang-tools-$VERSION clang-tidy-$VERSION autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev
           git clone --depth=2 https://github.com/libvmi/libkvmi
           cd libkvmi
           ./bootstrap
@@ -27,16 +31,16 @@ jobs:
       - name: scan-build
         run: |
           autoreconf -vif
-          scan-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers -disable-checker deadcode.DeadStores ./configure CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL --enable-debug --disable-config-file
-          intercept-build --status-bugs --use-cc=clang --use-c++=clang++ -analyze-headers -disable-checker deadcode.DeadStores make
-          analyze-build -v --cdb compile_commands.json --status-bugs --analyze-headers --force-analyze-debug-code \
+          scan-build-$VERSION --status-bugs -analyze-headers -disable-checker deadcode.DeadStores ./configure CFLAGS=-DVMI_DEBUG=__VMI_DEBUG_ALL --enable-debug --disable-config-file
+          intercept-build-$VERSION make
+          analyze-build-$VERSION -v --cdb compile_commands.json --status-bugs --analyze-headers --force-analyze-debug-code \
               --disable-checker deadcode.DeadStores \
               --enable-checker security.FloatLoopCounter \
               --enable-checker security.insecureAPI.strcpy
 
       - name: calculate complexity score
         run: |
-          run-clang-tidy -quiet -config="{Checks: 'readability-function-cognitive-complexity', CheckOptions: [{key: readability-function-cognitive-complexity.Threshold, value: 0}, {key: readability-function-cognitive-complexity.DescribeBasicIncrements, value: False}]}" \
+          run-clang-tidy-$VERSION -quiet -config="{Checks: 'readability-function-cognitive-complexity', CheckOptions: [{key: readability-function-cognitive-complexity.Threshold, value: 0}, {key: readability-function-cognitive-complexity.DescribeBasicIncrements, value: False}]}" \
               2>/dev/null | grep warning | grep "cognitive complexity" | tee -a cognitive-complexity.log || :
 
           complexity=0
