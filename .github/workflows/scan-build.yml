@@ -44,11 +44,11 @@ jobs:
               2>/dev/null | grep warning | grep "cognitive complexity" | tee -a cognitive-complexity.log || :
 
           complexity=0
-          while read -r line; do
-              file=$(echo $line | awk -F":" '{ print $1 }')
-              line=$(echo $line | awk -F":" '{ print $2 }')
-              function=$(echo $line | awk -F"function" '{ print $2 }' | awk '{ print $1 }' | sed "s/'//g")
-              score=$(echo $line | awk -F"cognitive complexity of" '{ print $2 }' | awk '{ print $1 }')
+          while read -r log; do
+              file=$(echo $log | awk -F":" '{ print $1 }')
+              line=$(echo $log | awk -F":" '{ print $2 }')
+              function=$(echo $log | awk -F"function" '{ print $2 }' | awk '{ print $1 }' | sed "s/'//g")
+              score=$(echo $log | awk -F"cognitive complexity of" '{ print $2 }' | awk '{ print $1 }')
 
               [[ $score -lt 25 ]] && continue
 
