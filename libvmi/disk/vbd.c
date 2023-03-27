@@ -133,7 +133,7 @@ static status_t vbd_qcow2_read_l1_table(QCowFile *qcowfile)
  */
 static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
 {
-    strcpy(qcowfile->filename, filename);
+    strncpy(qcowfile->filename, filename, strlen(qcowfile->filename));
     qcowfile->fp = fopen(filename, "rb");
     if (!qcowfile->fp) {
         errprint("VMI_ERROR: vbd_qcow2_open: failed to open qcow2 disk image file\n");
