@@ -118,15 +118,15 @@ vmi_mmap_guest(
         buf_offset += vmi->page_size;
     }
 
-    if (pfn_ndx == 0) {
-        goto done;
-    }
+    void *base_ptr = NULL;
+    // do mmap only if there are pages available for mapping
+    if (pfn_ndx != 0) {
+        base_ptr = (char *) driver_mmap_guest(vmi, pfns, pfn_ndx);
 
-    void *base_ptr = (char *)driver_mmap_guest(vmi, pfns, pfn_ndx);
-
-    if (MAP_FAILED == base_ptr || NULL == base_ptr) {
-        dbprint(VMI_DEBUG_READ, "--failed to mmap guest memory");
-        goto done;
+        if (MAP_FAILED == base_ptr || NULL == base_ptr) {
+            dbprint(VMI_DEBUG_READ, "--failed to mmap guest memory");
+            goto done;
+        }
     }
 
     for (i = 0; i < num_pages; i++) {
@@ -471,7 +471,7 @@ vmi_read_str(
         memcpy(&ret[len], &buf, read_len);
         len += read_len;
         ret[len] = '\0';
-        _ctx.addr += offset;
+        _ctx.addr += read_len;
     } while (read_more);
 
     return ret;
