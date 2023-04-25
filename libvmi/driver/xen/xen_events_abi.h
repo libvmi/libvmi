@@ -411,10 +411,10 @@ struct vm_event_mov_to_msr_3 {
 };
 
 struct vm_event_io_instruction {
-    uint32_t data_size;
-    uint32_t port;
-    uint32_t input;
-    uint32_t string_ins;
+    uint32_t bytes; /* size of access */
+    uint16_t port;  /* port number */
+    uint8_t  in;    /* direction (0 = OUT, 1 = IN) */
+    uint8_t  str;   /* string instruction (0 = not string, 1 = string) */
 };
 
 #define VM_EVENT_DESC_IDTR           1

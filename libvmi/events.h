@@ -406,10 +406,10 @@ typedef struct cpuid_event {
 } cpuid_event_t;
 
 typedef struct {
-    uint32_t data_size;
-    uint32_t port;
-    uint32_t input;
-    uint32_t string_ins;
+    uint32_t bytes;
+    uint16_t port;
+    uint8_t in;
+    uint8_t str;
 } io_event_t;
 
 #define VMI_DESCRIPTOR_IDTR           1

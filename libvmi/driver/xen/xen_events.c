@@ -1143,10 +1143,10 @@ status_t process_io_instruction(vmi_instance_t vmi, vm_event_compat_t *vmec)
     }
 #endif
 
-    event->io_event.data_size = vmec->io_instruction.data_size;
+    event->io_event.bytes = vmec->io_instruction.bytes;
     event->io_event.port = vmec->io_instruction.port;
-    event->io_event.input = vmec->io_instruction.input;
-    event->io_event.string_ins = vmec->io_instruction.string_ins;
+    event->io_event.in = vmec->io_instruction.in;
+    event->io_event.str = vmec->io_instruction.str;
 
     event->x86_regs = &vmec->data.regs.x86;
     event->slat_id = vmec->altp2m_idx;
