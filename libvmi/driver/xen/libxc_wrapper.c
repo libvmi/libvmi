@@ -87,7 +87,7 @@ static status_t sanity_check(xen_instance_t *xen)
         case 16:
             if ( !w->xc_monitor_io )
                 break;
-            __attribute__ ((fallthrough));
+        /* Fall-through */
         case 11:
             if ( !w->xc_monitor_emul_unimplemented )
                 break;
