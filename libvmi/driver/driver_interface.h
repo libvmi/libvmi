@@ -176,6 +176,9 @@ typedef struct driver_interface {
     status_t (*set_domain_watch_event_ptr)(
         vmi_instance_t,
         bool enabled);
+    status_t (*set_io_event_ptr)(
+        vmi_instance_t,
+        bool enabled);
     status_t (*slat_get_domain_state_ptr)(
         vmi_instance_t vmi,
         bool *state);
@@ -212,6 +215,8 @@ typedef struct driver_interface {
         vmi_instance_t vmi,
         const char *device_id,
         bool *bootable);
+    char* (*get_bios)(
+        vmi_instance_t vmi);
 
     /* Driver-specific data storage. */
     void* driver_data;

@@ -91,6 +91,7 @@ typedef struct vm_event_compat {
         struct vm_event_cpuid                 cpuid;
         struct vm_event_interrupt_x86         x86_interrupt;
         struct vm_event_vmexit                vmexit;
+        struct vm_event_io_instruction        io_instruction;
     };
 
     union {

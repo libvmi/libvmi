@@ -177,6 +177,8 @@ struct vmi_instance {
 
     vmi_event_t *vmexit_event; /**< Handler of VMEXIT events */
 
+    vmi_event_t *io_event; /**< Handler of I/O events */
+
     GHashTable *interrupt_events; /**< interrupt event to function mapping (key: interrupt) */
 
     GHashTable *mem_events_on_gfn; /**< mem event to functions mapping (key: physical address) */

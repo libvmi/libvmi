@@ -115,6 +115,15 @@ typedef enum vmi_init_error {
     VMI_INIT_ERROR_NO_CONFIG_ENTRY, /**< Configuration contained no valid entry for VM */
 } vmi_init_error_t;
 
+typedef enum firmware {
+
+    VMI_FIRMWARE_UNKNOWN, /**< Firmware type is undefined */
+
+    VMI_FIRMWARE_LEGACY, /**< Firmware type is BIOS */
+
+    VMI_FIRMWARE_UEFI /**< Firmware type is UEFI (OVMF) */
+} firmware_t;
+
 typedef enum os {
 
     VMI_OS_UNKNOWN,  /**< OS type is unknown */
