@@ -83,9 +83,12 @@ static status_t sanity_check(xen_instance_t *xen)
             break;
 
         default:
-        /* Things start to be a bit saner from 4.6 */
-        case 16:
+        case 18:
             if ( !w->xc_monitor_io )
+                break;
+        /* Fall-through */
+        case 17:
+            if ( !w->xc_monitor_vmexit )
                 break;
         /* Fall-through */
         case 11:
