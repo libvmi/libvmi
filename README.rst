@@ -29,7 +29,7 @@ Volatility on a live virtual machine.
 This file contains very basic instructions to get you up and running.  If you
 want more details about installation, or programming with LibVMI, then see
 the documentation included in the doc/ subdirectory of LibVMI, or view the
-documentation online at http://www.libvmi.com.
+documentation online at https://libvmi.com.
 
 .. image:: https://badges.gitter.im/Join%20Chat.svg
    :alt: Join the chat at https://gitter.im/libvmi/Lobby
