@@ -91,6 +91,16 @@ static status_t sanity_check(xen_instance_t *xen)
             if ( !w->xc_monitor_vmexit )
                 break;
         /* Fall-through */
+        case 16:
+        /* Fall-through */
+        case 15:
+        /* Fall-through */
+        case 14:
+        /* Fall-through */
+        case 13:
+        /* Fall-through */
+        case 12:
+        /* Fall-through */
         case 11:
             if ( !w->xc_monitor_emul_unimplemented )
                 break;
