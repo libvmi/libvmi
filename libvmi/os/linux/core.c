@@ -125,33 +125,43 @@ static status_t linux_filemode_32bit_init(vmi_instance_t vmi,
         addr_t pa, addr_t va)
 {
     addr_t test = 0;
-    vmi->page_mode = VMI_PM_LEGACY;
-    if (VMI_SUCCESS == arch_init(vmi)) {
-        if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va, &test) &&
-                test == pa) {
-            vmi->kpgd = swapper_pg_dir - boundary;
-            return VMI_SUCCESS;
+    if (vmi->page_mode != VMI_PM_UNKNOWN)
+    {
+        if (VMI_SUCCESS == arch_init(vmi)) {
+            if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va, &test) &&
+                    test == pa) {
+                vmi->kpgd = swapper_pg_dir - boundary;
+                return VMI_SUCCESS;
+            }
+        }
+    } else {
+        vmi->page_mode = VMI_PM_LEGACY;
+        if (VMI_SUCCESS == arch_init(vmi)) {
+            if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va, &test) &&
+                    test == pa) {
+                vmi->kpgd = swapper_pg_dir - boundary;
+                return VMI_SUCCESS;
+            }
+        }
+
+        vmi->page_mode = VMI_PM_PAE;
+        if (VMI_SUCCESS == arch_init(vmi)) {
+            if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va, &test) &&
+                    test == pa) {
+                vmi->kpgd = swapper_pg_dir - boundary;
+                return VMI_SUCCESS;
+            }
+        }
+
+        vmi->page_mode = VMI_PM_AARCH32;
+        if (VMI_SUCCESS == arch_init(vmi)) {
+            if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va, &test) &&
+                    test == pa) {
+                vmi->kpgd = swapper_pg_dir - boundary;
+                return VMI_SUCCESS;
+            }
         }
     }
-
-    vmi->page_mode = VMI_PM_PAE;
-    if (VMI_SUCCESS == arch_init(vmi)) {
-        if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va, &test) &&
-                test == pa) {
-            vmi->kpgd = swapper_pg_dir - boundary;
-            return VMI_SUCCESS;
-        }
-    }
-
-    vmi->page_mode = VMI_PM_AARCH32;
-    if (VMI_SUCCESS == arch_init(vmi)) {
-        if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va, &test) &&
-                test == pa) {
-            vmi->kpgd = swapper_pg_dir - boundary;
-            return VMI_SUCCESS;
-        }
-    }
-
     return VMI_FAILURE;
 }
 
@@ -201,7 +211,7 @@ static status_t linux_filemode_init(vmi_instance_t vmi)
 
         swapper_pg_dir = canonical_addr(swapper_pg_dir);
 
-        /* We don't know if VMI_PM_LEGACY, VMI_PM_PAE or VMI_PM_AARCH32 yet
+        /* We may not know if VMI_PM_LEGACY, VMI_PM_PAE or VMI_PM_AARCH32 yet
          * so we do some heuristics below. */
         if (boundary) {
             rc = linux_filemode_32bit_init(vmi, swapper_pg_dir, boundary,
@@ -271,12 +281,11 @@ static status_t linux_filemode_init(vmi_instance_t vmi)
         rc = verify_linux_paging (vmi);
     }
 
+done:
     /* If that didn't work, brute force across possible KPDB locations and virtual kernel bases */
     if (VMI_FAILURE == rc) {
         rc = brute_force_find_kern_mem (vmi);
     }
-
-done:
     return rc;
 }
 

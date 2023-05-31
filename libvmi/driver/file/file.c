@@ -60,7 +60,7 @@ file_get_memory(
 {
     void *memory = 0;
 
-    if (paddr + length >= vmi->max_physical_address) {
+    if (paddr + length > vmi->max_physical_address) {
         dbprint
         (VMI_DEBUG_FILE, "--%s: request for PA range [0x%.16"PRIx64"-0x%.16"PRIx64"] reads past end of file\n",
          __FUNCTION__, paddr, paddr + length);
