@@ -35,6 +35,7 @@
 #include <pwd.h>
 #include <unistd.h>
 
+#include "config/config_parser.h"
 #include "private.h"
 #include "driver/driver_wrapper.h"
 #include "driver/memory_cache.h"

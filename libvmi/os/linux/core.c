@@ -125,8 +125,7 @@ static status_t linux_filemode_32bit_init(vmi_instance_t vmi,
         addr_t pa, addr_t va)
 {
     addr_t test = 0;
-    if (vmi->page_mode != VMI_PM_UNKNOWN)
-    {
+    if (vmi->page_mode != VMI_PM_UNKNOWN) {
         if (VMI_SUCCESS == arch_init(vmi)) {
             if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, swapper_pg_dir - boundary, va, &test) &&
                     test == pa) {
