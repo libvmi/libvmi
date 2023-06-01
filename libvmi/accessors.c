@@ -727,7 +727,7 @@ GSList* vmi_get_nested_va_pages(vmi_instance_t vmi, addr_t npt, page_mode_t npm,
         return NULL;
 
     if (!valid_pm(pm)) {
-        dbprint(VMI_DEBUG_PTLOOKUP, "Invalid or not supported paging mode during get_va_pages\n");
+        dbprint(VMI_DEBUG_PTLOOKUP, "Invalid or not supported paging mode during get_nested_va_pages\n");
         return NULL;
     }
 #endif

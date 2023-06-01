@@ -35,6 +35,7 @@
 #include <pwd.h>
 #include <unistd.h>
 
+#include "config/config_parser.h"
 #include "private.h"
 #include "driver/driver_wrapper.h"
 #include "driver/memory_cache.h"
@@ -287,6 +288,94 @@ set_os_type_from_config(
 #endif
 
     return ret;
+}
+
+static page_mode_t
+get_pagemode_from_config(
+    GHashTable *configtbl)
+{
+    const char *cfg_pagemode = NULL;
+    page_mode_t vmi_page_mode = VMI_PM_UNKNOWN;
+
+    cfg_pagemode = g_hash_table_lookup(configtbl, "pagemode");
+    if (!cfg_pagemode) {
+        dbprint(VMI_DEBUG_CORE, "**no pagemode found in config file.\n");
+        return vmi_page_mode;
+    }
+
+    if (!strcmp(cfg_pagemode, "VMI_PM_LEGACY")) {
+        vmi_page_mode = VMI_PM_LEGACY;
+    } else if (!strcmp(cfg_pagemode,"VMI_PM_PAE")) {
+        vmi_page_mode = VMI_PM_PAE;
+    } else if (!strcmp(cfg_pagemode, "VMI_PM_IA32E")) {
+        vmi_page_mode = VMI_PM_IA32E;
+    } else if (!strcmp(cfg_pagemode, "VMI_PM_AARCH32")) {
+        vmi_page_mode = VMI_PM_AARCH32;
+    } else if (!strcmp(cfg_pagemode, "VMI_PM_AARCH64")) {
+        vmi_page_mode = VMI_PM_AARCH64;
+    } else if (!strcmp(cfg_pagemode, "VMI_PM_EPT_4L")) {
+        vmi_page_mode = VMI_PM_EPT_4L;
+    } else if (!strcmp(cfg_pagemode, "VMI_PM_EPT_5L")) {
+        vmi_page_mode = VMI_PM_EPT_5L;
+    } else {
+        errprint("VMI_ERROR: Unknown pagemode type specified in config: %s\n",
+                 cfg_pagemode);
+    }
+    return vmi_page_mode;
+}
+
+page_size_t get_page_size_from_string(char *page_size_string)
+{
+    if (strcmp(page_size_string, "VMI_PS_1KB") == 0) {
+        return VMI_PS_1KB;
+    } else if (strcmp(page_size_string, "VMI_PS_4KB") == 0) {
+        return VMI_PS_4KB;
+    } else if (strcmp(page_size_string, "VMI_PS_16KB") == 0) {
+        return VMI_PS_16KB;
+    } else if (strcmp(page_size_string, "VMI_PS_64KB") == 0) {
+        return VMI_PS_64KB;
+    } else if (strcmp(page_size_string, "VMI_PS_1MB") == 0) {
+        return VMI_PS_1MB;
+    } else if (strcmp(page_size_string, "VMI_PS_2MB") == 0) {
+        return VMI_PS_2MB;
+    } else if (strcmp(page_size_string, "VMI_PS_4MB") == 0) {
+        return VMI_PS_4MB;
+    } else if (strcmp(page_size_string, "VMI_PS_16MB") == 0) {
+        return VMI_PS_16MB;
+    } else if (strcmp(page_size_string, "VMI_PS_32MB") == 0) {
+        return VMI_PS_32MB;
+    } else if (strcmp(page_size_string, "VMI_PS_512MB") == 0) {
+        return VMI_PS_512MB;
+    } else if (strcmp(page_size_string, "VMI_PS_1GB") == 0) {
+        return VMI_PS_1GB;
+    } else {
+        errprint("VMI_ERROR: Unknown page size specified in config: %s\n",
+                 page_size_string);
+        return VMI_PS_UNKNOWN;
+    }
+}
+
+void read_config_aarch64_entries(char* key, gpointer value, vmi_instance_t vmi)
+{
+    if (strncmp(key, "aarch64_ttbr0_va_width", CONFIG_STR_LENGTH) == 0) {
+        vmi->arm64.t0sz = 64 - *(uint64_t *)value;
+        return;
+    }
+
+    if (strncmp(key, "aarch64_ttbr0_granule_size", CONFIG_STR_LENGTH) == 0) {
+        vmi->arm64.tg0 = get_page_size_from_string(value);
+        return;
+    }
+
+    if (strncmp(key, "aarch64_ttbr1_va_width", CONFIG_STR_LENGTH) == 0) {
+        vmi->arm64.t1sz = 64 - *(uint64_t *)value;
+        return;
+    }
+
+    if (strncmp(key, "aarch64_ttbr1_granule_size", CONFIG_STR_LENGTH) == 0) {
+        vmi->arm64.tg1 = get_page_size_from_string(value);
+        return;
+    }
 }
 
 static inline status_t
@@ -733,6 +822,14 @@ GHashTable *init_config(vmi_instance_t vmi, vmi_config_t config_mode, void *conf
         return NULL;
     }
 
+    if (VMI_PM_UNKNOWN == vmi->page_mode) {
+        vmi->page_mode = get_pagemode_from_config(_config);
+    }
+
+    if (VMI_PM_AARCH64 == vmi->page_mode) {
+        g_hash_table_foreach(_config, (GHFunc)read_config_aarch64_entries, vmi);
+    }
+
     return _config;
 }
 
@@ -777,6 +874,7 @@ os_t vmi_init_os(
 
         goto error_exit;
     }
+
 
     /* setup OS specific stuff */
     switch ( vmi->os_type ) {
