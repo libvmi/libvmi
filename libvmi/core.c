@@ -826,7 +826,9 @@ GHashTable *init_config(vmi_instance_t vmi, vmi_config_t config_mode, void *conf
         vmi->page_mode = get_pagemode_from_config(_config);
     }
 
-    g_hash_table_foreach(_config, (GHFunc)read_config_aarch64_entries, vmi);
+    if (VMI_PM_AARCH64 == vmi->page_mode) {
+        g_hash_table_foreach(_config, (GHFunc)read_config_aarch64_entries, vmi);
+    }
 
     return _config;
 }
