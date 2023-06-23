@@ -230,6 +230,14 @@ status_t v2p_ia32e (vmi_instance_t vmi,
         goto done;
 
     if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pte_value)) {
+
+        if (vmi->os_type == VMI_OS_WINDOWS && PROTOTYPE(info->x86_ia32e.pte_value))
+        {
+            addr_t vaddr_proto = 0xFFFF000000000000ull | (info->x86_ia32e.pte_value >> 16);
+            dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: prototype PTe, lookup addr = 0x%.16"PRIx64"\n", vaddr_proto);
+            return v2p_ia32e(vmi, npt, npm, pt, vaddr_proto, info);
+        }
+
         status = VMI_FAILURE;
         goto done;
     }
