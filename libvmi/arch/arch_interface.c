@@ -176,7 +176,7 @@ static status_t get_vcpu_page_mode_arm(vmi_instance_t vmi, unsigned long vcpu, p
 
             pm = VMI_PM_AARCH64;
             dbprint(VMI_DEBUG_PTLOOKUP,
-                    "Found ARM64 pagemode. TTBR0 VA width: %u Page size: %u TTBR1 VA width:%u Page size: %u\n",
+                    "Found ARM64 pagemode. TTBR0 VA width: %" PRId64 " Page size: %u TTBR1 VA width:%" PRId64 " Page size: %u\n",
                     64-vmi->arm64.t0sz, vmi->arm64.tg0,
                     64-vmi->arm64.t1sz, vmi->arm64.tg1);
         }

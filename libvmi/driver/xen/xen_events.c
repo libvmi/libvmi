@@ -501,6 +501,32 @@ status_t xen_set_vmexit_event(vmi_instance_t vmi, bool enabled, bool sync)
     return VMI_SUCCESS;
 }
 
+status_t xen_set_io_event(vmi_instance_t vmi, bool enabled)
+{
+    int rc;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 16 )
+        return VMI_FAILURE;
+
+    if ( !enabled && !vmi->io_event )
+        return VMI_SUCCESS;
+
+    rc = xen->libxcw.xc_monitor_io(xen_get_xchandle(vmi),
+                                   xen_get_domainid(vmi),
+                                   enabled);
+    if ( rc < 0 ) {
+        errprint("Error %i setting I/O event monitor\n", rc);
+        errprint("xen_set_io_event: Errno: %d\n", errno);
+        return VMI_FAILURE;
+    }
+
+    if ( !enabled )
+        vmi->io_event = NULL;
+
+    return VMI_SUCCESS;
+}
+
 status_t xen_set_privcall_event(vmi_instance_t vmi, bool enabled)
 {
     int rc;
@@ -1101,6 +1127,40 @@ status_t process_vmexit(vmi_instance_t vmi, vm_event_compat_t *vmec)
     process_response ( event->callback(vmi, event),
                        event, vmec );
     vmi->event_callback = 0;
+
+    return VMI_SUCCESS;
+}
+
+static
+status_t process_io_instruction(vmi_instance_t vmi, vm_event_compat_t *vmec)
+{
+    vmi_event_t * event = vmi->io_event;
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !event ) {
+        errprint("%s error: no I/O event handler is registered in LibVMI\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    event->io_event.bytes = vmec->io_instruction.bytes;
+    event->io_event.port = vmec->io_instruction.port;
+    event->io_event.in = vmec->io_instruction.in;
+    event->io_event.str = vmec->io_instruction.str;
+
+    event->x86_regs = &vmec->data.regs.x86;
+    event->slat_id = vmec->altp2m_idx;
+    event->vcpu_id = vmec->vcpu_id;
+    event->page_mode = vmec->pm;
+
+    vmi->event_callback = 1;
+    process_response ( event->callback(vmi, event),
+                       event, vmec );
+    vmi->event_callback = 0;
+
+    if ( !vmec->flags || vmec->flags == (1 << VM_EVENT_FLAG_VCPU_PAUSED) )
+        dbprint(VMI_DEBUG_XEN, "%s warning: I/O events require the callback to specify how to handle it\n",
+                __FUNCTION__);
 
     return VMI_SUCCESS;
 }
@@ -3075,6 +3135,10 @@ status_t process_requests_7(vmi_instance_t vmi, uint32_t *requests_processed)
             case VM_EVENT_REASON_VMEXIT:
                 memcpy(&vmec.vmexit, &req->u.vmexit, sizeof(vmec.vmexit));
                 break;
+
+            case VM_EVENT_REASON_IO_INSTRUCTION:
+                memcpy(&vmec.io_instruction, &req->u.io_instruction, sizeof(vmec.io_instruction));
+                break;
         }
 
         vrc = process_request(vmi, &vmec);
@@ -3548,6 +3612,7 @@ status_t xen_init_events(
     xe->process_event[VM_EVENT_REASON_DESCRIPTOR_ACCESS] = &process_desc_access;
     xe->process_event[VM_EVENT_REASON_EMUL_UNIMPLEMENTED] = &process_unimplemented_emul;
     xe->process_event[VM_EVENT_REASON_VMEXIT] = &process_vmexit;
+    xe->process_event[VM_EVENT_REASON_IO_INSTRUCTION] = &process_io_instruction;
 
     vmi->driver.events_listen_ptr = &xen_events_listen;
     vmi->driver.set_reg_access_ptr = &xen_set_reg_access;
@@ -3563,6 +3628,7 @@ status_t xen_init_events(
     vmi->driver.set_desc_access_event_ptr = &xen_set_desc_access_event;
     vmi->driver.set_failed_emulation_event_ptr = &xen_set_failed_emulation_event;
     vmi->driver.set_vmexit_event_ptr = &xen_set_vmexit_event;
+    vmi->driver.set_io_event_ptr = &xen_set_io_event;
 
     xen->libxcw.xc_monitor_get_capabilities(xch, dom, &xe->monitor_capabilities);
 
@@ -3690,6 +3756,8 @@ void xen_events_destroy(vmi_instance_t vmi)
         (void)driver_set_cpuid_event(vmi, 0);
     if ( vmi->debug_event )
         (void)driver_set_debug_event(vmi, 0);
+    if ( vmi->io_event )
+        (void)driver_set_io_event(vmi, 0);
     if ( vmi->guest_requested_event )
         (void)driver_set_guest_requested_event(vmi, 0);
     if ( vmi->failed_emulation_event )

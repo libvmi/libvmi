@@ -279,6 +279,11 @@ int vmi_parse_config (const char *target_name)
 %token<str>    REKALL_PROFILE
 %token<str>    VOLATILITY_PROFILE
 %token<str>    OSTYPETOK
+%token<str>    PAGEMODETOK
+%token<str>    AARCH64_TTBR0_VA_WIDTH
+%token<str>    AARCH64_TTBR0_GRANULE_SIZE
+%token<str>    AARCH64_TTBR1_VA_WIDTH
+%token<str>    AARCH64_TTBR1_GRANULE_SIZE
 %token<str>    WORD
 %token<str>    FILENAME
 %token         QUOTE
@@ -317,6 +322,16 @@ assignment:
         volatility_ist_assignment
         |
         ostype_assignment
+        |
+        pagemode_assignment
+        |
+        aarch64_ttbr0_va_width_assignment
+        |
+        aarch64_ttbr0_granule_size_assignment
+        |
+        aarch64_ttbr1_va_width_assignment
+        |
+        aarch64_ttbr1_granule_size_assignment
         |
         kpgd_assignment
         |
@@ -659,6 +674,53 @@ ostype_assignment:
             snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
             char* os_type_str = strndup(tmp_str, CONFIG_STR_LENGTH);
             g_hash_table_insert(tmp_entry, $1, os_type_str);
+            free($4);
+        }
+        ;
+pagemode_assignment:
+        PAGEMODETOK EQUALS QUOTE WORD QUOTE
+        {
+            snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
+            char* pagemode_str = strndup(tmp_str, CONFIG_STR_LENGTH);
+            g_hash_table_insert(tmp_entry, $1, pagemode_str);
+            free($4);
+        }
+        ;
+aarch64_ttbr0_va_width_assignment:
+        AARCH64_TTBR0_VA_WIDTH EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+aarch64_ttbr0_granule_size_assignment:
+        AARCH64_TTBR0_GRANULE_SIZE EQUALS QUOTE WORD QUOTE
+        {
+            snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
+            char* aarch64_ttbr0_granule_size_str = strndup(tmp_str, CONFIG_STR_LENGTH);
+            g_hash_table_insert(tmp_entry, $1, aarch64_ttbr0_granule_size_str);
+            free($4);
+        }
+        ;
+aarch64_ttbr1_va_width_assignment:
+        AARCH64_TTBR1_VA_WIDTH EQUALS NUM
+        {
+            uint64_t tmp = strtoull($3, NULL, 0);
+            uint64_t *tmp_ptr = malloc(sizeof(uint64_t));
+            (*tmp_ptr) = tmp;
+            g_hash_table_insert(tmp_entry, $1, tmp_ptr);
+            free($3);
+        }
+        ;
+aarch64_ttbr1_granule_size_assignment:
+        AARCH64_TTBR1_GRANULE_SIZE EQUALS QUOTE WORD QUOTE
+        {
+            snprintf(tmp_str, CONFIG_STR_LENGTH, "%s", $4);
+            char* aarch64_ttbr1_granule_size_str = strndup(tmp_str, CONFIG_STR_LENGTH);
+            g_hash_table_insert(tmp_entry, $1, aarch64_ttbr1_granule_size_str);
             free($4);
         }
         ;

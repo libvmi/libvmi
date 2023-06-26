@@ -105,9 +105,9 @@ struct vmi_instance {
         } x86;
 
         struct {
-            int t0sz;           /**< TTBR0 VA size (2^(64-t0sz)) */
+            uint64_t t0sz;           /**< TTBR0 VA size (2^(64-t0sz)) */
 
-            int t1sz;           /**< TTBR1 VA size (2^(64-t1sz)) */
+            uint64_t t1sz;           /**< TTBR1 VA size (2^(64-t1sz)) */
 
             page_size_t tg0;    /**< TTBR0 granule size: 4KB/16KB/64KB */
 
@@ -176,6 +176,8 @@ struct vmi_instance {
     vmi_event_t *watch_domain_event; /**< Handler for domain create/destroy events */
 
     vmi_event_t *vmexit_event; /**< Handler of VMEXIT events */
+
+    vmi_event_t *io_event; /**< Handler of I/O events */
 
     GHashTable *interrupt_events; /**< interrupt event to function mapping (key: interrupt) */
 

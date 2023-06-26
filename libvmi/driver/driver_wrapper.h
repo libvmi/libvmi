@@ -650,6 +650,21 @@ driver_set_watch_domain_event(
 }
 
 static inline status_t
+driver_set_io_event(
+    vmi_instance_t vmi,
+    bool enabled)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.set_io_event_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_io_event function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.set_io_event_ptr(vmi, enabled);
+}
+
+static inline status_t
 driver_slat_get_domain_state (
     vmi_instance_t vmi,
     bool *state )
@@ -803,6 +818,20 @@ driver_disk_is_bootable(
 #endif
 
     return vmi->driver.disk_is_bootable_ptr(vmi, device_id, bootable);
+}
+
+static inline char*
+driver_get_bios(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.get_bios) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_get_bios function not implemented.\n");
+        return NULL;
+    }
+#endif
+
+    return vmi->driver.get_bios(vmi);
 }
 
 #endif /* DRIVER_WRAPPER_H */

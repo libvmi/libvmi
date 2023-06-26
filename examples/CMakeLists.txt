@@ -52,6 +52,9 @@ target_link_libraries(xen-emulate-reponse vmi_shared)
 add_executable(read-disk-example read-disk-example.c)
 target_link_libraries(read-disk-example vmi_shared)
 
+add_executable(io-event-example io-event-example.c)
+target_link_libraries(io-event-example vmi_shared)
+
 add_executable(vmi-process-list process-list.c)
 target_link_libraries(vmi-process-list vmi_shared)
 

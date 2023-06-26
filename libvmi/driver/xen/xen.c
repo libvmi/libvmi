@@ -167,7 +167,7 @@ xen_put_memory(
 }
 
 /* Helper function. Read /local/domain/<domID>/device/vbd/state property.
- * If it equals "1" return true.
+ * If it equals "4" return true.
  */
 #ifndef HAVE_LIBXENSTORE
 static bool
@@ -193,7 +193,10 @@ xen_get_vbd_state(
 
     char *state = xen->libxsw.xs_read(xen->xshandle, xth, tmp, &len);
     if (state != NULL) {
-        if (!g_strcmp0(state, "1")) {
+        /* Based on xen/include/public/io/blkif.h and xen/include/public/io/xenbus.h,
+         * a state of "4" indicates that the device is connected.
+        */
+        if (!g_strcmp0(state, "4")) {
             result = true;
         }
         free(state);
@@ -3099,5 +3102,33 @@ xen_disk_is_bootable(
     } else {
         return VMI_FAILURE;
     }
+}
+#endif
+
+/*
+ * This function is only usable with xenstore. Returns /local/domain/<domID>/hvmloader/bios property.
+ */
+#ifndef HAVE_LIBXENSTORE
+char *
+xen_get_bios(
+    vmi_instance_t UNUSED(vmi))
+{
+    return NULL;
+}
+#else
+char*
+xen_get_bios(
+    vmi_instance_t vmi)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    xs_transaction_t xth = XBT_NULL;
+    char *bios = NULL;
+
+    gchar *tmp = g_strdup_printf("/local/domain/%"PRIu64"/hvmloader/bios", xen->domainid);
+    bios = xen->libxsw.xs_read(xen->xshandle, xth, tmp, NULL);
+
+    g_free(tmp);
+
+    return bios;
 }
 #endif

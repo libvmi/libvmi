@@ -260,6 +260,10 @@ typedef struct {
     int (*xc_vm_event_get_version)
     (xc_interface *xch);
 
+    /* Xen 4.16 */
+    int (*xc_monitor_io)
+    (xc_interface *xch, uint32_t domain_id, bool enable);
+
     /* Xen 4.17+ */
     int (*xc_monitor_vmexit)
     (xc_interface *xch, uint32_t domain_id, bool enable, bool sync);
