@@ -48,6 +48,12 @@ status_t linux_get_offset(vmi_instance_t vmi, const char* offset_name, addr_t *o
 status_t linux_get_kernel_struct_offset(vmi_instance_t vmi,
                                         const char* symbol, const char* member, addr_t *addr);
 
+status_t
+linux_export_to_rva(vmi_instance_t vmi, const access_context_t *ctx,
+                    const char *symbol, addr_t *rva);
+char*
+linux_rva_to_export(vmi_instance_t vmi, addr_t rva, const access_context_t *ctx);
+
 status_t linux_symbol_to_address(vmi_instance_t instance,
                                  const char *symbol, addr_t *__unused, addr_t *address);
 

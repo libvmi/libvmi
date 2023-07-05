@@ -1022,10 +1022,11 @@ status_t vmi_translate_ksym2v(
 /**
  * Performs the translation from a symbol to a virtual address.
  * On Windows this function walks the PE export table.
- * Linux is unimplemented at this time.
+ * On Linux this function resolves the symbol through DT_GNU_HASH and DT_HASH.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] ctx Access context (beginning of PE header in Windows)
+ * @param[in] ctx Access context (beginning of PE header on Windows,
+ *                                beginning of ELF header on Linux)
  * @param[in] symbol Desired symbol to translate
  * @param[out] vaddr Virtual address
  * @return VMI_SUCCESS or VMI_FAILURE
@@ -1039,11 +1040,12 @@ status_t vmi_translate_sym2v(
 /**
  * Performs the translation from an RVA to a symbol
  * On Windows this function walks the PE export table.
+ * On Linux this function resolves the symbol through DT_GNU_HASH and DT_HASH.
  * Only the first matching symbol of System.map is returned.
- * ELF Headers are not supported.
  *
  * @param[in] vmi LibVMI instance
- * @param[in] ctx Access context (beginning of PE header in Windows)
+ * @param[in] ctx Access context (beginning of PE header on Windows,
+                                  beginning of ELF header on Linux)
  * @param[in] rva RVA to translate
  * @return Symbol, or NULL on error
  */

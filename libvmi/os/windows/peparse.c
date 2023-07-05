@@ -602,5 +602,3 @@ windows_rva_to_export(
 
     return NULL;
 }
-
-

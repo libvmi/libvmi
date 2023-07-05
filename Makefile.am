@@ -126,10 +126,12 @@ os          += libvmi/os/windows/windows.h \
                libvmi/os/windows/unicode.c
 endif
 if LINUX
+h_public    += libvmi/elfparse.h
 os          += libvmi/os/linux/linux.h \
                libvmi/os/linux/core.c \
                libvmi/os/linux/memory.c \
-               libvmi/os/linux/symbols.c
+               libvmi/os/linux/symbols.c \
+               libvmi/os/linux/elfparse.c
 endif
 if FREEBSD
 os          += libvmi/os/freebsd/freebsd.h \
