@@ -220,7 +220,7 @@ peparse_get_image(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     size_t len,
-    const uint8_t * const image) NOEXCEPT;
+    uint8_t *image) NOEXCEPT;
 
 /**
  * Assign PE headers to an image.

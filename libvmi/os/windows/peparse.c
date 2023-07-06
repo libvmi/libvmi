@@ -30,6 +30,10 @@
 #include "private.h"
 #include "peparse.h"
 
+#define PEPARSE_MAX_AON_INDEX 16384
+#define PEPARSE_MAX_AON_DEPTH 128
+#define PEPARSE_MAX_FUN       16384
+
 void
 dump_exports(
     vmi_instance_t vmi,
@@ -44,7 +48,7 @@ dump_exports(
     uint32_t i = 0;
 
     /* print names */
-    for (; i < et->number_of_names; ++i) {
+    for (; i < MIN(et->number_of_names, PEPARSE_MAX_AON_INDEX); ++i) {
         uint32_t rva = 0;
         uint16_t ordinal = 0;
         uint32_t loc = 0;
@@ -125,7 +129,7 @@ get_aon_index_linear(
     access_context_t _ctx = *ctx;
     uint32_t i = 0;
 
-    for (; i < et->number_of_names; ++i) {
+    for (; i < MIN(et->number_of_names, PEPARSE_MAX_AON_INDEX); ++i) {
         _ctx.addr = ctx->addr + et->address_of_names + i * sizeof(uint32_t);
         uint32_t str_rva = 0;
 
@@ -155,14 +159,15 @@ find_aon_idx_bin(
     addr_t aon_base_va,
     int low,
     int high,
-    const access_context_t *ctx)
+    const access_context_t *ctx,
+    size_t depth)
 {
     access_context_t _ctx = *ctx;
     int mid, cmp;
     uint32_t str_rva = 0;   // RVA of curr name
     char *name = 0; // curr name
 
-    if (high < low)
+    if (high < low || depth >= PEPARSE_MAX_AON_DEPTH)
         goto not_found;
 
     // calc the current index ("mid")
@@ -182,9 +187,9 @@ find_aon_idx_bin(
     free(name);
 
     if (cmp < 0) {  // symbol < name ==> try lower region
-        return find_aon_idx_bin(vmi, symbol, aon_base_va, low, mid - 1, ctx);
+        return find_aon_idx_bin(vmi, symbol, aon_base_va, low, mid - 1, ctx, depth + 1);
     } else if (cmp > 0) { // symbol > name ==> try higher region
-        return find_aon_idx_bin(vmi, symbol, aon_base_va, mid + 1, high, ctx);
+        return find_aon_idx_bin(vmi, symbol, aon_base_va, mid + 1, high, ctx, depth + 1);
     } else { // symbol == name
         return mid; // found
     }
@@ -204,7 +209,7 @@ get_aon_index_binary(
     addr_t aon_base_addr = ctx->addr + et->address_of_names;
     int name_ct = et->number_of_names;
 
-    return find_aon_idx_bin(vmi, symbol, aon_base_addr, 0, name_ct - 1, ctx);
+    return find_aon_idx_bin(vmi, symbol, aon_base_addr, 0, name_ct - 1, ctx, 0);
 }
 
 int
@@ -269,7 +274,7 @@ peparse_get_image(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     size_t len,
-    const uint8_t * const image)
+    uint8_t *image)
 {
     if ( VMI_FAILURE == vmi_read(vmi, ctx, len, (void *)image, NULL) ) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: failed to read PE header\n");
@@ -574,7 +579,7 @@ windows_rva_to_export(
     addr_t base3 = ctx->addr + et.address_of_functions;
     uint32_t i = 0;
 
-    for (; i < et.number_of_functions; ++i) {
+    for (; i < MIN(et.number_of_functions, PEPARSE_MAX_FUN); ++i) {
         uint32_t name_rva = 0;
         uint16_t ordinal = 0;
         uint32_t loc = 0;
