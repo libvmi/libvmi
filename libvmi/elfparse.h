@@ -97,7 +97,7 @@ struct elf64_dyn {
  */
 status_t
 elfparse_validate_elf_image(
-    uint8_t * image,
+    const uint8_t * const image,
     size_t len) NOEXCEPT;
 
 /**
@@ -130,7 +130,7 @@ void
 elfparse_assign_tables(
     vmi_instance_t vmi,
     const access_context_t *ctx,
-    uint8_t * image,
+    const uint8_t * const image,
     addr_t *hash,
     addr_t *gnu_hash,
     addr_t *str,
