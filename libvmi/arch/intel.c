@@ -233,50 +233,6 @@ uint32_t get_large_paddr_pae (uint32_t vaddr, uint32_t pgd_entry)
     return (pgd_entry & VMI_BIT_MASK(21,31)) | (vaddr & VMI_BIT_MASK(0,20));
 }
 
-void buffalo_nopae (vmi_instance_t instance, uint32_t entry, int pde)
-{
-    /* similar techniques are surely doable in linux, but for now
-     * this is only testing for windows domains */
-    if (instance->os_type != VMI_OS_WINDOWS) {
-        return;
-    }
-
-    if (!TRANSITION(entry) && !PROTOTYPE(entry)) {
-        uint32_t pfnum = (entry >> 1) & VMI_BIT_MASK(0,3);
-        uint32_t pfframe = entry & VMI_BIT_MASK(12,31);
-
-        /* pagefile */
-        if (pfnum != 0 && pfframe != 0) {
-            dbprint(VMI_DEBUG_PTLOOKUP, "--Buffalo: page file = %d, frame = 0x%.8x\n",
-                    pfnum, pfframe);
-        }
-        /* demand zero */
-        else if (pfnum == 0 && pfframe == 0) {
-            dbprint(VMI_DEBUG_PTLOOKUP, "--Buffalo: demand zero page\n");
-        }
-    }
-
-    else if (TRANSITION(entry) && !PROTOTYPE(entry)) {
-        /* transition */
-        dbprint(VMI_DEBUG_PTLOOKUP, "--Buffalo: page in transition\n");
-    }
-
-    else if (!pde && PROTOTYPE(entry)) {
-        /* prototype */
-        dbprint(VMI_DEBUG_PTLOOKUP, "--Buffalo: prototype entry\n");
-    }
-
-    else if (entry == 0) {
-        /* zero */
-        dbprint(VMI_DEBUG_PTLOOKUP, "--Buffalo: entry is zero\n");
-    }
-
-    else {
-        /* zero */
-        dbprint(VMI_DEBUG_PTLOOKUP, "--Buffalo: unknown\n");
-    }
-}
-
 /* translation */
 status_t v2p_nopae (vmi_instance_t vmi,
                     addr_t npt,
@@ -305,7 +261,6 @@ status_t v2p_nopae (vmi_instance_t vmi,
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pgd = 0x%.8"PRIx64"\n", info->x86_legacy.pgd_value);
 
     if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_legacy.pgd_value)) {
-        buffalo_nopae(vmi, info->x86_legacy.pgd_value, 0);
         status = VMI_FAILURE;
         goto done;
     }
@@ -325,15 +280,17 @@ status_t v2p_nopae (vmi_instance_t vmi,
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pte = 0x%.8"PRIx64"\n", info->x86_legacy.pte_value);
 
-    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_legacy.pte_value)) {
-        buffalo_nopae(vmi, info->x86_legacy.pte_value, 1);
-        status = VMI_FAILURE;
-        goto done;
-    }
-
     info->size = VMI_PS_4KB;
-    info->paddr = get_paddr_nopae(vaddr, info->x86_legacy.pte_value);
-    status = VMI_SUCCESS;
+
+    if (vmi->os_interface->os_pte_to_paddr)
+    {
+        status = vmi->os_interface->os_pte_to_paddr(vmi, info);
+    }
+    else if (ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_legacy.pte_value))
+    {
+        info->paddr = get_paddr_nopae(vaddr, info->x86_legacy.pte_value);
+        status = VMI_SUCCESS;
+    }
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
@@ -402,14 +359,17 @@ status_t v2p_pae (vmi_instance_t vmi,
         goto done;
     }
 
-    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_pae.pte_value)) {
-        status = VMI_FAILURE;
-        goto done;
-    }
-
     info->size = VMI_PS_4KB;
-    info->paddr = get_paddr_pae(vaddr, info->x86_pae.pte_value);
-    status = VMI_SUCCESS;
+
+    if (vmi->os_interface->os_pte_to_paddr)
+    {
+        status = vmi->os_interface->os_pte_to_paddr(vmi, info);
+    }
+    else if (ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_pae.pte_value))
+    {
+        info->paddr = get_paddr_pae(vaddr, info->x86_pae.pte_value);
+        status = VMI_SUCCESS;
+    }
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
@@ -611,6 +571,30 @@ done:
     g_free(page_table);
 
     return ret;
+}
+
+void get_pte_values_nopae(const page_info_t *info, addr_t *pte_value, addr_t *pte_value_prev)
+{
+    *pte_value = info->x86_legacy.pte_value;
+    *pte_value_prev = info->x86_legacy.pte_value_prev;
+}
+
+void set_pte_values_nopae(page_info_t *info, addr_t pte_value, addr_t pte_value_prev)
+{
+    info->x86_legacy.pte_value = pte_value;
+    info->x86_legacy.pte_value_prev = pte_value_prev;
+}
+
+void get_pte_values_pae(const page_info_t *info, addr_t *pte_value, addr_t *pte_value_prev)
+{
+    *pte_value = info->x86_pae.pte_value;
+    *pte_value_prev = info->x86_pae.pte_value_prev;
+}
+
+void set_pte_values_pae(page_info_t *info, addr_t pte_value, addr_t pte_value_prev)
+{
+    info->x86_pae.pte_value = pte_value;
+    info->x86_pae.pte_value_prev = pte_value_prev;
 }
 
 status_t

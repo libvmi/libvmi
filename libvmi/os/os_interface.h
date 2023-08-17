@@ -36,6 +36,8 @@ typedef status_t (*os_pgd_to_pid_t)(vmi_instance_t vmi, addr_t pgd, vmi_pid_t *p
 
 typedef status_t (*os_pid_to_pgd_t)(vmi_instance_t vmi, vmi_pid_t pid, addr_t *dtb);
 
+typedef status_t (*os_pte_to_paddr_t)(vmi_instance_t vmi, page_info_t *info);
+
 typedef status_t (*os_kernel_symbol_to_address_t)(vmi_instance_t instance,
         const char *symbol, addr_t *kernel_base_vaddr, addr_t *address);
 
@@ -61,6 +63,7 @@ typedef struct os_interface {
     os_get_offset_t os_get_offset;
     os_pgd_to_pid_t os_pgd_to_pid;
     os_pid_to_pgd_t os_pid_to_pgd;
+    os_pte_to_paddr_t os_pte_to_paddr;
     os_kernel_symbol_to_address_t os_ksym2v;
     os_user_symbol_to_rva_t os_usym2rva;
     os_address_to_symbol_t os_v2sym;

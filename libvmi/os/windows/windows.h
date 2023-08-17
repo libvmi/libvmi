@@ -23,6 +23,30 @@
 
 #include "private.h"
 
+struct windows_pte_info {
+
+    size_t proto_vad_pte;
+
+    uint64_t soft_prot_mask;
+    uint64_t soft_pagehigh_mask;
+    uint64_t soft_swizzle_mask;
+
+    size_t hard_pfn_start_bit;
+    uint64_t hard_pfn_mask;
+
+    size_t trans_pfn_start_bit;
+    uint64_t trans_pfn_mask;
+    uint64_t trans_swizzle_mask;
+    uint64_t trans_invalid_mask;
+
+    size_t proto_protoaddr_start_bit;
+    uint64_t proto_protoaddr_mask;
+    uint64_t proto_swizzle_mask;
+    uint64_t proto_invalid_mask;
+
+    uint64_t invalid_pte_mask;
+};
+
 struct windows_instance {
 
     addr_t ntoskrnl; /**< base phys address for ntoskrnl image */
@@ -52,6 +76,8 @@ struct windows_instance {
     uint16_t major; /**< Windows major number */
 
     uint16_t minor; /**< Windows minor number */
+
+    struct windows_pte_info pte_info; /**< some PTE offsets and bitwise masks */
 };
 typedef struct windows_instance *windows_instance_t;
 
@@ -59,6 +85,8 @@ status_t windows_init(vmi_instance_t instance, GHashTable *config);
 
 status_t windows_pid_to_pgd(vmi_instance_t vmi, vmi_pid_t pid, addr_t *dtb);
 status_t windows_pgd_to_pid(vmi_instance_t vmi, addr_t pgd, vmi_pid_t *pid);
+
+status_t windows_pte_to_paddr(vmi_instance_t vmi, page_info_t *info);
 
 status_t
 windows_kernel_symbol_to_address(vmi_instance_t vmi, const char *symbol,

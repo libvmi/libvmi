@@ -133,12 +133,27 @@ status_t vmi_get_struct_member_offset_from_json(vmi_instance_t vmi, json_object*
 }
 
 status_t
-vmi_get_bitfield_offset_and_size_from_json(vmi_instance_t vmi, json_object *json, const char *struct_name, const char *struct_member, addr_t *offset, size_t *start_bit, size_t *end_bit)
+vmi_get_bitfield_info_from_json(vmi_instance_t vmi, json_object *json, const char *struct_name, const char *struct_member, addr_t *offset, size_t *start_bit, size_t *end_bit)
 {
     if ( !vmi->json.bitfield_offset_and_size )
         return VMI_FAILURE;
 
-    return vmi->json.bitfield_offset_and_size(json, struct_name, struct_member, offset, start_bit, end_bit);
+    addr_t field_offset;
+    size_t field_start_bit, field_end_bit;
+
+    if (VMI_FAILURE == vmi->json.bitfield_offset_and_size(json, struct_name, struct_member, &field_offset, &field_start_bit, &field_end_bit))
+        return VMI_FAILURE;
+
+    if (offset)
+        *offset = field_offset;
+
+    if (start_bit)
+        *start_bit = field_start_bit;
+
+    if (end_bit)
+        *end_bit = field_end_bit;
+
+    return VMI_SUCCESS;
 }
 
 status_t
