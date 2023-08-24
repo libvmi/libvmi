@@ -253,6 +253,7 @@ endif
                        examples/map-addr \
                        examples/event-example \
                        examples/msr-event-example \
+                       examples/new-physical-page-example \
                        examples/singlestep-event-example \
                        examples/interrupt-event-example \
                        examples/step-event-example \
@@ -265,6 +266,7 @@ endif
     examples_map_addr_SOURCES = examples/map-addr.c
     examples_event_example_SOURCES = examples/event-example.c
     examples_msr_event_example_SOURCES = examples/msr-event-example.c
+    examples_new_physical_page_example_SOURCES = examples/new-physical-page-example.c
     examples_singlestep_event_example_SOURCES = examples/singlestep-event-example.c
     examples_interrupt_event_example_SOURCES = examples/interrupt-event-example.c
     examples_step_event_example_SOURCES = examples/step-event-example.c
