@@ -1050,31 +1050,23 @@ windows_init_pte(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
-    size_t mi_state_address;
-    if (VMI_SUCCESS == vmi_translate_ksym2v(vmi, "MiState", &mi_state_address)) {
-        if (VMI_FAILURE == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_PROTOTYPE", "SwizzleBit", 0, &start_bit, &end_bit)) {
-            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_PROTOTYPE::SwizzleBit\" info\n");
-            return VMI_FAILURE;
-        }
-
+    if (VMI_SUCCESS == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_PROTOTYPE", "SwizzleBit", 0, &start_bit, &end_bit)) {
         windows->pte_info.proto_swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_PROTOTYPE::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.proto_swizzle_mask);
+    }
 
-        if (VMI_FAILURE == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_SOFTWARE", "SwizzleBit", 0, &start_bit, &end_bit)) {
-            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_SOFTWARE::SwizzleBit\" info\n");
-            return VMI_FAILURE;
-        }
-
+    if (VMI_SUCCESS == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_SOFTWARE", "SwizzleBit", 0, &start_bit, &end_bit)) {
         windows->pte_info.soft_swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
-        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_SOFTWARE::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.proto_swizzle_mask);
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_SOFTWARE::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.soft_swizzle_mask);
+    }
 
-        if (VMI_FAILURE == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_TRANSITION", "SwizzleBit", 0, &start_bit, &end_bit)) {
-            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_TRANSITION::SwizzleBit\" info\n");
-            return VMI_FAILURE;
-        }
-
+    if (VMI_SUCCESS == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_TRANSITION", "SwizzleBit", 0, &start_bit, &end_bit)) {
         windows->pte_info.trans_swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
-        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_TRANSITION::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.proto_swizzle_mask);
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_TRANSITION::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.trans_swizzle_mask);
+    }
+
+    size_t mi_state_address;
+    if (VMI_SUCCESS == vmi_translate_ksym2v(vmi, "MiState", &mi_state_address)) {
 
         addr_t offset_hardware;
         addr_t offset_invalid_pte_mask;
@@ -1084,20 +1076,18 @@ windows_init_pte(vmi_instance_t vmi)
             return VMI_FAILURE;
         }
 
-        if (VMI_FAILURE == vmi_get_struct_member_offset_from_json(vmi, json, "_MI_HARDWARE_STATE", "InvalidPteMask", &offset_invalid_pte_mask)) {
-            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MI_HARDWARE_STATE::InvalidPteMask\" offset\n");
-            return VMI_FAILURE;
+        if (VMI_SUCCESS == vmi_get_struct_member_offset_from_json(vmi, json, "_MI_HARDWARE_STATE", "InvalidPteMask", &offset_invalid_pte_mask)) {
+
+            if (VMI_FAILURE == vmi_read_64_va(vmi, mi_state_address + offset_hardware + offset_invalid_pte_mask, 0, &windows->pte_info.invalid_pte_mask)) {
+                dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to read \"InvalidPteMask\" value\n");
+                return VMI_FAILURE;
+            }
+
+            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"InvalidPteMask\" value = 0x%.16"PRIx64"\n", windows->pte_info.invalid_pte_mask);
+
+            windows->pte_info.proto_invalid_mask = ~(windows->pte_info.invalid_pte_mask >> windows->pte_info.proto_protoaddr_start_bit);
+            windows->pte_info.trans_invalid_mask = ~((windows->pte_info.invalid_pte_mask >> windows->pte_info.trans_pfn_start_bit) << vmi->page_shift);
         }
-
-        if (VMI_FAILURE == vmi_read_64_va(vmi, mi_state_address + offset_hardware + offset_invalid_pte_mask, 0, &windows->pte_info.invalid_pte_mask)) {
-            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to read \"InvalidPteMask\" value\n");
-            return VMI_FAILURE;
-        }
-
-        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"InvalidPteMask\" value = 0x%.16"PRIx64"\n", windows->pte_info.invalid_pte_mask);
-
-        windows->pte_info.proto_invalid_mask = ~(windows->pte_info.invalid_pte_mask >> windows->pte_info.proto_protoaddr_start_bit);
-        windows->pte_info.trans_invalid_mask = ~((windows->pte_info.invalid_pte_mask >> windows->pte_info.trans_pfn_start_bit) << vmi->page_shift);
     }
 
     static size_t maxphysaddr = 45;
