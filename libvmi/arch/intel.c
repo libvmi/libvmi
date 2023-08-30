@@ -282,15 +282,18 @@ status_t v2p_nopae (vmi_instance_t vmi,
 
     info->size = VMI_PS_4KB;
 
-    if (vmi->os_interface->os_pte_to_paddr)
-    {
+    if (vmi->os_interface->os_pte_to_paddr) {
         status = vmi->os_interface->os_pte_to_paddr(vmi, info);
+        goto done;
     }
-    else if (ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_legacy.pte_value))
-    {
-        info->paddr = get_paddr_nopae(vaddr, info->x86_legacy.pte_value);
-        status = VMI_SUCCESS;
+
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_legacy.pte_value)) {
+        status = VMI_FAILURE;
+        goto done;
     }
+
+    info->paddr = get_paddr_nopae(vaddr, info->x86_legacy.pte_value);
+    status = VMI_SUCCESS;
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
@@ -320,7 +323,7 @@ status_t v2p_pae (vmi_instance_t vmi,
     info->vaddr = vaddr;
     info->pm = VMI_PM_PAE;
     info->pt = pt,
-          info->npt = npt;
+    info->npt = npt;
     info->npm = npm;
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: lookup vaddr = 0x%.16"PRIx64" dtb = 0x%.16"PRIx64"\n", vaddr, pt);
@@ -361,15 +364,18 @@ status_t v2p_pae (vmi_instance_t vmi,
 
     info->size = VMI_PS_4KB;
 
-    if (vmi->os_interface->os_pte_to_paddr)
-    {
+    if (vmi->os_interface->os_pte_to_paddr) {
         status = vmi->os_interface->os_pte_to_paddr(vmi, info);
+        goto done;
     }
-    else if (ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_pae.pte_value))
-    {
-        info->paddr = get_paddr_pae(vaddr, info->x86_pae.pte_value);
-        status = VMI_SUCCESS;
+
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_pae.pte_value)) {
+        status = VMI_FAILURE;
+        goto done;
     }
+
+    info->paddr = get_paddr_pae(vaddr, info->x86_pae.pte_value);
+    status = VMI_SUCCESS;
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);

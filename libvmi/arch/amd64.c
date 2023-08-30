@@ -231,15 +231,18 @@ status_t v2p_ia32e (vmi_instance_t vmi,
 
     info->size = VMI_PS_4KB;
 
-    if (vmi->os_interface->os_pte_to_paddr)
-    {
+    if (vmi->os_interface->os_pte_to_paddr) {
         status = vmi->os_interface->os_pte_to_paddr(vmi, info);
+        goto done;
     }
-    else if (ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pte_value))
-    {
-        info->paddr = get_paddr_ia32e(info->vaddr, info->x86_ia32e.pte_value, max_bit_pfn);
-        status = VMI_SUCCESS;
+
+    if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pte_value)) {
+        status = VMI_FAILURE;
+        goto done;
     }
+
+    info->paddr = get_paddr_ia32e(info->vaddr, info->x86_ia32e.pte_value, max_bit_pfn);
+    status = VMI_SUCCESS;
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
