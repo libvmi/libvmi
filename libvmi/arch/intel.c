@@ -322,7 +322,7 @@ status_t v2p_pae (vmi_instance_t vmi,
 
     info->vaddr = vaddr;
     info->pm = VMI_PM_PAE;
-    info->pt = pt,
+    info->pt = pt;
     info->npt = npt;
     info->npm = npm;
 

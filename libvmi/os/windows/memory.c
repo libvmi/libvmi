@@ -214,7 +214,7 @@ status_t windows_pte_to_paddr(
         if (windows->pte_info.soft_swizzle_mask && !(pte_value & windows->pte_info.proto_swizzle_mask))
             pte_value_check &= ~windows->pte_info.invalid_pte_mask;
 
-        // check Guard Pages or Demand Zero without modified Protection 
+        // check Guard Pages or Demand Zero without modified Protection
         if (!(pte_value_check & ~windows->pte_info.soft_prot_mask)) {
             dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Zero PTE\n");
             return VMI_FAILURE;
@@ -263,13 +263,13 @@ status_t windows_pte_to_paddr(
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Prototype PTE final paddr = 0x%.16"PRIx64"\n", info->paddr);
         return VMI_SUCCESS;
     }
-    
+
     if (VMI_GET_BIT(pte_value_prev, 10) && VMI_GET_BIT(pte_value, 10)) {
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Subsection PTE\n");
         // content in file
         return VMI_FAILURE;
     }
-    
+
     if (VMI_GET_BIT(pte_value, 11)) {
         addr_t pfn = (pte_value & windows->pte_info.trans_pfn_mask) >> windows->pte_info.trans_pfn_start_bit;
         info->paddr = (pfn << vmi->page_shift) | (info->vaddr & (vmi->page_size - 1));

@@ -24,9 +24,14 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "assert.h"
+#define LIBVMI_EXTRA_JSON
+#include <libvmi/libvmi.h>
+#include <libvmi/libvmi_extra.h>
+#include <libvmi/peparse.h>
+
+#include <assert.h>
+
 #include "private.h"
-#include "libvmi/peparse.h"
 #include "os/windows/windows.h"
 #include "driver/driver_wrapper.h"
 #include "config/config_parser.h"
@@ -1070,7 +1075,7 @@ windows_init_pte(vmi_instance_t vmi)
 
         addr_t offset_hardware;
         addr_t offset_invalid_pte_mask;
-        
+
         if (VMI_FAILURE == vmi_get_struct_member_offset_from_json(vmi, json, "_MI_SYSTEM_INFORMATION", "Hardware", &offset_hardware)) {
             dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MI_SYSTEM_INFORMATION::Hardware\" offset\n");
             return VMI_FAILURE;
