@@ -49,9 +49,7 @@ jobs:
         cd ..
         rm -rf libkvmi
 
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 2
+    - uses: actions/checkout@v3
 
     - name: Compile (autotools)
       env:
