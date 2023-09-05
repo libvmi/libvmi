@@ -155,7 +155,7 @@ status_t vmi_get_struct_member_offset_from_json(
     addr_t* offset) NOEXCEPT;
 
 /**
- * Look up the provided symbol's address and bit positions from the json
+ * Look up the provided symbol's address and bit position from the json
  * @param[in] vmi Instance
  * @param[in] json The open json_object* to use
  * @param[in] struct_name The structure's name
@@ -166,7 +166,7 @@ status_t vmi_get_struct_member_offset_from_json(
  *
  * @return VMI_SUCCESS or VMI_FAILURE
  */
-status_t vmi_get_bitfield_info_from_json(vmi_instance_t vmi, json_object *json,
+status_t vmi_get_bitfield_offset_and_size_from_json(vmi_instance_t vmi, json_object *json,
         const char *struct_name,
         const char *struct_member,
         addr_t *offset, size_t *start_bit,
@@ -182,7 +182,6 @@ status_t vmi_get_bitfield_info_from_json(vmi_instance_t vmi, json_object *json,
  * @param[in] struct_name Name of the struct containing `struct_member`.
  * @param[in] struct_member The structure's member that we want to retrieve type name for.
  * @param[out] member_type_name Type name of `struct_member`.
- *
  * @return VMI_SUCCESS or VMI_FAILURE
  */
 status_t vmi_get_struct_field_type_name_from_json(

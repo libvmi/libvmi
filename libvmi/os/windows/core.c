@@ -1021,7 +1021,7 @@ windows_init_pte(vmi_instance_t vmi)
 
     size_t start_bit, end_bit;
 
-    if (VMI_FAILURE == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_SOFTWARE", "Protection", 0, &start_bit, &end_bit)) {
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_SOFTWARE", "Protection", 0, &start_bit, &end_bit)) {
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_SOFTWARE::Protection\" info\n");
         return VMI_FAILURE;
     }
@@ -1029,7 +1029,7 @@ windows_init_pte(vmi_instance_t vmi)
     windows->pte_info.soft_prot_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
     dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_SOFTWARE::Protection\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.soft_prot_mask);
 
-    if (VMI_FAILURE == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_SOFTWARE", "PageFileHigh", 0, &start_bit, &end_bit)) {
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_SOFTWARE", "PageFileHigh", 0, &start_bit, &end_bit)) {
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_SOFTWARE::PageFileHigh\" info\n");
         return VMI_FAILURE;
     }
@@ -1037,7 +1037,7 @@ windows_init_pte(vmi_instance_t vmi)
     windows->pte_info.soft_pagehigh_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
     dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_SOFTWARE::PageFileHigh\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.soft_pagehigh_mask);
 
-    if (VMI_FAILURE == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_PROTOTYPE", "ProtoAddress", 0, &windows->pte_info.proto_protoaddr_start_bit, &end_bit)) {
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_PROTOTYPE", "ProtoAddress", 0, &windows->pte_info.proto_protoaddr_start_bit, &end_bit)) {
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_PROTOTYPE::ProtoAddress\" info\n");
         return VMI_FAILURE;
     }
@@ -1045,27 +1045,27 @@ windows_init_pte(vmi_instance_t vmi)
     windows->pte_info.proto_protoaddr_mask = VMI_BIT_MASK(windows->pte_info.proto_protoaddr_start_bit, end_bit - 1);
     dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_PROTOTYPE::ProtoAddress\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.proto_protoaddr_mask);
 
-    if (VMI_FAILURE == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_HARDWARE", "PageFrameNumber", 0, &windows->pte_info.hard_pfn_start_bit, 0)) {
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_HARDWARE", "PageFrameNumber", 0, &windows->pte_info.hard_pfn_start_bit, 0)) {
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_HARDWARE::PageFrameNumber\" info\n");
         return VMI_FAILURE;
     }
 
-    if (VMI_FAILURE == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_TRANSITION", "PageFrameNumber", 0, &windows->pte_info.trans_pfn_start_bit, 0)) {
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_TRANSITION", "PageFrameNumber", 0, &windows->pte_info.trans_pfn_start_bit, 0)) {
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_TRANSITION::PageFrameNumber\" info\n");
         return VMI_FAILURE;
     }
 
-    if (VMI_SUCCESS == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_PROTOTYPE", "SwizzleBit", 0, &start_bit, &end_bit)) {
+    if (VMI_SUCCESS == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_PROTOTYPE", "SwizzleBit", 0, &start_bit, &end_bit)) {
         windows->pte_info.proto_swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_PROTOTYPE::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.proto_swizzle_mask);
     }
 
-    if (VMI_SUCCESS == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_SOFTWARE", "SwizzleBit", 0, &start_bit, &end_bit)) {
+    if (VMI_SUCCESS == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_SOFTWARE", "SwizzleBit", 0, &start_bit, &end_bit)) {
         windows->pte_info.soft_swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_SOFTWARE::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.soft_swizzle_mask);
     }
 
-    if (VMI_SUCCESS == vmi_get_bitfield_info_from_json(vmi, json, "_MMPTE_TRANSITION", "SwizzleBit", 0, &start_bit, &end_bit)) {
+    if (VMI_SUCCESS == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_TRANSITION", "SwizzleBit", 0, &start_bit, &end_bit)) {
         windows->pte_info.trans_swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_TRANSITION::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.trans_swizzle_mask);
     }
