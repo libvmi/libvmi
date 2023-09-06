@@ -244,6 +244,18 @@ int vmi_parse_config (const char *target_name)
     return ret;
 }
 
+void vmi_destroy_config ()
+{
+    if (entry != NULL) {
+        g_hash_table_destroy(entry);
+        entry = NULL;
+    }
+    if (tmp_entry != NULL) {
+        g_hash_table_destroy(tmp_entry);
+        tmp_entry = NULL;
+    }
+}
+
 %}
 
 %union{
