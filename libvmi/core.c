@@ -999,7 +999,10 @@ vmi_destroy(
 #ifdef ENABLE_JSON_PROFILES
     json_profile_destroy(vmi);
 #endif
+
+#ifdef ENABLE_CONFIGFILE
     vmi_destroy_config();
+#endif
 
     pid_cache_destroy(vmi);
     sym_cache_destroy(vmi);
