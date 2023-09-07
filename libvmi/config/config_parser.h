@@ -33,7 +33,6 @@
 #include <libvmi/libvmi.h>
 
 int vmi_parse_config(const char *target_name);
-void vmi_destroy_config();
 GHashTable* vmi_get_config();
 
 #endif /* CONFIG_PARSER_H_ */

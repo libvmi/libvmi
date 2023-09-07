@@ -219,7 +219,7 @@ void entry_done ()
 {
     if (strncmp(tmp_domain_name, target_domain, CONFIG_STR_LENGTH) == 0){
         if (entry != NULL) {
-            fprintf(stderr, "Duplicate config for %s found, using most recent\n", target_domain);
+            dbprint(VMI_DEBUG_MISC, "Duplicate config for %s found, using most recent\n", target_domain);
             g_hash_table_destroy(entry);
         }
         entry = tmp_entry;
@@ -242,18 +242,6 @@ int vmi_parse_config (const char *target_name)
     ret = yyparse();
     if (target_domain) free(target_domain);
     return ret;
-}
-
-void vmi_destroy_config ()
-{
-    if (entry != NULL) {
-        g_hash_table_destroy(entry);
-        entry = NULL;
-    }
-    if (tmp_entry != NULL) {
-        g_hash_table_destroy(tmp_entry);
-        tmp_entry = NULL;
-    }
 }
 
 %}
