@@ -834,10 +834,33 @@ init_from_json_profile_real(vmi_instance_t vmi, reg_t kpcr_register_to_use)
 
     if (kpcr_register_to_use) {
         reg_t kpcr_reg = 0;
-        dbprint(VMI_DEBUG_MISC, "** Trying kpcr_register_to_use to get KPCR.\n");
-        if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr_reg, kpcr_register_to_use, 0)) {
-            dbprint(VMI_DEBUG_MISC, "** driver_get_vcpureg(..) failed.\n");
-            goto done;
+
+        if ((vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE) && kpcr_register_to_use == FS_BASE) {
+            registers_t regs;
+            if (VMI_FAILURE ==  driver_get_vcpuregs(vmi, &regs, 0)) {
+                dbprint(VMI_DEBUG_MISC, "** driver_get_vcpuregs(..) failed.\n");
+                goto done;
+            }
+
+            // check current privelege level for 32-bit Windows
+            if (regs.x86.cs_sel & 0x3) {
+                // we are not in kernel mode, so read KPCR from GDT
+                reg_t segment;
+                if (VMI_FAILURE == vmi_read_64_va(vmi, regs.x86.gdtr_base + 0x0030, 0, &segment)) {
+                    dbprint(VMI_DEBUG_MISC, "** vmi_read_64_va(..) failed.\n");
+                    goto done;
+                }
+                kpcr_reg = (segment & 0xff00000000000000) >> 32 | (segment & 0x000000ffffff0000) >> 16;
+            } else {
+                // we are in kernel mode, so read KPCR from passed register
+                kpcr_reg = regs.x86.fs_base;
+            }
+        } else {
+            dbprint(VMI_DEBUG_MISC, "** Trying kpcr_register_to_use to get KPCR.\n");
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr_reg, kpcr_register_to_use, 0)) {
+                dbprint(VMI_DEBUG_MISC, "** driver_get_vcpureg(..) failed.\n");
+                goto done;
+            }
         }
 
         if ( VMI_SUCCESS == kpcr_find1(vmi, windows, kpcr_reg) ) {}
