@@ -136,6 +136,12 @@ int main (int argc, char **argv)
             goto error_exit;
         if ( VMI_FAILURE == vmi_get_offset(vmi, "freebsd_pid", &pid_offset) )
             goto error_exit;
+    } else if (VMI_OS_OSX == vmi_get_ostype(vmi)) {
+        tasks_offset = 0;
+        if (VMI_FAILURE == vmi_get_offset(vmi, "osx_name", &name_offset))
+            goto error_exit;
+        if (VMI_FAILURE == vmi_get_offset(vmi, "osx_pid", &pid_offset))
+            goto error_exit;
     }
 
     /* pause the vm for consistent memory access */
@@ -179,7 +185,7 @@ int main (int argc, char **argv)
             printf("Failed to find PsActiveProcessHead\n");
             goto error_exit;
         }
-    } else if (VMI_OS_FREEBSD == vmi_get_ostype(vmi)) {
+    } else if (VMI_OS_FREEBSD == os || VMI_OS_OSX == os) {
         // find initproc
         if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, "allproc", &list_head) )
             goto error_exit;
@@ -191,7 +197,7 @@ int main (int argc, char **argv)
         goto error_exit;
     }
 
-    if (VMI_OS_FREEBSD == vmi_get_ostype(vmi)) {
+    if (VMI_OS_FREEBSD == os || VMI_OS_OSX == os) {
         // FreeBSD's p_list is not circularly linked
         list_head = 0;
         // Advance the pointer once
@@ -234,7 +240,7 @@ int main (int argc, char **argv)
             procname = NULL;
         }
 
-        if (VMI_OS_FREEBSD == os && next_list_entry == list_head) {
+        if ((VMI_OS_FREEBSD == os || VMI_OS_OSX == os) && next_list_entry == list_head) {
             break;
         }
 
