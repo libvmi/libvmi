@@ -730,13 +730,13 @@ static status_t kpcr_get(vmi_instance_t vmi, reg_t kpcr_register_to_use, reg_t *
 {
     if ((vmi->page_mode == VMI_PM_LEGACY || vmi->page_mode == VMI_PM_PAE) && kpcr_register_to_use == FS_BASE) {
         dbprint(VMI_DEBUG_MISC, "** Trying kpcr_get_x86 to get KPCR.\n");
-        if (VMI_FAILURE == kpcr_get_x86(vmi, &kpcr_reg)) {
+        if (VMI_FAILURE == kpcr_get_x86(vmi, kpcr_reg)) {
             dbprint(VMI_DEBUG_MISC, "** kpcr_get_x86(..) failed.\n");
             return VMI_FAILURE;
         }
     } else {
         dbprint(VMI_DEBUG_MISC, "** Trying kpcr_register_to_use to get KPCR.\n");
-        if (VMI_FAILURE == driver_get_vcpureg(vmi, &kpcr_reg, kpcr_register_to_use, 0)) {
+        if (VMI_FAILURE == driver_get_vcpureg(vmi, kpcr_reg, kpcr_register_to_use, 0)) {
             dbprint(VMI_DEBUG_MISC, "** driver_get_vcpureg(..) failed.\n");
             return VMI_FAILURE;
         }
