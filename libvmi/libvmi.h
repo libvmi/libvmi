@@ -132,7 +132,9 @@ typedef enum os {
 
     VMI_OS_WINDOWS,  /**< OS type is Windows */
 
-    VMI_OS_FREEBSD   /**< OS type is FreeBSD */
+    VMI_OS_FREEBSD,   /**< OS type is FreeBSD */
+
+    VMI_OS_OSX       /**< OS type is OSX */
 } os_t;
 
 /**

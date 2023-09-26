@@ -259,7 +259,8 @@ const char *volatility_get_os_type(vmi_instance_t vmi)
 
     if (json_object_object_get_ex(metadata, "windows", &os))
         return "Windows";
-
+    if (json_object_object_get_ex(metadata, "mac", &os))
+        return "OSX";
     return "Linux";
 }
 

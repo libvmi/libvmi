@@ -112,6 +112,7 @@ AC_ARG_ENABLE([freebsd],
       [enable_freebsd=yes])
 AM_CONDITIONAL([FREEBSD], [test x"$enable_freebsd" = xyes])
 
+
 AC_ARG_ENABLE([vmifs],
       [AS_HELP_STRING([--disable-vmifs],
          [Disable building VMIFS tool: maps memory to a file through FUSE @<:@no@:>@])],
@@ -186,6 +187,13 @@ AC_ARG_ENABLE([hardening],
   [hardening="$enableval"],
   [hardening="yes"])
 AM_CONDITIONAL([HARDENING], [test x$hardening = xyes])
+
+AC_ARG_ENABLE([osx],
+      [AS_HELP_STRING([--disable-osx],
+         [Disable support for introspecting osx @<:@no@:>@])],
+      [enable_osx=$enableval],
+      [enable_osx=yes])
+AM_CONDITIONAL([OSX], [test x"$enable_osx" = xyes && test x"$volatility_ist" = xyes])
 
 dnl -----------------------------------------------
 dnl Checks for programs, libraries, etc.
@@ -353,6 +361,13 @@ AC_CHECK_LIB(json-c, json_object_get_uint64, [AC_DEFINE([JSONC_UINT64_SUPPORT], 
 [then]
     AC_DEFINE([ENABLE_FREEBSD], [1], [Define to 1 to FreeBSD support.])
 [fi]
+[if test "$volatility_ist" = "yes" -a "$enable_osx" = "yes"]
+[then]
+    AC_DEFINE([ENABLE_OSX], [1], [Define to 1 to enable OSX support.])
+[else]
+    AC_MSG_WARN([Not compiling for OSX since Json profiles are not enabled])
+    enable_osx='no'
+[fi]
 
 have_vmifs='yes'
 [if test "$enable_vmifs" = "yes"]
@@ -475,6 +490,7 @@ OS                      | Option
 Windows                 | --enable-windows=$enable_windows
 Linux                   | --enable-linux=$enable_linux
 FreeBSD                 | --enable-freebsd=$enable_freebsd
+OSX                     | --enable-osx=$enable_osx
 ------------------------|---------------------------
 
 Configuration           | Option

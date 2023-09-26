@@ -53,6 +53,7 @@ typedef enum {
     VMI_DEBUG_PEPARSE   = (1 << 15),
     VMI_DEBUG_BAREFLANK = (1 << 16),
     VMI_DEBUG_ELFPARSE  = (1 << 17),
+    VMI_DEBUG_OSX       = (1 << 18),
 
     __VMI_DEBUG_ALL    = ~(0ULL)
 } vmi_debug_flag_t;
