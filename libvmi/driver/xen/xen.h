@@ -144,6 +144,12 @@ status_t xen_set_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
     unsigned long vcpu);
+status_t xen_alloc_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn);
+status_t xen_free_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn);
 void *xen_read_page(
     vmi_instance_t vmi,
     addr_t page);
@@ -217,6 +223,8 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.get_vcpuregs_ptr = &xen_get_vcpuregs;
     driver.set_vcpureg_ptr = &xen_set_vcpureg;
     driver.set_vcpuregs_ptr = &xen_set_vcpuregs;
+    driver.alloc_gfn_ptr = &xen_alloc_gfn;
+    driver.free_gfn_ptr = &xen_free_gfn;
     driver.read_page_ptr = &xen_read_page;
     driver.mmap_guest = &xen_mmap_guest;
     driver.write_ptr = &xen_write;

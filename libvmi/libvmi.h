@@ -2466,6 +2466,31 @@ status_t vmi_set_vcpuregs(
     unsigned long vcpu) NOEXCEPT;
 
 /**
+ * Allocates a new physical page.
+ *
+ * @param[in] vmi LibVMI Instance
+ * @param[in] gfn gfn of physical page to be allocated
+ */
+status_t vmi_alloc_gfn(
+	vmi_instance_t vmi,
+	uint64_t gfn) NOEXCEPT;
+
+
+/**
+ * Frees a physical page that has previously been allocated via
+ * vmi_alloc_gfn.
+ * Note that the maximum physical address cached by libvmi
+ * will not be updated accordingly. Freeing a page that has not
+ * been allocated via vmi_alloc_gfn is undefined behavior.
+ *
+ * @param[in] vmi LibVMI Instance
+ * @param[in] gfn gfn of physical page to be freed
+ */
+status_t vmi_free_gfn(
+	vmi_instance_t vmi,
+	uint64_t gfn) NOEXCEPT;
+
+/**
  * Pauses the VM.  Use vmi_resume_vm to resume the VM after pausing
  * it.  If accessing a memory file, this has no effect.
  *

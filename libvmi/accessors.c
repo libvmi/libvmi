@@ -383,6 +383,32 @@ vmi_get_vcpuregs(
 }
 
 status_t
+vmi_alloc_gfn(
+        vmi_instance_t vmi,
+        uint64_t gfn)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return VMI_FAILURE;
+#endif
+
+    return driver_alloc_gfn(vmi, gfn);
+}
+
+status_t
+vmi_free_gfn(
+        vmi_instance_t vmi,
+        uint64_t gfn)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return VMI_FAILURE;
+#endif
+
+    return driver_free_gfn(vmi, gfn);
+}
+
+status_t
 vmi_set_vcpureg(
     vmi_instance_t vmi,
     uint64_t value,

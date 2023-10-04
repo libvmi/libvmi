@@ -138,6 +138,15 @@ status_t kvm_set_vcpuregs(
     registers_t *registers,
     unsigned long vcpu);
 
+// physical pages
+status_t kvm_alloc_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn);
+
+status_t kvm_free_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn);
+
 static inline status_t
 driver_kvm_setup(vmi_instance_t vmi)
 {
@@ -175,6 +184,8 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.get_vcpuregs_ptr = &kvm_get_vcpuregs;
     driver.set_vcpureg_ptr = &kvm_set_vcpureg;
     driver.set_vcpuregs_ptr = &kvm_set_vcpuregs;
+    driver.alloc_gfn_ptr = &kvm_alloc_gfn;
+    driver.free_gfn_ptr = &kvm_free_gfn;
 # endif
     vmi->driver = driver;
     return VMI_SUCCESS;

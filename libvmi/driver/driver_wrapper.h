@@ -286,6 +286,36 @@ driver_get_vcpuregs(
 }
 
 static inline status_t
+driver_alloc_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.alloc_gfn_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_alloc_gfn function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.alloc_gfn_ptr(vmi, gfn);
+}
+
+static inline status_t
+driver_free_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.free_gfn_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_free_gfn function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.free_gfn_ptr(vmi, gfn);
+}
+
+static inline status_t
 driver_set_vcpureg(
     vmi_instance_t vmi,
     uint64_t value,

@@ -69,6 +69,8 @@ typedef struct xen_instance {
 
     uint64_t max_gpfn;    /**< result of xc_domain_maximum_gpfn/2() */
 
+    uint64_t original_max_mem;    /**< holds the original max memory at start */
+
     GTree *domains; /**< tree for running xen domains */
 
 } xen_instance_t;
