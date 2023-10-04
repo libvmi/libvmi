@@ -2332,6 +2332,18 @@ addr_t vmi_get_max_physical_address(
     vmi_instance_t vmi) NOEXCEPT;
 
 /**
+ * Retrieves the next gfn that would be available for allocation of physical memory.
+ * In some cases, the maximum physical address API is not sufficient for obtaining unoccupied memory
+ * due to implementation details of certain introspection target platforms (e.g. KVM/QEMU).
+ * This API guarantees that the return value represents unoccupied physical memory.
+ *
+ * @param[in] vmi LibVMI instance @return physical memory size
+ * @return next available gfn
+ */
+addr_t vmi_get_next_available_gfn(
+    vmi_instance_t vmi) NOEXCEPT;
+
+/**
  * Gets the memory size of the guest that LibVMI is accessing.
  * This information is required for any interaction with of VCPU registers.
  *
@@ -2472,8 +2484,8 @@ status_t vmi_set_vcpuregs(
  * @param[in] gfn gfn of physical page to be allocated
  */
 status_t vmi_alloc_gfn(
-	vmi_instance_t vmi,
-	uint64_t gfn) NOEXCEPT;
+    vmi_instance_t vmi,
+    uint64_t gfn) NOEXCEPT;
 
 
 /**
@@ -2487,8 +2499,8 @@ status_t vmi_alloc_gfn(
  * @param[in] gfn gfn of physical page to be freed
  */
 status_t vmi_free_gfn(
-	vmi_instance_t vmi,
-	uint64_t gfn) NOEXCEPT;
+    vmi_instance_t vmi,
+    uint64_t gfn) NOEXCEPT;
 
 /**
  * Pauses the VM.  Use vmi_resume_vm to resume the VM after pausing

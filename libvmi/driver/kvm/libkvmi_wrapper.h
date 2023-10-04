@@ -115,6 +115,9 @@ typedef struct {
     int (*kvmi_get_maximum_gfn)
     (void *dom, unsigned long long *gfn);
 
+    int (*kvmi_get_next_available_gfn)
+    (void *dom, unsigned long long *gfn);
+
     // only on KVMi-v7
     int (*kvmi_spp_support)
     (void *dom, bool *supported);

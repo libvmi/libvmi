@@ -199,6 +199,22 @@ driver_get_memsize(
     return vmi->driver.get_memsize_ptr(vmi, allocated_ram_size, max_physical_address);
 }
 
+
+static inline status_t
+driver_get_next_available_gfn(
+    vmi_instance_t vmi,
+    addr_t *next_gfn)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.get_next_available_gfn_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_get_next_available_gfn function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.get_next_available_gfn_ptr(vmi, next_gfn);
+}
+
 static inline status_t
 driver_request_page_fault(
     vmi_instance_t vmi,

@@ -297,6 +297,22 @@ vmi_get_max_physical_address(
     return vmi->max_physical_address;
 }
 
+addr_t
+vmi_get_next_available_gfn(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return 0;
+#endif
+
+    addr_t next_gfn;
+    if (VMI_FAILURE == driver_get_next_available_gfn(vmi, &next_gfn))
+        return 0;
+
+    return next_gfn;
+}
+
 unsigned int
 vmi_get_num_vcpus(
     vmi_instance_t vmi)
@@ -384,8 +400,8 @@ vmi_get_vcpuregs(
 
 status_t
 vmi_alloc_gfn(
-        vmi_instance_t vmi,
-        uint64_t gfn)
+    vmi_instance_t vmi,
+    uint64_t gfn)
 {
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
@@ -397,8 +413,8 @@ vmi_alloc_gfn(
 
 status_t
 vmi_free_gfn(
-        vmi_instance_t vmi,
-        uint64_t gfn)
+    vmi_instance_t vmi,
+    uint64_t gfn)
 {
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)

@@ -40,7 +40,7 @@ static status_t sanity_check(kvm_instance_t *kvm)
             !w->kvmi_read_physical || !w->kvmi_write_physical ||
             !w->kvmi_get_registers || !w->kvmi_set_registers ||
             !w->kvmi_reply_event || !w->kvmi_pop_event || !w->kvmi_wait_event ||
-            !w->kvmi_set_log_cb || !w->kvmi_get_maximum_gfn ||
+            !w->kvmi_set_log_cb || !w->kvmi_get_maximum_gfn || !w->kvmi_get_next_available_gfn ||
             !w->kvmi_spp_support || !w->kvmi_ve_support ||
             !w->kvmi_vmfunc_support || !w->kvmi_eptp_support || !w->kvmi_get_pending_events ||
             !w->kvmi_alloc_gfn || !w->kvmi_free_gfn) {
@@ -95,6 +95,7 @@ status_t create_libkvmi_wrapper(struct kvm_instance *kvm)
     wrapper->kvmi_wait_event = dlsym(wrapper->handle, "kvmi_wait_event");
     wrapper->kvmi_set_log_cb = dlsym(wrapper->handle, "kvmi_set_log_cb");
     wrapper->kvmi_get_maximum_gfn = dlsym(wrapper->handle, "kvmi_get_maximum_gfn");
+    wrapper->kvmi_get_next_available_gfn = dlsym(wrapper->handle, "kvmi_get_next_available_gfn");
     wrapper->kvmi_spp_support = dlsym(wrapper->handle, "kvmi_spp_support");
     wrapper->kvmi_ve_support = dlsym(wrapper->handle, "kvmi_ve_support");
     wrapper->kvmi_vmfunc_support = dlsym(wrapper->handle, "kvmi_vmfunc_support");

@@ -79,6 +79,10 @@ status_t kvm_get_memsize(
     uint64_t *allocate_ram_size,
     addr_t *maximum_physical_address);
 
+status_t kvm_get_next_available_gfn(
+    vmi_instance_t vmi,
+    addr_t *next_gfn);
+
 status_t kvm_request_page_fault(
     vmi_instance_t vmi,
     unsigned long vcpu,
@@ -184,6 +188,7 @@ driver_kvm_setup(vmi_instance_t vmi)
     driver.get_vcpuregs_ptr = &kvm_get_vcpuregs;
     driver.set_vcpureg_ptr = &kvm_set_vcpureg;
     driver.set_vcpuregs_ptr = &kvm_set_vcpuregs;
+    driver.get_next_available_gfn_ptr = &kvm_get_next_available_gfn;
     driver.alloc_gfn_ptr = &kvm_alloc_gfn;
     driver.free_gfn_ptr = &kvm_free_gfn;
 # endif

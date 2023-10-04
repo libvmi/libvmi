@@ -76,6 +76,9 @@ typedef struct driver_interface {
         vmi_instance_t,
         uint64_t *,
         addr_t *);
+    status_t (*get_next_available_gfn_ptr) (
+        vmi_instance_t,
+        addr_t *);
     status_t (*request_page_fault_ptr) (
         vmi_instance_t,
         unsigned long,

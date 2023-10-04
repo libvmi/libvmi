@@ -968,6 +968,20 @@ xen_get_memsize(
 }
 
 status_t
+xen_get_next_available_gfn(
+    vmi_instance_t vmi,
+    addr_t *next_gfn)
+{
+    uint64_t allocated_ram_size;
+    addr_t max_physical_address = 0;
+    if (xen_get_memsize(vmi, &allocated_ram_size, &max_physical_address) == VMI_FAILURE)
+        return VMI_FAILURE;
+
+    *next_gfn = max_physical_address >> XC_PAGE_SHIFT;
+    return VMI_SUCCESS;
+}
+
+status_t
 xen_get_tsc_info(
     vmi_instance_t vmi,
     uint32_t *tsc_mode,
