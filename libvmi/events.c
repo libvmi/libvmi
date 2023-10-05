@@ -895,13 +895,13 @@ status_t vmi_clear_event(
 
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi)
-        return VMI_FAILURE;
+        return rc;
 
     if (!(vmi->init_flags & VMI_INIT_EVENTS))
-        return VMI_FAILURE;
+        return rc;
 
     if (!event)
-        return VMI_FAILURE;
+        return rc;
 #endif
 
     /*
@@ -918,18 +918,18 @@ status_t vmi_clear_event(
          * vmi_clear_event will cause issues for the new event. */
         if (g_slist_find_custom(vmi->swap_events, &event, swap_search_from)) {
             dbprint(VMI_DEBUG_EVENTS, "Event was already queued for swapping.\n");
-            return VMI_FAILURE;
+            return rc
         }
 
         if (!g_hash_table_lookup(vmi->clear_events, event)) {
             g_hash_table_insert_compat(vmi->clear_events, event, free_routine);
-            return VMI_SUCCESS;
+            return rc;
         }
 
         /* Event was already requested to be cleared and we haven't
          * got around to actually do it yet. */
         dbprint(VMI_DEBUG_EVENTS, "Event was already queued for clearing.\n");
-        return VMI_FAILURE;
+        return rc;
     }
 
     switch (event->type) {
@@ -956,7 +956,6 @@ status_t vmi_clear_event(
             break;
         default:
             dbprint(VMI_DEBUG_EVENTS, "Cannot clear unknown event: %d\n", event->type);
-            rc = VMI_FAILURE;
     }
 
     if ( free_routine )
