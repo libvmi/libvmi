@@ -1110,19 +1110,17 @@ xen_get_vcpureg_hvm(
     xen_instance_t *xen = xen_get_instance(vmi);
 
     struct hvm_hw_cpu hw_ctxt;
-    if (NULL == hvm_cpu) {
-        if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
-                xen->domainid,
-                HVM_SAVE_CODE(CPU),
-                vcpu,
-                &hw_ctxt,
-                sizeof hw_ctxt)) {
-            errprint("Failed to get context information (HVM domain).\n");
-            ret = VMI_FAILURE;
-            goto _bail;
-        }
-        hvm_cpu = &hw_ctxt;
+    if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
+            xen->domainid,
+            HVM_SAVE_CODE(CPU),
+            vcpu,
+            &hw_ctxt,
+            sizeof hw_ctxt)) {
+        errprint("Failed to get context information (HVM domain).\n");
+        ret = VMI_FAILURE;
+        goto _bail;
     }
+    hvm_cpu = &hw_ctxt;
 
     switch (reg) {
         case RAX:
@@ -1392,18 +1390,16 @@ xen_get_vcpuregs_hvm(
     xen_instance_t *xen = xen_get_instance(vmi);
     struct hvm_hw_cpu hw_ctxt = {0}, *hvm_cpu = NULL;
 
-    if (NULL == hvm_cpu) {
-        if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
-                xen->domainid,
-                HVM_SAVE_CODE(CPU),
-                vcpu,
-                &hw_ctxt,
-                sizeof hw_ctxt)) {
-            errprint("Failed to get context information (HVM domain).\n");
-            return VMI_FAILURE;
-        }
-        hvm_cpu = &hw_ctxt;
+    if (xen->libxcw.xc_domain_hvm_getcontext_partial(xen->xchandle,
+            xen->domainid,
+            HVM_SAVE_CODE(CPU),
+            vcpu,
+            &hw_ctxt,
+            sizeof hw_ctxt)) {
+        errprint("Failed to get context information (HVM domain).\n");
+        return VMI_FAILURE;
     }
+    hvm_cpu = &hw_ctxt;
 
     regs->x86.rax = hvm_cpu->rax;
     regs->x86.rbx = hvm_cpu->rbx;
@@ -1940,14 +1936,12 @@ xen_get_vcpureg_pv64(
     vcpu_guest_context_any_t ctx;
     xen_instance_t *xen = xen_get_instance(vmi);
 
-    if ( !vcpu_ctx ) {
-        if (xen->libxcw.xc_vcpu_getcontext(xen->xchandle, xen->domainid, vcpu, &ctx)) {
-            errprint("Failed to get context information (PV domain).\n");
-            return VMI_FAILURE;
-        }
-
-        vcpu_ctx = &ctx.x64;
+    if (xen->libxcw.xc_vcpu_getcontext(xen->xchandle, xen->domainid, vcpu, &ctx)) {
+        errprint("Failed to get context information (PV domain).\n");
+        return VMI_FAILURE;
     }
+
+    vcpu_ctx = &ctx.x64;
 
     switch (reg) {
         case RAX:
