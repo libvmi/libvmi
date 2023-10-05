@@ -918,7 +918,7 @@ status_t vmi_clear_event(
          * vmi_clear_event will cause issues for the new event. */
         if (g_slist_find_custom(vmi->swap_events, &event, swap_search_from)) {
             dbprint(VMI_DEBUG_EVENTS, "Event was already queued for swapping.\n");
-            return rc
+            return rc;
         }
 
         if (!g_hash_table_lookup(vmi->clear_events, event)) {
