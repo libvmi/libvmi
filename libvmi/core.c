@@ -272,7 +272,6 @@ set_os_type_from_config(
         ret = VMI_SUCCESS;
     } else {
         errprint("VMI_ERROR: Unknown OS type: %s!\n", ostype);
-        ret = VMI_FAILURE;
     }
 
 #ifdef VMI_DEBUG
