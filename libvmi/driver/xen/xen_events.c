@@ -1338,13 +1338,19 @@ static status_t process_domain_watch(vmi_instance_t vmi)
                         uint32_t *domid = malloc(sizeof(uint32_t));
                         char *uuid = strdup(tmp + 4);
 
-                        *domid = dominfo.domid;
-                        g_tree_insert(xen->domains, domid, uuid);
-                        vmi->watch_domain_event->watch_event.domain = *domid;
-                        vmi->watch_domain_event->watch_event.created = true;
-                        vmi->watch_domain_event->watch_event.uuid = uuid;
-                        vmi->watch_domain_event->callback(vmi, vmi->watch_domain_event);
-                        ret = VMI_SUCCESS;
+                        if ( domid && uuid )
+                        {
+                            *domid = dominfo.domid;
+                            g_tree_insert(xen->domains, domid, uuid);
+                            vmi->watch_domain_event->watch_event.domain = *domid;
+                            vmi->watch_domain_event->watch_event.created = true;
+                            vmi->watch_domain_event->watch_event.uuid = uuid;
+                            vmi->watch_domain_event->callback(vmi, vmi->watch_domain_event);
+                            ret = VMI_SUCCESS;
+                        } else {
+                            free(domid);
+                            free(uuid);
+                        }
                     }
                     free(tmp);
                 }
@@ -3633,10 +3639,8 @@ status_t xen_init_events(
     xen->libxcw.xc_monitor_get_capabilities(xch, dom, &xe->monitor_capabilities);
 
 #ifdef HAVE_LIBXENSTORE
-    if ( !xe->process_event[XS_EVENT_REASON_DOMAIN_WATCH] )
-        xe->process_xs_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
-    if ( !vmi->driver.set_domain_watch_event_ptr )
-        vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
+    xe->process_xs_event[XS_EVENT_REASON_DOMAIN_WATCH] = &process_domain_watch;
+    vmi->driver.set_domain_watch_event_ptr = &xen_set_domain_watch_event;
 #endif
 
     xen->events = xe;
