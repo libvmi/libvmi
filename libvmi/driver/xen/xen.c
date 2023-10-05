@@ -2184,12 +2184,9 @@ xen_get_vcpureg_pv32(
     xen_instance_t *xen = xen_get_instance(vmi);
     vcpu_guest_context_any_t ctx;
 
-    if (NULL == vcpu_ctx) {
-        if (xen->libxcw.xc_vcpu_getcontext(xen->xchandle, xen->domainid, vcpu, &ctx)) {
-            errprint("Failed to get context information (PV domain).\n");
-            return VMI_FAILURE;
-        }
-        vcpu_ctx = &ctx.x32;
+    if (xen->libxcw.xc_vcpu_getcontext(xen->xchandle, xen->domainid, vcpu, &ctx)) {
+        errprint("Failed to get context information (PV domain).\n");
+        return VMI_FAILURE;
     }
 
     switch (reg) {
@@ -2233,7 +2230,7 @@ xen_get_vcpureg_pv32(
             break;
         case CR3:
             *value = (reg_t) vcpu_ctx->ctrlreg[3];
-            *value = (reg_t) xen_cr3_to_pfn_x86_32(*value) << XC_PAGE_SHIFT;
+            *value = ((reg_t) xen_cr3_to_pfn_x86_32(*value)) << XC_PAGE_SHIFT;
             break;
         case CR4:
             *value = (reg_t) vcpu_ctx->ctrlreg[4];
@@ -3019,8 +3016,8 @@ xen_get_disks(
     unsigned int *num)
 {
     char **result = NULL;
-    unsigned int vbd_num, i, j, len;
-    char **tmp;
+    unsigned int vbd_num = 0, i, j, len;
+    char **tmp = NULL;
 
     vbd_device_type_t type;
 
@@ -3035,30 +3032,38 @@ xen_get_disks(
     gchar *vbd = g_strdup_printf("/local/domain/%"PRIu64"/device/vbd", xen->domainid);
     char **vbds = xen->libxsw.xs_directory(xen->xshandle, xth, vbd, &vbd_num);
 
-    tmp = malloc(sizeof(char*) * vbd_num);
+    if ( !vbd_num )
+        goto done;
+
+    if ( !(tmp = malloc(sizeof(char*) * vbd_num)) )
+        goto done;
 
     for (i = 0, j = 0; i < vbd_num; i++) {
         type = xen_vbd_get_type(vmi, vbds[i]);
         if (type == VBD_DEVICE_TYPE_DISK) {
             len = strlen(vbds[i]);
             tmp[j] = malloc(len);
+
+            if ( !tmp[j] )
+                goto done;
+
             g_stpcpy(tmp[j], vbds[i]);
             j++;
         }
     }
-    result = malloc(sizeof(char*)*j);
-    if (result == NULL) {
+    if ( !(result = malloc(sizeof(char*)*j)) ) {
         errprint("VMI_ERROR: xen_get_disks: failed to allocate memory for result data\n");
-        free(tmp);
-        free(vbds);
-        g_free(vbd);
-        return result;
+        goto done;
     }
     for (i = 0; i < j; i++) {
         result[i] = tmp[i];
     }
     *num = j;
 
+done:
+    if ( tmp )
+        for (i=0;i<vbd_num;i))
+            free(tmp[i]);
     free(tmp);
     free(vbds);
     g_free(vbd);
