@@ -568,8 +568,7 @@ v2p_cache_set(
         new_process_space = TRUE;
 
         v = g_hash_table_new(g_direct_hash, g_direct_equal);
-        if ( !v )
-        {
+        if ( !v ) {
             g_hash_table_remove(vmi->v2p_cache, key);
             g_free(key);
             return;

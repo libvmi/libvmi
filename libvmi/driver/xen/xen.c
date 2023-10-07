@@ -3062,7 +3062,7 @@ xen_get_disks(
 
 done:
     if ( tmp )
-        for (i=0;i<vbd_num;i++)
+        for (i=0; i<vbd_num; i++)
             free(tmp[i]);
     free(tmp);
     free(vbds);

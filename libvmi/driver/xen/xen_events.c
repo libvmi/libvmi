@@ -1338,8 +1338,7 @@ static status_t process_domain_watch(vmi_instance_t vmi)
                         uint32_t *domid = malloc(sizeof(uint32_t));
                         char *uuid = strdup(tmp + 4);
 
-                        if ( domid && uuid )
-                        {
+                        if ( domid && uuid ) {
                             *domid = dominfo.domid;
                             g_tree_insert(xen->domains, domid, uuid);
                             vmi->watch_domain_event->watch_event.domain = *domid;
