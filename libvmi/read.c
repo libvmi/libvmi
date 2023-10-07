@@ -411,13 +411,10 @@ vmi_read_addr(
             break;
         case VMI_PM_AARCH32:// intentional fall-through
         case VMI_PM_LEGACY: // intentional fall-through
-        case VMI_PM_PAE: {
-            uint32_t tmp = 0;
-            ret = vmi_read(vmi, ctx, 4, &tmp, NULL);
+        case VMI_PM_PAE:
             *value = 0;
-            *value = (addr_t) tmp;
+            ret = vmi_read(vmi, ctx, 4, (uint32_t*)value, NULL);
             break;
-        }
         default:
             dbprint(VMI_DEBUG_READ, "--%s: unknown page mode, can't read addr as width is unknown", __FUNCTION__);
             break;
@@ -575,13 +572,10 @@ vmi_read_addr_pa(
             break;
         case VMI_PM_AARCH32:// intentional fall-through
         case VMI_PM_LEGACY: // intentional fall-through
-        case VMI_PM_PAE: {
-            uint32_t tmp = 0;
-            ret = vmi_read_pa(vmi, paddr, 4, &tmp, NULL);
+        case VMI_PM_PAE:
             *value = 0;
-            *value = (addr_t) tmp;
+            ret = vmi_read_pa(vmi, paddr, 4, (uint32_t *)value, NULL);
             break;
-        }
         default:
             dbprint(VMI_DEBUG_READ,
                     "--%s: unknown page mode, can't read addr as width is unknown",
@@ -667,13 +661,10 @@ vmi_read_addr_va(
             break;
         case VMI_PM_AARCH32:// intentional fall-through
         case VMI_PM_LEGACY: // intentional fall-through
-        case VMI_PM_PAE: {
-            uint32_t tmp = 0;
-            ret = vmi_read_va(vmi, vaddr, pid, 4, &tmp, NULL);
+        case VMI_PM_PAE:
             *value = 0;
-            *value = (addr_t) tmp;
+            ret = vmi_read_va(vmi, vaddr, pid, 4, (uint32_t *)value, NULL);
             break;
-        }
         default:
             dbprint(VMI_DEBUG_READ,
                     "--%s: unknown page mode, can't read addr as width is unknown",
@@ -770,13 +761,10 @@ vmi_read_addr_ksym(
             break;
         case VMI_PM_AARCH32:// intentional fall-through
         case VMI_PM_LEGACY: // intentional fall-through
-        case VMI_PM_PAE: {
-            uint32_t tmp = 0;
-            ret = vmi_read_ksym(vmi, sym, 4, &tmp, NULL);
+        case VMI_PM_PAE:
             *value = 0;
-            *value = (addr_t) tmp;
+            ret = vmi_read_ksym(vmi, sym, 4, (uint32_t *)value, NULL);
             break;
-        }
         default:
             dbprint(VMI_DEBUG_READ,
                     "--%s: unknown page mode, can't read addr as width is unknown",

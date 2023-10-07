@@ -560,20 +560,20 @@ v2p_cache_set(
         return;
 
     GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, key);
-    gboolean new_process_space = FALSE;
 
-    if ( !v ) {
-        new_process_space = TRUE;
-
+    if ( v )
+        g_free(key);
+    else {
         v = g_hash_table_new(g_direct_hash, g_direct_equal);
-        if ( !v )
-            goto cleanup;
+        if ( !v ) {
+            g_hash_table_remove(vmi->v2p_cache, key);
+            g_free(key);
+            return;
+        }
 
         (void) g_hash_table_insert_compat(vmi->v2p_cache, key, v);
-    } else {
-        g_free(key);
-        key = NULL;
     }
+
 
     /* bundle the cache entries per page */
     va = (va >> 12) << 12;
@@ -584,11 +584,6 @@ v2p_cache_set(
     dbprint(VMI_DEBUG_V2PCACHE, "--V2P cache set for page 0x%.16"PRIx64" -- 0x%.16"PRIx64"\n",
             va, pa);
     return;
-
-cleanup:
-    if ( new_process_space )
-        g_hash_table_remove(vmi->v2p_cache, key);
-    g_free(key);
 }
 
 status_t
