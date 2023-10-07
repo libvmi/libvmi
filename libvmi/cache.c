@@ -560,13 +560,10 @@ v2p_cache_set(
         return;
 
     GHashTable *v = g_hash_table_lookup(vmi->v2p_cache, key);
-    gboolean new_process_space = FALSE;
 
     if ( v )
         g_free(key);
     else {
-        new_process_space = TRUE;
-
         v = g_hash_table_new(g_direct_hash, g_direct_equal);
         if ( !v ) {
             g_hash_table_remove(vmi->v2p_cache, key);
