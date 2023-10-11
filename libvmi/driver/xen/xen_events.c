@@ -1319,12 +1319,12 @@ static status_t process_domain_watch(vmi_instance_t vmi)
     if (vec && !strncmp(vec[XS_WATCH_TOKEN], INTRODUCE_TOKEN, sizeof(INTRODUCE_TOKEN))) {
 
         int domid = 1, err = -1;
-        xc_dominfo_t dominfo;
+        xc_domaininfo_t dominfo;
 
-        while (( err = xen->libxcw.xc_domain_getinfo(xen->xchandle, domid, 1, &dominfo)) == 1) {
-            domid = dominfo.domid + 1;
-            if (xen->libxsw.xs_is_domain_introduced(xen->xshandle, dominfo.domid)) {
-                void *uuid = g_tree_lookup(xen->domains, &dominfo.domid);
+        while (( err = xen->libxcw.xc_domain_getinfolist(xen->xchandle, domid, 1, &dominfo)) == 1) {
+            domid = dominfo.domain + 1;
+            if (xen->libxsw.xs_is_domain_introduced(xen->xshandle, dominfo.domain)) {
+                void *uuid = g_tree_lookup(xen->domains, &dominfo.domain);
 
                 if (!uuid) {
                     //get uuid for the new domain
@@ -1332,13 +1332,13 @@ static status_t process_domain_watch(vmi_instance_t vmi)
                     char *tmp;
                     unsigned int size = 0;
 
-                    snprintf(path, sizeof( path ), "/local/domain/%d/vm", dominfo.domid);
+                    snprintf(path, sizeof( path ), "/local/domain/%d/vm", dominfo.domain);
                     tmp = xen->libxsw.xs_read(xen->xshandle, XBT_NULL, path, &size);
                     if (tmp && (strlen(tmp) > 4)) {
                         uint32_t *domid = malloc(sizeof(uint32_t));
                         char *uuid = strdup(tmp + 4);
 
-                        *domid = dominfo.domid;
+                        *domid = dominfo.domain;
                         g_tree_insert(xen->domains, domid, uuid);
                         vmi->watch_domain_event->watch_event.domain = *domid;
                         vmi->watch_domain_event->watch_event.created = true;
@@ -3712,10 +3712,10 @@ void xen_events_destroy(vmi_instance_t vmi)
     }
 #endif
 
-    xc_dominfo_t info = {0};
-    rc = xen->libxcw.xc_domain_getinfo(xch, dom, 1, &info);
+    xc_domaininfo_t info = {0};
+    rc = xen->libxcw.xc_domain_getinfolist(xch, dom, 1, &info);
 
-    if (rc==1 && info.domid==dom && !info.paused && VMI_SUCCESS == vmi_pause_vm(vmi)) {
+    if (rc==1 && info.domain==dom && !(info.flags & XEN_DOMINF_paused) && VMI_SUCCESS == vmi_pause_vm(vmi)) {
         resume = 1;
     }
 

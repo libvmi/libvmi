@@ -63,7 +63,7 @@ typedef struct xen_instance {
 
     vm_type_t type; /**< VM type (HVM/PV32/PV64) */
 
-    xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
+    xc_domaininfo_t info; /**< libxc info: domid, ssidref, stats, etc */
 
     xen_events_t *events; /**< handle to events data */
 
