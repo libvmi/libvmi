@@ -69,9 +69,6 @@ typedef struct {
     (xc_interface *xch, uint32_t domid, uint16_t typecode,
      uint16_t instance, void *ctxt_buf, uint32_t size);
 
-    int (*xc_domain_getinfo)
-    (xc_interface *xch, uint32_t first_domid, unsigned int max_doms, xc_dominfo_t *info);
-
     int (*xc_domctl)
     (xc_interface *xch, struct xen_domctl *domctl);
 

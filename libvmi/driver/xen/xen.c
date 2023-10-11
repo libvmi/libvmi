@@ -528,7 +528,7 @@ xen_check_domainid(
     uint64_t domainid)
 {
     status_t ret = VMI_FAILURE;
-    xc_dominfo_t info;
+    xc_domaininfo_t info = {0};
     domid_t max_domid = ~0;
     int rc;
     xen_instance_t *xen = NULL;
@@ -540,9 +540,9 @@ xen_check_domainid(
 
     xen = xen_get_instance(vmi);
 
-    rc = xen->libxcw.xc_domain_getinfo(xen->xchandle, domainid, 1, &info);
+    rc = xen->libxcw.xc_domain_getinfolist(xen->xchandle, domainid, 1, &info);
 
-    if (rc==1 && info.domid==(uint32_t)domainid)
+    if (rc==1 && info.domain==(uint32_t)domainid)
         ret = VMI_SUCCESS;
     else
         xen_destroy(vmi);
@@ -748,10 +748,10 @@ xen_init_vmi(
     int rc;
 
     /* setup the info struct */
-    rc = xen->libxcw.xc_domain_getinfo(xen->xchandle,
-                                       xen->domainid,
-                                       1,
-                                       &xen->info);
+    rc = xen->libxcw.xc_domain_getinfolist(xen->xchandle,
+                                           xen->domainid,
+                                           1,
+                                           &xen->info);
     if (rc != 1) {
         errprint("Failed to get domain info for Xen.\n");
         goto _bail;
@@ -761,7 +761,7 @@ xen_init_vmi(
     vmi->num_vcpus = xen->info.max_vcpu_id + 1;
 
     /* determine if target is hvm or pv */
-    if ( xen->info.hvm ) {
+    if ( xen->info.flags & XEN_DOMINF_hvm_guest ) {
         vmi->vm_type = HVM;
     } else if ( VMI_FAILURE == xen_discover_pv_type(vmi) ) {
         errprint("Failed to determine PV type for Xen.\n");
@@ -792,8 +792,8 @@ xen_init_vmi(
     /* For Xen PV domains, where xc_domain_maximum_gpfn() returns a number
      * more like nr_pages, which is usually less than max_pages or the
      * calculated number of pages based on memkb, just fake it to be sane. */
-    if ( vmi->vm_type >= PV32 && (xen->max_gpfn << XC_PAGE_SHIFT) < (xen->info.max_memkb * 1024)) {
-        xen->max_gpfn = (xen->info.max_memkb * 1024) >> XC_PAGE_SHIFT;
+    if ( vmi->vm_type >= PV32 && (xen->max_gpfn << XC_PAGE_SHIFT) < ((xen->info.max_pages << (XC_PAGE_SHIFT-10)) * 1024)) {
+        xen->max_gpfn = ((xen->info.max_pages << (XC_PAGE_SHIFT-10)) * 1024) >> XC_PAGE_SHIFT;
     }
 
     ret = xen_setup_live_mode(vmi);
@@ -925,7 +925,7 @@ xen_get_memsize(
     xen_instance_t *xen = xen_get_instance(vmi);
 
     /* refresh memory informations */
-    xen->libxcw.xc_domain_getinfo(xen->xchandle, xen->domainid, 1, &xen->info);
+    xen->libxcw.xc_domain_getinfolist(xen->xchandle, xen->domainid, 1, &xen->info);
 
     if ( xen->major_version == 4 && xen->minor_version < 6 )
         xen->max_gpfn = (uint64_t)xen->libxcw.xc_domain_maximum_gpfn(xen->xchandle, xen->domainid);
@@ -937,7 +937,7 @@ xen_get_memsize(
 
     // note: may also available through xen_get_instance(vmi)->info.max_memkb
     // or xenstore /local/domain/%d/memory/target
-    uint64_t pages = xen->info.nr_pages + xen->info.nr_shared_pages;
+    uint64_t pages = xen->info.max_pages + xen->info.shr_pages;
 
     if ( !pages )
         dbprint(VMI_DEBUG_XEN, "--Xen reports no pages being allocated for the domain\n");
@@ -945,8 +945,8 @@ xen_get_memsize(
     /* For Xen PV domains, where xc_domain_maximum_gpfn() returns a number
      * more like nr_pages, which is usually less than max_pages or the
      * calculated number of pages based on memkb, just fake it to be sane. */
-    if ( vmi->vm_type >= PV32 && (xen->max_gpfn << XC_PAGE_SHIFT) < (xen->info.max_memkb * 1024)) {
-        xen->max_gpfn = (xen->info.max_memkb * 1024) >> XC_PAGE_SHIFT;
+    if ( vmi->vm_type >= PV32 && (xen->max_gpfn << XC_PAGE_SHIFT) < ((xen->info.max_pages << (XC_PAGE_SHIFT-10)) * 1024)) {
+        xen->max_gpfn = ((xen->info.max_pages << (XC_PAGE_SHIFT-10)) * 1024) >> XC_PAGE_SHIFT;
     }
 
     *allocated_ram_size = XC_PAGE_SIZE * pages;

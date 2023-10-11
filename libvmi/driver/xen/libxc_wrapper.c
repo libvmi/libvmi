@@ -32,7 +32,7 @@ static status_t sanity_check(xen_instance_t *xen)
     if ( !w->xc_interface_open || !w->xc_interface_close || !w->xc_version ||
             !w->xc_map_foreign_range || !w->xc_vcpu_getcontext || !w->xc_vcpu_setcontext ||
             !w->xc_domain_hvm_getcontext || !w->xc_domain_hvm_getcontext_partial ||
-            !w->xc_domain_hvm_setcontext || !w->xc_domain_getinfo || !w->xc_domain_getinfolist ||
+            !w->xc_domain_hvm_setcontext || !w->xc_domain_getinfolist ||
             !w->xc_domctl || !w->xc_domain_pause || !w->xc_domain_unpause )
         return ret;
 
@@ -180,7 +180,6 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_domain_hvm_getcontext = dlsym(wrapper->handle, "xc_domain_hvm_getcontext");
     wrapper->xc_domain_hvm_getcontext_partial = dlsym(wrapper->handle, "xc_domain_hvm_getcontext_partial");
     wrapper->xc_domain_hvm_setcontext = dlsym(wrapper->handle, "xc_domain_hvm_setcontext");
-    wrapper->xc_domain_getinfo = dlsym(wrapper->handle, "xc_domain_getinfo");
     wrapper->xc_domain_getinfolist = dlsym(wrapper->handle, "xc_domain_getinfolist");
     wrapper->xc_domctl = dlsym(wrapper->handle, "xc_domctl");
     wrapper->xc_domain_pause = dlsym(wrapper->handle, "xc_domain_pause");
