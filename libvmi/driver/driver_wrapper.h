@@ -337,7 +337,8 @@ static inline void *
 driver_mmap_guest(
     vmi_instance_t vmi,
     unsigned long *pfns,
-    unsigned int size)
+    unsigned int size,
+    int prot)
 {
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi->driver.initialized || !vmi->driver.mmap_guest) {
@@ -346,7 +347,7 @@ driver_mmap_guest(
     }
 #endif
 
-    return vmi->driver.mmap_guest(vmi, pfns, size);
+    return vmi->driver.mmap_guest(vmi, pfns, size, prot);
 }
 
 static inline status_t

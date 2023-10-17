@@ -115,7 +115,8 @@ typedef struct driver_interface {
     void *(*mmap_guest) (
         vmi_instance_t,
         unsigned long *,
-        unsigned int);
+        unsigned int,
+        int);
     status_t (*write_ptr) (
         vmi_instance_t,
         addr_t,

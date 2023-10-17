@@ -150,7 +150,8 @@ void *xen_read_page(
 void *xen_mmap_guest(
     vmi_instance_t vmi,
     unsigned long *pfns,
-    unsigned int size);
+    unsigned int size,
+    int prot);
 status_t xen_write(
     vmi_instance_t vmi,
     addr_t paddr,
