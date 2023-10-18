@@ -2820,10 +2820,11 @@ void *
 xen_mmap_guest(
     vmi_instance_t vmi,
     unsigned long *pfns,
-    unsigned int size)
+    unsigned int size,
+    int prot)
 {
     xen_instance_t *xen = xen_get_instance(vmi);
-    return xen->libxcw.xc_map_foreign_pages(xen->xchandle, xen->domainid, PROT_READ, pfns, size);
+    return xen->libxcw.xc_map_foreign_pages(xen->xchandle, xen->domainid, prot, pfns, size);
 }
 
 status_t

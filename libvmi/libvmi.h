@@ -1384,12 +1384,14 @@ status_t vmi_read_va(
  * @param[in] vmi LibVMI instance
  * @param[in] ctx Access context
  * @param[in] num_pages Number of guest pages to be mapped (starting from ctx.addr)
+ * @param[in] prot memory protection flags
  * @param[out] access_ptrs Output array of size [num_pages] containing pointers to the respective guest's pages
  */
 status_t vmi_mmap_guest(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     size_t num_pages,
+    int prot,
     void **access_ptrs
 ) NOEXCEPT;
 

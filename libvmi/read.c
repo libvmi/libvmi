@@ -40,6 +40,7 @@ vmi_mmap_guest(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     size_t num_pages,
+    int prot,
     void **access_ptrs)
 {
     status_t ret = VMI_FAILURE;
@@ -121,7 +122,7 @@ vmi_mmap_guest(
     void *base_ptr = NULL;
     // do mmap only if there are pages available for mapping
     if (pfn_ndx != 0) {
-        base_ptr = (char *) driver_mmap_guest(vmi, pfns, pfn_ndx);
+        base_ptr = (char *) driver_mmap_guest(vmi, pfns, pfn_ndx, prot);
 
         if (MAP_FAILED == base_ptr || NULL == base_ptr) {
             dbprint(VMI_DEBUG_READ, "--failed to mmap guest memory");
