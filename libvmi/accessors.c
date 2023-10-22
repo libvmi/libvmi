@@ -788,7 +788,7 @@ status_t vmi_nested_pagetable_lookup (
         }
     }
 
-    page_info_t info;
+    page_info_t info = {0};
 
     if (VMI_FAILURE == vmi->arch_interface.lookup[pm](vmi, npt, npm, pt, vaddr, &info))
         return VMI_FAILURE;

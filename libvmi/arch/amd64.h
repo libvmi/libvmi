@@ -30,4 +30,7 @@
 status_t v2p_ia32e (vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, addr_t vaddr, page_info_t *info);
 GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb);
 
+void get_pte_values_ia32e(const page_info_t *info, addr_t *pte_value, addr_t *pte_value_prev);
+void set_pte_values_ia32e(page_info_t *info, addr_t pte_value, addr_t pte_value_prev);
+
 #endif
