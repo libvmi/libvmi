@@ -139,6 +139,12 @@ os          += libvmi/os/freebsd/freebsd.h \
                libvmi/os/freebsd/memory.c \
                libvmi/os/freebsd/symbols.c
 endif
+if OSX
+os          += libvmi/os/osx/osx.h \
+               libvmi/os/osx/core.c \
+               libvmi/os/osx/memory.c \
+               libvmi/os/osx/symbols.c
+endif
 
 library_includedir=$(includedir)/libvmi
 library_include_HEADERS = $(h_public)

@@ -391,4 +391,19 @@ win_ver_t find_windows_version(
 #define json_profile_lookup(...) VMI_FAILURE
 #endif
 
+
+#define CHECK(expression)    \
+    if (!expression)               \
+    {                                \
+        errprint("[%s] %s:%d\n",__PRETTY_FUNCTION__,__FILE__,__LINE__); \
+        goto done;           \
+    }                       \
+    else (void)0 \
+
+#define CHECK_SUCCESS(status) \
+                 if ( status == VMI_FAILURE) { \
+                      errprint("[%s] %s:%d\n",__PRETTY_FUNCTION__,__FILE__,__LINE__); \
+                      goto done;\
+                 } \
+                 else (void)0
 #endif /* PRIVATE_H */

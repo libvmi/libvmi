@@ -25,6 +25,9 @@
 /* Define to FreeBSD support. */
 #cmakedefine ENABLE_FREEBSD
 
+/* Define to OSX support. */
+#cmakedefine ENABLE_OSX
+
 /* Define to enable KVM support. */
 #cmakedefine ENABLE_KVM
 
