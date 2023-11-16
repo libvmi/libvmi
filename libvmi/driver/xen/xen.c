@@ -796,6 +796,14 @@ xen_init_vmi(
         xen->max_gpfn = ((xen->info.max_pages << (XC_PAGE_SHIFT-10)) * 1024) >> XC_PAGE_SHIFT;
     }
 
+    /* read max memory and unlock memory to dynamically allocate gfns later on */
+    xen->original_max_mem = xen->max_gpfn * XC_PAGE_SIZE;
+    if ( xen->libxcw.xc_domain_setmaxmem(xen->xchandle, xen->domainid, ~0) < 0 ) {
+        errprint("Failed to unlock memory bounds for Xen.\n");
+        ret = VMI_FAILURE;
+        goto _bail;
+    }
+
     ret = xen_setup_live_mode(vmi);
 
     if ( VMI_FAILURE == ret )
@@ -842,6 +850,10 @@ xen_destroy(
     {
         xen_events_destroy(vmi);
     }
+
+    /* restore original max memory */
+    if (xen->libxcw.xc_domain_setmaxmem(xen->xchandle, xen->domainid, xen->original_max_mem) < 0)
+        errprint("Failed to restore memory bounds for Xen.\n");
 
     xc_interface *xchandle = xen_get_xchandle(vmi);
     if ( xchandle )
@@ -952,6 +964,20 @@ xen_get_memsize(
     *allocated_ram_size = XC_PAGE_SIZE * pages;
     *max_physical_address = (xen->max_gpfn + 1) << XC_PAGE_SHIFT;
 
+    return VMI_SUCCESS;
+}
+
+status_t
+xen_get_next_available_gfn(
+    vmi_instance_t vmi,
+    addr_t *next_gfn)
+{
+    uint64_t allocated_ram_size;
+    addr_t max_physical_address = 0;
+    if (xen_get_memsize(vmi, &allocated_ram_size, &max_physical_address) == VMI_FAILURE)
+        return VMI_FAILURE;
+
+    *next_gfn = max_physical_address >> XC_PAGE_SHIFT;
     return VMI_SUCCESS;
 }
 
@@ -2683,6 +2709,38 @@ xen_set_vcpureg_arm(
     return VMI_SUCCESS;
 }
 #endif
+
+status_t xen_alloc_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    int rc = xen->libxcw.xc_domain_populate_physmap_exact(xen->xchandle, xen->domainid,
+             1, 0, 0, &gfn);
+    if (rc < 0) {
+        errprint("%s error %d allocating gfn\n", __FUNCTION__, rc);
+        return VMI_FAILURE;
+    }
+
+    vmi->max_physical_address = MAX(vmi->max_physical_address, (gfn + 1) << vmi->page_shift);
+
+    return VMI_SUCCESS;
+}
+
+status_t xen_free_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn)
+{
+    xen_instance_t *xen = xen_get_instance(vmi);
+    int rc = xen->libxcw.xc_domain_decrease_reservation_exact(xen->xchandle, xen->domainid,
+             1, 0, &gfn);
+    if (rc < 0) {
+        errprint("%s error %d freeing gfn\n", __FUNCTION__, rc);
+        return VMI_FAILURE;
+    }
+
+    return VMI_SUCCESS;
+}
 
 status_t
 xen_request_page_fault(

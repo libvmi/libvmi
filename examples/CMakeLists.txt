@@ -39,6 +39,9 @@ target_link_libraries(wait-for-domain-example vmi_shared)
 add_executable(msr-event-example msr-event-example.c)
 target_link_libraries(msr-event-example vmi_shared)
 
+add_executable(new-physical-page-example new-physical-page-example.c)
+target_link_libraries(new-physical-page-example vmi_shared)
+
 add_executable(singlestep-event-example singlestep-event-example.c)
 set_property(TARGET singlestep-event-example PROPERTY C_STANDARD 99)
 target_link_libraries(singlestep-event-example vmi_shared)

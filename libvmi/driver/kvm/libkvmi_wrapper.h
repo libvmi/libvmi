@@ -115,6 +115,9 @@ typedef struct {
     int (*kvmi_get_maximum_gfn)
     (void *dom, unsigned long long *gfn);
 
+    int (*kvmi_get_next_available_gfn)
+    (void *dom, unsigned long long *gfn);
+
     // only on KVMi-v7
     int (*kvmi_spp_support)
     (void *dom, bool *supported);
@@ -130,6 +133,12 @@ typedef struct {
 
     size_t (*kvmi_get_pending_events)
     (void *dom);
+
+    int (*kvmi_alloc_gfn)
+    (void *dom, uint64_t gfn);
+
+    int (*kvmi_free_gfn)
+    (void *dom, uint64_t gfn);
 
 } libkvmi_wrapper_t;
 
