@@ -66,7 +66,7 @@ static status_t sanity_check(xen_instance_t *xen)
                     !w->xc_evtchn_open || !w->xc_evtchn_close || !w->xc_evtchn_fd ||
                     !w->xc_evtchn_notify || !w->xc_evtchn_pending || !w->xc_evtchn_unmask ||
                     !w->xc_evtchn_unbind || !w->xc_evtchn_bind_interdomain ||
-                    !w->xc_set_hvm_param || !w->xc_get_hvm_param || !w->xc_domain_cacheflush)
+                    !w->xc_set_hvm_param || !w->xc_get_hvm_param || !w->xc_domain_cacheflush )
                 break;
 
             ret = VMI_SUCCESS;
@@ -131,7 +131,8 @@ static status_t sanity_check(xen_instance_t *xen)
                     !w->xc_altp2m_destroy_view || !w->xc_altp2m_switch_to_view ||
                     !w->xc_altp2m_set_mem_access || !w->xc_altp2m_change_gfn ||
                     !w->xc_hvm_param_set || !w->xc_hvm_param_get ||
-                    !w->xc_domain_cacheflush || !w->xc_domain_set_access_required)
+                    !w->xc_domain_cacheflush || !w->xc_domain_set_access_required ||
+                    !w->xc_domain_setmaxmem )
                 break;
 
             ret = VMI_SUCCESS;
@@ -188,6 +189,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_domain_maximum_gpfn2 = dlsym(wrapper->handle, "xc_domain_maximum_gpfn");
     wrapper->xc_map_foreign_batch = dlsym(wrapper->handle, "xc_map_foreign_batch");
     wrapper->xc_domain_cacheflush = dlsym(wrapper->handle, "xc_domain_cacheflush");
+    wrapper->xc_domain_setmaxmem = dlsym(wrapper->handle, "xc_domain_setmaxmem");
 
     /* Events */
     wrapper->xc_vm_event_get_version = dlsym(wrapper->handle, "xc_vm_event_get_version");
