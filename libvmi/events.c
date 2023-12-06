@@ -640,6 +640,20 @@ status_t clear_debug_event(vmi_instance_t vmi, vmi_event_t* UNUSED(event))
     return rc;
 }
 
+status_t clear_vmexit_event(vmi_instance_t vmi, vmi_event_t* UNUSED(event))
+{
+    status_t rc = VMI_FAILURE;
+
+    if ( vmi->vmexit_event ) {
+        rc = driver_set_vmexit_event(vmi, 0, 0);
+
+        if ( VMI_SUCCESS == rc)
+            vmi->vmexit_event = NULL;
+    }
+
+    return rc;
+}
+
 status_t clear_io_event(vmi_instance_t vmi, vmi_event_t* UNUSED(event))
 {
     status_t rc = VMI_FAILURE;
@@ -953,6 +967,12 @@ status_t vmi_clear_event(
             break;
         case VMI_EVENT_DEBUG_EXCEPTION:
             rc = clear_debug_event(vmi, event);
+            break;
+        case VMI_EVENT_VMEXIT:
+            rc = clear_vmexit_event(vmi, event);
+            break;
+        case VMI_EVENT_IO:
+            rc = clear_io_event(vmi, event);
             break;
         default:
             dbprint(VMI_DEBUG_EVENTS, "Cannot clear unknown event: %d\n", event->type);
