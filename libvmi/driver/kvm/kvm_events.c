@@ -641,8 +641,8 @@ process_singlestep(vmi_instance_t vmi, struct kvmi_dom_event *kvmi_event)
 
         // TODO ss_event
         // gfn
-        // offset
         libvmi_event->ss_event.gla = libvmi_event->x86_regs->rip;
+        libvmi_event->ss_event.offset = libvmi_event->x86_regs->rip & VMI_BIT_MASK(0, 11);
 
         // call user callback
         response = call_event_callback(vmi, libvmi_event);
