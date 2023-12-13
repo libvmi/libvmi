@@ -1079,14 +1079,14 @@ kvm_resume_vm(
             }
         }
 
-        dbprint(VMI_DEBUG_KVM, "--Removing PAUSE_VCPU event from the buffer\n");
+        dbprint(VMI_DEBUG_KVM, "--Removing PAUSE_VCPU event from the buffer for vcpu %u\n", vcpu);
         ev = kvm->pause_events_list[vcpu];
         kvm->pause_events_list[vcpu] = NULL;
 
         // handle event
-        dbprint(VMI_DEBUG_KVM, "--Sending continue reply\n");
+        dbprint(VMI_DEBUG_KVM, "--Sending continue reply for vcpu %u\n", vcpu);
         if (reply_continue(kvm, ev) == VMI_FAILURE) {
-            errprint("%s: Failed to send continue reply\n", __func__);
+            errprint("%s: Failed to send continue reply for vcpu %u\n", __func__, vcpu);
             free(ev);
             return VMI_FAILURE;
         }
