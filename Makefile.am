@@ -83,6 +83,8 @@ else
     drivers     += libvmi/driver/kvm/kvm.c \
                    libvmi/driver/kvm/kvm_events.c \
                    libvmi/driver/kvm/kvm_events.h \
+                   libvmi/driver/kvm/kvm_slat.c \
+                   libvmi/driver/kvm/kvm_slat.h \
                    libvmi/driver/kvm/libkvmi_wrapper.c \
                    libvmi/driver/kvm/libkvmi_wrapper.h
 
@@ -260,7 +262,8 @@ endif
                        examples/xen-emulate-response \
                        examples/breakpoint-emulate-example \
                        examples/read-disk-example \
-                       examples/io-event-example
+                       examples/io-event-example \
+                       examples/switch-view-example
 
     examples_map_symbol_SOURCES = examples/map-symbol.c
     examples_map_addr_SOURCES = examples/map-addr.c
@@ -274,6 +277,7 @@ endif
     examples_breakpoint_emulate_example_SOURCES = examples/breakpoint-emulate-example.c
     examples_read_disk_example_SOURCES = examples/read-disk-example.c
     examples_io_event_example_SOURCES = examples/io-event-example.c
+    examples_switch_view_example_SOURCES = examples/switch-view-example.c
 
     noinst_PROGRAMS += examples/va-pages
     examples_va_pages_SOURCES = examples/va-pages.c

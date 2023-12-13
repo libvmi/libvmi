@@ -103,8 +103,8 @@ libvmi-0.15.so libvmi #MINVER#
  vmi_slat_change_gfn@Base 0.15
  vmi_slat_create@Base 0.15
  vmi_slat_destroy@Base 0.15
- vmi_slat_get_domain_state@Base 0.15
- vmi_slat_set_domain_state@Base 0.15
+ vmi_slat_state@Base 0.15
+ vmi_slat_control@Base 0.15
  vmi_slat_switch@Base 0.15
  vmi_step_event@Base 0.15
  vmi_stop_single_step_vcpu@Base 0.15
