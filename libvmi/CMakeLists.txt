@@ -151,7 +151,7 @@ if (ENABLE_KVM)
         target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS})
         target_link_libraries(vmi_shared PUBLIC ${JSON-C_LIBRARIES})
         list(APPEND VMI_PUBLIC_HEADERS events.h)
-        list(APPEND VMI_PUBLIC_DEPS ${CMAKE_DL_LIBS} ${JSON-C_LIBRARIES})
+        list(APPEND VMI_PUBLIC_DEPS ${JSON-C_LIBRARIES})
     endif ()
 endif ()
 
@@ -179,7 +179,6 @@ if (ENABLE_XEN)
     list(APPEND VMI_PUBLIC_HEADERS events.h)
     # CMAKE_DL_LIBS -> dlopen* lib
     target_link_libraries(vmi_shared PRIVATE ${CMAKE_DL_LIBS})
-    list(APPEND VMI_PUBLIC_DEPS ${CMAKE_DL_LIBS})
 endif ()
 
 if (ENABLE_WINDOWS)
