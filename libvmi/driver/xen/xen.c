@@ -942,16 +942,12 @@ xen_get_memsize(
     if ( xen->major_version == 4 && xen->minor_version < 6 )
         xen->max_gpfn = (uint64_t)xen->libxcw.xc_domain_maximum_gpfn(xen->xchandle, xen->domainid);
     else
-        xen->libxcw.xc_domain_maximum_gpfn2(xen->xchandle, xen->domainid, (xen_pfn_t*)&xen->max_gpfn);
+        xen->libxcw.xc_domain_maximum_gpfn2(xen->xchandle, xen->domainid, &xen->max_gpfn);
 
     if ( !xen->max_gpfn )
         return VMI_FAILURE;
 
-    // note: may also available through xen_get_instance(vmi)->info.max_memkb
-    // or xenstore /local/domain/%d/memory/target
-    uint64_t pages = xen->info.max_pages + xen->info.shr_pages;
-
-    if ( !pages )
+    if ( !xen->info.tot_pages )
         dbprint(VMI_DEBUG_XEN, "--Xen reports no pages being allocated for the domain\n");
 
     /* For Xen PV domains, where xc_domain_maximum_gpfn() returns a number
@@ -961,7 +957,7 @@ xen_get_memsize(
         xen->max_gpfn = ((xen->info.max_pages << (XC_PAGE_SHIFT-10)) * 1024) >> XC_PAGE_SHIFT;
     }
 
-    *allocated_ram_size = XC_PAGE_SIZE * pages;
+    *allocated_ram_size = XC_PAGE_SIZE * xen->info.tot_pages;
     *max_physical_address = (xen->max_gpfn + 1) << XC_PAGE_SHIFT;
 
     return VMI_SUCCESS;
