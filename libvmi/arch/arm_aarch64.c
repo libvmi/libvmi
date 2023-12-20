@@ -269,6 +269,14 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
                             "--ARM AArch64 4kb PTLookup: tld_value = 0x%"PRIx64"\n",
                             info->arm_aarch64.tld_value);
 
+                    // Based on the ARM Architecture Reference Manual section D8.3,
+                    // third-level descriptors are only valid if the first two bits are 1
+                    if ((info->arm_aarch64.tld_value & VMI_BIT_MASK(0,1)) != 0b11) {
+                        dbprint(VMI_DEBUG_PTLOOKUP,
+                                "--ARM AArch64 4kb PTLookup: Invalid third-level descriptor");
+                        goto done;
+                    }
+
                     info->size = VMI_PS_4KB;
                     info->paddr = (info->arm_aarch64.tld_value & VMI_BIT_MASK(12,47)) | (vaddr & VMI_BIT_MASK(0,11));
                     status = VMI_SUCCESS;
@@ -294,6 +302,14 @@ status_t v2p_aarch64 (vmi_instance_t vmi,
                     dbprint(VMI_DEBUG_PTLOOKUP,
                             "--ARM AArch64 64kb PTLookup: tld_value = 0x%"PRIx64"\n",
                             info->arm_aarch64.tld_value);
+
+                    // Based on the ARM Architecture Reference Manual section D8.3,
+                    // third-level descriptors are only valid if the first two bits are 1
+                    if ((info->arm_aarch64.tld_value & VMI_BIT_MASK(0,1)) != 0b11) {
+                        dbprint(VMI_DEBUG_PTLOOKUP,
+                                "--ARM AArch64 64kb PTLookup: Invalid third-level descriptor");
+                        goto done;
+                    }
 
                     info->size = VMI_PS_4KB;
                     info->paddr = (info->arm_aarch64.tld_value & VMI_BIT_MASK(16,47)) | (vaddr & VMI_BIT_MASK(0,15));
