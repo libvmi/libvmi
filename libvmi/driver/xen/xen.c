@@ -947,9 +947,7 @@ xen_get_memsize(
     if ( !xen->max_gpfn )
         return VMI_FAILURE;
 
-    // note: may also available through xen_get_instance(vmi)->info.max_memkb
-    // or xenstore /local/domain/%d/memory/target
-    uint64_t pages = xen->info.max_pages + xen->info.shr_pages;
+    uint64_t pages = xen->info.tot_pages + xen->info.shr_pages;
 
     if ( !pages )
         dbprint(VMI_DEBUG_XEN, "--Xen reports no pages being allocated for the domain\n");
