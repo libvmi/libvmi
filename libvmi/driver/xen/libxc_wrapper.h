@@ -256,6 +256,9 @@ typedef struct {
     int (*xc_monitor_emul_unimplemented)
     (xc_interface *xch, uint32_t domain_id, bool enable);
 
+    int (*xc_altp2m_set_mem_access_multi)
+    (xc_interface *handle, uint32_t domid, uint16_t view_id, uint8_t *access, uint64_t *gfns, uint32_t nr);
+
     /* Xen 4.13+ but may be backported */
     int (*xc_vm_event_get_version)
     (xc_interface *xch);

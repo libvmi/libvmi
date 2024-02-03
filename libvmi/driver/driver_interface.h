@@ -154,6 +154,12 @@ typedef struct driver_interface {
         addr_t gpfn,
         vmi_mem_access_t,
         uint16_t vmm_pagetable_id);
+    status_t (*set_mem_access_range_ptr)(
+        vmi_instance_t,
+        addr_t gpfn_start,
+        addr_t gpfn_end,
+        vmi_mem_access_t,
+        uint16_t vmm_pagetable_id);
     status_t (*start_single_step_ptr)(
         vmi_instance_t,
         single_step_event_t*);

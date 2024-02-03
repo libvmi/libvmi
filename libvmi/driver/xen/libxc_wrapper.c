@@ -102,7 +102,7 @@ static status_t sanity_check(xen_instance_t *xen)
         case 12:
         /* Fall-through */
         case 11:
-            if ( !w->xc_monitor_emul_unimplemented )
+            if ( !w->xc_monitor_emul_unimplemented || !w->xc_altp2m_set_mem_access_multi )
                 break;
         /* Fall-through */
         case 10:
@@ -234,6 +234,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     wrapper->xc_altp2m_destroy_view = dlsym(wrapper->handle, "xc_altp2m_destroy_view");
     wrapper->xc_altp2m_switch_to_view = dlsym ( wrapper->handle, "xc_altp2m_switch_to_view" );
     wrapper->xc_altp2m_set_mem_access = dlsym ( wrapper->handle, "xc_altp2m_set_mem_access" );
+    wrapper->xc_altp2m_set_mem_access_multi = dlsym ( wrapper->handle, "xc_altp2m_set_mem_access_multi" );
     wrapper->xc_altp2m_change_gfn = dlsym ( wrapper->handle, "xc_altp2m_change_gfn" );
     wrapper->xc_monitor_debug_exceptions = dlsym(wrapper->handle, "xc_monitor_debug_exceptions");
     wrapper->xc_monitor_cpuid = dlsym(wrapper->handle, "xc_monitor_cpuid");

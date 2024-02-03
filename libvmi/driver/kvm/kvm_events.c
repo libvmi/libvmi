@@ -795,6 +795,7 @@ kvm_events_init(
     vmi->driver.set_reg_access_ptr = &kvm_set_reg_access;
     vmi->driver.set_intr_access_ptr = &kvm_set_intr_access;
     vmi->driver.set_mem_access_ptr = &kvm_set_mem_access;
+    vmi->driver.set_mem_access_range_ptr = &kvm_set_mem_access_range;
     vmi->driver.set_desc_access_event_ptr = &kvm_set_desc_access_event;
     vmi->driver.start_single_step_ptr = &kvm_start_single_step;
     vmi->driver.stop_single_step_ptr = &kvm_stop_single_step;
@@ -1347,6 +1348,117 @@ kvm_set_mem_access(
     (void)str_access;
     dbprint(VMI_DEBUG_KVM, "--Setting memaccess permissions to %s on GPFN: 0x%" PRIx64 "\n", str_access, gpfn);
     return VMI_SUCCESS;
+}
+
+status_t
+kvm_set_mem_access_range(
+    vmi_instance_t vmi,
+    addr_t gpfn_start,
+    addr_t gpfn_end,
+    vmi_mem_access_t page_access_flag,
+    uint16_t vmm_pagetable_id)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("%s: invalid vmi handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    unsigned char kvmi_access = KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X;
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!kvm || !kvm->kvmi_dom) {
+        errprint("%s: invalid kvm handle\n", __func__);
+        return VMI_FAILURE;
+    }
+#endif
+    // sanity check access type
+    if (VMI_FAILURE == intel_mem_access_sanity_check(page_access_flag))
+        return VMI_FAILURE;
+
+    // check access type and convert to KVMI
+    switch (page_access_flag) {
+        case VMI_MEMACCESS_N:
+            kvmi_access = KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X;
+            break;
+        case VMI_MEMACCESS_R:
+            kvmi_access = kvmi_access & ~KVMI_PAGE_ACCESS_R;
+            break;
+        case VMI_MEMACCESS_W:
+            kvmi_access = kvmi_access & ~KVMI_PAGE_ACCESS_W;
+            break;
+        case VMI_MEMACCESS_X:
+            kvmi_access = kvmi_access & ~KVMI_PAGE_ACCESS_X;
+            break;
+        case VMI_MEMACCESS_RW:
+            kvmi_access = kvmi_access & ~(KVMI_PAGE_ACCESS_R | KVMI_PAGE_ACCESS_W);
+            break;
+        case VMI_MEMACCESS_WX:
+            kvmi_access = kvmi_access & ~(KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X);
+            break;
+        case VMI_MEMACCESS_RWX:
+            kvmi_access = 0;
+            break;
+        default:
+            errprint("%s: invalid memaccess setting requested\n", __func__);
+            return VMI_FAILURE;
+    }
+
+    dbprint(VMI_DEBUG_KVM, "--%s: setting page access to %c%c%c on GPFN 0x%" PRIx64 " - 0x%" PRIx64 "\n", __func__,
+            (kvmi_access & KVMI_PAGE_ACCESS_R) ? 'R' : '_',
+            (kvmi_access & KVMI_PAGE_ACCESS_W) ? 'W' : '_',
+            (kvmi_access & KVMI_PAGE_ACCESS_X) ? 'X' : '_',
+            gpfn_start, gpfn_end);
+
+    // set page access
+    size_t count = gpfn_end - gpfn_start;
+
+    long long unsigned int* gpa = NULL;
+    unsigned char *access = NULL;
+
+    gpa = calloc(count, sizeof(long long unsigned int));
+    if (!gpa) {
+        errprint("%s: unable to allocate memory for GPA\n", __func__);
+        goto error_exit;
+    }
+
+    access = calloc(count, sizeof(unsigned char));
+    if (!access) {
+        errprint("%s: unable to allocate memory for access\n", __func__);
+        goto error_exit;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        gpa[i] = (gpfn_start + i) << vmi->page_shift;
+        access[i] = kvmi_access;
+    }
+
+    for (size_t i = 0; i < count; i += 128) {
+        uint16_t batch = MIN(128, count - i);
+
+        if (kvm->libkvmi.kvmi_set_page_access(kvm->kvmi_dom, gpa + i, access + i, batch, vmm_pagetable_id)) {
+            errprint("%s: unable to set page access on GPFN 0x%" PRIx64 " - 0x%" PRIx64 ": %s\n",
+                     __func__, gpfn_start, gpfn_end, strerror(errno));
+            goto error_exit;
+        }
+    }
+
+    char str_access[4] = {'_', '_', '_', '\0'};
+    if (kvmi_access & KVMI_PAGE_ACCESS_R) str_access[0] = 'R';
+    if (kvmi_access & KVMI_PAGE_ACCESS_W) str_access[1] = 'W';
+    if (kvmi_access & KVMI_PAGE_ACCESS_X) str_access[2] = 'X';
+
+    // silence unused variable if debug disabled
+    (void)str_access;
+    dbprint(VMI_DEBUG_KVM, "--Setting memaccess permissions to %s on GPFN: 0x%" PRIx64 " - 0x%" PRIx64 "\n",
+            str_access, gpfn_start, gpfn_end);
+    return VMI_SUCCESS;
+
+error_exit:
+    if (gpa) free(gpa);
+    if (access) free(access);
+
+    return VMI_FAILURE;
 }
 
 status_t kvm_set_desc_access_event(
