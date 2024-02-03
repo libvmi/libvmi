@@ -1306,6 +1306,19 @@ char *vmi_read_str(
     const access_context_t *ctx) NOEXCEPT;
 
 /**
+ * Reads a null terminated wchar_t string from memory,
+ * starting at the given virtual address.  The returned
+ * value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @return String read from memory or NULL on error
+ */
+uint16_t *vmi_read_wstr(
+    vmi_instance_t vmi,
+    const access_context_t *ctx) NOEXCEPT;
+
+/**
  * Reads a Unicode string from the given address. If the guest is running
  * Windows, a UNICODE_STRING struct is read. Linux is not yet
  * supported. The returned value must be freed by the caller.
@@ -1587,6 +1600,21 @@ char *vmi_read_str_va(
     vmi_pid_t pid) NOEXCEPT;
 
 /**
+ * Reads a null terminated wchar_t string from memory,
+ * starting at the given virtual address.  The returned
+ * value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address for start of string
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @return String read from memory or NULL on error
+ */
+uint16_t *vmi_read_wstr_va(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    vmi_pid_t pid) NOEXCEPT;
+
+/**
  * Reads a Unicode string from the given address. If the guest is running
  * Windows, a UNICODE_STRING struct is read. Linux is not yet
  * supported. The returned value must be freed by the caller.
@@ -1706,6 +1734,18 @@ char *vmi_read_str_pa(
     vmi_instance_t vmi,
     addr_t paddr) NOEXCEPT;
 
+/**
+ * Reads a nul terminated wchar_t string from memory,
+ * starting at the given physical address.  The returned
+ * value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address for start of string
+ * @return String read from memory or NULL on error
+ */
+uint16_t *vmi_read_wstr_pa(
+    vmi_instance_t vmi,
+    addr_t paddr) NOEXCEPT;
 
 /**
  * Writes count bytes to memory
