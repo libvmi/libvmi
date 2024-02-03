@@ -68,7 +68,7 @@ dump_exports(
                     continue;
                 }
 
-                _ctx.addr = base3 + ordinal + sizeof(uint32_t);
+                _ctx.addr = base3 + ordinal * sizeof(uint32_t);
                 if (VMI_FAILURE == vmi_read_32(vmi, &_ctx, &loc)) {
                     free(str);
                     continue;
