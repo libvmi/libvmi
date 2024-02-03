@@ -84,7 +84,7 @@ status_t xen_altp2m_create_p2m ( vmi_instance_t vmi, uint16_t *altp2m_idx )
         errprint ("%s error: invalid domid\n", __FUNCTION__);
         return VMI_FAILURE;
     }
-    rc = xen->libxcw.xc_altp2m_create_view (xch, domain_id, VMI_MEMACCESS_N, altp2m_idx );
+    rc = xen->libxcw.xc_altp2m_create_view (xch, domain_id, XENMEM_access_rwx, altp2m_idx );
     if ( rc ) {
         errprint ("xc_altp2m_create_view returned rc: %i\n", rc);
         return VMI_FAILURE;
