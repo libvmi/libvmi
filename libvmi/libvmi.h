@@ -2340,6 +2340,16 @@ status_t vmi_get_xsave_info(
     xsave_area_t *xsave_info) NOEXCEPT;
 
 /**
+ * Gets the last page table lookup fault that occurred.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return The last page table lookup fault that occurred
+ */
+const access_context_t *
+vmi_get_last_pagetable_lookup_fault(
+    vmi_instance_t vmi) NOEXCEPT;
+
+/**
  * Gets the memory size of the guest or file that LibVMI is currently
  * accessing.  This is the amount of RAM allocated to the guest, but
  * does not necessarily indicate the highest addressable physical address;

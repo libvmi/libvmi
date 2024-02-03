@@ -638,6 +638,9 @@ status_t vmi_init(
     _vmi->init_flags = init_flags;
     _vmi->page_mode = VMI_PM_UNKNOWN;
 
+    _vmi->last_pagetable_lookup_fault.valid = false;
+    _vmi->last_pagetable_lookup_fault.ctx.version = ACCESS_CONTEXT_VERSION;
+
     arch_init_lookup_tables(_vmi);
 
     if ( init_data && init_data->count ) {

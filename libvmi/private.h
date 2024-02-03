@@ -117,6 +117,12 @@ struct vmi_instance {
 
     page_mode_t page_mode;  /**< paging mode in use */
 
+    struct {
+        bool valid;             /**< true if ctx is valid */
+
+        access_context_t ctx;   /**< access context for the last translation */
+    } last_pagetable_lookup_fault;
+
     arch_interface_t arch_interface; /**< pagetable translation functions */
 
     memory_map_t *memmap;   /**< memory map of available addresses */
