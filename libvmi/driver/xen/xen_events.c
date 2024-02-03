@@ -62,10 +62,10 @@ status_t xen_set_mem_access(vmi_instance_t vmi, addr_t gpfn,
         rc = xen->libxcw.xc_altp2m_set_mem_access(xch, dom, altp2m_idx, gpfn, access);
 
     if (rc) {
-        errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
+        errprint("xc_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFN: %"PRIu64"\n", gpfn);
+    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFN: 0x%"PRIx64"\n", gpfn);
     return VMI_SUCCESS;
 }
 
