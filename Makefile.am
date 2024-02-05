@@ -263,7 +263,8 @@ endif
                        examples/breakpoint-emulate-example \
                        examples/read-disk-example \
                        examples/io-event-example \
-                       examples/switch-view-example
+                       examples/switch-view-example \
+                       examples/memory-mapping-example
 
     examples_map_symbol_SOURCES = examples/map-symbol.c
     examples_map_addr_SOURCES = examples/map-addr.c
@@ -278,6 +279,7 @@ endif
     examples_read_disk_example_SOURCES = examples/read-disk-example.c
     examples_io_event_example_SOURCES = examples/io-event-example.c
     examples_switch_view_example_SOURCES = examples/switch-view-example.c
+    examples_memory_mapping_example_SOURCES = examples/memory-mapping-example.c
 
     noinst_PROGRAMS += examples/va-pages
     examples_va_pages_SOURCES = examples/va-pages.c
