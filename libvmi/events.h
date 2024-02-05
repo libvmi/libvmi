@@ -787,6 +787,24 @@ status_t vmi_set_mem_event(
     uint16_t vmm_pagetable_id) NOEXCEPT;
 
 /**
+ * Set mem event on a range of pages. Intended to be used when already registered a generic
+ * violation-type based mem access event handlers.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] gfn_start Guest page-frame number to start setting events
+ * @param[in] gfn_end Guest page-frame number to end setting events
+ * @param[in] access Requested event type on the page
+ * @param[in] vmm_pagetable_id The VMM pagetable ID in which to set the access
+ * @return VMI_SUCCESS or VMI_FAILURE
+ */
+status_t vmi_set_mem_event_range(
+    vmi_instance_t vmi,
+    addr_t gfn_start,
+    addr_t gfn_end,
+    vmi_mem_access_t access,
+    uint16_t vmm_pagetable_id) NOEXCEPT;
+
+/**
  * Setup single-stepping to register the given event
  * after the specified number of steps.
  *

@@ -62,10 +62,82 @@ status_t xen_set_mem_access(vmi_instance_t vmi, addr_t gpfn,
         rc = xen->libxcw.xc_altp2m_set_mem_access(xch, dom, altp2m_idx, gpfn, access);
 
     if (rc) {
-        errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
+        errprint("xc_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFN: %"PRIu64"\n", gpfn);
+    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFN: 0x%"PRIx64"\n", gpfn);
+    return VMI_SUCCESS;
+}
+
+status_t xen_set_mem_access_range(vmi_instance_t vmi, addr_t gpfn_start, addr_t gpfn_end,
+                                  vmi_mem_access_t page_access_flag, uint16_t altp2m_idx)
+{
+    int rc;
+    xenmem_access_t access;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 11 )
+        return VMI_FAILURE;
+
+    xc_interface *xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    if ( VMI_FAILURE == convert_vmi_flags_to_xenmem(page_access_flag, &access) )
+        return VMI_FAILURE;
+
+    if ( !altp2m_idx )
+        rc = xen->libxcw.xc_set_mem_access(xch, dom, access, gpfn_start, gpfn_end - gpfn_start);
+    else {
+        uint32_t nr = gpfn_end - gpfn_start;
+        uint64_t* pgfns = NULL;
+        uint8_t* paccess = NULL;
+
+        pgfns = calloc(nr, sizeof(uint64_t));
+        if ( !pgfns ) {
+            errprint("%s error: failed to allocate memory\n", __FUNCTION__);
+            goto done;
+        }
+
+        paccess = calloc(nr, sizeof(uint8_t));
+        if ( !paccess ) {
+            errprint("%s error: failed to allocate memory\n", __FUNCTION__);
+            goto done;
+        }
+
+        for ( uint32_t i = 0; i < nr; i++ ) {
+            pgfns[i] = gpfn_start + i;
+            paccess[i] = access;
+        }
+
+        rc = xen->libxcw.xc_altp2m_set_mem_access_multi(xch, dom, altp2m_idx, paccess, pgfns, nr);
+
+done:
+        if ( pgfns )
+            free(pgfns);
+
+        if ( paccess )
+            free(paccess);
+
+        if ( !pgfns || !paccess )
+            return VMI_FAILURE;
+    }
+
+    if (rc) {
+        errprint("xc_set_mem_access failed with code: %d\n", rc);
+        return VMI_FAILURE;
+    }
+    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFNs: 0x%"PRIx64" - 0x%"PRIx64"\n", gpfn_start, gpfn_end);
     return VMI_SUCCESS;
 }
 
@@ -3618,6 +3690,7 @@ status_t xen_init_events(
     vmi->driver.set_reg_access_ptr = &xen_set_reg_access;
     vmi->driver.set_intr_access_ptr = &xen_set_intr_access;
     vmi->driver.set_mem_access_ptr = &xen_set_mem_access;
+    vmi->driver.set_mem_access_range_ptr = &xen_set_mem_access_range;
     vmi->driver.start_single_step_ptr = &xen_start_single_step;
     vmi->driver.stop_single_step_ptr = &xen_stop_single_step;
     vmi->driver.shutdown_single_step_ptr = &xen_shutdown_single_step;

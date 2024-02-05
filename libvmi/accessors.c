@@ -267,6 +267,21 @@ status_t vmi_get_xsave_info(
     return driver_get_xsave_info(vmi, vcpu, xsave_info);
 }
 
+const access_context_t *
+vmi_get_last_pagetable_lookup_fault(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return NULL;
+#endif
+
+    if (vmi->last_pagetable_lookup_fault.valid)
+        return &vmi->last_pagetable_lookup_fault.ctx;
+
+    return NULL;
+}
+
 uint64_t
 vmi_get_memsize(
     vmi_instance_t vmi)
@@ -832,8 +847,19 @@ status_t vmi_nested_pagetable_lookup (
 
     page_info_t info;
 
-    if (VMI_FAILURE == vmi->arch_interface.lookup[pm](vmi, npt, npm, pt, vaddr, &info))
+    if (VMI_FAILURE == vmi->arch_interface.lookup[pm](vmi, npt, npm, pt, vaddr, &info)) {
+        vmi->last_pagetable_lookup_fault.ctx.pm = pm;
+        vmi->last_pagetable_lookup_fault.ctx.npm = npm;
+        vmi->last_pagetable_lookup_fault.ctx.npt = npt;
+        vmi->last_pagetable_lookup_fault.ctx.tm = VMI_TM_PROCESS_PT;
+        vmi->last_pagetable_lookup_fault.ctx.addr = vaddr;
+        vmi->last_pagetable_lookup_fault.ctx.pt = pt;
+
+        vmi->last_pagetable_lookup_fault.valid = true;
         return VMI_FAILURE;
+    } else {
+        vmi->last_pagetable_lookup_fault.valid = false;
+    }
 
     *paddr = info.paddr;
 
@@ -902,6 +928,17 @@ status_t vmi_pagetable_lookup_cache(
     if (ret == VMI_SUCCESS) {
         *paddr = info.paddr;
         v2p_cache_set(vmi, vaddr, pt, 0, info.paddr);
+
+        vmi->last_pagetable_lookup_fault.valid = false;
+    } else {
+        vmi->last_pagetable_lookup_fault.ctx.pm = vmi->page_mode;
+        vmi->last_pagetable_lookup_fault.ctx.npm = 0;
+        vmi->last_pagetable_lookup_fault.ctx.npt = 0;
+        vmi->last_pagetable_lookup_fault.ctx.tm = VMI_TM_PROCESS_PT;
+        vmi->last_pagetable_lookup_fault.ctx.addr = vaddr;
+        vmi->last_pagetable_lookup_fault.ctx.pt = pt;
+
+        vmi->last_pagetable_lookup_fault.valid = true;
     }
     return ret;
 }
@@ -937,6 +974,17 @@ status_t vmi_pagetable_lookup_extended(
     /* add this to the cache */
     if (ret == VMI_SUCCESS) {
         v2p_cache_set(vmi, vaddr, pt, 0, info->paddr);
+
+        vmi->last_pagetable_lookup_fault.valid = false;
+    } else {
+        vmi->last_pagetable_lookup_fault.ctx.pm = vmi->page_mode;
+        vmi->last_pagetable_lookup_fault.ctx.npm = 0;
+        vmi->last_pagetable_lookup_fault.ctx.npt = 0;
+        vmi->last_pagetable_lookup_fault.ctx.tm = VMI_TM_PROCESS_PT;
+        vmi->last_pagetable_lookup_fault.ctx.addr = vaddr;
+        vmi->last_pagetable_lookup_fault.ctx.pt = pt;
+
+        vmi->last_pagetable_lookup_fault.valid = true;
     }
     return ret;
 }

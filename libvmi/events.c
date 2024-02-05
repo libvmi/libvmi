@@ -756,6 +756,48 @@ vmi_set_mem_event(
 }
 
 status_t
+vmi_set_mem_event_range(
+    vmi_instance_t vmi,
+    addr_t gfn_start,
+    addr_t gfn_end,
+    vmi_mem_access_t access,
+    uint16_t slat_id)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return VMI_FAILURE;
+#endif
+
+    if ( VMI_MEMACCESS_N != access ) {
+        bool handler_found = 0;
+        GHashTableIter i;
+        vmi_mem_access_t *key = NULL;
+        vmi_event_t *event = NULL;
+
+        ghashtable_foreach(vmi->mem_events_generic, i, &key, &event) {
+            if ( GPOINTER_TO_UINT(key) & access ) {
+                handler_found = 1;
+                break;
+            }
+        }
+
+        if ( !handler_found ) {
+            dbprint(VMI_DEBUG_EVENTS, "It is unsafe to set mem access without a handler being registered!\n");
+            return VMI_FAILURE;
+        }
+    }
+
+    if ( VMI_SUCCESS == driver_set_mem_access_range(vmi, gfn_start, gfn_end, access, slat_id) ) {
+        if ( gfn_end > (vmi->max_physical_address >> vmi->page_shift) )
+            vmi->max_physical_address = gfn_end << vmi->page_shift;
+
+        return VMI_SUCCESS;
+    }
+
+    return VMI_FAILURE;
+}
+
+status_t
 vmi_swap_events(
     vmi_instance_t vmi,
     vmi_event_t* swap_from,

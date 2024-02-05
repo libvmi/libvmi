@@ -533,6 +533,24 @@ driver_set_mem_access(
 }
 
 static inline status_t
+driver_set_mem_access_range(
+    vmi_instance_t vmi,
+    addr_t gpfn_start,
+    addr_t gpfn_end,
+    vmi_mem_access_t page_access_flag,
+    uint16_t vmm_pagetable_id)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.set_mem_access_range_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_set_mem_access_range function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.set_mem_access_range_ptr(vmi, gpfn_start, gpfn_end, page_access_flag, vmm_pagetable_id);
+}
+
+static inline status_t
 driver_start_single_step(
     vmi_instance_t vmi,
     single_step_event_t *event)
