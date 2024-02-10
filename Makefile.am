@@ -191,6 +191,8 @@ endif
 if HARDENING
     libvmi_libvmi_la_CFLAGS  += $(HARDEN_CFLAGS)
     libvmi_libvmi_la_LDFLAGS += $(HARDEN_LDFLAGS)
+else
+    libvmi_libvmi_la_CFLAGS  += $(OPTIMIZATION_CFLAGS)
 endif
 
 if DEBUG
