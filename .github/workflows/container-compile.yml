@@ -11,7 +11,7 @@ jobs:
           - 'debian:bullseye-slim'
           - 'debian:bookworm-slim'
           - 'ubuntu:focal'
-          - 'centos:centos7'
+          - 'centos:latest'
         compiler:
           - 'gcc'
           - 'clang'
@@ -34,7 +34,7 @@ jobs:
       if: startsWith(matrix.container,'centos')
       run: |
         yum update -y
-        yum install -y centos-release-xen-412
+        yum install -y centos-release-xen
         yum install -y autoconf-archive flex bison json-c-devel xen-devel libvirt-devel fuse-devel clang gcc cmake git libtool glib2-devel file make
 
     - name: Install libkvmi
