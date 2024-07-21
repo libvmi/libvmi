@@ -270,6 +270,8 @@ LD="$saved_LD"
 # AUTOHARDEN END
 #####################################################
 
+events_supported="no"
+
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check="yes"], [have_check="no"])
 AM_CONDITIONAL([MAKE_TESTS], [test x$have_check = xyes])
 
@@ -296,6 +298,7 @@ AC_CHECK_LIB(json-c, json_object_get_uint64, [AC_DEFINE([JSONC_UINT64_SUPPORT], 
         [#include <xenctrl.h> #include <xen/hvm/save.h>])
 
     AC_DEFINE([ENABLE_XEN], [1], [Define to 1 to enable Xen support.])
+    events_supported="yes"
 
     [if test "$with_xenstore" = "yes"]
     [then]
@@ -331,6 +334,7 @@ AC_CHECK_LIB(json-c, json_object_get_uint64, [AC_DEFINE([JSONC_UINT64_SUPPORT], 
         PKG_CHECK_MODULES([LIBKVMI], [libkvmi], [],
             [AC_MSG_ERROR([No libkvmi headers found. Install the library or
              enable the legacy KVM driver with --enable-kvm-legacy])])
+        events_supported="yes"
     [fi]
 [fi]
 
@@ -456,6 +460,8 @@ AM_CONDITIONAL([ENABLE_VOLATILITY_IST], [test x"$volatility_ist" = "xyes"])
         AC_DEFINE([VMI_DEBUG], [__VMI_DEBUG_ALL], [Enable LibVMI debug prints])
         AC_DEFINE([ENV_DEBUG], [1], [Enable debug prints only when LIBVMI_DEBUG environment variable is set])
 [fi]
+
+AM_CONDITIONAL([EVENTS_SUPPORTED], [test x"$events_supported" = xyes])
 
 dnl -----------------------------------------------
 dnl Generates Makefile's, configuration files and scripts
