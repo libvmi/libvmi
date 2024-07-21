@@ -33,6 +33,10 @@ jobs:
     - name: Install dependencies
       if: startsWith(matrix.container,'centos')
       run: |
+        # mirrorlist no longer resolves https://serverfault.com/questions/1161816/mirrorlist-centos-org-no-longer-resolve/1161847#1161847
+        sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
+        sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
+        sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
         yum update -y
         yum install -y centos-release-xen
         yum install -y autoconf-archive flex bison json-c-devel xen-devel libvirt-devel fuse-devel clang gcc cmake git libtool glib2-devel file make
