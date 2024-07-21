@@ -11,7 +11,6 @@ jobs:
           - 'debian:bullseye-slim'
           - 'debian:bookworm-slim'
           - 'ubuntu:focal'
-          - 'centos:latest'
         compiler:
           - 'gcc'
           - 'clang'
@@ -29,17 +28,6 @@ jobs:
         apt-get update -q
         apt-get install -y autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev clang build-essential cmake git libtool autotools-dev libglib2.0-dev
         apt-get clean
-
-    - name: Install dependencies
-      if: startsWith(matrix.container,'centos')
-      run: |
-        # mirrorlist no longer resolves https://serverfault.com/questions/1161816/mirrorlist-centos-org-no-longer-resolve/1161847#1161847
-        sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
-        sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
-        sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
-        yum update -y
-        yum install -y centos-release-xen
-        yum install -y autoconf-archive flex bison json-c-devel xen-devel libvirt-devel fuse-devel clang gcc cmake git libtool glib2-devel file make
 
     - name: Install libkvmi
       if: startsWith(matrix.container,'debian') || startsWith(matrix.container,'ubuntu')
@@ -61,11 +49,6 @@ jobs:
         CONTAINER: ${{ matrix.container }}
       run: |
         while IFS= read -r options; do
-
-          if [ $CONTAINER == 'centos:centos7' ]; then
-            options="$options --disable-kvm"
-          fi
-
           echo "Building with '$options'"
           autoreconf -vif
           ./configure $options
