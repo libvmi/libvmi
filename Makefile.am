@@ -79,7 +79,6 @@ if WITH_KVM_LEGACY
     drivers     += libvmi/driver/kvm/kvm_legacy.c
 
 else
-    h_public    += libvmi/events.h
     drivers     += libvmi/driver/kvm/kvm.c \
                    libvmi/driver/kvm/kvm_events.c \
                    libvmi/driver/kvm/kvm_events.h \
@@ -92,7 +91,6 @@ endif
 endif
 
 if WITH_XEN
-    h_public    += libvmi/events.h
     drivers     += libvmi/driver/xen/altp2m.c \
                    libvmi/driver/xen/altp2m_private.h \
                    libvmi/driver/xen/xen.h \
@@ -114,6 +112,10 @@ drivers     += libvmi/driver/bareflank/bareflank.h \
                libvmi/driver/bareflank/bareflank.c \
                libvmi/driver/bareflank/hypercall.h \
                libvmi/driver/bareflank/hypercall.S
+endif
+
+if EVENTS_SUPPORTED
+    h_public    += libvmi/events.h
 endif
 
 os =
