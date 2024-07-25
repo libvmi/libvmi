@@ -53,6 +53,7 @@ set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "-s")
 #-----------------------------------------------------------------------------
 option(ENABLE_XEN "Build Xen driver" ON)
 option(ENABLE_FILE "Build file driver" ON)
+option(USE_MMAP "Use mmap instead of standard seek/read in the file driver" OFF)
 
 option(ENABLE_WINDOWS "Build Windows introspection" ON)
 option(ENABLE_LINUX "Build Linux introspection" ON)
