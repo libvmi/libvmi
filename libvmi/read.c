@@ -25,8 +25,6 @@
  */
 
 #include <string.h>
-#include <wchar.h>
-#include <errno.h>
 
 #include "private.h"
 #include "driver/driver_wrapper.h"
@@ -122,9 +120,7 @@ vmi_mmap_guest(
     void *base_ptr = NULL;
     // do mmap only if there are pages available for mapping
     if (pfn_ndx != 0) {
-        base_ptr = (char *) driver_mmap_guest(vmi, pfns, pfn_ndx, prot);
-
-        if (MAP_FAILED == base_ptr || NULL == base_ptr) {
+        if (driver_mmap_guest(vmi, pfns, pfn_ndx, prot, &base_ptr) != VMI_SUCCESS) {
             dbprint(VMI_DEBUG_READ, "--failed to mmap guest memory");
             goto done;
         }
@@ -147,6 +143,179 @@ done:
     }
 
     return ret;
+}
+
+static status_t
+determine_contiguous_region(vmi_instance_t vmi, GSList *region_start, GArray *pfns, size_t max_remaining_pages,
+                            GSList **region_end)
+{
+    for (GSList *elem = region_start, *prev_elem = region_start; elem != NULL; prev_elem = elem, elem = elem->next, *region_end = elem) {
+        page_info_t *prev_elem_info = prev_elem->data;
+        page_info_t *cur_elem_info = elem->data;
+
+        // Break if we encounter the end of a contiguous region
+        if (cur_elem_info->vaddr - prev_elem_info->vaddr > prev_elem_info->size) {
+            break;
+        }
+
+        // Add pfns to pfn array. Split large pages into 4kb pages while also making sure that we don't overshoot
+        // by splitting a whole large page although the requested range ends somewhere within that page.
+        for (size_t i = 0; i < cur_elem_info->size / vmi->page_size && pfns->len < max_remaining_pages; i++) {
+            addr_t current_pfn = (cur_elem_info->paddr >> vmi->page_shift) + i;
+
+            if (!g_array_append_val(pfns, current_pfn)) {
+                errprint("--%s: Unable to resize array\n", __func__);
+                return VMI_FAILURE;
+            }
+        }
+
+        if (pfns->len >= max_remaining_pages) {
+            break;
+        }
+    }
+
+    return VMI_SUCCESS;
+}
+
+status_t
+vmi_mmap_guest_2(
+    vmi_instance_t vmi,
+    const access_context_t *ctx,
+    size_t num_pages,
+    int prot,
+    mapped_regions_t *mapped_regions)
+{
+    status_t ret = VMI_FAILURE;
+    addr_t dtb = ctx->dtb;
+    addr_t addr = ctx->addr;
+    addr_t npt = ctx->npt;
+    page_mode_t pm = ctx->pm;
+    page_mode_t npm = ctx->npm;
+    GArray *pfns = NULL;
+    GArray* result = NULL;
+
+    switch (ctx->translate_mechanism) {
+        case VMI_TM_KERNEL_SYMBOL:
+#ifdef ENABLE_SAFETY_CHECKS
+            if (!vmi->os_interface || !vmi->kpgd)
+                return VMI_FAILURE;
+#endif
+            if ( VMI_FAILURE == vmi_translate_ksym2v(vmi, ctx->ksym, &addr) )
+                return VMI_FAILURE;
+
+            if (!pm)
+                pm = vmi->page_mode;
+
+            dtb = vmi->kpgd;
+
+            break;
+        case VMI_TM_PROCESS_PID:
+#ifdef ENABLE_SAFETY_CHECKS
+            if (!vmi->os_interface)
+                return VMI_FAILURE;
+#endif
+
+            if ( !ctx->pid )
+                dtb = vmi->kpgd;
+            else if (ctx->pid > 0) {
+                if ( VMI_FAILURE == vmi_pid_to_dtb(vmi, ctx->pid, &dtb) )
+                    return VMI_FAILURE;
+            }
+
+            if (!pm)
+                pm = vmi->page_mode;
+            if (!dtb)
+                return VMI_FAILURE;
+            break;
+        case VMI_TM_PROCESS_DTB:
+            if (!pm)
+                pm = vmi->page_mode;
+            break;
+        default:
+            errprint("%s error: translation mechanism is not defined or unsupported.\n", __FUNCTION__);
+            return VMI_FAILURE;
+    }
+
+    GSList *va_pages = vmi_get_nested_va_pages_subset(vmi, npt, npm, dtb, pm, addr, addr + num_pages * vmi->page_size);
+    if (!va_pages) {
+        mapped_regions->size = 0;
+        mapped_regions->regions = NULL;
+        return VMI_SUCCESS;
+    }
+
+    pfns = g_array_new(false, false, sizeof(unsigned long));
+    if (!pfns) {
+        errprint("--%s: unable to initialize new GArray\n", __FUNCTION__);
+        goto done;
+    }
+
+    result = g_array_new(false, false, sizeof(mapped_region_t));
+    if (!result) {
+        goto done;
+    }
+
+    va_pages = g_slist_reverse(va_pages);
+
+    for (GSList* elem = va_pages; elem != NULL && num_pages > 0;) {
+        mapped_region_t cur_region = {0};
+        cur_region.start_va = ((page_info_t *) elem->data)->vaddr;
+
+        // determine the next region of contiguous virtual addresses and retrieve their respective pfns
+        if (determine_contiguous_region(vmi, elem, pfns, num_pages, &elem) == VMI_FAILURE)
+            goto done;
+        num_pages -= pfns->len;
+        cur_region.num_pages = pfns->len;
+
+        status_t mmap_result = driver_mmap_guest(vmi, (unsigned long *) pfns->data, pfns->len, prot, &cur_region.access_ptr);
+
+        // Reset array length so the array can be reused without having to reallocate
+        pfns->len = 0;
+
+        // In some cases v2p translations may be incorrect possibly due to incomplete pte resolving.
+        // Therefore, we skip over regions we couldn't map successfully.
+        if (mmap_result == VMI_FAILURE) {
+            dbprint(VMI_DEBUG_READ, "--failed to mmap guest memory");
+            continue;
+        }
+
+        if (!g_array_append_val(result, cur_region)) {
+            errprint("--%s: Unable to resize array\n", __func__);
+            goto done;
+        }
+    }
+
+    mapped_regions->size = result->len;
+    mapped_regions->regions = (mapped_region_t *) g_array_free(result, false);
+    result = NULL;
+
+    ret = VMI_SUCCESS;
+
+done:
+    if (va_pages) {
+        g_slist_free(va_pages);
+    }
+
+    if (pfns) {
+        g_array_free(pfns, true);
+    }
+
+    if (result) {
+        g_array_free(result, true);
+    }
+
+    return ret;
+}
+
+void vmi_free_mapped_regions(vmi_instance_t vmi, const mapped_regions_t *mapped_regions)
+{
+    if (mapped_regions && mapped_regions->regions) {
+        for (size_t i = 0; i < mapped_regions->size; i++) {
+            if (mapped_regions->regions[i].access_ptr)
+                if (munmap(mapped_regions->regions[i].access_ptr, mapped_regions->regions[i].num_pages << vmi->page_shift))
+                    dbprint(VMI_DEBUG_READ, "--failed to unmap region");
+        }
+        g_free(mapped_regions->regions);
+    }
 }
 
 status_t
