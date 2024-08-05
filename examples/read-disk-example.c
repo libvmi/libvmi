@@ -74,6 +74,7 @@ int main(int argc, char **argv)
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
         switch (c) {
             case 'n':
+                init = VMI_INIT_DOMAINNAME;
                 domain = optarg;
                 break;
             case 'd':
@@ -102,7 +103,7 @@ int main(int argc, char **argv)
     }
 
     vmi_mode_t mode;
-    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, VMI_INIT_DOMAINNAME, init_data, &mode) ) {
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init, init_data, &mode) ) {
         goto free_setup_info;
     }
 
@@ -113,7 +114,7 @@ int main(int argc, char **argv)
 
     /* initialize the libvmi library */
     vmi_instance_t vmi = NULL;
-    if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)domain, VMI_INIT_DOMAINNAME, init_data, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)domain, init, init_data, NULL)) {
         printf("Failed to initialize LibVMI library.\n");
         goto free_setup_info;
     }
