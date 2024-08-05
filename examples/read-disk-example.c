@@ -160,6 +160,8 @@ int main(int argc, char **argv)
     retcode = 0;
 
 free_devices_list:
+    for (unsigned int i = 0; i < number_of_disks; i++)
+        free(devices_ids[i]);
     free(devices_ids);
 
 resume_vm:
