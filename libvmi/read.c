@@ -150,6 +150,43 @@ done:
 }
 
 status_t
+vmi_mmap_guest_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    size_t num_pages,
+    int prot,
+    void **access_ptrs)
+{
+    status_t ret = VMI_FAILURE;
+    unsigned long *pfns = NULL;
+    unsigned int i;
+
+    pfns = calloc(num_pages, sizeof(unsigned long));
+    if (!pfns)
+        goto done;
+
+    for (i = 0; i < num_pages; i++)
+        pfns[i] = (paddr + ((addr_t)i * vmi->page_size)) >> vmi->page_shift;
+
+    void *base_ptr = driver_mmap_guest(vmi, pfns, num_pages, prot);
+    if (MAP_FAILED == base_ptr || NULL == base_ptr) {
+        dbprint(VMI_DEBUG_READ, "--failed to mmap guest memory");
+        goto done;
+    }
+
+    for (i = 0; i < num_pages; i++)
+        access_ptrs[i] = base_ptr + ((addr_t)i * vmi->page_size);
+
+    ret = VMI_SUCCESS;
+
+done:
+    if (pfns)
+        free(pfns);
+
+    return ret;
+}
+
+status_t
 vmi_read(
     vmi_instance_t vmi,
     const access_context_t *ctx,
