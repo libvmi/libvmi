@@ -379,21 +379,22 @@ driver_read_page(
     return vmi->driver.read_page_ptr(vmi, page);
 }
 
-static inline void *
+static inline status_t
 driver_mmap_guest(
     vmi_instance_t vmi,
     unsigned long *pfns,
     unsigned int size,
-    int prot)
+    int prot,
+    void **access_ptr)
 {
 #ifdef ENABLE_SAFETY_CHECKS
     if (!vmi->driver.initialized || !vmi->driver.mmap_guest) {
         dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_mmap_guest function not implemented.\n");
-        return NULL;
+        return VMI_FAILURE;
     }
 #endif
 
-    return vmi->driver.mmap_guest(vmi, pfns, size, prot);
+    return vmi->driver.mmap_guest(vmi, pfns, size, prot, access_ptr);
 }
 
 static inline status_t

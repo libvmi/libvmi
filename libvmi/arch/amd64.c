@@ -31,6 +31,10 @@
 #include "x86.h"
 #include "arch/amd64.h"
 
+#define IA32_PAGE_TABLE_SIZE 4096
+#define IA32_ENTRY_SIZE 8
+#define IA32_PAGE_TABLE_LAST_INDEX 511
+
 /* PML4 Table  */
 static inline
 addr_t get_pml4_index (addr_t vaddr)
@@ -253,19 +257,21 @@ bool is_duplicate(vmi_instance_t vmi, uint64_t *page, uint64_t index)
     return vmi->os_type == VMI_OS_WINDOWS && index > 0 && page[index] == page[index - 1];
 }
 
-GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb)
+GSList *get_pages_ia32e_subset(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb, addr_t start, addr_t end)
 {
 
     GSList *ret = NULL;
-    uint8_t entry_size = 0x8;
-
-#define IA32E_ENTRIES_PER_PAGE 0x200 // 0x1000/0x8
 
     uint max_bit_pfn = 51;
     // On newer versions of Windows, some higher bits of the pfn value
     // are used as flags for transition pages.
     if (vmi->os_type == VMI_OS_WINDOWS) {
         max_bit_pfn = 44;
+    }
+
+    if (start > end) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: start address > end address. start: 0x%"PRIx64", end: 0x%"PRIx64, start, end);
+        return ret;
     }
 
     uint64_t *pml4_page = g_malloc(VMI_PS_4KB);
@@ -286,8 +292,9 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
     if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pml4_page, NULL))
         goto done;
 
-    uint64_t pml4e_index;
-    for (pml4e_index = 0; pml4e_index < IA32E_ENTRIES_PER_PAGE; pml4e_index++, pml4e_location += entry_size) {
+    uint64_t pml4_start_idx = get_pml4_index(start) / IA32_ENTRY_SIZE;
+    uint64_t pml4_end_idx = get_pml4_index(end) / IA32_ENTRY_SIZE;
+    for (uint64_t pml4e_index = pml4_start_idx; pml4e_index <= pml4_end_idx; pml4e_index++, pml4e_location += IA32_ENTRY_SIZE) {
 
         uint64_t pml4e_value = pml4_page[pml4e_index];
 
@@ -301,9 +308,9 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
         if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pdpt_page, NULL))
             goto done;
 
-        uint64_t pdpte_index;
-        for (pdpte_index = 0; pdpte_index < IA32E_ENTRIES_PER_PAGE; pdpte_index++, pdpte_location += entry_size) {
-
+        uint64_t pdpt_start_idx = pml4e_index == pml4_start_idx ? get_pdpt_index_ia32e(start) / IA32_ENTRY_SIZE : 0;
+        uint64_t pdpt_end_idx = pml4e_index == pml4_end_idx ? get_pdpt_index_ia32e(end) / IA32_ENTRY_SIZE : IA32_PAGE_TABLE_LAST_INDEX;
+        for (uint64_t pdpte_index = pdpt_start_idx; pdpte_index <= pdpt_end_idx; pdpte_index++, pdpte_location += IA32_ENTRY_SIZE) {
             uint64_t pdpte_value = pdpt_page[pdpte_index];
 
             if (!ENTRY_PRESENT(vmi->x86.transition_pages, pdpte_value)) {
@@ -333,9 +340,9 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
             if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pgd_page, NULL))
                 goto done;
 
-            uint64_t pgde_index;
-            for (pgde_index = 0; pgde_index < IA32E_ENTRIES_PER_PAGE; pgde_index++, pgd_location += entry_size) {
-
+            uint64_t pd_start_idx = pdpte_index == pdpt_start_idx ? get_pd_index_ia32e(start) / IA32_ENTRY_SIZE : 0;
+            uint64_t pd_end_idx = pdpte_index == pdpt_end_idx ? get_pd_index_ia32e(end) / IA32_ENTRY_SIZE : IA32_PAGE_TABLE_LAST_INDEX;
+            for (uint64_t pgde_index = pd_start_idx; pgde_index <= pd_end_idx; pgde_index++, pgd_location += IA32_ENTRY_SIZE) {
                 uint64_t pgd_value = pgd_page[pgde_index];
 
                 if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pgd_value) &&
@@ -366,8 +373,9 @@ GSList* get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t 
                     if (VMI_FAILURE == vmi_read(vmi, &ctx, VMI_PS_4KB, pt_page, NULL))
                         goto done;
 
-                    uint64_t pte_index;
-                    for (pte_index = 0; pte_index < IA32E_ENTRIES_PER_PAGE; pte_index++, pte_location += entry_size) {
+                    uint64_t pt_start_idx = pgde_index == pd_start_idx ? get_pt_index_ia32e(start) / IA32_ENTRY_SIZE : 0;
+                    uint64_t pt_end_idx = pgde_index == pd_end_idx ? get_pt_index_ia32e(end) / IA32_ENTRY_SIZE : IA32_PAGE_TABLE_LAST_INDEX;
+                    for (uint64_t pte_index = pt_start_idx; pte_index <= pt_end_idx; pte_index++, pte_location += IA32_ENTRY_SIZE) {
                         uint64_t pte_value = pt_page[pte_index];
 
                         if (ENTRY_PRESENT(vmi->os_type == VMI_OS_WINDOWS, pte_value) &&
@@ -406,4 +414,9 @@ done:
     g_free(pml4_page);
 
     return ret;
+}
+
+GSList *get_pages_ia32e(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb)
+{
+    return get_pages_ia32e_subset(vmi, npt, npm, dtb, 0, -1);
 }

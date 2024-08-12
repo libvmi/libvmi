@@ -227,6 +227,8 @@ void arch_init_lookup_tables(vmi_instance_t vmi)
     vmi->arch_interface.get_pages[VMI_PM_PAE] = get_pages_pae;
     vmi->arch_interface.get_pages[VMI_PM_IA32E] = get_pages_ia32e;
     vmi->arch_interface.get_pages[VMI_PM_EPT_4L] = get_pages_ept_4l;
+
+    vmi->arch_interface.get_pages_subset[VMI_PM_IA32E] = get_pages_ia32e_subset;
 }
 
 status_t arch_init(vmi_instance_t vmi)

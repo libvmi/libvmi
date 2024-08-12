@@ -46,7 +46,7 @@ extern "C" {
 /**
  * Retrieve the pages mapped into the address space of a process.
  * @param[in] vmi Instance
- * @param[in] pt The pagetable the process (aka. dtb)
+ * @param[in] pt The pagetable of a process (aka. dtb)
  *
  * @return GSList of page_info_t structures, or NULL on error.
  * The caller is responsible for freeing the list and the structs.
@@ -54,6 +54,23 @@ extern "C" {
 GSList* vmi_get_va_pages(
     vmi_instance_t vmi,
     addr_t pt) NOEXCEPT;
+
+/**
+ * Retrieve a subset of the pages mapped into the address space of a process.
+ *
+ * @param[in] vmi Instance
+ * @param[in] pt The pagetable of a process (aka. dtb)
+ * @param[in] start The start of the virtual address range
+ * @param[in] end The end of the virtual address range (including end)
+ *
+ * @return GSList of page_info_t structures, or NULL on error.
+ * The caller is responsible for freeing the list and the structs.
+ */
+GSList* vmi_get_va_pages_subset(
+    vmi_instance_t vmi,
+    addr_t pt,
+    addr_t start,
+    addr_t end) NOEXCEPT;
 
 /**
  * Retrieve the pages mapped into the address space of a process.
@@ -72,6 +89,29 @@ GSList* vmi_get_nested_va_pages(
     page_mode_t npm,
     addr_t pt,
     page_mode_t pm) NOEXCEPT;
+
+/**
+ * Retrieve a subset of the pages mapped into the address space of a process.
+ *
+ * @param[in] vmi Instance
+ * @param[in] npt The nested page table to use (if any)
+ * @param[in] npm The paging mode of the nested pagetable (if any)
+ * @param[in] pt The paging mode of the pagetable
+ * @param[in] pm The pagetable of the process
+ * @param[in] start The start of the virtual address range
+ * @param[in] end The end of the virtual address range (including end)
+ *
+ * @return GSList of page_info_t structures, or NULL on error.
+ * The caller is responsible for freeing the list and the structs.
+ */
+GSList* vmi_get_nested_va_pages_subset(
+    vmi_instance_t vmi,
+    addr_t npt,
+    page_mode_t npm,
+    addr_t pt,
+    page_mode_t pm,
+    addr_t start,
+    addr_t end) NOEXCEPT;
 
 #endif
 
