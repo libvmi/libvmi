@@ -379,6 +379,21 @@ driver_read_page(
     return vmi->driver.read_page_ptr(vmi, page);
 }
 
+static inline status_t
+driver_get_domain_status(
+    vmi_instance_t vmi,
+    domain_status_t *domain_status)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi->driver.initialized || !vmi->driver.get_domain_status_ptr) {
+        dbprint(VMI_DEBUG_DRIVER, "WARNING: driver_get_domain_status function not implemented.\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return vmi->driver.get_domain_status_ptr(vmi, domain_status);
+}
+
 static inline void *
 driver_mmap_guest(
     vmi_instance_t vmi,

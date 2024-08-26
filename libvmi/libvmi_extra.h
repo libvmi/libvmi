@@ -192,6 +192,48 @@ status_t vmi_get_struct_field_type_name_from_json(
     const char **member_type_name) NOEXCEPT;
 #endif
 
+/**
+ * @struct xen_domain_status
+ * @brief Struct contain Xen-specific status flags
+ * Field values are set based on the values in the
+ * xen_domctl_getdomaininfo_t struct's flag field.
+ */
+typedef struct xen_domain_status {
+    bool dying:1;                     /**< set if XEN_DOMINF_dying is set */
+    bool shutdown:1;                  /**< set if XEN_DOMINF_shutdown is set */
+    bool paused:1;                    /**< set if XEN_DOMINF_paused is set */
+    bool blocked:1;                   /**< set if XEN_DOMINF_blocked is set */
+    bool running:1;                   /**< set if XEN_DOMINF_running is set */
+    bool debugged:1;                  /**< set if XEN_DOMINF_debugged is set */
+    bool xs_domain:1;                 /**< set if XEN_DOMINF_xs_domain is set */
+    bool hardware_assisted_paging:1;  /**< set if XEN_DOMINF_hap is set */
+} xen_domain_status_t;
+
+/**
+ * @struct domain_status
+ * @brief Struct containing status flags for a domain.
+ * Also contains hypervisor-specific flags in sub-structs
+ */
+typedef struct domain_status {
+    bool missing:1; /**< Indicates whether the domain was found */
+    vmi_mode_t type; /**< Hypervisor type, used to determine which fields exist in the union below */
+    union {
+        xen_domain_status_t xen_domain;
+    };
+} domain_status_t;
+
+/**
+ * Get the execution status of the domain associated with the provided vmi_instance
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[out] domain_status domain_status_t containing the status flags for the given domain
+ *
+ * @return status_t result of retrieving the domain's status.
+ */
+status_t vmi_get_domain_status(
+        vmi_instance_t vmi,
+        domain_status_t *domain_status);
+
 #pragma GCC visibility pop
 
 #ifdef __cplusplus

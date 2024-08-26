@@ -2872,6 +2872,45 @@ xen_read_page(
     return memory_cache_insert(vmi, paddr);
 }
 
+status_t xen_get_domain_status(
+    vmi_instance_t vmi,
+    domain_status_t *domain_status)
+{
+
+    status_t ret = VMI_FAILURE;
+    xc_domaininfo_t info = {0};
+    int rc;
+    xen_instance_t *xen = NULL;
+    uint32_t domain_id = xen_get_domainid(vmi);
+
+    xen = xen_get_instance(vmi);
+
+    rc = xen->libxcw.xc_domain_getinfolist(xen->xchandle, domain_id, 1, &info);
+    if (rc==1 && info.domain==domain_id) {
+        ret = VMI_SUCCESS;
+
+        domain_status->missing = 0;
+        domain_status->type = VMI_XEN;
+        // Default set status fields to zero.
+        memset(&domain_status->xen_domain, 0, sizeof(xen_domain_status_t));
+
+        domain_status->xen_domain.dying = (info.flags & XEN_DOMINF_dying);
+        domain_status->xen_domain.shutdown = (info.flags & XEN_DOMINF_shutdown);
+        domain_status->xen_domain.paused = (info.flags & XEN_DOMINF_paused);
+        domain_status->xen_domain.blocked = (info.flags & XEN_DOMINF_blocked);
+        domain_status->xen_domain.running = (info.flags & XEN_DOMINF_running);
+        domain_status->xen_domain.debugged = (info.flags & XEN_DOMINF_debugged);
+        domain_status->xen_domain.xs_domain = (info.flags & XEN_DOMINF_xs_domain);
+        domain_status->xen_domain.hardware_assisted_paging = (info.flags & XEN_DOMINF_hap);
+
+        ret = VMI_SUCCESS;
+    } else {
+        domain_status->missing = 1;
+    }
+
+    return ret;
+}
+
 void *
 xen_mmap_guest(
     vmi_instance_t vmi,

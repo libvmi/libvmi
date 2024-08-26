@@ -156,6 +156,10 @@ status_t xen_free_gfn(
 void *xen_read_page(
     vmi_instance_t vmi,
     addr_t page);
+status_t
+xen_get_domain_status(
+    vmi_instance_t vmi,
+    domain_status_t *domain_status);
 void *xen_mmap_guest(
     vmi_instance_t vmi,
     unsigned long *pfns,
@@ -240,6 +244,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.get_disks_ptr = &xen_get_disks;
     driver.disk_is_bootable_ptr = &xen_disk_is_bootable;
     driver.get_bios = &xen_get_bios;
+    driver.get_domain_status_ptr = &xen_get_domain_status;
     vmi->driver = driver;
     return VMI_SUCCESS;
 }
