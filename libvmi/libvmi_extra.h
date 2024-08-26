@@ -231,8 +231,8 @@ typedef struct domain_status {
  * @return status_t result of retrieving the domain's status.
  */
 status_t vmi_get_domain_status(
-        vmi_instance_t vmi,
-        domain_status_t *domain_status);
+    vmi_instance_t vmi,
+    domain_status_t *domain_status);
 
 #pragma GCC visibility pop
 

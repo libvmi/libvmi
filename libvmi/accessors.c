@@ -761,7 +761,7 @@ void* vmi_read_page (vmi_instance_t vmi, addr_t frame_num)
 
 status_t vmi_get_domain_status(vmi_instance_t vmi, domain_status_t *domain_status)
 {
-    #ifdef ENABLE_SAFETY_CHECKS
+#ifdef ENABLE_SAFETY_CHECKS
     if (!vmi) {
         errprint("NULL vmi passed to vmi_get_domain_status\n");
         return VMI_FAILURE;
@@ -770,7 +770,7 @@ status_t vmi_get_domain_status(vmi_instance_t vmi, domain_status_t *domain_statu
         errprint("NULL domain_status_t passed to vmi_get_domain_status\n");
         return VMI_FAILURE;
     }
-    #endif
+#endif
 
     return driver_get_domain_status(vmi, domain_status);
 }
