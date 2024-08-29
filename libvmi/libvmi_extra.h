@@ -193,33 +193,19 @@ status_t vmi_get_struct_field_type_name_from_json(
 #endif
 
 /**
- * @struct xen_domain_status
- * @brief Struct contain Xen-specific status flags
- * Field values are set based on the values in the
- * xen_domctl_getdomaininfo_t struct's flag field.
- */
-typedef struct xen_domain_status {
-    bool dying:1;                     /**< set if XEN_DOMINF_dying is set */
-    bool shutdown:1;                  /**< set if XEN_DOMINF_shutdown is set */
-    bool paused:1;                    /**< set if XEN_DOMINF_paused is set */
-    bool blocked:1;                   /**< set if XEN_DOMINF_blocked is set */
-    bool running:1;                   /**< set if XEN_DOMINF_running is set */
-    bool debugged:1;                  /**< set if XEN_DOMINF_debugged is set */
-    bool xs_domain:1;                 /**< set if XEN_DOMINF_xs_domain is set */
-    bool hardware_assisted_paging:1;  /**< set if XEN_DOMINF_hap is set */
-} xen_domain_status_t;
-
-/**
  * @struct domain_status
  * @brief Struct containing status flags for a domain.
- * Also contains hypervisor-specific flags in sub-structs
+ * Fields that are unsupported for the attached domain are set to -1.
+ * Fields that are true are set to 1.
+ * Fields that are false are set to 0.
  */
 typedef struct domain_status {
-    bool missing:1; /**< Indicates whether the domain was found */
-    vmi_mode_t type; /**< Hypervisor type, used to determine which fields exist in the union below */
-    union {
-        xen_domain_status_t xen_domain;
-    };
+    int dying:2;     /**< Set if the domain is dying */
+    int shutdown:2;  /**< Set if the domain is shutdown */
+    int paused:2;    /**< Set if the domain is paused */
+    int blocked:2;   /**< Set if the domain is blocked */
+    int running:2;   /**< Set if the domain is running */
+    int debugged:2;  /**< Set if the domain is being debugged */
 } domain_status_t;
 
 /**

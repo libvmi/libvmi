@@ -2887,25 +2887,17 @@ status_t xen_get_domain_status(
 
     rc = xen->libxcw.xc_domain_getinfolist(xen->xchandle, domain_id, 1, &info);
     if (rc==1 && info.domain==domain_id) {
-        ret = VMI_SUCCESS;
 
-        domain_status->missing = 0;
-        domain_status->type = VMI_XEN;
-        // Default set status fields to zero.
-        memset(&domain_status->xen_domain, 0, sizeof(xen_domain_status_t));
+        memset(domain_status, 0, sizeof(domain_status_t));
 
-        domain_status->xen_domain.dying = (info.flags & XEN_DOMINF_dying);
-        domain_status->xen_domain.shutdown = (info.flags & XEN_DOMINF_shutdown);
-        domain_status->xen_domain.paused = (info.flags & XEN_DOMINF_paused);
-        domain_status->xen_domain.blocked = (info.flags & XEN_DOMINF_blocked);
-        domain_status->xen_domain.running = (info.flags & XEN_DOMINF_running);
-        domain_status->xen_domain.debugged = (info.flags & XEN_DOMINF_debugged);
-        domain_status->xen_domain.xs_domain = (info.flags & XEN_DOMINF_xs_domain);
-        domain_status->xen_domain.hardware_assisted_paging = (info.flags & XEN_DOMINF_hap);
+        domain_status->dying = (info.flags & XEN_DOMINF_dying);
+        domain_status->shutdown = (info.flags & XEN_DOMINF_shutdown);
+        domain_status->paused = (info.flags & XEN_DOMINF_paused);
+        domain_status->blocked = (info.flags & XEN_DOMINF_blocked);
+        domain_status->running = (info.flags & XEN_DOMINF_running);
+        domain_status->debugged = (info.flags & XEN_DOMINF_debugged);
 
         ret = VMI_SUCCESS;
-    } else {
-        domain_status->missing = 1;
     }
 
     return ret;
