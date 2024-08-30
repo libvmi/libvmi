@@ -192,34 +192,6 @@ status_t vmi_get_struct_field_type_name_from_json(
     const char **member_type_name) NOEXCEPT;
 #endif
 
-/**
- * @struct domain_status
- * @brief Struct containing status flags for a domain.
- * Fields that are unsupported for the attached domain are set to -1.
- * Fields that are true are set to 1.
- * Fields that are false are set to 0.
- */
-typedef struct domain_status {
-    int dying:2;     /**< Set if the domain is dying */
-    int shutdown:2;  /**< Set if the domain is shutdown */
-    int paused:2;    /**< Set if the domain is paused */
-    int blocked:2;   /**< Set if the domain is blocked */
-    int running:2;   /**< Set if the domain is running */
-    int debugged:2;  /**< Set if the domain is being debugged */
-} domain_status_t;
-
-/**
- * Get the execution status of the domain associated with the provided vmi_instance
- *
- * @param[in] vmi LibVMI instance
- * @param[out] domain_status domain_status_t containing the status flags for the given domain
- *
- * @return status_t result of retrieving the domain's status.
- */
-status_t vmi_get_domain_status(
-    vmi_instance_t vmi,
-    domain_status_t *domain_status);
-
 #pragma GCC visibility pop
 
 #ifdef __cplusplus
