@@ -1,3 +1,7 @@
+if (ENABLE_OSX)
+    add_subdirectory(osx)
+endif ()
+
 if (ENABLE_FREEBSD)
     add_subdirectory(freebsd)
 endif ()

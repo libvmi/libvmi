@@ -219,7 +219,7 @@ void entry_done ()
 {
     if (strncmp(tmp_domain_name, target_domain, CONFIG_STR_LENGTH) == 0){
         if (entry != NULL) {
-            fprintf(stderr, "Duplicate config for %s found, using most recent\n", target_domain);
+            dbprint(VMI_DEBUG_MISC, "Duplicate config for %s found, using most recent\n", target_domain);
             g_hash_table_destroy(entry);
         }
         entry = tmp_entry;

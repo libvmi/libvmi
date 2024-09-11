@@ -25,12 +25,22 @@
 
 status_t vmi_slat_get_domain_state (vmi_instance_t vmi, bool *state)
 {
-    return driver_slat_get_domain_state (vmi, state);
+    return driver_slat_state(vmi, state);
+}
+
+status_t vmi_slat_state (vmi_instance_t vmi, bool *state)
+{
+    return driver_slat_state(vmi, state);
 }
 
 status_t vmi_slat_set_domain_state (vmi_instance_t vmi, bool state)
 {
-    return driver_slat_set_domain_state (vmi, state);
+    return driver_slat_control(vmi, state);
+}
+
+status_t vmi_slat_control (vmi_instance_t vmi, bool state)
+{
+    return driver_slat_control(vmi, state);
 }
 
 status_t vmi_slat_create (vmi_instance_t vmi, uint16_t *slat_id)

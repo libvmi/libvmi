@@ -88,6 +88,7 @@ int main(int argc, char **argv)
         {"domid", required_argument, NULL, 'd'},
         {"json-kernel", required_argument, NULL, 'r'},
         {"only-kpgd", no_argument, NULL, 'k'},
+        {NULL, 0, NULL, 0}
     };
 
     while ((c = getopt_long (argc, argv, "n:d:kr:", long_opts, &long_index)) != -1)

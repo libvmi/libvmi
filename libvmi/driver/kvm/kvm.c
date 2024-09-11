@@ -42,6 +42,7 @@
 #include "driver/kvm/kvm.h"
 #include "driver/kvm/kvm_private.h"
 #include "driver/kvm/kvm_events.h"
+#include "driver/kvm/kvm_slat.h"
 
 // 2 chars for each hex + 1 space + 1 \0
 #define UUID_HEX_STR_LEN (16 * 3 + 1)
@@ -585,6 +586,8 @@ kvm_init_vmi(
             return VMI_FAILURE;
     }
 
+    kvm_init_slat(vmi);
+
     return kvm_setup_live_mode(vmi);
 err_exit:
     kvm_close_vmi(vmi, kvm);
@@ -627,6 +630,24 @@ kvm_get_memsize(
 
     *allocated_ram_size = max_gfn * vmi->page_size;
     *maximum_physical_address = max_gfn << vmi->page_shift;
+    return VMI_SUCCESS;
+}
+
+status_t
+kvm_get_next_available_gfn(vmi_instance_t vmi, addr_t *next_gfn)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("Invalid vmi handle\n");
+        return VMI_FAILURE;
+    }
+#endif
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+    if (kvm->libkvmi.kvmi_get_next_available_gfn(kvm->kvmi_dom, (unsigned long long *) next_gfn)) {
+        errprint("--failed to get next available gfn\n");
+        return VMI_FAILURE;
+    }
+
     return VMI_SUCCESS;
 }
 
@@ -1058,14 +1079,14 @@ kvm_resume_vm(
             }
         }
 
-        dbprint(VMI_DEBUG_KVM, "--Removing PAUSE_VCPU event from the buffer\n");
+        dbprint(VMI_DEBUG_KVM, "--Removing PAUSE_VCPU event from the buffer for vcpu %u\n", vcpu);
         ev = kvm->pause_events_list[vcpu];
         kvm->pause_events_list[vcpu] = NULL;
 
         // handle event
-        dbprint(VMI_DEBUG_KVM, "--Sending continue reply\n");
+        dbprint(VMI_DEBUG_KVM, "--Sending continue reply for vcpu %u\n", vcpu);
         if (reply_continue(kvm, ev) == VMI_FAILURE) {
-            errprint("%s: Failed to send continue reply\n", __func__);
+            errprint("%s: Failed to send continue reply for vcpu %u\n", __func__, vcpu);
             free(ev);
             return VMI_FAILURE;
         }
@@ -1073,6 +1094,28 @@ kvm_resume_vm(
     }
 
     kvm->pause_count = 0;
+
+    return VMI_SUCCESS;
+}
+
+status_t kvm_alloc_gfn(vmi_instance_t vmi, uint64_t gfn)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    if (kvm->libkvmi.kvmi_alloc_gfn(kvm->kvmi_dom, gfn))
+        return VMI_FAILURE;
+
+    vmi->max_physical_address = MAX(vmi->max_physical_address, (gfn + 1) << vmi->page_shift);
+
+    return VMI_SUCCESS;
+}
+
+status_t kvm_free_gfn(vmi_instance_t vmi, uint64_t gfn)
+{
+    kvm_instance_t *kvm = kvm_get_instance(vmi);
+
+    if (kvm->libkvmi.kvmi_free_gfn(kvm->kvmi_dom, gfn))
+        return VMI_FAILURE;
 
     return VMI_SUCCESS;
 }

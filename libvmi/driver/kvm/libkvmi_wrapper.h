@@ -110,9 +110,12 @@ typedef struct {
     (void *dom, kvmi_timeout_t ms);
 
     void (*kvmi_set_log_cb)
-    ( kvmi_log_cb cb, void *ctx );
+    (kvmi_log_cb cb, void *ctx);
 
     int (*kvmi_get_maximum_gfn)
+    (void *dom, unsigned long long *gfn);
+
+    int (*kvmi_get_next_available_gfn)
     (void *dom, unsigned long long *gfn);
 
     // only on KVMi-v7
@@ -128,8 +131,29 @@ typedef struct {
     int (*kvmi_eptp_support)
     (void *dom, bool *supported);
 
+    int (*kvmi_create_ept_view)
+    (void *dom, unsigned short *view);
+
+    int (*kvmi_destroy_ept_view)
+    (void *dom, unsigned short view);
+
+    int (*kvmi_switch_ept_view)
+    (void *dom, unsigned short vcpu, unsigned short view);
+
+    int (*kvmi_get_ept_view)
+    (void *dom, unsigned short vcpu, unsigned short *view);
+
     size_t (*kvmi_get_pending_events)
     (void *dom);
+
+    int (*kvmi_change_gfn)
+    (void *dom, unsigned short vcpu, unsigned short view, uint64_t old_gfn, uint64_t new_gfn);
+
+    int (*kvmi_alloc_gfn)
+    (void *dom, uint64_t gfn);
+
+    int (*kvmi_free_gfn)
+    (void *dom, uint64_t gfn);
 
 } libkvmi_wrapper_t;
 

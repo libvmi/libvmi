@@ -1,0 +1,64 @@
+LibVMI OSX Support
+Author: Netanel Cohen <netanelc305@pm.me>
+
+--
+
+Initial support for monitoring OSX guests.
+
+Tested with macOS Ventura 13.5.2 on x86_64 KVM. See examples/process-list.c
+for a working example.
+
+Known limitations:
+- currently working only with volatility profile.
+
+Note: this initial support borrows a lot of code from the Linux and FreeBSD OS driver.
+
+--
+
+1.
+
+Create a VM using https://github.com/kholia/OSX-KVM.git
+
+--
+
+2.
+
+On the macOS vm execute the following command:
+
+user@users-iMac-Pro ~ % sw_vers
+ProductName: macOS
+ProductVersion: 13.5.2
+BuildVersion: 22G91
+
+--
+
+3. Get KDK.
+Download and install Kernel Debug Kit (KDK) for the build version.
+KDK can be obtained on apples official site or on https://github.com/dortania/KdkSupportPkg.git
+
+--
+
+4. Create profile using https://github.com/volatilityfoundation/dwarf2json
+
+./dwarf2json mac --macho /path/kernel.dSYM/Contents/Resources/DWARF/kernel \
+    --macho-symbols /path/kernel > macos.json
+
+--
+
+5. Test
+
+Download the profile to the host and execute
+
+sudo ./vmi-process-list -n macOS -j macos.json -s /tmp/introspector
+Process listing for VM macOS (id=2)
+[ 1321] griddatad (struct addr:ffffff9578606880)
+[ 1321] griddatad (struct addr:ffffff9578606880)
+[ 1322] metrickitd (struct addr:ffffff95787bfaa0)
+[ 1320] bluetoothd (struct addr:ffffff9578600660)
+[ 1319] mdworker_shared (struct addr:ffffff957860ccc0)
+[ 1317] cupsd (struct addr:ffffff95785ff880)
+        ....
+        ....
+[   78] UserEventAgent (struct addr:ffffff957916c100)
+[    1] launchd (struct addr:ffffff957984b660)
+[    0] kernel_task (struct addr:ffffff957984a880)

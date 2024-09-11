@@ -132,7 +132,9 @@ typedef enum os {
 
     VMI_OS_WINDOWS,  /**< OS type is Windows */
 
-    VMI_OS_FREEBSD   /**< OS type is FreeBSD */
+    VMI_OS_FREEBSD,   /**< OS type is FreeBSD */
+
+    VMI_OS_OSX       /**< OS type is OSX */
 } os_t;
 
 /**
@@ -830,6 +832,21 @@ typedef struct _ustring {
 } unicode_string_t;
 
 /**
+ * @struct domain_status
+ * @brief Struct containing status flags for a domain.
+ * Fields that are true are set to 1.
+ * Fields that are false are set to 0.
+ */
+typedef struct domain_status {
+    unsigned int dying:1;     /**< Set if the domain is dying */
+    unsigned int shutdown:1;  /**< Set if the domain is shutdown */
+    unsigned int paused:1;    /**< Set if the domain is paused */
+    unsigned int blocked:1;   /**< Set if the domain is blocked */
+    unsigned int running:1;   /**< Set if the domain is running */
+    unsigned int debugged:1;  /**< Set if the domain is being debugged */
+} domain_status_t;
+
+/**
  * @brief LibVMI Instance.
  *
  * This struct holds all of the relavent information for an instance of
@@ -1307,6 +1324,19 @@ char *vmi_read_str(
     const access_context_t *ctx) NOEXCEPT;
 
 /**
+ * Reads a null terminated wchar_t string from memory,
+ * starting at the given virtual address.  The returned
+ * value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] ctx Access context
+ * @return String read from memory or NULL on error
+ */
+uint16_t *vmi_read_wstr(
+    vmi_instance_t vmi,
+    const access_context_t *ctx) NOEXCEPT;
+
+/**
  * Reads a Unicode string from the given address. If the guest is running
  * Windows, a UNICODE_STRING struct is read. Linux is not yet
  * supported. The returned value must be freed by the caller.
@@ -1387,12 +1417,33 @@ status_t vmi_read_va(
  * @param[in] vmi LibVMI instance
  * @param[in] ctx Access context
  * @param[in] num_pages Number of guest pages to be mapped (starting from ctx.addr)
+ * @param[in] prot memory protection flags
  * @param[out] access_ptrs Output array of size [num_pages] containing pointers to the respective guest's pages
  */
 status_t vmi_mmap_guest(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     size_t num_pages,
+    int prot,
+    void **access_ptrs
+) NOEXCEPT;
+
+/**
+ * Maps num_pages of the guest's physical memory into host, starting at the provided paddr.
+ * Each page will have it's own pointer in access_ptrs output array.
+ * Remember to call munmap() on each array item afterwards.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to map
+ * @param[in] num_pages Number of guest pages to be mapped (starting from paddr)
+ * @param[in] prot Memory protection flags
+ * @param[out] access_ptrs Output array of size [num_pages] containing pointers to the respective guest's pages
+ */
+status_t vmi_mmap_guest_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    size_t num_pages,
+    int prot,
     void **access_ptrs
 ) NOEXCEPT;
 
@@ -1586,6 +1637,21 @@ char *vmi_read_str_va(
     vmi_pid_t pid) NOEXCEPT;
 
 /**
+ * Reads a null terminated wchar_t string from memory,
+ * starting at the given virtual address.  The returned
+ * value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] vaddr Virtual address for start of string
+ * @param[in] pid Pid of the virtual address space (0 for kernel)
+ * @return String read from memory or NULL on error
+ */
+uint16_t *vmi_read_wstr_va(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    vmi_pid_t pid) NOEXCEPT;
+
+/**
  * Reads a Unicode string from the given address. If the guest is running
  * Windows, a UNICODE_STRING struct is read. Linux is not yet
  * supported. The returned value must be freed by the caller.
@@ -1705,6 +1771,18 @@ char *vmi_read_str_pa(
     vmi_instance_t vmi,
     addr_t paddr) NOEXCEPT;
 
+/**
+ * Reads a nul terminated wchar_t string from memory,
+ * starting at the given physical address.  The returned
+ * value must be freed by the caller.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address for start of string
+ * @return String read from memory or NULL on error
+ */
+uint16_t *vmi_read_wstr_pa(
+    vmi_instance_t vmi,
+    addr_t paddr) NOEXCEPT;
 
 /**
  * Writes count bytes to memory
@@ -2299,6 +2377,16 @@ status_t vmi_get_xsave_info(
     xsave_area_t *xsave_info) NOEXCEPT;
 
 /**
+ * Gets the last page table lookup fault that occurred.
+ *
+ * @param[in] vmi LibVMI instance
+ * @return The last page table lookup fault that occurred
+ */
+const access_context_t *
+vmi_get_last_pagetable_lookup_fault(
+    vmi_instance_t vmi) NOEXCEPT;
+
+/**
  * Gets the memory size of the guest or file that LibVMI is currently
  * accessing.  This is the amount of RAM allocated to the guest, but
  * does not necessarily indicate the highest addressable physical address;
@@ -2328,6 +2416,18 @@ uint64_t vmi_get_memsize(
  * @param[in] vmi LibVMI instance @return physical memory size
  */
 addr_t vmi_get_max_physical_address(
+    vmi_instance_t vmi) NOEXCEPT;
+
+/**
+ * Retrieves the next gfn that would be available for allocation of physical memory.
+ * In some cases, the maximum physical address API is not sufficient for obtaining unoccupied memory
+ * due to implementation details of certain introspection target platforms (e.g. KVM/QEMU).
+ * This API guarantees that the return value represents unoccupied physical memory.
+ *
+ * @param[in] vmi LibVMI instance @return physical memory size
+ * @return next available gfn
+ */
+addr_t vmi_get_next_available_gfn(
     vmi_instance_t vmi) NOEXCEPT;
 
 /**
@@ -2463,6 +2563,31 @@ status_t vmi_set_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
     unsigned long vcpu) NOEXCEPT;
+
+/**
+ * Allocates a new physical page.
+ *
+ * @param[in] vmi LibVMI Instance
+ * @param[in] gfn gfn of physical page to be allocated
+ */
+status_t vmi_alloc_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn) NOEXCEPT;
+
+
+/**
+ * Frees a physical page that has previously been allocated via
+ * vmi_alloc_gfn.
+ * Note that the maximum physical address cached by libvmi
+ * will not be updated accordingly. Freeing a page that has not
+ * been allocated via vmi_alloc_gfn is undefined behavior.
+ *
+ * @param[in] vmi LibVMI Instance
+ * @param[in] gfn gfn of physical page to be freed
+ */
+status_t vmi_free_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn) NOEXCEPT;
 
 /**
  * Pauses the VM.  Use vmi_resume_vm to resume the VM after pausing
@@ -2723,6 +2848,18 @@ status_t vmi_disk_is_bootable(
     vmi_instance_t vmi,
     const char *device_id,
     bool *bootable) NOEXCEPT;
+
+/**
+ * Get the execution status of the domain associated with the provided vmi_instance
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[out] domain_status domain_status_t containing the status flags for the given domain
+ *
+ * @return status_t result of retrieving the domain's status.
+ */
+status_t vmi_get_domain_status(
+    vmi_instance_t vmi,
+    domain_status_t *domain_status);
 
 #pragma GCC visibility pop
 

@@ -69,9 +69,6 @@ typedef struct {
     (xc_interface *xch, uint32_t domid, uint16_t typecode,
      uint16_t instance, void *ctxt_buf, uint32_t size);
 
-    int (*xc_domain_getinfo)
-    (xc_interface *xch, uint32_t first_domid, unsigned int max_doms, xc_dominfo_t *info);
-
     int (*xc_domctl)
     (xc_interface *xch, struct xen_domctl *domctl);
 
@@ -131,6 +128,9 @@ typedef struct {
     /* Xen 4.1 - Xen 4.5 */
     int (*xc_domain_maximum_gpfn)
     (xc_interface *xch, uint32_t domid);
+
+    int (*xc_domain_setmaxmem)
+    (xc_interface *xch, uint32_t domid, uint64_t max_memkb);
 
     /* Xen 4.6+ */
     int (*xc_domain_maximum_gpfn2)
@@ -255,6 +255,9 @@ typedef struct {
     /* Xen 4.11+ */
     int (*xc_monitor_emul_unimplemented)
     (xc_interface *xch, uint32_t domain_id, bool enable);
+
+    int (*xc_altp2m_set_mem_access_multi)
+    (xc_interface *handle, uint32_t domid, uint16_t view_id, uint8_t *access, uint64_t *gfns, uint32_t nr);
 
     /* Xen 4.13+ but may be backported */
     int (*xc_vm_event_get_version)

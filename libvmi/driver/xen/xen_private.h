@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <xenctrl.h>
+#include <xen/domctl.h>
 #include <xen/hvm/save.h>
 
 #include "private.h"
@@ -63,11 +64,13 @@ typedef struct xen_instance {
 
     vm_type_t type; /**< VM type (HVM/PV32/PV64) */
 
-    xc_dominfo_t info;      /**< libxc info: domid, ssidref, stats, etc */
+    xc_domaininfo_t info; /**< libxc info: domid, ssidref, stats, etc */
 
     xen_events_t *events; /**< handle to events data */
 
     uint64_t max_gpfn;    /**< result of xc_domain_maximum_gpfn/2() */
+
+    uint64_t original_max_mem;    /**< holds the original max memory at start */
 
     GTree *domains; /**< tree for running xen domains */
 

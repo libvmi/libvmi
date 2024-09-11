@@ -40,6 +40,7 @@ vmi_mmap_guest(
     vmi_instance_t vmi,
     const access_context_t *ctx,
     size_t num_pages,
+    int prot,
     void **access_ptrs)
 {
     status_t ret = VMI_FAILURE;
@@ -121,7 +122,7 @@ vmi_mmap_guest(
     void *base_ptr = NULL;
     // do mmap only if there are pages available for mapping
     if (pfn_ndx != 0) {
-        base_ptr = (char *) driver_mmap_guest(vmi, pfns, pfn_ndx);
+        base_ptr = (char *) driver_mmap_guest(vmi, pfns, pfn_ndx, prot);
 
         if (MAP_FAILED == base_ptr || NULL == base_ptr) {
             dbprint(VMI_DEBUG_READ, "--failed to mmap guest memory");
@@ -144,6 +145,43 @@ done:
     if (pfns) {
         free(pfns);
     }
+
+    return ret;
+}
+
+status_t
+vmi_mmap_guest_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    size_t num_pages,
+    int prot,
+    void **access_ptrs)
+{
+    status_t ret = VMI_FAILURE;
+    unsigned long *pfns = NULL;
+    unsigned int i;
+
+    pfns = calloc(num_pages, sizeof(unsigned long));
+    if (!pfns)
+        goto done;
+
+    for (i = 0; i < num_pages; i++)
+        pfns[i] = (paddr + ((addr_t)i * vmi->page_size)) >> vmi->page_shift;
+
+    void *base_ptr = driver_mmap_guest(vmi, pfns, num_pages, prot);
+    if (MAP_FAILED == base_ptr || NULL == base_ptr) {
+        dbprint(VMI_DEBUG_READ, "--failed to mmap guest memory");
+        goto done;
+    }
+
+    for (i = 0; i < num_pages; i++)
+        access_ptrs[i] = base_ptr + ((addr_t)i * vmi->page_size);
+
+    ret = VMI_SUCCESS;
+
+done:
+    if (pfns)
+        free(pfns);
 
     return ret;
 }
@@ -477,6 +515,57 @@ vmi_read_str(
     return ret;
 }
 
+uint16_t *
+vmi_read_wstr(
+    vmi_instance_t vmi,
+    const access_context_t *ctx)
+{
+    access_context_t _ctx = *ctx;
+    addr_t len = 0;
+    uint8_t buf[VMI_PS_4KB];
+    size_t bytes_read;
+    bool read_more = 1;
+    uint16_t *ret = NULL;
+
+    do {
+        size_t offset = _ctx.addr & VMI_BIT_MASK(0,11);
+        size_t read_size = VMI_PS_4KB - offset;
+
+        dbprint(VMI_DEBUG_READ, "--start to read string from 0x%lx, page offset 0x%lx, read: %lu\n",
+                _ctx.addr, offset, read_size);
+
+        if (VMI_FAILURE == vmi_read(vmi, &_ctx, read_size, (void*)&buf, &bytes_read) &&
+                !bytes_read) {
+            return ret;
+        }
+
+        /* Count new non-null characters */
+        size_t read_len = 0;
+        for (read_len = 0; read_len + 1 < bytes_read; read_len += 2) {
+            if (buf[read_len] == 0 && buf[read_len + 1] == 0) {
+                read_more = 0;
+                break;
+            }
+        }
+
+        /*
+         * Realloc, tack on the L'\0' in case of errors and
+         * get ready to read the next page.
+         */
+        uint16_t *_ret = realloc(ret, len + read_len + 2);
+        if ( !_ret )
+            return ret;
+
+        ret = _ret;
+        memcpy(&ret[len / 2], &buf, read_len);
+        len += read_len;
+        ret[len / 2] = 0;
+        _ctx.addr += read_len;
+    } while (read_more);
+
+    return ret;
+}
+
 unicode_string_t*
 vmi_read_unicode_str(
     vmi_instance_t vmi,
@@ -601,6 +690,15 @@ vmi_read_str_pa(
     return vmi_read_str(vmi, &ctx);
 }
 
+uint16_t *
+vmi_read_wstr_pa(
+    vmi_instance_t vmi,
+    addr_t paddr)
+{
+    ACCESS_CONTEXT(ctx, .addr = paddr);
+    return vmi_read_wstr(vmi, &ctx);
+}
+
 ///////////////////////////////////////////////////////////
 // Easy access to virtual memory
 status_t
@@ -696,6 +794,20 @@ vmi_read_str_va(
                    .pid = pid);
 
     return vmi_read_str(vmi, &ctx);
+}
+
+uint16_t *
+vmi_read_wstr_va(
+    vmi_instance_t vmi,
+    addr_t vaddr,
+    vmi_pid_t pid)
+{
+    ACCESS_CONTEXT(ctx,
+                   .translate_mechanism = VMI_TM_PROCESS_PID,
+                   .addr = vaddr,
+                   .pid = pid);
+
+    return vmi_read_wstr(vmi, &ctx);
 }
 
 unicode_string_t *

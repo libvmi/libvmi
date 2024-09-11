@@ -68,12 +68,20 @@ extern "C" {
 #define CACHE_DISABLED(entry)   VMI_GET_BIT(entry, 4)
 
 /*
- * The ACCESSED bit is used to discover whether a page has been read
- * or written to. If it has, then the bit is set, otherwise, it is not.
+ * The ACCESSED bit is used to discover whether a page has been read.
+ * If it has, then the bit is set, otherwise, it is not.
  * Note that, this bit will not be cleared by the CPU, so that burden
  * falls on the OS (if it needs this bit at all).
  */
 #define ACCESSED(entry)         VMI_GET_BIT(entry, 5)
+
+/*
+ * The ACCESSED bit is used to discover whether a page has been written
+ * to. If it has, then the bit is set, otherwise, it is not.
+ * Note that, this bit will not be cleared by the CPU, so that burden
+ * falls on the OS (if it needs this bit at all).
+ */
+#define DIRTY(entry)         VMI_GET_BIT(entry, 6)
 
 /*
  * The PAGE_SIZE bit stores the page size for that specific entry.

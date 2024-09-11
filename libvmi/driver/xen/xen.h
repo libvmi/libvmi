@@ -107,6 +107,9 @@ status_t xen_get_memsize(
     vmi_instance_t vmi,
     uint64_t *allocated_ram_size,
     addr_t *maximum_physical_address);
+status_t xen_get_next_available_gfn(
+    vmi_instance_t vmi,
+    addr_t *next_gfn);
 status_t xen_request_page_fault(
     vmi_instance_t vmi,
     unsigned long vcpu,
@@ -144,13 +147,24 @@ status_t xen_set_vcpuregs(
     vmi_instance_t vmi,
     registers_t *regs,
     unsigned long vcpu);
+status_t xen_alloc_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn);
+status_t xen_free_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn);
 void *xen_read_page(
     vmi_instance_t vmi,
     addr_t page);
+status_t
+xen_get_domain_status(
+    vmi_instance_t vmi,
+    domain_status_t *domain_status);
 void *xen_mmap_guest(
     vmi_instance_t vmi,
     unsigned long *pfns,
-    unsigned int size);
+    unsigned int size,
+    int prot);
 status_t xen_write(
     vmi_instance_t vmi,
     addr_t paddr,
@@ -209,6 +223,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.set_name_ptr = &xen_set_domainname;
     driver.get_xsave_info_ptr = &xen_get_xsave_info;
     driver.get_memsize_ptr = &xen_get_memsize;
+    driver.get_next_available_gfn_ptr = &xen_get_next_available_gfn;
     driver.request_page_fault_ptr = &xen_request_page_fault;
     driver.get_tsc_info_ptr = &xen_get_tsc_info;
     driver.get_vcpumtrr_ptr = &xen_get_vcpumtrr;
@@ -216,6 +231,8 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.get_vcpuregs_ptr = &xen_get_vcpuregs;
     driver.set_vcpureg_ptr = &xen_set_vcpureg;
     driver.set_vcpuregs_ptr = &xen_set_vcpuregs;
+    driver.alloc_gfn_ptr = &xen_alloc_gfn;
+    driver.free_gfn_ptr = &xen_free_gfn;
     driver.read_page_ptr = &xen_read_page;
     driver.mmap_guest = &xen_mmap_guest;
     driver.write_ptr = &xen_write;
@@ -227,6 +244,7 @@ driver_xen_setup(vmi_instance_t vmi)
     driver.get_disks_ptr = &xen_get_disks;
     driver.disk_is_bootable_ptr = &xen_disk_is_bootable;
     driver.get_bios = &xen_get_bios;
+    driver.get_domain_status_ptr = &xen_get_domain_status;
     vmi->driver = driver;
     return VMI_SUCCESS;
 }

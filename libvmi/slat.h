@@ -24,7 +24,7 @@
 * @file slat.h
 * @brief The LibVMI second level address translation API is defined here.
 *
-* The slat (Second Level Address Translation) is used to circumvent the
+* The SLAT (Second Level Address Translation) is used to circumvent the
 * overhead of shadow page tables. By modifying the pointer to the
 * translation tables they can also be used to switch between completely
 * different sets of access rights for memory pages.
@@ -47,30 +47,60 @@ extern "C" {
 /**
 * Checks if slat is enabled on the domain
 *
+* @deprecated This function is deprecated in favor of
+* vmi_slat_state and will be removed soon.
+*
 * @param[in] vmi LibVMI instance
 * @param[out] state slat state of the domain
 * @return VMI_SUCCESS or VMI_FAILURE
 */
+__attribute__((deprecated))
 status_t vmi_slat_get_domain_state (
+    vmi_instance_t vmi,
+    bool *state) NOEXCEPT;
+
+/**
+* Checks if SLAT is enabled for the current VM.
+*
+* @param[in] vmi LibVMI instance
+* @param[out] state SLAT state
+* @return VMI_SUCCESS or VMI_FAILURE
+*/
+status_t vmi_slat_state (
     vmi_instance_t vmi,
     bool *state) NOEXCEPT;
 
 /**
 * Enables or disables slat for the domain
 *
+* @deprecated This function is deprecated in favor of
+* vmi_slat_control and will be removed soon.
+*
 * @param[in] vmi LibVMI instance
 * @param[in] state slat state of the domain
 * @return VMI_SUCCESS or VMI_FAILURE
 */
+__attribute__((deprecated))
 status_t vmi_slat_set_domain_state (
     vmi_instance_t vmi,
     bool state) NOEXCEPT;
 
 /**
-* Creates a new slat slat_id
+* Enables or disables SLAT for the current VM.
 *
 * @param[in] vmi LibVMI instance
-* @param[out] slat_id Number of the newly created slat_id
+* @param[in] state SLAT state of the domain
+* @return VMI_SUCCESS or VMI_FAILURE
+*/
+status_t vmi_slat_control (
+    vmi_instance_t vmi,
+    bool state) NOEXCEPT;
+
+/**
+* Creates a new SLAT view.
+*
+* @param[in] vmi LibVMI instance
+* @param[out] slat_id ID of the newly created view
 * @return VMI_SUCCESS or VMI_FAILURE
 */
 status_t vmi_slat_create (
@@ -78,10 +108,10 @@ status_t vmi_slat_create (
     uint16_t *slat_id) NOEXCEPT;
 
 /**
-* Destroys an slat slat_id
+* Destroys a SLAT view.
 *
 * @param[in] vmi LibVMI instance
-* @param[in] slat_id Number of the slat_id which is to be destroyed
+* @param[in] slat_id ID of the view to destroy
 * @return VMI_SUCCESS or VMI_FAILURE
 */
 status_t vmi_slat_destroy (
@@ -89,10 +119,10 @@ status_t vmi_slat_destroy (
     uint16_t slat_idx) NOEXCEPT;
 
 /**
-* Switches to a specific slat slat_id
+* Switches to a specific SLAT view.
 *
 * @param[in] vmi LibVMI instance
-* @param[in] slat_id Number of the slat_id which to which to switch to
+* @param[in] slat_id ID of the view to switch to
 * @return VMI_SUCCESS or VMI_FAILURE
 */
 status_t vmi_slat_switch (
@@ -100,10 +130,11 @@ status_t vmi_slat_switch (
     uint16_t slat_idx) NOEXCEPT;
 
 /**
-*
+* Changes the virtual to physical memory mapping for a page in a specific view.
+* The change is transparent for the guest.
 *
 * @param[in] vmi LibVMI instance
-* @param[in] slat_id Number of the slat_id in which to switch
+* @param[in] slat_id ID of the view in which to apply the change
 * @param[in] old_gfn The old gfn
 * @param[in] new_gfn The new gfn
 * @return VMI_SUCCESS or VMI_FAILURE

@@ -267,6 +267,21 @@ status_t vmi_get_xsave_info(
     return driver_get_xsave_info(vmi, vcpu, xsave_info);
 }
 
+const access_context_t *
+vmi_get_last_pagetable_lookup_fault(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return NULL;
+#endif
+
+    if (vmi->last_pagetable_lookup_fault.valid)
+        return &vmi->last_pagetable_lookup_fault.ctx;
+
+    return NULL;
+}
+
 uint64_t
 vmi_get_memsize(
     vmi_instance_t vmi)
@@ -295,6 +310,22 @@ vmi_get_max_physical_address(
         return 0;
 
     return vmi->max_physical_address;
+}
+
+addr_t
+vmi_get_next_available_gfn(
+    vmi_instance_t vmi)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return 0;
+#endif
+
+    addr_t next_gfn;
+    if (VMI_FAILURE == driver_get_next_available_gfn(vmi, &next_gfn))
+        return 0;
+
+    return next_gfn;
 }
 
 unsigned int
@@ -380,6 +411,32 @@ vmi_get_vcpuregs(
 #endif
 
     return driver_get_vcpuregs(vmi, regs, vcpu);
+}
+
+status_t
+vmi_alloc_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return VMI_FAILURE;
+#endif
+
+    return driver_alloc_gfn(vmi, gfn);
+}
+
+status_t
+vmi_free_gfn(
+    vmi_instance_t vmi,
+    uint64_t gfn)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return VMI_FAILURE;
+#endif
+
+    return driver_free_gfn(vmi, gfn);
 }
 
 status_t
@@ -702,6 +759,22 @@ void* vmi_read_page (vmi_instance_t vmi, addr_t frame_num)
     return driver_read_page(vmi, frame_num);
 }
 
+status_t vmi_get_domain_status(vmi_instance_t vmi, domain_status_t *domain_status)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi) {
+        errprint("NULL vmi passed to vmi_get_domain_status\n");
+        return VMI_FAILURE;
+    }
+    if (!domain_status) {
+        errprint("NULL domain_status_t passed to vmi_get_domain_status\n");
+        return VMI_FAILURE;
+    }
+#endif
+
+    return driver_get_domain_status(vmi, domain_status);
+}
+
 GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb)
 {
 #ifdef ENABLE_SAFETY_CHECKS
@@ -790,8 +863,19 @@ status_t vmi_nested_pagetable_lookup (
 
     page_info_t info = {0};
 
-    if (VMI_FAILURE == vmi->arch_interface.lookup[pm](vmi, npt, npm, pt, vaddr, &info))
+    if (VMI_FAILURE == vmi->arch_interface.lookup[pm](vmi, npt, npm, pt, vaddr, &info)) {
+        vmi->last_pagetable_lookup_fault.ctx.pm = pm;
+        vmi->last_pagetable_lookup_fault.ctx.npm = npm;
+        vmi->last_pagetable_lookup_fault.ctx.npt = npt;
+        vmi->last_pagetable_lookup_fault.ctx.tm = VMI_TM_PROCESS_PT;
+        vmi->last_pagetable_lookup_fault.ctx.addr = vaddr;
+        vmi->last_pagetable_lookup_fault.ctx.pt = pt;
+
+        vmi->last_pagetable_lookup_fault.valid = true;
         return VMI_FAILURE;
+    } else {
+        vmi->last_pagetable_lookup_fault.valid = false;
+    }
 
     *paddr = info.paddr;
 
@@ -860,6 +944,17 @@ status_t vmi_pagetable_lookup_cache(
     if (ret == VMI_SUCCESS) {
         *paddr = info.paddr;
         v2p_cache_set(vmi, vaddr, pt, 0, info.paddr);
+
+        vmi->last_pagetable_lookup_fault.valid = false;
+    } else {
+        vmi->last_pagetable_lookup_fault.ctx.pm = vmi->page_mode;
+        vmi->last_pagetable_lookup_fault.ctx.npm = 0;
+        vmi->last_pagetable_lookup_fault.ctx.npt = 0;
+        vmi->last_pagetable_lookup_fault.ctx.tm = VMI_TM_PROCESS_PT;
+        vmi->last_pagetable_lookup_fault.ctx.addr = vaddr;
+        vmi->last_pagetable_lookup_fault.ctx.pt = pt;
+
+        vmi->last_pagetable_lookup_fault.valid = true;
     }
     return ret;
 }
@@ -895,6 +990,17 @@ status_t vmi_pagetable_lookup_extended(
     /* add this to the cache */
     if (ret == VMI_SUCCESS) {
         v2p_cache_set(vmi, vaddr, pt, 0, info->paddr);
+
+        vmi->last_pagetable_lookup_fault.valid = false;
+    } else {
+        vmi->last_pagetable_lookup_fault.ctx.pm = vmi->page_mode;
+        vmi->last_pagetable_lookup_fault.ctx.npm = 0;
+        vmi->last_pagetable_lookup_fault.ctx.npt = 0;
+        vmi->last_pagetable_lookup_fault.ctx.tm = VMI_TM_PROCESS_PT;
+        vmi->last_pagetable_lookup_fault.ctx.addr = vaddr;
+        vmi->last_pagetable_lookup_fault.ctx.pt = pt;
+
+        vmi->last_pagetable_lookup_fault.valid = true;
     }
     return ret;
 }

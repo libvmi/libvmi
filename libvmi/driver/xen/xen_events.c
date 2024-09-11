@@ -62,10 +62,82 @@ status_t xen_set_mem_access(vmi_instance_t vmi, addr_t gpfn,
         rc = xen->libxcw.xc_altp2m_set_mem_access(xch, dom, altp2m_idx, gpfn, access);
 
     if (rc) {
-        errprint("xc_hvm_set_mem_access failed with code: %d\n", rc);
+        errprint("xc_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
-    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFN: %"PRIu64"\n", gpfn);
+    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFN: 0x%"PRIx64"\n", gpfn);
+    return VMI_SUCCESS;
+}
+
+status_t xen_set_mem_access_range(vmi_instance_t vmi, addr_t gpfn_start, addr_t gpfn_end,
+                                  vmi_mem_access_t page_access_flag, uint16_t altp2m_idx)
+{
+    int rc;
+    xenmem_access_t access;
+    xen_instance_t *xen = xen_get_instance(vmi);
+
+    if ( xen->major_version != 4 || xen->minor_version < 11 )
+        return VMI_FAILURE;
+
+    xc_interface *xch = xen_get_xchandle(vmi);
+    domid_t dom = xen_get_domainid(vmi);
+
+#ifdef ENABLE_SAFETY_CHECKS
+    if ( !xch ) {
+        errprint("%s error: invalid xc_interface handle\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+    if ( dom == (domid_t)VMI_INVALID_DOMID ) {
+        errprint("%s error: invalid domid\n", __FUNCTION__);
+        return VMI_FAILURE;
+    }
+#endif
+
+    if ( VMI_FAILURE == convert_vmi_flags_to_xenmem(page_access_flag, &access) )
+        return VMI_FAILURE;
+
+    if ( !altp2m_idx )
+        rc = xen->libxcw.xc_set_mem_access(xch, dom, access, gpfn_start, gpfn_end - gpfn_start);
+    else {
+        uint32_t nr = gpfn_end - gpfn_start;
+        uint64_t* pgfns = NULL;
+        uint8_t* paccess = NULL;
+
+        pgfns = calloc(nr, sizeof(uint64_t));
+        if ( !pgfns ) {
+            errprint("%s error: failed to allocate memory\n", __FUNCTION__);
+            goto done;
+        }
+
+        paccess = calloc(nr, sizeof(uint8_t));
+        if ( !paccess ) {
+            errprint("%s error: failed to allocate memory\n", __FUNCTION__);
+            goto done;
+        }
+
+        for ( uint32_t i = 0; i < nr; i++ ) {
+            pgfns[i] = gpfn_start + i;
+            paccess[i] = access;
+        }
+
+        rc = xen->libxcw.xc_altp2m_set_mem_access_multi(xch, dom, altp2m_idx, paccess, pgfns, nr);
+
+done:
+        if ( pgfns )
+            free(pgfns);
+
+        if ( paccess )
+            free(paccess);
+
+        if ( !pgfns || !paccess )
+            return VMI_FAILURE;
+    }
+
+    if (rc) {
+        errprint("xc_set_mem_access failed with code: %d\n", rc);
+        return VMI_FAILURE;
+    }
+    dbprint(VMI_DEBUG_XEN, "--Done Setting memaccess on GPFNs: 0x%"PRIx64" - 0x%"PRIx64"\n", gpfn_start, gpfn_end);
     return VMI_SUCCESS;
 }
 
@@ -1319,12 +1391,12 @@ static status_t process_domain_watch(vmi_instance_t vmi)
     if (vec && !strncmp(vec[XS_WATCH_TOKEN], INTRODUCE_TOKEN, sizeof(INTRODUCE_TOKEN))) {
 
         int domid = 1, err = -1;
-        xc_dominfo_t dominfo;
+        xc_domaininfo_t dominfo;
 
-        while (( err = xen->libxcw.xc_domain_getinfo(xen->xchandle, domid, 1, &dominfo)) == 1) {
-            domid = dominfo.domid + 1;
-            if (xen->libxsw.xs_is_domain_introduced(xen->xshandle, dominfo.domid)) {
-                void *uuid = g_tree_lookup(xen->domains, &dominfo.domid);
+        while (( err = xen->libxcw.xc_domain_getinfolist(xen->xchandle, domid, 1, &dominfo)) == 1) {
+            domid = dominfo.domain + 1;
+            if (xen->libxsw.xs_is_domain_introduced(xen->xshandle, dominfo.domain)) {
+                void *uuid = g_tree_lookup(xen->domains, &dominfo.domain);
 
                 if (!uuid) {
                     //get uuid for the new domain
@@ -1332,13 +1404,13 @@ static status_t process_domain_watch(vmi_instance_t vmi)
                     char *tmp;
                     unsigned int size = 0;
 
-                    snprintf(path, sizeof( path ), "/local/domain/%d/vm", dominfo.domid);
+                    snprintf(path, sizeof( path ), "/local/domain/%d/vm", dominfo.domain);
                     tmp = xen->libxsw.xs_read(xen->xshandle, XBT_NULL, path, &size);
                     if (tmp && (strlen(tmp) > 4)) {
                         uint32_t *domid = malloc(sizeof(uint32_t));
                         char *uuid = strdup(tmp + 4);
 
-                        *domid = dominfo.domid;
+                        *domid = dominfo.domain;
                         g_tree_insert(xen->domains, domid, uuid);
                         vmi->watch_domain_event->watch_event.domain = *domid;
                         vmi->watch_domain_event->watch_event.created = true;
@@ -3618,6 +3690,7 @@ status_t xen_init_events(
     vmi->driver.set_reg_access_ptr = &xen_set_reg_access;
     vmi->driver.set_intr_access_ptr = &xen_set_intr_access;
     vmi->driver.set_mem_access_ptr = &xen_set_mem_access;
+    vmi->driver.set_mem_access_range_ptr = &xen_set_mem_access_range;
     vmi->driver.start_single_step_ptr = &xen_start_single_step;
     vmi->driver.stop_single_step_ptr = &xen_stop_single_step;
     vmi->driver.shutdown_single_step_ptr = &xen_shutdown_single_step;
@@ -3712,10 +3785,10 @@ void xen_events_destroy(vmi_instance_t vmi)
     }
 #endif
 
-    xc_dominfo_t info = {0};
-    rc = xen->libxcw.xc_domain_getinfo(xch, dom, 1, &info);
+    xc_domaininfo_t info = {0};
+    rc = xen->libxcw.xc_domain_getinfolist(xch, dom, 1, &info);
 
-    if (rc==1 && info.domid==dom && !info.paused && VMI_SUCCESS == vmi_pause_vm(vmi)) {
+    if (rc==1 && info.domain==dom && !(info.flags & XEN_DOMINF_paused) && VMI_SUCCESS == vmi_pause_vm(vmi)) {
         resume = 1;
     }
 

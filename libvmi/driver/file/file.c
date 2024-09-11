@@ -40,10 +40,6 @@
 #include <unistd.h>
 #include <limits.h>
 
-// Use mmap() if this evaluates to true; otherwise, use a file pointer with
-// seek/read
-#define USE_MMAP 0
-
 // Avoid errors on systems that don't have MAP_POPULATE defined
 #ifndef MAP_POPULATE
 #define MAP_POPULATE 0

@@ -215,6 +215,7 @@ int main(int argc, char **argv)
         {"verbose", no_argument, NULL, 'v'},
         {"only-kpgd", no_argument, NULL, 'k'},
         {"kvmi-socket", required_argument, NULL, 's'},
+        {NULL, 0, NULL, 0}
     };
 
     while ((c = getopt_long (argc, argv, "n:d:kvr:s:", long_opts, &long_index)) != -1)

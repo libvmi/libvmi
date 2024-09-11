@@ -117,6 +117,12 @@ struct vmi_instance {
 
     page_mode_t page_mode;  /**< paging mode in use */
 
+    struct {
+        bool valid;             /**< true if ctx is valid */
+
+        access_context_t ctx;   /**< access context for the last translation */
+    } last_pagetable_lookup_fault;
+
     arch_interface_t arch_interface; /**< pagetable translation functions */
 
     memory_map_t *memmap;   /**< memory map of available addresses */
@@ -391,4 +397,19 @@ win_ver_t find_windows_version(
 #define json_profile_lookup(...) VMI_FAILURE
 #endif
 
+
+#define CHECK(expression)    \
+    if (!expression)               \
+    {                                \
+        errprint("[%s] %s:%d\n",__PRETTY_FUNCTION__,__FILE__,__LINE__); \
+        goto done;           \
+    }                       \
+    else (void)0 \
+
+#define CHECK_SUCCESS(status) \
+                 if ( status == VMI_FAILURE) { \
+                      errprint("[%s] %s:%d\n",__PRETTY_FUNCTION__,__FILE__,__LINE__); \
+                      goto done;\
+                 } \
+                 else (void)0
 #endif /* PRIVATE_H */

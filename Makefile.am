@@ -79,10 +79,11 @@ if WITH_KVM_LEGACY
     drivers     += libvmi/driver/kvm/kvm_legacy.c
 
 else
-    h_public    += libvmi/events.h
     drivers     += libvmi/driver/kvm/kvm.c \
                    libvmi/driver/kvm/kvm_events.c \
                    libvmi/driver/kvm/kvm_events.h \
+                   libvmi/driver/kvm/kvm_slat.c \
+                   libvmi/driver/kvm/kvm_slat.h \
                    libvmi/driver/kvm/libkvmi_wrapper.c \
                    libvmi/driver/kvm/libkvmi_wrapper.h
 
@@ -90,7 +91,6 @@ endif
 endif
 
 if WITH_XEN
-    h_public    += libvmi/events.h
     drivers     += libvmi/driver/xen/altp2m.c \
                    libvmi/driver/xen/altp2m_private.h \
                    libvmi/driver/xen/xen.h \
@@ -112,6 +112,10 @@ drivers     += libvmi/driver/bareflank/bareflank.h \
                libvmi/driver/bareflank/bareflank.c \
                libvmi/driver/bareflank/hypercall.h \
                libvmi/driver/bareflank/hypercall.S
+endif
+
+if EVENTS_SUPPORTED
+    h_public    += libvmi/events.h
 endif
 
 os =
@@ -138,6 +142,12 @@ os          += libvmi/os/freebsd/freebsd.h \
                libvmi/os/freebsd/core.c \
                libvmi/os/freebsd/memory.c \
                libvmi/os/freebsd/symbols.c
+endif
+if OSX
+os          += libvmi/os/osx/osx.h \
+               libvmi/os/osx/core.c \
+               libvmi/os/osx/memory.c \
+               libvmi/os/osx/symbols.c
 endif
 
 library_includedir=$(includedir)/libvmi
@@ -247,18 +257,21 @@ endif
                        examples/map-addr \
                        examples/event-example \
                        examples/msr-event-example \
+                       examples/new-physical-page-example \
                        examples/singlestep-event-example \
                        examples/interrupt-event-example \
                        examples/step-event-example \
                        examples/xen-emulate-response \
                        examples/breakpoint-emulate-example \
                        examples/read-disk-example \
-                       examples/io-event-example
+                       examples/io-event-example \
+                       examples/switch-view-example
 
     examples_map_symbol_SOURCES = examples/map-symbol.c
     examples_map_addr_SOURCES = examples/map-addr.c
     examples_event_example_SOURCES = examples/event-example.c
     examples_msr_event_example_SOURCES = examples/msr-event-example.c
+    examples_new_physical_page_example_SOURCES = examples/new-physical-page-example.c
     examples_singlestep_event_example_SOURCES = examples/singlestep-event-example.c
     examples_interrupt_event_example_SOURCES = examples/interrupt-event-example.c
     examples_step_event_example_SOURCES = examples/step-event-example.c
@@ -266,6 +279,7 @@ endif
     examples_breakpoint_emulate_example_SOURCES = examples/breakpoint-emulate-example.c
     examples_read_disk_example_SOURCES = examples/read-disk-example.c
     examples_io_event_example_SOURCES = examples/io-event-example.c
+    examples_switch_view_example_SOURCES = examples/switch-view-example.c
 
     noinst_PROGRAMS += examples/va-pages
     examples_va_pages_SOURCES = examples/va-pages.c

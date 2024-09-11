@@ -43,6 +43,7 @@
 #include "os/windows/windows.h"
 #include "os/linux/linux.h"
 #include "os/freebsd/freebsd.h"
+#include "os/osx/osx.h"
 
 #ifndef ENABLE_CONFIGFILE
 static inline status_t
@@ -269,6 +270,9 @@ set_os_type_from_config(
         ret = VMI_SUCCESS;
     } else if (!strcmp(ostype, "FreeBSD")) {
         vmi->os_type = VMI_OS_FREEBSD;
+        ret = VMI_SUCCESS;
+    } else if (!strcmp(ostype, "OSX")) {
+        vmi->os_type = VMI_OS_OSX;
         ret = VMI_SUCCESS;
     } else {
         errprint("VMI_ERROR: Unknown OS type: %s!\n", ostype);
@@ -634,6 +638,9 @@ status_t vmi_init(
     _vmi->init_flags = init_flags;
     _vmi->page_mode = VMI_PM_UNKNOWN;
 
+    _vmi->last_pagetable_lookup_fault.valid = false;
+    _vmi->last_pagetable_lookup_fault.ctx.version = ACCESS_CONTEXT_VERSION;
+
     arch_init_lookup_tables(_vmi);
 
     if ( init_data && init_data->count ) {
@@ -903,6 +910,17 @@ os_t vmi_init_os(
 #ifdef ENABLE_FREEBSD
         case VMI_OS_FREEBSD:
             if (VMI_FAILURE == freebsd_init(vmi, _config)) {
+                vmi->os_type = VMI_OS_UNKNOWN;
+                if ( error )
+                    *error = VMI_INIT_ERROR_OS;
+
+                goto error_exit;
+            }
+            break;
+#endif
+#ifdef ENABLE_OSX
+        case VMI_OS_OSX:
+            if (VMI_FAILURE == osx_init(vmi, _config)) {
                 vmi->os_type = VMI_OS_UNKNOWN;
                 if ( error )
                     *error = VMI_INIT_ERROR_OS;

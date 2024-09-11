@@ -76,6 +76,9 @@ typedef struct driver_interface {
         vmi_instance_t,
         uint64_t *,
         addr_t *);
+    status_t (*get_next_available_gfn_ptr) (
+        vmi_instance_t,
+        addr_t *);
     status_t (*request_page_fault_ptr) (
         vmi_instance_t,
         unsigned long,
@@ -109,13 +112,23 @@ typedef struct driver_interface {
         vmi_instance_t,
         registers_t *,
         unsigned long);
+    status_t (*alloc_gfn_ptr)(
+        vmi_instance_t,
+        uint64_t gfn);
+    status_t (*free_gfn_ptr)(
+        vmi_instance_t,
+        uint64_t gfn);
     void *(*read_page_ptr) (
         vmi_instance_t,
         addr_t);
+    status_t (*get_domain_status_ptr) (
+        vmi_instance_t vmi,
+        domain_status_t *domain_status);
     void *(*mmap_guest) (
         vmi_instance_t,
         unsigned long *,
-        unsigned int);
+        unsigned int,
+        int);
     status_t (*write_ptr) (
         vmi_instance_t,
         addr_t,
@@ -142,6 +155,12 @@ typedef struct driver_interface {
     status_t (*set_mem_access_ptr)(
         vmi_instance_t,
         addr_t gpfn,
+        vmi_mem_access_t,
+        uint16_t vmm_pagetable_id);
+    status_t (*set_mem_access_range_ptr)(
+        vmi_instance_t,
+        addr_t gpfn_start,
+        addr_t gpfn_end,
         vmi_mem_access_t,
         uint16_t vmm_pagetable_id);
     status_t (*start_single_step_ptr)(
@@ -179,10 +198,10 @@ typedef struct driver_interface {
     status_t (*set_io_event_ptr)(
         vmi_instance_t,
         bool enabled);
-    status_t (*slat_get_domain_state_ptr)(
+    status_t (*slat_state_ptr)(
         vmi_instance_t vmi,
         bool *state);
-    status_t (*slat_set_domain_state_ptr)(
+    status_t (*slat_control_ptr)(
         vmi_instance_t vmi,
         bool state);
     status_t (*slat_create_ptr)(
