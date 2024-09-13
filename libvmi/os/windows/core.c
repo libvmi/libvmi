@@ -24,14 +24,10 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define LIBVMI_EXTRA_JSON
-#include <libvmi/libvmi.h>
-#include <libvmi/libvmi_extra.h>
-#include <libvmi/peparse.h>
-
 #include <assert.h>
 
 #include "private.h"
+#include "libvmi/peparse.h"
 #include "os/windows/windows.h"
 #include "driver/driver_wrapper.h"
 #include "config/config_parser.h"
@@ -1060,6 +1056,7 @@ init_core(vmi_instance_t vmi)
 static status_t
 windows_init_pte(vmi_instance_t vmi)
 {
+#ifdef ENABLE_JSON_PROFILES
     windows_instance_t windows = vmi->os_data;
     json_object *json = vmi_get_kernel_json(vmi);
 
@@ -1151,6 +1148,10 @@ windows_init_pte(vmi_instance_t vmi)
     windows->pte_info.proto_vad_pte = vmi->page_mode == VMI_PM_IA32E ? 0xffffffff0000 : 0xffffffff;
 
     return VMI_SUCCESS;
+#else
+    dbprint(VMI_DEBUG_MISC, "Need ENABLE_JSON_PROFILES for windows_init_pte\n");
+    return VMI_FAILURE;
+#endif
 }
 
 status_t
@@ -1190,7 +1191,6 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
     os_interface->os_get_offset = windows_get_offset;
     os_interface->os_pid_to_pgd = windows_pid_to_pgd;
     os_interface->os_pgd_to_pid = windows_pgd_to_pid;
-    os_interface->os_pte_to_paddr = windows_pte_to_paddr;
     os_interface->os_ksym2v = windows_kernel_symbol_to_address;
     os_interface->os_usym2rva = windows_export_to_rva;
     os_interface->os_v2sym = windows_rva_to_export;
@@ -1229,8 +1229,8 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
         }
     }
 
-    if (VMI_FAILURE == windows_init_pte(vmi))
-        goto done;
+    if (VMI_SUCCESS == windows_init_pte(vmi))
+        vmi->os_interface->os_pte_to_paddr = windows_pte_to_paddr;
 
     if (VMI_SUCCESS == real_kpgd_found) {
         status = VMI_SUCCESS;
