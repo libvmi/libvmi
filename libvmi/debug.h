@@ -35,7 +35,7 @@
  * This enum holds the various debug print-outs that can be generated
  */
 typedef enum {
-     VMI_DEBUG_MISC        = (1 << 0),
+    VMI_DEBUG_MISC         = (1 << 0),
     VMI_DEBUG_MEMCACHE     = (1 << 1),
     VMI_DEBUG_PIDCACHE     = (1 << 2),
     VMI_DEBUG_SYMCACHE     = (1 << 3),
