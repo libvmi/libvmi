@@ -223,7 +223,8 @@ if EXAMPLES
     bin_PROGRAMS += examples/vmi-process-list \
                     examples/vmi-module-list \
                     examples/vmi-dump-memory \
-                    examples/vmi-cpuid
+                    examples/vmi-cpuid \
+                    examples/vmi-rwmem
 
 if WINDOWS
     bin_PROGRAMS += examples/vmi-win-guid \
@@ -252,6 +253,7 @@ endif
     examples_vmi_win_guid_SOURCES = examples/win-guid.c examples/win-guid.h
     examples_vmi_win_offsets_SOURCES = examples/win-offsets.c
     examples_vmi_cpuid_SOURCES = examples/cpuid.c
+    examples_vmi_rwmem_SOURCES = examples/rwmem.c
 
     noinst_PROGRAMS += examples/map-symbol \
                        examples/map-addr \
