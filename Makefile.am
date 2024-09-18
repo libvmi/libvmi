@@ -253,7 +253,10 @@ endif
     examples_vmi_win_guid_SOURCES = examples/win-guid.c examples/win-guid.h
     examples_vmi_win_offsets_SOURCES = examples/win-offsets.c
     examples_vmi_cpuid_SOURCES = examples/cpuid.c
+
     examples_vmi_rwmem_SOURCES = examples/rwmem.c
+    examples_vmi_rwmem_CFLAGS = $(GLIB_CFLAGS)
+    examples_vmi_rwmem_LDADD = $(GLIB_LIBS) libvmi/libvmi.la
 
     noinst_PROGRAMS += examples/map-symbol \
                        examples/map-addr \
