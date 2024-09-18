@@ -22,16 +22,15 @@ static addr_t target_pagetable;
 static bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, char *kvmi, bool init_events, bool init_paging)
 {
     printf("Init vmi, init_events: %i init_paging %i domain %s domid %lu json %s kvmi %s\n",
-        init_events, init_paging, domain, domid, json, kvmi);
+           init_events, init_paging, domain, domid, json, kvmi);
 
     uint64_t options = (init_events ? VMI_INIT_EVENTS : 0) |
-        (domain ? VMI_INIT_DOMAINNAME : VMI_INIT_DOMAINID);
+                       (domain ? VMI_INIT_DOMAINNAME : VMI_INIT_DOMAINID);
     vmi_mode_t mode = kvmi ? VMI_KVM : VMI_XEN;
     const void *d = domain ?: (void*)&domid;
 
     vmi_init_data_t *data = NULL;
-    if ( kvmi )
-    {
+    if ( kvmi ) {
         data = malloc(sizeof(vmi_init_data_t) + sizeof(vmi_init_data_entry_t));
         data->count = 1;
         data->entry[0].type = VMI_INIT_DATA_KVMI_SOCKET;
@@ -45,27 +44,22 @@ static bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* j
     if ( VMI_FAILURE == status )
         return false;
 
-    if ( json )
-    {
-        if ( VMI_OS_UNKNOWN == (os = vmi_init_os(*vmi, VMI_CONFIG_JSON_PATH, json, NULL)) )
-        {
+    if ( json ) {
+        if ( VMI_OS_UNKNOWN == (os = vmi_init_os(*vmi, VMI_CONFIG_JSON_PATH, json, NULL)) ) {
             fprintf(stderr, "Error in vmi_init_os!\n");
             vmi_destroy(*vmi);
             return false;
         }
 
         pm = vmi_get_page_mode(*vmi, 0);
-    }
-    else if ( init_paging && VMI_PM_UNKNOWN == (pm = vmi_init_paging(*vmi, 0)) )
-    {
+    } else if ( init_paging && VMI_PM_UNKNOWN == (pm = vmi_init_paging(*vmi, 0)) ) {
         fprintf(stderr, "Error in vmi_init_paging!\n");
         vmi_destroy(*vmi);
         return false;
     }
 
     registers_t regs = {0};
-    if ( VMI_FAILURE == vmi_get_vcpuregs(*vmi, &regs, 0) )
-    {
+    if ( VMI_FAILURE == vmi_get_vcpuregs(*vmi, &regs, 0) ) {
         fprintf(stderr, "Error in vmi_get_vcpuregs!\n");
         vmi_destroy(*vmi);
         return false;
@@ -81,21 +75,20 @@ static void do_list_pages(addr_t pagetable)
     printf("Mappings in pagetable at 0x%lx:\n", pagetable);
     GSList *va_pages = vmi_get_va_pages(vmi, pagetable);
     GSList *loop = va_pages;
-    while (loop)
-    {
+    while (loop) {
         page_info_t *info = loop->data;
         uint64_t entry = info->size == VMI_PS_4KB ? info->x86_ia32e.pte_value :
-            info->size == VMI_PS_2MB ? info->x86_ia32e.pgd_value :
-            info->x86_ia32e.pdpte_value;
+                         info->size == VMI_PS_2MB ? info->x86_ia32e.pgd_value :
+                         info->x86_ia32e.pdpte_value;
 
         loop = loop->next;
 
         printf("\t0x%lx [0x%x %s%c] -> 0x%lx\n",
-            info->vaddr, info->size,
-            READ_WRITE(entry) ? "rw" : "r-",
-            NX(entry) ? '-' : 'x',
-            info->paddr
-        );
+               info->vaddr, info->size,
+               READ_WRITE(entry) ? "rw" : "r-",
+               NX(entry) ? '-' : 'x',
+               info->paddr
+              );
 
         free(info);
     }
@@ -122,8 +115,7 @@ int main(int argc, char** argv)
 {
     addr_t pagetable = 0;
     int c, long_index = 0;
-    const struct option long_opts[] =
-    {
+    const struct option long_opts[] = {
         {"help", no_argument, NULL, 'h'},
         {"domid", required_argument, NULL, 'd'},
         {"read", required_argument, NULL, 'r'},
@@ -143,10 +135,8 @@ int main(int argc, char** argv)
     char *kvmi = NULL;
     uint32_t domid = 0;
 
-    while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
-    {
-        switch(c)
-        {
+    while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1) {
+        switch (c) {
             case 'd':
                 domid = strtoul(optarg, NULL, 0);
                 break;
@@ -180,8 +170,7 @@ int main(int argc, char** argv)
         };
     }
 
-    if ( !domid || (!read && !write && !list_pages) || (read && write) || (!list_pages && (!limit || !filepath)) )
-    {
+    if ( !domid || (!read && !write && !list_pages) || (read && write) || (!list_pages && (!limit || !filepath)) ) {
         usage();
         return -1;
     }
@@ -190,24 +179,20 @@ int main(int argc, char** argv)
         return -1;
 
     ACCESS_CONTEXT(ctx,
-        .translate_mechanism = VMI_TM_PROCESS_DTB,
-        .pt = target_pagetable,
-        .addr = address
-    );
+                   .translate_mechanism = VMI_TM_PROCESS_DTB,
+                   .pt = target_pagetable,
+                   .addr = address
+                  );
 
-    if ( pagetable )
-    {
-        if ( pagetable == ~0ull )
-        {
+    if ( pagetable ) {
+        if ( pagetable == ~0ull ) {
             ctx.translate_mechanism = VMI_TM_NONE;
             ctx.dtb = 0;
-        }
-        else
+        } else
             ctx.dtb = pagetable;
     }
 
-    if (list_pages )
-    {
+    if (list_pages ) {
         do_list_pages(ctx.pt);
         goto done;
     }
@@ -215,50 +200,41 @@ int main(int argc, char** argv)
     size_t fsize = 0;
     FILE *i = fopen(filepath, read ? "w+" : "r");
 
-    if (!i)
-    {
+    if (!i) {
         printf("Failed to open %s\n", filepath);
         goto done;
     }
 
     // Do large reads/writes in chunks
     unsigned int iters = limit < VMI_PS_4KB ? 1 : limit / VMI_PS_4KB;
-    while ( iters-- )
-    {
+    while ( iters-- ) {
         unsigned long access_length;
         unsigned char buffer[VMI_PS_4KB] = {0};
 
         if ( !limit )
             break;
-        if ( limit < VMI_PS_4KB )
-        {
+        if ( limit < VMI_PS_4KB ) {
             access_length = limit;
             limit = 0;
-        }
-        else
-        {
+        } else {
             access_length = VMI_PS_4KB;
             limit -= VMI_PS_4KB;
         }
 
-        if ( read )
-        {
+        if ( read ) {
             if ( VMI_SUCCESS == vmi_read(vmi, &ctx, access_length, (void*)&buffer, NULL) )
                 printf("Read operation success: %lu bytes from 0x%lx\n", access_length, ctx.addr);
             else
                 printf("Read operation failed from 0x%lx\n", ctx.addr);
 
-            if ( 1 != fwrite(&buffer, access_length, 1, i) )
-            {
+            if ( 1 != fwrite(&buffer, access_length, 1, i) ) {
                 printf("Failed to save data in %s\n", filepath);
                 break;
             }
         }
 
-        if ( write )
-        {
-            if ( !(fsize = fread(&buffer, 1, access_length, i)) )
-            {
+        if ( write ) {
+            if ( !(fsize = fread(&buffer, 1, access_length, i)) ) {
                 printf("Failed to read from %s\n", filepath);
                 break;
             }
@@ -268,8 +244,7 @@ int main(int argc, char** argv)
             else
                 printf("Write operation failed to 0x%lx\n", ctx.addr);
 
-            if ( fsize < access_length )
-            {
+            if ( fsize < access_length ) {
                 printf("Nothing left in %s to read\n", filepath);
                 break;
             }
