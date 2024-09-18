@@ -22,7 +22,7 @@ static addr_t target_pagetable;
 static bool setup_vmi(vmi_instance_t *vmi, char* domain, uint64_t domid, char* json, char *kvmi, bool init_events, bool init_paging)
 {
     printf("Init vmi, init_events: %i init_paging %i domain %s domid %lu json %s kvmi %s\n",
-           init_events, init_paging, domain, domid, json, kvmi);
+           init_events, init_paging, domain ?: "-", domid, json ?: "-", kvmi ?: "-");
 
     uint64_t options = (init_events ? VMI_INIT_EVENTS : 0) |
                        (domain ? VMI_INIT_DOMAINNAME : VMI_INIT_DOMAINID);
