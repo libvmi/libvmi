@@ -29,22 +29,21 @@ struct windows_pte_info {
 
     uint64_t soft_prot_mask;
     uint64_t soft_pagehigh_mask;
-    uint64_t soft_swizzle_mask;
 
     size_t hard_pfn_start_bit;
     uint64_t hard_pfn_mask;
 
     size_t trans_pfn_start_bit;
     uint64_t trans_pfn_mask;
-    uint64_t trans_swizzle_mask;
-    uint64_t trans_invalid_mask;
 
     size_t proto_protoaddr_start_bit;
     uint64_t proto_protoaddr_mask;
-    uint64_t proto_swizzle_mask;
-    uint64_t proto_invalid_mask;
+
+    uint64_t swizzle_mask;
 
     uint64_t invalid_pte_mask;
+    uint64_t proto_invalid_mask;
+    uint64_t trans_invalid_mask;
 };
 
 struct windows_instance {

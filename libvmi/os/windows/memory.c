@@ -23,10 +23,12 @@
 
 #include "private.h"
 #define _GNU_SOURCE
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <assert.h>
+
+#include <libvmi/x86.h>
 
 #include "driver/driver_wrapper.h"
 
@@ -194,9 +196,16 @@ status_t windows_pte_to_paddr(
     addr_t pte_value, pte_value_prev;
     vmi->arch_interface.get_pte_values[info->pm](info, &pte_value, &pte_value_prev);
 
-    dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: PTE value = 0x%.16"PRIx64"\n", pte_value);
+    bool is_inside_proto = PROTOTYPE(pte_value_prev);
 
-    if (VMI_GET_BIT(pte_value, 0)) {
+    dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: PTE value = 0x%.16"PRIx64", is_inside_proto = %d\n", pte_value, is_inside_proto);
+
+    if (pte_value == 0) {
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Zero PTE\n");
+        return VMI_FAILURE;
+    }
+
+    if (PRESENT(pte_value)) {
         addr_t pfn = (pte_value & windows->pte_info.hard_pfn_mask) >> windows->pte_info.hard_pfn_start_bit;
         info->paddr = (pfn << vmi->page_shift) | (info->vaddr & (vmi->page_size - 1));
 
@@ -204,35 +213,49 @@ status_t windows_pte_to_paddr(
         return VMI_SUCCESS;
     }
 
-    {
-        if (pte_value == 0) {
-            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Zero PTE\n");
-            return VMI_FAILURE;
+    if (TRANSITION(pte_value)) {
+        addr_t pfn = (pte_value & windows->pte_info.trans_pfn_mask) >> windows->pte_info.trans_pfn_start_bit;
+        info->paddr = (pfn << vmi->page_shift) | (info->vaddr & (vmi->page_size - 1));
+
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Transition PTE pfn = 0x%.16"PRIx64", paddr = 0x%.16"PRIx64"\n", pfn, info->paddr);
+
+        if (windows->pte_info.swizzle_mask && !(pte_value & windows->pte_info.swizzle_mask)) {
+            info->paddr &= windows->pte_info.trans_invalid_mask;
+            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Transition PTE paddr (unswizzled) = 0x%.16"PRIx64"\n", info->paddr);
         }
 
-        addr_t pte_value_check = pte_value;
-        if (windows->pte_info.soft_swizzle_mask && !(pte_value & windows->pte_info.proto_swizzle_mask))
-            pte_value_check &= ~windows->pte_info.invalid_pte_mask;
-
-        // check Guard Pages or Demand Zero without modified Protection
-        if (!(pte_value_check & ~windows->pte_info.soft_prot_mask)) {
-            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Zero PTE\n");
-            return VMI_FAILURE;
-        }
+        return VMI_SUCCESS;
     }
 
-    if (!VMI_GET_BIT(pte_value_prev, 10) && VMI_GET_BIT(pte_value, 10)) {
+    if (is_inside_proto) {
+
+        if (PROTOTYPE(pte_value)) {
+            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Subsection PTE\n");
+            // content in file
+            return VMI_FAILURE;
+        }
+
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Pagefile PTE\n");
+        // content in pagefile
+        return VMI_FAILURE;
+    }
+
+    if (PROTOTYPE(pte_value)) {
+
         addr_t vaddr_proto = (pte_value & windows->pte_info.proto_protoaddr_mask) >> windows->pte_info.proto_protoaddr_start_bit;
 
         if (vaddr_proto == windows->pte_info.proto_vad_pte) {
             dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Prototype PTE (VAD), vaddr_proto = 0x%.16"PRIx64"\n", vaddr_proto);
+            // TODO: implement VAD PTE resolving
             return VMI_FAILURE;
         }
 
-        if (windows->pte_info.proto_swizzle_mask && !(pte_value & windows->pte_info.proto_swizzle_mask))
-            vaddr_proto &= windows->pte_info.proto_invalid_mask;
-
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Prototype PTE vaddr = 0x%.16"PRIx64"\n", vaddr_proto);
+
+        if (windows->pte_info.swizzle_mask && !(pte_value & windows->pte_info.swizzle_mask)) {
+            vaddr_proto &= windows->pte_info.proto_invalid_mask;
+            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Prototype PTE vaddr (unswizzled) = 0x%.16"PRIx64"\n", vaddr_proto);
+        }
 
         page_info_t p_info = {0};
         vmi->arch_interface.set_pte_values[info->pm](&p_info, 0, pte_value);
@@ -264,29 +287,13 @@ status_t windows_pte_to_paddr(
         return VMI_SUCCESS;
     }
 
-    if (VMI_GET_BIT(pte_value_prev, 10) && VMI_GET_BIT(pte_value, 10)) {
-        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Subsection PTE\n");
-        // content in file
-        return VMI_FAILURE;
-    }
-
-    if (VMI_GET_BIT(pte_value, 11)) {
-        addr_t pfn = (pte_value & windows->pte_info.trans_pfn_mask) >> windows->pte_info.trans_pfn_start_bit;
-        info->paddr = (pfn << vmi->page_shift) | (info->vaddr & (vmi->page_size - 1));
-
-        if (windows->pte_info.trans_swizzle_mask && !(pte_value & windows->pte_info.trans_swizzle_mask))
-            info->paddr &= windows->pte_info.trans_invalid_mask;
-
-        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Transition PTE pfn = 0x%.16"PRIx64", paddr = 0x%.16"PRIx64"\n", pfn, info->paddr);
-        return VMI_SUCCESS;
-    }
-
-    if (pte_value & windows->pte_info.soft_pagehigh_mask) {
+    if (pte_value & windows->pte_info.soft_pagehigh_mask)  {
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Pagefile PTE\n");
         // content in pagefile
         return VMI_FAILURE;
     }
 
-    assert(false);
+    dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Hardware PTE (VAD)");
+    // TODO: implement VAD PTE resolving
     return VMI_FAILURE;
 }

@@ -1096,19 +1096,11 @@ windows_init_pte(vmi_instance_t vmi)
         return VMI_FAILURE;
     }
 
+    // The SwizzleBit field for _MMPTE_PROTOTYPE, _MMPTE_SOFTWARE and _MMPTE_TRANSITION is the same
+    // due to simple logic of MiSwizzleInvalidPte()
     if (VMI_SUCCESS == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_PROTOTYPE", "SwizzleBit", 0, &start_bit, &end_bit)) {
-        windows->pte_info.proto_swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
-        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_PROTOTYPE::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.proto_swizzle_mask);
-    }
-
-    if (VMI_SUCCESS == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_SOFTWARE", "SwizzleBit", 0, &start_bit, &end_bit)) {
-        windows->pte_info.soft_swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
-        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_SOFTWARE::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.soft_swizzle_mask);
-    }
-
-    if (VMI_SUCCESS == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_TRANSITION", "SwizzleBit", 0, &start_bit, &end_bit)) {
-        windows->pte_info.trans_swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
-        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_TRANSITION::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.trans_swizzle_mask);
+        windows->pte_info.swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_PROTOTYPE::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.swizzle_mask);
     }
 
     size_t mi_state_address;
@@ -1144,6 +1136,8 @@ windows_init_pte(vmi_instance_t vmi)
     windows->pte_info.trans_pfn_mask = VMI_BIT_MASK(0, maxphysaddr - 1);
     windows->pte_info.trans_pfn_mask ^= VMI_BIT_MASK(0, windows->pte_info.trans_pfn_start_bit - 1);
     assert(windows->pte_info.trans_pfn_mask == 0x1ffffffff000);
+
+    assert(windows->pte_info.swizzle_mask == 0 || windows->pte_info.swizzle_mask == 0x10);
 
     windows->pte_info.proto_vad_pte = vmi->page_mode == VMI_PM_IA32E ? 0xffffffff0000 : 0xffffffff;
 
