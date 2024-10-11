@@ -275,13 +275,11 @@ status_t windows_pte_to_paddr(
 
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Prototype PTE value = 0x%.16"PRIx64"\n", value_proto);
 
-        vmi->arch_interface.set_pte_values[info->pm](&p_info, value_proto, 0);
-        if (VMI_FAILURE == windows_pte_to_paddr(vmi, &p_info)) {
+        vmi->arch_interface.set_pte_values[info->pm](info, value_proto, 0);
+        if (VMI_FAILURE == windows_pte_to_paddr(vmi, info)) {
             dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: failed to translate Prototype PTE value = 0x%.16"PRIx64"\n", value_proto);
             return VMI_FAILURE;
         }
-
-        info->paddr = p_info.paddr;
 
         dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: Prototype PTE final paddr = 0x%.16"PRIx64"\n", info->paddr);
         return VMI_SUCCESS;
