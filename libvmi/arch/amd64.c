@@ -103,7 +103,7 @@ status_t get_pde_ia32e (vmi_instance_t vmi,
     info->x86_ia32e.pgd_location = ctx->addr;
 
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_location = 0x%.16"PRIx64"\n", info->x86_ia32e.pgd_location);
-    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_value= 0x%.16"PRIx64"\n", info->x86_ia32e.pgd_value);
+    dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: pde_value = 0x%.16"PRIx64"\n", info->x86_ia32e.pgd_value);
 
     return VMI_SUCCESS;
 }
@@ -229,19 +229,25 @@ status_t v2p_ia32e (vmi_instance_t vmi,
     if (status != VMI_SUCCESS)
         goto done;
 
+    info->size = VMI_PS_4KB;
+
+    if (vmi->os_interface && vmi->os_interface->os_pte_to_paddr) {
+        status = vmi->os_interface->os_pte_to_paddr(vmi, info);
+        goto done;
+    }
+
     if (!ENTRY_PRESENT(vmi->x86.transition_pages, info->x86_ia32e.pte_value)) {
         status = VMI_FAILURE;
         goto done;
     }
 
-    info->size = VMI_PS_4KB;
-    info->paddr = get_paddr_ia32e(vaddr, info->x86_ia32e.pte_value, max_bit_pfn);
+    info->paddr = get_paddr_ia32e(info->vaddr, info->x86_ia32e.pte_value, max_bit_pfn);
     status = VMI_SUCCESS;
 
 done:
     dbprint(VMI_DEBUG_PTLOOKUP, "--PTLookup: paddr = 0x%.16"PRIx64"\n", info->paddr);
 
-    if (valid_npm(npm) && VMI_FAILURE == vmi_nested_pagetable_lookup(vmi, 0, 0, npt, npm, info->paddr, &info->naddr, NULL) )
+    if (valid_npm(info->npm) && VMI_FAILURE == vmi_nested_pagetable_lookup(vmi, 0, 0, info->npt, info->npm, info->paddr, &info->naddr, NULL) )
         return VMI_FAILURE;
 
     return status;
@@ -406,4 +412,16 @@ done:
     g_free(pml4_page);
 
     return ret;
+}
+
+void get_pte_values_ia32e(const page_info_t *info, addr_t *pte_value, addr_t *pte_value_prev)
+{
+    *pte_value = info->x86_ia32e.pte_value;
+    *pte_value_prev = info->x86_ia32e.pte_value_prev;
+}
+
+void set_pte_values_ia32e(page_info_t *info, addr_t pte_value, addr_t pte_value_prev)
+{
+    info->x86_ia32e.pte_value = pte_value;
+    info->x86_ia32e.pte_value_prev = pte_value_prev;
 }

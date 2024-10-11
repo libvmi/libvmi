@@ -24,6 +24,8 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
+
 #include "private.h"
 #include "libvmi/peparse.h"
 #include "os/windows/windows.h"
@@ -1051,6 +1053,101 @@ init_core(vmi_instance_t vmi)
     return ret;
 }
 
+static status_t
+windows_init_pte(vmi_instance_t vmi)
+{
+#ifdef ENABLE_JSON_PROFILES
+    windows_instance_t windows = vmi->os_data;
+    json_object *json = vmi_get_kernel_json(vmi);
+
+    size_t start_bit, end_bit;
+
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_SOFTWARE", "Protection", 0, &start_bit, &end_bit)) {
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_SOFTWARE::Protection\" info\n");
+        return VMI_FAILURE;
+    }
+
+    windows->pte_info.soft_prot_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
+    dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_SOFTWARE::Protection\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.soft_prot_mask);
+
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_SOFTWARE", "PageFileHigh", 0, &start_bit, &end_bit)) {
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_SOFTWARE::PageFileHigh\" info\n");
+        return VMI_FAILURE;
+    }
+
+    windows->pte_info.soft_pagehigh_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
+    dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_SOFTWARE::PageFileHigh\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.soft_pagehigh_mask);
+
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_PROTOTYPE", "ProtoAddress", 0, &windows->pte_info.proto_protoaddr_start_bit, &end_bit)) {
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_PROTOTYPE::ProtoAddress\" info\n");
+        return VMI_FAILURE;
+    }
+
+    windows->pte_info.proto_protoaddr_mask = VMI_BIT_MASK(windows->pte_info.proto_protoaddr_start_bit, end_bit - 1);
+    dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_PROTOTYPE::ProtoAddress\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.proto_protoaddr_mask);
+
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_HARDWARE", "PageFrameNumber", 0, &windows->pte_info.hard_pfn_start_bit, 0)) {
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_HARDWARE::PageFrameNumber\" info\n");
+        return VMI_FAILURE;
+    }
+
+    if (VMI_FAILURE == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_TRANSITION", "PageFrameNumber", 0, &windows->pte_info.trans_pfn_start_bit, 0)) {
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MMPTE_TRANSITION::PageFrameNumber\" info\n");
+        return VMI_FAILURE;
+    }
+
+    // The SwizzleBit field for _MMPTE_PROTOTYPE, _MMPTE_SOFTWARE and _MMPTE_TRANSITION is the same
+    // due to simple logic of MiSwizzleInvalidPte()
+    if (VMI_SUCCESS == vmi_get_bitfield_offset_and_size_from_json(vmi, json, "_MMPTE_PROTOTYPE", "SwizzleBit", 0, &start_bit, &end_bit)) {
+        windows->pte_info.swizzle_mask = VMI_BIT_MASK(start_bit, end_bit - 1);
+        dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"_MMPTE_PROTOTYPE::SwizzleBit\" bitfield mask = 0x%.16"PRIx64"\n", windows->pte_info.swizzle_mask);
+    }
+
+    size_t mi_state_address;
+    if (VMI_SUCCESS == vmi_translate_ksym2v(vmi, "MiState", &mi_state_address)) {
+
+        addr_t offset_hardware;
+        addr_t offset_invalid_pte_mask;
+
+        if (VMI_FAILURE == vmi_get_struct_member_offset_from_json(vmi, json, "_MI_SYSTEM_INFORMATION", "Hardware", &offset_hardware)) {
+            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to get \"_MI_SYSTEM_INFORMATION::Hardware\" offset\n");
+            return VMI_FAILURE;
+        }
+
+        if (VMI_SUCCESS == vmi_get_struct_member_offset_from_json(vmi, json, "_MI_HARDWARE_STATE", "InvalidPteMask", &offset_invalid_pte_mask)) {
+
+            if (VMI_FAILURE == vmi_read_64_va(vmi, mi_state_address + offset_hardware + offset_invalid_pte_mask, 0, &windows->pte_info.invalid_pte_mask)) {
+                dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: unable to read \"InvalidPteMask\" value\n");
+                return VMI_FAILURE;
+            }
+
+            dbprint(VMI_DEBUG_PTERESOLVE, "--PTEResolve: \"InvalidPteMask\" value = 0x%.16"PRIx64"\n", windows->pte_info.invalid_pte_mask);
+
+            windows->pte_info.proto_invalid_mask = ~(windows->pte_info.invalid_pte_mask >> windows->pte_info.proto_protoaddr_start_bit);
+            windows->pte_info.trans_invalid_mask = ~((windows->pte_info.invalid_pte_mask >> windows->pte_info.trans_pfn_start_bit) << vmi->page_shift);
+        }
+    }
+
+    static size_t maxphysaddr = 45;
+
+    windows->pte_info.hard_pfn_mask = VMI_BIT_MASK(0, maxphysaddr - 1);
+    windows->pte_info.hard_pfn_mask ^= VMI_BIT_MASK(0, windows->pte_info.hard_pfn_start_bit - 1);
+
+    windows->pte_info.trans_pfn_mask = VMI_BIT_MASK(0, maxphysaddr - 1);
+    windows->pte_info.trans_pfn_mask ^= VMI_BIT_MASK(0, windows->pte_info.trans_pfn_start_bit - 1);
+    assert(windows->pte_info.trans_pfn_mask == 0x1ffffffff000);
+
+    assert(windows->pte_info.swizzle_mask == 0 || windows->pte_info.swizzle_mask == 0x10);
+
+    windows->pte_info.proto_vad_pte = vmi->page_mode == VMI_PM_IA32E ? 0xffffffff0000 : 0xffffffff;
+
+    return VMI_SUCCESS;
+#else
+    dbprint(VMI_DEBUG_MISC, "Need ENABLE_JSON_PROFILES for windows_init_pte\n");
+    return VMI_FAILURE;
+#endif
+}
+
 status_t
 windows_init(vmi_instance_t vmi, GHashTable *config)
 {
@@ -1125,6 +1222,9 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
             goto done;
         }
     }
+
+    if (VMI_SUCCESS == windows_init_pte(vmi))
+        vmi->os_interface->os_pte_to_paddr = windows_pte_to_paddr;
 
     if (VMI_SUCCESS == real_kpgd_found) {
         status = VMI_SUCCESS;

@@ -687,6 +687,7 @@ typedef struct page_info {
 
     union {
         struct {
+            addr_t pte_value_prev;
             addr_t pte_location;
             addr_t pte_value;
             addr_t pgd_location;
@@ -694,6 +695,7 @@ typedef struct page_info {
         } x86_legacy;
 
         struct {
+            addr_t pte_value_prev;
             addr_t pte_location;
             addr_t pte_value;
             addr_t pgd_location;
@@ -703,6 +705,7 @@ typedef struct page_info {
         } x86_pae;
 
         struct {
+            addr_t pte_value_prev;
             addr_t pte_location;
             addr_t pte_value;
             addr_t pgd_location;
