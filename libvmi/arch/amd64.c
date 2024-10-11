@@ -231,7 +231,7 @@ status_t v2p_ia32e (vmi_instance_t vmi,
 
     info->size = VMI_PS_4KB;
 
-    if (vmi->os_interface->os_pte_to_paddr) {
+    if (vmi->os_interface && vmi->os_interface->os_pte_to_paddr) {
         status = vmi->os_interface->os_pte_to_paddr(vmi, info);
         goto done;
     }
