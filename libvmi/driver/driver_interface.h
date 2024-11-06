@@ -121,6 +121,9 @@ typedef struct driver_interface {
     void *(*read_page_ptr) (
         vmi_instance_t,
         addr_t);
+    status_t (*get_domain_status_ptr) (
+        vmi_instance_t vmi,
+        domain_status_t *domain_status);
     void *(*mmap_guest) (
         vmi_instance_t,
         unsigned long *,

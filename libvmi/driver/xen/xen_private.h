@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <xenctrl.h>
+#include <xen/domctl.h>
 #include <xen/hvm/save.h>
 
 #include "private.h"

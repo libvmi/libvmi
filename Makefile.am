@@ -79,7 +79,6 @@ if WITH_KVM_LEGACY
     drivers     += libvmi/driver/kvm/kvm_legacy.c
 
 else
-    h_public    += libvmi/events.h
     drivers     += libvmi/driver/kvm/kvm.c \
                    libvmi/driver/kvm/kvm_events.c \
                    libvmi/driver/kvm/kvm_events.h \
@@ -92,7 +91,6 @@ endif
 endif
 
 if WITH_XEN
-    h_public    += libvmi/events.h
     drivers     += libvmi/driver/xen/altp2m.c \
                    libvmi/driver/xen/altp2m_private.h \
                    libvmi/driver/xen/xen.h \
@@ -114,6 +112,10 @@ drivers     += libvmi/driver/bareflank/bareflank.h \
                libvmi/driver/bareflank/bareflank.c \
                libvmi/driver/bareflank/hypercall.h \
                libvmi/driver/bareflank/hypercall.S
+endif
+
+if EVENTS_SUPPORTED
+    h_public    += libvmi/events.h
 endif
 
 os =
@@ -221,7 +223,8 @@ if EXAMPLES
     bin_PROGRAMS += examples/vmi-process-list \
                     examples/vmi-module-list \
                     examples/vmi-dump-memory \
-                    examples/vmi-cpuid
+                    examples/vmi-cpuid \
+                    examples/vmi-rwmem
 
 if WINDOWS
     bin_PROGRAMS += examples/vmi-win-guid \
@@ -250,6 +253,10 @@ endif
     examples_vmi_win_guid_SOURCES = examples/win-guid.c examples/win-guid.h
     examples_vmi_win_offsets_SOURCES = examples/win-offsets.c
     examples_vmi_cpuid_SOURCES = examples/cpuid.c
+
+    examples_vmi_rwmem_SOURCES = examples/rwmem.c
+    examples_vmi_rwmem_CFLAGS = $(GLIB_CFLAGS)
+    examples_vmi_rwmem_LDADD = $(GLIB_LIBS) libvmi/libvmi.la
 
     noinst_PROGRAMS += examples/map-symbol \
                        examples/map-addr \

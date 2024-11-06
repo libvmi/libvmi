@@ -36,12 +36,66 @@
 
 #define SECTOR_SIZE 512
 
-void print_usage(char *arg0)
+static void print_usage(char *arg0)
 {
     printf("Usage: %s\n", arg0);
     printf("\t -n/--name <domain name>\n");
     printf("\t -d/--domid <domain id>\n\n");
     printf("\t -f/--file <file name>\n");
+}
+
+static bool read_boorable_disk_mbr(vmi_instance_t vmi, const char *filename)
+{
+    unsigned int number_of_disks = 0;
+    bool ret = false;
+    unsigned char MBR[SECTOR_SIZE] = {0};
+
+    /* open the file for writing */
+    int fd = open(filename, O_CREAT | O_WRONLY, S_IRUSR);
+    if (fd == -1) {
+        printf("Failed to open file for writing.\n");
+        return false;
+    }
+
+    /* Get VM disks identificators */
+    char **devices_ids = vmi_get_disks(vmi, &number_of_disks);
+    if (!devices_ids) {
+        printf("Failed to get VM disks list.\n");
+        goto close_file;
+    }
+
+    /* Iterate over disks to find bootable and read MBR sector */
+    for (unsigned int i = 0; i < number_of_disks; i++) {
+        bool bootable = false;
+
+        if (VMI_FAILURE == vmi_disk_is_bootable(vmi, devices_ids[i], &bootable)) {
+            printf("Failed to check bootable flag.\n");
+            goto free_devices_list;
+        }
+
+        if (bootable) {
+            if (VMI_SUCCESS == vmi_read_disk(vmi, devices_ids[i], 0, SECTOR_SIZE, MBR)) {
+                if (SECTOR_SIZE == write(fd, MBR, SECTOR_SIZE)) {
+                    printf("MBR successfuly dumped\n");
+                    ret = true;
+                    break;
+                }
+            } else {
+                printf("Faied to read disk %u MBR.\n", i);
+                break;
+            }
+        }
+    }
+
+free_devices_list:
+    for (unsigned int i = 0; i < number_of_disks; i++)
+        free(devices_ids[i]);
+    free(devices_ids);
+
+close_file:
+    close(fd);
+
+    return ret;
 }
 
 int main(int argc, char **argv)
@@ -52,9 +106,6 @@ int main(int argc, char **argv)
     void *domain = NULL;
     void *filename = NULL;
     int retcode = 1;
-    unsigned int number_of_disks = 0;
-    bool bootable = false;
-    unsigned char MBR[SECTOR_SIZE] = {0};
 
     if ( argc <= 2 ) {
         print_usage(argv[0]);
@@ -74,6 +125,7 @@ int main(int argc, char **argv)
     while ((c = getopt_long (argc, argv, opts, long_opts, &long_index)) != -1)
         switch (c) {
             case 'n':
+                init = VMI_INIT_DOMAINNAME;
                 domain = optarg;
                 break;
             case 'd':
@@ -102,7 +154,7 @@ int main(int argc, char **argv)
     }
 
     vmi_mode_t mode;
-    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, VMI_INIT_DOMAINNAME, init_data, &mode) ) {
+    if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init, init_data, &mode) ) {
         goto free_setup_info;
     }
 
@@ -113,60 +165,20 @@ int main(int argc, char **argv)
 
     /* initialize the libvmi library */
     vmi_instance_t vmi = NULL;
-    if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)domain, VMI_INIT_DOMAINNAME, init_data, NULL)) {
+    if (VMI_FAILURE == vmi_init(&vmi, mode, (void*)domain, init, init_data, NULL)) {
         printf("Failed to initialize LibVMI library.\n");
         goto free_setup_info;
     }
 
-    /* open the file for writing */
-    int fd = open(filename, O_CREAT | O_WRONLY, S_IRUSR);
-    if (fd == -1) {
-        printf("Failed to open file for writing.\n");
+    if (VMI_FAILURE == vmi_pause_vm(vmi)) {
+        printf("Failed to pause the VM.\n");
         goto destroy_vmi;
     }
 
-    if (VMI_FAILURE == vmi_pause_vm(vmi)) {
-        printf("Failed to pause the VM.\n");
-        goto close_file;
-    }
+    if (read_boorable_disk_mbr(vmi, filename))
+        retcode = 0;
 
-    /* Get VM disks identificators */
-    char **devices_ids = vmi_get_disks(vmi, &number_of_disks);
-    if (!devices_ids) {
-        printf("Failed to get VM disks list.\n");
-        goto resume_vm;
-    }
-
-    /* Iterate over disks to find bootable and read MBR sector */
-    for (unsigned int i = 0; i < number_of_disks; i++) {
-        if (VMI_FAILURE == vmi_disk_is_bootable(vmi, devices_ids[i], &bootable)) {
-            printf("Failed to check bootable flag.\n");
-            goto free_devices_list;
-        }
-
-        if (bootable) {
-            if (VMI_SUCCESS == vmi_read_disk(vmi, devices_ids[i], 0, SECTOR_SIZE, MBR)) {
-                if (SECTOR_SIZE == write(fd, MBR, SECTOR_SIZE)) {
-                    printf("MBR successfuly dumped\n");
-                    break;
-                }
-            } else {
-                printf("Faied to read disk %u MBR.\n", i);
-                break;
-            }
-        }
-    }
-
-    retcode = 0;
-
-free_devices_list:
-    free(devices_ids);
-
-resume_vm:
     vmi_resume_vm(vmi);
-
-close_file:
-    close(fd);
 
 destroy_vmi:
     vmi_destroy(vmi);

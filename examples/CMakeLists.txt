@@ -71,6 +71,9 @@ target_link_libraries(vmi-module-list vmi_shared)
 add_executable(switch-view-example switch-view-example.c)
 target_link_libraries(switch-view-example vmi_shared)
 
+add_executable(vmi-rwmem rwmem.c)
+target_link_libraries(vmi-rwmem vmi_shared)
+
 if (ENABLE_WINDOWS)
     add_executable(vmi-win-guid win-guid.c)
     target_link_libraries(vmi-win-guid vmi_shared)

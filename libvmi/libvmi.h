@@ -829,6 +829,21 @@ typedef struct _ustring {
 } unicode_string_t;
 
 /**
+ * @struct domain_status
+ * @brief Struct containing status flags for a domain.
+ * Fields that are true are set to 1.
+ * Fields that are false are set to 0.
+ */
+typedef struct domain_status {
+    unsigned int dying:1;     /**< Set if the domain is dying */
+    unsigned int shutdown:1;  /**< Set if the domain is shutdown */
+    unsigned int paused:1;    /**< Set if the domain is paused */
+    unsigned int blocked:1;   /**< Set if the domain is blocked */
+    unsigned int running:1;   /**< Set if the domain is running */
+    unsigned int debugged:1;  /**< Set if the domain is being debugged */
+} domain_status_t;
+
+/**
  * @brief LibVMI Instance.
  *
  * This struct holds all of the relavent information for an instance of
@@ -1405,6 +1420,25 @@ status_t vmi_read_va(
 status_t vmi_mmap_guest(
     vmi_instance_t vmi,
     const access_context_t *ctx,
+    size_t num_pages,
+    int prot,
+    void **access_ptrs
+) NOEXCEPT;
+
+/**
+ * Maps num_pages of the guest's physical memory into host, starting at the provided paddr.
+ * Each page will have it's own pointer in access_ptrs output array.
+ * Remember to call munmap() on each array item afterwards.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] paddr Physical address to map
+ * @param[in] num_pages Number of guest pages to be mapped (starting from paddr)
+ * @param[in] prot Memory protection flags
+ * @param[out] access_ptrs Output array of size [num_pages] containing pointers to the respective guest's pages
+ */
+status_t vmi_mmap_guest_pa(
+    vmi_instance_t vmi,
+    addr_t paddr,
     size_t num_pages,
     int prot,
     void **access_ptrs
@@ -2811,6 +2845,18 @@ status_t vmi_disk_is_bootable(
     vmi_instance_t vmi,
     const char *device_id,
     bool *bootable) NOEXCEPT;
+
+/**
+ * Get the execution status of the domain associated with the provided vmi_instance
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[out] domain_status domain_status_t containing the status flags for the given domain
+ *
+ * @return status_t result of retrieving the domain's status.
+ */
+status_t vmi_get_domain_status(
+    vmi_instance_t vmi,
+    domain_status_t *domain_status);
 
 #pragma GCC visibility pop
 
