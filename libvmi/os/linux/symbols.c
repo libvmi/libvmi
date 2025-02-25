@@ -114,10 +114,10 @@ linux_system_map_symbol_to_address(
 
     if ((f = fopen(linux_instance->sysmap, "r")) == NULL) {
         errprint(
-                "ERROR: could not find System.map file after checking:\n");
+            "ERROR: could not find System.map file after checking:\n");
         errprint("\t%s\n", linux_instance->sysmap);
         errprint(
-                "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
+            "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
         goto done;
     }
     if (get_symbol_row(f, row, symbol, 2) == VMI_FAILURE) {
@@ -182,10 +182,10 @@ char* linux_system_map_address_to_symbol(
 
     if ((f = fopen(linux_instance->sysmap, "r")) == NULL) {
         errprint(
-                "ERROR: could not find System.map file after checking:\n");
+            "ERROR: could not find System.map file after checking:\n");
         errprint("\t%s\n", linux_instance->sysmap);
         errprint(
-                "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
+            "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
         goto done;
     }
     size = snprintf(NULL,0,"%"PRIx64"", address) + 1;

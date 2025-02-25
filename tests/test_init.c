@@ -98,7 +98,7 @@ START_TEST (test_libvmi_init3)
     if ((sudo_user = getenv("SUDO_USER")) != NULL) {
         if ((pw_entry = getpwnam(sudo_user)) != NULL) {
             IGNORE_RETURN(snprintf(location, sizeof(location), "%s/etc/libvmi.conf",
-                     pw_entry->pw_dir));
+                                   pw_entry->pw_dir));
             if ((f = fopen(location, "r")) != NULL) {
                 goto success;
             }

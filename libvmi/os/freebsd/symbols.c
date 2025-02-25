@@ -111,10 +111,10 @@ freebsd_system_map_symbol_to_address(
     row = safe_malloc(MAX_ROW_LENGTH);
     if ((f = fopen(freebsd_instance->sysmap, "r")) == NULL) {
         errprint(
-                "ERROR: could not find System.map file after checking:\n");
+            "ERROR: could not find System.map file after checking:\n");
         errprint("\t%s\n", freebsd_instance->sysmap);
         errprint(
-                "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
+            "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
         (*address) = 0;
         goto done;
     }
@@ -174,10 +174,10 @@ char* freebsd_system_map_address_to_symbol(
     row = safe_malloc(MAX_ROW_LENGTH);
     if ((f = fopen(freebsd_instance->sysmap, "r")) == NULL) {
         errprint(
-                "ERROR: could not find System.map file after checking:\n");
+            "ERROR: could not find System.map file after checking:\n");
         errprint("\t%s\n", freebsd_instance->sysmap);
         errprint(
-                "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
+            "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
         goto done;
     }
     size = snprintf(NULL,0,"%"PRIx64"", address) + 1;
