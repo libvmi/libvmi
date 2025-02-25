@@ -60,7 +60,7 @@ static void vbd_qcow2_close(QCowFile *qcowfile)
     if (qcowfile->l1_table)
         free(qcowfile->l1_table);
     if (qcowfile->fp)
-        fclose(qcowfile->fp);
+        IGNORE_RETURN(fclose(qcowfile->fp));
 }
 
 /* Read and parse QCow2 file header. All fields are Big Endian.
@@ -143,7 +143,7 @@ static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
     memset(&qcowfile->header, 0, sizeof(QCowHeader));
     if (VMI_FAILURE == vbd_qcow2_read_header(qcowfile->fp, &qcowfile->header)) {
         errprint("VMI_ERROR: vbd_qcow2_open: failed to read qcow2 disk image header\n");
-        fclose(qcowfile->fp);
+        IGNORE_RETURN(fclose(qcowfile->fp));
         qcowfile->fp = NULL;
         return VMI_FAILURE;
     }
@@ -152,7 +152,7 @@ static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
     if (qcowfile->header.backing_file_offset) {
         if (qcowfile->header.backing_file_size > 0x1000) {
             errprint("VMI_ERROR: vbd_qcow2_open: backing file name size is too large");
-            fclose(qcowfile->fp);
+            IGNORE_RETURN(fclose(qcowfile->fp));
             qcowfile->fp = NULL;
             return VMI_FAILURE;
         }
@@ -162,7 +162,7 @@ static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
         if (fread(backing_file_name, qcowfile->header.backing_file_size, 1, qcowfile->fp) == 0) {
             errprint("VMI_ERROR: vbd_qcow2_open: failed to read qcow2 backing image file name\n");
             free(backing_file_name);
-            fclose(qcowfile->fp);
+            IGNORE_RETURN(fclose(qcowfile->fp));
             qcowfile->fp = NULL;
             return VMI_FAILURE;
         }
@@ -187,14 +187,14 @@ static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
                 if ((path_len + qcowfile->header.backing_file_size) > 0x1000) {
                     errprint("VMI_ERROR: vbd_qcow2_open: failed to reconstruct backing file path, resulting path is too large");
                     free(backing_file_name);
-                    fclose(qcowfile->fp);
+                    IGNORE_RETURN(fclose(qcowfile->fp));
                     qcowfile->fp = NULL;
                     return VMI_FAILURE;
                 }
                 strncat(qcowfile->backing_file, backing_file_name, qcowfile->header.backing_file_size);
             } else {
                 errprint("VMI_ERROR: vbd_qcow2_open: failed to reconstruct backing image file path\n");
-                fclose(qcowfile->fp);
+                IGNORE_RETURN(fclose(qcowfile->fp));
                 qcowfile->fp = NULL;
                 free(backing_file_name);
                 return VMI_FAILURE;
@@ -207,7 +207,7 @@ static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
     qcowfile->cluster_size = 1 << qcowfile->header.cluster_bits;
     if (!qcowfile->cluster_size) {
         errprint("VMI_ERROR: vbd_qcow2_open: disk image cluster size is zero\n");
-        fclose(qcowfile->fp);
+        IGNORE_RETURN(fclose(qcowfile->fp));
         qcowfile->fp = NULL;
         return VMI_FAILURE;
     }
@@ -216,7 +216,7 @@ static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
     qcowfile->l1_table = malloc(qcowfile->header.l1_size * sizeof(uint64_t));
     if (!qcowfile->l1_table) {
         errprint("VMI_ERROR: vbd_qcow2_open: failed to allocate memory for L1 table\n");
-        fclose(qcowfile->fp);
+        IGNORE_RETURN(fclose(qcowfile->fp));
         qcowfile->fp = NULL;
         return VMI_FAILURE;
     }
@@ -225,7 +225,7 @@ static status_t vbd_qcow2_open(QCowFile *qcowfile, const char *filename)
         errprint("VMI_ERROR: vbd_qcow2_open: failed to read L1 table\n");
         free(qcowfile->l1_table);
         qcowfile->l1_table = NULL;
-        fclose(qcowfile->fp);
+        IGNORE_RETURN(fclose(qcowfile->fp));
         qcowfile->fp = NULL;
         return VMI_FAILURE;
     }
@@ -480,15 +480,15 @@ status_t vbd_read_raw_disk(vmi_instance_t UNUSED(vmi), const char* backend_path,
         return VMI_FAILURE;
     }
 
-    fseek(f, offset, SEEK_SET);
+    IGNORE_RETURN(fseek(f, offset, SEEK_SET));
     bytes_read = fread(buffer, 1, count, f);
     if (bytes_read != count || bytes_read == 0) {
         errprint("VMI_ERROR: vbd_read_raw_disk: failed to open backend path\n");
-        fclose(f);
+        IGNORE_RETURN(fclose(f));
         return VMI_FAILURE;
     }
 
-    fclose(f);
+    IGNORE_RETURN(fclose(f));
 
     return VMI_SUCCESS;
 }

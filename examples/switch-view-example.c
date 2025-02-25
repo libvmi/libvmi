@@ -34,7 +34,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> [<socket>]\n", argv[0]);
         return retcode;
     }
 

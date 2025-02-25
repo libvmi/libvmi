@@ -20,8 +20,6 @@
 #ifndef OS_OSX_H_
 #define OS_OSX_H_
 
-#include "private.h"
-
 typedef struct osx_segment {
     addr_t mstart;
     addr_t mend;

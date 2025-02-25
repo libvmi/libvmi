@@ -21,8 +21,6 @@
 #ifndef LIBVMI_VOLATILITY_IST_H
 #define LIBVMI_VOLATILITY_IST_H
 
-#include "private.h"
-
 #ifdef VOLATILITY_IST
 
 status_t

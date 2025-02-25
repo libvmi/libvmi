@@ -43,7 +43,7 @@ event_response_t singlestep_cb(vmi_instance_t vmi, vmi_event_t *event)
     addr_t gfn = GPOINTER_TO_SIZE(event->data);
     // Restore original memory permissions
     if (vmi_set_mem_event(vmi, gfn, VMI_MEMACCESS_X, 0) == VMI_FAILURE) {
-        fprintf(stderr, "%s: Failed to set page permissions on gfn 0x%"PRIx64"\n", __func__, gfn);
+        errprint("%s: Failed to set page permissions on gfn 0x%"PRIx64"\n", __func__, gfn);
     }
 
     // Toggle singlestepping off for current vcpu
@@ -62,7 +62,7 @@ event_response_t mem_cb(vmi_instance_t vmi, vmi_event_t *event)
 
     // Relax the memory permissions, so that we can allow the CPU that triggered this event to continue execution
     if (vmi_set_mem_event(vmi, event->mem_event.gfn, VMI_MEMACCESS_N, 0) == VMI_FAILURE) {
-        fprintf(stderr, "%s: Failed to set page permissions on gfn 0x%"PRIx64"\n", __func__, event->mem_event.gfn);
+        errprint("%s: Failed to set page permissions on gfn 0x%"PRIx64"\n", __func__, event->mem_event.gfn);
     }
     vmi_event_t *singlestep_event = (vmi_event_t *) event->data;
     // Store current gfn in singlestep event, so we are able to use it to restore memory permissions
@@ -91,7 +91,7 @@ int main (int argc, char **argv)
     sigaction(SIGALRM, &act, NULL);
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket path>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> [<socket path>]\n", argv[0]);
         return retcode;
     }
 
@@ -110,13 +110,13 @@ int main (int argc, char **argv)
     }
 
     if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, &mode)) {
-        fprintf(stderr, "Failed to get access mode\n");
+        errprint("Failed to get access mode\n");
         goto error_exit;
     }
 
     if (VMI_FAILURE ==
             vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
-        fprintf(stderr, "Failed to init LibVMI library.\n");
+        errprint("Failed to init LibVMI library.\n");
         goto error_exit;
     }
 
@@ -125,21 +125,21 @@ int main (int argc, char **argv)
 
     // pause vm
     if (VMI_FAILURE ==  vmi_pause_vm(vmi)) {
-        fprintf(stderr, "Failed to pause vm\n");
+        errprint("Failed to pause vm\n");
         goto error_exit;
     }
 
     // get rip
     uint64_t rip;
     if (VMI_FAILURE == vmi_get_vcpureg(vmi, &rip, RIP, 0)) {
-        fprintf(stderr, "Failed to get current RIP\n");
+        errprint("Failed to get current RIP\n");
         goto error_exit;
     }
 
     // get dtb
     uint64_t cr3;
     if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cr3, CR3, 0)) {
-        fprintf(stderr, "Failed to get current CR3\n");
+        errprint("Failed to get current CR3\n");
         goto error_exit;
     }
     uint64_t dtb = cr3 & ~(0xfff);
@@ -147,7 +147,7 @@ int main (int argc, char **argv)
     // get gpa
     uint64_t paddr;
     if (VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, rip, &paddr)) {
-        fprintf(stderr, "Failed to find current paddr\n");
+        errprint("Failed to find current paddr\n");
         goto error_exit;
     }
 
@@ -165,16 +165,16 @@ int main (int argc, char **argv)
     printf("Setting X memory event at RIP 0x%"PRIx64", GPA 0x%"PRIx64", GFN 0x%"PRIx64"\n",
            rip, paddr, gfn);
     if (VMI_FAILURE == vmi_register_event(vmi, &mem_event)) {
-        fprintf(stderr, "Failed to register mem event\n");
+        errprint("Failed to register mem event\n");
         goto error_exit;
     }
     if (vmi_set_mem_event(vmi, gfn, VMI_MEMACCESS_X, 0) == VMI_FAILURE) {
-        fprintf(stderr, "%s: Failed to set page permissions on gfn 0x%"PRIx64"\n", __func__, gfn);
+        errprint("%s: Failed to set page permissions on gfn 0x%"PRIx64"\n", __func__, gfn);
     }
 
     // resuming
     if (VMI_FAILURE == vmi_resume_vm(vmi)) {
-        fprintf(stderr, "Failed to resume vm\n");
+        errprint("Failed to resume vm\n");
         goto error_exit;
     }
 

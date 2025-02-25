@@ -28,8 +28,6 @@
 #ifndef DRIVER_WRAPPER_H
 #define DRIVER_WRAPPER_H
 
-#include "private.h"
-
 /*
  * The following functions are safety-wrappers that should be used internally
  * instead of calling the functions directly on the driver.

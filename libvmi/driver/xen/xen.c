@@ -634,7 +634,7 @@ xen_get_version(
         goto done;
 
     free(line);
-    fclose(fp);
+    IGNORE_RETURN(fclose(fp));
     line = NULL;
     fp = NULL;
 
@@ -648,7 +648,7 @@ xen_get_version(
     xen->major_version = atoi(line);
 
     free(line);
-    fclose(fp);
+    IGNORE_RETURN(fclose(fp));
     line = NULL;
     fp = NULL;
 
@@ -669,7 +669,7 @@ done:
     if ( line )
         free(line);
     if ( fp )
-        fclose(fp);
+        IGNORE_RETURN(fclose(fp));
     return status;
 }
 

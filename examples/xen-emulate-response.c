@@ -65,7 +65,7 @@ int main (int argc, char **argv)
     int rc = 1;
 
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s <name of VM> <kernel virtual address trap in hex> [<socket>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> <kernel virtual address trap in hex> [<socket>]\n", argv[0]);
         return rc;
     }
 

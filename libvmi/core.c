@@ -159,7 +159,7 @@ read_config_file_impl(vmi_instance_t vmi, FILE* config_file,
 
 error_exit:
     if (config_file)
-        fclose(config_file);
+        IGNORE_RETURN(fclose(config_file));
 
     return ret;
 }
@@ -219,7 +219,7 @@ read_config_file_entry(vmi_instance_t vmi, GHashTable **config, vmi_init_error_t
         if ( error )
             *error = VMI_INIT_ERROR_NO_CONFIG;
 
-        fprintf(stderr, "ERROR: config file not found.\n");
+        errprint("ERROR: config file not found.\n");
         return VMI_FAILURE;
     }
 

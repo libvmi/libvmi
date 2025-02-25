@@ -40,7 +40,7 @@ main(
 {
     int retcode = 1;
     if ( argc < 3 ) {
-        fprintf(stderr, "Usage: %s <name of VM> <symbol> [<socket>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> <symbol> [<socket>]\n", argv[0]);
         return retcode;
     }
 

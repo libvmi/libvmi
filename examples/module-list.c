@@ -45,7 +45,7 @@ main(
     int retcode = 1;
 
     if ( argc < 2 ) {
-        fprintf(stderr, "Usage: %s <Name of VM> [socket]", argv[0]);
+        errprint("Usage: %s <Name of VM> [socket]", argv[0]);
         return retcode;
     }
 

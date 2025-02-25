@@ -96,7 +96,7 @@ int main (int argc, char **argv)
     va_pages = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> [<socket>]\n", argv[0]);
         return retcode;
     }
 

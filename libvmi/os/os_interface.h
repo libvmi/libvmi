@@ -21,7 +21,6 @@
 #ifndef OS_INTERFACE_H_
 #define OS_INTERFACE_H_
 
-#include "private.h"
 #include "os/windows/windows.h"
 #include "os/linux/linux.h"
 #include "os/freebsd/freebsd.h"

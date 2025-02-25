@@ -36,7 +36,7 @@ event_response_t desc_cb(
     vmi_event_t *event)
 {
     if (!event || !event->data) {
-        fprintf(stderr, "%s: invalid parameters\n", __func__);
+        errprint("%s: invalid parameters\n", __func__);
         return VMI_EVENT_RESPONSE_NONE;
     }
     int *stats = (int*)event->data;
@@ -59,7 +59,7 @@ event_response_t desc_cb(
             stats[VMI_DESCRIPTOR_TR] += 1;
             break;
         default:
-            fprintf(stderr, "Unexpected descriptor ID %d\n",
+            errprint("Unexpected descriptor ID %d\n",
                     event->descriptor_event.descriptor);
             return VMI_EVENT_RESPONSE_NONE;
     }
@@ -98,7 +98,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket path>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> [<socket path>]\n", argv[0]);
         return retcode;
     }
 
@@ -116,13 +116,13 @@ int main (int argc, char **argv)
     }
 
     if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, &mode)) {
-        fprintf(stderr, "Failed to get access mode\n");
+        errprint("Failed to get access mode\n");
         goto error_exit;
     }
 
     if (VMI_FAILURE ==
             vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
-        fprintf(stderr, "Failed to init LibVMI library.\n");
+        errprint("Failed to init LibVMI library.\n");
         goto error_exit;
     }
 

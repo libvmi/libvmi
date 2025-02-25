@@ -51,7 +51,7 @@ event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
 {
     (void)vmi;
     if (!event->data) {
-        fprintf(stderr, "Empty event data in breakpoint callback !\n");
+        errprint("Empty event data in breakpoint callback !\n");
         interrupted = true;
         return VMI_EVENT_RESPONSE_NONE;
     }
@@ -89,7 +89,7 @@ event_response_t breakpoint_cb(vmi_instance_t vmi, vmi_event_t *event)
         // recoil
         // write saved opcode
         if (VMI_FAILURE == vmi_write_va(vmi, event->x86_regs->rip, 0, sizeof(BREAKPOINT), &cb_data->saved_opcode, NULL)) {
-            fprintf(stderr, "Failed to write back original opcode at 0x%" PRIx64 "\n", event->x86_regs->rip);
+            errprint("Failed to write back original opcode at 0x%" PRIx64 "\n", event->x86_regs->rip);
             interrupted = true;
             return VMI_EVENT_RESPONSE_NONE;
         }
@@ -103,7 +103,7 @@ event_response_t single_step_cb(vmi_instance_t vmi, vmi_event_t *event)
     (void)vmi;
 
     if (!event->data) {
-        fprintf(stderr, "Empty event data in singlestep callback !\n");
+        errprint("Empty event data in singlestep callback !\n");
         interrupted = true;
         return VMI_EVENT_RESPONSE_NONE;
     }
@@ -118,7 +118,7 @@ event_response_t single_step_cb(vmi_instance_t vmi, vmi_event_t *event)
 
     // restore breakpoint
     if (VMI_FAILURE == vmi_write_va(vmi, cb_data->sym_vaddr, 0, sizeof(BREAKPOINT), &BREAKPOINT, NULL)) {
-        fprintf(stderr, "Failed to write breakpoint at 0x%" PRIx64 "\n",event->x86_regs->rip);
+        errprint("Failed to write breakpoint at 0x%" PRIx64 "\n",event->x86_regs->rip);
         interrupted = true;
         return VMI_EVENT_RESPONSE_NONE;
     }
@@ -138,7 +138,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s <name of VM> <symbol> [<socket>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> <symbol> [<socket>]\n", argv[0]);
         return retcode;
     }
 
@@ -168,7 +168,7 @@ int main (int argc, char **argv)
     if (VMI_FAILURE ==
             vmi_init_complete(&vmi, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data,
                               VMI_CONFIG_GLOBAL_FILE_ENTRY, NULL, NULL)) {
-        fprintf(stderr, "Failed to init LibVMI library.\n");
+        errprint("Failed to init LibVMI library.\n");
         goto error_exit;
     }
 
@@ -177,7 +177,7 @@ int main (int argc, char **argv)
     // translate symbol
     addr_t sym_vaddr = 0;
     if (VMI_FAILURE == vmi_translate_ksym2v(vmi, symbol, &sym_vaddr)) {
-        fprintf(stderr, "Failed to translate symbol %s\n", symbol);
+        errprint("Failed to translate symbol %s\n", symbol);
         goto error_exit;
     }
     printf("Symbol %s translated to virtual address: 0x%" PRIx64 "\n", symbol, sym_vaddr);
@@ -185,21 +185,21 @@ int main (int argc, char **argv)
     // pause VM
     printf("Pause VM\n");
     if (VMI_FAILURE == vmi_pause_vm(vmi)) {
-        fprintf(stderr, "Failed to pause VM\n");
+        errprint("Failed to pause VM\n");
         goto error_exit;
     }
 
     // save opcode
     printf("Save opcode\n");
     if (VMI_FAILURE == vmi_read_va(vmi, sym_vaddr, 0, sizeof(BREAKPOINT), &saved_opcode, NULL)) {
-        fprintf(stderr, "Failed to read opcode\n");
+        errprint("Failed to read opcode\n");
         goto error_exit;
     }
 
     // write breakpoint
     printf("Write breakpoint at 0x%" PRIx64 "\n", sym_vaddr);
     if (VMI_FAILURE == vmi_write_va(vmi, sym_vaddr, 0, sizeof(BREAKPOINT), &BREAKPOINT, NULL)) {
-        fprintf(stderr, "Failed to write breakpoint\n");
+        errprint("Failed to write breakpoint\n");
         goto error_exit;
     }
 
@@ -222,7 +222,7 @@ int main (int argc, char **argv)
 
     printf("Register interrupt event\n");
     if (VMI_FAILURE == vmi_register_event(vmi, &int_event)) {
-        fprintf(stderr, "Failed to register interrupt event\n");
+        errprint("Failed to register interrupt event\n");
         goto error_exit;
     }
 
@@ -244,14 +244,14 @@ int main (int argc, char **argv)
 
     printf("Register singlestep event\n");
     if (VMI_FAILURE == vmi_register_event(vmi, &sstep_event)) {
-        fprintf(stderr, "Failed to register singlestep event\n");
+        errprint("Failed to register singlestep event\n");
         goto error_exit;
     }
 
     // resume VM
     printf("Resume VM\n");
     if (VMI_FAILURE == vmi_resume_vm(vmi)) {
-        fprintf(stderr, "Failed to resume VM\n");
+        errprint("Failed to resume VM\n");
         goto error_exit;
     }
 
@@ -259,7 +259,7 @@ int main (int argc, char **argv)
     while (!interrupted) {
         printf("Waiting for events...\n");
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
-            fprintf(stderr, "Failed to listen on events\n");
+            errprint("Failed to listen on events\n");
             goto error_exit;
         }
     }

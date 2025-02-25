@@ -351,7 +351,7 @@ int main(int argc, char **argv)
 
     /* this is the VM that we are looking at */
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s name|domid <domain name|domain id> [<socket>]\n", argv[0]);
+        errprint("Usage: %s name|domid <domain name|domain id> [<socket>]\n", argv[0]);
         return 1;
     }   // if
 

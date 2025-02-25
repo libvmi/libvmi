@@ -61,7 +61,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> [<socket>]\n", argv[0]);
         return retcode;
     }
 
@@ -89,7 +89,7 @@ int main (int argc, char **argv)
 
     /* get access mode */
     if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, &mode)) {
-        fprintf(stderr, "Failed to get access mode\n");
+        errprint("Failed to get access mode\n");
         goto error_exit;
     }
 
@@ -118,7 +118,7 @@ int main (int argc, char **argv)
 
     // register
     if (VMI_FAILURE == vmi_register_event(vmi, &single_event)) {
-        fprintf(stderr, "Failed to register singlestep event\n");
+        errprint("Failed to register singlestep event\n");
         goto error_exit;
     }
 
@@ -126,7 +126,7 @@ int main (int argc, char **argv)
     while (!interrupted) {
         printf("Waiting for events...\n");
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
-            fprintf(stderr, "Failed to listen on events\n");
+            errprint("Failed to listen on events\n");
             goto error_exit;
         }
     }
@@ -136,44 +136,44 @@ int main (int argc, char **argv)
     // pause before cleaning the ring
     // this prevents new events from being queued
     if (VMI_FAILURE == vmi_pause_vm(vmi)) {
-        fprintf(stderr, "Failed to pause VM\n");
+        errprint("Failed to pause VM\n");
         goto error_exit;
     }
     // clean event ring
     if (VMI_FAILURE == vmi_events_listen(vmi, 0)) {
-        fprintf(stderr, "Failed to listen on VM events\n");
+        errprint("Failed to listen on VM events\n");
         goto error_exit;
     }
 
     // disable singlestep on all vcpus
     for (vcpu=0; vcpu < num_vcpus; vcpu++) {
         if (VMI_FAILURE == vmi_toggle_single_step_vcpu(vmi, &single_event, vcpu, false)) {
-            fprintf(stderr, "Failed to stop singlestepping on VCPU %d\n", vcpu);
+            errprint("Failed to stop singlestepping on VCPU %d\n", vcpu);
             goto error_exit;
         }
     }
     printf("Singlestep stopped\n");
     if (VMI_FAILURE == vmi_resume_vm(vmi)) {
-        fprintf(stderr, "Failed to resume VM\n");
+        errprint("Failed to resume VM\n");
         goto error_exit;
     }
 
     // toggle singlestep back ON
     // pause before changing VM state
     if (VMI_FAILURE == vmi_pause_vm(vmi)) {
-        fprintf(stderr, "Failed to pause VM\n");
+        errprint("Failed to pause VM\n");
         goto error_exit;
     }
 
     printf("Restarting singlestep\n");
     for (vcpu=0; vcpu < num_vcpus; vcpu++) {
         if (VMI_FAILURE == vmi_toggle_single_step_vcpu(vmi, &single_event, vcpu, true)) {
-            fprintf(stderr, "Failed to enable singlestep on VCPU %d\n", vcpu);
+            errprint("Failed to enable singlestep on VCPU %d\n", vcpu);
             goto error_exit;
         }
     }
     if (VMI_FAILURE == vmi_resume_vm(vmi)) {
-        fprintf(stderr, "Failed to resume VM\n");
+        errprint("Failed to resume VM\n");
         goto error_exit;
     }
 
@@ -182,7 +182,7 @@ int main (int argc, char **argv)
     for (i=0; i < 5; i++) {
         printf("Waiting for events...\n");
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
-            fprintf(stderr, "Failed to listen on events\n");
+            errprint("Failed to listen on events\n");
             goto error_exit;
         }
     }

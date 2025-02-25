@@ -54,7 +54,7 @@ int main (int argc, char **argv)
 
     /* this is the VM or file that we are looking at */
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <vmname> [<socket>]\n", argv[0]);
+        errprint("Usage: %s <vmname> [<socket>]\n", argv[0]);
         return retcode;
     }
 
@@ -71,13 +71,13 @@ int main (int argc, char **argv)
     }
 
     if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, &mode)) {
-        fprintf(stderr, "Failed to get access mode\n");
+        errprint("Failed to get access mode\n");
         goto error_exit;
     }
 
     if (VMI_FAILURE ==
             vmi_init(&vmi, mode, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
-        fprintf(stderr, "Failed to init LibVMI library.\n");
+        errprint("Failed to init LibVMI library.\n");
         goto error_exit;
     }
 

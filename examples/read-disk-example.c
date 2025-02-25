@@ -142,13 +142,13 @@ int main(int argc, char **argv)
         }
 
     if (!domain) {
-        fprintf(stderr, "You have to specify --name or --domid!\n");
+        errprint("You have to specify --name or --domid!\n");
         print_usage(argv[0]);
         return 1;
     }
 
     if (!filename) {
-        fprintf(stderr, "You have to specify --file to save result!\n");
+        errprint("You have to specify --file to save result!\n");
         print_usage(argv[0]);
         return 1;
     }

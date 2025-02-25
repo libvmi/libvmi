@@ -21,8 +21,6 @@
 #ifndef LIBVMI_REKALL_H
 #define LIBVMI_REKALL_H
 
-#include "private.h"
-
 #ifdef REKALL_PROFILES
 
 status_t

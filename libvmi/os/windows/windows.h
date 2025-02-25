@@ -21,8 +21,6 @@
 #ifndef OS_WINDOWS_H_
 #define OS_WINDOWS_H_
 
-#include "private.h"
-
 struct windows_pte_info {
 
     size_t proto_vad_pte;
