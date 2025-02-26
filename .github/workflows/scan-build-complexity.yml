@@ -17,7 +17,7 @@ jobs:
         run: |
           # Install packages
           sudo apt-get update -q
-          sudo apt-get install -y clang-$VERSION clang-tools-$VERSION clang-tidy-$VERSION autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev
+          sudo apt-get install -y clang-$VERSION clang-tools-$VERSION clang-tidy-$VERSION autoconf-archive flex bison libglib2.0-dev libjson-c-dev libxen-dev libvirt-dev libfuse-dev
           git clone --depth=2 https://github.com/libvmi/libkvmi
           cd libkvmi
           ./bootstrap
@@ -50,7 +50,7 @@ jobs:
         run: |
           # Install packages
           sudo apt-get update -q
-          sudo apt-get install -y clang-$VERSION clang-tools-$VERSION clang-tidy-$VERSION autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev libfuse-dev
+          sudo apt-get install -y clang-$VERSION clang-tools-$VERSION clang-tidy-$VERSION autoconf-archive flex bison libglib2.0-dev libjson-c-dev libxen-dev libvirt-dev libfuse-dev
           git clone --depth=2 https://github.com/libvmi/libkvmi
           cd libkvmi
           ./bootstrap
