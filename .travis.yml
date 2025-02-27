@@ -35,7 +35,7 @@ jobs:
             branch_pattern: $COVERITY_BRANCH
       install:
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libglib2.0-dev libjson-c-dev libvirt-dev libxen-dev libfuse-dev
       script:
       - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
@@ -54,7 +54,7 @@ jobs:
       script:
         - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then exit 0; fi'
         - sudo apt-get update
-        - sudo apt-get -q -y install bison flex autoconf-archive libjson-c-dev libvirt-dev libxen-dev libfuse-dev
+        - sudo apt-get -q -y install bison flex autoconf-archive libglib2.0-dev libjson-c-dev libvirt-dev libxen-dev libfuse-dev
         - autoreconf -vif
         - ./configure
         - build-wrapper-linux-x86-64 --out-dir bw-output make -j2

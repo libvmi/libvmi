@@ -227,6 +227,14 @@ void arch_init_lookup_tables(vmi_instance_t vmi)
     vmi->arch_interface.get_pages[VMI_PM_PAE] = get_pages_pae;
     vmi->arch_interface.get_pages[VMI_PM_IA32E] = get_pages_ia32e;
     vmi->arch_interface.get_pages[VMI_PM_EPT_4L] = get_pages_ept_4l;
+
+    vmi->arch_interface.get_pte_values[VMI_PM_LEGACY] = get_pte_values_nopae;
+    vmi->arch_interface.get_pte_values[VMI_PM_PAE] = get_pte_values_pae;
+    vmi->arch_interface.get_pte_values[VMI_PM_IA32E] = get_pte_values_ia32e;
+
+    vmi->arch_interface.set_pte_values[VMI_PM_LEGACY] = set_pte_values_nopae;
+    vmi->arch_interface.set_pte_values[VMI_PM_PAE] = set_pte_values_pae;
+    vmi->arch_interface.set_pte_values[VMI_PM_IA32E] = set_pte_values_ia32e;
 }
 
 status_t arch_init(vmi_instance_t vmi)

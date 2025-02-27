@@ -33,6 +33,11 @@ status_t v2p_pae (vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, ad
 GSList* get_pages_nopae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb);
 GSList* get_pages_pae(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb);
 
+void get_pte_values_nopae(const page_info_t *info, addr_t *pte_value, addr_t *pte_value_prev);
+void set_pte_values_nopae(page_info_t *info, addr_t pte_value, addr_t pte_value_prev);
+void get_pte_values_pae(const page_info_t *info, addr_t *pte_value, addr_t *pte_value_prev);
+void set_pte_values_pae(page_info_t *info, addr_t pte_value, addr_t pte_value_prev);
+
 /* checks for EPT misconfiguration in page_access_flag */
 status_t intel_mem_access_sanity_check(vmi_mem_access_t page_access_flag);
 

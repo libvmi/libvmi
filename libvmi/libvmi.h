@@ -685,8 +685,14 @@ typedef struct page_info {
     addr_t npt;         /**< nested pagetable used for translation */
     page_mode_t npm;    /**< nested page mode user for translation */
 
+    /**
+     *  Note: pte_value_prev value used in *_pte_values_*() getters/setters in the platform's PTE translation routines.
+     *  The non-zero value represents the initial value of the PTE when handling nested PTE, as this is a case that needs to be handled separately.
+     */
+
     union {
         struct {
+            addr_t pte_value_prev;
             addr_t pte_location;
             addr_t pte_value;
             addr_t pgd_location;
@@ -694,6 +700,7 @@ typedef struct page_info {
         } x86_legacy;
 
         struct {
+            addr_t pte_value_prev;
             addr_t pte_location;
             addr_t pte_value;
             addr_t pgd_location;
@@ -703,6 +710,7 @@ typedef struct page_info {
         } x86_pae;
 
         struct {
+            addr_t pte_value_prev;
             addr_t pte_location;
             addr_t pte_value;
             addr_t pgd_location;

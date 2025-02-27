@@ -30,15 +30,28 @@ typedef status_t (*arch_lookup_t)
  addr_t pt,
  addr_t addr,
  page_info_t *info);
+
 typedef GSList* (*arch_get_pages_t)
 (vmi_instance_t vmi,
  addr_t npt,
  page_mode_t npm,
  addr_t dtb);
 
+typedef void (*get_pte_values_t)
+(const page_info_t *info,
+ addr_t *pte_value,
+ addr_t *pte_value_prev);
+
+typedef void (*set_pte_values_t)
+(page_info_t *info,
+ addr_t pte_value,
+ addr_t pte_value_prev);
+
 typedef struct arch_interface {
     arch_lookup_t lookup[VMI_PM_EPT_5L + 1];
     arch_get_pages_t get_pages[VMI_PM_EPT_5L + 1];
+    get_pte_values_t get_pte_values[VMI_PM_EPT_5L + 1];
+    set_pte_values_t set_pte_values[VMI_PM_EPT_5L + 1];
 } arch_interface_t;
 
 status_t get_vcpu_page_mode(vmi_instance_t vmi, unsigned long vcpu, page_mode_t *out_pm);

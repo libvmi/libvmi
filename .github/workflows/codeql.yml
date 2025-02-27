@@ -41,7 +41,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update -q
-        sudo apt-get install -y autoconf-archive flex bison libjson-c-dev libxen-dev libvirt-dev
+        sudo apt-get install -y autoconf-archive flex bison libglib2.0-dev libjson-c-dev libxen-dev libvirt-dev
         git clone --depth=2 https://github.com/libvmi/libkvmi
         cd libkvmi
         ./bootstrap

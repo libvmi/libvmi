@@ -35,6 +35,14 @@ extern "C" {
 #define PTRS_PER_NOPAE_PGD 1024
 
 /*
+ * If PRESENT bit is set, the page is actually in physical memory at
+ * the moment. For example, when a page is swapped out, it is not in
+ * physical memory and therefore not 'Present'. If a page is called,
+ * but not present, a page fault will occur, and the OS should handle it.
+ */
+#define PRESENT(entry)          VMI_GET_BIT(entry, 0)
+
+/*
  * If READ_WRITE bit is set, the page is read/write. Otherwise when
  * it is not set, the page is read-only. The WP bit in CR0
  * determines if this is only applied to userland, always giving
@@ -81,7 +89,7 @@ extern "C" {
  * Note that, this bit will not be cleared by the CPU, so that burden
  * falls on the OS (if it needs this bit at all).
  */
-#define DIRTY(entry)         VMI_GET_BIT(entry, 6)
+#define DIRTY(entry)            VMI_GET_BIT(entry, 6)
 
 /*
  * The PAGE_SIZE bit stores the page size for that specific entry.
@@ -115,15 +123,7 @@ extern "C" {
  * and the OS should handle it. (See below.)
  */
 #define ENTRY_PRESENT(transition_pages, entry) \
-    (VMI_GET_BIT(entry, 0) \
-        ? 1 : \
-        ( \
-            (transition_pages && \
-                (TRANSITION(entry) && !(PROTOTYPE(entry))) \
-            ) \
-            ? 1 : 0 \
-        ) \
-    )
+    (PRESENT(entry) || (transition_pages && TRANSITION(entry) && !PROTOTYPE(entry)))
 
 /*
  * NX (No eXecute) bit refers to the most significant bit (i.e. the 63th, or leftmost) of a 64-
