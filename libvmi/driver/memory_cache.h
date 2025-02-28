@@ -27,8 +27,6 @@
 #ifndef MEMORY_CACHE_H
 #define MEMORY_CACHE_H
 
-#include "private.h"
-
 void memory_cache_init(
     vmi_instance_t vmi,
     void *(*get_data) (vmi_instance_t,

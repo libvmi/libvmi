@@ -21,8 +21,6 @@
 #ifndef EPT_H
 #define EPT_H
 
-#include "private.h"
-
 status_t v2p_ept_4l (vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, addr_t vaddr, page_info_t *info);
 GSList* get_pages_ept_4l(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t dtb);
 

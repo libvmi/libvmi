@@ -233,7 +233,7 @@ int main (int argc, char **argv)
     vmi_init_data_t *init_data = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> [<socket>]\n", argv[0]);
         exit(1);
     }
 

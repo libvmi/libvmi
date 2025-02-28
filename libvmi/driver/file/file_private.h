@@ -28,7 +28,6 @@
 #ifndef FILE_PRIVATE_H
 #define FILE_PRIVATE_H
 
-#include "private.h"
 #include "driver/file/file.h"
 
 typedef struct file_instance {

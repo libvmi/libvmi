@@ -27,7 +27,6 @@
 #define LIBVMI_EXTRA_JSON
 
 #include <json-c/json.h>
-#include "private.h"
 #include "json_profiles/rekall.h"
 #include "json_profiles/volatility_ist.h"
 

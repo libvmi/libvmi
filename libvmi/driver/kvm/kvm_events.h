@@ -26,7 +26,6 @@
 #ifndef KVM_EVENTS_H
 #define KVM_EVENTS_H
 
-#include "private.h"
 #include "kvm_private.h"
 
 status_t

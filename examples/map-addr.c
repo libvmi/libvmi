@@ -39,7 +39,7 @@ main(
     char **argv)
 {
     if ( argc < 3 ) {
-        fprintf(stderr, "Usage: %s <name of VM> <virtual address> [<socket>]\n", argv[0]);
+        errprint("Usage: %s <name of VM> <virtual address> [<socket>]\n", argv[0]);
         return 1;
     }
 

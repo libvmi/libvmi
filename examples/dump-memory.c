@@ -182,7 +182,7 @@ int main(int argc, char **argv)
     }
 
     /* handle ctrl+c gracefully */
-    signal(SIGINT, sigint_handler);
+    IGNORE_RETURN(signal(SIGINT, sigint_handler));
 
     /* dump physical memory */
     char memory[FRAME_SIZE];
@@ -231,7 +231,7 @@ resume_vm:
     }
 
 close_file:
-    fclose(f);
+    IGNORE_RETURN(fclose(f));
 
 destroy_vmi:
     vmi_destroy(vmi);

@@ -39,7 +39,6 @@
 #include <xen/domctl.h>
 #include <xen/hvm/save.h>
 
-#include "private.h"
 #include "libxc_wrapper.h"
 #include "libxs_wrapper.h"
 #include "driver/xen/xen_events_private.h"

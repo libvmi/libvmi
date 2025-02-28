@@ -72,7 +72,7 @@ status_t xen_set_mem_access(vmi_instance_t vmi, addr_t gpfn,
 status_t xen_set_mem_access_range(vmi_instance_t vmi, addr_t gpfn_start, addr_t gpfn_end,
                                   vmi_mem_access_t page_access_flag, uint16_t altp2m_idx)
 {
-    int rc;
+    int rc = -1;
     xenmem_access_t access;
     xen_instance_t *xen = xen_get_instance(vmi);
 
@@ -133,7 +133,7 @@ done:
             return VMI_FAILURE;
     }
 
-    if (rc) {
+    if (rc != 0) {
         errprint("xc_set_mem_access failed with code: %d\n", rc);
         return VMI_FAILURE;
     }
@@ -1404,7 +1404,7 @@ static status_t process_domain_watch(vmi_instance_t vmi)
                     char *tmp;
                     unsigned int size = 0;
 
-                    snprintf(path, sizeof( path ), "/local/domain/%d/vm", dominfo.domain);
+                    IGNORE_RETURN(snprintf(path, sizeof( path ), "/local/domain/%d/vm", dominfo.domain));
                     tmp = xen->libxsw.xs_read(xen->xshandle, XBT_NULL, path, &size);
                     if (tmp && (strlen(tmp) > 4)) {
                         uint32_t *domid = malloc(sizeof(uint32_t));

@@ -195,7 +195,7 @@ file_destroy(
 #endif // USE_MMAP
     // fi->fhandle refers to fi->fd; closing both would be an error
     if (fi->fhandle) {
-        fclose(fi->fhandle);
+        IGNORE_RETURN(fclose(fi->fhandle));
         fi->fhandle = 0;
         fi->fd = 0;
     }
@@ -312,7 +312,7 @@ file_test(
 
 error_exit:
     if (f)
-        fclose(f);
+        IGNORE_RETURN(fclose(f));
     return ret;
 }
 

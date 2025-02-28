@@ -296,6 +296,7 @@ int is_addr_aligned(
     vmi_instance_t vmi,
     addr_t addr);
 
+#define IGNORE_RETURN(x) (void)(x)
 #ifdef __GNUC__
 #  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
 #else

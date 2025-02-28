@@ -92,12 +92,12 @@ int main (int argc, char **argv)
 
     /* initialize the libvmi library */
     if (VMI_FAILURE == vmi_get_access_mode(NULL, input, init, init_data, &mode)) {
-        fprintf(stderr, "Failed to get access mode\n");
+        errprint("Failed to get access mode\n");
         goto error_exit;
     }
 
     if (VMI_FAILURE == vmi_init(&vmi, mode, input, init | VMI_INIT_EVENTS, init_data, NULL)) {
-        fprintf(stderr, "Failed to init LibVMI library.\n");
+        errprint("Failed to init LibVMI library.\n");
         goto error_exit;
     }
     printf("LibVMI init\n");
@@ -113,7 +113,7 @@ int main (int argc, char **argv)
     SETUP_IO_EVENT(&io_event, io_cb);
 
     if (VMI_FAILURE == vmi_register_event(vmi, &io_event)) {
-        fprintf(stderr, "Failed to register IO event\n");
+        errprint("Failed to register IO event\n");
         goto error_exit;
     }
     printf("Registered event\n");
@@ -121,7 +121,7 @@ int main (int argc, char **argv)
 
     while (!interrupted) {
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
-            fprintf(stderr, "Failed to listen on VMI events\n");
+            errprint("Failed to listen on VMI events\n");
             goto error_exit;
         }
     }

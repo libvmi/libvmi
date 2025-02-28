@@ -51,6 +51,10 @@
 
 //#define DEBUG;
 
+#ifndef IGNORE_RETURN
+#define IGNORE_RETURN(x) (void)(x)
+#endif
+
 using namespace std;
 
 char* getGUID(char*filename, int addr);
@@ -91,11 +95,11 @@ unsigned int memRead_4(char* file, int addr)
 
     unsigned long int input = 0;
     if ( f != NULL ) {
-        fseek(f, addr, SEEK_SET);
+        IGNORE_RETURN(fseek(f, addr, SEEK_SET));
         fread(&input, sizeof(input), 1, f);
     }
 
-    fclose(f);
+    IGNORE_RETURN(fclose(f));
     return input;
 }
 
@@ -418,7 +422,7 @@ int main(int argc, char* argv[])
         printf("No such file\nUse -h for help with this program\n");
         return -1;
     }
-    fclose(f);
+    IGNORE_RETURN(fclose(f));
 
 
     //For first 512MB of RAM, if the location is a valid kernel, call findDebug

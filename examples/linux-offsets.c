@@ -41,6 +41,10 @@
 #include <signal.h>
 #include <unistd.h>
 
+#ifndef IGNORE_RETURN
+#define IGNORE_RETURN(x) (void)(x)
+#endif
+
 vmi_instance_t vmi;
 
 void clean_up(void)
@@ -56,20 +60,20 @@ void sigint_handler()
 
 void show_usage(char *arg0)
 {
-    fprintf(stderr, "Usage:\n");
-    fprintf(stderr, "    %s [OPTIONS...]\n", arg0);
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Required one of:\n");
-    fprintf(stderr, "    -n, --name           Domain name\n");
-    fprintf(stderr, "    -d, --domid          Domain ID\n");
-    fprintf(stderr, "Required input:\n");
-    fprintf(stderr, "    -r, --json-kernel    The OS kernel's json profile\n");
-    fprintf(stderr, "Optional input:\n");
-    fprintf(stderr, "    -k, --only-kpgd      Only print KPGD value\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "Example:\n");
-    fprintf(stderr, "    %s -n lin7vm -r /opt/kernel.json\n", arg0);
-    fprintf(stderr, "    %s --domid 17 --json-kernel /opt/kernel.json --only-kpgd\n", arg0);
+    IGNORE_RETURN(fprintf(stderr, "Usage:\n"));
+    IGNORE_RETURN(fprintf(stderr, "    %s [OPTIONS...]\n", arg0));
+    IGNORE_RETURN(fprintf(stderr, "\n"));
+    IGNORE_RETURN(fprintf(stderr, "Required one of:\n"));
+    IGNORE_RETURN(fprintf(stderr, "    -n, --name           Domain name\n"));
+    IGNORE_RETURN(fprintf(stderr, "    -d, --domid          Domain ID\n"));
+    IGNORE_RETURN(fprintf(stderr, "Required input:\n"));
+    IGNORE_RETURN(fprintf(stderr, "    -r, --json-kernel    The OS kernel's json profile\n"));
+    IGNORE_RETURN(fprintf(stderr, "Optional input:\n"));
+    IGNORE_RETURN(fprintf(stderr, "    -k, --only-kpgd      Only print KPGD value\n"));
+    IGNORE_RETURN(fprintf(stderr, "\n"));
+    IGNORE_RETURN(fprintf(stderr, "Example:\n"));
+    IGNORE_RETURN(fprintf(stderr, "    %s -n lin7vm -r /opt/kernel.json\n", arg0));
+    IGNORE_RETURN(fprintf(stderr, "    %s --domid 17 --json-kernel /opt/kernel.json --only-kpgd\n", arg0));
 }
 
 int main(int argc, char **argv)
@@ -114,25 +118,25 @@ int main(int argc, char **argv)
         }
 
     if (optind != argc) {
-        fprintf(stderr, "Unrecognized argument: %s\n", argv[optind]);
+        errprint("Unrecognized argument: %s\n", argv[optind]);
         show_usage(argv[0]);
         return 1;
     }
 
     if (!domain) {
-        fprintf(stderr, "You have to specify --name or --domid!\n");
+        errprint("You have to specify --name or --domid!\n");
         show_usage(argv[0]);
         return 1;
     }
 
     if ((init_flags & VMI_INIT_DOMAINNAME) && (init_flags & VMI_INIT_DOMAINID)) {
-        fprintf(stderr, "Both domain ID and domain name provided!\n");
+        errprint("Both domain ID and domain name provided!\n");
         show_usage(argv[0]);
         return 1;
     }
 
     if (!kernel_profile) {
-        fprintf(stderr, "You have to specify path to kernel JSON profile!\n");
+        errprint("You have to specify path to kernel JSON profile!\n");
         show_usage(argv[0]);
         return 1;
     }
@@ -146,16 +150,16 @@ int main(int argc, char **argv)
 
     /* initialize the libvmi library */
     if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, NULL, NULL)) {
-        fprintf(stderr, "Failed to init LibVMI library.\n");
+        errprint("Failed to init LibVMI library.\n");
         goto done;
     }
 
-    signal(SIGINT, sigint_handler);
+    IGNORE_RETURN(signal(SIGINT, sigint_handler));
 
     os_t os = vmi_init_os(vmi, VMI_CONFIG_JSON_PATH, kernel_profile, NULL);
 
     if (VMI_OS_LINUX != os) {
-        fprintf(stderr, "OS is not Linux\n");
+        errprint("OS is not Linux\n");
         goto done;
     }
 
@@ -170,28 +174,28 @@ int main(int argc, char **argv)
     addr_t kpgd = 0;
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "linux_tasks", &linux_tasks))
-        fprintf(stderr, "Failed to read field \"linux_tasks\"\n");
+        errprint("Failed to read field \"linux_tasks\"\n");
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "linux_mm", &linux_mm))
-        fprintf(stderr, "Failed to read field \"linux_mm\"\n");
+        errprint("Failed to read field \"linux_mm\"\n");
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "linux_pid", &linux_pid))
-        fprintf(stderr, "Failed to read field \"linux_pid\"\n");
+        errprint("Failed to read field \"linux_pid\"\n");
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "linux_name", &linux_name))
-        fprintf(stderr, "Failed to read field \"linux_name\"\n");
+        errprint("Failed to read field \"linux_name\"\n");
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "linux_pgd", &linux_pgd))
-        fprintf(stderr, "Failed to read field \"linux_pgd\"\n");
+        errprint("Failed to read field \"linux_pgd\"\n");
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "linux_kaslr", &linux_kaslr))
-        fprintf(stderr, "Failed to read field \"linux_kaslr\"\n");
+        errprint("Failed to read field \"linux_kaslr\"\n");
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "linux_init_task", &linux_init_task))
-        fprintf(stderr, "Failed to read field \"linux_init_task\"\n");
+        errprint("Failed to read field \"linux_init_task\"\n");
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "kpgd", &kpgd))
-        fprintf(stderr, "Failed to read field \"kpgd\"\n");
+        errprint("Failed to read field \"kpgd\"\n");
 
     if (only_output_kpgd) {
         printf("0x%lx\n", kpgd);
@@ -215,7 +219,7 @@ int main(int argc, char **argv)
     }
 
     if (!kpgd) {
-        fprintf(stderr, "Failed to get most essential fields\n");
+        errprint("Failed to get most essential fields\n");
         goto done;
     }
 

@@ -22,6 +22,7 @@
 
 #include <string.h>
 
+#include "private.h"
 #include "xen_private.h"
 
 static status_t sanity_check(xen_instance_t *xen)
@@ -165,7 +166,7 @@ status_t create_libxc_wrapper(xen_instance_t *xen)
     }
 
     if ( !wrapper->handle ) {
-        fprintf(stderr, "Failed to find a suitable libxenctrl.so at any of the standard paths!\n");
+        errprint("Failed to find a suitable libxenctrl.so at any of the standard paths!\n");
         return VMI_FAILURE;
     }
 

@@ -25,8 +25,6 @@
 #ifndef INTEL_H
 #define INTEL_H
 
-#include "private.h"
-
 status_t v2p_nopae (vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, addr_t vaddr, page_info_t *info);
 status_t v2p_pae (vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, addr_t vaddr, page_info_t *info);
 

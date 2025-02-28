@@ -782,7 +782,7 @@ kvm_get_vcpureg(
 
     status_t ret = VMI_SUCCESS;
 
-    snprintf(specific_vcpu_regs_finder, sizeof(specific_vcpu_regs_finder), "CPU#%ld", vcpu);
+    IGNORE_RETURN(snprintf(specific_vcpu_regs_finder, sizeof(specific_vcpu_regs_finder), "CPU#%ld", vcpu));
 
     all_regs = exec_info_registers(kvm_get_instance(vmi));
     regs = strstr(all_regs, specific_vcpu_regs_finder);

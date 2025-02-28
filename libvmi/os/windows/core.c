@@ -667,7 +667,7 @@ find_windows_version_from_json_profile(vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
-    addr_t ntbuildnumber_rva;
+    addr_t ntbuildnumber_rva = 0;
     uint16_t ntbuildnumber = 0;
 
     // Let's do some sanity checking
@@ -751,7 +751,7 @@ static status_t kpcr_find1(vmi_instance_t vmi, windows_instance_t windows, reg_t
 {
     dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find1\n");
 
-    addr_t kpcr_rva;
+    addr_t kpcr_rva = 0;
     if (VMI_FAILURE == json_profile_lookup(vmi, "KiInitialPCR", NULL, &kpcr_rva))
         return VMI_FAILURE;
 
@@ -780,7 +780,8 @@ static status_t kpcr_find2(vmi_instance_t vmi, windows_instance_t windows)
 {
     dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find2\n");
 
-    addr_t kisystemcall64shadow, kisystemcall32shadow;
+    addr_t kisystemcall64shadow = 0;
+    addr_t kisystemcall32shadow = 0;
     reg_t lstar, cstar;
 
     if ( VMI_FAILURE == json_profile_lookup(vmi, "KiSystemCall64Shadow", NULL, &kisystemcall64shadow) )

@@ -30,7 +30,6 @@
 #define KVM_PRIVATE_H
 
 // config.h is parsed in private.h (ENABLE_KVM_LEGACY)
-#include "private.h"
 
 #include <libvirt/libvirt.h>
 #include <libvirt/virterror.h>

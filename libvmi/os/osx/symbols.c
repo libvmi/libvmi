@@ -24,13 +24,11 @@
  * along with LibVMI.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "private.h"
-
 #define _GNU_SOURCE
 
 #include <string.h>
-#include "os/osx/osx.h"
 #include "private.h"
+#include "os/osx/osx.h"
 
 #define MAX_ROW_LENGTH 500
 

@@ -20,8 +20,6 @@
 #ifndef OS_LINUX_H_
 #define OS_LINUX_H_
 
-#include "private.h"
-
 struct linux_instance {
     char *sysmap; /**< system map file for domain's running kernel */
 
