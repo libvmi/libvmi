@@ -62,7 +62,7 @@ event_response_t desc_cb(
             break;
         default:
             (void)fprintf(stderr, "Unexpected descriptor ID %d\n",
-                     event->descriptor_event.descriptor);
+                          event->descriptor_event.descriptor);
             return VMI_EVENT_RESPONSE_NONE;
     }
 
