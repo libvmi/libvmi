@@ -25,6 +25,8 @@
 #include <libvmi/events.h>
 #include <libvmi/slat.h>
 
+#define IGNORE_RETURN(x) (void)(x)
+
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi = {0};
