@@ -21,8 +21,6 @@
 #ifndef ARCH_INTERFACE_H_
 #define ARCH_INTERFACE_H_
 
-#include "private.h"
-
 typedef status_t (*arch_lookup_t)
 (vmi_instance_t vmi,
  addr_t npt,

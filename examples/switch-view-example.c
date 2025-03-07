@@ -25,6 +25,8 @@
 #include <libvmi/events.h>
 #include <libvmi/slat.h>
 
+#define IGNORE_RETURN(x) (void)(x)
+
 int main (int argc, char **argv)
 {
     vmi_instance_t vmi = {0};
@@ -34,7 +36,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]));
         return retcode;
     }
 

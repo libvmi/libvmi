@@ -20,8 +20,6 @@
 #ifndef OS_FREEBSD_H_
 #define OS_FREEBSD_H_
 
-#include "private.h"
-
 struct freebsd_instance {
     char *sysmap; /**< system map file for domain's running kernel */
 

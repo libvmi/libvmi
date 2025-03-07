@@ -35,6 +35,8 @@
 #include <sys/mman.h>
 #include <config.h>
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 
 #define FRAME_SIZE (1UL << 12)
 #define PROGRESS_STRIDE (1024 * 1024 * 32) // 32 MiB
@@ -182,7 +184,7 @@ int main(int argc, char **argv)
     }
 
     /* handle ctrl+c gracefully */
-    signal(SIGINT, sigint_handler);
+    IGNORE_RETURN(signal(SIGINT, sigint_handler));
 
     /* dump physical memory */
     char memory[FRAME_SIZE];
@@ -231,7 +233,7 @@ resume_vm:
     }
 
 close_file:
-    fclose(f);
+    IGNORE_RETURN(fclose(f));
 
 destroy_vmi:
     vmi_destroy(vmi);

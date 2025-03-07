@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <libvmi/events.h>
 
 static int interrupted = 0;
@@ -53,7 +55,7 @@ int main (int argc, char **argv)
     int retcode = 1;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]));
         return retcode;
     }
 
@@ -79,7 +81,7 @@ int main (int argc, char **argv)
 
     /* get access mode */
     if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, &mode)) {
-        fprintf(stderr, "Failed to get access mode\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to get access mode\n"));
         goto error_exit;
     }
 

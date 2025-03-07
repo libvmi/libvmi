@@ -29,6 +29,8 @@
 #include <signal.h>
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <libvmi/events.h>
 
 event_response_t msr_write_cb(vmi_instance_t vmi, vmi_event_t *event)
@@ -64,7 +66,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [socket path]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> [socket path]\n", argv[0]));
         return retcode;
     }
 
@@ -84,13 +86,13 @@ int main (int argc, char **argv)
     /* initialize the libvmi library */
     if (VMI_FAILURE == vmi_get_access_mode(NULL, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS,
                                            init_data, &mode)) {
-        fprintf(stderr, "Failed to get access mode\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to get access mode\n"));
         goto error_exit;
     }
 
     if (VMI_FAILURE ==
             vmi_init(&vmi, mode, (void*)name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
-        fprintf(stderr, "Failed to init LibVMI library.\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to init LibVMI library.\n"));
         goto error_exit;
     }
 
@@ -105,14 +107,14 @@ int main (int argc, char **argv)
     msr_event.callback = msr_write_cb;
 
     if (VMI_FAILURE == vmi_register_event(vmi, &msr_event)) {
-        fprintf(stderr, "Failed to set MSR event\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to set MSR event\n"));
         goto error_exit;
     }
 
     printf("Waiting for events...\n");
     while (!interrupted) {
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
-            fprintf(stderr, "Failed to listen on VMI events\n");
+            IGNORE_RETURN(fprintf(stderr, "Failed to listen on VMI events\n"));
             goto error_exit;
         }
     }

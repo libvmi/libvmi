@@ -97,8 +97,8 @@ START_TEST (test_libvmi_init3)
     /* first check home directory of sudo user */
     if ((sudo_user = getenv("SUDO_USER")) != NULL) {
         if ((pw_entry = getpwnam(sudo_user)) != NULL) {
-            snprintf(location, sizeof(location), "%s/etc/libvmi.conf",
-                     pw_entry->pw_dir);
+            IGNORE_RETURN(snprintf(location, sizeof(location), "%s/etc/libvmi.conf",
+                                   pw_entry->pw_dir));
             if ((f = fopen(location, "r")) != NULL) {
                 goto success;
             }
@@ -106,13 +106,13 @@ START_TEST (test_libvmi_init3)
     }
 
     /* next check home directory for current user */
-    snprintf(location, sizeof(location), "%s/etc/libvmi.conf", getenv("HOME"));
+    IGNORE_RETURN(snprintf(location, sizeof(location), "%s/etc/libvmi.conf", getenv("HOME")));
     if ((f = fopen(location, "r")) != NULL) {
         goto success;
     }
 
     /* finally check in /etc */
-    snprintf(location, sizeof(location), "/etc/libvmi.conf");
+    IGNORE_RETURN(snprintf(location, sizeof(location), "/etc/libvmi.conf"));
     if ((f = fopen(location, "r")) != NULL) {
         goto success;
     }
@@ -128,9 +128,9 @@ success:
     }
 
     /* check file size */
-    fseek(f, 0L, SEEK_END);
+    IGNORE_RETURN(fseek(f, 0L, SEEK_END));
     long sz = ftell(f);
-    fseek(f, 0L, SEEK_SET);
+    IGNORE_RETURN(fseek(f, 0L, SEEK_SET));
 
     /* read entry in from file */
     char *buf = malloc(sz);

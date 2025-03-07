@@ -24,7 +24,6 @@
 #include <dlfcn.h>
 
 #include "libvmi.h"
-#include "private.h"
 
 struct kvm_instance;
 

@@ -21,6 +21,8 @@
  */
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <libvmi/peparse.h>
 #include <stdlib.h>
 #include <string.h>
@@ -351,7 +353,7 @@ int main(int argc, char **argv)
 
     /* this is the VM that we are looking at */
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s name|domid <domain name|domain id> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s name|domid <domain name|domain id> [<socket>]\n", argv[0]));
         return 1;
     }   // if
 

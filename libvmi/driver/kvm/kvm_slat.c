@@ -28,6 +28,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include "private.h"
 #include "kvm_slat.h"
 
 status_t kvm_slat_state(vmi_instance_t vmi, bool *state)

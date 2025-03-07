@@ -29,6 +29,8 @@
 #include <signal.h>
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <libvmi/events.h>
 
 reg_t cr3, rip;
@@ -134,7 +136,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]));
         return retcode;
     }
 

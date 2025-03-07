@@ -30,8 +30,6 @@
 #ifndef ALTP2M_PRIVATE_H
 #define ALTP2M_PRIVATE_H
 
-#include "private.h"
-
 status_t xen_altp2m_get_domain_state (vmi_instance_t vmi, bool *state);
 status_t xen_altp2m_set_domain_state (vmi_instance_t vmi, bool state);
 status_t xen_altp2m_create_p2m (vmi_instance_t vmi, uint16_t *altp2m_idx);

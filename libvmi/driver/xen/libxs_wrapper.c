@@ -21,6 +21,7 @@
  */
 
 #include <string.h>
+#include "private.h"
 #include "xen_private.h"
 
 static status_t sanity_check(xen_instance_t *xen)
@@ -45,7 +46,7 @@ status_t create_libxs_wrapper(xen_instance_t *xen)
 
     wrapper->handle = dlopen ("libxenstore.so", RTLD_NOW | RTLD_GLOBAL);
     if ( !wrapper->handle ) {
-        fprintf(stderr, "Failed to find a suitable libxenstore.so at any of the standard paths!\n");
+        errprint("Failed to find a suitable libxenstore.so at any of the standard paths!\n");
         return VMI_FAILURE;
     }
 

@@ -25,8 +25,6 @@
 #include <stdint.h>
 #include <libkvmi.h>
 
-#include "private.h"
-
 struct kvm_instance;
 
 // wrapper struct

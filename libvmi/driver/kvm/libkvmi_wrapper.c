@@ -23,6 +23,7 @@
 #include <link.h>
 #include <dlfcn.h>
 
+#include "private.h"
 #include "kvm_private.h"
 #include "libkvmi_wrapper.h"
 

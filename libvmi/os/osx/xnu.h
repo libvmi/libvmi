@@ -5,8 +5,6 @@
 #ifndef LIBVMI_XNU_H
 #define LIBVMI_XNU_H
 
-#include "private.h"
-
 
 #define    LC_SEGMENT_64    0x19
 #define LC_SEGMENT_KERNEL       LC_SEGMENT_64

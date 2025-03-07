@@ -113,11 +113,11 @@ linux_system_map_symbol_to_address(
         goto done;
 
     if ((f = fopen(linux_instance->sysmap, "r")) == NULL) {
-        fprintf(stderr,
-                "ERROR: could not find System.map file after checking:\n");
-        fprintf(stderr, "\t%s\n", linux_instance->sysmap);
-        fprintf(stderr,
-                "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
+        errprint(
+            "ERROR: could not find System.map file after checking:\n");
+        errprint("\t%s\n", linux_instance->sysmap);
+        errprint(
+            "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
         goto done;
     }
     if (get_symbol_row(f, row, symbol, 2) == VMI_FAILURE) {
@@ -132,7 +132,7 @@ linux_system_map_symbol_to_address(
 done:
     g_free(row);
     if (f)
-        fclose(f);
+        IGNORE_RETURN(fclose(f));
     return ret;
 }
 
@@ -181,16 +181,16 @@ char* linux_system_map_address_to_symbol(
         goto done;
 
     if ((f = fopen(linux_instance->sysmap, "r")) == NULL) {
-        fprintf(stderr,
-                "ERROR: could not find System.map file after checking:\n");
-        fprintf(stderr, "\t%s\n", linux_instance->sysmap);
-        fprintf(stderr,
-                "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
+        errprint(
+            "ERROR: could not find System.map file after checking:\n");
+        errprint("\t%s\n", linux_instance->sysmap);
+        errprint(
+            "To fix this problem, add the correct sysmap entry to /etc/libvmi.conf\n");
         goto done;
     }
     size = snprintf(NULL,0,"%"PRIx64"", address) + 1;
     address_str = g_try_malloc0(size);
-    snprintf(address_str, size, "%"PRIx64"", address);
+    IGNORE_RETURN(snprintf(address_str, size, "%"PRIx64"", address));
     if (get_symbol_row(f, row, address_str, 0) == VMI_FAILURE) {
         goto done;
     }
@@ -206,7 +206,7 @@ done:
     if (row)
         free(row);
     if (f)
-        fclose(f);
+        IGNORE_RETURN(fclose(f));
     if (address_str)
         free(address_str);
     return symbol;

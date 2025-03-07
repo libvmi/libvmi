@@ -42,7 +42,7 @@ const char *get_testvm (void)
 {
     const char *testvm = getenv("LIBVMI_CHECK_TESTVM");
     if (NULL == testvm)
-        fprintf(stderr, "!! Please specify a VM in LIBVMI_CHECK_TESTVM env var\n");
+        errprint("!! Please specify a VM in LIBVMI_CHECK_TESTVM env var\n");
     return testvm;
 }
 
