@@ -29,6 +29,8 @@
 #include <signal.h>
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <libvmi/events.h>
 
 static int interrupted = 0;
@@ -65,7 +67,7 @@ int main (int argc, char **argv)
     int rc = 1;
 
     if (argc < 3) {
-        errprint("Usage: %s <name of VM> <kernel virtual address trap in hex> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> <kernel virtual address trap in hex> [<socket>]\n", argv[0]));
         return rc;
     }
 

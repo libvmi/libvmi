@@ -30,6 +30,8 @@
 #include <stdio.h>
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 
 #define PAGE_SIZE 1 << 12
 
@@ -40,7 +42,7 @@ main(
 {
     int retcode = 1;
     if ( argc < 3 ) {
-        errprint("Usage: %s <name of VM> <symbol> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> <symbol> [<socket>]\n", argv[0]));
         return retcode;
     }
 

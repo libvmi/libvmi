@@ -30,6 +30,8 @@
 #include <glib.h>
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <libvmi/events.h>
 #define LIBVMI_EXTRA_GLIB
 #include <libvmi/libvmi_extra.h>
@@ -96,7 +98,7 @@ int main (int argc, char **argv)
     va_pages = NULL;
 
     if (argc < 2) {
-        errprint("Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]));
         return retcode;
     }
 

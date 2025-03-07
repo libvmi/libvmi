@@ -49,6 +49,8 @@
 #include <signal.h>
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <libvmi/events.h>
 
 struct cb_data {
@@ -63,7 +65,7 @@ event_response_t int3_cb(vmi_instance_t vmi, vmi_event_t *event)
     struct cb_data *data = NULL;
     event_response_t rsp = VMI_EVENT_RESPONSE_NONE;
     if (!event->data) {
-        errprint("No callback data !\n");
+        IGNORE_RETURN(fprintf(stderr, "No callback data !\n"));
         event->interrupt_event.reinject = 1;
         return rsp;
     }
@@ -129,7 +131,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 4) {
-        errprint("Usage: %s <name of VM> <symbol> <opcode size> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> <symbol> <opcode size> [<socket>]\n", argv[0]));
         return retcode;
     }
 
@@ -160,18 +162,18 @@ int main (int argc, char **argv)
 
     // pause
     if (VMI_FAILURE == vmi_pause_vm(vmi)) {
-        errprint("Failed to pause vm\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to pause vm\n"));
         goto error_exit;
     }
 
     // translate symbol to paddr
     addr_t vaddr, paddr;
     if (VMI_FAILURE == vmi_translate_ksym2v(vmi, data.symbol, &vaddr)) {
-        errprint("Fail to translate symbol %s\n", data.symbol);
+        IGNORE_RETURN(fprintf(stderr, "Fail to translate symbol %s\n", data.symbol));
         goto error_exit;
     }
     if (VMI_FAILURE == vmi_translate_kv2p(vmi, vaddr, &paddr)) {
-        errprint("Fail to virtual address %lx\n", vaddr);
+        IGNORE_RETURN(fprintf(stderr, "Fail to virtual address %lx\n", vaddr));
         goto error_exit;
     }
 
@@ -179,7 +181,7 @@ int main (int argc, char **argv)
 
     // read previous opcode
     if (VMI_FAILURE == vmi_read_va(vmi, vaddr, 0, opcode_size, &data.emul.data, NULL)) {
-        errprint("Failed to read opcode\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read opcode\n"));
         goto error_exit;
     }
     data.emul.dont_free = 1;
@@ -187,7 +189,7 @@ int main (int argc, char **argv)
     // write breakpoint
     uint8_t bp = 0xCC;
     if (VMI_FAILURE == vmi_write_8_pa(vmi, paddr, &bp)) {
-        errprint("Failed to write breakpoint\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to write breakpoint\n"));
         goto error_exit;
     }
     printf("Symbol: %s, vaddr: %lx, paddr: %lx, opcode: 0x%"PRIx64"\n",
@@ -197,19 +199,19 @@ int main (int argc, char **argv)
     interrupt_event.data = &data;
 
     if (VMI_FAILURE == vmi_register_event(vmi, &interrupt_event)) {
-        errprint("Failed to register event\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to register event\n"));
         goto error_exit;
     }
 
     // resume
     if (VMI_FAILURE == vmi_resume_vm(vmi)) {
-        errprint("Failed to continue VM\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to continue VM\n"));
         goto error_exit;
     }
     printf("Waiting for events...\n");
     while (!interrupted) {
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
-            errprint("Failed to listen on VMI events\n");
+            IGNORE_RETURN(fprintf(stderr, "Failed to listen on VMI events\n"));
             goto error_exit;
         }
     }

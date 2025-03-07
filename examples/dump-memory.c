@@ -35,6 +35,8 @@
 #include <sys/mman.h>
 #include <config.h>
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 
 #define FRAME_SIZE (1UL << 12)
 #define PROGRESS_STRIDE (1024 * 1024 * 32) // 32 MiB

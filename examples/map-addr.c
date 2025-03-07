@@ -25,6 +25,8 @@
  */
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -39,7 +41,7 @@ main(
     char **argv)
 {
     if ( argc < 3 ) {
-        errprint("Usage: %s <name of VM> <virtual address> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> <virtual address> [<socket>]\n", argv[0]));
         return 1;
     }
 

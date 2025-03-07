@@ -1,4 +1,6 @@
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,7 +14,7 @@ int main(int argc, char **argv)
     addr_t new_gfn = 0;
 
     if (argc < 2) {
-        errprint("Usage: %s <vmname> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <vmname> [<socket>]\n", argv[0]));
         return retcode;
     }
 

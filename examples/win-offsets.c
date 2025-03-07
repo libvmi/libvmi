@@ -25,6 +25,8 @@
 #define LIBVMI_EXTRA_JSON
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <libvmi/peparse.h>
 #include <libvmi/events.h>
 #include <libvmi/libvmi_extra.h>
@@ -254,25 +256,25 @@ int main(int argc, char **argv)
         }
 
     if (optind != argc) {
-        errprint("Unrecognized argument: %s\n", argv[optind]);
+        IGNORE_RETURN(fprintf(stderr, "Unrecognized argument: %s\n", argv[optind]));
         show_usage(argv[0]);
         return 1;
     }
 
     if (!domain) {
-        errprint("You have to specify --name or --domid!\n");
+        IGNORE_RETURN(fprintf(stderr, "You have to specify --name or --domid!\n"));
         show_usage(argv[0]);
         return 1;
     }
 
     if ((init_flags & VMI_INIT_DOMAINNAME) && (init_flags & VMI_INIT_DOMAINID)) {
-        errprint("Both domain ID and domain name provided!\n");
+        IGNORE_RETURN(fprintf(stderr, "Both domain ID and domain name provided!\n"));
         show_usage(argv[0]);
         return 1;
     }
 
     if (!kernel_profile) {
-        errprint("You have to specify path to kernel JSON profile!\n");
+        IGNORE_RETURN(fprintf(stderr, "You have to specify path to kernel JSON profile!\n"));
         show_usage(argv[0]);
         return 1;
     }
@@ -284,7 +286,7 @@ int main(int argc, char **argv)
 
     /* initialize the libvmi library */
     if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags | VMI_INIT_EVENTS, init_data, NULL)) {
-        errprint("Failed to init LibVMI library.\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to init LibVMI library.\n"));
         goto done;
     }
 
@@ -292,7 +294,7 @@ int main(int argc, char **argv)
 
     config = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
     if (!config) {
-        errprint("Failed to create GHashTable!\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to create GHashTable!\n"));
         goto done;
     }
 
@@ -300,13 +302,13 @@ int main(int argc, char **argv)
     g_hash_table_insert(config, g_strdup("rekall_profile"), g_strdup(kernel_profile));
 
     if (VMI_PM_UNKNOWN == vmi_init_paging(vmi, VMI_PM_INITFLAG_TRANSITION_PAGES) ) {
-        errprint("Failed to init LibVMI paging.\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to init LibVMI paging.\n"));
         goto done;
     }
 
     os_t os = vmi_init_profile(vmi, VMI_CONFIG_GHASHTABLE, config);
     if (VMI_OS_WINDOWS != os) {
-        errprint("Failed to init LibVMI library.\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to init LibVMI library.\n"));
         goto done;
     }
 
@@ -316,23 +318,23 @@ int main(int argc, char **argv)
     if (VMI_FAILURE == vmi_get_struct_member_offset_from_json(vmi, profile, "_KPCR", "PrcbData", &offset_kpcr_prcb)) {
         // PrcbData was renamed to Prcb in 64-bit Windows
         if (VMI_FAILURE == vmi_get_struct_member_offset_from_json(vmi, profile, "_KPCR", "Prcb", &offset_kpcr_prcb)) {
-            errprint("Failed to find _KPCR->Prcb member offset\n");
+            IGNORE_RETURN(fprintf(stderr, "Failed to find _KPCR->Prcb member offset\n"));
             goto done;
         }
     }
 
     if (VMI_FAILURE == vmi_get_struct_member_offset_from_json(vmi, profile, "_KPRCB", "CurrentThread", &offset_kprcb_currentthread)) {
-        errprint("Failed to find _KPRCB->CurrentThread member offset\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to find _KPRCB->CurrentThread member offset\n"));
         goto done;
     }
 
     if (VMI_FAILURE == vmi_get_struct_member_offset_from_json(vmi, profile, "_EPROCESS", "UniqueProcessId", &offset_eprocess_uniqueprocessid)) {
-        errprint("Failed to find _EPROCESS->UniqueProcessId member offset\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to find _EPROCESS->UniqueProcessId member offset\n"));
         goto done;
     }
 
     if (VMI_FAILURE == vmi_get_struct_member_offset_from_json(vmi, profile, "_KTHREAD", "Process", &offset_kthread_process)) {
-        errprint("Failed to find _KTHREAD->Process member offset\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to find _KTHREAD->Process member offset\n"));
         goto done;
     }
 
@@ -344,13 +346,13 @@ int main(int argc, char **argv)
     cr3_event.callback = cr3_cb;
 
     if (VMI_FAILURE == vmi_register_event(vmi, &cr3_event)) {
-        errprint("Failed to register CR3 write event\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to register CR3 write event\n"));
         goto done;
     }
 
     while (!find_pid4_success) {
         if (VMI_FAILURE == vmi_events_listen(vmi, 500)) {
-            errprint("Failed to listen to VMI events\n");
+            IGNORE_RETURN(fprintf(stderr, "Failed to listen to VMI events\n"));
             goto done;
         }
     }
@@ -365,7 +367,7 @@ int main(int argc, char **argv)
     // the vm is already paused if we've got here
     os = vmi_init_os(vmi, VMI_CONFIG_GHASHTABLE, config, NULL);
     if (VMI_OS_WINDOWS != os) {
-        errprint("Failed to init LibVMI library.\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to init LibVMI library.\n"));
         goto done;
     }
 
@@ -383,37 +385,37 @@ int main(int argc, char **argv)
     addr_t kpgd = 0;
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_ntoskrnl", &ntoskrnl))
-        errprint("Failed to read field \"ntoskrnl\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"ntoskrnl\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_ntoskrnl_va", &ntoskrnl_va))
-        errprint("Failed to read field \"ntoskrnl_va\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"ntoskrnl_va\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_tasks", &tasks))
-        errprint("Failed to read field \"tasks\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"tasks\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_pdbase", &pdbase))
-        errprint("Failed to read field \"pdbase\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"pdbase\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_pid", &pid))
-        errprint("Failed to read field \"pid\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"pid\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_pname", &pname))
-        errprint("Failed to read field \"pname\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"pname\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_kdvb", &kdvb))
-        errprint("Failed to read field \"kdvb\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"kdvb\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_sysproc", &sysproc))
-        errprint("Failed to read field \"sysproc\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"sysproc\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_kpcr", &kpcr))
-        errprint("Failed to read field \"kpcr\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"kpcr\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "win_kdbg", &kdbg))
-        errprint("Failed to read field \"kdbg\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"kdbg\"\n"));
 
     if (VMI_FAILURE == vmi_get_offset(vmi, "kpgd", &kpgd))
-        errprint("Failed to read field \"kpgd\"\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read field \"kpgd\"\n"));
 
     if (only_output_kpgd) {
         printf("0x%lx", kpgd);
@@ -443,7 +445,7 @@ int main(int argc, char **argv)
     }
 
     if (!ntoskrnl || !ntoskrnl_va || !sysproc || !pdbase || !kpgd) {
-        errprint("Failed to get most essential fields\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to get most essential fields\n"));
         goto done;
     }
 

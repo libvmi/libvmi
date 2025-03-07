@@ -29,6 +29,8 @@
 #include <signal.h>
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 #include <libvmi/events.h>
 
 typedef struct cb_data {
@@ -88,7 +90,7 @@ int main (int argc, char **argv)
     char *name = NULL;
 
     if (argc < 2) {
-        errprint("Usage: %s <name of VM> [<socket>]\n", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]));
         return retcode;
     }
 
@@ -119,14 +121,14 @@ int main (int argc, char **argv)
     // pause
     printf("Pausing VM\n");
     if (VMI_FAILURE == vmi_pause_vm(vmi)) {
-        errprint("Failed to pause vm\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to pause vm\n"));
         goto error_exit;
     }
 
     // read nt!KeServiceDescriptorTable
     addr_t ke_sd_table_addr = 0;
     if (VMI_FAILURE == vmi_translate_ksym2v(vmi, "KeServiceDescriptorTable", &ke_sd_table_addr)) {
-        errprint("Failed to translate KeServiceDescriptorTable symbol\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to translate KeServiceDescriptorTable symbol\n"));
         goto error_exit;
     }
     printf("nt!KeServiceDescriptorTable: 0x%" PRIx64 "\n", ke_sd_table_addr);
@@ -134,7 +136,7 @@ int main (int argc, char **argv)
     // read nt!KiServiceTable
     addr_t ki_sv_table_addr = 0;
     if (VMI_FAILURE == vmi_translate_ksym2v(vmi, "KiServiceTable", &ki_sv_table_addr)) {
-        errprint("Failed to translate KiServiceTable symbol\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to translate KiServiceTable symbol\n"));
         goto error_exit;
     }
     printf("nt!KiServiceTable: 0x%" PRIx64 "\n", ki_sv_table_addr);
@@ -142,7 +144,7 @@ int main (int argc, char **argv)
     // read nt!NtLoadDriver
     addr_t ntload_driver_addr = 0;
     if (VMI_FAILURE == vmi_translate_ksym2v(vmi, "NtLoadDriver", &ntload_driver_addr)) {
-        errprint("Failed to translate NtAddDriverEntry symbol\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to translate NtAddDriverEntry symbol\n"));
         goto error_exit;
     }
     printf("nt!NtLoadDriver: 0x%" PRIx64 "\n", ntload_driver_addr);
@@ -169,7 +171,7 @@ int main (int argc, char **argv)
     addr_t nb_services_addr = ke_sd_table_addr + (addr_width * 2);
     addr_t nb_services = 0;
     if (VMI_FAILURE == vmi_read_addr_va(vmi, nb_services_addr, 0, &nb_services)) {
-        errprint("Failed to read SSDT.NumberOfServices field\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read SSDT.NumberOfServices field\n"));
         goto error_exit;
     }
     printf("SSDT.NumberOfServices: 0x%" PRIx64 "\n", nb_services);
@@ -181,7 +183,7 @@ int main (int argc, char **argv)
         addr_t syscall_addr_entry = ki_sv_table_addr + (addr_width * i);
         addr_t syscall_addr = 0;
         if (VMI_FAILURE == vmi_read_addr_va(vmi, syscall_addr_entry, 0, &syscall_addr)) {
-            errprint("Failed to read syscall address\n");
+            IGNORE_RETURN(fprintf(stderr, "Failed to read syscall address\n"));
             goto error_exit;
         }
         // Debug
@@ -194,7 +196,7 @@ int main (int argc, char **argv)
         }
     }
     if (ntload_driver_index == -1) {
-        errprint("Failed to find NtLoadDriver SSDT entry\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to find NtLoadDriver SSDT entry\n"));
         goto error_exit;
     }
 
@@ -203,7 +205,7 @@ int main (int argc, char **argv)
     ntload_driver_entry_addr = ki_sv_table_addr + (addr_width * ntload_driver_index);
     addr_t corrupted_value = 0;
     if (VMI_FAILURE == vmi_write_addr_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
-        errprint("Failed to corrupt NtLoadDriver SSDT entry\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to corrupt NtLoadDriver SSDT entry\n"));
         goto error_exit;
     }
     is_corrupted = true;
@@ -213,7 +215,7 @@ int main (int argc, char **argv)
 
     // reread NtLoadDriver SSDT entry
     if (VMI_FAILURE == vmi_read_addr_va(vmi, ntload_driver_entry_addr, 0, &corrupted_value)) {
-        errprint("Failed to read NtLoadDriver SSDT entry\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to read NtLoadDriver SSDT entry\n"));
         goto error_exit;
     }
     printf("New NtLoadDriver SSDT entry value: 0x%" PRIx64 "\n", corrupted_value);
@@ -222,14 +224,14 @@ int main (int argc, char **argv)
     //   get dtb
     uint64_t cr3;
     if (VMI_FAILURE == vmi_get_vcpureg(vmi, &cr3, CR3, 0)) {
-        errprint("Failed to get current CR3\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to get current CR3\n"));
         goto error_exit;
     }
     uint64_t dtb = cr3 & ~(0xfff);
     // get paddr
     uint64_t syscall_entry_paddr;
     if (VMI_FAILURE == vmi_pagetable_lookup(vmi, dtb, ntload_driver_entry_addr, &syscall_entry_paddr)) {
-        errprint("Failed to find current paddr\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to find current paddr\n"));
         goto error_exit;
     }
     // get Guest Frame Number (gfn)
@@ -247,20 +249,20 @@ int main (int argc, char **argv)
 
     printf("Registering read event on GFN 0x%" PRIx64 "\n", syscall_entry_gfn);
     if (VMI_FAILURE == vmi_register_event(vmi, &read_event)) {
-        errprint("Failed to register event\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to register event\n"));
         goto error_exit;
     }
 
     // resume
     printf("Resuming VM\n");
     if (VMI_FAILURE == vmi_resume_vm(vmi)) {
-        errprint("Failed to continue VM\n");
+        IGNORE_RETURN(fprintf(stderr, "Failed to continue VM\n"));
         goto error_exit;
     }
     printf("Waiting for events...\n");
     while (!interrupted) {
         if (VMI_FAILURE == vmi_events_listen(vmi,500)) {
-            errprint("Failed to listen on VMI events\n");
+            IGNORE_RETURN(fprintf(stderr, "Failed to listen on VMI events\n"));
             goto error_exit;
         }
     }
@@ -272,7 +274,7 @@ error_exit:
         printf("Restoring NtLoadDriver SSDT entry\n");
         // restore SSDT entry
         if (VMI_FAILURE == vmi_write_addr_va(vmi, ntload_driver_entry_addr, 0, &ntload_driver_addr)) {
-            errprint("Failed to restore SSDT entry\n");
+            IGNORE_RETURN(fprintf(stderr, "Failed to restore SSDT entry\n"));
         }
     }
     vmi_resume_vm(vmi);

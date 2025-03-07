@@ -31,6 +31,8 @@
 #include <stdio.h>
 
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 
 int
 main(
@@ -45,7 +47,7 @@ main(
     int retcode = 1;
 
     if ( argc < 2 ) {
-        errprint("Usage: %s <Name of VM> [socket]", argv[0]);
+        IGNORE_RETURN(fprintf(stderr, "Usage: %s <Name of VM> [socket]", argv[0]));
         return retcode;
     }
 

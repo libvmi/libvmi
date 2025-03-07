@@ -33,6 +33,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <libvmi/libvmi.h>
+#define IGNORE_RETURN(x) (void)(x)
+
 
 #define SECTOR_SIZE 512
 
@@ -142,13 +144,13 @@ int main(int argc, char **argv)
         }
 
     if (!domain) {
-        errprint("You have to specify --name or --domid!\n");
+        IGNORE_RETURN(fprintf(stderr, "You have to specify --name or --domid!\n"));
         print_usage(argv[0]);
         return 1;
     }
 
     if (!filename) {
-        errprint("You have to specify --file to save result!\n");
+        IGNORE_RETURN(fprintf(stderr, "You have to specify --file to save result!\n"));
         print_usage(argv[0]);
         return 1;
     }
