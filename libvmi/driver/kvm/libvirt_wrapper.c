@@ -22,6 +22,7 @@
 
 #include <string.h>
 
+#include "private.h"
 #include "kvm_private.h"
 
 static inline status_t sanity_check(kvm_instance_t *kvm)
