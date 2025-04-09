@@ -667,17 +667,13 @@ find_windows_version_from_json_profile(vmi_instance_t vmi)
 {
     status_t ret = VMI_FAILURE;
     windows_instance_t windows = vmi->os_data;
-    addr_t ntbuildnumber_rva;
     uint16_t ntbuildnumber = 0;
 
     // Let's do some sanity checking
     if (!windows->ntoskrnl)
         goto done;
 
-    if (VMI_FAILURE == json_profile_lookup(vmi, "NtBuildNumber", NULL, &ntbuildnumber_rva)) {
-        goto done;
-    }
-    if (VMI_FAILURE == vmi_read_16_pa(vmi, windows->ntoskrnl + ntbuildnumber_rva, &ntbuildnumber)) {
+    if (VMI_FAILURE == vmi_read_16_ksym(vmi, "NtBuildNumber", &ntbuildnumber)) {
         goto done;
     }
 
