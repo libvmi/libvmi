@@ -7,7 +7,6 @@ jobs:
     strategy:
       matrix:
         container:
-          - 'debian:buster-slim'
           - 'debian:bullseye-slim'
           - 'debian:bookworm-slim'
           - 'ubuntu:focal'
