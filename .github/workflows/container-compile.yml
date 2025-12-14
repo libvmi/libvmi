@@ -9,7 +9,6 @@ jobs:
         container:
           - 'debian:bullseye-slim'
           - 'debian:bookworm-slim'
-          - 'ubuntu:focal'
         compiler:
           - 'gcc'
           - 'clang'
