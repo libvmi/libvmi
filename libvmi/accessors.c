@@ -790,6 +790,21 @@ GSList* vmi_get_va_pages(vmi_instance_t vmi, addr_t dtb)
     return vmi->arch_interface.get_pages[vmi->page_mode](vmi, 0, 0, dtb);
 }
 
+GSList* vmi_get_va_pages_subset(vmi_instance_t vmi, addr_t dtb, addr_t start, addr_t end)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return NULL;
+
+    if (!vmi->arch_interface.get_pages[vmi->page_mode]) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "Invalid or not supported paging mode during get_va_pages\n");
+        return NULL;
+    }
+#endif
+
+    return vmi->arch_interface.get_pages_subset[vmi->page_mode](vmi, 0, 0, dtb, start, end);
+}
+
 GSList* vmi_get_nested_va_pages(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, page_mode_t pm)
 {
 #ifdef ENABLE_SAFETY_CHECKS
@@ -806,6 +821,24 @@ GSList* vmi_get_nested_va_pages(vmi_instance_t vmi, addr_t npt, page_mode_t npm,
 #endif
 
     return vmi->arch_interface.get_pages[pm](vmi, npt, npm, pt);
+}
+
+GSList* vmi_get_nested_va_pages_subset(vmi_instance_t vmi, addr_t npt, page_mode_t npm, addr_t pt, page_mode_t pm, addr_t start, addr_t end)
+{
+#ifdef ENABLE_SAFETY_CHECKS
+    if (!vmi)
+        return NULL;
+
+    if (valid_npm(npm) && !npt)
+        return NULL;
+
+    if (!valid_pm(pm)) {
+        dbprint(VMI_DEBUG_PTLOOKUP, "Invalid or not supported paging mode during get_va_pages\n");
+        return NULL;
+    }
+#endif
+
+    return vmi->arch_interface.get_pages_subset[pm](vmi, npt, npm, pt, start, end);
 }
 
 status_t
