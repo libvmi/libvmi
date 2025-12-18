@@ -1434,6 +1434,26 @@ status_t vmi_mmap_guest(
 ) NOEXCEPT;
 
 /**
+ * Maps the physical memory pages of the guest listed in pfns into the host
+ * Each page will have it's own pointer in access_ptrs output array.
+ * Remember to call munmap() on each array item afterwards.
+ *
+ * @param[in] vmi LibVMI instance
+ * @param[in] pfns Array of size [num_pages] containing guest's page frame numbers to map
+ * @param[in] num_pages Number of guest pages to be mapped (starting from paddr)
+ * @param[in] prot Memory protection flags
+ * @param[out] access_ptrs Output array of size [num_pages] containing pointers to the respective guest's pages
+ */
+status_t
+vmi_mmap_guest_pfns(
+    vmi_instance_t vmi,
+    unsigned long *pfns,
+    size_t num_pages,
+    int prot,
+    void **access_ptrs
+) NOEXCEPT;
+
+/**
  * Maps num_pages of the guest's physical memory into host, starting at the provided paddr.
  * Each page will have it's own pointer in access_ptrs output array.
  * Remember to call munmap() on each array item afterwards.
