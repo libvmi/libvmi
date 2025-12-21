@@ -81,7 +81,7 @@ void clean_up(void)
     }
 }
 
-void sigint_handler()
+void sigint_handler(int signum)
 {
     clean_up();
     exit(1);
