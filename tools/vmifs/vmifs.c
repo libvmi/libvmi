@@ -110,7 +110,7 @@ static int vmifs_read(const char *path, char *buf, size_t size, off_t offset,
     return size;
 }
 
-void vmifs_destroy()
+void vmifs_destroy(void *unused)
 {
     if (vmi)
         vmi_destroy(vmi);
@@ -162,14 +162,14 @@ int main(int argc, char *argv[])
     }
 
     if (VMI_FAILURE == vmi_get_access_mode(NULL, domain, init_flags, init_data, &mode)) {
-        vmifs_destroy();
+        vmifs_destroy(NULL);
         return 1;
     }
 
     /* initialize the libvmi library */
     if (VMI_FAILURE == vmi_init(&vmi, mode, domain, init_flags, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        vmifs_destroy();
+        vmifs_destroy(NULL);
         return 1;
     }
 
