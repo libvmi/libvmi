@@ -673,18 +673,17 @@ find_windows_version_from_json_profile(vmi_instance_t vmi)
     if (!windows->ntoskrnl)
         goto done;
 
-    if (VMI_FAILURE == vmi_read_16_ksym(vmi, "NtBuildNumber", &ntbuildnumber)) {
-        goto done;
-    }
+    // Let's check the PE header 
+    windows->version = pe2version(vmi, windows->ntoskrnl, &windows->major, &windows->minor);
 
-    // Let's see if we know the buildnumber
-    windows->build = ntbuildnumber;
-    windows->version = ntbuild2version(ntbuildnumber);
+    if (VMI_OS_WINDOWS_NONE == windows->version) {
 
-    if (VMI_OS_WINDOWS_UNKNOWN == windows->version) {
-
-        // Let's check the PE header if the buildnumber is unknown
-        windows->version = pe2version(vmi, windows->ntoskrnl, &windows->major, &windows->minor);
+        if (VMI_FAILURE == vmi_read_16_ksym(vmi, "NtBuildNumber", &ntbuildnumber)) {
+            goto done;
+        }
+        // Let's see if we know the buildnumber if PE parsing failed 
+        windows->build = ntbuildnumber;
+        windows->version = ntbuild2version(ntbuildnumber);
 
         if (VMI_OS_WINDOWS_NONE == windows->version) {
             dbprint(VMI_DEBUG_MISC, "Failed to find a known version of Windows, "
@@ -1280,4 +1279,3 @@ status_t windows_teardown(vmi_instance_t vmi)
 done:
     return ret;
 }
-
