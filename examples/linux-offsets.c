@@ -48,7 +48,7 @@ void clean_up(void)
     vmi_destroy(vmi);
 }
 
-void sigint_handler()
+void sigint_handler(int signum)
 {
     clean_up();
     exit(1);
