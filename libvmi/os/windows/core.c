@@ -1144,6 +1144,43 @@ windows_init_pte(vmi_instance_t vmi)
 #endif
 }
 
+/* Gets the CR3 of a vCPU to use during the init phase.
+ * Normally this is the CR3 of vCPU 0. But with KVA shadowing a vCPU that is running user code
+ * uses a page table without kernel mappings, so the kernel cannot be found with it (LibVMI would
+ * then fall back to searching all of physical memory, which can take minutes). So if vCPU 0 is
+ * running user code, prefer the CR3 of a vCPU that is running kernel code. */
+static status_t
+get_vcpu_kernel_cr3(
+    vmi_instance_t vmi,
+    addr_t *cr3_out)
+{
+    reg_t cr3 = 0, rip = 0;
+    unsigned int vcpu, num_vcpus;
+
+    if ( VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0) )
+        return VMI_FAILURE;
+
+    /* RIP in the upper half of the address space: vCPU 0 is already running kernel code */
+    if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && (rip >> 63) ) {
+        *cr3_out = cr3;
+        return VMI_SUCCESS;
+    }
+
+    num_vcpus = vmi_get_num_vcpus(vmi);
+    for (vcpu = 1; vcpu < num_vcpus; ++vcpu) {
+        reg_t other_cr3 = 0;
+        if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, vcpu) && (rip >> 63) &&
+                VMI_SUCCESS == driver_get_vcpureg(vmi, &other_cr3, CR3, vcpu) && other_cr3 ) {
+            dbprint(VMI_DEBUG_MISC, "--vCPU 0 is running user code, using the CR3 of vCPU %u\n", vcpu);
+            cr3 = other_cr3;
+            break;
+        }
+    }
+
+    *cr3_out = cr3;
+    return VMI_SUCCESS;
+}
+
 status_t
 windows_init(vmi_instance_t vmi, GHashTable *config)
 {
@@ -1199,7 +1236,7 @@ windows_init(vmi_instance_t vmi, GHashTable *config)
      * If the driver gets us a dtb, it will be used _only_ during the init phase,
      * and will be replaced by the real kpgd later. */
     if ( !vmi->kpgd ) {
-        if ( VMI_FAILURE == driver_get_vcpureg(vmi, &vmi->kpgd, CR3, 0)) {
+        if ( VMI_FAILURE == get_vcpu_kernel_cr3(vmi, &vmi->kpgd)) {
             if (VMI_FAILURE == get_kpgd_method2(vmi)) {
                 errprint("Could not get kpgd, will not be able to determine page mode\n");
                 goto done;
