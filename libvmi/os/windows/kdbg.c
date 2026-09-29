@@ -837,6 +837,115 @@ done:
     return ret;
 }
 
+
+/*
+ * Scan physical memory at 2MB-aligned boundaries for the ntoskrnl.exe PE image
+ * and locate the KdDebuggerDataBlock within it.  Used when all vCPUs are in
+ * user mode so GS_BASE / KPCR cannot be trusted as a scan hint.
+ *
+ * Windows KASLR aligns ntoskrnl to 2 MB boundaries, bounding the search to at
+ * most max_physical_address / 2MB iterations rather than every 4 KB page.
+ */
+static status_t
+find_ntoskrnl_physical_scan(
+    vmi_instance_t vmi,
+    void *bm,
+    int find_ofs,
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
+{
+    dbprint(VMI_DEBUG_MISC, "**find_ntoskrnl_physical_scan: 2MB-aligned scan\n");
+
+    const addr_t align = 0x200000;
+
+    for (addr_t paddr = align; paddr < vmi->max_physical_address; paddr += align) {
+
+        uint8_t page[VMI_PS_4KB];
+        ACCESS_CONTEXT(ctx);
+        ctx.addr = paddr;
+
+        if (VMI_FAILURE == peparse_get_image(vmi, &ctx, VMI_PS_4KB, page))
+            continue;
+
+        struct pe_header *pe_header = NULL;
+        struct dos_header *dos_header = NULL;
+        void *optional_pe_header = NULL;
+        uint16_t optional_header_type = 0;
+        struct export_table et;
+
+        peparse_assign_headers(page, &dos_header, &pe_header, &optional_header_type, &optional_pe_header, NULL, NULL);
+        addr_t export_header_offset =
+            peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
+
+        if (!export_header_offset || paddr + export_header_offset >= vmi->max_physical_address)
+            continue;
+
+        if (VMI_SUCCESS != vmi_read_pa(vmi, paddr + export_header_offset, sizeof(struct export_table), &et, NULL))
+            continue;
+
+        if (!et.name || paddr + et.name + 12 >= vmi->max_physical_address)
+            continue;
+
+        unsigned char name[13] = {0};
+        if (VMI_FAILURE == vmi_read_pa(vmi, paddr + et.name, 12, name, NULL))
+            continue;
+
+        if (strcmp("ntoskrnl.exe", (const char *)name))
+            continue;
+
+        /* Found ntoskrnl.exe.  Scan the .data section for the KDBG signature. */
+        uint32_t c;
+        for (c = 0; c < pe_header->number_of_sections; c++) {
+
+            struct section_header section;
+            addr_t section_addr = paddr
+                                  + dos_header->offset_to_pe
+                                  + sizeof(struct pe_header)
+                                  + pe_header->size_of_optional_header
+                                  + c * sizeof(struct section_header);
+
+            if (VMI_FAILURE == vmi_read_pa(vmi, section_addr, sizeof(struct section_header), (uint8_t *)&section, NULL))
+                continue;
+
+            if (memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) != 0)
+                continue;
+
+            if (!section.size_of_raw_data || paddr + section.virtual_address >= vmi->max_physical_address)
+                break;
+
+            uint8_t *haystack = g_try_malloc0(section.size_of_raw_data);
+            if (!haystack)
+                return VMI_FAILURE;
+
+            if (VMI_FAILURE == vmi_read_pa(vmi, paddr + section.virtual_address, section.size_of_raw_data, haystack, NULL)) {
+                g_free(haystack);
+                break;
+            }
+
+            int match_offset = boyer_moore2(bm, haystack, section.size_of_raw_data);
+            if (-1 != match_offset) {
+                uint64_t *kernbase = (uint64_t *)&haystack[(unsigned int) match_offset + sizeof(uint64_t)];
+
+                *kernel_pa = paddr;
+                *kernel_va = *kernbase;
+                *kdbg_pa = paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
+
+                dbprint(VMI_DEBUG_MISC,
+                        "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
+
+                g_free(haystack);
+                return VMI_SUCCESS;
+            }
+
+            g_free(haystack);
+            break;
+        }
+    }
+
+    return VMI_FAILURE;
+}
+
 status_t
 find_kdbg_address_faster(
     vmi_instance_t vmi,
@@ -859,19 +968,53 @@ find_kdbg_address_faster(
     void *bm = boyer_moore_init((unsigned char *)"KDBG", 4);
     int find_ofs = 0x10;
 
+    // Find a kernel-mode vCPU. vCPU 0 is the usual choice, but during early
+    // boot (Xen context not yet readable) or when all threads are in user mode,
+    // vCPU 0's RIP may be in user space or its context read may fail outright.
+    // Try every vCPU; fall back to a 2MB-aligned physical scan when none yields
+    // a kernel-mode RIP.
+    unsigned int kernel_vcpu = 0;
+    {
+        reg_t rip0 = 0;
+        if (VMI_FAILURE == driver_get_vcpureg(vmi, &rip0, RIP, 0) || !(rip0 >> 63)) {
+            unsigned int num_vcpus = vmi_get_num_vcpus(vmi);
+            bool found_kernel = false;
+            for (unsigned int v = 1; v < num_vcpus; v++) {
+                reg_t v_rip = 0;
+                if (VMI_FAILURE == driver_get_vcpureg(vmi, &v_rip, RIP, v))
+                    continue;
+                if (!(v_rip >> 63))
+                    continue;
+                kernel_vcpu = v;
+                found_kernel = true;
+                dbprint(VMI_DEBUG_MISC,
+                        "**find_kdbg_address_faster: using vCPU %u\n", v);
+                break;
+            }
+            if (!found_kernel) {
+                dbprint(VMI_DEBUG_MISC,
+                        "**find_kdbg_address_faster: all vCPUs in user mode, "
+                        "falling back to physical scan\n");
+                ret = find_ntoskrnl_physical_scan(vmi, bm, find_ofs,
+                                                  kdbg_pa, kernel_pa, kernel_va);
+                goto done;
+            }
+        }
+    }
+
     reg_t cr3 = 0, fsgs = 0;
-    if (VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
+    if (VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, kernel_vcpu)) {
         goto done;
     }
 
     switch ( vmi->page_mode ) {
         case VMI_PM_IA32E:
-            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0))
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, kernel_vcpu))
                 goto done;
             break;
         case VMI_PM_LEGACY: /* Fall-through */
         case VMI_PM_PAE:
-            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0))
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, kernel_vcpu))
                 goto done;
             break;
         default:
