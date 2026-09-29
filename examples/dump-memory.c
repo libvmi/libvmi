@@ -49,7 +49,7 @@ static int progress_flag;
 static int pause_vm_flag = 1;
 
 volatile int interrupted;
-void sigint_handler()
+void sigint_handler(int signum)
 {
     interrupted = 1;
 }
