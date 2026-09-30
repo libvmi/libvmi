@@ -32,6 +32,9 @@
 #include "peparse.h"
 #include "driver/driver_wrapper.h"
 
+/* Name of the PE section holding KdDebuggerDataBlock (".data") */
+#define KDBG_DATA_SECTION_NAME "\x2E\x64\x61\x74\x61"
+
 struct _DBGKD_DEBUG_DATA_HEADER64 {
     uint64_t List[2];
     uint32_t OwnerTag;
@@ -875,6 +878,9 @@ find_kdbg_in_sections(
     addr_t *kernel_pa,
     addr_t *kernel_va)
 {
+    status_t ret = VMI_FAILURE;
+    uint8_t *haystack = NULL;
+
     for (uint32_t c = 0; c < pe_header->number_of_sections; c++) {
         struct section_header section;
         addr_t section_addr = paddr
@@ -884,17 +890,15 @@ find_kdbg_in_sections(
                               + c * sizeof(struct section_header);
         if (VMI_FAILURE == vmi_read_pa(vmi, section_addr, sizeof(struct section_header), (uint8_t *)&section, NULL))
             continue;
-        if (memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) != 0)
+        if (memcmp(section.short_name, KDBG_DATA_SECTION_NAME, sizeof(KDBG_DATA_SECTION_NAME) - 1) != 0)
             continue;
         if (!section.size_of_raw_data || paddr + section.virtual_address >= vmi->max_physical_address)
             break;
-        uint8_t *haystack = g_try_malloc0(section.size_of_raw_data);
+        haystack = g_try_malloc0(section.size_of_raw_data);
         if (!haystack)
-            return VMI_FAILURE;
-        if (VMI_FAILURE == vmi_read_pa(vmi, paddr + section.virtual_address, section.size_of_raw_data, haystack, NULL)) {
-            g_free(haystack);
             break;
-        }
+        if (VMI_FAILURE == vmi_read_pa(vmi, paddr + section.virtual_address, section.size_of_raw_data, haystack, NULL))
+            break;
         int match_offset = boyer_moore2(bm, haystack, section.size_of_raw_data);
         if (-1 != match_offset) {
             uint64_t *kernbase = (uint64_t *)&haystack[(unsigned int) match_offset + sizeof(uint64_t)];
@@ -902,13 +906,13 @@ find_kdbg_in_sections(
             *kernel_va = *kernbase;
             *kdbg_pa = paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
             dbprint(VMI_DEBUG_MISC, "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
-            g_free(haystack);
-            return VMI_SUCCESS;
+            ret = VMI_SUCCESS;
         }
-        g_free(haystack);
         break;
     }
-    return VMI_FAILURE;
+
+    g_free(haystack);
+    return ret;
 }
 
 /*
@@ -959,7 +963,7 @@ find_ntoskrnl_physical_scan(
         unsigned char name[13] = {0};
         if (VMI_FAILURE == vmi_read_pa(vmi, paddr + et.name, 12, name, NULL))
             continue;
-        if (strcmp("ntoskrnl.exe", (const char *)name))
+        if (strncmp("ntoskrnl.exe", (const char *)name, sizeof(name)))
             continue;
 
         if (VMI_SUCCESS == find_kdbg_in_sections(vmi, bm, find_ofs, paddr,
@@ -1070,7 +1074,7 @@ scan:
         if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + et.name, 12, name, NULL) )
             continue;
 
-        if (strcmp("ntoskrnl.exe", (const char *)name))
+        if (strncmp("ntoskrnl.exe", (const char *)name, sizeof(name)))
             continue;
 
         uint32_t c;
@@ -1088,7 +1092,7 @@ scan:
                 continue;
 
             // .data check
-            if (memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) != 0) {
+            if (memcmp(section.short_name, KDBG_DATA_SECTION_NAME, sizeof(KDBG_DATA_SECTION_NAME) - 1) != 0) {
                 continue;
             }
 
