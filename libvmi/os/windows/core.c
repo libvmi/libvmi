@@ -1041,6 +1041,16 @@ done:
 static status_t
 init_core(vmi_instance_t vmi)
 {
+    /* A live guest with paging disabled (e.g. still in its firmware or boot
+     * loader) cannot be running the Windows kernel yet. Every method below
+     * would fail, the KdDebuggerDataBlock search only after scanning all of
+     * physical memory, so give up right away and let the caller retry once
+     * the guest has booted. */
+    if ( VMI_FILE != vmi->mode && VMI_PM_NONE == vmi->page_mode ) {
+        errprint("Guest paging is disabled, the Windows kernel is not running yet; retry once the guest has booted\n");
+        return VMI_FAILURE;
+    }
+
     status_t ret = init_from_json_profile(vmi);
 
     if ( VMI_FAILURE == ret )
