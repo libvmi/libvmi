@@ -32,6 +32,9 @@
 #include "peparse.h"
 #include "driver/driver_wrapper.h"
 
+/* Name of the PE section holding KdDebuggerDataBlock (".data") */
+#define KDBG_DATA_SECTION_NAME "\x2E\x64\x61\x74\x61"
+
 struct _DBGKD_DEBUG_DATA_HEADER64 {
     uint64_t List[2];
     uint32_t OwnerTag;
@@ -837,6 +840,141 @@ done:
     return ret;
 }
 
+
+/* Select a vCPU whose RIP is in kernel space (bit 63 set).
+ * Returns VMI_FAILURE when all vCPUs are in user mode or unreadable. */
+static status_t
+find_kernel_vcpu(vmi_instance_t vmi, unsigned int *out)
+{
+    reg_t rip = 0;
+    if (VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && (rip >> 63)) {
+        *out = 0;
+        return VMI_SUCCESS;
+    }
+    unsigned int n = vmi_get_num_vcpus(vmi);
+    for (unsigned int v = 1; v < n; v++) {
+        reg_t v_rip = 0;
+        if (VMI_FAILURE == driver_get_vcpureg(vmi, &v_rip, RIP, v))
+            continue;
+        if (!(v_rip >> 63))
+            continue;
+        dbprint(VMI_DEBUG_MISC, "**find_kdbg_address_faster: using vCPU %u\n", v);
+        *out = v;
+        return VMI_SUCCESS;
+    }
+    return VMI_FAILURE;
+}
+
+/* Scan PE sections of a candidate kernel image for the KDBG signature. */
+static status_t
+find_kdbg_in_sections(
+    vmi_instance_t vmi,
+    void *bm,
+    int find_ofs,
+    addr_t paddr,
+    struct pe_header *pe_header,
+    struct dos_header *dos_header,
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
+{
+    status_t ret = VMI_FAILURE;
+    uint8_t *haystack = NULL;
+
+    for (uint32_t c = 0; c < pe_header->number_of_sections; c++) {
+        struct section_header section;
+        addr_t section_addr = paddr
+                              + dos_header->offset_to_pe
+                              + sizeof(struct pe_header)
+                              + pe_header->size_of_optional_header
+                              + c * sizeof(struct section_header);
+        if (VMI_FAILURE == vmi_read_pa(vmi, section_addr, sizeof(struct section_header), (uint8_t *)&section, NULL))
+            continue;
+        if (memcmp(section.short_name, KDBG_DATA_SECTION_NAME, sizeof(KDBG_DATA_SECTION_NAME) - 1) != 0)
+            continue;
+        if (!section.size_of_raw_data || paddr + section.virtual_address >= vmi->max_physical_address)
+            break;
+        haystack = g_try_malloc0(section.size_of_raw_data);
+        if (!haystack)
+            break;
+        if (VMI_FAILURE == vmi_read_pa(vmi, paddr + section.virtual_address, section.size_of_raw_data, haystack, NULL))
+            break;
+        int match_offset = boyer_moore2(bm, haystack, section.size_of_raw_data);
+        if (-1 != match_offset) {
+            uint64_t *kernbase = (uint64_t *)&haystack[(unsigned int) match_offset + sizeof(uint64_t)];
+            *kernel_pa = paddr;
+            *kernel_va = *kernbase;
+            *kdbg_pa = paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
+            dbprint(VMI_DEBUG_MISC, "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
+            ret = VMI_SUCCESS;
+        }
+        break;
+    }
+
+    g_free(haystack);
+    return ret;
+}
+
+/*
+ * Scan physical memory at 2MB-aligned boundaries for the ntoskrnl.exe PE image
+ * and locate the KdDebuggerDataBlock within it.  Used when all vCPUs are in
+ * user mode so GS_BASE / KPCR cannot be trusted as a scan hint.
+ *
+ * Windows KASLR aligns ntoskrnl to 2 MB boundaries, bounding the search to at
+ * most max_physical_address / 2MB iterations rather than every 4 KB page.
+ */
+static status_t
+find_ntoskrnl_physical_scan(
+    vmi_instance_t vmi,
+    void *bm,
+    int find_ofs,
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
+{
+    dbprint(VMI_DEBUG_MISC, "**find_ntoskrnl_physical_scan: 2MB-aligned scan\n");
+
+    const addr_t align = 0x200000;
+
+    for (addr_t paddr = align; paddr < vmi->max_physical_address; paddr += align) {
+        uint8_t page[VMI_PS_4KB];
+        ACCESS_CONTEXT(ctx);
+        ctx.addr = paddr;
+        if (VMI_FAILURE == peparse_get_image(vmi, &ctx, VMI_PS_4KB, page))
+            continue;
+
+        struct pe_header *pe_header = NULL;
+        struct dos_header *dos_header = NULL;
+        void *optional_pe_header = NULL;
+        uint16_t optional_header_type = 0;
+        struct export_table et;
+
+        peparse_assign_headers(page, &dos_header, &pe_header, &optional_header_type, &optional_pe_header, NULL, NULL);
+        addr_t export_header_offset =
+            peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
+
+        if (!export_header_offset || paddr + export_header_offset >= vmi->max_physical_address)
+            continue;
+        if (VMI_SUCCESS != vmi_read_pa(vmi, paddr + export_header_offset, sizeof(struct export_table), &et, NULL))
+            continue;
+        if (!et.name || paddr + et.name + 12 >= vmi->max_physical_address)
+            continue;
+
+        unsigned char name[13] = {0};
+        if (VMI_FAILURE == vmi_read_pa(vmi, paddr + et.name, 12, name, NULL))
+            continue;
+        if (strncmp("ntoskrnl.exe", (const char *)name, sizeof(name)))
+            continue;
+
+        if (VMI_SUCCESS == find_kdbg_in_sections(vmi, bm, find_ofs, paddr,
+                pe_header, dos_header,
+                kdbg_pa, kernel_pa, kernel_va))
+            return VMI_SUCCESS;
+    }
+
+    return VMI_FAILURE;
+}
+
 status_t
 find_kdbg_address_faster(
     vmi_instance_t vmi,
@@ -859,19 +997,26 @@ find_kdbg_address_faster(
     void *bm = boyer_moore_init((unsigned char *)"KDBG", 4);
     int find_ofs = 0x10;
 
+    unsigned int kernel_vcpu = 0;
+    if (VMI_FAILURE == find_kernel_vcpu(vmi, &kernel_vcpu)) {
+        ret = find_ntoskrnl_physical_scan(vmi, bm, find_ofs,
+                                          kdbg_pa, kernel_pa, kernel_va);
+        goto done;
+    }
+
     reg_t cr3 = 0, fsgs = 0;
-    if (VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0)) {
+    if (VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, kernel_vcpu)) {
         goto done;
     }
 
     switch ( vmi->page_mode ) {
         case VMI_PM_IA32E:
-            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, 0))
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, GS_BASE, kernel_vcpu))
                 goto done;
             break;
         case VMI_PM_LEGACY: /* Fall-through */
         case VMI_PM_PAE:
-            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, 0))
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &fsgs, FS_BASE, kernel_vcpu))
                 goto done;
             break;
         default:
@@ -919,20 +1064,18 @@ scan:
         if (!export_header_offset || page_paddr + export_header_offset >= vmi->max_physical_address)
             continue;
 
-        if ( VMI_SUCCESS == vmi_read_pa(vmi, page_paddr + export_header_offset, sizeof(struct export_table), &et, NULL)) {
-            if ( !(et.export_flags || !et.name) && page_paddr + et.name + 12 >= vmi->max_physical_address)
-                continue;
-
-            unsigned char name[13] = {0};
-            if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + et.name, 12, name, NULL) )
-                continue;
-
-            if (strcmp("ntoskrnl.exe", (const char *)name)) {
-                continue;
-            }
-        } else {
+        if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + export_header_offset, sizeof(struct export_table), &et, NULL))
             continue;
-        }
+
+        if ( !(et.export_flags || !et.name) && page_paddr + et.name + 12 >= vmi->max_physical_address)
+            continue;
+
+        unsigned char name[13] = {0};
+        if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + et.name, 12, name, NULL) )
+            continue;
+
+        if (strncmp("ntoskrnl.exe", (const char *)name, sizeof(name)))
+            continue;
 
         uint32_t c;
         for (c=0; c < pe_header->number_of_sections; c++) {
@@ -949,7 +1092,7 @@ scan:
                 continue;
 
             // .data check
-            if (memcmp(section.short_name, "\x2E\x64\x61\x74\x61", 5) != 0) {
+            if (memcmp(section.short_name, KDBG_DATA_SECTION_NAME, sizeof(KDBG_DATA_SECTION_NAME) - 1) != 0) {
                 continue;
             }
 
