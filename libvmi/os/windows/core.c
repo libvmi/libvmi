@@ -817,15 +817,15 @@ static status_t kpcr_find3(vmi_instance_t vmi, windows_instance_t windows)
 {
     dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find3\n");
 
-    addr_t int0_rva = 0;
+    /* With KVA shadowing (the Meltdown mitigation) the IDT in use while a vCPU runs user
+     * code points to the trampolines of the shadow section, not to the handlers, so the
+     * RVA of both are tried and the one giving a kernel base with a PE header wins. */
+    static const char *int0_symbols[] = {
+        "KiDivideErrorFault", "KiTrap00", "KiDivideErrorFaultShadow", "KiTrap00Shadow"
+    };
     reg_t idt = 0;
     uint32_t int0_high = 0;
     uint16_t int0_low = 0, int0_middle = 0;
-
-    if ( VMI_FAILURE == json_profile_lookup(vmi, "KiDivideErrorFault", NULL, &int0_rva) ) {
-        if ( VMI_FAILURE == json_profile_lookup(vmi, "KiTrap00", NULL, &int0_rva) )
-            return VMI_FAILURE;
-    }
 
     // Some Windows10+ JSON profiles don't have KiInitialPCR defined so we use the IDT route
     // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
@@ -838,9 +838,26 @@ static status_t kpcr_find3(vmi_instance_t vmi, windows_instance_t windows)
     if (VMI_PM_IA32E == vmi->page_mode && VMI_FAILURE == vmi_read_32_va(vmi, idt + 8, 0, &int0_high))
         return VMI_FAILURE;
 
-    windows->ntoskrnl_va = (((uint64_t)int0_high << 32) | ((uint64_t)int0_middle << 16) | int0_low) - int0_rva;
+    addr_t int0 = ((uint64_t)int0_high << 32) | ((uint64_t)int0_middle << 16) | int0_low;
 
-    return VMI_SUCCESS;
+    for (size_t i = 0; i < sizeof(int0_symbols) / sizeof(int0_symbols[0]); i++) {
+        addr_t int0_rva = 0, base = 0;
+        uint16_t mz = 0;
+
+        if ( VMI_FAILURE == json_profile_lookup(vmi, int0_symbols[i], NULL, &int0_rva) || int0_rva > int0 )
+            continue;
+
+        base = int0 - int0_rva;
+        if ( (base & VMI_BIT_MASK(0, 11)) || !windows_is_kernel_address(vmi, base) )
+            continue;
+        if ( VMI_FAILURE == vmi_read_16_va(vmi, base, 0, &mz) || mz != 0x5a4d ) /* "MZ" */
+            continue;
+
+        windows->ntoskrnl_va = base;
+        return VMI_SUCCESS;
+    }
+
+    return VMI_FAILURE;
 }
 
 static status_t kpcr_find4(vmi_instance_t vmi, windows_instance_t windows, reg_t kpcr_reg)
