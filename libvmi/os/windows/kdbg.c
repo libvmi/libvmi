@@ -27,6 +27,7 @@
 
 #define _GNU_SOURCE
 #include <string.h>
+#include <stddef.h>
 
 #include "private.h"
 #include "peparse.h"
@@ -187,6 +188,182 @@ enum kdbg_magic {
     KDBG_WINDOWS_8     = 0x0360U, /**< Magic value for Windows 8 */
 };
 
+
+/*
+ * On recent Windows 10 and on Windows 11 KdDebuggerDataBlock is stored encoded
+ * (KdpDataBlockEncoded == 1), so the "KDBG" tag cannot be found in memory.
+ * Every qword of the block is stored rotated and byte-swapped, and decodes as
+ *
+ *     plain = bswap(ROL(encoded, r)) ^ C
+ *
+ * with the same r < 64 and the same 64-bit constant C for every qword of the
+ * block; both change at each boot (r matches KiWaitNever & 63 on every guest
+ * tested). Neither needs the kernel symbols: both are recovered from the block
+ * itself, see kdbg_try_decode().
+ */
+static inline uint64_t
+kdbg_rol64(uint64_t v, unsigned int r)
+{
+    return r ? (v << r) | (v >> (64 - r)) : v;
+}
+
+static inline uint64_t
+kdbg_decode_qword(uint64_t enc, unsigned int rot, uint64_t xor_term)
+{
+    return __builtin_bswap64(kdbg_rol64(enc, rot)) ^ xor_term;
+}
+
+#define KDBG_ENC_MIN_SIZE 0x200
+#define KDBG_ENC_MAX_SIZE 0x1000
+#define KDBG_ENC_MAX_IMAGE_SIZE (64ULL << 20)
+#define KDBG_ENC_PLM_QWORD 9 /* PsLoadedModuleList, see KDDEBUGGER_DATA64 */
+
+static bool
+kdbg_is_kernel_va(uint64_t va)
+{
+    return (va >> 47) == 0x1ffff;
+}
+
+static bool
+kdbg_in_image(uint64_t va, uint64_t kernbase)
+{
+    return va >= kernbase && va - kernbase < KDBG_ENC_MAX_IMAGE_SIZE;
+}
+
+/*
+ * The kernel base virtual address is not encoded in KdVersionBlock
+ * (DBGKD_GET_VERSION64, also in .data): MachineType at +8, KernBase at +0x10,
+ * PsLoadedModuleList at +0x18 and DebuggerDataList at +0x20. It is the one
+ * absolute value needed to decode the block, and it can be checked against the
+ * physical address the image was found at (large page mapping keeps the low bits).
+ */
+static bool
+kdbg_find_kernbase(
+    const uint8_t *haystack,
+    size_t size,
+    addr_t kernel_pa,
+    uint64_t *kernbase)
+{
+    const size_t need = 0x28;
+
+    for (size_t off = 0; off + need <= size; off += sizeof(uint64_t)) {
+        uint16_t machine;
+        uint64_t kb, plm, ddl;
+
+        memcpy(&machine, haystack + off + 8, sizeof(machine));
+        if (machine != 0x8664)
+            continue;
+
+        memcpy(&kb, haystack + off + 0x10, sizeof(kb));
+        memcpy(&plm, haystack + off + 0x18, sizeof(plm));
+        memcpy(&ddl, haystack + off + 0x20, sizeof(ddl));
+
+        if (!kdbg_is_kernel_va(kb) || (kb & 0xfff))
+            continue;
+        if ((kb & 0x1fffff) != (kernel_pa & 0x1fffff))
+            continue;
+        if (!kdbg_in_image(plm, kb) || !kdbg_in_image(ddl, kb))
+            continue;
+
+        *kernbase = kb;
+        return true;
+    }
+
+    return false;
+}
+
+/*
+ * Check whether enc[] (at least KDBG_ENC_PLM_QWORD + 1 qwords) is an encoded
+ * KdDebuggerDataBlock of the kernel loaded at kernbase: the constant is
+ * derived from the plaintext KernBase field for each rotation, and the result
+ * must then show the "KDBG" tag, a sane size and a consistent header.
+ */
+static bool
+kdbg_try_decode(
+    const uint64_t *enc,
+    uint64_t kernbase,
+    unsigned int *rot_out,
+    uint64_t *xor_out)
+{
+    const unsigned int kernbase_idx = offsetof(KDDEBUGGER_DATA64, KernBase) / 8;
+    const unsigned int tag_idx = offsetof(DBGKD_DEBUG_DATA_HEADER64, OwnerTag) / 8;
+
+    for (unsigned int rot = 0; rot < 64; rot++) {
+        uint64_t xor_term = kernbase ^ __builtin_bswap64(kdbg_rol64(enc[kernbase_idx], rot));
+        uint64_t tag_size = kdbg_decode_qword(enc[tag_idx], rot, xor_term);
+
+        if ((uint32_t)tag_size != 0x4742444b) /* "KDBG" */
+            continue;
+        if ((tag_size >> 32) < KDBG_ENC_MIN_SIZE || (tag_size >> 32) > KDBG_ENC_MAX_SIZE)
+            continue;
+
+        uint64_t flink = kdbg_decode_qword(enc[0], rot, xor_term);
+        uint64_t blink = kdbg_decode_qword(enc[1], rot, xor_term);
+        uint64_t plm = kdbg_decode_qword(enc[KDBG_ENC_PLM_QWORD], rot, xor_term);
+
+        if (!kdbg_in_image(flink, kernbase) || !kdbg_in_image(blink, kernbase))
+            continue;
+        if (!kdbg_in_image(plm, kernbase))
+            continue;
+
+        *rot_out = rot;
+        *xor_out = xor_term;
+        return true;
+    }
+
+    return false;
+}
+
+/*
+ * Look for an encoded KdDebuggerDataBlock in a copy of the kernel's .data
+ * section. On success the decoding parameters are stored in the Windows
+ * instance and the offset of the block in the haystack is returned.
+ */
+static bool
+kdbg_find_encoded(
+    vmi_instance_t vmi,
+    const uint8_t *haystack,
+    size_t size,
+    addr_t kernel_pa,
+    size_t *block_offset,
+    addr_t *kernel_va)
+{
+    windows_instance_t windows = vmi->os_data;
+    const size_t need = (KDBG_ENC_PLM_QWORD + 1) * sizeof(uint64_t);
+    uint64_t kernbase;
+
+    if (!windows || size < need)
+        return false;
+
+    if (!kdbg_find_kernbase(haystack, size, kernel_pa, &kernbase))
+        return false;
+
+    for (size_t off = 0; off + need <= size; off += sizeof(uint64_t)) {
+        uint64_t enc[KDBG_ENC_PLM_QWORD + 1];
+        memcpy(enc, haystack + off, sizeof(enc));
+
+        /* List.Flink and List.Blink of the only block in the list are equal,
+         * and the same constant is applied to both. */
+        if (!enc[0] || enc[0] != enc[1])
+            continue;
+
+        unsigned int rot;
+        uint64_t xor_term;
+        if (!kdbg_try_decode(enc, kernbase, &rot, &xor_term))
+            continue;
+
+        windows->kdbg_encoded = true;
+        windows->kdbg_decode_rot = rot;
+        windows->kdbg_decode_xor = xor_term;
+        *block_offset = off;
+        *kernel_va = kernbase;
+        dbprint(VMI_DEBUG_MISC, "--KdDebuggerDataBlock is encoded (rot=%u)\n", rot);
+        return true;
+    }
+
+    return false;
+}
+
 static status_t
 kdbg_symbol_resolve(
     vmi_instance_t vmi,
@@ -206,6 +383,9 @@ kdbg_symbol_resolve(
 
     if (VMI_FAILURE == vmi_read_64_va(vmi, symaddr, 0, &tmp)) {
         return VMI_FAILURE;
+    }
+    if (windows->kdbg_encoded) {
+        tmp = kdbg_decode_qword(tmp, windows->kdbg_decode_rot, windows->kdbg_decode_xor);
     }
     *address = tmp;
     return VMI_SUCCESS;
@@ -662,7 +842,18 @@ find_windows_version(
         return windows->version;
     }
 
-    if ( VMI_FAILURE == vmi_read_16_pa(vmi, kdbg + 0x14, &kdbg_size) )
+    // the image is not always contiguous in physical memory
+    addr_t block_pa = 0;
+    if (windows->kdbg_va && VMI_SUCCESS == vmi_translate_kv2p(vmi, windows->kdbg_va, &block_pa))
+        kdbg = block_pa;
+
+    if (windows->kdbg_encoded) {
+        uint64_t tag_size = 0;
+        if ( VMI_FAILURE == vmi_read_64_pa(vmi, kdbg + 0x10, &tag_size) )
+            return VMI_OS_WINDOWS_UNKNOWN;
+        tag_size = kdbg_decode_qword(tag_size, windows->kdbg_decode_rot, windows->kdbg_decode_xor);
+        kdbg_size = (tag_size >> 32) & 0xffff;
+    } else if ( VMI_FAILURE == vmi_read_16_pa(vmi, kdbg + 0x14, &kdbg_size) )
         return VMI_OS_WINDOWS_UNKNOWN;
 
     // Check if it's a version we know about.
@@ -865,6 +1056,89 @@ find_kernel_vcpu(vmi_instance_t vmi, unsigned int *out)
     return VMI_FAILURE;
 }
 
+/* Look for an encoded KdDebuggerDataBlock in the .data section of the kernel
+ * image at paddr; section_rva is the RVA of the section. */
+static bool
+kdbg_locate_encoded(
+    vmi_instance_t vmi,
+    const uint8_t *haystack,
+    size_t size,
+    addr_t paddr,
+    addr_t section_rva,
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
+{
+    size_t block_offset;
+
+    if (!kdbg_find_encoded(vmi, haystack, size, paddr, &block_offset, kernel_va))
+        return false;
+
+    *kernel_pa = paddr;
+    *kdbg_pa = paddr + section_rva + block_offset;
+    dbprint(VMI_DEBUG_MISC, "--Found encoded KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
+    return true;
+}
+
+/* We found the "KDBG" tag in the .data section of the kernel at page_paddr,
+ * but let's verify it. The kernel is always mapped into VA at the same offset
+ * it is found on physical memory + the kernel boundary. */
+static bool
+kdbg_verify_plain_match(
+    const uint8_t *haystack,
+    unsigned int match_offset,
+    int find_ofs,
+    addr_t page_paddr,
+    addr_t section_rva,
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
+{
+    // Read "KernBase" from the haystack
+    uint64_t *kernbase = (uint64_t *)&haystack[match_offset + sizeof(uint64_t)];
+    int zeroes = __builtin_clzll(page_paddr);
+    addr_t found = page_paddr + section_rva + match_offset - find_ofs;
+
+    if ((*kernbase) << zeroes != page_paddr << zeroes) {
+        dbprint(VMI_DEBUG_MISC,
+                "--WARNING: KernBase in KdDebuggerDataBlock at PA %.16"PRIx64" doesn't point back to this page.\n",
+                found);
+        return false;
+    }
+
+    *kernel_pa = page_paddr;
+    *kernel_va = *kernbase;
+    *kdbg_pa = found;
+    dbprint(VMI_DEBUG_MISC,
+            "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
+    return true;
+}
+
+/* Look for the KdDebuggerDataBlock, plain or encoded, in the .data section of
+ * the kernel image at page_paddr. */
+static bool
+kdbg_locate_in_section(
+    vmi_instance_t vmi,
+    void *bm,
+    int find_ofs,
+    const uint8_t *haystack,
+    size_t size,
+    addr_t page_paddr,
+    addr_t section_rva,
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
+{
+    int match_offset = boyer_moore2(bm, (unsigned char *)haystack, size);
+
+    if (-1 != match_offset)
+        return kdbg_verify_plain_match(haystack, match_offset, find_ofs, page_paddr,
+                                       section_rva, kdbg_pa, kernel_pa, kernel_va);
+
+    return kdbg_locate_encoded(vmi, haystack, size, page_paddr, section_rva,
+                               kdbg_pa, kernel_pa, kernel_va);
+}
+
 /* Scan PE sections of a candidate kernel image for the KDBG signature. */
 static status_t
 find_kdbg_in_sections(
@@ -906,6 +1180,9 @@ find_kdbg_in_sections(
             *kernel_va = *kernbase;
             *kdbg_pa = paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
             dbprint(VMI_DEBUG_MISC, "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
+            ret = VMI_SUCCESS;
+        } else if (kdbg_locate_encoded(vmi, haystack, section.size_of_raw_data, paddr,
+                                       section.virtual_address, kdbg_pa, kernel_pa, kernel_va)) {
             ret = VMI_SUCCESS;
         }
         break;
@@ -973,6 +1250,286 @@ find_ntoskrnl_physical_scan(
     }
 
     return VMI_FAILURE;
+}
+
+/* Check the export table of the image at paddr: is this ntoskrnl.exe? Only
+ * meaningful when the image is mapped contiguously in physical memory. */
+static bool
+kdbg_export_is_ntoskrnl(
+    vmi_instance_t vmi,
+    addr_t paddr,
+    addr_t export_header_offset)
+{
+    struct export_table et;
+    unsigned char name[13] = {0};
+
+    if (!export_header_offset || paddr + export_header_offset >= vmi->max_physical_address)
+        return false;
+    if (VMI_FAILURE == vmi_read_pa(vmi, paddr + export_header_offset, sizeof(struct export_table), &et, NULL))
+        return false;
+    if (!(et.export_flags || !et.name) && paddr + et.name + 12 >= vmi->max_physical_address)
+        return false;
+    if (VMI_FAILURE == vmi_read_pa(vmi, paddr + et.name, 12, name, NULL))
+        return false;
+
+    return !strncmp("ntoskrnl.exe", (const char *)name, sizeof(name));
+}
+
+/* Scan the .data section of the contiguously mapped kernel image at page_paddr. */
+static bool
+kdbg_scan_sections_contiguous(
+    vmi_instance_t vmi,
+    void *bm,
+    int find_ofs,
+    addr_t page_paddr,
+    struct pe_header *pe_header,
+    struct dos_header *dos_header,
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
+{
+    for (uint32_t c = 0; c < pe_header->number_of_sections; c++) {
+        struct section_header section;
+        addr_t section_addr = page_paddr
+                              + dos_header->offset_to_pe
+                              + sizeof(struct pe_header)
+                              + pe_header->size_of_optional_header
+                              + c * sizeof(struct section_header);
+
+        // Read the section header from memory
+        if (VMI_FAILURE == vmi_read_pa(vmi, section_addr, sizeof(struct section_header), (uint8_t *)&section, NULL))
+            continue;
+
+        // .data check
+        if (memcmp(section.short_name, KDBG_DATA_SECTION_NAME, sizeof(KDBG_DATA_SECTION_NAME) - 1) != 0)
+            continue;
+
+        uint8_t *haystack = g_try_malloc0(section.size_of_raw_data);
+        if (!haystack)
+            return false;
+
+        bool found = VMI_SUCCESS == vmi_read_pa(vmi, page_paddr + section.virtual_address,
+                                                section.size_of_raw_data, haystack, NULL)
+                     && kdbg_locate_in_section(vmi, bm, find_ofs, haystack, section.size_of_raw_data,
+                                               page_paddr, section.virtual_address,
+                                               kdbg_pa, kernel_pa, kernel_va);
+        g_free(haystack);
+        if (found)
+            return true;
+        break;
+    }
+
+    return false;
+}
+
+/*
+ * Before Windows 10 1703 the kernel image is not always contiguous in physical
+ * memory: it is mapped with large pages, but they are not necessarily
+ * consecutive, and the export table, the .data section and the KdDebuggerDataBlock
+ * can be anywhere. Only the page holding the PE headers is known, so identify
+ * the kernel by its section names instead of its export table, and read .data
+ * through the page tables.
+ */
+static bool
+kdbg_header_is_ntoskrnl(
+    const uint8_t *page,
+    struct pe_header *pe_header,
+    struct dos_header *dos_header)
+{
+    bool has_data = false, has_kd = false;
+    size_t first = dos_header->offset_to_pe + sizeof(struct pe_header) + pe_header->size_of_optional_header;
+
+    for (uint32_t c = 0; c < pe_header->number_of_sections; c++) {
+        size_t off = first + c * sizeof(struct section_header);
+        if (off + sizeof(struct section_header) > VMI_PS_4KB)
+            break;
+
+        const struct section_header *section = (const struct section_header *)(page + off);
+        if (!memcmp(section->short_name, KDBG_DATA_SECTION_NAME, sizeof(KDBG_DATA_SECTION_NAME) - 1))
+            has_data = true;
+        else if (!memcmp(section->short_name, "INITKDBG", 8) || !memcmp(section->short_name, "PAGEKD", 6))
+            has_kd = true;
+    }
+
+    return has_data && has_kd;
+}
+
+/* Kernel virtual addresses at which the page tables of cr3 map hdr_pa. */
+static unsigned int
+kdbg_header_vas(
+    vmi_instance_t vmi,
+    addr_t cr3,
+    addr_t hdr_pa,
+    addr_t *vas,
+    unsigned int max)
+{
+    unsigned int n = 0;
+    GSList *pages = vmi_get_va_pages(vmi, cr3);
+
+    for (GSList *it = pages; it; it = it->next) {
+        page_info_t *pi = it->data;
+        addr_t va = pi->vaddr + (hdr_pa - pi->paddr);
+
+        if (n < max && hdr_pa >= pi->paddr && hdr_pa - pi->paddr < pi->size
+                && kdbg_is_kernel_va(va) && (va & 0x1fffff) == (hdr_pa & 0x1fffff))
+            vas[n++] = va;
+        g_free(pi);
+    }
+    g_slist_free(pages);
+
+    return n;
+}
+
+/* Copy size bytes starting at the kernel virtual address va, page by page. */
+static uint8_t *
+kdbg_read_by_va(
+    vmi_instance_t vmi,
+    addr_t cr3,
+    addr_t va,
+    size_t size)
+{
+    uint8_t *buf = g_try_malloc0(size);
+
+    for (size_t off = 0; buf && off < size; off += VMI_PS_4KB) {
+        addr_t pa;
+        size_t len = size - off < VMI_PS_4KB ? size - off : VMI_PS_4KB;
+
+        if (VMI_FAILURE == vmi_pagetable_lookup(vmi, cr3, va + off, &pa)
+                || VMI_FAILURE == vmi_read_pa(vmi, pa, len, buf + off, NULL)) {
+            g_free(buf);
+            buf = NULL;
+        }
+    }
+
+    return buf;
+}
+
+/* Look for the KdDebuggerDataBlock, plain or encoded, in a copy of .data read
+ * through the page tables. Succeeds only when the kernel base found in the data
+ * is the virtual address kva the image is mapped at. */
+static bool
+kdbg_find_in_copy(
+    vmi_instance_t vmi,
+    void *bm,
+    int find_ofs,
+    const uint8_t *haystack,
+    size_t size,
+    addr_t hdr_pa,
+    addr_t kva,
+    size_t *block_offset)
+{
+    windows_instance_t windows = vmi->os_data;
+    int match_offset = boyer_moore2(bm, (unsigned char *)haystack, size);
+
+    if (-1 != match_offset) {
+        uint64_t kernbase;
+
+        memcpy(&kernbase, haystack + match_offset + sizeof(uint64_t), sizeof(kernbase));
+        *block_offset = match_offset - find_ofs;
+        return kernbase == kva;
+    }
+
+    addr_t found_va = 0;
+    if (!kdbg_find_encoded(vmi, haystack, size, hdr_pa, block_offset, &found_va))
+        return false;
+    if (found_va == kva)
+        return true;
+
+    windows->kdbg_encoded = false;
+    return false;
+}
+
+/*
+ * The kernel header is at hdr_pa: find where the page tables of cr3 map it and
+ * look for the KdDebuggerDataBlock in .data from there. The physical address
+ * returned for the block is hdr_pa plus its RVA, as if the image were
+ * contiguous, because that is what the callers use to derive the offset of the
+ * block in the image; the real physical address is obtained by translating the
+ * virtual one.
+ */
+static bool
+kdbg_scan_sections_by_va(
+    vmi_instance_t vmi,
+    void *bm,
+    int find_ofs,
+    addr_t cr3,
+    addr_t hdr_pa,
+    const uint8_t *page,
+    struct pe_header *pe_header,
+    struct dos_header *dos_header,
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
+{
+    const struct section_header *data = NULL;
+    size_t first = dos_header->offset_to_pe + sizeof(struct pe_header) + pe_header->size_of_optional_header;
+
+    for (uint32_t c = 0; !data && c < pe_header->number_of_sections
+            && first + (c + 1) * sizeof(struct section_header) <= VMI_PS_4KB; c++) {
+        const struct section_header *section = (const struct section_header *)(page + first + c * sizeof(struct section_header));
+        if (!memcmp(section->short_name, KDBG_DATA_SECTION_NAME, sizeof(KDBG_DATA_SECTION_NAME) - 1))
+            data = section;
+    }
+    if (!data || !data->size_of_raw_data)
+        return false;
+
+    addr_t vas[8];
+    unsigned int n = kdbg_header_vas(vmi, cr3, hdr_pa, vas, 8);
+
+    for (unsigned int i = 0; i < n; i++) {
+        size_t block_offset;
+        uint8_t *haystack = kdbg_read_by_va(vmi, cr3, vas[i] + data->virtual_address, data->size_of_raw_data);
+        if (!haystack)
+            continue;
+
+        bool found = kdbg_find_in_copy(vmi, bm, find_ofs, haystack, data->size_of_raw_data,
+                                       hdr_pa, vas[i], &block_offset);
+        g_free(haystack);
+        if (!found)
+            continue;
+
+        *kernel_pa = hdr_pa;
+        *kernel_va = vas[i];
+        *kdbg_pa = hdr_pa + data->virtual_address + block_offset;
+        dbprint(VMI_DEBUG_MISC, "--Found KdDebuggerDataBlock at RVA 0x%"PRIx64" of the kernel mapped at VA 0x%"PRIx64"\n",
+                (uint64_t)(data->virtual_address + block_offset), (uint64_t)vas[i]);
+        return true;
+    }
+
+    return false;
+}
+
+/* Is the page at page_paddr the header of the kernel image, and does its .data
+ * hold the KdDebuggerDataBlock? */
+static bool
+kdbg_check_kernel_page(
+    vmi_instance_t vmi,
+    void *bm,
+    int find_ofs,
+    addr_t cr3,
+    addr_t page_paddr,
+    const uint8_t *page,
+    addr_t *kdbg_pa,
+    addr_t *kernel_pa,
+    addr_t *kernel_va)
+{
+    struct pe_header *pe_header = NULL;
+    struct dos_header *dos_header = NULL;
+    void *optional_pe_header = NULL;
+    uint16_t optional_header_type = 0;
+
+    peparse_assign_headers((void *)page, &dos_header, &pe_header, &optional_header_type, &optional_pe_header, NULL, NULL);
+    addr_t export_header_offset =
+        peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
+
+    if (kdbg_export_is_ntoskrnl(vmi, page_paddr, export_header_offset)
+            && kdbg_scan_sections_contiguous(vmi, bm, find_ofs, page_paddr, pe_header, dos_header,
+                    kdbg_pa, kernel_pa, kernel_va))
+        return true;
+
+    return kdbg_header_is_ntoskrnl(page, pe_header, dos_header)
+           && kdbg_scan_sections_by_va(vmi, bm, find_ofs, cr3, page_paddr, page, pe_header, dos_header,
+                                       kdbg_pa, kernel_pa, kernel_va);
 }
 
 status_t
@@ -1051,92 +1608,9 @@ scan:
             continue;
         }
 
-        struct pe_header *pe_header = NULL;
-        struct dos_header *dos_header = NULL;
-        void *optional_pe_header = NULL;
-        uint16_t optional_header_type = 0;
-        struct export_table et;
-
-        peparse_assign_headers(page, &dos_header, &pe_header, &optional_header_type, &optional_pe_header, NULL, NULL);
-        addr_t export_header_offset =
-            peparse_get_idd_rva(IMAGE_DIRECTORY_ENTRY_EXPORT, &optional_header_type, optional_pe_header, NULL, NULL);
-
-        if (!export_header_offset || page_paddr + export_header_offset >= vmi->max_physical_address)
-            continue;
-
-        if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + export_header_offset, sizeof(struct export_table), &et, NULL))
-            continue;
-
-        if ( !(et.export_flags || !et.name) && page_paddr + et.name + 12 >= vmi->max_physical_address)
-            continue;
-
-        unsigned char name[13] = {0};
-        if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + et.name, 12, name, NULL) )
-            continue;
-
-        if (strncmp("ntoskrnl.exe", (const char *)name, sizeof(name)))
-            continue;
-
-        uint32_t c;
-        for (c=0; c < pe_header->number_of_sections; c++) {
-
-            struct section_header section;
-            addr_t section_addr = page_paddr
-                                  + dos_header->offset_to_pe
-                                  + sizeof(struct pe_header)
-                                  + pe_header->size_of_optional_header
-                                  + c*sizeof(struct section_header);
-
-            // Read the section header from memory
-            if ( VMI_FAILURE == vmi_read_pa(vmi, section_addr, sizeof(struct section_header), (uint8_t *)&section, NULL) )
-                continue;
-
-            // .data check
-            if (memcmp(section.short_name, KDBG_DATA_SECTION_NAME, sizeof(KDBG_DATA_SECTION_NAME) - 1) != 0) {
-                continue;
-            }
-
-            uint8_t *haystack = g_try_malloc0(section.size_of_raw_data);
-            if ( !haystack )
-                goto done;
-
-            if ( VMI_FAILURE == vmi_read_pa(vmi, page_paddr + section.virtual_address, section.size_of_raw_data, haystack, NULL) ) {
-                g_free(haystack);
-                continue;
-            }
-
-            int match_offset = boyer_moore2(bm, haystack, section.size_of_raw_data);
-
-            if (-1 != match_offset) {
-                // We found the structure, but let's verify it.
-                // The kernel is always mapped into VA at the same offset
-                // it is found on physical memory + the kernel boundary.
-
-                // Read "KernBase" from the haystack
-                uint64_t *kernbase = (uint64_t *)&haystack[(unsigned int) match_offset + sizeof(uint64_t)];
-                int zeroes = __builtin_clzll(page_paddr);
-
-                if ((*kernbase) << zeroes == page_paddr << zeroes) {
-
-                    *kernel_pa = page_paddr;
-                    *kernel_va = *kernbase;
-                    *kdbg_pa = page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs;
-
-                    ret = VMI_SUCCESS;
-
-                    dbprint(VMI_DEBUG_MISC,
-                            "--Found KdDebuggerDataBlock at PA %.16"PRIx64"\n", *kdbg_pa);
-
-                    goto done;
-                } else {
-                    dbprint(VMI_DEBUG_MISC,
-                            "--WARNING: KernBase in KdDebuggerDataBlock at PA %.16"PRIx64" doesn't point back to this page.\n",
-                            page_paddr + section.virtual_address + (unsigned int) match_offset - find_ofs);
-                }
-            }
-
-            g_free(haystack);
-            break;
+        if (kdbg_check_kernel_page(vmi, bm, find_ofs, cr3, page_paddr, page, kdbg_pa, kernel_pa, kernel_va)) {
+            ret = VMI_SUCCESS;
+            goto done;
         }
     }
 
@@ -1360,6 +1834,10 @@ find_kdbg:
 
 found:
     windows->ntoskrnl_va = kernbase_va;
+
+    if ( VMI_FILE != vmi->mode && VMI_PM_UNKNOWN != vmi->page_mode &&
+            VMI_FAILURE == windows_refresh_init_cr3(vmi, kernbase_va, kernbase_pa) )
+        dbprint(VMI_DEBUG_MISC, "**no CR3 maps the kernel base, keeping 0x%"PRIx64"\n", vmi->kpgd);
     dbprint(VMI_DEBUG_MISC, "**set KernBase VA=0x%"PRIx64"\n", windows->ntoskrnl_va);
 
     if (!windows->ntoskrnl) {

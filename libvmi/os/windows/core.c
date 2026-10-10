@@ -1191,6 +1191,37 @@ get_vcpu_kernel_cr3(
     return VMI_SUCCESS;
 }
 
+/* The CR3 taken at the start of the init phase can go stale: the KdDebuggerDataBlock
+ * search can take a while on a running guest, and if that CR3 belonged to a process that
+ * exits in the meantime, its top level page table is freed and reused, so every later
+ * translation fails. Make sure vmi->kpgd still maps kva to kpa, otherwise take the
+ * current CR3 of a vCPU that does. */
+status_t
+windows_refresh_init_cr3(
+    vmi_instance_t vmi,
+    addr_t kva,
+    addr_t kpa)
+{
+    addr_t pa = 0;
+    unsigned int vcpu, num_vcpus = vmi_get_num_vcpus(vmi);
+
+    if ( VMI_SUCCESS == vmi_pagetable_lookup(vmi, vmi->kpgd, kva, &pa) && pa == kpa )
+        return VMI_SUCCESS;
+
+    for (vcpu = 0; vcpu < num_vcpus; ++vcpu) {
+        reg_t cr3 = 0;
+        if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &cr3, CR3, vcpu) && cr3 &&
+                VMI_SUCCESS == vmi_pagetable_lookup(vmi, cr3, kva, &pa) && pa == kpa ) {
+            dbprint(VMI_DEBUG_MISC, "--init CR3 0x%"PRIx64" is stale, using the CR3 of vCPU %u (0x%"PRIx64")\n",
+                    vmi->kpgd, vcpu, (addr_t)cr3);
+            vmi->kpgd = cr3;
+            return VMI_SUCCESS;
+        }
+    }
+
+    return VMI_FAILURE;
+}
+
 status_t
 windows_init(vmi_instance_t vmi, GHashTable *config)
 {

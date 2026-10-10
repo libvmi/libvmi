@@ -54,6 +54,12 @@ struct windows_instance {
 
     addr_t kdbg_va; /**< virtual address of the KdDebuggerDataBlock */
 
+    bool kdbg_encoded; /**< KdDebuggerDataBlock is stored encoded (Windows 10+) */
+
+    uint8_t kdbg_decode_rot; /**< rotation of the KdDebuggerDataBlock encoding */
+
+    uint64_t kdbg_decode_xor; /**< constant term of the KdDebuggerDataBlock encoding */
+
     addr_t sysproc; /**< physical address for the system process */
 
     uint64_t tasks_offset; /**< EPROCESS->ActiveProcessLinks */
@@ -114,6 +120,7 @@ addr_t windows_find_eprocess_list_pid(vmi_instance_t vmi, vmi_pid_t pid);
 addr_t windows_find_eprocess_list_pgd(vmi_instance_t vmi, addr_t pgd);
 
 status_t init_from_kdbg(vmi_instance_t vmi);
+status_t windows_refresh_init_cr3(vmi_instance_t vmi, addr_t kva, addr_t kpa);
 status_t windows_kdbg_lookup(vmi_instance_t vmi, const char *symbol, addr_t *address);
 
 unicode_string_t *windows_read_unicode_struct(vmi_instance_t vmi, const access_context_t *ctx);
