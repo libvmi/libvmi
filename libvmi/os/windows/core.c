@@ -1154,6 +1154,18 @@ windows_init_pte(vmi_instance_t vmi)
 #endif
 }
 
+/* Is va in the kernel half of the guest address space? Before the page mode
+ * is known the guest is assumed to be 64-bit. */
+bool
+windows_is_kernel_address(
+    vmi_instance_t vmi,
+    addr_t va)
+{
+    if (VMI_PM_LEGACY == vmi->page_mode || VMI_PM_PAE == vmi->page_mode)
+        return va >= 0x80000000ULL && va < 0x100000000ULL;
+    return (va >> 47) == 0x1ffff;
+}
+
 /* Gets the CR3 of a vCPU to use during the init phase.
  * Normally this is the CR3 of vCPU 0. But with KVA shadowing a vCPU that is running user code
  * uses a page table without kernel mappings, so the kernel cannot be found with it (LibVMI would
@@ -1170,8 +1182,8 @@ get_vcpu_kernel_cr3(
     if ( VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0) )
         return VMI_FAILURE;
 
-    /* RIP in the upper half of the address space: vCPU 0 is already running kernel code */
-    if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && (rip >> 63) ) {
+    /* RIP in the kernel half of the address space: vCPU 0 is already running kernel code */
+    if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && windows_is_kernel_address(vmi, rip) ) {
         *cr3_out = cr3;
         return VMI_SUCCESS;
     }
@@ -1179,7 +1191,7 @@ get_vcpu_kernel_cr3(
     num_vcpus = vmi_get_num_vcpus(vmi);
     for (vcpu = 1; vcpu < num_vcpus; ++vcpu) {
         reg_t other_cr3 = 0;
-        if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, vcpu) && (rip >> 63) &&
+        if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, vcpu) && windows_is_kernel_address(vmi, rip) &&
                 VMI_SUCCESS == driver_get_vcpureg(vmi, &other_cr3, CR3, vcpu) && other_cr3 ) {
             dbprint(VMI_DEBUG_MISC, "--vCPU 0 is running user code, using the CR3 of vCPU %u\n", vcpu);
             cr3 = other_cr3;

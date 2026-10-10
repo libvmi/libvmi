@@ -1032,13 +1032,13 @@ done:
 }
 
 
-/* Select a vCPU whose RIP is in kernel space (bit 63 set).
+/* Select a vCPU whose RIP is in kernel space.
  * Returns VMI_FAILURE when all vCPUs are in user mode or unreadable. */
 static status_t
 find_kernel_vcpu(vmi_instance_t vmi, unsigned int *out)
 {
     reg_t rip = 0;
-    if (VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && (rip >> 63)) {
+    if (VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && windows_is_kernel_address(vmi, rip)) {
         *out = 0;
         return VMI_SUCCESS;
     }
@@ -1047,7 +1047,7 @@ find_kernel_vcpu(vmi_instance_t vmi, unsigned int *out)
         reg_t v_rip = 0;
         if (VMI_FAILURE == driver_get_vcpureg(vmi, &v_rip, RIP, v))
             continue;
-        if (!(v_rip >> 63))
+        if (!windows_is_kernel_address(vmi, v_rip))
             continue;
         dbprint(VMI_DEBUG_MISC, "**find_kdbg_address_faster: using vCPU %u\n", v);
         *out = v;
@@ -1371,7 +1371,7 @@ kdbg_header_vas(
         addr_t va = pi->vaddr + (hdr_pa - pi->paddr);
 
         if (n < max && hdr_pa >= pi->paddr && hdr_pa - pi->paddr < pi->size
-                && kdbg_is_kernel_va(va) && (va & 0x1fffff) == (hdr_pa & 0x1fffff))
+                && windows_is_kernel_address(vmi, va) && (va & 0x1fffff) == (hdr_pa & 0x1fffff))
             vas[n++] = va;
         g_free(pi);
     }
