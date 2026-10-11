@@ -186,7 +186,9 @@ enum kdbg_magic {
     KDBG_WINDOWS_VISTA = 0x0328U, /**< Magic value for Windows Vista */
     KDBG_WINDOWS_2008  = 0x0330U, /**< Magic value for Windows 2008 */
     KDBG_WINDOWS_7     = 0x0340U, /**< Magic value for Windows 7 */
-    KDBG_WINDOWS_8     = 0x0360U, /**< Magic value for Windows 8 */
+    KDBG_WINDOWS_8     = 0x0360U, /**< Magic value for Windows 8, 8.1 and Windows 10 1507 and 1511 */
+    KDBG_WINDOWS_10    = 0x0368U, /**< Magic value for Windows 10 1607 to 1909 */
+    KDBG_WINDOWS_10_2004 = 0x0380U, /**< Magic value for Windows 10 2004 and later */
 };
 
 
@@ -875,13 +877,29 @@ find_windows_version(
             return VMI_OS_WINDOWS_2008;
         case KDBG_WINDOWS_7:
             return VMI_OS_WINDOWS_7;
-        case KDBG_WINDOWS_8:
-            return VMI_OS_WINDOWS_8;
         default:
             break;
     }
 
-    return VMI_OS_WINDOWS_UNKNOWN;
+    /* Windows 8, 8.1 and the first two Windows 10 builds share a block size and
+     * the later builds have sizes of their own, so from here on the version
+     * comes from the PE header of the kernel; the sizes only serve as a
+     * fallback when that header cannot be read. */
+    win_ver_t version = pe2version(vmi, windows->ntoskrnl, &windows->major, &windows->minor);
+    dbprint(VMI_DEBUG_MISC, "--KdDebuggerDataBlock size 0x%x, kernel PE version %u.%u\n",
+            kdbg_size, windows->major, windows->minor);
+    if (VMI_OS_WINDOWS_NONE != version)
+        return version;
+
+    switch (kdbg_size) {
+        case KDBG_WINDOWS_8:
+            return VMI_OS_WINDOWS_8;
+        case KDBG_WINDOWS_10:
+        case KDBG_WINDOWS_10_2004:
+            return VMI_OS_WINDOWS_10;
+        default:
+            return VMI_OS_WINDOWS_UNKNOWN;
+    }
 }
 
 status_t find_kdbg_address(

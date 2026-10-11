@@ -64,7 +64,6 @@ win_ver_t ntbuild2version(uint16_t ntbuildnumber)
     return VMI_OS_WINDOWS_UNKNOWN;
 };
 
-static inline
 win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t* major, uint16_t* minor)
 {
     // Clear in/out
@@ -120,6 +119,7 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t* major, ui
                 case 1:
                     return VMI_OS_WINDOWS_7;
                 case 2:
+                case 3:
                     return VMI_OS_WINDOWS_8;
             };
             break;
