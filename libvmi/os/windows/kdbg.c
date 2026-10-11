@@ -28,6 +28,7 @@
 #define _GNU_SOURCE
 #include <string.h>
 #include <stddef.h>
+#include <unistd.h>
 
 #include "private.h"
 #include "peparse.h"
@@ -217,6 +218,10 @@ kdbg_decode_qword(uint64_t enc, unsigned int rot, uint64_t xor_term)
 #define KDBG_ENC_MAX_SIZE 0x1000
 #define KDBG_ENC_MAX_IMAGE_SIZE (64ULL << 20)
 #define KDBG_ENC_PLM_QWORD 9 /* PsLoadedModuleList, see KDDEBUGGER_DATA64 */
+
+/* vCPU register samples taken by find_kernel_vcpu() and the pause between them */
+#define KDBG_KERNEL_VCPU_SAMPLES 50
+#define KDBG_KERNEL_VCPU_SAMPLE_US 10000
 
 static bool
 kdbg_is_kernel_va(uint64_t va)
@@ -1032,26 +1037,29 @@ done:
 }
 
 
-/* Select a vCPU whose RIP is in kernel space.
- * Returns VMI_FAILURE when all vCPUs are in user mode or unreadable. */
+/* Select a vCPU whose RIP is in kernel space. On a running guest every vCPU can
+ * be in user mode at the instant the registers are read, so the vCPUs are
+ * sampled a few times before giving up.
+ * Returns VMI_FAILURE when all vCPUs stay in user mode or are unreadable. */
 static status_t
 find_kernel_vcpu(vmi_instance_t vmi, unsigned int *out)
 {
-    reg_t rip = 0;
-    if (VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && windows_is_kernel_address(vmi, rip)) {
-        *out = 0;
-        return VMI_SUCCESS;
-    }
     unsigned int n = vmi_get_num_vcpus(vmi);
-    for (unsigned int v = 1; v < n; v++) {
-        reg_t v_rip = 0;
-        if (VMI_FAILURE == driver_get_vcpureg(vmi, &v_rip, RIP, v))
-            continue;
-        if (!windows_is_kernel_address(vmi, v_rip))
-            continue;
-        dbprint(VMI_DEBUG_MISC, "**find_kdbg_address_faster: using vCPU %u\n", v);
-        *out = v;
-        return VMI_SUCCESS;
+
+    for (unsigned int sample = 0; sample < KDBG_KERNEL_VCPU_SAMPLES; sample++) {
+        if (sample)
+            usleep(KDBG_KERNEL_VCPU_SAMPLE_US);
+        for (unsigned int v = 0; v < n; v++) {
+            reg_t rip = 0;
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &rip, RIP, v))
+                continue;
+            if (!windows_is_kernel_address(vmi, rip))
+                continue;
+            if (v || sample)
+                dbprint(VMI_DEBUG_MISC, "**find_kdbg_address_faster: using vCPU %u (sample %u)\n", v, sample);
+            *out = v;
+            return VMI_SUCCESS;
+        }
     }
     return VMI_FAILURE;
 }
