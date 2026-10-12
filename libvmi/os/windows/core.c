@@ -64,7 +64,6 @@ win_ver_t ntbuild2version(uint16_t ntbuildnumber)
     return VMI_OS_WINDOWS_UNKNOWN;
 };
 
-static inline
 win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t* major, uint16_t* minor)
 {
     // Clear in/out
@@ -120,6 +119,7 @@ win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t* major, ui
                 case 1:
                     return VMI_OS_WINDOWS_7;
                 case 2:
+                case 3:
                     return VMI_OS_WINDOWS_8;
             };
             break;
@@ -817,15 +817,15 @@ static status_t kpcr_find3(vmi_instance_t vmi, windows_instance_t windows)
 {
     dbprint(VMI_DEBUG_MISC, "** Trying kpcr_find3\n");
 
-    addr_t int0_rva = 0;
+    /* With KVA shadowing (the Meltdown mitigation) the IDT in use while a vCPU runs user
+     * code points to the trampolines of the shadow section, not to the handlers, so the
+     * RVA of both are tried and the one giving a kernel base with a PE header wins. */
+    static const char *int0_symbols[] = {
+        "KiDivideErrorFault", "KiTrap00", "KiDivideErrorFaultShadow", "KiTrap00Shadow"
+    };
     reg_t idt = 0;
     uint32_t int0_high = 0;
     uint16_t int0_low = 0, int0_middle = 0;
-
-    if ( VMI_FAILURE == json_profile_lookup(vmi, "KiDivideErrorFault", NULL, &int0_rva) ) {
-        if ( VMI_FAILURE == json_profile_lookup(vmi, "KiTrap00", NULL, &int0_rva) )
-            return VMI_FAILURE;
-    }
 
     // Some Windows10+ JSON profiles don't have KiInitialPCR defined so we use the IDT route
     // For the layout of the IDT entry see http://wiki.osdev.org/Interrupt_Descriptor_Table
@@ -838,9 +838,26 @@ static status_t kpcr_find3(vmi_instance_t vmi, windows_instance_t windows)
     if (VMI_PM_IA32E == vmi->page_mode && VMI_FAILURE == vmi_read_32_va(vmi, idt + 8, 0, &int0_high))
         return VMI_FAILURE;
 
-    windows->ntoskrnl_va = (((uint64_t)int0_high << 32) | ((uint64_t)int0_middle << 16) | int0_low) - int0_rva;
+    addr_t int0 = ((uint64_t)int0_high << 32) | ((uint64_t)int0_middle << 16) | int0_low;
 
-    return VMI_SUCCESS;
+    for (size_t i = 0; i < sizeof(int0_symbols) / sizeof(int0_symbols[0]); i++) {
+        addr_t int0_rva = 0, base = 0;
+        uint16_t mz = 0;
+
+        if ( VMI_FAILURE == json_profile_lookup(vmi, int0_symbols[i], NULL, &int0_rva) || int0_rva > int0 )
+            continue;
+
+        base = int0 - int0_rva;
+        if ( (base & VMI_BIT_MASK(0, 11)) || !windows_is_kernel_address(vmi, base) )
+            continue;
+        if ( VMI_FAILURE == vmi_read_16_va(vmi, base, 0, &mz) || mz != 0x5a4d ) /* "MZ" */
+            continue;
+
+        windows->ntoskrnl_va = base;
+        return VMI_SUCCESS;
+    }
+
+    return VMI_FAILURE;
 }
 
 static status_t kpcr_find4(vmi_instance_t vmi, windows_instance_t windows, reg_t kpcr_reg)
@@ -1154,6 +1171,18 @@ windows_init_pte(vmi_instance_t vmi)
 #endif
 }
 
+/* Is va in the kernel half of the guest address space? Before the page mode
+ * is known the guest is assumed to be 64-bit. */
+bool
+windows_is_kernel_address(
+    vmi_instance_t vmi,
+    addr_t va)
+{
+    if (VMI_PM_LEGACY == vmi->page_mode || VMI_PM_PAE == vmi->page_mode)
+        return va >= 0x80000000ULL && va < 0x100000000ULL;
+    return (va >> 47) == 0x1ffff;
+}
+
 /* Gets the CR3 of a vCPU to use during the init phase.
  * Normally this is the CR3 of vCPU 0. But with KVA shadowing a vCPU that is running user code
  * uses a page table without kernel mappings, so the kernel cannot be found with it (LibVMI would
@@ -1170,8 +1199,8 @@ get_vcpu_kernel_cr3(
     if ( VMI_FAILURE == driver_get_vcpureg(vmi, &cr3, CR3, 0) )
         return VMI_FAILURE;
 
-    /* RIP in the upper half of the address space: vCPU 0 is already running kernel code */
-    if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && (rip >> 63) ) {
+    /* RIP in the kernel half of the address space: vCPU 0 is already running kernel code */
+    if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && windows_is_kernel_address(vmi, rip) ) {
         *cr3_out = cr3;
         return VMI_SUCCESS;
     }
@@ -1179,7 +1208,7 @@ get_vcpu_kernel_cr3(
     num_vcpus = vmi_get_num_vcpus(vmi);
     for (vcpu = 1; vcpu < num_vcpus; ++vcpu) {
         reg_t other_cr3 = 0;
-        if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, vcpu) && (rip >> 63) &&
+        if ( VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, vcpu) && windows_is_kernel_address(vmi, rip) &&
                 VMI_SUCCESS == driver_get_vcpureg(vmi, &other_cr3, CR3, vcpu) && other_cr3 ) {
             dbprint(VMI_DEBUG_MISC, "--vCPU 0 is running user code, using the CR3 of vCPU %u\n", vcpu);
             cr3 = other_cr3;

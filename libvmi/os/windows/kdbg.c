@@ -28,6 +28,7 @@
 #define _GNU_SOURCE
 #include <string.h>
 #include <stddef.h>
+#include <unistd.h>
 
 #include "private.h"
 #include "peparse.h"
@@ -185,7 +186,9 @@ enum kdbg_magic {
     KDBG_WINDOWS_VISTA = 0x0328U, /**< Magic value for Windows Vista */
     KDBG_WINDOWS_2008  = 0x0330U, /**< Magic value for Windows 2008 */
     KDBG_WINDOWS_7     = 0x0340U, /**< Magic value for Windows 7 */
-    KDBG_WINDOWS_8     = 0x0360U, /**< Magic value for Windows 8 */
+    KDBG_WINDOWS_8     = 0x0360U, /**< Magic value for Windows 8, 8.1 and Windows 10 1507 and 1511 */
+    KDBG_WINDOWS_10    = 0x0368U, /**< Magic value for Windows 10 1607 to 1909 */
+    KDBG_WINDOWS_10_2004 = 0x0380U, /**< Magic value for Windows 10 2004 and later */
 };
 
 
@@ -217,6 +220,10 @@ kdbg_decode_qword(uint64_t enc, unsigned int rot, uint64_t xor_term)
 #define KDBG_ENC_MAX_SIZE 0x1000
 #define KDBG_ENC_MAX_IMAGE_SIZE (64ULL << 20)
 #define KDBG_ENC_PLM_QWORD 9 /* PsLoadedModuleList, see KDDEBUGGER_DATA64 */
+
+/* vCPU register samples taken by find_kernel_vcpu() and the pause between them */
+#define KDBG_KERNEL_VCPU_SAMPLES 50
+#define KDBG_KERNEL_VCPU_SAMPLE_US 10000
 
 static bool
 kdbg_is_kernel_va(uint64_t va)
@@ -870,13 +877,29 @@ find_windows_version(
             return VMI_OS_WINDOWS_2008;
         case KDBG_WINDOWS_7:
             return VMI_OS_WINDOWS_7;
-        case KDBG_WINDOWS_8:
-            return VMI_OS_WINDOWS_8;
         default:
             break;
     }
 
-    return VMI_OS_WINDOWS_UNKNOWN;
+    /* Windows 8, 8.1 and the first two Windows 10 builds share a block size and
+     * the later builds have sizes of their own, so from here on the version
+     * comes from the PE header of the kernel; the sizes only serve as a
+     * fallback when that header cannot be read. */
+    win_ver_t version = pe2version(vmi, windows->ntoskrnl, &windows->major, &windows->minor);
+    dbprint(VMI_DEBUG_MISC, "--KdDebuggerDataBlock size 0x%x, kernel PE version %u.%u\n",
+            kdbg_size, windows->major, windows->minor);
+    if (VMI_OS_WINDOWS_NONE != version)
+        return version;
+
+    switch (kdbg_size) {
+        case KDBG_WINDOWS_8:
+            return VMI_OS_WINDOWS_8;
+        case KDBG_WINDOWS_10:
+        case KDBG_WINDOWS_10_2004:
+            return VMI_OS_WINDOWS_10;
+        default:
+            return VMI_OS_WINDOWS_UNKNOWN;
+    }
 }
 
 status_t find_kdbg_address(
@@ -1032,26 +1055,29 @@ done:
 }
 
 
-/* Select a vCPU whose RIP is in kernel space (bit 63 set).
- * Returns VMI_FAILURE when all vCPUs are in user mode or unreadable. */
+/* Select a vCPU whose RIP is in kernel space. On a running guest every vCPU can
+ * be in user mode at the instant the registers are read, so the vCPUs are
+ * sampled a few times before giving up.
+ * Returns VMI_FAILURE when all vCPUs stay in user mode or are unreadable. */
 static status_t
 find_kernel_vcpu(vmi_instance_t vmi, unsigned int *out)
 {
-    reg_t rip = 0;
-    if (VMI_SUCCESS == driver_get_vcpureg(vmi, &rip, RIP, 0) && (rip >> 63)) {
-        *out = 0;
-        return VMI_SUCCESS;
-    }
     unsigned int n = vmi_get_num_vcpus(vmi);
-    for (unsigned int v = 1; v < n; v++) {
-        reg_t v_rip = 0;
-        if (VMI_FAILURE == driver_get_vcpureg(vmi, &v_rip, RIP, v))
-            continue;
-        if (!(v_rip >> 63))
-            continue;
-        dbprint(VMI_DEBUG_MISC, "**find_kdbg_address_faster: using vCPU %u\n", v);
-        *out = v;
-        return VMI_SUCCESS;
+
+    for (unsigned int sample = 0; sample < KDBG_KERNEL_VCPU_SAMPLES; sample++) {
+        if (sample)
+            usleep(KDBG_KERNEL_VCPU_SAMPLE_US);
+        for (unsigned int v = 0; v < n; v++) {
+            reg_t rip = 0;
+            if (VMI_FAILURE == driver_get_vcpureg(vmi, &rip, RIP, v))
+                continue;
+            if (!windows_is_kernel_address(vmi, rip))
+                continue;
+            if (v || sample)
+                dbprint(VMI_DEBUG_MISC, "**find_kdbg_address_faster: using vCPU %u (sample %u)\n", v, sample);
+            *out = v;
+            return VMI_SUCCESS;
+        }
     }
     return VMI_FAILURE;
 }
@@ -1371,7 +1397,7 @@ kdbg_header_vas(
         addr_t va = pi->vaddr + (hdr_pa - pi->paddr);
 
         if (n < max && hdr_pa >= pi->paddr && hdr_pa - pi->paddr < pi->size
-                && kdbg_is_kernel_va(va) && (va & 0x1fffff) == (hdr_pa & 0x1fffff))
+                && windows_is_kernel_address(vmi, va) && (va & 0x1fffff) == (hdr_pa & 0x1fffff))
             vas[n++] = va;
         g_free(pi);
     }
