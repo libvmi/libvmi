@@ -236,6 +236,13 @@ peparse_validate_pe_image(
     const uint8_t * const image,
     size_t len)
 {
+    /* offset_to_pe lives at offset 60 of a 64-byte header, so a 2-byte image starting
+     * "MZ" reached the read below and ran off the end. */
+    if (len < sizeof(struct dos_header)) {
+        dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: image shorter than the DOS header\n");
+        return VMI_FAILURE;
+    }
+
     struct dos_header *dos_header = (struct dos_header *) image;
 
     if (IMAGE_DOS_HEADER != dos_header->signature) {
@@ -245,7 +252,11 @@ peparse_validate_pe_image(
 
     uint32_t ofs_to_pe = dos_header->offset_to_pe;
 
-    if (ofs_to_pe + sizeof(struct pe_header) + sizeof(struct optional_header_pe32) > len) {
+    /* Bound with the smaller optional header first so the magic can be read safely; the
+     * magic then says which header is really there and the bound is redone below. */
+    uint64_t need = (uint64_t) ofs_to_pe + sizeof(struct pe_header)
+                    + sizeof(struct optional_header_pe32);
+    if (need > len) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: offset to PE would be outside buffer length\n");
         return VMI_FAILURE;
     }
@@ -264,6 +275,17 @@ peparse_validate_pe_image(
     if (IMAGE_PE32_MAGIC != pe_opt_header->magic && IMAGE_PE32_PLUS_MAGIC != pe_opt_header->magic) {
         dbprint(VMI_DEBUG_PEPARSE, "--PEPARSE: Optional header magic value unknown\n");
         return VMI_FAILURE;
+    }
+
+    /* PE32+ was accepted, so the larger optional header must also fit. */
+    if (IMAGE_PE32_PLUS_MAGIC == pe_opt_header->magic) {
+        need = (uint64_t) ofs_to_pe + sizeof(struct pe_header)
+               + sizeof(struct optional_header_pe32plus);
+        if (need > len) {
+            dbprint(VMI_DEBUG_PEPARSE,
+                    "--PEPARSE: PE32+ optional header would be outside buffer length\n");
+            return VMI_FAILURE;
+        }
     }
 
     return VMI_SUCCESS;
@@ -315,7 +337,10 @@ peparse_assign_headers(
         *optional_pe_header = op_h_t;
     }
 
-    uint16_t magic = *((uint16_t *) op_h_t);
+    /* offset_to_pe comes from the image and can be odd, so a uint16_t load through this
+     * pointer is undefined. The returned interior pointers have the same hazard. */
+    uint16_t magic = 0;
+    memcpy(&magic, op_h_t, sizeof(magic));
     if (optional_header_type != NULL) {
         *optional_header_type = magic;
     }

@@ -231,6 +231,7 @@ int main (int argc, char **argv)
     struct sigaction act;
     char *name = NULL;
     vmi_init_data_t *init_data = NULL;
+    int retcode = 1;
 
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <name of VM> [<socket>]\n", argv[0]);
@@ -261,19 +262,19 @@ int main (int argc, char **argv)
     vmi_mode_t mode;
     if (VMI_FAILURE == vmi_get_access_mode(NULL, name, VMI_INIT_DOMAINNAME, init_data, &mode)) {
         printf("Failed to find a supported hypervisor with LibVMI\n");
-        return 1;
+        goto error_exit;
     }
 
     /* initialize the libvmi library */
     if (VMI_FAILURE == vmi_init(&vmi, mode, name, VMI_INIT_DOMAINNAME | VMI_INIT_EVENTS, init_data, NULL)) {
         printf("Failed to init LibVMI library.\n");
-        return 1;
+        goto error_exit;
     }
 
     if ( VMI_PM_UNKNOWN == vmi_init_paging(vmi, 0) ) {
         printf("Failed to init determine paging.\n");
         vmi_destroy(vmi);
-        return 1;
+        goto error_exit;
     }
 
     printf("LibVMI init succeeded!\n");
@@ -321,11 +322,13 @@ int main (int argc, char **argv)
 
     // cleanup any memory associated with the libvmi instance
     vmi_destroy(vmi);
+    retcode = 0;
 
+error_exit:
     if (init_data) {
         free(init_data->entry[0].data);
         free(init_data);
     }
 
-    return 0;
+    return retcode;
 }
