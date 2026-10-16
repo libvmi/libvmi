@@ -100,19 +100,16 @@ status_t xen_set_mem_access_range(vmi_instance_t vmi, addr_t gpfn_start, addr_t 
         rc = xen->libxcw.xc_set_mem_access(xch, dom, access, gpfn_start, gpfn_end - gpfn_start);
     else {
         uint32_t nr = gpfn_end - gpfn_start;
-        uint64_t* pgfns = NULL;
-        uint8_t* paccess = NULL;
+        uint64_t* pgfns = calloc(nr, sizeof(uint64_t));
+        uint8_t* paccess = calloc(nr, sizeof(uint8_t));
 
-        pgfns = calloc(nr, sizeof(uint64_t));
-        if ( !pgfns ) {
+        /* Decide the failure before freeing: a pointer's value is indeterminate once its
+         * object is gone (C11 6.2.4p2), so the old test read indeterminate values. */
+        if ( !pgfns || !paccess ) {
             errprint("%s error: failed to allocate memory\n", __FUNCTION__);
-            goto done;
-        }
-
-        paccess = calloc(nr, sizeof(uint8_t));
-        if ( !paccess ) {
-            errprint("%s error: failed to allocate memory\n", __FUNCTION__);
-            goto done;
+            free(pgfns);
+            free(paccess);
+            return VMI_FAILURE;
         }
 
         for ( uint32_t i = 0; i < nr; i++ ) {
@@ -122,15 +119,8 @@ status_t xen_set_mem_access_range(vmi_instance_t vmi, addr_t gpfn_start, addr_t 
 
         rc = xen->libxcw.xc_altp2m_set_mem_access_multi(xch, dom, altp2m_idx, paccess, pgfns, nr);
 
-done:
-        if ( pgfns )
-            free(pgfns);
-
-        if ( paccess )
-            free(paccess);
-
-        if ( !pgfns || !paccess )
-            return VMI_FAILURE;
+        free(pgfns);
+        free(paccess);
     }
 
     if (rc) {
