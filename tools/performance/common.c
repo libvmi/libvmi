@@ -47,7 +47,6 @@ static double stddev(
     long int *data,
     int count)
 {
-    double *sq_data = malloc(count * sizeof(double));
     double total = 0.0;
     double mean = 0.0;
     int i = 0;
@@ -56,15 +55,13 @@ static double stddev(
         total += (double) data[i];
     }
 
+    /* Summed as computed: the array that held them was never freed, and the sum is the
+     * same term by term. */
     mean = total / (double) count;
-    for (i = 0; i < count; ++i) {
-        sq_data[i] = ((double) data[i]) - mean;
-        sq_data[i] *= sq_data[i];
-    }
-
     total = 0.0;
     for (i = 0; i < count; ++i) {
-        total += sq_data[i];
+        double dev = ((double) data[i]) - mean;
+        total += dev * dev;
     }
     mean = total / (double) count;
 
