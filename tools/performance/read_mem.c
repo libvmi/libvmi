@@ -43,15 +43,25 @@ int main(int argc, char **argv)
     int buf_size = atoi(argv[2]);
     int loops = atoi(argv[3]);
     int mode = atoi(argv[4]);
-    unsigned char *buf = malloc(buf_size);
+    unsigned char *buf = NULL;
     int i = 0;
     long int diff;
-    long int *data = malloc(loops * sizeof(long int));
+    long int *data = NULL;
     int j = 0;
 
     uint32_t value = 0;
     if (mode != 1 && mode != 2) {
         printf("invalid mode\n");
+        return 1;
+    }
+
+    /* Allocated after the argument check, so the early return above has nothing to leak. */
+    buf = malloc(buf_size);
+    data = malloc(loops * sizeof(long int));
+    if (!buf || !data) {
+        printf("failed to allocate buffers\n");
+        free(buf);
+        free(data);
         return 1;
     }
 
