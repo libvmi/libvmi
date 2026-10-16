@@ -1452,6 +1452,8 @@ kvm_set_mem_access_range(
     (void)str_access;
     dbprint(VMI_DEBUG_KVM, "--Setting memaccess permissions to %s on GPFN: 0x%" PRIx64 " - 0x%" PRIx64 "\n",
             str_access, gpfn_start, gpfn_end);
+    free(gpa);
+    free(access);
     return VMI_SUCCESS;
 
 error_exit:
