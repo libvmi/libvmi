@@ -121,6 +121,8 @@ addr_t windows_find_eprocess_list_pgd(vmi_instance_t vmi, addr_t pgd);
 
 status_t init_from_kdbg(vmi_instance_t vmi);
 status_t windows_refresh_init_cr3(vmi_instance_t vmi, addr_t kva, addr_t kpa);
+bool windows_is_kernel_address(vmi_instance_t vmi, addr_t va);
+win_ver_t pe2version(vmi_instance_t vmi, addr_t kernbase_pa, uint16_t *major, uint16_t *minor);
 status_t windows_kdbg_lookup(vmi_instance_t vmi, const char *symbol, addr_t *address);
 
 unicode_string_t *windows_read_unicode_struct(vmi_instance_t vmi, const access_context_t *ctx);
